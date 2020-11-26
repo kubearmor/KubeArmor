@@ -58,7 +58,7 @@ If you want to make a contribution, please refer to the following documents.
 
 * Slack
 
-  Please join the KubeArmor Slack channel to communicate with KubeArmor developers and other users.
+  Please join [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor developers and other users.
 
 # License
 
