@@ -1,0 +1,228 @@
+# Last Modified: Wed Sep 3 21:52:03 2014
+
+  #include <abstractions/base>
+  #include <abstractions/consoles>
+  #include <abstractions/nameservice>
+
+  # required for reading disk images
+  capability dac_override,
+  capability dac_read_search,
+  capability chown,
+
+  # needed to drop privileges
+  capability setgid,
+  capability setuid,
+
+  # for 9p
+  capability fsetid,
+  capability fowner,
+
+  network inet stream,
+  network inet6 stream,
+
+  ptrace (readby, tracedby) peer=/usr/sbin/libvirtd,
+
+  signal (receive) peer=/usr/sbin/libvirtd,
+
+  /dev/net/tun rw,
+  /dev/kvm rw,
+  /dev/ptmx rw,
+  /dev/kqemu rw,
+  @{PROC}/*/status r,
+  # When qemu is signaled to terminate, it will read cmdline of signaling
+  # process for reporting purposes. Allowing read access to a process
+  # cmdline may leak sensitive information embedded in the cmdline.
+  @{PROC}/@{pid}/cmdline r,
+  # Per man(5) proc, the kernel enforces that a thread may
+  # only modify its comm value or those in its thread group.
+  owner @{PROC}/@{pid}/task/@{tid}/comm rw,
+  @{PROC}/sys/kernel/cap_last_cap r,
+  owner @{PROC}/*/auxv r,
+  @{PROC}/sys/vm/overcommit_memory r,
+
+  # For hostdev access. The actual devices will be added dynamically
+  /sys/bus/usb/devices/ r,
+  /sys/devices/**/usb[0-9]*/** r,
+  # libusb needs udev data about usb devices (~equal to content of lsusb -v)
+  /run/udev/data/c16[6,7]* r,
+  /run/udev/data/c18[0,8,9]* r,
+  /run/udev/data/+usb* r,
+
+  # WARNING: this gives the guest direct access to host hardware and specific
+  # portions of shared memory. This is required for sound using ALSA with kvm,
+  # but may constitute a security risk. If your environment does not require
+  # the use of sound in your VMs, feel free to comment out or prepend 'deny' to
+  # the rules for files in /dev.
+  /{dev,run}/shm r,
+  /{dev,run}/shmpulse-shm* r,
+  /{dev,run}/shmpulse-shm* rwk,
+  /dev/snd/* rw,
+  capability ipc_lock,
+  # spice
+  owner /{dev,run}/shm/spice.* rw,
+  # 'kill' is not required for sound and is a security risk. Do not enable
+  # unless you absolutely need it.
+  deny capability kill,
+
+  # Uncomment the following if you need access to /dev/fb*
+  #/dev/fb* rw,
+
+  /etc/pulse/client.conf r,
+  @{HOME}/.pulse-cookie rwk,
+  owner /root/.pulse-cookie rwk,
+  owner /root/.pulse/ rw,
+  owner /root/.pulse/* rw,
+  /usr/share/alsa/** r,
+  owner /tmp/pulse-*/ rw,
+  owner /tmp/pulse-*/* rw,
+  /var/lib/dbus/machine-id r,
+
+  # access to firmware's etc
+  /usr/share/kvm/** r,
+  /usr/share/qemu/** r,
+  /usr/share/qemu-kvm/** r,
+  /usr/share/bochs/** r,
+  /usr/share/openbios/** r,
+  /usr/share/openhackware/** r,
+  /usr/share/proll/** r,
+  /usr/share/vgabios/** r,
+  /usr/share/seabios/** r,
+  /usr/share/misc/sgabios.bin r,
+  /usr/share/ovmf/** r,
+  /usr/share/OVMF/** r,
+  /usr/share/AAVMF/** r,
+  /usr/share/qemu-efi/** r,
+  /usr/share/slof/** r,
+
+  # pki for libvirt-vnc and libvirt-spice (LP: #901272, #1690140)
+  /etc/pki/CA/ r,
+  /etc/pki/CA/* r,
+  /etc/pki/libvirt{,-spice,-vnc}/ r,
+  /etc/pki/libvirt{,-spice,-vnc}/** r,
+
+  # the various binaries
+  /usr/bin/kvm rmix,
+  /usr/bin/qemu rmix,
+  /usr/bin/qemu-kvm rmix,
+  /usr/bin/qemu-system-aarch64 rmix,
+  /usr/bin/qemu-system-alpha rmix,
+  /usr/bin/qemu-system-arm rmix,
+  /usr/bin/qemu-system-cris rmix,
+  /usr/bin/qemu-system-i386 rmix,
+  /usr/bin/qemu-system-lm32 rmix,
+  /usr/bin/qemu-system-m68k rmix,
+  /usr/bin/qemu-system-microblaze rmix,
+  /usr/bin/qemu-system-microblazeel rmix,
+  /usr/bin/qemu-system-mips rmix,
+  /usr/bin/qemu-system-mips64 rmix,
+  /usr/bin/qemu-system-mips64el rmix,
+  /usr/bin/qemu-system-mipsel rmix,
+  /usr/bin/qemu-system-moxie rmix,
+  /usr/bin/qemu-system-or32 rmix,
+  /usr/bin/qemu-system-ppc rmix,
+  /usr/bin/qemu-system-ppc64 rmix,
+  /usr/bin/qemu-system-ppcemb rmix,
+  /usr/bin/qemu-system-s390x rmix,
+  /usr/bin/qemu-system-sh4 rmix,
+  /usr/bin/qemu-system-sh4eb rmix,
+  /usr/bin/qemu-system-sparc rmix,
+  /usr/bin/qemu-system-sparc64 rmix,
+  /usr/bin/qemu-system-tricore rmix,
+  /usr/bin/qemu-system-unicore32 rmix,
+  /usr/bin/qemu-system-x86_64 rmix,
+  /usr/bin/qemu-system-xtensa rmix,
+  /usr/bin/qemu-system-xtensaeb rmix,
+  /usr/bin/qemu-aarch64 rmix,
+  /usr/bin/qemu-alpha rmix,
+  /usr/bin/qemu-arm rmix,
+  /usr/bin/qemu-armeb rmix,
+  /usr/bin/qemu-cris rmix,
+  /usr/bin/qemu-i386 rmix,
+  /usr/bin/qemu-m68k rmix,
+  /usr/bin/qemu-microblaze rmix,
+  /usr/bin/qemu-microblazeel rmix,
+  /usr/bin/qemu-mips rmix,
+  /usr/bin/qemu-mips64 rmix,
+  /usr/bin/qemu-mips64el rmix,
+  /usr/bin/qemu-mipsel rmix,
+  /usr/bin/qemu-mipsn32 rmix,
+  /usr/bin/qemu-mipsn32el rmix,
+  /usr/bin/qemu-or32 rmix,
+  /usr/bin/qemu-ppc rmix,
+  /usr/bin/qemu-ppc64 rmix,
+  /usr/bin/qemu-ppc64abi32 rmix,
+  /usr/bin/qemu-ppc64le rmix,
+  /usr/bin/qemu-s390x rmix,
+  /usr/bin/qemu-sh4 rmix,
+  /usr/bin/qemu-sh4eb rmix,
+  /usr/bin/qemu-sparc rmix,
+  /usr/bin/qemu-sparc32plus rmix,
+  /usr/bin/qemu-sparc64 rmix,
+  /usr/bin/qemu-unicore32 rmix,
+  /usr/bin/qemu-x86_64 rmix,
+  # for Debian/Ubuntu qemu-block-extra / RPMs qemu-block-* (LP: #1554761)
+  /usr/{lib,lib64}/qemu/*.so mr,
+  /usr/lib/@{multiarch}/qemu/*.so mr,
+
+  # let qemu load old shared objects after upgrades (LP: #1847361)
+  /{var/,}run/qemu/*/*.so mr,
+  # but explicitly deny with auditing writing to these files
+  audit deny /{var/,}run/qemu/*/*.so w,
+
+  # for save and resume
+  /{usr/,}bin/dash rmix,
+  /{usr/,}bin/dd rmix,
+  /{usr/,}bin/cat rmix,
+
+  # for restore
+  /{usr/,}bin/bash rmix,
+
+  # for usb access
+  /dev/bus/usb/ r,
+  /etc/udev/udev.conf r,
+  /sys/bus/ r,
+  /sys/class/ r,
+
+  # for rbd
+  /etc/ceph/ceph.conf r,
+
+  # for file-posix getting limits since 9103f1ce
+  /sys/devices/**/block/*/queue/max_segments r,
+
+  # for ppc device-tree access
+  @{PROC}/device-tree/ r,
+  @{PROC}/device-tree/** r,
+  /sys/firmware/devicetree/** r,
+
+  # allow connect with openGraphicsFD to work
+  unix (send, receive) type=stream addr=none peer=(label=/usr/sbin/libvirtd),
+
+  # allow access to charm-specific ceph config and silence spurious
+  # denials (LP: #1403648).
+  /var/lib/charm/*/ceph.conf r,
+  deny /tmp/{,**} r,
+  deny /var/tmp/{,**} r,
+
+  # kvm.powerpc executes/accesses this
+  /bin/uname rmix,
+  /usr/sbin/ppc64_cpu rmix,
+  /bin/grep rmix,
+  /sys/devices/system/cpu/subcores_per_core r,
+  /sys/devices/system/cpu/cpu*/online r,
+
+  # for gathering information about available host resources
+  /sys/devices/system/cpu/ r,
+  /sys/devices/system/node/ r,
+  /sys/devices/system/node/node[0-9]*/meminfo r,
+  /sys/module/vhost/parameters/max_mem_regions r,
+
+  # silence refusals to open lttng files (see LP: #1432644)
+  deny /dev/shm/lttng-ust-wait-* r,
+  deny /run/shm/lttng-ust-wait-* r,
+
+  # for vfio hotplug on systems without static vfio (LP: #1775777)
+  /dev/vfio/vfio rw,
+
+  # required for sasl GSSAPI plugin
+  /etc/gss/mech.d/ r,
+  /etc/gss/mech.d/* r,

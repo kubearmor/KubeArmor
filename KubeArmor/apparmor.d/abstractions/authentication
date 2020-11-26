@@ -1,0 +1,51 @@
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2002-2009 Novell/SUSE
+#    Copyright (C) 2009-2012 Canonical Ltd
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+
+
+  # Some services need to perform authentication of users
+  # Such authentication almost certainly needs access to the local users
+  # databases containing passwords, PAM configuration files, PAM libraries
+  /etc/nologin                r,
+  /etc/pam.d/*                r,
+  /etc/securetty              r,
+  /etc/security/*             r,
+  /etc/shadow                 r,
+  /etc/gshadow                r,
+  /etc/pwdb.conf              r,
+
+  /{usr/,}lib{,32,64}/security/pam_filter/*  mr,
+  /{usr/,}lib{,32,64}/security/pam_*.so      mr,
+  /{usr/,}lib{,32,64}/security/              r,
+  /{usr/,}lib/@{multiarch}/security/pam_filter/*  mr,
+  /{usr/,}lib/@{multiarch}/security/pam_*.so      mr,
+  /{usr/,}lib/@{multiarch}/security/              r,
+
+  # kerberos
+  #include <abstractions/kerberosclient>
+  # SuSE's pwdutils are different:
+  /etc/default/passwd         r,
+  /etc/login.defs             r,
+
+  # nis
+  #include <abstractions/nis>
+
+  # winbind
+  #include <abstractions/winbind>
+
+  # likewise
+  #include <abstractions/likewise>
+
+  # smbpass
+  #include <abstractions/smbpass>
+
+  # p11-kit (PKCS#11 modules configuration)
+  #include <abstractions/p11-kit>

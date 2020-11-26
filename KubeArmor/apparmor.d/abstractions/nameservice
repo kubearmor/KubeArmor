@@ -1,0 +1,120 @@
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2002-2009 Novell/SUSE
+#    Copyright (C) 2009-2011 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+  # Many programs wish to perform nameservice-like operations, such as
+  # looking up users by name or id, groups by name or id, hosts by name
+  # or IP, etc. These operations may be performed through files, dns,
+  # NIS, NIS+, LDAP, hesiod, wins, etc. Allow them all here.
+  /etc/group              r,
+  /etc/host.conf          r,
+  /etc/hosts              r,
+  /etc/nsswitch.conf      r,
+  /etc/gai.conf           r,
+  /etc/passwd             r,
+  /etc/protocols          r,
+
+  # libtirpc (used for NIS/YP login) needs this
+  /etc/netconfig r,
+
+  # When using libnss-extrausers, the passwd and group files are merged from
+  # an alternate path
+  /var/lib/extrausers/group  r,
+  /var/lib/extrausers/passwd r,
+
+  # When using sssd, the passwd and group files are stored in an alternate path
+  # and the nss plugin also needs to talk to a pipe
+  /var/lib/sss/mc/group   r,
+  /var/lib/sss/mc/initgroups r,
+  /var/lib/sss/mc/passwd  r,
+  /var/lib/sss/pipes/nss  rw,
+
+  /etc/resolv.conf        r,
+  # On systems where /etc/resolv.conf is managed programmatically, it is
+  # a symlink to /{,var/}run/(whatever program is managing it)/resolv.conf.
+  /{,var/}run/{resolvconf,NetworkManager,systemd/resolve,connman}/resolv.conf r,
+  /etc/resolvconf/run/resolv.conf r,
+  /{,var/}run/systemd/resolve/stub-resolv.conf r,
+
+  /etc/samba/lmhosts      r,
+  /etc/services           r,
+  # db backend
+  /var/lib/misc/*.db      r,
+  # The Name Service Cache Daemon can cache lookups, sometimes leading
+  # to vast speed increases when working with network-based lookups.
+  /{,var/}run/.nscd_socket   rw,
+  /{,var/}run/nscd/socket    rw,
+  /{var/db,var/cache,var/lib,var/run,run}/nscd/{passwd,group,services,hosts}    r,
+  # nscd renames and unlinks files in it's operation that clients will
+  # have open
+  /{,var/}run/nscd/db*  rmix,
+
+  # The nss libraries are sometimes used in addition to PAM; make sure
+  # they are available
+  /{usr/,}lib{,32,64}/libnss_*.so*      mr,
+  /{usr/,}lib/@{multiarch}/libnss_*.so*      mr,
+  /etc/default/nss               r,
+
+  # avahi-daemon is used for mdns4 resolution
+  /{,var/}run/avahi-daemon/socket rw,
+
+  # libnl-3-200 via libnss-gw-name
+  @{PROC}/@{pid}/net/psched r,
+  /etc/libnl-*/classid r,
+
+  # nis
+  #include <abstractions/nis>
+
+  # ldap
+  #include <abstractions/ldapclient>
+
+  # winbind
+  #include <abstractions/winbind>
+
+  # likewise
+  #include <abstractions/likewise>
+
+  # mdnsd
+  #include <abstractions/mdns>
+
+  # kerberos
+  #include <abstractions/kerberosclient>
+
+  # resolve
+  #
+  # Allow access to the safe members of the systemd-resolved D-Bus API:
+  #
+  #   https://www.freedesktop.org/wiki/Software/systemd/resolved/
+  #
+  # This API may be used directly over the D-Bus system bus or it may be used
+  # indirectly via the nss-resolve plugin:
+  #
+  #   https://www.freedesktop.org/software/systemd/man/nss-resolve.html
+  #
+  #include <abstractions/dbus-strict>
+  dbus send
+       bus=system
+       path="/org/freedesktop/resolve1"
+       interface="org.freedesktop.resolve1.Manager"
+       member="Resolve{Address,Hostname,Record,Service}"
+       peer=(name="org.freedesktop.resolve1"),
+
+  # TCP/UDP network access
+  network inet  stream,
+  network inet6 stream,
+  network inet  dgram,
+  network inet6 dgram,
+
+  # TODO: adjust when support finer-grained netlink rules
+  # Netlink raw needed for nscd
+  network netlink raw,
+
+  # interface details
+  @{PROC}/@{pid}/net/route r,

@@ -1,0 +1,20 @@
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2006-2009 Novell/SUSE
+#    Copyright (C) 2010-2014 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+# All the tunables definitions that should be available to every profile
+# should be included here
+
+#include <tunables/home>
+#include <tunables/multiarch>
+#include <tunables/proc>
+#include <tunables/alias>
+#include <tunables/kernelvars>
+#include <tunables/xdg-user-dirs>

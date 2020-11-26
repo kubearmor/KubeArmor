@@ -1,0 +1,23 @@
+# vim:syntax=apparmor
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2002-2005 Novell/SUSE
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+
+
+  # there are three common ways to refer to consoles
+  /dev/console rw,
+  /dev/tty     rw,
+  # this next entry is a tad unfortunate; /dev/tty will always be
+  # associated with the controlling terminal by the kernel, but if a
+  # program uses the /dev/pts/ interface, it actually has access to
+  # -all- xterm, sshd, etc, terminals on the system.
+  /dev/pts/[0-9]*   rw,
+  /dev/pts/         r,
+

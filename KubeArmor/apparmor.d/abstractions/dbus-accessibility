@@ -1,0 +1,16 @@
+# vim:syntax=apparmor
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2013 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+  # This abstraction grants full accessibility bus access. Consider using the
+  # dbus-accessibility-strict abstraction for fine-grained bus mediation.
+
+  #include <abstractions/dbus-accessibility-strict>
+  dbus bus=accessibility,

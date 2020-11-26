@@ -1,0 +1,164 @@
+# vim:syntax=apparmor
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2002-2009 Novell/SUSE
+#    Copyright (C) 2009-2011 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+
+
+  # (Note that the ldd profile has inlined this file; if you make
+  # modifications here, please consider including them in the ldd
+  # profile as well.)
+
+  # The __canary_death_handler function writes a time-stamped log
+  # message to /dev/log for logging by syslogd. So, /dev/log, timezones,
+  # and localisations of date should be available EVERYWHERE, so
+  # StackGuard, FormatGuard, etc., alerts can be properly logged.
+  /dev/log                       w,
+  /dev/random                    r,
+  /dev/urandom                   r,
+  /etc/locale/**                 r,
+  /etc/locale.alias              r,
+  /etc/localtime                 r,
+  /etc/writable/localtime        r,
+  /usr/share/locale-bundle/**    r,
+  /usr/share/locale-langpack/**  r,
+  /usr/share/locale/**           r,
+  /usr/share/**/locale/**        r,
+  /usr/share/zoneinfo/           r,
+  /usr/share/zoneinfo/**         r,
+  /usr/share/X11/locale/**       r,
+  /run/systemd/journal/dev-log w,
+  # systemd native journal API (see sd_journal_print(4))
+  /run/systemd/journal/socket w,
+  # Nested containers and anything using systemd-cat need this. 'r' shouldn't
+  # be required but applications fail without it. journald doesn't leak
+  # anything when reading so this is ok.
+  /run/systemd/journal/stdout rw,
+
+  /usr/lib{,32,64}/locale/**             mr,
+  /usr/lib{,32,64}/gconv/*.so            mr,
+  /usr/lib{,32,64}/gconv/gconv-modules*  mr,
+  /usr/lib/@{multiarch}/gconv/*.so           mr,
+  /usr/lib/@{multiarch}/gconv/gconv-modules* mr,
+
+  # used by glibc when binding to ephemeral ports
+  /etc/bindresvport.blacklist    r,
+
+  # ld.so.cache and ld are used to load shared libraries; they are best
+  # available everywhere
+  /etc/ld.so.cache               mr,
+  /etc/ld.so.conf                r,
+  /etc/ld.so.conf.d/{,*.conf}    r,
+  /etc/ld.so.preload             r,
+  /{usr/,}lib{,32,64}/ld{,32,64}-*.so   mr,
+  /{usr/,}lib/@{multiarch}/ld{,32,64}-*.so    mr,
+  /{usr/,}lib/tls/i686/{cmov,nosegneg}/ld-*.so     mr,
+  /{usr/,}lib/i386-linux-gnu/tls/i686/{cmov,nosegneg}/ld-*.so     mr,
+  /opt/*-linux-uclibc/lib/ld-uClibc*so* mr,
+
+  # we might as well allow everything to use common libraries
+  /{usr/,}lib{,32,64}/**                r,
+  /{usr/,}lib{,32,64}/lib*.so*          mr,
+  /{usr/,}lib{,32,64}/**/lib*.so*       mr,
+  /{usr/,}lib/@{multiarch}/**            r,
+  /{usr/,}lib/@{multiarch}/lib*.so*      mr,
+  /{usr/,}lib/@{multiarch}/**/lib*.so*   mr,
+  /{usr/,}lib/tls/i686/{cmov,nosegneg}/lib*.so*    mr,
+  /{usr/,}lib/i386-linux-gnu/tls/i686/{cmov,nosegneg}/lib*.so*    mr,
+
+  # /dev/null is pretty harmless and frequently used
+  /dev/null                      rw,
+  # as is /dev/zero
+  /dev/zero                      rw,
+  # recent glibc uses /dev/full in preference to /dev/null for programs
+  # that don't have open fds at exec()
+  /dev/full                      rw,
+
+  # Sometimes used to determine kernel/user interfaces to use
+  @{PROC}/sys/kernel/version     r,
+  # Depending on which glibc routine uses this file, base may not be the
+  # best place -- but many profiles require it, and it is quite harmless.
+  @{PROC}/sys/kernel/ngroups_max r,
+
+  # glibc's sysconf(3) routine to determine free memory, etc
+  @{PROC}/meminfo                r,
+  @{PROC}/stat                   r,
+  @{PROC}/cpuinfo                r,
+  /sys/devices/system/cpu/       r,
+  /sys/devices/system/cpu/online r,
+
+  # glibc's *printf protections read the maps file
+  @{PROC}/@{pid}/{maps,auxv,status} r,
+
+  # libgcrypt reads some flags from /proc
+  @{PROC}/sys/crypto/*           r,
+
+  # some applications will display license information
+  /usr/share/common-licenses/**  r,
+
+  # glibc statvfs
+  @{PROC}/filesystems            r,
+
+  # glibc malloc (man 5 proc)
+  @{PROC}/sys/vm/overcommit_memory r,
+
+  # Allow determining the highest valid capability of the running kernel
+  @{PROC}/sys/kernel/cap_last_cap r,
+
+  # Allow other processes to read our /proc entries, futexes, perf tracing and
+  # kcmp for now (they will need 'read' in the first place). Administrators can
+  # override with:
+  #   deny ptrace (readby) ...
+  ptrace (readby),
+
+  # Allow other processes to trace us by default (they will need 'trace' in
+  # the first place). Administrators can override with:
+  #   deny ptrace (tracedby) ...
+  ptrace (tracedby),
+
+  # Allow us to ptrace read ourselves
+  ptrace (read) peer=@{profile_name},
+
+  # Allow unconfined processes to send us signals by default
+  signal (receive) peer=unconfined,
+
+  # Allow us to signal ourselves
+  signal peer=@{profile_name},
+
+  # Checking for PID existence is quite common so add it by default for now
+  signal (receive, send) set=("exists"),
+
+  # Allow us to create and use abstract and anonymous sockets
+  unix peer=(label=@{profile_name}),
+
+  # Allow unconfined processes to us via unix sockets
+  unix (receive) peer=(label=unconfined),
+
+  # Allow us to create abstract and anonymous sockets
+  unix (create),
+
+  # Allow us to getattr, getopt, setop and shutdown on unix sockets
+  unix (getattr, getopt, setopt, shutdown),
+
+  # Workaround https://launchpad.net/bugs/359338 until upstream handles stacked
+  # filesystems generally. This does not appreciably decrease security with
+  # Ubuntu profiles because the user is expected to have access to files owned
+  # by him/her. Exceptions to this are explicit in the profiles. While this rule
+  # grants access to those exceptions, the intended privacy is maintained due to
+  # the encrypted contents of the files in this directory. Files in this
+  # directory will also use filename encryption by default, so the files are
+  # further protected. Also, with the use of 'owner', this rule properly
+  # prevents access to the files from processes running under a different uid.
+
+  # encrypted ~/.Private and old-style encrypted $HOME
+  owner @{HOME}/.Private/** mrixwlk,
+  # new-style encrypted $HOME
+  owner @{HOMEDIRS}/.ecryptfs/*/.Private/** mrixwlk,
+

@@ -1,0 +1,37 @@
+# vim:syntax=apparmor
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2002-2006 Novell/SUSE
+#    Copyright (C) 2009 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+  /usr/lib{,32,64}/python{2.[4-7],3.[0-6]}/**.{pyc,so}           mr,
+  /usr/lib{,32,64}/python{2.[4-7],3.[0-6]}/**.{egg,py,pth}       r,
+  /usr/lib{,32,64}/python{2.[4-7],3.[0-6]}/{site,dist}-packages/ r,
+  /usr/lib{,32,64}/python3.[0-6]/lib-dynload/*.so            mr,
+
+  /usr/local/lib{,32,64}/python{2.[4-7],3.[0-6]}/**.{pyc,so}           mr,
+  /usr/local/lib{,32,64}/python{2.[4-7],3.[0-6]}/**.{egg,py,pth}       r,
+  /usr/local/lib{,32,64}/python{2.[4-7],3.[0-6]}/{site,dist}-packages/ r,
+  /usr/local/lib{,32,64}/python3.[0-6]/lib-dynload/*.so            mr,
+
+  # Site-wide configuration
+  /etc/python{2.[4-7],3.[0-6]}/** r,
+
+  # shared python paths
+  /usr/share/{pyshared,pycentral,python-support}/**      r,
+  /{var,usr}/lib/{pyshared,pycentral,python-support}/**  r,
+  /usr/lib/{pyshared,pycentral,python-support}/**.so     mr,
+  /var/lib/{pyshared,pycentral,python-support}/**.pyc    mr,
+  /usr/lib/python3/dist-packages/**.so                   mr,
+
+  # wx paths
+  /usr/lib/wx/python/*.pth r,
+
+  # python build configuration and headers
+  /usr/include/python{2.[4-7],3.[0-6]}*/pyconfig.h r,

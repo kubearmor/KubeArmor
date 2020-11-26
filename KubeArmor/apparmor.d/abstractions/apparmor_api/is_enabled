@@ -1,0 +1,17 @@
+#    Copyright (C) 2012 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+# permissions needed for aa_is_enabled
+
+# Make sure to include at least tunables/sys and tunables/apparmorfs
+# when using this abstraction, if not tunables/global.
+
+#include <abstractions/apparmor_api/find_mountpoint>
+@{sys}/module/apparmor/parameters/enabled r,
+
+# TODO: add alternate apparmorfs interface for enabled

@@ -1,0 +1,7 @@
+# This file is auto-generated. It is recommended you update it using:
+# $ sudo dpkg-reconfigure apparmor
+#
+# The following is a space-separated list of where additional user home
+# directories are stored, each must have a trailing '/'. Directories added
+# here are appended to @{HOMEDIRS}.  See tunables/home for details.
+#@{HOMEDIRS}+=

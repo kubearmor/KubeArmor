@@ -1,0 +1,58 @@
+### Builder
+
+FROM kubearmor/kubearmor:base as builder
+
+WORKDIR /usr/src/KubeArmor
+
+COPY ./AppArmor ./AppArmor
+COPY ./apparmor.d ./apparmor.d
+COPY ./Auditd ./Audit
+COPY ./BPF ./BPF
+COPY ./GKE ./GKE
+COPY ./add_edge.sh ./add_edge.sh
+
+COPY ./audit ./build/audit
+COPY ./common ./build/common
+COPY ./core ./build/core
+COPY ./discovery ./build/discovery
+COPY ./enforcer ./build/enforcer
+COPY ./log ./build/log
+COPY ./monitor ./build/monitor
+COPY ./types ./build/types
+COPY ./go.mod ./build
+COPY ./main.go ./build
+
+WORKDIR /usr/src/KubeArmor/build
+
+RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
+
+### Make executable image
+
+FROM alpine:3.12
+
+RUN apk update
+
+COPY --from=builder /usr/src/KubeArmor/add_edge.sh /add_edge.sh
+RUN /add_edge.sh
+RUN rm /add_edge.sh
+
+RUN apk update
+RUN apk add bcc bcc-dev bash
+RUN apk add apparmor@edge audit@edge
+
+COPY --from=builder /usr/src/KubeArmor/build/kubearmor /KubeArmor/kubearmor
+
+COPY --from=builder /usr/src/KubeArmor/AppArmor/* /KubeArmor/AppArmor/
+COPY --from=builder /usr/src/KubeArmor/BPF/* /KubeArmor/BPF/
+COPY --from=builder /usr/src/KubeArmor/GKE/* /KubeArmor/GKE/
+
+COPY --from=builder /usr/src/KubeArmor/apparmor.d/abstractions /etc/apparmor.d/abstractions
+COPY --from=builder /usr/src/KubeArmor/apparmor.d/tunables /etc/apparmor.d/tunables
+COPY --from=builder /usr/src/KubeArmor/Audit/* /etc/audit/
+
+RUN ln -s /usr/sbin/auditctl /sbin/auditctl
+RUN ln -s /usr/sbin/audispd /sbin/audispd
+RUN ln -s /usr/sbin/auditd /sbin/auditd
+RUN mkdir -p /KubeArmor/audit
+
+ENTRYPOINT ["/KubeArmor/kubearmor"]

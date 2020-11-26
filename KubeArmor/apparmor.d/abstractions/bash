@@ -1,0 +1,44 @@
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2002-2006 Novell/SUSE
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+  # user-specific bash files
+  @{HOMEDIRS}                      r,
+  @{HOME}/.bashrc                  r,
+  @{HOME}/.profile                 r,
+  @{HOME}/.bash_profile            r,
+  @{HOME}/.bash_history            rw,
+
+  # system-wide bash configuration
+  /etc/profile.dos                 r,
+  /etc/profile                     r,
+  /etc/profile.d/                  r,
+  /etc/profile.d/*                 r,
+  /etc/bashrc                      r,
+  /etc/bash.bashrc                 r,
+  /etc/bash.bashrc.local           r,
+  /etc/bash_completion             r,
+  /etc/bash_completion.d/          r,
+  /etc/bash_completion.d/*         r,
+
+  # bash relies on system-wide readline configuration
+  /etc/inputrc                     r,
+
+  # bash inspects filesystems at startup
+  /etc/mtab                        r,
+  @{PROC}/@{pid}/mounts            r,
+  @{PROC}/filesystems              r,
+
+  # probably readline wants to know terminal capabilities
+  /usr/share/terminfo/**           r,
+
+  # run out of /etc/bash.bashrc
+  /etc/DIR_COLORS                  r,
+  /{usr/,}bin/ls                   mix,
+  /usr/bin/dircolors               mix,

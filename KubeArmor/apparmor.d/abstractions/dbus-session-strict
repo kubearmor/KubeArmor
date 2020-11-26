@@ -1,0 +1,29 @@
+# vim:syntax=apparmor
+# ------------------------------------------------------------------
+#
+#    Copyright (C) 2011-2013 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+  # unique per-machine identifier
+  /etc/machine-id r,
+  /var/lib/dbus/machine-id r,
+  owner /run/user/*/bus rw,
+
+  unix (connect, receive, send)
+       type=stream
+       peer=(addr="@/tmp/dbus-*"),
+
+  # dbus with systemd and --enable-user-session
+  owner /run/user/[0-9]*/bus rw,
+
+  dbus send
+       bus=session
+       path=/org/freedesktop/DBus
+       interface=org.freedesktop.DBus
+       member={Hello,AddMatch,RemoveMatch,GetNameOwner,NameHasOwner,StartServiceByName}
+       peer=(name=org.freedesktop.DBus),

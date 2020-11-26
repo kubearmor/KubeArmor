@@ -1,0 +1,12 @@
+#    Copyright (C) 2012 Canonical Ltd.
+#
+#    This program is free software; you can redistribute it and/or
+#    modify it under the terms of version 2 of the GNU General Public
+#    License published by the Free Software Foundation.
+#
+# ------------------------------------------------------------------
+
+# Make sure to include at least tunables/proc and tunables/kernelvars
+# when using this abstraction, if not tunables/global.
+
+@{PROC}/@{pids}/attr/{current,prev,exec} r,
