@@ -69,7 +69,7 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
             Network operations according to protocols, IP addresses and ports (socket level)  
             Capabilities permitted
 
-- Features (and changes) in a near future
+- Future releases
 
     - Container Platforms
     
