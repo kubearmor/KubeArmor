@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: kubearmor
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor
+  namespace: kube-system
+  labels:
+    daemonset: kubearmor
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor
+  template:
+    metadata:
+      labels:
+        container: kubearmor
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined  
+    spec:
+      serviceAccountName: kubearmor
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      containers:
+      - name: kubearmor
+        image: kubearmor/kubearmor:latest
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - AUDIT_CONTROL # Auditd
+            - AUDIT_READ # Auditd
+            - AUDIT_WRITE # Auditd
+            - SYS_NICE # Auditd
+        volumeMounts:
+        - name: docker-socket-file # docker (read-only)
+          mountPath: /var/run/docker.sock
+          readOnly: true
+        - name: usr-src-path # BPF (read-only)
+          mountPath: /usr/src
+          readOnly: true
+        - name: lib-modules-path # BPF (read-only)
+          mountPath: /lib/modules
+          readOnly: true
+        - name: sys-fs-bpf-path # BPF (read-write)
+          mountPath: /sys/fs/bpf
+        - name: sys-kernel-debug-path # BPF (read-write)
+          mountPath: /sys/kernel/debug
+        - name: os-release-path # OS (kernel-headers)
+          mountPath: /media/root/etc/os-release
+          readOnly: true
+        resources:
+          limits:
+            cpu: "1"
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: docker-socket-file # docker
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: usr-src-path # BPF
+        hostPath:
+          path: /usr/src
+          type: Directory
+      - name: lib-modules-path # BPF
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: sys-fs-bpf-path # BPF
+        hostPath:
+          path: /sys/fs/bpf
+          type: Directory
+      - name: sys-kernel-debug-path # BPF
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: os-release-path # OS (kernel-headers)
+        hostPath:
+          path: /etc/os-release
+          type: File
