@@ -1,0 +1,16 @@
+language: generic
+
+os: linux
+dist: bionic
+
+services:
+  - docker
+
+before_install:
+  - .travis/prepare.sh
+
+install:
+  - KubeArmor/build/build_kubearmor.sh test
+
+script:
+  - .travis/verify.sh
