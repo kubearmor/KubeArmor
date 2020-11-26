@@ -1,0 +1,9 @@
+# KubeArmor
+go.sum
+kubearmor
+
+# BPF
+pinned_map.o
+
+# Contribution
+.vscode
