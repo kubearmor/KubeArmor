@@ -1,0 +1,20 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-file-path-readonly-allow
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  process: # need some exectuables to test
+    matchDirectories:
+      - dir: /bin/
+      - dir: /usr/bin/
+  file:
+    matchPaths:
+    - path: /secret.txt # echo "test" >> /secret.txt
+    - path: /credentials/password # echo "test" >> /credentials/password
+      readOnly: true
+  action:
+    Allow

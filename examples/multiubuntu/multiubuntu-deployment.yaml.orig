@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: multiubuntu
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-1-deployment
+  namespace: multiubuntu
+  labels:
+    deployment: ubuntu-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      group: group-1
+      container: ubuntu-1
+  template:
+    metadata:
+      labels:
+        group: group-1
+        container: ubuntu-1
+    spec:
+      containers:
+        - name: ubuntu-1-container
+          image: 0x010/ubuntu-w-utils:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-2-deployment
+  namespace: multiubuntu
+  labels:
+    deployment: ubuntu-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      group: group-1
+      container: ubuntu-2
+  template:
+    metadata:
+      labels:
+        group: group-1
+        container: ubuntu-2
+    spec:
+      containers:
+      - name: ubuntu-2-container
+        image: 0x010/ubuntu-w-utils:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-3-deployment
+  namespace: multiubuntu
+  labels:
+    deployment: ubuntu-3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      group: group-1
+      container: ubuntu-3
+  template:
+    metadata:
+      labels:
+        group: group-1
+        container: ubuntu-3
+    spec:
+      containers:
+      - name: ubuntu-3-container
+        image: 0x010/ubuntu-w-utils:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-4-deployment
+  namespace: multiubuntu
+  labels:
+    deployment: ubuntu-4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      group: group-2
+      container: ubuntu-4
+  template:
+    metadata:
+      labels:
+        group: group-2
+        container: ubuntu-4
+    spec:
+      containers:
+      - name: ubuntu-4-container
+        image: 0x010/ubuntu-w-utils:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-5-deployment
+  namespace: multiubuntu
+  labels:
+    deployment: ubuntu-5
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      group: group-2
+      container: ubuntu-5
+  template:
+    metadata:
+      labels:
+        group: group-2
+        container: ubuntu-5
+    spec:
+      containers:
+      - name: ubuntu-5-container
+        image: 0x010/ubuntu-w-utils:latest

@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-3-proc-path-owner-allow
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-3
+  process:
+    matchPaths:
+    - path: /hello
+      ownerOnly: true
+  action:
+    Allow
