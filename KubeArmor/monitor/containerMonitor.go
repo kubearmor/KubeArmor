@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -35,7 +36,13 @@ func init() {
 
 // ContainerMonitor Structure
 type ContainerMonitor struct {
-	// host
+	// logging type
+	logType string
+
+	// logging path
+	logFile string
+
+	// hostname for logging
 	HostName string
 
 	// container id -> cotnainer
@@ -96,8 +103,24 @@ type ContainerMonitor struct {
 }
 
 // NewContainerMonitor Function
-func NewContainerMonitor(hostName string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex, uptimeTS float64) *ContainerMonitor {
+func NewContainerMonitor(logOption, hostName string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex, uptimeTS float64) *ContainerMonitor {
 	mon := new(ContainerMonitor)
+
+	if strings.Contains(logOption, "file:") {
+		args := strings.Split(logOption, ":")
+
+		mon.logType = args[0]
+		mon.logFile = args[1]
+
+		// create log file
+		kl.GetCommandWithoutOutput("/bin/touch", []string{mon.logFile})
+	} else if logOption == "stdout" {
+		mon.logType = "stdout"
+		mon.logFile = ""
+	} else {
+		mon.logType = "none"
+		mon.logFile = ""
+	}
 
 	mon.HostName = hostName
 
@@ -153,7 +176,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 		}
 	}
 
-	content, err := ioutil.ReadFile(FileContainerMonitor)
+	content, err := ioutil.ReadFile(HomeDir + FileContainerMonitor)
 	if err != nil {
 		return err
 	}
@@ -165,42 +188,46 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 	}
 
 	sysPrefix := bcc.GetSyscallPrefix()
-
 	systemCalls := []string{
 		"open", "close", // file
 		"socket", "connect", "accept", "bind", "listen", // network
 		"execve", "execveat"} // process
 
-	for _, syscallname := range systemCalls {
-		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallname))
+	for _, syscallName := range systemCalls {
+		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
 		if err != nil {
-			return fmt.Errorf("error loading kprobe %s: %v", syscallname, err)
+			return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
 		}
-		err = mon.BpfModule.AttachKprobe(sysPrefix+syscallname, kp, -1)
+		err = mon.BpfModule.AttachKprobe(sysPrefix+syscallName, kp, -1)
 		if err != nil {
-			return fmt.Errorf("error attaching kprobe %s: %v", syscallname, err)
+			return fmt.Errorf("error attaching kprobe %s: %v", syscallName, err)
 		}
-		kp, err = mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallname))
+		kp, err = mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallName))
 		if err != nil {
-			return fmt.Errorf("error loading kprobe %s: %v", syscallname, err)
+			return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
 		}
-		err = mon.BpfModule.AttachKretprobe(sysPrefix+syscallname, kp, -1)
+		err = mon.BpfModule.AttachKretprobe(sysPrefix+syscallName, kp, -1)
 		if err != nil {
-			return fmt.Errorf("error attaching kretprobe %s: %v", syscallname, err)
+			return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
 		}
 	}
 
-	// process: do_exit
-	kp, err := mon.BpfModule.LoadKprobe("trace_do_exit")
-	if err != nil {
-		return fmt.Errorf("error loading kprobe %s: %v", "trace_do_exit", err)
-	}
-	err = mon.BpfModule.AttachKprobe("do_exit", kp, -1)
-	if err != nil {
-		return fmt.Errorf("error attaching kprobe %s: %v", "do_exit", err)
+	tracepoints := []string{
+		"do_exit",     // process
+		"cap_capable"} // capabilities
+
+	for _, tracepoint := range tracepoints {
+		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
+		if err != nil {
+			return fmt.Errorf("error loading kprobe %s: %v", tracepoint, err)
+		}
+		err = mon.BpfModule.AttachKprobe(tracepoint, kp, -1)
+		if err != nil {
+			return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
+		}
 	}
 
-	eventsTable := bcc.NewTable(mon.BpfModule.TableId("events"), mon.BpfModule)
+	eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
 	mon.SyscallChannel = make(chan []byte, 1000)
 	mon.SyscallLostChannel = make(chan uint64)
 
@@ -210,7 +237,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 	}
 
 	// network [skb: ip_output]
-	kp, err = mon.BpfModule.LoadKprobe("kprobe__ip_output")
+	kp, err := mon.BpfModule.LoadKprobe("kprobe__ip_output")
 	if err != nil {
 		return fmt.Errorf("error loading kprobe %s: %v", "ip_output", err)
 	}
@@ -219,7 +246,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 		return fmt.Errorf("error attaching kprobe %s: %v", "ip_output", err)
 	}
 
-	eventsSkbTable := bcc.NewTable(mon.BpfModule.TableId("events_skb"), mon.BpfModule)
+	eventsSkbTable := bcc.NewTable(mon.BpfModule.TableId("skb_events"), mon.BpfModule)
 	mon.SkbChannel = make(chan []byte)
 	mon.SkbLostChannel = make(chan uint64)
 
@@ -257,15 +284,6 @@ func (mon *ContainerMonitor) RemoveBPF() {
 // == System Logs == //
 // ================= //
 
-// GetSyscallName Function
-func GetSyscallName(id uint32) string {
-	if val, ok := SyscallTable[id]; ok {
-		return val
-	}
-
-	return strconv.FormatUint(uint64(id), 10)
-}
-
 // GetNameFromContainerID Function
 func (mon *ContainerMonitor) GetNameFromContainerID(id string) string {
 	mon.ContainersLock.Lock()
@@ -282,7 +300,7 @@ func (mon *ContainerMonitor) GetNameFromContainerID(id string) string {
 func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.SystemLog {
 	log := tp.SystemLog{}
 
-	log.DetectedTime = kl.GetDateTimeFromTimestamp(mon.UptimeTimeStamp + (float64(msg.ContextSys.Ts) / 1000000000.0))
+	log.UpdatedTime = kl.GetDateTimeFromTimestamp(mon.UptimeTimeStamp + (float64(msg.ContextSys.Ts) / 1000000000.0))
 
 	log.HostName = mon.HostName
 
@@ -295,7 +313,7 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	log.TID = int(msg.ContextSys.TID)
 	log.UID = int(msg.ContextSys.UID)
 
-	log.Syscall = GetSyscallName(msg.ContextSys.EventID)
+	log.Syscall = getSyscallName(int32(msg.ContextSys.EventID))
 	log.Argnum = int(msg.ContextSys.Argnum)
 	log.Retval = int(msg.ContextSys.Retval)
 
@@ -322,158 +340,203 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 			switch msg.ContextSys.EventID {
 			case SYS_OPEN:
+				var fileName string
+				var fileOpenFlags string
+
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(string); ok {
-						log.FileName = val
+						fileName = val
 					}
 					if val, ok := msg.ContextArgs[1].(string); ok {
-						log.FileOpenFlags = val
+						fileOpenFlags = val
 					}
 				}
 
-				log.Data = "filename=" + log.FileName + " flags=" + log.FileOpenFlags
+				log.Data = "filename=" + fileName + " flags=" + fileOpenFlags
 
 				if msg.ContextSys.Retval > 0 {
-					log.FD = int(msg.ContextSys.Retval)
-					log.Data = log.Data + " fd=" + strconv.Itoa(log.FD)
+					log.Data = log.Data + " fd=" + strconv.Itoa(int(msg.ContextSys.Retval))
 				}
 
 			case SYS_CLOSE:
 				if len(msg.ContextArgs) == 1 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.FD = int(val)
-						log.Data = "fd=" + strconv.Itoa(log.FD) + " retval=" + strconv.Itoa(int(msg.ContextSys.Retval))
-					} else {
-						log.Data = "retval=" + strconv.Itoa(int(msg.ContextSys.Retval))
+						log.Data = "fd=" + strconv.Itoa(int(val))
 					}
-				} else {
-					log.Data = "retval=" + strconv.Itoa(int(msg.ContextSys.Retval))
 				}
 
 			case SYS_SOCKET: // domain, type, proto
+				var sockDomain string
+				var sockType string
+				var sockProtocol string
+
 				if len(msg.ContextArgs) == 3 {
 					if val, ok := msg.ContextArgs[0].(string); ok {
-						log.SockDomain = val
+						sockDomain = val
 					}
 					if val, ok := msg.ContextArgs[1].(string); ok {
-						log.SockType = val
+						sockType = val
 					}
 					if val, ok := msg.ContextArgs[2].(int32); ok {
-						log.SockProtocol = int(val)
+						sockProtocol = strconv.Itoa(int(val))
 					}
 				}
 
-				log.Data = "domain=" + log.SockDomain + " type=" + log.SockType + " proto=" + strconv.Itoa(log.SockProtocol)
+				log.Data = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
 
 				if msg.ContextSys.Retval > 0 {
-					log.FD = int(msg.ContextSys.Retval)
-					log.Data = log.Data + " fd=" + strconv.Itoa(log.FD)
+					log.Data = log.Data + " fd=" + strconv.Itoa(int(msg.ContextSys.Retval))
 				}
 
 			case SYS_CONNECT: // fd, sockaddr
+				var fd string
+				var sockAddr map[string]string
+
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.FD = int(val)
+						fd = strconv.Itoa(int(val))
 					}
 					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
-						log.SockAddr = val
+						sockAddr = val
 					}
 				}
 
-				log.Data = "fd=" + strconv.Itoa(log.FD)
-				for k, v := range log.SockAddr {
+				log.Data = "fd=" + fd
+
+				for k, v := range sockAddr {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
 			case SYS_ACCEPT: // fd, sockaddr
+				var fd string
+				var sockAddr map[string]string
+
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.FD = int(val)
+						fd = strconv.Itoa(int(val))
 					}
 					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
-						log.SockAddr = val
+						sockAddr = val
 					}
 				}
 
-				log.Data = "fd=" + strconv.Itoa(log.FD)
-				for k, v := range log.SockAddr {
+				log.Data = "fd=" + fd
+
+				for k, v := range sockAddr {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
 			case SYS_BIND: // fd, sockaddr
+				var fd string
+				var sockAddr map[string]string
+
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.FD = int(val)
+						fd = strconv.Itoa(int(val))
 					}
 					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
-						log.SockAddr = val
+						sockAddr = val
 					}
 				}
 
-				log.Data = "fd=" + strconv.Itoa(log.FD)
-				for k, v := range log.SockAddr {
+				log.Data = "fd=" + fd
+
+				for k, v := range sockAddr {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
 			case SYS_LISTEN:
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.FD = int(val)
+						log.Data = "fd=" + strconv.Itoa(int(val))
 					}
 				}
-				log.Data = "fd=" + strconv.Itoa(log.FD)
 
 			case SYS_EXECVE: // path, args
+				var procExecPath string
+				var procArgs []string
+
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(string); ok {
-						log.ProcExecPath = val
+						procExecPath = val
 					}
 					if val, ok := msg.ContextArgs[1].([]string); ok {
-						log.ProcArgs = val
+						procArgs = val
 					}
 				}
 
-				log.Data = "exec=" + log.ProcExecPath
-				for i, arg := range log.ProcArgs {
-					if i == 0 {
+				log.Data = "exec=" + procExecPath
+
+				for idx, arg := range procArgs {
+					if idx == 0 {
 						continue
+					} else {
+						log.Data = log.Data + " a" + strconv.Itoa(idx) + "=" + arg
 					}
-					log.Data = log.Data + " a" + strconv.Itoa(i) + "=" + arg
 				}
 
 			case SYS_EXECVEAT: // dirfd, path, args, flags
+				var fd string
+				var procExecPath string
+				var procArgs []string
+				var procExecFlag string
+
 				if len(msg.ContextArgs) == 4 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.FD = int(val)
+						fd = strconv.Itoa(int(val))
 					}
 					if val, ok := msg.ContextArgs[1].(string); ok {
-						log.ProcExecPath = val
+						procExecPath = val
 					}
 					if val, ok := msg.ContextArgs[2].([]string); ok {
-						log.ProcArgs = val
+						procArgs = val
 					}
 					if val, ok := msg.ContextArgs[3].(string); ok {
-						log.ProcExecFlag = val
+						procExecFlag = val
 					}
 				}
 
-				log.Data = "fd=" + strconv.Itoa(log.FD)
-				log.Data = log.Data + " exec=" + log.ProcExecPath
-				for i, arg := range log.ProcArgs {
-					if i == 0 {
+				log.Data = "fd=" + fd + " exec=" + procExecPath
+
+				for idx, arg := range procArgs {
+					if idx == 0 {
 						continue
+					} else {
+						log.Data = log.Data + " a" + strconv.Itoa(idx) + "=" + arg
 					}
-					log.Data = log.Data + " a" + strconv.Itoa(i) + "=" + arg
 				}
-				log.Data = " flag=" + log.ProcExecFlag
+
+				log.Data = " flag=" + procExecFlag
 
 			case DO_EXIT:
-				log.Data = "retval=" + strconv.Itoa(log.Retval)
+				log.Data = ""
+
+			case CAP_CAPABLE:
+				var cap string
+				var syscall string
+
+				if len(msg.ContextArgs) == 2 {
+					if val, ok := msg.ContextArgs[0].(string); ok {
+						cap = val
+					}
+					if val, ok := msg.ContextArgs[1].(string); ok {
+						syscall = val
+					}
+
+				}
+
+				log.Data = "cap=" + cap + " syscall=" + syscall
 			}
 
-			log.UpdatedTime = kl.GetDateTimeNow()
+			// == //
 
-			// fmt.Println(log)
+			if mon.logType == "file" {
+				arr, _ := json.Marshal(log)
+				kl.StrToFile(string(arr), mon.logFile)
+			} else if mon.logType == "stdout" {
+				arr, _ := json.Marshal(log)
+				fmt.Println(string(arr))
+			}
 		}
 	}
 }
@@ -544,7 +607,7 @@ func (mon *ContainerMonitor) LookupContainerID(pidns uint32, mntns uint32, pid u
 // ================== //
 
 // BuildPidNode Function
-func (mon *ContainerMonitor) BuildPidNode(ctx ContextSyscall, execPath string, policy tp.NetworkPolicy) tp.PidNode {
+func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string, policy tp.NetworkPolicy) tp.PidNode {
 	node := tp.PidNode{}
 
 	node.Policy = policy
@@ -603,7 +666,7 @@ func (mon *ContainerMonitor) UpdateActivePid(containerID string, hostPid uint32,
 }
 
 // DeleteActivePid Function
-func (mon *ContainerMonitor) DeleteActivePid(containerID string, ctx ContextSyscall) {
+func (mon *ContainerMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
 	mon.ActivePidMapLock.Lock()
 	defer mon.ActivePidMapLock.Unlock()
 
@@ -1166,7 +1229,7 @@ func (mon *ContainerMonitor) TraceSkb() {
 				continue
 			}
 
-			var event ContextSkb
+			var event SkbContext
 			err := binary.Read(bytes.NewBuffer(dataRaw), mon.HostByteOrder, &event)
 			if err != nil {
 				kg.Printf("Failed to decode received data: %s\n", err)

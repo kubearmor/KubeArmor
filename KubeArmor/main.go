@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,5 +26,14 @@ func main() {
 		return
 	}
 
-	core.KubeArmor()
+	// == //
+
+	logPtr := flag.String("log", "stdout", "{file:[absolute path] | stdout}")
+	tracePtr := flag.String("trace", "none", "{file:[absolute path] | none}")
+
+	flag.Parse()
+
+	// == //
+
+	core.KubeArmor(*logPtr, *tracePtr)
 }
