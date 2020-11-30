@@ -2,9 +2,9 @@ package audit
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -58,9 +58,6 @@ func NewAuditLogger(logOption, hostName string, containers map[string]tp.Contain
 	if kl.IsK8sLocal() {
 		// create a test directory
 		kl.GetCommandWithoutOutput("/bin/mkdir", []string{"-p", "/KubeArmor/audit"})
-
-		// stop the Auditd daemon (just in case)
-		kl.GetCommandWithoutOutput("/usr/sbin/service", []string{"auditd", "stop"})
 	}
 
 	if strings.Contains(logOption, "file:") {
@@ -72,7 +69,9 @@ func NewAuditLogger(logOption, hostName string, containers map[string]tp.Contain
 		// create log file
 		kl.GetCommandWithoutOutput("/bin/touch", []string{al.logFile})
 	} else {
-		kg.Printf("Use the default logging option (stdout) since %s is not a supported logging option")
+		if logOption != "stdout" {
+			kg.Printf("Use the default logging option (stdout) since %s is not a supported logging option", logOption)
+		}
 
 		al.logType = "stdout"
 		al.logFile = ""
@@ -128,17 +127,14 @@ func (al *AuditLogger) InitAuditLogger(homeDir string) error {
 func (al *AuditLogger) DestroyAuditLogger() {
 	close(StopChan)
 
-	if !al.isCOS {
-		// stop the Auditd daemon
-		kl.GetCommandWithoutOutput("/usr/bin/pkill", []string{"-9", "auditd"})
-	}
-
 	if kl.IsK8sLocal() {
 		// remove the test directory
 		kl.GetCommandWithoutOutput("/bin/rm", []string{"-rf", "/KubeArmor"})
+	}
 
-		// start the Auditd daemon
-		kl.GetCommandWithoutOutput("/usr/sbin/service", []string{"auditd", "start"})
+	if !al.isCOS {
+		// stop the Auditd daemon
+		kl.GetCommandWithoutOutput("/usr/bin/pkill", []string{"-9", "auditd"})
 	}
 }
 
@@ -193,19 +189,6 @@ func (al *AuditLogger) MonitorAuditLogs() {
 	al.MonitorGenericAuditLogs()
 }
 
-func (al *AuditLogger) UpdateLogToFile(log string) {
-	file, err := os.OpenFile(al.logFile, os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		kg.Err(err.Error())
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(log)
-	if err != nil {
-		kg.Err(err.Error())
-	}
-}
-
 // MonitorGenericAuditLogs Function
 func (al *AuditLogger) MonitorGenericAuditLogs() {
 	logFile := "/KubeArmor/audit/audit.log"
@@ -251,7 +234,7 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			requiredKeywords := []string{
 				"AVC",
-				// "SYSCALL",
+				"SYSCALL",
 			}
 
 			skip := true
@@ -268,7 +251,7 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			excludedKeywords := []string{
 				"apparmor=\"STATUS\"",
-				// "success=yes",
+				"success=yes",
 			}
 
 			skip = false
@@ -305,19 +288,19 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			filteringValues := []string{
 				"requested_mask=",
 				"denied_mask=",
-				// "arch=",
-				// "items=",
-				// "auid=",
-				// "euid=",
-				// "ouid=",
-				// "suid=",
-				// "fsuid=",
-				// "egid=",
-				// "ogid=",
-				// "sgid=",
-				// "fsgid=",
-				// "ses=",
-				// "key=",
+				"arch=",
+				"items=",
+				"auid=",
+				"euid=",
+				"ouid=",
+				"suid=",
+				"fsuid=",
+				"egid=",
+				"ogid=",
+				"sgid=",
+				"fsgid=",
+				"ses=",
+				"key=",
 			}
 
 			keyValToBeRemoved := []string{}
@@ -354,14 +337,11 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			// == //
 
 			if al.logType == "file" {
-				log := fmt.Sprintf("UpdatedTime: %s, HostName: %s, ContainerID: %s, ContainerName: %s, Message: %s\n", auditLog.UpdatedTime, auditLog.HostName, auditLog.ContainerID, auditLog.ContainerName, auditLog.Message)
-				al.UpdateLogToFile(log)
+				arr, _ := json.Marshal(auditLog)
+				kl.StrToFile(string(arr), al.logFile)
 			} else { // stdout
-				fmt.Println("UpdatedTime:", auditLog.UpdatedTime)
-				fmt.Println("HostName:", auditLog.HostName)
-				fmt.Println("ContainerID:", auditLog.ContainerID)
-				fmt.Println("ContainerName:", auditLog.ContainerName)
-				fmt.Println("Message:", auditLog.Message)
+				arr, _ := json.Marshal(auditLog)
+				fmt.Println(string(arr))
 			}
 		}
 	}
