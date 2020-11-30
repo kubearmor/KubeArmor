@@ -1,12 +1,12 @@
 apiVersion: security.accuknox.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-ubuntu-2-cap-net-raw-block
+  name: ksp-ubuntu-1-cap-net-raw-block
   namespace: multiubuntu
 spec:
   selector:
     matchLabels:
-      container: ubuntu-2
+      container: ubuntu-1
   capabilities:
     matchCapabilities:
     - net_raw

@@ -100,9 +100,6 @@ type SystemLog struct {
 	// updated time
 	UpdatedTime string `json:"updatedTime"`
 
-	// detected time
-	DetectedTime string `json:"detectedTime"`
-
 	// host
 	HostName string `json:"hostName"`
 
@@ -123,35 +120,23 @@ type SystemLog struct {
 	Argnum  int    `json:"argnum"`
 	Retval  int    `json:"retval"`
 
-	FD int `json:"fd"`
-
-	// process
-	ProcExecPath string   `json:"procExec,omitempty"`
-	ProcArgs     []string `json:"procArgs,omitempty"`
-	ProcExecFlag string   `json:"procFlags,omitempty"`
-
-	// file
-	FileName      string `json:"fileName,omitempty"`
-	FileOpenFlags string `json:"fileOpenFlags,omitempty"`
-
-	// network
-	SockDomain   string            `json:"sockDomain,omitempty"`
-	SockType     string            `json:"sockType,omitempty"`
-	SockProtocol int               `json:"sockProto,omitempty"`
-	SockAddr     map[string]string `json:"sockAddr,omitempty"`
-
+	// data
 	Data string `json:"data"`
 }
 
 // AuditLog Structure
 type AuditLog struct {
+	// updated time
 	UpdatedTime string `json:"updatedTime"`
 
+	// host
 	HostName string `json:"hostName"`
 
+	// container
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
+	// data
 	Message string `json:"message"`
 }
 

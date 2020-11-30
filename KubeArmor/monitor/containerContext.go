@@ -12,25 +12,6 @@ var (
 	kubePattern2  = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
 )
 
-// SyscallTable to get a syscall name from an ID
-var SyscallTable = map[uint32]string{
-	// File
-	2: "SYS_OPEN",
-	3: "SYS_CLOSE",
-
-	// Network
-	41: "SYS_SOCKET",
-	42: "SYS_CONNECT",
-	43: "SYS_ACCEPT",
-	49: "SYS_BIND",
-	50: "SYS_LISTEN",
-
-	// Process
-	59:  "SYS_EXECVE",
-	322: "SYS_EXECVEAT",
-	351: "DO_EXIT",
-}
-
 const (
 	// file
 	SYS_OPEN  = 2
@@ -47,6 +28,9 @@ const (
 	SYS_EXECVE   = 59
 	SYS_EXECVEAT = 322
 	DO_EXIT      = 351
+
+	// capabilities
+	CAP_CAPABLE = 352
 )
 
 const (
@@ -69,8 +53,8 @@ type NsKey struct {
 // == Syscall Context == //
 // ===================== //
 
-// ContextSyscall Structure
-type ContextSyscall struct {
+// SyscallContext Structure
+type SyscallContext struct {
 	Ts uint64
 
 	PidID uint32
@@ -92,7 +76,7 @@ type ContextSyscall struct {
 // ContextCombined Structure
 type ContextCombined struct {
 	ContainerID string
-	ContextSys  ContextSyscall
+	ContextSys  SyscallContext
 	ContextArgs []interface{}
 }
 
@@ -100,8 +84,8 @@ type ContextCombined struct {
 // == Skb Context == //
 // ================= //
 
-// ContextSkb Structure
-type ContextSkb struct {
+// SkbContext Structure
+type SkbContext struct {
 	Ts uint64
 
 	PidID uint32

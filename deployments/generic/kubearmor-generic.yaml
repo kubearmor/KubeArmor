@@ -46,6 +46,7 @@ spec:
       - name: kubearmor
         image: kubearmor/kubearmor:latest
         imagePullPolicy: Always
+        args: ["-log=file:/KubeArmor/audit.log", "-trace=file:/KubeArmor/system.log"]
         securityContext:
           privileged: true
           capabilities:
