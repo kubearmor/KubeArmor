@@ -29,12 +29,6 @@ var StopChan chan struct{}
 // WgDaemon Handler
 var WgDaemon sync.WaitGroup
 
-// HomeDir Directory
-var HomeDir string
-
-// FileContainerMonitor Path
-var FileContainerMonitor string
-
 // ActivePidMap to map container id and process id
 var ActivePidMap map[string]tp.PidMap
 
@@ -45,17 +39,6 @@ var ActivePidMapLock *sync.Mutex
 func init() {
 	StopChan = make(chan struct{})
 	WgDaemon = sync.WaitGroup{}
-
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		panic(err)
-	}
-
-	// base directory
-	HomeDir = dir
-
-	// container monitor code location
-	FileContainerMonitor = HomeDir + "/BPF/container_monitor.c"
 
 	// shared map between container monitor and audit logger
 	ActivePidMap = map[string]tp.PidMap{}
@@ -90,6 +73,9 @@ type KubeArmorDaemon struct {
 	// runtime enforcer
 	RuntimeEnforcer *efc.RuntimeEnforcer
 
+	// home directory
+	HomeDir string
+
 	// audit logger
 	AuditLogger *adt.AuditLogger
 
@@ -98,6 +84,12 @@ type KubeArmorDaemon struct {
 
 	// container monitor
 	ContainerMonitor *mon.ContainerMonitor
+
+	// FileContainerMonitor Path
+	FileContainerMonitor string
+
+	// trace option
+	TraceOption string
 
 	// configuration
 	DefaultWaitTime int
@@ -126,11 +118,16 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.SecurityPoliciesLock = &sync.Mutex{}
 
 	dm.RuntimeEnforcer = nil
-
 	dm.AuditLogger = nil
-	dm.LogOption = "file:/KubeArmor/audit/kubearmor.log"
-
 	dm.ContainerMonitor = nil
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+
+	dm.HomeDir = dir
+	dm.FileContainerMonitor = "/BPF/container_monitor.c"
 
 	dm.DefaultWaitTime = 1
 	dm.UptimeTimeStamp = kl.GetUptimeTimestamp()
@@ -205,7 +202,7 @@ func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 	ret := true
 	defer kg.HandleErrRet(&ret)
 
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(HomeDir)
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.HomeDir)
 
 	kg.Print("Started to protect containers")
 
@@ -227,7 +224,7 @@ func (dm *KubeArmorDaemon) InitAuditLogger() bool {
 	defer kg.HandleErrRet(&ret)
 
 	dm.AuditLogger = adt.NewAuditLogger(dm.LogOption, dm.HostName, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
-	if err := dm.AuditLogger.InitAuditLogger(HomeDir); err != nil {
+	if err := dm.AuditLogger.InitAuditLogger(dm.HomeDir); err != nil {
 		return false
 	}
 
@@ -258,8 +255,8 @@ func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
 	ret := true
 	defer kg.HandleErrRet(&ret)
 
-	dm.ContainerMonitor = mon.NewContainerMonitor(dm.HostName, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock, dm.UptimeTimeStamp)
-	if err := dm.ContainerMonitor.InitBPF(HomeDir, FileContainerMonitor); err != nil {
+	dm.ContainerMonitor = mon.NewContainerMonitor(dm.TraceOption, dm.HostName, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock, dm.UptimeTimeStamp)
+	if err := dm.ContainerMonitor.InitBPF(dm.HomeDir, dm.FileContainerMonitor); err != nil {
 		return false
 	}
 
@@ -283,10 +280,15 @@ func (dm *KubeArmorDaemon) CloseContainerMonitor() {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor() {
+func KubeArmor(logOption, traceOption string) {
 	dm := NewKubeArmorDaemon()
 
 	kg.Print("Started KubeArmor")
+
+	// == //
+
+	dm.LogOption = logOption
+	dm.TraceOption = traceOption
 
 	// == //
 
