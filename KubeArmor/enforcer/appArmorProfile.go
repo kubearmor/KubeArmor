@@ -605,7 +605,7 @@ func blockedNetworks(secPolicy tp.SecurityPolicy, denyLines []string, denyCount 
 func blockedCapabilities(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, capabilitiesCount int) ([]string, int, int) {
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-			line := fmt.Sprintf("  audit deny capability %s,\n", cap)
+			line := fmt.Sprintf("  deny capability %s,\n", cap)
 			denyLines = append(denyLines, line)
 			capabilitiesCount++
 			denyCount++
@@ -784,7 +784,7 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 
 	if whiteList {
 		newProfile = newProfile + "  /bin/bash ix,\n"
-		newProfile = newProfile + "  /lib/x86_64-linux-gnu/{*,**} r,\n"
+		newProfile = newProfile + "  /lib/x86_64-linux-gnu/{*,**} ix,\n"
 	}
 
 	newProfile = newProfile + "  ## == POST END == ##\n"
