@@ -10,7 +10,6 @@ spec:
   process: # need some exectuables to test
     matchDirectories:
       - dir: /bin/
-      - dir: /usr/bin/
   file:
     matchPaths:
     - path: /secret.txt # echo "test" >> /secret.txt

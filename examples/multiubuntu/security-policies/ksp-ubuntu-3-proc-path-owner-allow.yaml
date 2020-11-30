@@ -9,7 +9,16 @@ spec:
       container: ubuntu-3
   process:
     matchPaths:
-    - path: /hello
+    - path: /home/user1/hello
       ownerOnly: true
+    - path: /bin/su # to change root to user1
+  file:
+    matchDirectories: # to change root to user1
+    - dir: /etc/
+      recursive: true
+    - dir: /proc/
+      recursive: true
+    matchPaths: # to change root to user1
+    - path: /run/utmp
   action:
     Allow
