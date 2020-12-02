@@ -1,6 +1,6 @@
 ### Builder
 
-FROM kubearmor/kubearmor:base as builder
+FROM accuknox/kubearmor:base as builder
 
 WORKDIR /usr/src/KubeArmor
 

@@ -1,11 +1,11 @@
 #!/bin/bash
 
 if [ -z $1 ]; then
-    echo "[INFO] Pushing kubearmor/kubearmor-cos-auditd:latest"
-    docker push kubearmor/kubearmor-cos-auditd:latest
+    echo "[INFO] Pushing accuknox/kubearmor-cos-auditd:latest"
+    docker push accuknox/kubearmor-cos-auditd:latest
 else
-    echo "[INFO] Pushing kubearmor/kubearmor-cos-auditd:$1"
-    docker push kubearmor/kubearmor-cos-auditd:$1
+    echo "[INFO] Pushing accuknox/kubearmor-cos-auditd:$1"
+    docker push accuknox/kubearmor-cos-auditd:$1
 fi
 
 if [ $? == 0 ]; then
