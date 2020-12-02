@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_NAME="kubearmor/kubearmor:test"
+IMAGE_NAME="accuknox/kubearmor:test"
 TEST_IMAGE=`docker images --format '{{.Repository}}:{{.Tag}}' | grep $IMAGE_NAME`
 
 echo "Expected:" $IMAGE_NAME ", Received:" $TEST_IMAGE
