@@ -10,7 +10,7 @@ KubeArmor is designed for Kubernetes environments; thus, operators only need to 
 
 If there are any violations against security policies, KubeArmor immediately generates audit logs with container identities. If operators have any logging systems, it automatically sends audit logs to their systems as well.
 
-![Overview](./documentation/resources/kubearmor_overview.png)
+<center><img src=./documentation/resources/kubearmor_overview.png></center>
 
 # Functionality Overview
 
