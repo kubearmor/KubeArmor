@@ -136,6 +136,26 @@ func GetCommandWithoutOutput(cmd string, args []string) {
 	res.Run()
 }
 
+// ================= //
+// == File Output == //
+// ================= //
+
+// StrToFile Function
+func StrToFile(str, destFile string) {
+	file, err := os.OpenFile(destFile, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		kg.Err(err.Error())
+	}
+	defer file.Close()
+
+	str = str + "\n"
+
+	_, err = file.WriteString(str)
+	if err != nil {
+		kg.Err(err.Error())
+	}
+}
+
 // ============= //
 // == Network == //
 // ============= //
@@ -239,24 +259,4 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 
 	// otherwise, return true
 	return matched
-}
-
-// ================= //
-// == File Output == //
-// ================= //
-
-// StrToFile Function
-func StrToFile(str, destFile string) {
-	file, err := os.OpenFile(destFile, os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		kg.Err(err.Error())
-	}
-	defer file.Close()
-
-	str = str + "\n"
-
-	_, err = file.WriteString(str)
-	if err != nil {
-		kg.Err(err.Error())
-	}
 }
