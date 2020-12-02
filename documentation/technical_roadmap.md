@@ -2,7 +2,7 @@
 
 Here, we briefly share a plan for next releases (e.g., including features, specs, and platform supports).
 
-- Current Release
+- Current Release (under development)
 
     - Kubernetes Environments
     
@@ -29,6 +29,7 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
         
             Standard output  
             Log file
+            gRPC
 
         \- Monitoring container behaviors at the system level
 
@@ -50,7 +51,7 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
     
         \- (extension) Enforcing security policies against:
         
-            System-wide operations instead of specific capabilities (through AppArmor)  
+            High-level operations instead of specific capabilities (through AppArmor)  
             Resource utilization (through AppArmor)
 
         \- (extension) Producing container-aware audit logs and write them into:
@@ -69,6 +70,10 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
             Network operations according to protocols, IP addresses and ports (socket level)  
             Capabilities permitted
 
+        \- Produce telemetry data to monitoring systems
+
+            Prometheus
+
 - Future Releases
 
     - Container Platforms
@@ -80,15 +85,13 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
         \- (extension) SELinux
 
     - Features
-    
-        \- (extension) Enforcing security policies at the eBPF level (using KRSI)
-        
-            Let's keep track of the features updated from KRSI
 
         \- Producing container-aware audit logs and write them into:
         
-            Other platforms (e.g., gRPC, Kafka and Elasticsearch)
+            Other systems (e.g., Kafka and Elasticsearch)
     
         \- Enforcing security policies against inter-container communications at the network level
         
             Integration with network security solutions (e.g., Cilium)
+
+        \- Will be updated soon...
