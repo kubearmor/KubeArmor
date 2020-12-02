@@ -10,9 +10,9 @@ spec:
   process:
     matchDirectories:
     - dir: /bin/
-  file: # need some files to test
+  file:
     matchDirectories:
-      - dir: /credentials/
+      - dir: /credentials/ # need some files to test
         recursive: true
   action:
     Allow
