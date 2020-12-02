@@ -158,7 +158,7 @@ type CapabilitiesType struct {
 	MatchOperations   []MatchOperationsType   `json:"matchOperations,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Allow;allow;Block;block
+// +kubebuilder:validation:Enum=Allow;allow;Block;block;Audit;audit
 type ActionType string
 
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
