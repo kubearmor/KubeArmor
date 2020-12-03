@@ -622,14 +622,14 @@ func auditedProcesses(secPolicy tp.SecurityPolicy, auditLines []string, auditCou
 				for _, src := range path.FromSource {
 					auditLines = headFromSource(src, auditLines)
 
-					line := fmt.Sprintf("    audit %s wklx,\n", path.Path)
+					line := fmt.Sprintf("    audit %s ix,\n", path.Path)
 					auditLines = append(auditLines, line)
 					auditCount++
 
 					auditLines = footFromSource(src, auditLines)
 				}
 			} else { // no FromSource
-				line := fmt.Sprintf("  audit %s wklx,\n", path.Path)
+				line := fmt.Sprintf("  audit %s ix,\n", path.Path)
 				auditLines = append(auditLines, line)
 				auditCount++
 			}
@@ -643,11 +643,11 @@ func auditedProcesses(secPolicy tp.SecurityPolicy, auditLines []string, auditCou
 					auditLines = headFromSource(src, auditLines)
 
 					if dir.Recursive {
-						line := fmt.Sprintf("    audit %s{*,**} wklx,\n", dir.Directory)
+						line := fmt.Sprintf("    audit %s{*,**} ix,\n", dir.Directory)
 						auditLines = append(auditLines, line)
 						auditCount++
 					} else { // !dir.Recursive
-						line := fmt.Sprintf("    audit %s* wklx,\n", dir.Directory)
+						line := fmt.Sprintf("    audit %s* ix,\n", dir.Directory)
 						auditLines = append(auditLines, line)
 						auditCount++
 					}
@@ -656,11 +656,11 @@ func auditedProcesses(secPolicy tp.SecurityPolicy, auditLines []string, auditCou
 				}
 			} else { // no FromSource
 				if dir.Recursive {
-					line := fmt.Sprintf("  audit %s{*,**} wklx,\n", dir.Directory)
+					line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
 					auditLines = append(auditLines, line)
 					auditCount++
 				} else { // !dir.Recursive
-					line := fmt.Sprintf("  audit %s* wklx,\n", dir.Directory)
+					line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
 					auditLines = append(auditLines, line)
 					auditCount++
 				}
@@ -674,14 +674,14 @@ func auditedProcesses(secPolicy tp.SecurityPolicy, auditLines []string, auditCou
 				for _, src := range pat.FromSource {
 					auditLines = headFromSource(src, auditLines)
 
-					line := fmt.Sprintf("    audit %s wklx,\n", pat.Pattern)
+					line := fmt.Sprintf("    audit %s ix,\n", pat.Pattern)
 					auditLines = append(auditLines, line)
 					auditCount++
 
 					auditLines = footFromSource(src, auditLines)
 				}
 			} else { // no FromSource
-				line := fmt.Sprintf("  audit %s wklx,\n", pat.Pattern)
+				line := fmt.Sprintf("  audit %s ix,\n", pat.Pattern)
 				auditLines = append(auditLines, line)
 				auditCount++
 			}
@@ -699,11 +699,11 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 					auditLines = headFromSource(src, auditLines)
 
 					if path.ReadOnly {
-						line := fmt.Sprintf("    audit %s wkl,\n", path.Path)
+						line := fmt.Sprintf("    audit %s r,\n", path.Path)
 						auditLines = append(auditLines, line)
 						auditCount++
 					} else { // !path.ReadOnly
-						line := fmt.Sprintf("    audit %s rwkl,\n", path.Path)
+						line := fmt.Sprintf("    audit %s rw,\n", path.Path)
 						auditLines = append(auditLines, line)
 						auditCount++
 					}
@@ -712,11 +712,11 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 				}
 			} else { // no FromSource
 				if path.ReadOnly {
-					line := fmt.Sprintf("  audit %s wkl,\n", path.Path)
+					line := fmt.Sprintf("  audit %s r,\n", path.Path)
 					auditLines = append(auditLines, line)
 					auditCount++
 				} else { // !path.ReadOnly
-					line := fmt.Sprintf("  audit %s rwkl,\n", path.Path)
+					line := fmt.Sprintf("  audit %s rw,\n", path.Path)
 					auditLines = append(auditLines, line)
 					auditCount++
 				}
@@ -731,19 +731,19 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 					auditLines = headFromSource(src, auditLines)
 
 					if dir.ReadOnly && dir.Recursive {
-						line := fmt.Sprintf("    audit %s{*,**} wkl,\n", dir.Directory)
+						line := fmt.Sprintf("    audit %s{*,**} r,\n", dir.Directory)
 						auditLines = append(auditLines, line)
 						auditCount++
 					} else if dir.ReadOnly && !dir.Recursive {
-						line := fmt.Sprintf("    audit %s* wkl,\n", dir.Directory)
+						line := fmt.Sprintf("    audit %s* r,\n", dir.Directory)
 						auditLines = append(auditLines, line)
 						auditCount++
 					} else if !dir.ReadOnly && dir.Recursive {
-						line := fmt.Sprintf("    audit %s{*,**} rwkl,\n", dir.Directory)
+						line := fmt.Sprintf("    audit %s{*,**} rw,\n", dir.Directory)
 						auditLines = append(auditLines, line)
 						auditCount++
 					} else { // !dir.ReadOnly && !dir.Recursive
-						line := fmt.Sprintf("    audit %s* rwkl,\n", dir.Directory)
+						line := fmt.Sprintf("    audit %s* rw,\n", dir.Directory)
 						auditLines = append(auditLines, line)
 						auditCount++
 					}
@@ -752,19 +752,19 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 				}
 			} else { // no FromSource
 				if dir.ReadOnly && dir.Recursive {
-					line := fmt.Sprintf("  audit %s{*,**} wkl,\n", dir.Directory)
+					line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
 					auditLines = append(auditLines, line)
 					auditCount++
 				} else if dir.ReadOnly && !dir.Recursive {
-					line := fmt.Sprintf("  audit %s* wkl,\n", dir.Directory)
+					line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
 					auditLines = append(auditLines, line)
 					auditCount++
 				} else if !dir.ReadOnly && dir.Recursive {
-					line := fmt.Sprintf("  audit %s{*,**} rwkl,\n", dir.Directory)
+					line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
 					auditLines = append(auditLines, line)
 					auditCount++
 				} else { // !dir.ReadOnly && !dir.Recursive
-					line := fmt.Sprintf("  audit %s* rwkl,\n", dir.Directory)
+					line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
 					auditLines = append(auditLines, line)
 					auditCount++
 				}
@@ -779,11 +779,11 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 					auditLines = headFromSource(src, auditLines)
 
 					if pat.ReadOnly {
-						line := fmt.Sprintf("    audit %s wkl,\n", pat.Pattern)
+						line := fmt.Sprintf("    audit %s r,\n", pat.Pattern)
 						auditLines = append(auditLines, line)
 						auditCount++
 					} else { // !pat.ReadOnly
-						line := fmt.Sprintf("    audit %s rwkl,\n", pat.Pattern)
+						line := fmt.Sprintf("    audit %s rw,\n", pat.Pattern)
 						auditLines = append(auditLines, line)
 						auditCount++
 					}
@@ -792,11 +792,11 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 				}
 			} else { // no FromSource
 				if pat.ReadOnly {
-					line := fmt.Sprintf("  audit %s wkl,\n", pat.Pattern)
+					line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
 					auditLines = append(auditLines, line)
 					auditCount++
 				} else { // !pat.ReadOnly
-					line := fmt.Sprintf("  audit %s rwkl,\n", pat.Pattern)
+					line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
 					auditLines = append(auditLines, line)
 					auditCount++
 				}
