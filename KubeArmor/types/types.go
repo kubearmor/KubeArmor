@@ -121,7 +121,7 @@ type SystemLog struct {
 	Retval  int    `json:"retval"`
 
 	// data
-	Data string `json:"data"`
+	Data string `json:"data,omitempty"`
 }
 
 // AuditLog Structure
@@ -136,8 +136,15 @@ type AuditLog struct {
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
-	// data
-	Message string `json:"message"`
+	// audit
+	HostPID   int    `json:"hostPid"`
+	Source    string `json:"source"`
+	Operation string `json:"operation"`
+	Resource  string `json:"resource"`
+	Action    string `json:"action"`
+
+	// raw
+	Raw string `json:"data,omitempty"`
 }
 
 // ===================== //
