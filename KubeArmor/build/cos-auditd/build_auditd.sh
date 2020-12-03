@@ -6,11 +6,11 @@ docker images | grep kubearmor-cos-auditd | awk '{print $3}' | xargs -I {} docke
 echo "[INFO] Removed existing KubeArmor-COS-Auditd images"
 
 if [ -z $1 ]; then
-    echo "[INFO] Building kubearmor/kubearmor-cos-auditd:latest"
-    docker build -t kubearmor/kubearmor-cos-auditd:latest  .
+    echo "[INFO] Building accuknox/kubearmor-cos-auditd:latest"
+    docker build -t accuknox/kubearmor-cos-auditd:latest  .
 else
-    echo "[INFO] Building build -t kubearmor/kubearmor-cos-auditd:$1"
-    docker build -t kubearmor/kubearmor-cos-auditd:$1  .
+    echo "[INFO] Building build -t accuknox/kubearmor-cos-auditd:$1"
+    docker build -t accuknox/kubearmor-cos-auditd:$1  .
 fi
 
 if [ $? == 0 ]; then

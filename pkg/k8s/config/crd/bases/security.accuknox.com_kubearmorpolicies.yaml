@@ -42,6 +42,8 @@ spec:
                 - allow
                 - Block
                 - block
+                - Audit
+                - audit
                 type: string
               capabilities:
                 properties:

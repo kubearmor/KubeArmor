@@ -44,9 +44,9 @@ spec:
       restartPolicy: Always
       containers:
       - name: kubearmor
-        image: kubearmor/kubearmor:latest
+        image: accuknox/kubearmor:latest
         imagePullPolicy: Always
-        args: ["-log=file:/KubeArmor/audit.log", "-trace=file:/KubeArmor/system.log"]
+        args: ["-log=stdout"]
         securityContext:
           privileged: true
           capabilities:

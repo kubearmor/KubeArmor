@@ -7,9 +7,9 @@ spec:
   selector:
     matchLabels:
       container: ubuntu-4
-  process: # need some exectuables to test
+  process:
     matchDirectories:
-      - dir: /bin/
+      - dir: /bin/ # need some exectuables to test
   file:
     matchPaths:
     - path: /secret.txt # echo "test" >> /secret.txt

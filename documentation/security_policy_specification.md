@@ -13,61 +13,40 @@ spec:
     matchLabels:
       [key1]: [value1]
       [keyN]: [valueN]
+
   process:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]
-      fromSource:             --> [under development]
-      - path: [absolute executable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]
       ownerOnly: [true|false]
-      fromSource:             --> [under development]
-      - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]
-      fromSource:             --> [under development]
-      - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
+
   file:
     matchPaths:
     - path: [absolute file path]
       readOnly: [true|false]
       ownerOnly: [true|false]
-      fromSource:             --> [under development]
-      - path: [absolute file path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]
       readOnly: [true|false]
       ownerOnly: [true|false]
-      fromSource:             --> [under development]
-      - path: [absolute file path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]
       ownerOnly: [true|false]
-      fromSource:             --> [under development]
-      - path: [absolute file path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
+
   network:
     matchProtocols:
     - protocol: [TCP|UDP|ICMP]
       ipv4: [true|false]
       ipv6: [true|false]
-    matchSources:             --> [under development]
+    matchSources:
       process:
         matchPaths:
         - [absolute exectuable path]
@@ -78,12 +57,14 @@ spec:
         - [absolute file path]
         matchDirectories:
         - [absolute directory path]
+
   capabilities:
     matchCapabilities:
     - [capability name]
-    matchOperations:          --> [under development]
+    matchOperations:
     - [operation name]
-  action: [Block|Allow]
+
+  action: [Block|Allow|Audit]
 ```
 
 # Policy Spec Description
@@ -122,22 +103,25 @@ Now, we will briefly explain how to define a security policy.
       matchPaths:
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional
+        fromSource:                        # --> optional (under development)
         - path: [absolute executable path]
         - dir: [absolute directory path]
+          recursive: [true|false]
       matchDirectories:
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional
+        fromSource:                        # --> optional (under development)
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
+          recursive: [true|false]
       matchPatterns:
       - pattern: [regex pattern]
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional
+        fromSource:                        # --> optional (under development)
         - path: [absolute exectuable path]
         - dir: [absolute directory path]    
+          recursive: [true|false]
     ```
 
     In this section, there are three options.
@@ -174,24 +158,27 @@ Now, we will briefly explain how to define a security policy.
       - path: [absolute file path]
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional
+        fromSource:                        # --> optional (under development)
         - path: [absolute file path]
         - dir: [absolute directory path]
+          recursive: [true:false]
       matchDirectories:
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional
+        fromSource:                        # --> optional (under development)
         - path: [absolute file path]
         - dir: [absolute directory path]
+          recursive: [true:false]
       matchPatterns:
       - pattern: [regex pattern]
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional
+        fromSource:                        # --> optional (under development)
         - path: [absolute file path]
         - dir: [absolute directory path]
+          recursive: [true:false]
     ```
 
     The only difference between 'process' and 'file' is the readOnly option.
