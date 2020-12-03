@@ -213,8 +213,8 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 	}
 
 	tracepoints := []string{
-		"do_exit",     // process
-		"cap_capable"} // capabilities
+		"do_exit"} // process
+	// "cap_capable"} // capabilities
 
 	for _, tracepoint := range tracepoints {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
@@ -358,12 +358,18 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					log.Data = log.Data + " fd=" + strconv.Itoa(int(msg.ContextSys.Retval))
 				}
 
+				// retval > 0 -> file descriptor
+				// retval == -1 -> error
+
 			case SYS_CLOSE:
 				if len(msg.ContextArgs) == 1 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
 						log.Data = "fd=" + strconv.Itoa(int(val))
 					}
 				}
+
+				// retval == 0 -> success
+				// retval == -1 -> error
 
 			case SYS_SOCKET: // domain, type, proto
 				var sockDomain string
@@ -388,6 +394,9 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					log.Data = log.Data + " fd=" + strconv.Itoa(int(msg.ContextSys.Retval))
 				}
 
+				// retval > 0 -> file descriptor
+				// retval == -1 -> error
+
 			case SYS_CONNECT: // fd, sockaddr
 				var fd string
 				var sockAddr map[string]string
@@ -406,6 +415,9 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				for k, v := range sockAddr {
 					log.Data = log.Data + " " + k + "=" + v
 				}
+
+				// retval == 0 -> success
+				// retval == -1 -> error
 
 			case SYS_ACCEPT: // fd, sockaddr
 				var fd string
@@ -426,6 +438,9 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
+				// retval > 0 -> file descriptor
+				// retval == -1 -> error
+
 			case SYS_BIND: // fd, sockaddr
 				var fd string
 				var sockAddr map[string]string
@@ -445,12 +460,18 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
+				// retval == 0 -> success
+				// retval == -1 -> error
+
 			case SYS_LISTEN:
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
 						log.Data = "fd=" + strconv.Itoa(int(val))
 					}
 				}
+
+				// retval == 0 -> success
+				// retval == -1 -> error
 
 			case SYS_EXECVE: // path, args
 				var procExecPath string
@@ -474,6 +495,9 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 						log.Data = log.Data + " a" + strconv.Itoa(idx) + "=" + arg
 					}
 				}
+
+				// retval == 0 -> success
+				// retval == -1 -> error
 
 			case SYS_EXECVEAT: // dirfd, path, args, flags
 				var fd string
@@ -507,6 +531,9 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				}
 
 				log.Data = " flag=" + procExecFlag
+
+				// retval == 0 -> success
+				// retval == -1 -> error
 
 			case DO_EXIT:
 				log.Data = ""

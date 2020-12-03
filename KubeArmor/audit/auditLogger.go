@@ -233,7 +233,6 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			requiredKeywords := []string{
 				"AVC",
-				// "SYSCALL",
 			}
 
 			skip := true
@@ -250,7 +249,6 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			excludedKeywords := []string{
 				"apparmor=\"STATUS\"",
-				// "success=yes",
 			}
 
 			skip = false
@@ -307,6 +305,8 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 					value := strings.Split(keyVal, "=")
 					if value[1] == "\"DENIED\"" {
 						action = "Block"
+					} else if value[1] == "\"AUDIT\"" {
+						action = "Audit"
 					} else {
 						action = strings.Replace(value[1], "\"", "", -1)
 					}
