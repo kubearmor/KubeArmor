@@ -20,11 +20,11 @@ echo "[INFO] Copied new source files"
 cd $ARMOR_HOME/build
 
 if [ -z $1 ]; then
-    echo "[INFO] Building kubearmor/kubearmor:latest"
-    docker build -t kubearmor/kubearmor:latest  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
+    echo "[INFO] Building accuknox/kubearmor:latest"
+    docker build -t accuknox/kubearmor:latest  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
 else
-    echo "[INFO] Building kubearmor/kubearmor:$1"
-    docker build -t kubearmor/kubearmor:$1  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
+    echo "[INFO] Building accuknox/kubearmor:$1"
+    docker build -t accuknox/kubearmor:$1  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
 fi
 
 if [ $? == 0 ]; then

@@ -44,9 +44,9 @@ spec:
       restartPolicy: Always
       containers:
       - name: kubearmor
-        image: kubearmor/kubearmor:latest
+        image: accuknox/kubearmor:latest
         imagePullPolicy: Always
-        args: ["-log=file:/KubeArmor/audit.log", "-trace=file:/KubeArmor/system.log"]
+        args: ["-log=stdout"]
         securityContext:
           privileged: true
           capabilities:
@@ -150,7 +150,7 @@ spec:
             cpu: "10m"  
       containers:
       - name: kubearmor-cos-auditd
-        image: kubearmor/kubearmor-cos-auditd:latest
+        image: accuknox/kubearmor-cos-auditd:latest
         imagePullPolicy: Always
         env:
         - name: NODE_NAME

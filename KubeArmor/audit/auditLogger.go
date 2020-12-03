@@ -288,6 +288,12 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			filteringValues := []string{
 				"requested_mask=",
 				"denied_mask=",
+				"a0=",
+				"a1=",
+				"a2=",
+				"a3=",
+				"a4=",
+				"a5=",
 				"arch=",
 				"items=",
 				"auid=",
