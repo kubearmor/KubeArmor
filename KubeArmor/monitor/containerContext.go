@@ -66,9 +66,9 @@ type SyscallContext struct {
 	TID     uint32
 	UID     uint32
 
-	EventID uint32
-	Argnum  uint32
-	Retval  int32
+	EventID int32
+	Argnum  int32
+	Retval  int64
 
 	Comm [16]byte
 }

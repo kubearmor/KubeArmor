@@ -314,8 +314,15 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	log.UID = int(msg.ContextSys.UID)
 
 	log.Syscall = getSyscallName(int32(msg.ContextSys.EventID))
-	log.Argnum = int(msg.ContextSys.Argnum)
-	log.Retval = int(msg.ContextSys.Retval)
+	log.Argnum = msg.ContextSys.Argnum
+	log.Retval = msg.ContextSys.Retval
+
+	if msg.ContextSys.Retval < 0 {
+		message := getErrorMessage(msg.ContextSys.Retval)
+		if message != "" {
+			log.Error = message
+		}
+	}
 
 	log.Comm = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
 
@@ -333,6 +340,10 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 		case msg, valid := <-mon.ContextChan:
 			if !valid {
+				continue
+			}
+
+			if mon.logType == "none" {
 				continue
 			}
 
@@ -355,11 +366,8 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				log.Data = "filename=" + fileName + " flags=" + fileOpenFlags
 
 				if msg.ContextSys.Retval > 0 {
-					log.Data = log.Data + " fd=" + strconv.Itoa(int(msg.ContextSys.Retval))
+					log.Data = log.Data + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
 				}
-
-				// retval > 0 -> file descriptor
-				// retval == -1 -> error
 
 			case SYS_CLOSE:
 				if len(msg.ContextArgs) == 1 {
@@ -367,9 +375,6 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 						log.Data = "fd=" + strconv.Itoa(int(val))
 					}
 				}
-
-				// retval == 0 -> success
-				// retval == -1 -> error
 
 			case SYS_SOCKET: // domain, type, proto
 				var sockDomain string
@@ -391,11 +396,8 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				log.Data = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
 
 				if msg.ContextSys.Retval > 0 {
-					log.Data = log.Data + " fd=" + strconv.Itoa(int(msg.ContextSys.Retval))
+					log.Data = log.Data + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
 				}
-
-				// retval > 0 -> file descriptor
-				// retval == -1 -> error
 
 			case SYS_CONNECT: // fd, sockaddr
 				var fd string
@@ -416,9 +418,6 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
-				// retval == 0 -> success
-				// retval == -1 -> error
-
 			case SYS_ACCEPT: // fd, sockaddr
 				var fd string
 				var sockAddr map[string]string
@@ -437,9 +436,6 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				for k, v := range sockAddr {
 					log.Data = log.Data + " " + k + "=" + v
 				}
-
-				// retval > 0 -> file descriptor
-				// retval == -1 -> error
 
 			case SYS_BIND: // fd, sockaddr
 				var fd string
@@ -460,18 +456,12 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					log.Data = log.Data + " " + k + "=" + v
 				}
 
-				// retval == 0 -> success
-				// retval == -1 -> error
-
 			case SYS_LISTEN:
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
 						log.Data = "fd=" + strconv.Itoa(int(val))
 					}
 				}
-
-				// retval == 0 -> success
-				// retval == -1 -> error
 
 			case SYS_EXECVE: // path, args
 				var procExecPath string
@@ -495,9 +485,6 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 						log.Data = log.Data + " a" + strconv.Itoa(idx) + "=" + arg
 					}
 				}
-
-				// retval == 0 -> success
-				// retval == -1 -> error
 
 			case SYS_EXECVEAT: // dirfd, path, args, flags
 				var fd string
@@ -531,12 +518,6 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				}
 
 				log.Data = " flag=" + procExecFlag
-
-				// retval == 0 -> success
-				// retval == -1 -> error
-
-			case DO_EXIT:
-				log.Data = ""
 
 			case CAP_CAPABLE:
 				var cap string
@@ -833,7 +814,7 @@ func (mon *ContainerMonitor) UpdateHostPidSkbMapForChildren(containerID string, 
 }
 
 // GetMatchedSecurityPolicy Function
-func (mon *ContainerMonitor) GetMatchedSecurityPolicy(containerID string, eventID, hostPid, ppid, pid uint32, exec, file interface{}) tp.NetworkPolicy {
+func (mon *ContainerMonitor) GetMatchedSecurityPolicy(containerID string, eventID int32, hostPid, ppid, pid uint32, exec, file interface{}) tp.NetworkPolicy {
 	matchedFirst := tp.NetworkPolicy{}
 
 	securityPolicies := []tp.NetworkPolicy{}
