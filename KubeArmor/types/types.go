@@ -121,7 +121,7 @@ type SystemLog struct {
 	Retval  int    `json:"retval"`
 
 	// data
-	Data string `json:"data,omitempty"`
+	Data string `json:"data"`
 }
 
 // AuditLog Structure
@@ -144,7 +144,7 @@ type AuditLog struct {
 	Action    string `json:"action"`
 
 	// raw
-	Raw string `json:"data,omitempty"`
+	Raw string `json:"rawdata,omitempty"`
 }
 
 // ===================== //
