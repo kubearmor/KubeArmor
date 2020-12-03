@@ -143,8 +143,7 @@ func (al *AuditLogger) DestroyAuditLogger() {
 // ================ //
 
 // GetContainerInfoFromHostPid Function
-func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidIn string) (string, string) {
-	hostPidInt, _ := strconv.Atoi(hostPidIn)
+func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, string) {
 	hostPid := uint32(hostPidInt)
 
 	al.ActivePidMapLock.Lock()
@@ -234,7 +233,7 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			requiredKeywords := []string{
 				"AVC",
-				"SYSCALL",
+				// "SYSCALL",
 			}
 
 			skip := true
@@ -251,7 +250,7 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			excludedKeywords := []string{
 				"apparmor=\"STATUS\"",
-				"success=yes",
+				// "success=yes",
 			}
 
 			skip = false
@@ -285,49 +284,33 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			// == //
 
-			filteringValues := []string{
-				"requested_mask=",
-				"denied_mask=",
-				"a0=",
-				"a1=",
-				"a2=",
-				"a3=",
-				"a4=",
-				"a5=",
-				"arch=",
-				"items=",
-				"auid=",
-				"euid=",
-				"ouid=",
-				"suid=",
-				"fsuid=",
-				"egid=",
-				"ogid=",
-				"sgid=",
-				"fsgid=",
-				"ses=",
-				"key=",
-			}
+			hostPid := 0
+			source := ""
+			operation := ""
+			resource := ""
+			action := ""
 
-			keyValToBeRemoved := []string{}
-			hostPid := ""
-
-			for _, keyVal := range words[2:] {
-				for _, key := range filteringValues {
-					if strings.Contains(keyVal, key) {
-						keyValToBeRemoved = append(keyValToBeRemoved, keyVal)
-						break
-					}
-				}
-
+			for _, keyVal := range words {
 				if strings.HasPrefix(keyVal, "pid=") {
 					value := strings.Split(keyVal, "=")
-					hostPid = value[1]
+					hostPid, _ = strconv.Atoi(value[1])
+				} else if strings.HasPrefix(keyVal, "comm=") {
+					value := strings.Split(keyVal, "=")
+					source = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(keyVal, "operation=") {
+					value := strings.Split(keyVal, "=")
+					operation = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(keyVal, "name=") {
+					value := strings.Split(keyVal, "=")
+					resource = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(keyVal, "apparmor=") {
+					value := strings.Split(keyVal, "=")
+					if value[1] == "\"DENIED\"" {
+						action = "Block"
+					} else {
+						action = strings.Replace(value[1], "\"", "", -1)
+					}
 				}
-			}
-
-			for _, keyVal := range keyValToBeRemoved {
-				words = kl.RemoveStrFromSlice(words, keyVal)
 			}
 
 			// == //
@@ -338,14 +321,22 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			auditLog.HostName = al.HostName
 			auditLog.ContainerID, auditLog.ContainerName = al.GetContainerInfoFromHostPid(hostPid)
 
-			auditLog.Message = strings.Join(words[:], " ")
+			auditLog.HostPID = hostPid
+			auditLog.Source = source
+			auditLog.Operation = operation
+			auditLog.Resource = resource
+			auditLog.Action = action
 
 			// == //
 
 			if al.logType == "file" {
+				auditLog.Raw = strings.Join(words[:], " ")
+
 				arr, _ := json.Marshal(auditLog)
 				kl.StrToFile(string(arr), al.logFile)
 			} else { // stdout
+				// no auditLog.Raw
+
 				arr, _ := json.Marshal(auditLog)
 				fmt.Println(string(arr))
 			}
