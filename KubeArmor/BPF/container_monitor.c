@@ -83,7 +83,7 @@ typedef struct __attribute__((__packed__)) sys_context {
 
     u32 event_id;
     u32 argnum;
-    s32 retval;
+    s64 retval;
 
     char comm[TASK_COMM_LEN];
 } sys_context_t;
