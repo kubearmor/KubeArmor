@@ -117,11 +117,14 @@ type SystemLog struct {
 
 	// syscall
 	Syscall string `json:"syscall"`
-	Argnum  int    `json:"argnum"`
-	Retval  int    `json:"retval"`
+	Argnum  int32  `json:"argnum"`
+	Retval  int64  `json:"retval"`
 
 	// data
-	Data string `json:"data"`
+	Data string `json:"data,omitempty"`
+
+	// error message
+	Error string `json:"error,omitempty"`
 }
 
 // AuditLog Structure
