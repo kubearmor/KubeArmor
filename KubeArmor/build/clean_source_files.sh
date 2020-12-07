@@ -14,6 +14,7 @@ rm -rf $ARMOR_HOME/build/enforcer
 rm -rf $ARMOR_HOME/build/GKE
 rm -rf $ARMOR_HOME/build/log
 rm -rf $ARMOR_HOME/build/monitor
+rm -rf $ARMOR_HOME/build/protobuf
 rm -rf $ARMOR_HOME/build/types
 rm -f  $ARMOR_HOME/build/go.mod
 rm -f  $ARMOR_HOME/build/main.go

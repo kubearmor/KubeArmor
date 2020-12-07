@@ -18,6 +18,7 @@ COPY ./discovery ./build/discovery
 COPY ./enforcer ./build/enforcer
 COPY ./log ./build/log
 COPY ./monitor ./build/monitor
+COPY ./protobuf ./build/protobuf
 COPY ./types ./build/types
 COPY ./go.mod ./build
 COPY ./main.go ./build
