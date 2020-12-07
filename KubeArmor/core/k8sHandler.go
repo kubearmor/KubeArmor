@@ -115,7 +115,7 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 func (kh *K8sHandler) InitInclusterAPIClient() bool {
 	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		kg.Printf("%v", err)
+		kg.Err(err.Error())
 		return false
 	}
 	kh.K8sToken = string(read)
@@ -131,7 +131,7 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 
 	client, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		kg.Printf("%v", err)
+		kg.Err(err.Error())
 		return false
 	}
 	kh.K8sClient = client
