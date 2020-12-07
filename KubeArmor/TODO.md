@@ -1,11 +1,5 @@
 # Task List
 
-- Security Policy Specification
-
-    - 'fromSource' option
-    
-        \- Complete implementing this option using AppArmor's subprofiles
-
 - Feature Extension
 
     - Indirect syscall restriction -> system-wide operations
@@ -17,10 +11,10 @@
     
         \- Develop policy specs based on rlimit features
         
-    - PodPreset
+    - Fine-grained network access control
     
-        \- Currently need to add AppArmor annotations manually to use KubeArmor  
-        \- See if we can use this to add AppArmor annotations into pod definitions
+        \- Restrict network-related system calls  
+        \- Provide security policy enfrocement at the IP/port level
 
 - Documentation
 
