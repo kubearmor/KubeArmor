@@ -1,0 +1,63 @@
+syntax = "proto3";
+ 
+package feeder;
+
+// option go_package="github.com/accuknox/KubeArmor/protobuf";
+
+// audit log
+message AuditLog {
+  string UpdatedTime = 1;
+
+  string HostName = 2;
+
+  string ContainerID = 3;
+  string ContainerName = 4;
+
+  int32 HostPID = 5;
+  string Source = 6;
+  string Operation = 7;
+  string Resource = 8;
+  string Action = 9;
+
+  string RawData = 10;
+}
+
+// system log
+message SystemLog {
+  string UpdatedTime = 1;
+
+  string HostName = 2;
+
+  string ContainerID = 3;
+  string ContainerName = 4;
+
+  int32 HostPID = 5;
+  int32 PPID = 6;
+  int32 PID = 7;
+  int32 TID = 8;
+  int32 UID = 9;
+  string Comm = 10;
+
+  string Syscall = 11;
+  int32 Argnum = 12;
+  int64 Retval = 13;
+
+  string Data = 14;
+  string ErrorMessage = 15;
+}
+
+// Health check
+message NonceMessage {
+  int32 nonce = 1;
+}
+
+// reply message
+message ReplyMessage {
+  int32 Retval = 1;
+}
+
+service LogMessage {
+  rpc HealthCheck(NonceMessage) returns (ReplyMessage);
+  rpc AuditLogs(stream AuditLog) returns (ReplyMessage);
+  rpc SystemLogs(stream SystemLog) returns (ReplyMessage);
+}
