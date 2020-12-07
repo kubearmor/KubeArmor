@@ -134,6 +134,6 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	}
 
 	for _, appArmorProfile := range appArmorProfiles {
-		ae.UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
+		UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
 	}
 }

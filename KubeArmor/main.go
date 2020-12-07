@@ -2,34 +2,34 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/accuknox/KubeArmor/KubeArmor/core"
+	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 )
 
 func main() {
 	if os.Geteuid() != 0 {
-		fmt.Printf("Need to have root privileges to run %s\n", os.Args[0])
+		kg.Printf("Need to have root privileges to run %s\n", os.Args[0])
 		return
 	}
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		kg.Err(err.Error())
 		return
 	}
 
 	if err := os.Chdir(dir); err != nil {
-		fmt.Printf("Error: could not move into the directory (%s)\n", dir)
+		kg.Err(err.Error())
 		return
 	}
 
 	// == //
 
-	logPtr := flag.String("log", "stdout", "{file:[absolute path] | stdout}")
-	tracePtr := flag.String("trace", "none", "{file:[absolute path] | none}")
+	logPtr := flag.String("log", "stdout", "{grpc:[domain name/ip address:port] | file:[absolute path] | stdout}")
+	tracePtr := flag.String("trace", "none", "{grpc:[domain name/ip address:port] | file:[absolute path] | none}")
 
 	flag.Parse()
 

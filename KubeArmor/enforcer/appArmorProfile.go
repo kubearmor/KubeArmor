@@ -385,236 +385,6 @@ func allowedCapabilities(secPolicy tp.SecurityPolicy, allowLines []string, allow
 	return allowLines, allowCount, capabilitiesCount
 }
 
-func blockedProcesses(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int) {
-	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
-		for _, path := range secPolicy.Spec.Process.MatchPaths {
-			if len(path.FromSource) > 0 {
-				for _, src := range path.FromSource {
-					denyLines = headFromSource(src, denyLines)
-
-					line := fmt.Sprintf("    audit deny %s wklx,\n", path.Path)
-					denyLines = append(denyLines, line)
-					denyCount++
-
-					denyLines = footFromSource(src, denyLines)
-				}
-			} else { // no FromSource
-				line := fmt.Sprintf("  audit deny %s wklx,\n", path.Path)
-				denyLines = append(denyLines, line)
-				denyCount++
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
-		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-			if len(dir.FromSource) > 0 {
-				for _, src := range dir.FromSource {
-					denyLines = headFromSource(src, denyLines)
-
-					if dir.Recursive {
-						line := fmt.Sprintf("    audit deny %s{*,**} wklx,\n", dir.Directory)
-						denyLines = append(denyLines, line)
-						denyCount++
-					} else { // !dir.Recursive
-						line := fmt.Sprintf("    audit deny %s* wklx,\n", dir.Directory)
-						denyLines = append(denyLines, line)
-						denyCount++
-					}
-
-					denyLines = footFromSource(src, denyLines)
-				}
-			} else { // no FromSource
-				if dir.Recursive {
-					line := fmt.Sprintf("  audit deny %s{*,**} wklx,\n", dir.Directory)
-					denyLines = append(denyLines, line)
-					denyCount++
-				} else { // !dir.Recursive
-					line := fmt.Sprintf("  audit deny %s* wklx,\n", dir.Directory)
-					denyLines = append(denyLines, line)
-					denyCount++
-				}
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
-		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-			if len(pat.FromSource) > 0 {
-				for _, src := range pat.FromSource {
-					denyLines = headFromSource(src, denyLines)
-
-					line := fmt.Sprintf("    audit deny %s wklx,\n", pat.Pattern)
-					denyLines = append(denyLines, line)
-					denyCount++
-
-					denyLines = footFromSource(src, denyLines)
-				}
-			} else { // no FromSource
-				line := fmt.Sprintf("  audit deny %s wklx,\n", pat.Pattern)
-				denyLines = append(denyLines, line)
-				denyCount++
-			}
-		}
-	}
-
-	return denyLines, denyCount
-}
-
-func blockedFiles(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int) {
-	if len(secPolicy.Spec.File.MatchPaths) > 0 {
-		for _, path := range secPolicy.Spec.File.MatchPaths {
-			if len(path.FromSource) > 0 {
-				for _, src := range path.FromSource {
-					denyLines = headFromSource(src, denyLines)
-
-					if path.ReadOnly {
-						line := fmt.Sprintf("    audit deny %s wkl,\n", path.Path)
-						denyLines = append(denyLines, line)
-						denyCount++
-					} else { // !path.ReadOnly
-						line := fmt.Sprintf("    audit deny %s rwkl,\n", path.Path)
-						denyLines = append(denyLines, line)
-						denyCount++
-					}
-
-					denyLines = footFromSource(src, denyLines)
-				}
-			} else { // no FromSource
-				if path.ReadOnly {
-					line := fmt.Sprintf("  audit deny %s wkl,\n", path.Path)
-					denyLines = append(denyLines, line)
-					denyCount++
-				} else { // !path.ReadOnly
-					line := fmt.Sprintf("  audit deny %s rwkl,\n", path.Path)
-					denyLines = append(denyLines, line)
-					denyCount++
-				}
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.File.MatchDirectories) > 0 {
-		for _, dir := range secPolicy.Spec.File.MatchDirectories {
-			if len(dir.FromSource) > 0 {
-				for _, src := range dir.FromSource {
-					denyLines = headFromSource(src, denyLines)
-
-					if dir.ReadOnly && dir.Recursive {
-						line := fmt.Sprintf("    audit deny %s{*,**} wkl,\n", dir.Directory)
-						denyLines = append(denyLines, line)
-						denyCount++
-					} else if dir.ReadOnly && !dir.Recursive {
-						line := fmt.Sprintf("    audit deny %s* wkl,\n", dir.Directory)
-						denyLines = append(denyLines, line)
-						denyCount++
-					} else if !dir.ReadOnly && dir.Recursive {
-						line := fmt.Sprintf("    audit deny %s{*,**} rwkl,\n", dir.Directory)
-						denyLines = append(denyLines, line)
-						denyCount++
-					} else { // !dir.ReadOnly && !dir.Recursive
-						line := fmt.Sprintf("    audit deny %s* rwkl,\n", dir.Directory)
-						denyLines = append(denyLines, line)
-						denyCount++
-					}
-
-					denyLines = footFromSource(src, denyLines)
-				}
-			} else { // no FromSource
-				if dir.ReadOnly && dir.Recursive {
-					line := fmt.Sprintf("  audit deny %s{*,**} wkl,\n", dir.Directory)
-					denyLines = append(denyLines, line)
-					denyCount++
-				} else if dir.ReadOnly && !dir.Recursive {
-					line := fmt.Sprintf("  audit deny %s* wkl,\n", dir.Directory)
-					denyLines = append(denyLines, line)
-					denyCount++
-				} else if !dir.ReadOnly && dir.Recursive {
-					line := fmt.Sprintf("  audit deny %s{*,**} rwkl,\n", dir.Directory)
-					denyLines = append(denyLines, line)
-					denyCount++
-				} else { // !dir.ReadOnly && !dir.Recursive
-					line := fmt.Sprintf("  audit deny %s* rwkl,\n", dir.Directory)
-					denyLines = append(denyLines, line)
-					denyCount++
-				}
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
-		for _, pat := range secPolicy.Spec.File.MatchPatterns {
-			if len(pat.FromSource) > 0 {
-				for _, src := range pat.FromSource {
-					denyLines = headFromSource(src, denyLines)
-
-					if pat.ReadOnly {
-						line := fmt.Sprintf("    audit deny %s wkl,\n", pat.Pattern)
-						denyLines = append(denyLines, line)
-						denyCount++
-					} else { // !pat.ReadOnly
-						line := fmt.Sprintf("    audit deny %s rwkl,\n", pat.Pattern)
-						denyLines = append(denyLines, line)
-						denyCount++
-					}
-
-					denyLines = footFromSource(src, denyLines)
-				}
-			} else { // no FromSource
-				if pat.ReadOnly {
-					line := fmt.Sprintf("  audit deny %s wkl,\n", pat.Pattern)
-					denyLines = append(denyLines, line)
-					denyCount++
-				} else { // !pat.ReadOnly
-					line := fmt.Sprintf("  audit deny %s rwkl,\n", pat.Pattern)
-					denyLines = append(denyLines, line)
-					denyCount++
-				}
-			}
-		}
-	}
-
-	return denyLines, denyCount
-}
-
-func blockedNetworks(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, networkCount int) ([]string, int, int) {
-	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			if proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  audit deny network %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			} else if proto.IPv4 && !proto.IPv6 {
-				line := fmt.Sprintf("  audit deny network inet %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			} else if !proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  audit deny network inet6 %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			} else {
-				line := fmt.Sprintf("  audit deny network %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			}
-
-			networkCount++
-			denyCount++
-		}
-	}
-
-	return denyLines, denyCount, networkCount
-}
-
-func blockedCapabilities(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, capabilitiesCount int) ([]string, int, int) {
-	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
-		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-			line := fmt.Sprintf("  audit deny capability %s,\n", cap)
-			denyLines = append(denyLines, line)
-			capabilitiesCount++
-			denyCount++
-		}
-	}
-
-	return denyLines, denyCount, capabilitiesCount
-}
-
 func auditedProcesses(secPolicy tp.SecurityPolicy, auditLines []string, auditCount int) ([]string, int) {
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
@@ -845,12 +615,242 @@ func auditedCapabilities(secPolicy tp.SecurityPolicy, auditLines []string, audit
 	return auditLines, auditCount, capabilitiesCount
 }
 
-// UpdateAppArmorProfile Function
-func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
+func blockedProcesses(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int) {
+	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
+		for _, path := range secPolicy.Spec.Process.MatchPaths {
+			if len(path.FromSource) > 0 {
+				for _, src := range path.FromSource {
+					denyLines = headFromSource(src, denyLines)
+
+					line := fmt.Sprintf("    audit deny %s wklx,\n", path.Path)
+					denyLines = append(denyLines, line)
+					denyCount++
+
+					denyLines = footFromSource(src, denyLines)
+				}
+			} else { // no FromSource
+				line := fmt.Sprintf("  audit deny %s wklx,\n", path.Path)
+				denyLines = append(denyLines, line)
+				denyCount++
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
+		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
+			if len(dir.FromSource) > 0 {
+				for _, src := range dir.FromSource {
+					denyLines = headFromSource(src, denyLines)
+
+					if dir.Recursive {
+						line := fmt.Sprintf("    audit deny %s{*,**} wklx,\n", dir.Directory)
+						denyLines = append(denyLines, line)
+						denyCount++
+					} else { // !dir.Recursive
+						line := fmt.Sprintf("    audit deny %s* wklx,\n", dir.Directory)
+						denyLines = append(denyLines, line)
+						denyCount++
+					}
+
+					denyLines = footFromSource(src, denyLines)
+				}
+			} else { // no FromSource
+				if dir.Recursive {
+					line := fmt.Sprintf("  audit deny %s{*,**} wklx,\n", dir.Directory)
+					denyLines = append(denyLines, line)
+					denyCount++
+				} else { // !dir.Recursive
+					line := fmt.Sprintf("  audit deny %s* wklx,\n", dir.Directory)
+					denyLines = append(denyLines, line)
+					denyCount++
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
+		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
+			if len(pat.FromSource) > 0 {
+				for _, src := range pat.FromSource {
+					denyLines = headFromSource(src, denyLines)
+
+					line := fmt.Sprintf("    audit deny %s wklx,\n", pat.Pattern)
+					denyLines = append(denyLines, line)
+					denyCount++
+
+					denyLines = footFromSource(src, denyLines)
+				}
+			} else { // no FromSource
+				line := fmt.Sprintf("  audit deny %s wklx,\n", pat.Pattern)
+				denyLines = append(denyLines, line)
+				denyCount++
+			}
+		}
+	}
+
+	return denyLines, denyCount
+}
+
+func blockedFiles(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int) {
+	if len(secPolicy.Spec.File.MatchPaths) > 0 {
+		for _, path := range secPolicy.Spec.File.MatchPaths {
+			if len(path.FromSource) > 0 {
+				for _, src := range path.FromSource {
+					denyLines = headFromSource(src, denyLines)
+
+					if path.ReadOnly {
+						line := fmt.Sprintf("    audit deny %s wkl,\n", path.Path)
+						denyLines = append(denyLines, line)
+						denyCount++
+					} else { // !path.ReadOnly
+						line := fmt.Sprintf("    audit deny %s rwkl,\n", path.Path)
+						denyLines = append(denyLines, line)
+						denyCount++
+					}
+
+					denyLines = footFromSource(src, denyLines)
+				}
+			} else { // no FromSource
+				if path.ReadOnly {
+					line := fmt.Sprintf("  audit deny %s wkl,\n", path.Path)
+					denyLines = append(denyLines, line)
+					denyCount++
+				} else { // !path.ReadOnly
+					line := fmt.Sprintf("  audit deny %s rwkl,\n", path.Path)
+					denyLines = append(denyLines, line)
+					denyCount++
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+		for _, dir := range secPolicy.Spec.File.MatchDirectories {
+			if len(dir.FromSource) > 0 {
+				for _, src := range dir.FromSource {
+					denyLines = headFromSource(src, denyLines)
+
+					if dir.ReadOnly && dir.Recursive {
+						line := fmt.Sprintf("    audit deny %s{*,**} wkl,\n", dir.Directory)
+						denyLines = append(denyLines, line)
+						denyCount++
+					} else if dir.ReadOnly && !dir.Recursive {
+						line := fmt.Sprintf("    audit deny %s* wkl,\n", dir.Directory)
+						denyLines = append(denyLines, line)
+						denyCount++
+					} else if !dir.ReadOnly && dir.Recursive {
+						line := fmt.Sprintf("    audit deny %s{*,**} rwkl,\n", dir.Directory)
+						denyLines = append(denyLines, line)
+						denyCount++
+					} else { // !dir.ReadOnly && !dir.Recursive
+						line := fmt.Sprintf("    audit deny %s* rwkl,\n", dir.Directory)
+						denyLines = append(denyLines, line)
+						denyCount++
+					}
+
+					denyLines = footFromSource(src, denyLines)
+				}
+			} else { // no FromSource
+				if dir.ReadOnly && dir.Recursive {
+					line := fmt.Sprintf("  audit deny %s{*,**} wkl,\n", dir.Directory)
+					denyLines = append(denyLines, line)
+					denyCount++
+				} else if dir.ReadOnly && !dir.Recursive {
+					line := fmt.Sprintf("  audit deny %s* wkl,\n", dir.Directory)
+					denyLines = append(denyLines, line)
+					denyCount++
+				} else if !dir.ReadOnly && dir.Recursive {
+					line := fmt.Sprintf("  audit deny %s{*,**} rwkl,\n", dir.Directory)
+					denyLines = append(denyLines, line)
+					denyCount++
+				} else { // !dir.ReadOnly && !dir.Recursive
+					line := fmt.Sprintf("  audit deny %s* rwkl,\n", dir.Directory)
+					denyLines = append(denyLines, line)
+					denyCount++
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+		for _, pat := range secPolicy.Spec.File.MatchPatterns {
+			if len(pat.FromSource) > 0 {
+				for _, src := range pat.FromSource {
+					denyLines = headFromSource(src, denyLines)
+
+					if pat.ReadOnly {
+						line := fmt.Sprintf("    audit deny %s wkl,\n", pat.Pattern)
+						denyLines = append(denyLines, line)
+						denyCount++
+					} else { // !pat.ReadOnly
+						line := fmt.Sprintf("    audit deny %s rwkl,\n", pat.Pattern)
+						denyLines = append(denyLines, line)
+						denyCount++
+					}
+
+					denyLines = footFromSource(src, denyLines)
+				}
+			} else { // no FromSource
+				if pat.ReadOnly {
+					line := fmt.Sprintf("  audit deny %s wkl,\n", pat.Pattern)
+					denyLines = append(denyLines, line)
+					denyCount++
+				} else { // !pat.ReadOnly
+					line := fmt.Sprintf("  audit deny %s rwkl,\n", pat.Pattern)
+					denyLines = append(denyLines, line)
+					denyCount++
+				}
+			}
+		}
+	}
+
+	return denyLines, denyCount
+}
+
+func blockedNetworks(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, networkCount int) ([]string, int, int) {
+	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
+		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
+			if proto.IPv4 && proto.IPv6 {
+				line := fmt.Sprintf("  audit deny network %s,\n", proto.Protocol)
+				denyLines = append(denyLines, line)
+			} else if proto.IPv4 && !proto.IPv6 {
+				line := fmt.Sprintf("  audit deny network inet %s,\n", proto.Protocol)
+				denyLines = append(denyLines, line)
+			} else if !proto.IPv4 && proto.IPv6 {
+				line := fmt.Sprintf("  audit deny network inet6 %s,\n", proto.Protocol)
+				denyLines = append(denyLines, line)
+			} else {
+				line := fmt.Sprintf("  audit deny network %s,\n", proto.Protocol)
+				denyLines = append(denyLines, line)
+			}
+
+			networkCount++
+			denyCount++
+		}
+	}
+
+	return denyLines, denyCount, networkCount
+}
+
+func blockedCapabilities(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, capabilitiesCount int) ([]string, int, int) {
+	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
+		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
+			line := fmt.Sprintf("  audit deny capability %s,\n", cap)
+			denyLines = append(denyLines, line)
+			capabilitiesCount++
+			denyCount++
+		}
+	}
+
+	return denyLines, denyCount, capabilitiesCount
+}
+
+// GenerateAppArmorProfile Function
+func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
 	// check apparmor profile
 
 	if _, err := os.Stat("/etc/apparmor.d/" + appArmorProfile); os.IsNotExist(err) {
-		return
+		return 0, "", false
 	}
 
 	// get the old profile
@@ -944,22 +944,6 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 	}
 
 	for _, secPolicy := range securityPolicies {
-		if strings.ToLower(secPolicy.Spec.Action) == "block" {
-			// process
-			denyLines, denyCount = blockedProcesses(secPolicy, denyLines, denyCount)
-
-			// file
-			denyLines, denyCount = blockedFiles(secPolicy, denyLines, denyCount)
-
-			// network
-			denyLines, denyCount, networkCount = blockedNetworks(secPolicy, denyLines, denyCount, networkCount)
-
-			// capabilities
-			denyLines, denyCount, capabilitiesCount = blockedCapabilities(secPolicy, denyLines, denyCount, capabilitiesCount)
-		}
-	}
-
-	for _, secPolicy := range securityPolicies {
 		if strings.ToLower(secPolicy.Spec.Action) == "audit" {
 			// process
 			auditLines, auditCount = auditedProcesses(secPolicy, auditLines, auditCount)
@@ -972,6 +956,22 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 
 			// capabilities
 			auditLines, auditCount, capabilitiesCount = auditedCapabilities(secPolicy, auditLines, auditCount, capabilitiesCount)
+		}
+	}
+
+	for _, secPolicy := range securityPolicies {
+		if strings.ToLower(secPolicy.Spec.Action) == "block" {
+			// process
+			denyLines, denyCount = blockedProcesses(secPolicy, denyLines, denyCount)
+
+			// file
+			denyLines, denyCount = blockedFiles(secPolicy, denyLines, denyCount)
+
+			// network
+			denyLines, denyCount, networkCount = blockedNetworks(secPolicy, denyLines, denyCount, networkCount)
+
+			// capabilities
+			denyLines, denyCount, capabilitiesCount = blockedCapabilities(secPolicy, denyLines, denyCount, capabilitiesCount)
 		}
 	}
 
@@ -1048,9 +1048,16 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 		newProfile = newProfile + foot
 	}
 
-	// apply the new profile
-
 	if newProfile != oldProfile {
+		return allowCount + denyCount, newProfile, true
+	}
+
+	return 0, "", false
+}
+
+// UpdateAppArmorProfile Function
+func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
+	if policyCount, newProfile, ok := GenerateAppArmorProfile(appArmorProfile, securityPolicies); ok {
 		newfile, _ := os.Create("/etc/apparmor.d/" + appArmorProfile)
 		defer newfile.Close()
 
@@ -1065,9 +1072,9 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 		}
 
 		if err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "/etc/apparmor.d/"+appArmorProfile).Run(); err == nil {
-			kg.Printf("Updated %d security policies to %s/%s/%s", allowCount+denyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+			kg.Printf("Updated %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
 		} else {
-			kg.Printf("Failed to update %d security policies to %s/%s/%s", allowCount+denyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+			kg.Printf("Failed to update %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
 		}
 	}
 }
