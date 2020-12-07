@@ -2,6 +2,7 @@ package feeder
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -118,19 +119,19 @@ func (fd *Feeder) DoHealthCheck() (bool, string) {
 	conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
 	if err != nil {
 		kg.Err(err.Error())
-		return nil
+		return false, fmt.Sprintf("Failed to connect the server (%s)", fd.server)
 	}
 	defer conn.Close()
 
 	// set client
-	client = pb.NewLogMessageClient(conn)
+	client := pb.NewLogMessageClient(conn)
 
 	// generate nonce
 	rand := rand.Int31()
 
 	// send a nonce
 	nonce := pb.NonceMessage{Nonce: rand}
-	res, err := fd.Client.HealthCheck(context.Background(), &nonce)
+	res, err := client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
 		return false, err.Error()
 	}
