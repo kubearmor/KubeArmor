@@ -7,6 +7,8 @@ docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {}
 
 echo "[INFO] Removed existing KubeArmor images"
 
+cd $ARMOR_HOME/build
+
 # remove old files (just in case)
 $ARMOR_HOME/build/clean_source_files.sh
 
@@ -16,8 +18,6 @@ echo "[INFO] Removed source files just in case"
 $ARMOR_HOME/build/copy_source_files.sh
 
 echo "[INFO] Copied new source files"
-
-cd $ARMOR_HOME/build
 
 if [ -z $1 ]; then
     echo "[INFO] Building accuknox/kubearmor:latest"

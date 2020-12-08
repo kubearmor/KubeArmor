@@ -18,6 +18,9 @@ type Feeder struct {
 	// server
 	server string
 
+	// log type
+	logType string
+
 	// connection
 	conn *grpc.ClientConn
 
@@ -36,13 +39,14 @@ func NewFeeder(server, logType string) *Feeder {
 	fd := &Feeder{}
 
 	fd.server = server
+	fd.logType = logType
 
 	for {
-		if ok, _ := fd.DoHealthCheck(); ok {
+		msg, ok := fd.DoHealthCheck()
+		if ok {
 			break
 		}
-
-		kg.Print("Waiting until the operator is ready")
+		kg.Debugf("Waiting for gRPC server (%s)", msg)
 
 		time.Sleep(time.Second * 1)
 	}
@@ -78,6 +82,7 @@ func NewFeeder(server, logType string) *Feeder {
 	} else {
 		kg.Printf("Not supported type (%s)", logType)
 		fd.conn.Close()
+		fd.conn = nil
 		return nil
 	}
 
@@ -91,35 +96,80 @@ func (fd *Feeder) DestroyFeeder() {
 
 // SendAuditLog Function
 func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
-	log := pb.AuditLog{}
-	fd.auditLogStream.Send(&log)
-
-	_, err := fd.auditLogStream.CloseAndRecv()
-	if err != nil {
-		kg.Err(err.Error())
+	if fd.conn == nil {
+		kg.Print("gRPC is not set")
+		return
+	} else if fd.logType == "SystemLog" {
+		kg.Print("gRPC is set for system logs (not audit logs)")
 		return
 	}
+
+	log := pb.AuditLog{}
+
+	log.UpdatedTime = auditLog.UpdatedTime
+
+	log.HostName = auditLog.HostName
+
+	log.ContainerID = auditLog.ContainerID
+	log.ContainerName = auditLog.ContainerName
+
+	log.HostPID = auditLog.HostPID
+	log.Source = auditLog.Source
+	log.Operation = auditLog.Operation
+	log.Resource = auditLog.Resource
+	log.Action = auditLog.Action
+
+	log.RawData = auditLog.RawData
+
+	fd.auditLogStream.Send(&log)
 }
 
 // SendSystemLog Function
 func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
-	log := pb.SystemLog{}
-	fd.systemLogStream.Send(&log)
-
-	_, err := fd.systemLogStream.CloseAndRecv()
-	if err != nil {
-		kg.Err(err.Error())
+	if fd.conn == nil {
+		kg.Print("gRPC is not set")
+		return
+	} else if fd.logType == "AuditLog" {
+		kg.Print("gRPC is set for audit logs (not system logs)")
 		return
 	}
+
+	log := pb.SystemLog{}
+
+	log.UpdatedTime = systemLog.UpdatedTime
+
+	log.HostName = systemLog.HostName
+
+	log.ContainerID = systemLog.ContainerID
+	log.ContainerName = systemLog.ContainerName
+
+	log.HostPID = systemLog.HostPID
+	log.PPID = systemLog.PPID
+	log.PID = systemLog.PID
+	log.TID = systemLog.TID
+	log.UID = systemLog.UID
+	log.Comm = systemLog.Comm
+
+	log.Syscall = systemLog.Syscall
+	log.Argnum = systemLog.Argnum
+	log.Retval = systemLog.Retval
+
+	log.Data = systemLog.Data
+
+	if len(systemLog.ErrorMessage) > 0 {
+		log.ErrorMessage = systemLog.ErrorMessage
+	}
+
+	fd.systemLogStream.Send(&log)
 }
 
 // DoHealthCheck Function
-func (fd *Feeder) DoHealthCheck() (bool, string) {
+func (fd *Feeder) DoHealthCheck() (string, bool) {
 	// connect to server
 	conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
 	if err != nil {
 		kg.Err(err.Error())
-		return false, fmt.Sprintf("Failed to connect the server (%s)", fd.server)
+		return fmt.Sprintf("Failed to connect the server (%s)", fd.server), false
 	}
 	defer conn.Close()
 
@@ -133,13 +183,13 @@ func (fd *Feeder) DoHealthCheck() (bool, string) {
 	nonce := pb.NonceMessage{Nonce: rand}
 	res, err := client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
-		return false, err.Error()
+		return err.Error(), false
 	}
 
 	// check nonces
 	if rand != res.Retval {
-		return false, "Nonces are different"
+		return "Nonces are different", false
 	}
 
-	return true, "success"
+	return "success", true
 }

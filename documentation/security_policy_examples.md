@@ -201,7 +201,7 @@ Here, we demonstrate how to define security policies using our example microserv
       - Explanation      
       In this policy, we do not want the container with the 'ubuntu-5' label to access any files in the '/credentials' directory and subdirectories. Thus, we use 'matchDirectories' and 'recursive: true' to define all files in the '/credentials' directory and its subdirectories.
 
-      - Verification
+      - Verification  
       After applying this policy, please get into the container with the 'ubuntu-5' label and run 'cat /secret.txt'. You will see the contents of /secret.txt. Then, please run 'cat /credentials/password'. This command will be blocked due to the security policy.
 
 - Network Operation Restriction

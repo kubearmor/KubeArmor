@@ -117,6 +117,30 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) {
 // == Security Policy Enforcement == //
 // ================================= //
 
+// UpdateAppArmorProfile Function
+func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
+	if policyCount, newProfile, ok := GenerateAppArmorProfile(appArmorProfile, securityPolicies); ok {
+		newfile, _ := os.Create("/etc/apparmor.d/" + appArmorProfile)
+		defer newfile.Close()
+
+		if _, err := newfile.WriteString(newProfile); err != nil {
+			kg.Err(err.Error())
+			return
+		}
+
+		if err := newfile.Sync(); err != nil {
+			kg.Err(err.Error())
+			return
+		}
+
+		if err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "/etc/apparmor.d/"+appArmorProfile).Run(); err == nil {
+			kg.Printf("Updated %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+		} else {
+			kg.Printf("Failed to update %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+		}
+	}
+}
+
 // UpdateSecurityPolicies Function
 func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	appArmorProfiles := []string{}

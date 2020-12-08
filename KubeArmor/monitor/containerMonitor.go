@@ -114,7 +114,7 @@ func NewContainerMonitor(logOption, hostName string, containers map[string]tp.Co
 		args := strings.Split(logOption, ":")
 
 		mon.logType = args[0]
-		mon.logTarget = strings.Join(args[1:2], ":") // ip:port
+		mon.logTarget = args[1] + ":" + args[2] // ip:port
 		mon.logFeeder = fd.NewFeeder(mon.logTarget, "SystemLog")
 
 	} else if strings.Contains(logOption, "file:") {
