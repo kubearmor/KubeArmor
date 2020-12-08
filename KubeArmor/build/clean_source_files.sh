@@ -11,6 +11,7 @@ rm -rf $ARMOR_HOME/build/common
 rm -rf $ARMOR_HOME/build/core
 rm -rf $ARMOR_HOME/build/discovery
 rm -rf $ARMOR_HOME/build/enforcer
+rm -rf $ARMOR_HOME/build/feeder
 rm -rf $ARMOR_HOME/build/GKE
 rm -rf $ARMOR_HOME/build/log
 rm -rf $ARMOR_HOME/build/monitor

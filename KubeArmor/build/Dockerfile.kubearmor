@@ -16,6 +16,7 @@ COPY ./common ./build/common
 COPY ./core ./build/core
 COPY ./discovery ./build/discovery
 COPY ./enforcer ./build/enforcer
+COPY ./feeder ./build/feeder
 COPY ./log ./build/log
 COPY ./monitor ./build/monitor
 COPY ./types ./build/types

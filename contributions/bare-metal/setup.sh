@@ -31,13 +31,13 @@ case "$VERSION" in
 esac
 
 # make a directory to build bcc
-sudo rm -rf /tmp/build; mkdir /tmp/build; cd /tmp/build
+sudo rm -rf /tmp/build; mkdir -p /tmp/build; cd /tmp/build
 
 # download bcc
 git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
 
 # install bcc
-mkdir /tmp/build/bcc/build; cd /tmp/build/bcc/build
+mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
 cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make && sudo make install
 
 # install golang 1.15.2
@@ -63,6 +63,24 @@ fi
 
 # install apparmor and audit
 sudo apt-get install -y apparmor apparmor-utils auditd
+
+# install dependency on protoc
+sudo apt-get install -y unzip
+
+# download protoc
+mkdir -p /tmp/build/protoc; cd /tmp/build/protoc
+wget https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/protoc-3.14.0-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.14.0-linux-x86_64.zip
+
+# install protoc
+unzip protoc-3.14.0-linux-x86_64.zip
+sudo mv bin/protoc /usr/local/bin/
+
+# apply .bashrc
+. ~/.bashrc
+
+# download protoc-gen-go
+go get -u google.golang.org/grpc
+go get -u github.com/golang/protobuf/protoc-gen-go
 
 # remove downloaded files
 cd; sudo rm -rf /tmp/build

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
@@ -33,8 +34,11 @@ type AuditLogger struct {
 	// logging type
 	logType string
 
-	// logging path
-	logFile string
+	// logging target
+	logTarget string
+
+	// logging feeder
+	logFeeder *fd.Feeder
 
 	// hostname for logging
 	HostName string
@@ -60,21 +64,31 @@ func NewAuditLogger(logOption, hostName string, containers map[string]tp.Contain
 		kl.GetCommandWithoutOutput("/bin/mkdir", []string{"-p", "/KubeArmor/audit"})
 	}
 
-	if strings.Contains(logOption, "file:") {
+	if strings.Contains(logOption, "grpc:") {
 		args := strings.Split(logOption, ":")
 
 		al.logType = args[0]
-		al.logFile = args[1]
+		al.logTarget = strings.Join(args[1:2], ":") // ip:port
+		al.logFeeder = fd.NewFeeder(al.logTarget, "AuditLog")
+
+	} else if strings.Contains(logOption, "file:") {
+		args := strings.Split(logOption, ":")
+
+		al.logType = args[0]
+		al.logTarget = args[1] // file path
+		al.logFeeder = nil
 
 		// create log file
-		kl.GetCommandWithoutOutput("/bin/touch", []string{al.logFile})
+		kl.GetCommandWithoutOutput("/bin/touch", []string{al.logTarget})
+
 	} else {
 		if logOption != "stdout" {
 			kg.Printf("Use the default logging option (stdout) since %s is not a supported logging option", logOption)
 		}
 
 		al.logType = "stdout"
-		al.logFile = ""
+		al.logTarget = ""
+		al.logFeeder = nil
 	}
 
 	al.HostName = hostName
@@ -135,6 +149,10 @@ func (al *AuditLogger) DestroyAuditLogger() {
 	if !al.isCOS {
 		// stop the Auditd daemon
 		kl.GetCommandWithoutOutput("/usr/bin/pkill", []string{"-9", "auditd"})
+	}
+
+	if al.logFeeder != nil {
+		al.logFeeder.DestroyFeeder()
 	}
 }
 
@@ -321,7 +339,7 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			auditLog.HostName = al.HostName
 			auditLog.ContainerID, auditLog.ContainerName = al.GetContainerInfoFromHostPid(hostPid)
 
-			auditLog.HostPID = hostPid
+			auditLog.HostPID = int32(hostPid)
 			auditLog.Source = source
 			auditLog.Operation = operation
 			auditLog.Resource = resource
@@ -329,14 +347,17 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			// == //
 
-			if al.logType == "file" {
-				auditLog.Raw = strings.Join(words[:], " ")
+			if al.logType == "grpc" {
+				auditLog.RawData = strings.Join(words[:], " ")
+				al.logFeeder.SendAuditLog(auditLog)
+
+			} else if al.logType == "file" {
+				auditLog.RawData = strings.Join(words[:], " ")
 
 				arr, _ := json.Marshal(auditLog)
-				kl.StrToFile(string(arr), al.logFile)
-			} else { // stdout
-				// no auditLog.Raw
+				kl.StrToFile(string(arr), al.logTarget)
 
+			} else { // stdout
 				arr, _ := json.Marshal(auditLog)
 				fmt.Println(string(arr))
 			}
