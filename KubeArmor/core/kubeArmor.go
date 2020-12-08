@@ -272,7 +272,7 @@ func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
 
 // CloseContainerMonitor Function
 func (dm *KubeArmorDaemon) CloseContainerMonitor() {
-	dm.ContainerMonitor.RemoveBPF()
+	dm.ContainerMonitor.DestroyContainerMonitor()
 }
 
 // ========== //

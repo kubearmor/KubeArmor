@@ -75,7 +75,7 @@ type K8sKubeArmorPolicy struct {
 	Spec     SecuritySpec      `json:"spec"`
 }
 
-// K8sSystemPolicies Structure
+// K8sKubeArmorPolicies Structure
 type K8sKubeArmorPolicies struct {
 	Items []K8sKubeArmorPolicy `json:"items"`
 }
@@ -108,11 +108,11 @@ type SystemLog struct {
 	ContainerName string `json:"containerName"`
 
 	// common
-	HostPID int    `json:"hostPid"`
-	PPID    int    `json:"ppid"`
-	PID     int    `json:"pid"`
-	TID     int    `json:"tid"`
-	UID     int    `json:"uid"`
+	HostPID int32  `json:"hostPid"`
+	PPID    int32  `json:"ppid"`
+	PID     int32  `json:"pid"`
+	TID     int32  `json:"tid"`
+	UID     int32  `json:"uid"`
 	Comm    string `json:"comm"`
 
 	// syscall
@@ -124,7 +124,7 @@ type SystemLog struct {
 	Data string `json:"data,omitempty"`
 
 	// error message
-	Error string `json:"error,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 // AuditLog Structure
@@ -140,14 +140,14 @@ type AuditLog struct {
 	ContainerName string `json:"containerName"`
 
 	// audit
-	HostPID   int    `json:"hostPid"`
+	HostPID   int32  `json:"hostPid"`
 	Source    string `json:"source"`
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
 	Action    string `json:"action"`
 
 	// raw
-	Raw string `json:"rawdata,omitempty"`
+	RawData string `json:"rawData,omitempty"`
 }
 
 // ===================== //

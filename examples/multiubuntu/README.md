@@ -42,19 +42,19 @@ $ kubectl -n kube-system logs {KubeArmor daemon in the node where ubuntu 1 is lo
 
 ```
 $ cd security-policies
-(security-policies) $ kubectl -n multiubuntu apply -f ksp-ubuntu-4-file-path-readonly-allow.yaml
+(security-policies) $ kubectl -n multiubuntu apply -f ksp-ubuntu-5-file-dir-recursive-block.yaml
 ```
 
-* Open a file (/secret.txt)
+* Open a file (/credentials/password)
 
 ```
-$ kubectl -n multiubuntu exec -it {pod name for ubuntu 4} -- bash
-# cat /secret.txt
+$ kubectl -n multiubuntu exec -it {pod name for ubuntu 5} -- bash
+# cat cat /credentials/password
 (Permission Denied)
 ```
 
 * See audit logs
 
 ```
-$ kubectl -n kube-system logs {KubeArmor daemon in the node where ubuntu 4 is located}
+$ kubectl -n kube-system logs {KubeArmor daemon in the node where ubuntu 5 is located}
 ```

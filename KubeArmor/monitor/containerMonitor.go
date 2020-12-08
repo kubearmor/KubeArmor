@@ -18,6 +18,7 @@ import (
 	"github.com/iovisor/gobpf/bcc"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
@@ -39,8 +40,11 @@ type ContainerMonitor struct {
 	// logging type
 	logType string
 
-	// logging path
-	logFile string
+	// logging target
+	logTarget string
+
+	// logging feeder
+	logFeeder *fd.Feeder
 
 	// hostname for logging
 	HostName string
@@ -106,20 +110,29 @@ type ContainerMonitor struct {
 func NewContainerMonitor(logOption, hostName string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex, uptimeTS float64) *ContainerMonitor {
 	mon := new(ContainerMonitor)
 
-	if strings.Contains(logOption, "file:") {
+	if strings.Contains(logOption, "grpc:") {
 		args := strings.Split(logOption, ":")
 
 		mon.logType = args[0]
-		mon.logFile = args[1]
+		mon.logTarget = strings.Join(args[1:2], ":") // ip:port
+		mon.logFeeder = fd.NewFeeder(mon.logTarget, "SystemLog")
+
+	} else if strings.Contains(logOption, "file:") {
+		args := strings.Split(logOption, ":")
+
+		mon.logType = args[0]
+		mon.logTarget = args[1]
 
 		// create log file
-		kl.GetCommandWithoutOutput("/bin/touch", []string{mon.logFile})
+		kl.GetCommandWithoutOutput("/bin/touch", []string{mon.logTarget})
+
 	} else if logOption == "stdout" {
 		mon.logType = "stdout"
-		mon.logFile = ""
+		mon.logTarget = ""
+
 	} else {
 		mon.logType = "none"
-		mon.logFile = ""
+		mon.logTarget = ""
 	}
 
 	mon.HostName = hostName
@@ -214,7 +227,6 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 
 	tracepoints := []string{
 		"do_exit"} // process
-	// "cap_capable"} // capabilities
 
 	for _, tracepoint := range tracepoints {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
@@ -261,8 +273,8 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 	return nil
 }
 
-// RemoveBPF Function
-func (mon *ContainerMonitor) RemoveBPF() {
+// DestroyContainerMonitor Function
+func (mon *ContainerMonitor) DestroyContainerMonitor() {
 	if mon.SyscallPerfMap != nil {
 		mon.SyscallPerfMap.Stop()
 	}
@@ -273,6 +285,10 @@ func (mon *ContainerMonitor) RemoveBPF() {
 
 	if mon.BpfModule != nil {
 		mon.BpfModule.Close()
+	}
+
+	if mon.logFeeder != nil {
+		mon.logFeeder.DestroyFeeder()
 	}
 
 	if mon.ContextChan != nil {
@@ -307,11 +323,11 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	log.ContainerID = msg.ContainerID
 	log.ContainerName = mon.GetNameFromContainerID(msg.ContainerID)
 
-	log.HostPID = int(msg.ContextSys.HostPID)
-	log.PPID = int(msg.ContextSys.PPID)
-	log.PID = int(msg.ContextSys.PID)
-	log.TID = int(msg.ContextSys.TID)
-	log.UID = int(msg.ContextSys.UID)
+	log.HostPID = int32(msg.ContextSys.HostPID)
+	log.PPID = int32(msg.ContextSys.PPID)
+	log.PID = int32(msg.ContextSys.PID)
+	log.TID = int32(msg.ContextSys.TID)
+	log.UID = int32(msg.ContextSys.UID)
 
 	log.Syscall = getSyscallName(int32(msg.ContextSys.EventID))
 	log.Argnum = msg.ContextSys.Argnum
@@ -320,7 +336,7 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	if msg.ContextSys.Retval < 0 {
 		message := getErrorMessage(msg.ContextSys.Retval)
 		if message != "" {
-			log.Error = message
+			log.ErrorMessage = message
 		}
 	}
 
@@ -538,9 +554,13 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 			// == //
 
-			if mon.logType == "file" {
+			if mon.logType == "grpc" {
+				mon.logFeeder.SendSystemLog(log)
+
+			} else if mon.logType == "file" {
 				arr, _ := json.Marshal(log)
-				kl.StrToFile(string(arr), mon.logFile)
+				kl.StrToFile(string(arr), mon.logTarget)
+
 			} else if mon.logType == "stdout" {
 				arr, _ := json.Marshal(log)
 				fmt.Println(string(arr))
