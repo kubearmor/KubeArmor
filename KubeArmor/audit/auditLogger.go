@@ -68,7 +68,7 @@ func NewAuditLogger(logOption, hostName string, containers map[string]tp.Contain
 		args := strings.Split(logOption, ":")
 
 		al.logType = args[0]
-		al.logTarget = strings.Join(args[1:2], ":") // ip:port
+		al.logTarget = args[1] + ":" + args[2] // ip:port
 		al.logFeeder = fd.NewFeeder(al.logTarget, "AuditLog")
 
 	} else if strings.Contains(logOption, "file:") {

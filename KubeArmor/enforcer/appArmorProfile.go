@@ -4,10 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -1053,28 +1051,4 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 	}
 
 	return 0, "", false
-}
-
-// UpdateAppArmorProfile Function
-func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
-	if policyCount, newProfile, ok := GenerateAppArmorProfile(appArmorProfile, securityPolicies); ok {
-		newfile, _ := os.Create("/etc/apparmor.d/" + appArmorProfile)
-		defer newfile.Close()
-
-		if _, err := newfile.WriteString(newProfile); err != nil {
-			kg.Err(err.Error())
-			return
-		}
-
-		if err := newfile.Sync(); err != nil {
-			kg.Err(err.Error())
-			return
-		}
-
-		if err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "/etc/apparmor.d/"+appArmorProfile).Run(); err == nil {
-			kg.Printf("Updated %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
-		} else {
-			kg.Printf("Failed to update %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
-		}
-	}
 }
