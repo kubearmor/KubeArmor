@@ -1,0 +1,22 @@
+### Builder
+
+FROM golang:1.15.2-alpine3.12 as builder
+
+WORKDIR /usr/src/LogServer
+
+RUN apk update
+RUN apk add --no-cache build-base
+
+COPY ./src .
+
+RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-logserver main.go
+
+### Make executable image
+
+FROM alpine:3.12
+
+RUN apk update
+
+COPY --from=builder /usr/src/LogServer/kubearmor-logserver /KubeArmor/kubearmor-logserver
+
+ENTRYPOINT ["/KubeArmor/kubearmor-logserver"]
