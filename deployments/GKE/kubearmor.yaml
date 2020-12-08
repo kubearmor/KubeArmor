@@ -46,7 +46,7 @@ spec:
       - name: kubearmor
         image: accuknox/kubearmor:latest
         imagePullPolicy: Always
-        args: ["-log=stdout"]
+        args: ["-log=grpc:localhost:32767"]
         securityContext:
           privileged: true
           capabilities:
@@ -211,3 +211,37 @@ spec:
         hostPath:
           path: /var/log
           type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubearmor-logserver
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    container: kubearmor-logserver
+  ports:
+  - port: 32767
+    nodePort: 32767
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-logserver
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor-logserver
+  template:
+    metadata:
+      labels:
+        container: kubearmor-logserver
+    spec:
+      containers:
+        - name: kubearmor-logserver
+          image: accuknox/kubearmor-logserver:latest
+          ports:
+          - containerPort: 32767
