@@ -12,7 +12,7 @@ before_install:
 install:
   - KubeArmor/build/build_kubearmor.sh test
   - KubeArmor/build/cos-auditd/build_auditd.sh test
-  - LogServer/build_logserver.sh test
+  - LogServer/build/build_logserver.sh test
 
 script:
   - .travis/verify.sh
