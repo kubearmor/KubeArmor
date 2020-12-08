@@ -7,6 +7,8 @@ docker images | grep kubearmor-logserver | awk '{print $3}' | xargs -I {} docker
 
 echo "[INFO] Removed existing KubeArmor images"
 
+cd $SRV_HOME/build
+
 # remove old files (just in case)
 $SRV_HOME/build/clean_source_files.sh
 
@@ -16,8 +18,6 @@ echo "[INFO] Removed source files just in case"
 $SRV_HOME/build/copy_source_files.sh
 
 echo "[INFO] Copied new source files"
-
-cd $SRV_HOME/build
 
 if [ -z $1 ]; then
     echo "[INFO] Building accuknox/kubearmor-logserver:latest"
