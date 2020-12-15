@@ -2,23 +2,11 @@
 
 sudo apt-get update
 
-# install kernel-headers
-sudo apt-get install -y linux-headers-$(uname -r)
-
-# install dependencies
-sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
-                        clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev bc \
-                        arping netperf iperf3
-
-# make a directory to build bcc
-sudo rm -rf /tmp/build; mkdir -p /tmp/build; cd /tmp/build
-
-# download bcc
-git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
-
 # install bcc
-mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
-cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make && sudo make install
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
+echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/iovisor.list
+sudo apt-get update
+sudo apt-get install bcc-tools libbcc-examples linux-headers-$(uname -r)
 
 # install microk8s
 sudo snap install microk8s --classic
