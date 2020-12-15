@@ -6,7 +6,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
 - Process Execution Restriction
 
-    - Blcok a specific executable ([ksp-group-1-proc-path-block.yaml](../examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml))
+    - Block a specific executable ([ksp-group-1-proc-path-block.yaml](../examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml))
     
       ```
       apiVersion: security.accuknox.com/v1

@@ -13,9 +13,118 @@ import (
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
-// ================== //
-// == Label Update == //
-// ================== //
+// ============================ //
+// == Container Group Update == //
+// ============================ //
+
+// UpdateContainerGroups Function
+func (dm *KubeArmorDaemon) UpdateContainerGroups() {
+	containerGroups := map[string]tp.ContainerGroup{}
+
+	for _, container := range dm.Containers {
+		namespaceName := container.NamespaceName
+		containerGroupName := container.ContainerGroupName
+		containerName := container.ContainerName
+
+		// use namespace name and container group name as a key
+		key := namespaceName + "|" + containerGroupName
+
+		// if new container
+		if oldGroup, ok := containerGroups[key]; !ok {
+			newGroup := tp.ContainerGroup{}
+
+			newGroup.NamespaceName = namespaceName
+			newGroup.ContainerGroupName = containerGroupName
+
+			newGroup.Labels = container.Labels
+			newGroup.Identities = []string{}
+
+			newGroup.Identities = append(newGroup.Identities, "namespaceName="+namespaceName)
+			newGroup.Identities = append(newGroup.Identities, "containerGroupName="+containerGroupName)
+			newGroup.Identities = append(newGroup.Identities, "containerName="+containerName)
+			newGroup.Identities = append(newGroup.Identities, "hostName="+container.HostName)
+			newGroup.Identities = append(newGroup.Identities, "imageName="+container.ImageName)
+
+			for _, label := range container.Labels {
+				if strings.Contains(label, "com.docker.compose") || strings.Contains(label, "io.kubernetes") {
+					continue
+				}
+
+				if !kl.ContainsElement(newGroup.Identities, label) {
+					newGroup.Identities = append(newGroup.Identities, label)
+				}
+			}
+
+			if kl.IsK8sEnv() { // kubernetes
+				dm.K8sPodsLock.Lock()
+
+				k8sMetadata := K8s.GetK8sPod(dm.K8sPods, namespaceName, containerGroupName)
+				for k, v := range k8sMetadata.Labels {
+					if !kl.ContainsElement(newGroup.Labels, k+"="+v) {
+						newGroup.Labels = append(newGroup.Labels, k+"="+v)
+					}
+
+					if kl.ContainsElement([]string{"controller-revision-hash", "pod-template-hash", "pod-template-generation"}, k) {
+						continue
+					}
+
+					if !kl.ContainsElement(newGroup.Identities, k+"="+v) {
+						newGroup.Identities = append(newGroup.Identities, k+"="+v)
+					}
+				}
+
+				dm.K8sPodsLock.Unlock()
+			}
+
+			newGroup.Containers = []string{containerName}
+
+			newGroup.SecurityPolicies = []tp.SecurityPolicy{}
+			newGroup.AppArmorProfiles = map[string]string{containerName: container.AppArmorProfile}
+
+			containerGroups[key] = newGroup
+		} else { // if exist
+			for _, label := range container.Labels {
+				if !kl.ContainsElement(oldGroup.Labels, label) {
+					oldGroup.Labels = append(oldGroup.Labels, label)
+				}
+
+				if strings.Contains(label, "com.docker.compose") || strings.Contains(label, "io.kubernetes") {
+					continue
+				}
+
+				if !kl.ContainsElement(oldGroup.Identities, label) {
+					oldGroup.Identities = append(oldGroup.Identities, label)
+				}
+			}
+
+			oldGroup.Identities = append(oldGroup.Identities, "containerName="+container.ContainerName)
+
+			if !kl.ContainsElement(oldGroup.Identities, "imageName="+container.ImageName) {
+				oldGroup.Identities = append(oldGroup.Identities, "imageName="+container.ImageName)
+			}
+
+			if !kl.ContainsElement(oldGroup.Containers, container.ContainerName) {
+				oldGroup.Containers = append(oldGroup.Containers, container.ContainerName)
+				oldGroup.AppArmorProfiles[container.ContainerName] = container.AppArmorProfile
+			}
+
+			containerGroups[key] = oldGroup
+		}
+	}
+
+	groupList := []tp.ContainerGroup{}
+	for _, value := range containerGroups {
+		groupList = append(groupList, value)
+	}
+
+	dm.ContainerGroupsLock.Lock()
+	dm.ContainerGroups = groupList
+	dm.ContainerGroupsLock.Unlock()
+}
+
+// ================ //
+// == Pod Update == //
+// ================ //
 
 // UpdateContainerGroupLabels Function
 func (dm *KubeArmorDaemon) UpdateContainerGroupLabels(action string, pod tp.K8sPod) {
@@ -172,7 +281,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				dm.RuntimeEnforcer.UpdateSecurityProfiles(event.Type, pod)
 			}
 		} else {
-			time.Sleep(time.Second * time.Duration(dm.DefaultWaitTime))
+			time.Sleep(time.Second * 1)
 		}
 	}
 }
@@ -310,7 +419,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				}
 			}
 		} else {
-			time.Sleep(time.Second * time.Duration(dm.DefaultWaitTime))
+			time.Sleep(time.Second * 1)
 		}
 	}
 }

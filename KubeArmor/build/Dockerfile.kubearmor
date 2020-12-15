@@ -5,11 +5,9 @@ FROM accuknox/kubearmor:base as builder
 WORKDIR /usr/src/KubeArmor
 
 COPY ./AppArmor ./AppArmor
-COPY ./apparmor.d ./apparmor.d
 COPY ./Auditd ./Audit
 COPY ./BPF ./BPF
 COPY ./GKE ./GKE
-COPY ./add_edge.sh ./add_edge.sh
 
 COPY ./audit ./build/audit
 COPY ./common ./build/common
@@ -32,10 +30,7 @@ RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 FROM alpine:3.12
 
 RUN apk update
-
-COPY --from=builder /usr/src/KubeArmor/add_edge.sh /add_edge.sh
-RUN /add_edge.sh
-RUN rm /add_edge.sh
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
 RUN apk add bcc bcc-dev bash
@@ -46,9 +41,6 @@ COPY --from=builder /usr/src/KubeArmor/build/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/AppArmor/* /KubeArmor/AppArmor/
 COPY --from=builder /usr/src/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/* /KubeArmor/GKE/
-
-COPY --from=builder /usr/src/KubeArmor/apparmor.d/abstractions /etc/apparmor.d/abstractions
-COPY --from=builder /usr/src/KubeArmor/apparmor.d/tunables /etc/apparmor.d/tunables
 COPY --from=builder /usr/src/KubeArmor/Audit/* /etc/audit/
 
 RUN ln -s /usr/sbin/auditctl /sbin/auditctl

@@ -46,7 +46,7 @@ spec:
       - name: kubearmor
         image: accuknox/kubearmor:latest
         imagePullPolicy: Always
-        args: ["-log=grpc:localhost:32767"]
+        args: ["-audit=grpc:localhost:32767"]
         securityContext:
           privileged: true
           capabilities:
@@ -56,7 +56,7 @@ spec:
             - AUDIT_WRITE # Auditd
             - SYS_NICE # Auditd
         volumeMounts:
-        - name: docker-socket-file # docker (read-only)
+        - name: docker-sock-path # docker (read-only)
           mountPath: /var/run/docker.sock
           readOnly: true
         - name: usr-src-path # BPF (read-only)
@@ -69,7 +69,9 @@ spec:
           mountPath: /sys/fs/bpf
         - name: sys-kernel-debug-path # BPF (read-write)
           mountPath: /sys/kernel/debug
-        - name: os-release-path # OS (kernel-headers)
+        - name: etc-apparmor-d-path # AppArmor (read-write)
+          mountPath: /etc/apparmor.d
+        - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
         resources:
@@ -83,7 +85,7 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: docker-socket-file # docker
+      - name: docker-sock-path # docker
         hostPath:
           path: /var/run/docker.sock
           type: Socket
@@ -103,7 +105,11 @@ spec:
         hostPath:
           path: /sys/kernel/debug
           type: Directory
-      - name: os-release-path # OS (kernel-headers)
+      - name: etc-apparmor-d-path # AppArmor
+        hostPath:
+          path: /etc/apparmor.d
+          type: Directory
+      - name: os-release-path # OS
         hostPath:
           path: /etc/os-release
           type: File

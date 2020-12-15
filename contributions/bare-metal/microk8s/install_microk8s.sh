@@ -2,11 +2,8 @@
 
 sudo apt-get update
 
-# install bcc
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
-echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/iovisor.list
-sudo apt-get update
-sudo apt-get install bcc-tools libbcc-examples linux-headers-$(uname -r)
+# install kernel-headers
+sudo apt-get install -y linux-headers-$(uname -r)
 
 # install microk8s
 sudo snap install microk8s --classic
@@ -18,7 +15,7 @@ sudo microk8s kubectl get services
 # copy k8s config
 mkdir $HOME/.kube
 sudo microk8s kubectl config view --raw | sudo tee $HOME/.kube/config
-sudo chown -R travis: $HOME/.kube/
+sudo chown -R $USER: $HOME/.kube/
 
 # download kubectl
 curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.18.1/bin/linux/amd64/kubectl

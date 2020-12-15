@@ -3,7 +3,6 @@
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 
 rm -rf $ARMOR_HOME/build/AppArmor
-rm -rf $ARMOR_HOME/build/apparmor.d
 rm -rf $ARMOR_HOME/build/audit
 rm -rf $ARMOR_HOME/build/Auditd
 rm -rf $ARMOR_HOME/build/BPF

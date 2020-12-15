@@ -1,5 +1,11 @@
 #!/bin/bash
 
+KBA_HOME=`dirname $(realpath "$0")`/..
+
+$KBA_HOME/KubeArmor/build/build_kubearmor.sh test
+$KBA_HOME/KubeArmor/build/cos-auditd/build_auditd.sh test
+$KBA_HOME/LogServer/build/build_logserver.sh test
+
 IMAGE_NAME="accuknox/kubearmor:test"
 TEST_IMAGE=`docker images --format '{{.Repository}}:{{.Tag}}' | grep $IMAGE_NAME`
 

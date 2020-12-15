@@ -28,12 +28,12 @@ func main() {
 
 	// == //
 
-	logPtr := flag.String("log", "stdout", "{grpc:[domain name/ip address:port] | file:[absolute path] | stdout}")
-	tracePtr := flag.String("trace", "none", "{grpc:[domain name/ip address:port] | file:[absolute path] | none}")
+	auditPtr := flag.String("audit", "stdout", "{grpc:[domain name/ip address:port] | file:[absolute path] | stdout}")
+	systemPtr := flag.String("system", "none", "{grpc:[domain name/ip address:port] | file:[absolute path] | none}")
 
 	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*logPtr, *tracePtr)
+	core.KubeArmor(*auditPtr, *systemPtr)
 }
