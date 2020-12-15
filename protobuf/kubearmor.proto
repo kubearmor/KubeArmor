@@ -4,6 +4,11 @@ package feeder;
 
 // option go_package="github.com/accuknox/KubeArmor/protobuf";
 
+// Health check
+message NonceMessage {
+  int32 nonce = 1;
+}
+
 // audit log
 message AuditLog {
   string UpdatedTime = 1;
@@ -44,11 +49,6 @@ message SystemLog {
 
   string Data = 14;
   string ErrorMessage = 15;
-}
-
-// Health check
-message NonceMessage {
-  int32 nonce = 1;
 }
 
 // reply message
