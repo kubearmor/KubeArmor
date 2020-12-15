@@ -18,10 +18,5 @@ cp -r $ARMOR_HOME/types/ $ARMOR_HOME/build/
 cp    $ARMOR_HOME/go.mod $ARMOR_HOME/build/
 cp    $ARMOR_HOME/main.go $ARMOR_HOME/build/
 
-# copy apparmor abstractions
-mkdir $ARMOR_HOME/build/apparmor.d
-cp -r $ARMOR_HOME/apparmor.d/abstractions $ARMOR_HOME/build/apparmor.d/
-cp -r $ARMOR_HOME/apparmor.d/tunables $ARMOR_HOME/build/apparmor.d/
-
 # copy GKE files
 cp -r $ARMOR_HOME/GKE/ $ARMOR_HOME/build/
