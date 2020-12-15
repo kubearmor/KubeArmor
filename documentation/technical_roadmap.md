@@ -10,7 +10,7 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
     
     - Container Platforms
     
-        \- Docker
+        \- Docker, Containerd
         
     - LSM Supports
     
@@ -38,10 +38,6 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
     - Kubernetes Environments
     
         \- (extension) Amazon Elastic Kubernetes Service (EKS), Azure Kubernetes Service (AKS)
-    
-    - Container Platforms
-    
-        \- (extension) Containerd
         
     - LSM Supports
     
@@ -94,4 +90,4 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
         
             Integration with network security solutions (e.g., Cilium)
 
-        \- Will be updated soon...
+        \- Will be updated soon

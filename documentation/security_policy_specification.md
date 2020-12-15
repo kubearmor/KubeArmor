@@ -230,5 +230,5 @@ Now, we will briefly explain how to define a security policy.
     The action should be either Block or Allow. According to the action, given security policies will be handled in a blacklist manner or a whitelist manner. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](./consideration_in_policy_action.md) for more details.
     
     ```
-    action: [Allow|Block]
+    action: [Allow|Block|Audit]
     ```

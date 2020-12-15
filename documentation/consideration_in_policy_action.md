@@ -2,7 +2,7 @@
 
 While operators can define security policies with an action (either Block or Allow), KubeArmor may handle those policies differently (blacklist vs. whitelist).
 
-If the actions of all security policies for a container are 'Block', then these policies are handled in a blacklist manner. However, if at least one system policy's action is 'Allow', then all system policies for a container are handled in a whitelist manner, meaning that some security policies may be handled differently in containers.
+If the actions of all security policies for a container are 'Block', then these policies are handled in a blacklist manner. However, if at least one security policy's action is 'Allow', then all security policies for a container are handled in a whitelist manner, meaning that some security policies may be handled differently in containers.
 
 Here, we introduce an example of how security policies can be handled differently. There are two pods: pod A with (grp=1, role=A) and pod B with (grp=1, role=B). Let us say that an operator wants to block the execution of a bash shell in those pods, so the operator first defines a policy with (selector → grp=1, process → /bin/bash, action → block). Then, /bin/bash cannot be executed in the pods while some other applications are still executable (blacklist).
 
