@@ -123,6 +123,16 @@ func GetCommandOutput(cmd string, args []string) string {
 	return string(out)
 }
 
+// GetCommandOutputWithErr Function
+func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
+	res := exec.Command(cmd, args...)
+	out, err := res.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
 // GetCommandOutputWithoutErr Function
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	res := exec.Command(cmd, args...)
@@ -134,6 +144,19 @@ func GetCommandOutputWithoutErr(cmd string, args []string) string {
 func GetCommandWithoutOutput(cmd string, args []string) {
 	res := exec.Command(cmd, args...)
 	res.Run()
+}
+
+// ========== //
+// == Host == //
+// ========== //
+
+// GetHostName Function
+func GetHostName() string {
+	res, err := GetCommandOutputWithErr("cat", []string{"/etc/hostname"})
+	if err != nil {
+		return ""
+	}
+	return strings.Replace(res, "\n", "", -1)
 }
 
 // ================= //

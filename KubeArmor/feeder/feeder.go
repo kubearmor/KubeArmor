@@ -42,12 +42,10 @@ func NewFeeder(server, logType string) *Feeder {
 	fd.logType = logType
 
 	for {
-		msg, ok := fd.DoHealthCheck()
+		_, ok := fd.DoHealthCheck()
 		if ok {
 			break
 		}
-		kg.Debugf("Waiting for gRPC server (%s)", msg)
-
 		time.Sleep(time.Second * 1)
 	}
 
@@ -92,6 +90,37 @@ func NewFeeder(server, logType string) *Feeder {
 // DestroyFeeder Function
 func (fd *Feeder) DestroyFeeder() {
 	fd.conn.Close()
+}
+
+// DoHealthCheck Function
+func (fd *Feeder) DoHealthCheck() (string, bool) {
+	// connect to server
+	conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
+	if err != nil {
+		kg.Err(err.Error())
+		return fmt.Sprintf("Failed to connect the server (%s)", fd.server), false
+	}
+	defer conn.Close()
+
+	// set client
+	client := pb.NewLogMessageClient(conn)
+
+	// generate nonce
+	rand := rand.Int31()
+
+	// send a nonce
+	nonce := pb.NonceMessage{Nonce: rand}
+	res, err := client.HealthCheck(context.Background(), &nonce)
+	if err != nil {
+		return err.Error(), false
+	}
+
+	// check nonces
+	if rand != res.Retval {
+		return "Nonces are different", false
+	}
+
+	return "success", true
 }
 
 // SendAuditLog Function
@@ -161,35 +190,4 @@ func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
 	}
 
 	fd.systemLogStream.Send(&log)
-}
-
-// DoHealthCheck Function
-func (fd *Feeder) DoHealthCheck() (string, bool) {
-	// connect to server
-	conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
-	if err != nil {
-		kg.Err(err.Error())
-		return fmt.Sprintf("Failed to connect the server (%s)", fd.server), false
-	}
-	defer conn.Close()
-
-	// set client
-	client := pb.NewLogMessageClient(conn)
-
-	// generate nonce
-	rand := rand.Int31()
-
-	// send a nonce
-	nonce := pb.NonceMessage{Nonce: rand}
-	res, err := client.HealthCheck(context.Background(), &nonce)
-	if err != nil {
-		return err.Error(), false
-	}
-
-	// check nonces
-	if rand != res.Retval {
-		return "Nonces are different", false
-	}
-
-	return "success", true
 }

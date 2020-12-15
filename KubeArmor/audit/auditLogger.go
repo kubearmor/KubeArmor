@@ -31,6 +31,9 @@ func init() {
 
 // AuditLogger Structure
 type AuditLogger struct {
+	// host name
+	HostName string
+
 	// logging type
 	logType string
 
@@ -39,9 +42,6 @@ type AuditLogger struct {
 
 	// logging feeder
 	logFeeder *fd.Feeder
-
-	// hostname for logging
-	HostName string
 
 	// container id => cotnainer
 	Containers     map[string]tp.Container
@@ -56,7 +56,7 @@ type AuditLogger struct {
 }
 
 // NewAuditLogger Function
-func NewAuditLogger(logOption, hostName string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *AuditLogger {
+func NewAuditLogger(logOption string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *AuditLogger {
 	al := &AuditLogger{}
 
 	if kl.IsK8sLocal() {
@@ -91,7 +91,7 @@ func NewAuditLogger(logOption, hostName string, containers map[string]tp.Contain
 		al.logFeeder = nil
 	}
 
-	al.HostName = hostName
+	al.HostName = kl.GetHostName()
 
 	al.Containers = containers
 	al.ContainersLock = containersLock
@@ -353,7 +353,6 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			} else if al.logType == "file" {
 				auditLog.RawData = strings.Join(words[:], " ")
-
 				arr, _ := json.Marshal(auditLog)
 				kl.StrToFile(string(arr), al.logTarget)
 
