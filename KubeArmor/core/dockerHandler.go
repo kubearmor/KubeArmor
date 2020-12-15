@@ -11,6 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
+	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -34,7 +35,12 @@ type DockerHandler struct {
 // NewDockerHandler Function
 func NewDockerHandler() *DockerHandler {
 	docker := &DockerHandler{}
-	docker.DockerClient, _ = client.NewEnvClient()
+
+	DockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return nil
+	}
+	docker.DockerClient = DockerClient
 
 	return docker
 }
@@ -46,66 +52,19 @@ func (dh *DockerHandler) Close() {
 	}
 }
 
-// =============== //
-// == Host Info == //
-// =============== //
-
-// GetHostName Function
-func (dh *DockerHandler) GetHostName() (string, error) {
-	if dh.DockerClient == nil {
-		return "None", errors.New("No docker client")
-	}
-
-	info, err := dh.DockerClient.Info(context.Background())
-	if err != nil {
-		return "None", err
-	}
-
-	return info.Name, nil
-}
-
 // ==================== //
 // == Container Info == //
 // ==================== //
 
-// GetContainerList Function
-func (dh *DockerHandler) GetContainerList() ([]types.Container, error) {
-	if dh.DockerClient == nil {
-		return nil, errors.New("No docker client")
-	}
-
-	list, err := dh.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	return list, nil
-}
-
-// GetEventChannel Function
-func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
-	if dh.DockerClient != nil {
-		event, _ := dh.DockerClient.Events(context.Background(), types.EventsOptions{})
-		return event
-	}
-
-	return nil
-}
-
 // GetContainerInfo Function
-func (dh *DockerHandler) GetContainerInfo(containerid string) (tp.Container, error) {
+func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, error) {
+	IndependentContainer := "__independent_container__"
+
 	if dh.DockerClient == nil {
 		return tp.Container{}, errors.New("No docker client")
 	}
 
-	IndependentContainer := "__independent_container__"
-
-	hostinfo, err := dh.DockerClient.Info(context.Background())
-	if err != nil {
-		return tp.Container{}, err
-	}
-
-	inspect, err := dh.DockerClient.ContainerInspect(context.Background(), containerid)
+	inspect, err := dh.DockerClient.ContainerInspect(context.Background(), containerID)
 	if err != nil {
 		return tp.Container{}, err
 	}
@@ -117,9 +76,7 @@ func (dh *DockerHandler) GetContainerInfo(containerid string) (tp.Container, err
 	container.ContainerID = inspect.ID
 	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
 
-	container.Status = inspect.State.Status
-
-	container.HostName = hostinfo.Name
+	container.HostName = kl.GetHostName()
 	container.HostIP = kl.GetExternalIPAddr()
 
 	containerLabels := inspect.Config.Labels
@@ -150,7 +107,6 @@ func (dh *DockerHandler) GetContainerInfo(containerid string) (tp.Container, err
 		container.ContainerGroupName = container.ContainerName
 	}
 
-	container.ImageID = inspect.Image
 	container.ImageName = inspect.Config.Image
 
 	container.Labels = []string{}
@@ -164,4 +120,120 @@ func (dh *DockerHandler) GetContainerInfo(containerid string) (tp.Container, err
 	// == //
 
 	return container, nil
+}
+
+// ========================== //
+// == Docker Event Channel == //
+// ========================== //
+
+// GetEventChannel Function
+func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
+	if dh.DockerClient != nil {
+		event, _ := dh.DockerClient.Events(context.Background(), types.EventsOptions{})
+		return event
+	}
+
+	return nil
+}
+
+// =================== //
+// == Docker Events == //
+// =================== //
+
+// UpdateDockerContainer Function
+func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
+	defer kg.HandleErr()
+
+	container := tp.Container{}
+
+	if action == "start" {
+		var err error
+
+		// get container information from docker client
+		container, err = Docker.GetContainerInfo(containerID)
+		if err != nil {
+			kg.Err(err.Error())
+			return
+		}
+
+		if container.ContainerID == "" {
+			return
+		}
+
+		// skip paused containers in k8s
+		if strings.HasPrefix(container.ContainerName, "k8s_POD") {
+			return
+		}
+
+		// skip if a container is a part of the following namespaces
+		if kl.ContainsElement([]string{"kube-system"}, container.NamespaceName) {
+			return
+		}
+
+		// add container to containers map
+		dm.ContainersLock.Lock()
+		if _, ok := dm.Containers[containerID]; !ok {
+			dm.Containers[containerID] = container
+		} else {
+			dm.ContainersLock.Unlock()
+			return
+		}
+		dm.ContainersLock.Unlock()
+
+		kg.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerName)
+	} else if action == "stop" || action == "destroy" {
+		// case 1: kill -> die -> stop
+		// case 2: kill -> die -> destroy
+		// case 3: destroy
+
+		dm.ContainersLock.Lock()
+		val, ok := dm.Containers[containerID]
+		if !ok {
+			dm.ContainersLock.Unlock()
+			return
+		}
+
+		container = val
+		delete(dm.Containers, containerID)
+		dm.ContainersLock.Unlock()
+
+		if strings.HasPrefix(container.ContainerName, "k8s_POD") {
+			return
+		}
+
+		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerName)
+	}
+
+	dm.UpdateContainerGroups()
+}
+
+// MonitorDockerEvents Function
+func (dm *KubeArmorDaemon) MonitorDockerEvents() {
+	defer kg.HandleErr()
+	defer WgDaemon.Done()
+
+	if Docker == nil {
+		return
+	}
+
+	kg.Print("Started to monitor Docker events")
+
+	EventChan := Docker.GetEventChannel()
+
+	for {
+		select {
+		case <-StopChan:
+			return
+
+		case msg, valid := <-EventChan:
+			if !valid {
+				continue
+			}
+
+			// if message type is container
+			if msg.Type == "container" {
+				dm.UpdateDockerContainer(msg.ID, msg.Action)
+			}
+		}
+	}
 }
