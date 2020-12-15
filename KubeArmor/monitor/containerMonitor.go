@@ -37,6 +37,9 @@ func init() {
 
 // ContainerMonitor Structure
 type ContainerMonitor struct {
+	// host name
+	HostName string
+
 	// logging type
 	logType string
 
@@ -45,9 +48,6 @@ type ContainerMonitor struct {
 
 	// logging feeder
 	logFeeder *fd.Feeder
-
-	// hostname for logging
-	HostName string
 
 	// container id -> cotnainer
 	Containers     map[string]tp.Container
@@ -107,8 +107,10 @@ type ContainerMonitor struct {
 }
 
 // NewContainerMonitor Function
-func NewContainerMonitor(logOption, hostName string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex, uptimeTS float64) *ContainerMonitor {
+func NewContainerMonitor(logOption string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *ContainerMonitor {
 	mon := new(ContainerMonitor)
+
+	mon.HostName = kl.GetHostName()
 
 	if strings.Contains(logOption, "grpc:") {
 		args := strings.Split(logOption, ":")
@@ -135,8 +137,6 @@ func NewContainerMonitor(logOption, hostName string, containers map[string]tp.Co
 		mon.logTarget = ""
 	}
 
-	mon.HostName = hostName
-
 	mon.Containers = containers
 	mon.ContainersLock = containersLock
 
@@ -161,14 +161,14 @@ func NewContainerMonitor(logOption, hostName string, containers map[string]tp.Co
 	mon.UntrackedExecs = []string{}
 	mon.UntrackedDirs = []string{}
 
-	mon.UptimeTimeStamp = uptimeTS
+	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
 
 	return mon
 }
 
 // InitBPF Function
-func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error {
+func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 	// check if COS
 	if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
 		s := string(b)
@@ -189,7 +189,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir, FileContainerMonitor string) error
 		}
 	}
 
-	content, err := ioutil.ReadFile(HomeDir + FileContainerMonitor)
+	content, err := ioutil.ReadFile(HomeDir + "/BPF/container_monitor.c")
 	if err != nil {
 		return err
 	}
