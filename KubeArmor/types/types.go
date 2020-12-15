@@ -16,15 +16,12 @@ type Container struct {
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
-	Status string `json:"status"`
-
 	HostName string `json:"hostName"`
 	HostIP   string `json:"hostIP"`
 
 	NamespaceName      string `json:"namespaceName"`
 	ContainerGroupName string `json:"containerGroupName"`
 
-	ImageID   string `json:"imageID"`
 	ImageName string `json:"imageName"`
 
 	Labels []string `json:"labels"`

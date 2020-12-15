@@ -70,7 +70,7 @@ If you are interested in this project and want to make a contribution, please fo
 
 6. Submit your changes for review
 
-    If you go to your repository on GitHub, you can see the "Compare & pull request" button. Click on that button.
+    If you go to your repository on GitHub, you can see the "Pull request" button. Click on that button.
 
     Now, you see the "Open a pull request" screen. Please fill a title and a comment as specific as possible. You need to make sure that you include an issue number in the comment if you fix a certain issue.
 

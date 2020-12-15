@@ -4,13 +4,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/api/types/events"
-
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
@@ -47,12 +45,8 @@ func init() {
 
 // KubeArmorDaemon Structure
 type KubeArmorDaemon struct {
-	// Docker event monitor
-	EventChan <-chan events.Message
-
-	// host name and IP
-	HostName string
-	HostIP   string
+	// home directory
+	HomeDir string
 
 	// containers (from docker)
 	Containers     map[string]tp.Container
@@ -73,37 +67,26 @@ type KubeArmorDaemon struct {
 	// runtime enforcer
 	RuntimeEnforcer *efc.RuntimeEnforcer
 
-	// home directory
-	HomeDir string
-
 	// audit logger
 	AuditLogger *adt.AuditLogger
-
-	// logging option
-	LogOption string
 
 	// container monitor
 	ContainerMonitor *mon.ContainerMonitor
 
-	// FileContainerMonitor Path
-	FileContainerMonitor string
-
-	// trace option
-	TraceOption string
-
-	// configuration
-	DefaultWaitTime int
-	UptimeTimeStamp float64
+	// logging
+	AuditLogOption  string
+	SystemLogOption string
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon() *KubeArmorDaemon {
+func NewKubeArmorDaemon(auditLogOption, systemLogOption string) *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
-	dm.EventChan = Docker.GetEventChannel()
-
-	dm.HostName, _ = Docker.GetHostName()
-	dm.HostIP = kl.GetExternalIPAddr()
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		panic(err)
+	}
+	dm.HomeDir = dir
 
 	dm.Containers = map[string]tp.Container{}
 	dm.ContainersLock = &sync.Mutex{}
@@ -121,16 +104,8 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.AuditLogger = nil
 	dm.ContainerMonitor = nil
 
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		panic(err)
-	}
-
-	dm.HomeDir = dir
-	dm.FileContainerMonitor = "/BPF/container_monitor.c"
-
-	dm.DefaultWaitTime = 1
-	dm.UptimeTimeStamp = kl.GetUptimeTimestamp()
+	dm.AuditLogOption = auditLogOption
+	dm.SystemLogOption = systemLogOption
 
 	return dm
 }
@@ -149,6 +124,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	dm.CloseContainerMonitor()
 	kg.PrintfNotInsert("Closed the container monitor")
 
+	// wait for other routines
 	kg.PrintfNotInsert("Waiting for routine terminations")
 	WgDaemon.Wait()
 
@@ -223,7 +199,7 @@ func (dm *KubeArmorDaemon) InitAuditLogger() bool {
 	ret := true
 	defer kg.HandleErrRet(&ret)
 
-	dm.AuditLogger = adt.NewAuditLogger(dm.LogOption, dm.HostName, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
+	dm.AuditLogger = adt.NewAuditLogger(dm.AuditLogOption, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
 	if err := dm.AuditLogger.InitAuditLogger(dm.HomeDir); err != nil {
 		return false
 	}
@@ -255,19 +231,25 @@ func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
 	ret := true
 	defer kg.HandleErrRet(&ret)
 
-	dm.ContainerMonitor = mon.NewContainerMonitor(dm.TraceOption, dm.HostName, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock, dm.UptimeTimeStamp)
-	if err := dm.ContainerMonitor.InitBPF(dm.HomeDir, dm.FileContainerMonitor); err != nil {
+	dm.ContainerMonitor = mon.NewContainerMonitor(dm.SystemLogOption, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
+	if err := dm.ContainerMonitor.InitBPF(dm.HomeDir); err != nil {
 		return false
 	}
 
 	kg.Print("Started to monitor system events")
 
+	return ret
+}
+
+// MonitorSystemEvents Function
+func (dm *KubeArmorDaemon) MonitorSystemEvents() {
+	defer kg.HandleErr()
+	defer WgDaemon.Done()
+
 	go dm.ContainerMonitor.TraceSyscall()
 	go dm.ContainerMonitor.TraceSkb()
 
 	go dm.ContainerMonitor.UpdateSystemLogs()
-
-	return ret
 }
 
 // CloseContainerMonitor Function
@@ -280,17 +262,10 @@ func (dm *KubeArmorDaemon) CloseContainerMonitor() {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(logOption, traceOption string) {
-	dm := NewKubeArmorDaemon()
+func KubeArmor(auditLogOption, systemLogOption string) {
+	dm := NewKubeArmorDaemon(auditLogOption, systemLogOption)
 
 	kg.Print("Started KubeArmor")
-
-	// == //
-
-	dm.LogOption = logOption
-	dm.TraceOption = traceOption
-
-	// == //
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {
@@ -310,30 +285,38 @@ func KubeArmor(logOption, traceOption string) {
 		return
 	}
 
-	// == //
-
-	// monitor audit logs
+	// monitor audit logs (audit logger)
 	go dm.MonitorAuditLogs()
 	WgDaemon.Add(1)
 
-	// wait for a while (get pod data)
-	time.Sleep(time.Second * 1)
-
-	// monitor docker events
-	go dm.MonitorDockerEvents()
+	// monior system events (container monitor)
+	go dm.MonitorSystemEvents()
 	WgDaemon.Add(1)
 
 	// == //
 
 	if K8s.InitK8sClient() {
+		// get current CRI
+		cr := K8s.GetContainerRuntime()
+
+		kg.Printf("Container Runtime: %s", cr)
+
+		if strings.Contains(cr, "containerd") {
+			// monitor containerd events
+			go dm.MonitorContainerdEvents()
+			WgDaemon.Add(1)
+		} else if strings.Contains(cr, "docker") {
+			// monitor docker events
+			go dm.MonitorDockerEvents()
+			WgDaemon.Add(1)
+		}
+
 		// watch k8s pods
 		go dm.WatchK8sPods()
 
 		// watch security policies
 		go dm.WatchSecurityPolicies()
 	}
-
-	// == //
 
 	// listen for interrupt signals
 	sigChan := dm.GetChan()

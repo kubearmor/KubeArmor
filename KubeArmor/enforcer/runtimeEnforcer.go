@@ -13,7 +13,9 @@ type RuntimeEnforcer struct {
 	enforcerType string
 
 	// LSMs
+	krsiEnforcer     *KRSIEnforcer
 	appArmorEnforcer *AppArmorEnforcer
+	seLinuxEnforcer  *SELinuxEnforcer
 
 	// AppArmor profiles
 	AppArmorProfiles     []string
@@ -28,7 +30,7 @@ func NewRuntimeEnforcer(homeDir string) *RuntimeEnforcer {
 	re.enforcerType = "AppArmor"
 
 	if strings.Contains(re.enforcerType, "KRSI") {
-		//
+		re.krsiEnforcer = NewKRSIEnforcer()
 	}
 
 	if strings.Contains(re.enforcerType, "AppArmor") {
@@ -38,7 +40,7 @@ func NewRuntimeEnforcer(homeDir string) *RuntimeEnforcer {
 	}
 
 	if strings.Contains(re.enforcerType, "SELinux") {
-		//
+		re.seLinuxEnforcer = NewSELinuxEnforcer()
 	}
 
 	return re
@@ -105,7 +107,7 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 // DestroyRuntimeEnforcer Function
 func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() {
 	if strings.Contains(re.enforcerType, "KRSI") {
-		//
+		re.krsiEnforcer.DestroyKRSIEnforcer()
 	}
 
 	if strings.Contains(re.enforcerType, "AppArmor") {
@@ -113,6 +115,6 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() {
 	}
 
 	if strings.Contains(re.enforcerType, "SELinux") {
-		//
+		re.seLinuxEnforcer.DestroySELinuxEnforcer()
 	}
 }
