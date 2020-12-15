@@ -6,13 +6,9 @@ dist: bionic
 services:
   - docker
 
-before_install:
+install:
   - .travis/prepare.sh
 
-install:
-  - KubeArmor/build/build_kubearmor.sh test
-  - KubeArmor/build/cos-auditd/build_auditd.sh test
-  - LogServer/build/build_logserver.sh test
-
 script:
-  - .travis/verify.sh
+  - .travis/go_test.sh
+  - .travis/image_verify.sh
