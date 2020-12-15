@@ -30,13 +30,22 @@ case "$VERSION" in
     sudo apt-get install -y docker-ce=17.12.1~ce-0~ubuntu;;
 "18."*)
     sudo apt-get install -y docker-ce=18.03.1~ce~3-0~ubuntu;;
-"20."*)
+"20.04"*)
     sudo apt-get install -y docker-ce=5:19.03.9~3-0~ubuntu-focal;;
+"20.10"*)
+    sudo apt-get install -y docker-ce=5:20.10.0~3-0~ubuntu-groovy;;
 *)
     echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
 esac
 
-# bypass to run the docker command
+# add user to docker
+if [ "$(hostname)" == "kubearmor-dev" ]; then
+    sudo usermod -aG docker vagrant
+else
+    sudo usermod -aG docker $USER
+fi
+
+# bypass to run docker command
 sudo chmod 666 /var/run/docker.sock
 
 # install docker-compose

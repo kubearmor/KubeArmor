@@ -21,10 +21,15 @@ case "$VERSION" in
     sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
                             clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev bc \
                             arping netperf iperf3;;
-"20."*)
+"20.04"*)
     # install dependencies for bcc
     sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
                             clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev bc \
+                            arping netperf iperf3;;
+"20.10"*)
+    # install dependencies for bcc
+    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
+                            clang-8 libllvm8 llvm-8-dev libclang-8-dev zlib1g-dev libelf-dev libedit-dev bc \
                             arping netperf iperf3;;
 *)
     echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
@@ -75,8 +80,16 @@ wget https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/proto
 unzip protoc-3.14.0-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
 
-# apply .bashrc
-. ~/.bashrc
+# apply env
+if [ "$(hostname)" == "kubearmor-dev" ]; then
+    export GOPATH=/home/vagrant/go
+    export GOROOT=/usr/local/go
+    export PATH=$PATH:/usr/local/go/bin:/home/vagrant/go/bin
+elif [ -z "$GOPATH" ]; then
+    export GOPATH=$HOME/go
+    export GOROOT=/usr/local/go
+    export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+fi
 
 # download protoc-gen-go
 go get -u google.golang.org/grpc
