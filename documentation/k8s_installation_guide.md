@@ -2,7 +2,7 @@
 
 - Requirements
 
-    You can install Docker and Kubernetes in any Ubuntu platforms (e.g., 16.04, 18.04, and 20.04), but we recommend to use Ubuntu 18.04 (with Linux kernel v4.15) since KubeArmor is basically developed in Ubuntu 18.04.
+    You can install Docker and Kubernetes in any Ubuntu platforms (e.g., 16.04, 18.04, 20.04, and 20.10).
 
 - Prerequisites
 
@@ -39,7 +39,7 @@
     Instead of Flannel, you can use other CNIs as well.
     
     ```
-    (k8s) $ ./initialize_kubernetes.sh [ weave | calico | cilium ] master
+    (k8s) $ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] master
     ```
 
 - Kubernetes Installation (multiple machines)
@@ -54,7 +54,7 @@
     (k8s) $ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ]
     ```
 
-    In this case, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.
+    <font color=green>Here, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.</font>
 
     - Worker Node
     
