@@ -17,108 +17,63 @@ import (
 // == Container Group Update == //
 // ============================ //
 
-// UpdateContainerGroups Function
-func (dm *KubeArmorDaemon) UpdateContainerGroups() {
-	containerGroups := map[string]tp.ContainerGroup{}
+// UpdateContainerGroupWithContainer Function
+func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, container tp.Container) {
+	dm.ContainerGroupsLock.Lock()
 
-	for _, container := range dm.Containers {
-		namespaceName := container.NamespaceName
-		containerGroupName := container.ContainerGroupName
-		containerName := container.ContainerName
+	// find the corresponding container group
 
-		// use namespace name and container group name as a key
-		key := namespaceName + "|" + containerGroupName
+	conGroupIdx := -1
 
-		// if new container
-		if oldGroup, ok := containerGroups[key]; !ok {
-			newGroup := tp.ContainerGroup{}
-
-			newGroup.NamespaceName = namespaceName
-			newGroup.ContainerGroupName = containerGroupName
-
-			newGroup.Labels = container.Labels
-			newGroup.Identities = []string{}
-
-			newGroup.Identities = append(newGroup.Identities, "namespaceName="+namespaceName)
-			newGroup.Identities = append(newGroup.Identities, "containerGroupName="+containerGroupName)
-			newGroup.Identities = append(newGroup.Identities, "containerName="+containerName)
-			newGroup.Identities = append(newGroup.Identities, "hostName="+container.HostName)
-			newGroup.Identities = append(newGroup.Identities, "imageName="+container.ImageName)
-
-			for _, label := range container.Labels {
-				if strings.Contains(label, "com.docker.compose") || strings.Contains(label, "io.kubernetes") {
-					continue
-				}
-
-				if !kl.ContainsElement(newGroup.Identities, label) {
-					newGroup.Identities = append(newGroup.Identities, label)
-				}
-			}
-
-			if kl.IsK8sEnv() { // kubernetes
-				dm.K8sPodsLock.Lock()
-
-				k8sMetadata := K8s.GetK8sPod(dm.K8sPods, namespaceName, containerGroupName)
-				for k, v := range k8sMetadata.Labels {
-					if !kl.ContainsElement(newGroup.Labels, k+"="+v) {
-						newGroup.Labels = append(newGroup.Labels, k+"="+v)
-					}
-
-					if kl.ContainsElement([]string{"controller-revision-hash", "pod-template-hash", "pod-template-generation"}, k) {
-						continue
-					}
-
-					if !kl.ContainsElement(newGroup.Identities, k+"="+v) {
-						newGroup.Identities = append(newGroup.Identities, k+"="+v)
-					}
-				}
-
-				dm.K8sPodsLock.Unlock()
-			}
-
-			newGroup.Containers = []string{containerName}
-
-			newGroup.SecurityPolicies = []tp.SecurityPolicy{}
-			newGroup.AppArmorProfiles = map[string]string{containerName: container.AppArmorProfile}
-
-			containerGroups[key] = newGroup
-		} else { // if exist
-			for _, label := range container.Labels {
-				if !kl.ContainsElement(oldGroup.Labels, label) {
-					oldGroup.Labels = append(oldGroup.Labels, label)
-				}
-
-				if strings.Contains(label, "com.docker.compose") || strings.Contains(label, "io.kubernetes") {
-					continue
-				}
-
-				if !kl.ContainsElement(oldGroup.Identities, label) {
-					oldGroup.Identities = append(oldGroup.Identities, label)
-				}
-			}
-
-			oldGroup.Identities = append(oldGroup.Identities, "containerName="+container.ContainerName)
-
-			if !kl.ContainsElement(oldGroup.Identities, "imageName="+container.ImageName) {
-				oldGroup.Identities = append(oldGroup.Identities, "imageName="+container.ImageName)
-			}
-
-			if !kl.ContainsElement(oldGroup.Containers, container.ContainerName) {
-				oldGroup.Containers = append(oldGroup.Containers, container.ContainerName)
-				oldGroup.AppArmorProfiles[container.ContainerName] = container.AppArmorProfile
-			}
-
-			containerGroups[key] = oldGroup
+	for idx, conGroup := range dm.ContainerGroups {
+		if container.NamespaceName == conGroup.NamespaceName && container.ContainerGroupName == conGroup.ContainerGroupName {
+			conGroupIdx = idx
+			break
 		}
 	}
 
-	groupList := []tp.ContainerGroup{}
-	for _, value := range containerGroups {
-		groupList = append(groupList, value)
+	if conGroupIdx == -1 {
+		kg.Errf("No container group (%s/%s) for a container (%s)", container.NamespaceName, container.ContainerGroupName, container.ContainerName)
+		dm.ContainerGroupsLock.Unlock()
+		return
 	}
 
-	dm.ContainerGroupsLock.Lock()
-	dm.ContainerGroups = groupList
+	// update container in a container group
+
+	if action == "ADDED" {
+		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
+			dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName)
+		}
+
+		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerName) {
+			dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerName)
+			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[container.ContainerName] = container.AppArmorProfile
+		}
+	} else { // DELETED
+		if kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
+			for idxL, identity := range dm.ContainerGroups[conGroupIdx].Identities {
+				if identity == "containerName="+container.ContainerName {
+					dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities[:idxL], dm.ContainerGroups[conGroupIdx].Identities[idxL+1:]...)
+					break
+				}
+			}
+		}
+
+		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerName) {
+			for idxC, containerName := range dm.ContainerGroups[conGroupIdx].Containers {
+				if containerName == "containerName="+container.ContainerName {
+					dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers[:idxC], dm.ContainerGroups[conGroupIdx].Containers[idxC+1:]...)
+					break
+				}
+			}
+			delete(dm.ContainerGroups[conGroupIdx].AppArmorProfiles, container.ContainerName)
+		}
+	}
+
+	// enforce the security policy
+
+	dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
+
 	dm.ContainerGroupsLock.Unlock()
 }
 
@@ -126,106 +81,94 @@ func (dm *KubeArmorDaemon) UpdateContainerGroups() {
 // == Pod Update == //
 // ================ //
 
-// UpdateContainerGroupLabels Function
-func (dm *KubeArmorDaemon) UpdateContainerGroupLabels(action string, pod tp.K8sPod) {
-	// step1. update pods
-
-	dm.K8sPodsLock.Lock()
-
-	if action == "ADDED" {
-		if !kl.ContainsElement(dm.K8sPods, pod) {
-			dm.K8sPods = append(dm.K8sPods, pod)
-		}
-	} else if action == "DELETED" {
-		for idx, k8spod := range dm.K8sPods {
-			if reflect.DeepEqual(pod, k8spod) {
-				dm.K8sPods = append(dm.K8sPods[:idx], dm.K8sPods[idx+1:]...)
-			}
-		}
-	} else { // MODIFIED
-		for idx, k8spod := range dm.K8sPods {
-			if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] &&
-				k8spod.Metadata["podName"] == pod.Metadata["podName"] {
-				kl.Clone(pod, &dm.K8sPods[idx])
-			}
-		}
-	}
-
-	dm.K8sPodsLock.Unlock()
-
-	// step2. update container groups
-
+// UpdateContainerGroupWithPod Function
+func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8sPod) {
 	dm.ContainerGroupsLock.Lock()
 
 	if action == "ADDED" {
-		for _, conGroup := range dm.ContainerGroups {
-			if conGroup.NamespaceName == pod.Metadata["namespaceName"] && conGroup.ContainerGroupName == pod.Metadata["podName"] {
-				keyValues := []string{}
+		// create a new container group
 
-				for k, v := range pod.Labels {
-					if kl.ContainsElement([]string{"controller-revision-hash", "pod-template-hash", "pod-template-generation"}, k) {
-						continue
-					}
+		newGroup := tp.ContainerGroup{}
 
-					keyValues = append(keyValues, k+"="+v)
-				}
+		newGroup.NamespaceName = pod.Metadata["namespaceName"]
+		newGroup.ContainerGroupName = pod.Metadata["podName"]
 
-				// add new labels
+		newGroup.Labels = []string{}
+		newGroup.Identities = []string{}
 
-				for _, kv := range keyValues {
-					if !kl.ContainsElement(conGroup.Labels, kv) {
-						conGroup.Labels = append(conGroup.Labels, kv)
-					}
+		newGroup.Identities = append(newGroup.Identities, "namespaceName="+newGroup.NamespaceName)
+		newGroup.Identities = append(newGroup.Identities, "containerGroupName="+newGroup.ContainerGroupName)
 
-					if !kl.ContainsElement(conGroup.Identities, kv) {
-						conGroup.Identities = append(conGroup.Identities, kv)
-					}
-				}
+		for k, v := range pod.Labels {
+			if !kl.ContainsElement(newGroup.Labels, k+"="+v) {
+				newGroup.Labels = append(newGroup.Labels, k+"="+v)
+			}
+
+			if kl.ContainsElement([]string{"controller-revision-hash", "pod-template-hash", "pod-template-generation"}, k) {
+				continue
+			}
+
+			if !kl.ContainsElement(newGroup.Identities, k+"="+v) {
+				newGroup.Identities = append(newGroup.Identities, k+"="+v)
 			}
 		}
+
+		newGroup.Containers = []string{}
+		newGroup.AppArmorProfiles = map[string]string{}
+
+		// update security policies with the identities
+
+		newGroup.SecurityPolicies = dm.GetSecurityPolicies(newGroup.Identities)
+
+		// add the container group into the container group list
+
+		dm.ContainerGroups = append(dm.ContainerGroups, newGroup)
+
+		// update security profiles
+
+		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
+
 	} else if action == "MODIFIED" {
-		for _, conGroup := range dm.ContainerGroups {
-			if conGroup.NamespaceName == pod.Metadata["namespaceName"] && conGroup.ContainerGroupName == pod.Metadata["podName"] {
-				keyValues := []string{}
+		// find the corresponding container group
 
-				for k, v := range pod.Labels {
-					if kl.ContainsElement([]string{"controller-revision-hash", "pod-template-hash", "pod-template-generation"}, k) {
-						continue
-					}
+		conGroupIdx := -1
 
-					keyValues = append(keyValues, k+"="+v)
-				}
-
-				// remove old labels
-
-				removedLabels := []string{}
-
-				for _, label := range conGroup.Labels {
-					if !kl.ContainsElement(keyValues, label) {
-						removedLabels = append(removedLabels, label)
-					}
-				}
-
-				for _, label := range removedLabels {
-					conGroup.Labels = kl.RemoveStrFromSlice(conGroup.Labels, label)
-					conGroup.Identities = kl.RemoveStrFromSlice(conGroup.Identities, label)
-				}
-
-				// add new labels
-
-				for _, kv := range keyValues {
-					if !kl.ContainsElement(conGroup.Labels, kv) {
-						conGroup.Labels = append(conGroup.Labels, kv)
-					}
-
-					if !kl.ContainsElement(conGroup.Identities, kv) {
-						conGroup.Identities = append(conGroup.Identities, kv)
-					}
-				}
+		for idx, conGroup := range dm.ContainerGroups {
+			if pod.Metadata["namespaceName"] == conGroup.NamespaceName && pod.Metadata["podName"] == conGroup.ContainerGroupName {
+				conGroupIdx = idx
+				break
 			}
 		}
-	} else {
-		// do nothing (will be removed)
+
+		// update the labels and identities of the container group
+
+		dm.ContainerGroups[conGroupIdx].Labels = []string{}
+		dm.ContainerGroups[conGroupIdx].Identities = []string{}
+
+		dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities, "namespaceName="+dm.ContainerGroups[conGroupIdx].NamespaceName)
+		dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities, "containerGroupName="+dm.ContainerGroups[conGroupIdx].ContainerGroupName)
+
+		for k, v := range pod.Labels {
+			if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Labels, k+"="+v) {
+				dm.ContainerGroups[conGroupIdx].Labels = append(dm.ContainerGroups[conGroupIdx].Labels, k+"="+v)
+			}
+
+			if kl.ContainsElement([]string{"controller-revision-hash", "pod-template-hash", "pod-template-generation"}, k) {
+				continue
+			}
+
+			if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, k+"="+v) {
+				dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities, k+"="+v)
+			}
+		}
+
+		// update security policies with the updated identities
+
+		dm.ContainerGroups[conGroupIdx].SecurityPolicies = dm.GetSecurityPolicies(dm.ContainerGroups[conGroupIdx].Identities)
+
+		// enforce the security policy
+
+		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
 	}
 
 	dm.ContainerGroupsLock.Unlock()
@@ -246,6 +189,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					break
 				}
 
+				dm.K8sPodsLock.Lock()
+
+				// create a pod
+
 				pod := tp.K8sPod{}
 
 				pod.Metadata = map[string]string{}
@@ -255,6 +202,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				if event.Type == "ADDED" || event.Type == "MODIFIED" {
 					exist := false
+
 					for _, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["podName"] == pod.Metadata["podName"] &&
 							k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] &&
@@ -265,20 +213,54 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 
 					if exist {
+						dm.K8sPodsLock.Unlock()
 						continue
 					}
 				}
 
-				kl.Clone(event.Object.Annotations, &pod.Annotations)
-				kl.Clone(event.Object.Labels, &pod.Labels)
+				pod.Annotations = map[string]string{}
+				for k, v := range event.Object.Annotations {
+					pod.Annotations[k] = v
+				}
+
+				pod.Labels = map[string]string{}
+				for k, v := range event.Object.Labels {
+					pod.Labels[k] = v
+				}
+
+				// update the pod into the pod list
+
+				if event.Type == "ADDED" {
+					if !kl.ContainsElement(dm.K8sPods, pod) {
+						dm.K8sPods = append(dm.K8sPods, pod)
+					}
+				} else if event.Type == "DELETED" {
+					for idx, k8spod := range dm.K8sPods {
+						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
+							dm.K8sPods = append(dm.K8sPods[:idx], dm.K8sPods[idx+1:]...)
+							break
+						}
+					}
+				} else { // MODIFIED
+					targetIdx := -1
+					for idx, k8spod := range dm.K8sPods {
+						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
+							targetIdx = idx
+							break
+						}
+					}
+					if targetIdx != -1 {
+						dm.K8sPods[targetIdx] = pod
+					}
+				}
+
+				dm.K8sPodsLock.Unlock()
 
 				kg.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 
-				// update labels
-				dm.UpdateContainerGroupLabels(event.Type, pod)
+				// update a container group corresponding to the pod
 
-				// update security profiles if needed
-				dm.RuntimeEnforcer.UpdateSecurityProfiles(event.Type, pod)
+				dm.UpdateContainerGroupWithPod(event.Type, pod)
 			}
 		} else {
 			time.Sleep(time.Second * 1)
@@ -290,36 +272,27 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 // == Security Policy Update == //
 // ============================ //
 
-// UpdateSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
-	// step1. update security policies
+// GetSecurityPolicies Function
+func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.SecurityPolicy {
+	secPolicies := []tp.SecurityPolicy{}
 
 	dm.SecurityPoliciesLock.Lock()
 
-	if action == "ADDED" {
-		if !kl.ContainsElement(dm.SecurityPolicies, secPolicy) {
-			dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
-		}
-	} else if action == "DELETED" {
-		for idx, policy := range dm.SecurityPolicies {
-			if reflect.DeepEqual(secPolicy, policy) {
-				dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
-			}
-		}
-	} else { // MODIFIED
-		for idx, policy := range dm.SecurityPolicies {
-			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] &&
-				policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-				kl.Clone(secPolicy, &dm.SecurityPolicies[idx])
-				break
-			}
+	for _, policy := range dm.SecurityPolicies {
+		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
+			secPolicy := tp.SecurityPolicy{}
+			kl.Clone(policy, &secPolicy)
+			secPolicies = append(secPolicies, secPolicy)
 		}
 	}
 
 	dm.SecurityPoliciesLock.Unlock()
 
-	// step2. update container groups
+	return secPolicies
+}
 
+// UpdateSecurityPolicy Function
+func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
 	dm.ContainerGroupsLock.Lock()
 
 	for idx, conGroup := range dm.ContainerGroups {
@@ -328,29 +301,31 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			if action == "ADDED" {
 				// add a new security policy if it doesn't exist
 				if !kl.ContainsElement(conGroup.SecurityPolicies, secPolicy) {
-					conGroup.SecurityPolicies = append(conGroup.SecurityPolicies, secPolicy)
+					dm.ContainerGroups[idx].SecurityPolicies = append(dm.ContainerGroups[idx].SecurityPolicies, secPolicy)
 				}
 			} else if action == "DELETED" {
 				// remove the given policy from the security policy list of this container group
-				for idx, policy := range conGroup.SecurityPolicies {
+				for idxP, policy := range conGroup.SecurityPolicies {
 					if reflect.DeepEqual(secPolicy, policy) {
-						conGroup.SecurityPolicies = append(conGroup.SecurityPolicies[:idx], conGroup.SecurityPolicies[idx+1:]...)
+						dm.ContainerGroups[idx].SecurityPolicies = append(dm.ContainerGroups[idx].SecurityPolicies[:idxP], dm.ContainerGroups[idx].SecurityPolicies[idxP+1:]...)
 						break
 					}
 				}
 			} else { // MODIFIED
+				targetIdx := -1
 				for idxP, policy := range conGroup.SecurityPolicies {
-					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] &&
-						policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-						kl.Clone(secPolicy, &dm.ContainerGroups[idx].SecurityPolicies[idxP])
+					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+						targetIdx = idxP
 						break
 					}
 				}
+				if targetIdx != -1 {
+					dm.ContainerGroups[idx].SecurityPolicies[targetIdx] = secPolicy
+				}
 			}
 
-			kl.Clone(conGroup, &dm.ContainerGroups[idx])
-
-			dm.RuntimeEnforcer.UpdateSecurityPolicies(conGroup)
+			// enforce the security policy
+			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
 		}
 	}
 
@@ -373,6 +348,10 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 						break
 					}
 
+					dm.SecurityPoliciesLock.Lock()
+
+					// create a security policy
+
 					secPolicy := tp.SecurityPolicy{}
 
 					secPolicy.Metadata = map[string]string{}
@@ -392,11 +371,14 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 						}
 
 						if exist {
+							dm.SecurityPoliciesLock.Unlock()
 							continue
 						}
 					}
 
 					kl.Clone(event.Object.Spec, &secPolicy.Spec)
+
+					// add identities
 
 					secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, "namespaceName="+event.Object.Metadata.Namespace)
 
@@ -412,9 +394,38 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 						}
 					}
 
+					// update a security policy into the policy list
+
+					if event.Type == "ADDED" {
+						if !kl.ContainsElement(dm.SecurityPolicies, secPolicy) {
+							dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
+						}
+					} else if event.Type == "DELETED" {
+						for idx, policy := range dm.SecurityPolicies {
+							if reflect.DeepEqual(secPolicy, policy) {
+								dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
+								break
+							}
+						}
+					} else { // MODIFIED
+						targetIdx := -1
+						for idx, policy := range dm.SecurityPolicies {
+							if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+								targetIdx = idx
+								break
+							}
+						}
+						if targetIdx != -1 {
+							dm.SecurityPolicies[targetIdx] = secPolicy
+						}
+					}
+
+					dm.SecurityPoliciesLock.Unlock()
+
 					kg.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to containers
+
 					dm.UpdateSecurityPolicy(event.Type, secPolicy)
 				}
 			}

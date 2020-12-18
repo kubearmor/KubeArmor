@@ -133,11 +133,6 @@ func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container,
 		} else {
 			container.ContainerGroupName = container.ContainerName
 		}
-		if val, ok := containerLabels["io.kubernetes.container.name"]; ok {
-			container.ContainerName = val
-		} else {
-			container.ContainerName = container.ContainerName
-		}
 	} else { // containerd
 		container.NamespaceName = IndependentContainer
 		container.ContainerGroupName = container.ContainerName
@@ -250,6 +245,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 		dm.ContainersLock.Unlock()
 
 		kg.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerName)
+
+		dm.UpdateContainerGroupWithContainer("ADDED", container)
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
 		val, ok := dm.Containers[containerID]
@@ -267,9 +264,9 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 		}
 
 		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerName)
-	}
 
-	dm.UpdateContainerGroups()
+		dm.UpdateContainerGroupWithContainer("DELETED", container)
+	}
 }
 
 // MonitorContainerdEvents Function

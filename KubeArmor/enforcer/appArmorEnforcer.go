@@ -3,7 +3,6 @@ package enforcer
 import (
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 
@@ -20,8 +19,8 @@ import (
 type AppArmorEnforcer struct {
 	HomeDir string
 
-	RegisteredAppArmorProfiles     map[string]int
-	RegisteredAppArmorProfilesLock *sync.Mutex
+	AppArmorProfiles     map[string]int
+	AppArmorProfilesLock *sync.Mutex
 }
 
 // NewAppArmorEnforcer Function
@@ -30,8 +29,8 @@ func NewAppArmorEnforcer(homeDir string) *AppArmorEnforcer {
 
 	ae.HomeDir = homeDir
 
-	ae.RegisteredAppArmorProfiles = map[string]int{}
-	ae.RegisteredAppArmorProfilesLock = &sync.Mutex{}
+	ae.AppArmorProfiles = map[string]int{}
+	ae.AppArmorProfilesLock = &sync.Mutex{}
 
 	// mount securityfs
 	kl.GetCommandWithoutOutput("/bin/mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
@@ -44,7 +43,7 @@ func NewAppArmorEnforcer(homeDir string) *AppArmorEnforcer {
 
 // DestroyAppArmorEnforcer Function
 func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() {
-	for profileName := range ae.RegisteredAppArmorProfiles {
+	for profileName := range ae.AppArmorProfiles {
 		ae.UnregisterAppArmorProfile(profileName)
 	}
 }
@@ -55,10 +54,13 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() {
 
 // RegisterAppArmorProfile Function
 func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) {
+	ae.AppArmorProfilesLock.Lock()
+	defer ae.AppArmorProfilesLock.Unlock()
+
 	if _, err := os.Stat("/etc/apparmor.d/" + profileName); err == nil {
 		content, err := ioutil.ReadFile("/etc/apparmor.d/" + profileName)
 		if err != nil {
-			kg.Printf("Unabale to register an AppArmor profile (%s) (out-of-control)", profileName)
+			kg.Printf("Unabale to register an AppArmor profile (%s, %s)", profileName, err.Error())
 			return
 		}
 
@@ -66,27 +68,49 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) {
 			kg.Printf("Unabale to register an AppArmor profile (%s) (out-of-control)", profileName)
 			return
 		}
+	} else {
+		content, err := ioutil.ReadFile(ae.HomeDir + "/AppArmor/apparmor-default")
+		if err != nil {
+			kg.Err(err.Error())
+		}
+
+		newProfile := strings.Replace(string(content), "apparmor-default", profileName, -1)
+
+		newFile, err := os.Create("/etc/apparmor.d/" + profileName)
+		if err != nil {
+			kg.Err(err.Error())
+			return
+		}
+		defer newFile.Close()
+
+		if _, err := newFile.WriteString(newProfile); err != nil {
+			kg.Err(err.Error())
+			return
+		}
 	}
 
-	if err := exec.Command(ae.HomeDir+"/AppArmor/create_profile.sh", profileName).Run(); err == nil {
-		if _, ok := ae.RegisteredAppArmorProfiles[profileName]; !ok {
-			ae.RegisteredAppArmorProfiles[profileName] = 1
+	if _, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
+		if _, ok := ae.AppArmorProfiles[profileName]; !ok {
+			ae.AppArmorProfiles[profileName] = 1
 			kg.Printf("Registered an AppArmor profile (%s)", profileName)
 		} else {
-			ae.RegisteredAppArmorProfiles[profileName]++
-			kg.Printf("Increased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.RegisteredAppArmorProfiles[profileName]-1, ae.RegisteredAppArmorProfiles[profileName], profileName)
+			ae.AppArmorProfiles[profileName]++
+			kg.Printf("Increased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]-1, ae.AppArmorProfiles[profileName], profileName)
 		}
 	} else {
-		kg.Printf("Failed to register an AppArmor profile (%s)", profileName)
+		kg.Printf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
 	}
 }
 
 // UnregisterAppArmorProfile Function
 func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) {
+	ae.AppArmorProfilesLock.Lock()
+	defer ae.AppArmorProfilesLock.Unlock()
+
 	if _, err := os.Stat("/etc/apparmor.d/" + profileName); err == nil {
 		content, err := ioutil.ReadFile("/etc/apparmor.d/" + profileName)
 		if err != nil {
-			kg.Printf("Unabale to unregister an AppArmor profile (%s) (out-of-control)", profileName)
+			kg.Printf("Unabale to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
 			return
 		}
 
@@ -96,17 +120,23 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) {
 		}
 	}
 
-	if referenceCount, ok := ae.RegisteredAppArmorProfiles[profileName]; ok {
+	if referenceCount, ok := ae.AppArmorProfiles[profileName]; ok {
 		if referenceCount > 1 {
-			ae.RegisteredAppArmorProfiles[profileName]--
-			kg.Printf("Decreased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.RegisteredAppArmorProfiles[profileName]+1, ae.RegisteredAppArmorProfiles[profileName], profileName)
+			ae.AppArmorProfiles[profileName]--
+			kg.Printf("Decreased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]+1, ae.AppArmorProfiles[profileName], profileName)
 		} else {
-			if err := exec.Command(ae.HomeDir+"/AppArmor/delete_profile.sh", profileName).Run(); err == nil {
-				delete(ae.RegisteredAppArmorProfiles, profileName)
-				kg.Printf("Unregistered an AppArmor profile (%s)", profileName)
-			} else {
-				kg.Printf("Failed to unregister an AppArmor profile (%s)", profileName)
+			if _, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-R", "/etc/apparmor.d/" + profileName}); err != nil {
+				kg.Printf("Failed to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
+				return
 			}
+
+			if err := os.Remove("/etc/apparmor.d/" + profileName); err != nil {
+				kg.Err(err.Error())
+				return
+			}
+
+			delete(ae.AppArmorProfiles, profileName)
+			kg.Printf("Unregistered an AppArmor profile (%s)", profileName)
 		}
 	} else {
 		kg.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
@@ -120,7 +150,11 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) {
 // UpdateAppArmorProfile Function
 func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
 	if policyCount, newProfile, ok := GenerateAppArmorProfile(appArmorProfile, securityPolicies); ok {
-		newfile, _ := os.Create("/etc/apparmor.d/" + appArmorProfile)
+		newfile, err := os.Create("/etc/apparmor.d/" + appArmorProfile)
+		if err != nil {
+			kg.Err(err.Error())
+			return
+		}
 		defer newfile.Close()
 
 		if _, err := newfile.WriteString(newProfile); err != nil {
@@ -133,10 +167,14 @@ func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, s
 			return
 		}
 
-		if err := exec.Command("/sbin/apparmor_parser", "-r", "-W", "/etc/apparmor.d/"+appArmorProfile).Run(); err == nil {
+		if output, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + appArmorProfile}); err == nil {
 			kg.Printf("Updated %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
 		} else {
-			kg.Printf("Failed to update %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+			kg.Printf("Failed to update %d security policies to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, output)
+		}
+	} else {
+		if len(newProfile) > 0 {
+			kg.Err(newProfile) // error message instead of new profile
 		}
 	}
 }
