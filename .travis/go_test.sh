@@ -6,6 +6,6 @@ cd $KBA_HOME/KubeArmor
 #go test -v
 
 cd $KBA_HOME/LogServer
-go test -v
+# go test -v
 
 exit 0

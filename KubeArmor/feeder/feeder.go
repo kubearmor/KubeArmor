@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 	"time"
 
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
@@ -38,8 +40,14 @@ type Feeder struct {
 func NewFeeder(server, logType string) *Feeder {
 	fd := &Feeder{}
 
+	if strings.HasPrefix(server, "kubearmor-logserver") {
+		server = strings.Replace(server, "kubearmor-logserver", os.Getenv("KUBEARMOR_LOGSERVER_SERVICE_HOST"), -1)
+	}
+
 	fd.server = server
 	fd.logType = logType
+
+	kg.Printf("Check gRPC server (%s)", fd.server)
 
 	for {
 		_, ok := fd.DoHealthCheck()
@@ -54,35 +62,23 @@ func NewFeeder(server, logType string) *Feeder {
 		kg.Err(err.Error())
 		return nil
 	}
-
 	fd.conn = conn
 
-	if logType == "AuditLog" {
-		fd.client = pb.NewLogMessageClient(fd.conn)
+	fd.client = pb.NewLogMessageClient(fd.conn)
 
-		stream, err := fd.client.AuditLogs(context.Background())
-		if err != nil {
-			kg.Err(err.Error())
-			return nil
-		}
-
-		fd.auditLogStream = stream
-	} else if logType == "SystemLog" {
-		fd.client = pb.NewLogMessageClient(fd.conn)
-
-		stream, err := fd.client.SystemLogs(context.Background())
-		if err != nil {
-			kg.Err(err.Error())
-			return nil
-		}
-
-		fd.systemLogStream = stream
-	} else {
-		kg.Printf("Not supported type (%s)", logType)
-		fd.conn.Close()
-		fd.conn = nil
+	auditLogStream, err := fd.client.AuditLogs(context.Background())
+	if err != nil {
+		kg.Err(err.Error())
 		return nil
 	}
+	fd.auditLogStream = auditLogStream
+
+	systemLogStream, err := fd.client.SystemLogs(context.Background())
+	if err != nil {
+		kg.Err(err.Error())
+		return nil
+	}
+	fd.systemLogStream = systemLogStream
 
 	return fd
 }
@@ -125,14 +121,6 @@ func (fd *Feeder) DoHealthCheck() (string, bool) {
 
 // SendAuditLog Function
 func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
-	if fd.conn == nil {
-		kg.Print("gRPC is not set")
-		return
-	} else if fd.logType == "SystemLog" {
-		kg.Print("gRPC is set for system logs (not audit logs)")
-		return
-	}
-
 	log := pb.AuditLog{}
 
 	log.UpdatedTime = auditLog.UpdatedTime
@@ -155,14 +143,6 @@ func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
 
 // SendSystemLog Function
 func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
-	if fd.conn == nil {
-		kg.Print("gRPC is not set")
-		return
-	} else if fd.logType == "AuditLog" {
-		kg.Print("gRPC is set for audit logs (not system logs)")
-		return
-	}
-
 	log := pb.SystemLog{}
 
 	log.UpdatedTime = systemLog.UpdatedTime
