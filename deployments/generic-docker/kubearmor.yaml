@@ -46,7 +46,7 @@ spec:
       - name: kubearmor
         image: accuknox/kubearmor:latest
         imagePullPolicy: Always
-        args: ["-audit=grpc:localhost:32767"]
+        args: ["-audit=grpc:kubearmor-logserver:32767"]
         securityContext:
           privileged: true
           capabilities:

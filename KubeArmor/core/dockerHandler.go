@@ -181,6 +181,8 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		dm.ContainersLock.Unlock()
 
 		kg.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerName)
+
+		dm.UpdateContainerGroupWithContainer("ADDED", container)
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
 		// case 2: kill -> die -> destroy
@@ -202,9 +204,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerName)
-	}
 
-	dm.UpdateContainerGroups()
+		dm.UpdateContainerGroupWithContainer("DELETED", container)
+	}
 }
 
 // MonitorDockerEvents Function

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-KBA_HOME=`dirname $(realpath "$0")`
+KBA_HOME=`dirname $(realpath "$0")`/..
 
 if [ -z $1 ]; then
     echo "$0 [VERSION]"

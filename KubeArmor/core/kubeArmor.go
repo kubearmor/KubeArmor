@@ -293,6 +293,9 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 	go dm.MonitorSystemEvents()
 	WgDaemon.Add(1)
 
+	// wait for a while
+	time.Sleep(time.Second * 1)
+
 	// == //
 
 	if K8s.InitK8sClient() {

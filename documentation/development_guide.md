@@ -13,9 +13,9 @@
     LSM - AppArmor (+ SELinux and KRSI)
     ```
 
-    First of all, KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared, please refer to [Kubernetes installation guide](./k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses their APIs. If you have other container platforms (e.g., Podman), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor as well, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor also requires LSMs to operate properly. Thus, please make sure that your environment supports LSMs (at least, AppArmor).
+    First of all, KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](./k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses their APIs. If you have other container platforms (e.g., Podman), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs (at least, AppArmor).
 
-    Note that we may not be able to run KubeArmor if you are using MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work if you use Docker Desktops on Windows and MacOS. It is because such environments do not have a full Linux file system.
+    <font color=red>Note that we may not be able to run KubeArmor if you are using MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work if you use Docker Desktops on Windows and MacOS. It is because such environments do not have a full Linux file system.</font>
 
   - Environmetal Setup
 

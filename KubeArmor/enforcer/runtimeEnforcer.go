@@ -2,9 +2,7 @@ package enforcer
 
 import (
 	"strings"
-	"sync"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -16,10 +14,6 @@ type RuntimeEnforcer struct {
 	krsiEnforcer     *KRSIEnforcer
 	appArmorEnforcer *AppArmorEnforcer
 	seLinuxEnforcer  *SELinuxEnforcer
-
-	// AppArmor profiles
-	AppArmorProfiles     []string
-	AppArmorProfilesLock *sync.Mutex
 }
 
 // NewRuntimeEnforcer Function
@@ -34,8 +28,6 @@ func NewRuntimeEnforcer(homeDir string) *RuntimeEnforcer {
 	}
 
 	if strings.Contains(re.enforcerType, "AppArmor") {
-		re.AppArmorProfiles = []string{}
-		re.AppArmorProfilesLock = &sync.Mutex{}
 		re.appArmorEnforcer = NewAppArmorEnforcer(homeDir)
 	}
 
@@ -48,10 +40,6 @@ func NewRuntimeEnforcer(homeDir string) *RuntimeEnforcer {
 
 // UpdateSecurityProfiles Function
 func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) {
-	if strings.Contains(re.enforcerType, "KRSI") {
-		//
-	}
-
 	if strings.Contains(re.enforcerType, "AppArmor") {
 		appArmorProfiles := []string{}
 
@@ -64,35 +52,20 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) 
 			}
 		}
 
-		re.AppArmorProfilesLock.Lock()
-
 		for _, profile := range appArmorProfiles {
 			if action == "ADDED" {
-				if !kl.ContainsElement(re.AppArmorProfiles, profile) {
-					re.AppArmorProfiles = append(re.AppArmorProfiles, profile)
-				}
-
-				// register profile
 				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
-
 			} else if action == "DELETED" {
-				if kl.ContainsElement(re.AppArmorProfiles, profile) {
-					re.AppArmorProfiles = kl.RemoveStrFromSlice(re.AppArmorProfiles, profile)
-				}
-
-				// unregister profile
 				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
 			}
 		}
-
-		re.AppArmorProfilesLock.Unlock()
 	}
 }
 
 // UpdateSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	if strings.Contains(re.enforcerType, "KRSI") {
-		//
+		re.krsiEnforcer.UpdateSecurityPolicies(conGroup)
 	}
 
 	if strings.Contains(re.enforcerType, "AppArmor") {
@@ -100,7 +73,7 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	}
 
 	if strings.Contains(re.enforcerType, "SELinux") {
-		//
+		re.seLinuxEnforcer.UpdateSecurityPolicies(conGroup)
 	}
 }
 
