@@ -128,7 +128,7 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	res := exec.Command(cmd, args...)
 	out, err := res.Output()
 	if err != nil {
-		return "", err
+		return string(out), err
 	}
 	return string(out), nil
 }

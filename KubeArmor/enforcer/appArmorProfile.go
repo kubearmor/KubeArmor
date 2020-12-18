@@ -848,7 +848,7 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 	// check apparmor profile
 
 	if _, err := os.Stat("/etc/apparmor.d/" + appArmorProfile); os.IsNotExist(err) {
-		return 0, "", false
+		return 0, err.Error(), false
 	}
 
 	// get the old profile
@@ -860,7 +860,10 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 	oldConetntsMidPost := []string{}
 	oldContentsFoot := []string{}
 
-	file, _ := os.Open("/etc/apparmor.d/" + appArmorProfile)
+	file, err := os.Open("/etc/apparmor.d/" + appArmorProfile)
+	if err != nil {
+		return 0, err.Error(), false
+	}
 
 	fscanner := bufio.NewScanner(file)
 	pos := "HEAD"
