@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"strings"
 	"time"
 
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
@@ -38,8 +40,14 @@ type Feeder struct {
 func NewFeeder(server, logType string) *Feeder {
 	fd := &Feeder{}
 
+	if strings.HasPrefix(server, "kubearmor-logserver") {
+		server = strings.Replace(server, "kubearmor-logserver", os.Getenv("KUBEARMOR_LOGSERVER_SERVICE_HOST"), -1)
+	}
+
 	fd.server = server
 	fd.logType = logType
+
+	kg.Printf("Check gRPC server (%s)", fd.server)
 
 	for {
 		_, ok := fd.DoHealthCheck()
