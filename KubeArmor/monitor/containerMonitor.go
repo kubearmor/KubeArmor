@@ -186,6 +186,9 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 
 			// set a new location for kernel headers
 			os.Setenv("BCC_KERNEL_SOURCE", HomeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
+
+			// just for safety
+			time.Sleep(time.Second * 1)
 		}
 	}
 
