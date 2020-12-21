@@ -169,6 +169,10 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		// enforce the security policy
 
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
+	} else { // DELETED
+		// update security profiles
+
+		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
 	}
 
 	dm.ContainerGroupsLock.Unlock()

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-cd /knox/GKE
 . /media/root/etc/os-release
+
+cd /KubeArmor/GKE
 
 # remove old kernel headers (just in case)
 rm -rf kernel-headers.tgz kernel
