@@ -766,112 +766,112 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     return 0;
 }
 
-int syscall__open(struct pt_regs *ctx)                                
-{                                                                      
+int syscall__open(struct pt_regs *ctx)
+{   
     if (should_trace() == 0)
-        return 0;                                                      
+        return 0;       
 
-    return save_args(_SYS_OPEN, ctx);                                   
+    return save_args(_SYS_OPEN, ctx);   
 }
 
-int trace_ret_open(struct pt_regs *ctx)                               
-{                                                                     
-    return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(OPEN_FLAGS_T));            
+int trace_ret_open(struct pt_regs *ctx)
+{  
+    return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(OPEN_FLAGS_T));  
 }
 
-int syscall__close(struct pt_regs *ctx)                                
-{                                                                      
-    if (should_trace() == 0)                                               
-        return 0;                                                      
+int syscall__close(struct pt_regs *ctx)
+{ 
+    if (should_trace() == 0)
+        return 0;       
 
     return save_args(_SYS_CLOSE, ctx);
 }
 
-int trace_ret_close(struct pt_regs *ctx)                               
-{                                                                     
+int trace_ret_close(struct pt_regs *ctx)
+{
     return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T));
 }
 
 // == Syscall Hooks (Network) == //
 
-int syscall__socket(struct pt_regs *ctx)                                
-{                                                                      
-    if (should_trace() == 0)                                               
-        return 0;                                                      
+int syscall__socket(struct pt_regs *ctx)
+{ 
+    if (should_trace() == 0)
+        return 0;       
 
-    return save_args(_SYS_SOCKET, ctx);                                   
+    return save_args(_SYS_SOCKET, ctx);   
 }
 
-int trace_ret_socket(struct pt_regs *ctx)                               
-{                                                                     
-    return trace_ret_generic(_SYS_SOCKET, ctx, ARG_TYPE0(SOCK_DOM_T)|ARG_TYPE1(SOCK_TYPE_T)|ARG_TYPE2(INT_T));            
+int trace_ret_socket(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_SOCKET, ctx, ARG_TYPE0(SOCK_DOM_T)|ARG_TYPE1(SOCK_TYPE_T)|ARG_TYPE2(INT_T));
 }
 
-int syscall__connect(struct pt_regs *ctx)                                
-{                                                                      
-    if (should_trace() == 0)                                               
-        return 0;                                                      
+int syscall__connect(struct pt_regs *ctx)
+{ 
+    if (should_trace() == 0)
+        return 0;       
 
-    return save_args(_SYS_CONNECT, ctx);                                   
+    return save_args(_SYS_CONNECT, ctx);   
 }
 
-int trace_ret_connect(struct pt_regs *ctx)                               
-{                                                                     
-    return trace_ret_generic(_SYS_CONNECT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));            
+int trace_ret_connect(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_CONNECT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
 }
 
-int syscall__accept(struct pt_regs *ctx)                                
-{                                                                      
-    if (should_trace() == 0)                                               
-        return 0;                                                      
+int syscall__accept(struct pt_regs *ctx)
+{ 
+    if (should_trace() == 0)
+        return 0;       
 
-    return save_args(_SYS_ACCEPT, ctx);                                   
+    return save_args(_SYS_ACCEPT, ctx);   
 }
 
-int trace_ret_accept(struct pt_regs *ctx)                               
-{                                                                     
-    return trace_ret_generic(_SYS_ACCEPT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));            
+int trace_ret_accept(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_ACCEPT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
 }
 
-int syscall__bind(struct pt_regs *ctx)                                
-{                                                                      
-    if (should_trace() == 0)                                               
-        return 0;                                                      
+int syscall__bind(struct pt_regs *ctx)
+{ 
+    if (should_trace() == 0)
+        return 0;       
 
-    return save_args(_SYS_BIND, ctx);                                   
+    return save_args(_SYS_BIND, ctx);   
 }
 
-int trace_ret_bind(struct pt_regs *ctx)                               
-{                                                                     
-    return trace_ret_generic(_SYS_BIND, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));            
+int trace_ret_bind(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_BIND, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
 }
 
-int syscall__listen(struct pt_regs *ctx)                                
-{                                                                      
-    if (should_trace() == 0)                                               
-        return 0;                                                      
+int syscall__listen(struct pt_regs *ctx)
+{ 
+    if (should_trace() == 0)
+        return 0;
 
-    return save_args(_SYS_LISTEN, ctx);                                   
+    return save_args(_SYS_LISTEN, ctx);   
 }
 
-int trace_ret_listen(struct pt_regs *ctx)                               
-{                                                                     
-    return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));            
+int trace_ret_listen(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));
 }
 
 // == Skb Hooks == //
 
 #define MAC_HEADER_SIZE 14;
 
-#define member_address(source_struct, source_member)                                                \
-    ({                                                                                              \
-        void* __ret;                                                                                \
+#define member_address(source_struct, source_member) \
+    ({ \
+        void* __ret; \
         __ret = (void*) (((char*)source_struct) + offsetof(typeof(*source_struct), source_member)); \
-        __ret;                                                                                      \
+        __ret; \
     })
 
-#define member_read(destination, source_struct, source_member)                                                           \
-    do{                                                                                                                  \
+#define member_read(destination, source_struct, source_member) \
+    do { \
         bpf_probe_read(destination, sizeof(source_struct->source_member), member_address(source_struct, source_member)); \
     } while(0)
 
