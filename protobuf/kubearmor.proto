@@ -22,6 +22,7 @@ message AuditLog {
   string ContainerName = 6;
 
   int32 HostPID = 7;
+
   string Source = 8;
   string Operation = 9;
   string Resource = 10;
@@ -47,13 +48,13 @@ message SystemLog {
   int32 PID = 9;
   int32 TID = 10;
   int32 UID = 11;
-  string Comm = 12;
 
+  string Source = 12;
   string Syscall = 13;
   int32 Argnum = 14;
-  int64 Retval = 15;
+  string Args = 15;
+  int64 Retval = 16;
 
-  string Data = 16;
   string ErrorMessage = 17;
 }
 
