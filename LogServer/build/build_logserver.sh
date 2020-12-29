@@ -1,23 +1,27 @@
 #!/bin/bash
 
 SRV_HOME=`dirname $(realpath "$0")`/..
+cd $SRV_HOME/build
 
 # remove old images
+
 docker images | grep kubearmor-logserver | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
 echo "[INFO] Removed existing KubeArmor images"
 
-cd $SRV_HOME/build
-
 # remove old files (just in case)
+
 $SRV_HOME/build/clean_source_files.sh
 
 echo "[INFO] Removed source files just in case"
 
 # copy files to build
+
 $SRV_HOME/build/copy_source_files.sh
 
 echo "[INFO] Copied new source files"
+
+# build a new image
 
 if [ -z $1 ]; then
     echo "[INFO] Building accuknox/kubearmor-logserver:latest"
@@ -35,6 +39,7 @@ else
 fi
 
 # remove old files
+
 $SRV_HOME/build/clean_source_files.sh
 
 echo "[INFO] Removed source files"
