@@ -10,5 +10,4 @@ install:
   - .travis/prepare.sh
 
 script:
-  - .travis/go_test.sh
   - .travis/image_verify.sh
