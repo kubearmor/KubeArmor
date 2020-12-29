@@ -115,15 +115,15 @@ func (t *LogMessage) SystemLogs(stream pb.LogMessage_SystemLogsServer) error {
 			fmt.Printf("Container ID: %s\n", res.ContainerID)
 			fmt.Printf("Container Name: %s\n", res.ContainerName)
 
-			fmt.Printf("Comm: %s\n", res.Comm)
+			fmt.Printf("Source: %s\n", res.Source)
 			fmt.Printf("Syscall: %s\n", res.Syscall)
 
-			if len(res.Data) > 0 {
-				fmt.Printf("Data: %s\n", res.Data)
+			if len(res.Args) > 0 {
+				fmt.Printf("Arguments: %s\n", res.Args)
 			}
 
 			if len(res.ErrorMessage) > 0 {
-				fmt.Printf("Retval: %d, ErrorMessage: %s\n", res.Retval, res.ErrorMessage)
+				fmt.Printf("Retval: %d (%s)\n", res.Retval, res.ErrorMessage)
 			} else {
 				fmt.Printf("Retval: %d\n", res.Retval)
 			}

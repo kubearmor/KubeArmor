@@ -206,13 +206,12 @@ func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
 	log.PID = systemLog.PID
 	log.TID = systemLog.TID
 	log.UID = systemLog.UID
-	log.Comm = systemLog.Comm
 
+	log.Source = systemLog.Source
 	log.Syscall = systemLog.Syscall
 	log.Argnum = systemLog.Argnum
+	log.Args = systemLog.Args
 	log.Retval = systemLog.Retval
-
-	log.Data = systemLog.Data
 
 	if len(systemLog.ErrorMessage) > 0 {
 		log.ErrorMessage = systemLog.ErrorMessage
