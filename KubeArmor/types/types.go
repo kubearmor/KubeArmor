@@ -100,6 +100,10 @@ type SystemLog struct {
 	// host
 	HostName string `json:"hostName"`
 
+	// k8s
+	NamespaceName string `json:"namespaceName"`
+	PodName       string `json:"podName"`
+
 	// container
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
@@ -132,6 +136,10 @@ type AuditLog struct {
 	// host
 	HostName string `json:"hostName"`
 
+	// k8s
+	NamespaceName string `json:"namespaceName"`
+	PodName       string `json:"podName"`
+
 	// container
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
@@ -141,7 +149,7 @@ type AuditLog struct {
 	Source    string `json:"source"`
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
-	Action    string `json:"action"`
+	Result    string `json:"result"`
 
 	// raw
 	RawData string `json:"rawData,omitempty"`
