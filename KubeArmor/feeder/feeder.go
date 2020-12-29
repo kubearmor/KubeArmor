@@ -66,19 +66,21 @@ func NewFeeder(server, logType string) *Feeder {
 
 	fd.client = pb.NewLogMessageClient(fd.conn)
 
-	auditLogStream, err := fd.client.AuditLogs(context.Background())
-	if err != nil {
-		kg.Err(err.Error())
-		return nil
+	if logType == "AuditLog" {
+		auditLogStream, err := fd.client.AuditLogs(context.Background())
+		if err != nil {
+			kg.Err(err.Error())
+			return nil
+		}
+		fd.auditLogStream = auditLogStream
+	} else if logType == "SystemLog" {
+		systemLogStream, err := fd.client.SystemLogs(context.Background())
+		if err != nil {
+			kg.Err(err.Error())
+			return nil
+		}
+		fd.systemLogStream = systemLogStream
 	}
-	fd.auditLogStream = auditLogStream
-
-	systemLogStream, err := fd.client.SystemLogs(context.Background())
-	if err != nil {
-		kg.Err(err.Error())
-		return nil
-	}
-	fd.systemLogStream = systemLogStream
 
 	kg.Print("Connected to gRPC server")
 
@@ -123,11 +125,18 @@ func (fd *Feeder) DoHealthCheck() (string, bool) {
 
 // SendAuditLog Function
 func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
+	if fd.logType != "AuditLog" {
+		return
+	}
+
 	log := pb.AuditLog{}
 
 	log.UpdatedTime = auditLog.UpdatedTime
 
 	log.HostName = auditLog.HostName
+
+	log.NamespaceName = auditLog.NamespaceName
+	log.PodName = auditLog.PodName
 
 	log.ContainerID = auditLog.ContainerID
 	log.ContainerName = auditLog.ContainerName
@@ -136,20 +145,58 @@ func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
 	log.Source = auditLog.Source
 	log.Operation = auditLog.Operation
 	log.Resource = auditLog.Resource
-	log.Action = auditLog.Action
+	log.Result = auditLog.Result
 
 	log.RawData = auditLog.RawData
 
-	fd.auditLogStream.Send(&log)
+	if err := fd.auditLogStream.Send(&log); err != nil {
+		kg.Errf("Failed to send an audit log, trying to reconnect to the gRPC server (%s)", err.Error())
+
+		// reconnect
+
+		fd.conn.Close()
+
+		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
+		if err != nil {
+			kg.Err(err.Error())
+			return
+		}
+		fd.conn = conn
+
+		fd.client = pb.NewLogMessageClient(fd.conn)
+
+		auditLogStream, err := fd.client.AuditLogs(context.Background())
+		if err != nil {
+			kg.Err(err.Error())
+			return
+		}
+		fd.auditLogStream = auditLogStream
+
+		kg.Print("Reconnected the gRPC server for audit logs")
+
+		// resend
+
+		if err := fd.auditLogStream.Send(&log); err != nil {
+			kg.Errf("Failed to resend the audit log (%s)", err.Error())
+			kg.Printf("AuditLog: %v", log)
+		}
+	}
 }
 
 // SendSystemLog Function
 func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
+	if fd.logType != "SystemLog" {
+		return
+	}
+
 	log := pb.SystemLog{}
 
 	log.UpdatedTime = systemLog.UpdatedTime
 
 	log.HostName = systemLog.HostName
+
+	log.NamespaceName = systemLog.NamespaceName
+	log.PodName = systemLog.PodName
 
 	log.ContainerID = systemLog.ContainerID
 	log.ContainerName = systemLog.ContainerName
@@ -171,5 +218,36 @@ func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
 		log.ErrorMessage = systemLog.ErrorMessage
 	}
 
-	fd.systemLogStream.Send(&log)
+	if err := fd.systemLogStream.Send(&log); err != nil {
+		kg.Errf("Failed to send a system log, trying to reconnect to the gRPC server (%s)", err.Error())
+
+		// reconnect
+
+		fd.conn.Close()
+
+		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
+		if err != nil {
+			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
+			return
+		}
+		fd.conn = conn
+
+		fd.client = pb.NewLogMessageClient(fd.conn)
+
+		systemLogStream, err := fd.client.SystemLogs(context.Background())
+		if err != nil {
+			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
+			return
+		}
+		fd.systemLogStream = systemLogStream
+
+		kg.Print("Reconnected the gRPC server for system logs")
+
+		// resend
+
+		if err := fd.systemLogStream.Send(&log); err != nil {
+			kg.Errf("Failed to resend the system log (%s)", err.Error())
+			kg.Printf("SystemLog: %v", log)
+		}
+	}
 }
