@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-5-net-udp-icmp-block
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-5
+  network:
+    matchProtocols:
+    - protocol: udp
+    - protocol: icmp
+  action:
+    Block
