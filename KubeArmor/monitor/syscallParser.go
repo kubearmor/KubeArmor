@@ -157,12 +157,15 @@ func readSockaddrFromBuff(buff io.Reader) (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error parsing sockaddr_un: %v", err)
 		}
-		sunPath := string(sunPathBuf[:])
 
-		if err != nil {
-			return nil, fmt.Errorf("error parsing sockaddr_un: %v", err)
+		sunPath := ""
+		for i, v := range sunPathBuf {
+			if v == '\u0000' { // null termination
+				sunPath = string(sunPathBuf[:i])
+				break
+			}
 		}
-		res["sun_path"] = strings.ReplaceAll(sunPath, "\u0000", "")
+		res["sun_path"] = sunPath
 	case 2: // AF_INET
 		/*
 			http://man7.org/linux/man-pages/man7/ip.7.html
@@ -180,6 +183,7 @@ func readSockaddrFromBuff(buff io.Reader) (map[string]string, error) {
 			return nil, fmt.Errorf("error parsing sockaddr_in: %v", err)
 		}
 		res["sin_port"] = strconv.Itoa(int(port))
+
 		addr, err := readUInt32BigendFromBuff(buff)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing sockaddr_in: %v", err)
@@ -434,6 +438,7 @@ func getCapabilityName(cap int32) string {
 
 // getSyscallName Function
 func getSyscallName(sc int32) string {
+	// source: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 
 	var syscalls = map[int32]string{
 		0:   "SYS_READ",
@@ -928,7 +933,7 @@ func getErrorMessage(errno int64) string {
 	if msg, ok := errMsg[-errno]; ok {
 		res = msg
 	} else {
-		res = ""
+		res = "Unknown error"
 	}
 
 	return res
