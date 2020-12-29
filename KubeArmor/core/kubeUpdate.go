@@ -33,7 +33,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 	}
 
 	if conGroupIdx == -1 {
-		kg.Errf("No container group (%s/%s) for a container (%s)", container.NamespaceName, container.ContainerGroupName, container.ContainerName)
+		kg.Errf("No container group (%s/%s) for a container (%s)", container.NamespaceName, container.ContainerGroupName, container.ContainerID[:12])
 		dm.ContainerGroupsLock.Unlock()
 		return
 	}
@@ -45,9 +45,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName)
 		}
 
-		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerName) {
-			dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerName)
-			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[container.ContainerName] = container.AppArmorProfile
+		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerID) {
+			dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerID)
+			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 		}
 	} else { // DELETED
 		if kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
@@ -59,14 +59,14 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			}
 		}
 
-		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerName) {
-			for idxC, containerName := range dm.ContainerGroups[conGroupIdx].Containers {
-				if containerName == "containerName="+container.ContainerName {
+		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerID) {
+			for idxC, containerID := range dm.ContainerGroups[conGroupIdx].Containers {
+				if containerID == container.ContainerID {
 					dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers[:idxC], dm.ContainerGroups[conGroupIdx].Containers[idxC+1:]...)
 					break
 				}
 			}
-			delete(dm.ContainerGroups[conGroupIdx].AppArmorProfiles, container.ContainerName)
+			delete(dm.ContainerGroups[conGroupIdx].AppArmorProfiles, container.ContainerID)
 		}
 	}
 
