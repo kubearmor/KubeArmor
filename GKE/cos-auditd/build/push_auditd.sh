@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# push the image to Docker Hub
+
 if [ -z $1 ]; then
     echo "[INFO] Pushing accuknox/kubearmor-cos-auditd:latest"
     docker push accuknox/kubearmor-cos-auditd:latest

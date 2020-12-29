@@ -19,4 +19,4 @@ cp    $ARMOR_HOME/go.mod $ARMOR_HOME/build/
 cp    $ARMOR_HOME/main.go $ARMOR_HOME/build/
 
 # copy GKE files
-cp -r $ARMOR_HOME/GKE/ $ARMOR_HOME/build/
+cp -r $ARMOR_HOME/../GKE/ $ARMOR_HOME/build/

@@ -40,7 +40,7 @@ COPY --from=builder /usr/src/KubeArmor/build/kubearmor /KubeArmor/kubearmor
 
 COPY --from=builder /usr/src/KubeArmor/AppArmor/* /KubeArmor/AppArmor/
 COPY --from=builder /usr/src/KubeArmor/BPF/* /KubeArmor/BPF/
-COPY --from=builder /usr/src/KubeArmor/GKE/* /KubeArmor/GKE/
+COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
 COPY --from=builder /usr/src/KubeArmor/Audit/* /etc/audit/
 
 RUN ln -s /usr/sbin/auditctl /sbin/auditctl

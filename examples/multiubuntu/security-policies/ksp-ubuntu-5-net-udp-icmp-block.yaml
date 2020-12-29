@@ -10,7 +10,6 @@ spec:
   network:
     matchProtocols:
     - protocol: udp
-      ipv4: true
     - protocol: icmp
   action:
     Block

@@ -304,15 +304,15 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() {
 // ================= //
 
 // GetNameFromContainerID Function
-func (mon *ContainerMonitor) GetNameFromContainerID(id string) string {
+func (mon *ContainerMonitor) GetNameFromContainerID(id string) (string, string, string) {
 	mon.ContainersLock.Lock()
 	defer mon.ContainersLock.Unlock()
 
 	if val, ok := mon.Containers[id]; ok {
-		return val.ContainerName
+		return val.NamespaceName, val.ContainerGroupName, val.ContainerName
 	}
 
-	return "unknown"
+	return "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET"
 }
 
 // BuildSystemLogCommon Function
@@ -324,7 +324,7 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	log.HostName = mon.HostName
 
 	log.ContainerID = msg.ContainerID
-	log.ContainerName = mon.GetNameFromContainerID(msg.ContainerID)
+	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(msg.ContainerID)
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
@@ -343,7 +343,7 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 		}
 	}
 
-	log.Comm = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
+	log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
 
 	return log
 }
@@ -382,16 +382,16 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "filename=" + fileName + " flags=" + fileOpenFlags
+				log.Args = "filename=" + fileName + " flags=" + fileOpenFlags
 
 				if msg.ContextSys.Retval > 0 {
-					log.Data = log.Data + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
+					log.Args = log.Args + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
 				}
 
 			case SYS_CLOSE:
 				if len(msg.ContextArgs) == 1 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.Data = "fd=" + strconv.Itoa(int(val))
+						log.Args = "fd=" + strconv.Itoa(int(val))
 					}
 				}
 
@@ -412,10 +412,10 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
+				log.Args = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
 
 				if msg.ContextSys.Retval > 0 {
-					log.Data = log.Data + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
+					log.Args = log.Args + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
 				}
 
 			case SYS_CONNECT: // fd, sockaddr
@@ -431,10 +431,10 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "fd=" + fd
+				log.Args = "fd=" + fd
 
 				for k, v := range sockAddr {
-					log.Data = log.Data + " " + k + "=" + v
+					log.Args = log.Args + " " + k + "=" + v
 				}
 
 			case SYS_ACCEPT: // fd, sockaddr
@@ -450,10 +450,10 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "fd=" + fd
+				log.Args = "fd=" + fd
 
 				for k, v := range sockAddr {
-					log.Data = log.Data + " " + k + "=" + v
+					log.Args = log.Args + " " + k + "=" + v
 				}
 
 			case SYS_BIND: // fd, sockaddr
@@ -469,16 +469,16 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "fd=" + fd
+				log.Args = "fd=" + fd
 
 				for k, v := range sockAddr {
-					log.Data = log.Data + " " + k + "=" + v
+					log.Args = log.Args + " " + k + "=" + v
 				}
 
 			case SYS_LISTEN:
 				if len(msg.ContextArgs) == 2 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.Data = "fd=" + strconv.Itoa(int(val))
+						log.Args = "fd=" + strconv.Itoa(int(val))
 					}
 				}
 
@@ -495,13 +495,13 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "exec=" + procExecPath
+				log.Args = "exec=" + procExecPath
 
 				for idx, arg := range procArgs {
 					if idx == 0 {
 						continue
 					} else {
-						log.Data = log.Data + " a" + strconv.Itoa(idx) + "=" + arg
+						log.Args = log.Args + " a" + strconv.Itoa(idx) + "=" + arg
 					}
 				}
 
@@ -526,17 +526,17 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Data = "fd=" + fd + " exec=" + procExecPath
+				log.Args = "fd=" + fd + " exec=" + procExecPath
 
 				for idx, arg := range procArgs {
 					if idx == 0 {
 						continue
 					} else {
-						log.Data = log.Data + " a" + strconv.Itoa(idx) + "=" + arg
+						log.Args = log.Args + " a" + strconv.Itoa(idx) + "=" + arg
 					}
 				}
 
-				log.Data = " flag=" + procExecFlag
+				log.Args = " flag=" + procExecFlag
 
 			case CAP_CAPABLE:
 				var cap string
@@ -552,7 +552,13 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 				}
 
-				log.Data = "cap=" + cap + " syscall=" + syscall
+				log.Args = "cap=" + cap + " syscall=" + syscall
+			}
+
+			// == //
+
+			if log.Retval >= 0 {
+				continue
 			}
 
 			// == //

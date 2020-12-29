@@ -92,38 +92,6 @@ type Message struct {
 	UpdatedTime string `json:"updatedTime"`
 }
 
-// SystemLog Structure
-type SystemLog struct {
-	// updated time
-	UpdatedTime string `json:"updatedTime"`
-
-	// host
-	HostName string `json:"hostName"`
-
-	// container
-	ContainerID   string `json:"containerID"`
-	ContainerName string `json:"containerName"`
-
-	// common
-	HostPID int32  `json:"hostPid"`
-	PPID    int32  `json:"ppid"`
-	PID     int32  `json:"pid"`
-	TID     int32  `json:"tid"`
-	UID     int32  `json:"uid"`
-	Comm    string `json:"comm"`
-
-	// syscall
-	Syscall string `json:"syscall"`
-	Argnum  int32  `json:"argnum"`
-	Retval  int64  `json:"retval"`
-
-	// data
-	Data string `json:"data,omitempty"`
-
-	// error message
-	ErrorMessage string `json:"errorMessage,omitempty"`
-}
-
 // AuditLog Structure
 type AuditLog struct {
 	// updated time
@@ -132,19 +100,59 @@ type AuditLog struct {
 	// host
 	HostName string `json:"hostName"`
 
+	// k8s
+	NamespaceName string `json:"namespaceName"`
+	PodName       string `json:"podName"`
+
 	// container
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
+	// common
+	HostPID int32 `json:"hostPid"`
+
 	// audit
-	HostPID   int32  `json:"hostPid"`
 	Source    string `json:"source"`
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
-	Action    string `json:"action"`
+	Result    string `json:"result"`
 
 	// raw
 	RawData string `json:"rawData,omitempty"`
+}
+
+// SystemLog Structure
+type SystemLog struct {
+	// updated time
+	UpdatedTime string `json:"updatedTime"`
+
+	// host
+	HostName string `json:"hostName"`
+
+	// k8s
+	NamespaceName string `json:"namespaceName"`
+	PodName       string `json:"podName"`
+
+	// container
+	ContainerID   string `json:"containerID"`
+	ContainerName string `json:"containerName"`
+
+	// common
+	HostPID int32 `json:"hostPid"`
+	PPID    int32 `json:"ppid"`
+	PID     int32 `json:"pid"`
+	TID     int32 `json:"tid"`
+	UID     int32 `json:"uid"`
+
+	// syscall
+	Source  string `json:"source"`
+	Syscall string `json:"syscall"`
+	Argnum  int32  `json:"argnum"`
+	Args    string `json:"args,omitempty"`
+	Retval  int64  `json:"retval"`
+
+	// error message
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 // ===================== //

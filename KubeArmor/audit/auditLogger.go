@@ -161,7 +161,7 @@ func (al *AuditLogger) DestroyAuditLogger() {
 // ================ //
 
 // GetContainerInfoFromHostPid Function
-func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, string) {
+func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, string, string, string) {
 	hostPid := uint32(hostPidInt)
 
 	al.ActivePidMapLock.Lock()
@@ -187,12 +187,12 @@ func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, stri
 
 	if containerID != "" {
 		if val, ok := al.Containers[containerID]; ok {
-			return containerID, val.ContainerName
+			return val.NamespaceName, val.ContainerGroupName, containerID, val.ContainerName
 		}
-		return containerID, ""
+		return "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", containerID, "NOT_DISCOVERED_YET"
 	}
 
-	return "", al.HostName
+	return "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET"
 }
 
 // MonitorAuditLogs Function
@@ -251,25 +251,28 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 
 			requiredKeywords := []string{
 				"AVC",
+				"SYSCALL",
 			}
 
-			skip := true
+			auditType := ""
 
 			for _, keyword := range requiredKeywords {
 				if strings.Contains(line, keyword) {
-					skip = false
+					auditType = keyword
+					break
 				}
 			}
 
-			if skip {
+			if auditType == "" {
 				continue
 			}
 
 			excludedKeywords := []string{
 				"apparmor=\"STATUS\"",
+				"success=yes",
 			}
 
-			skip = false
+			skip := false
 
 			for _, keyword := range excludedKeywords {
 				if strings.Contains(line, keyword) {
@@ -304,29 +307,52 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			source := ""
 			operation := ""
 			resource := ""
-			action := ""
+			result := ""
 
-			for _, keyVal := range words {
-				if strings.HasPrefix(keyVal, "pid=") {
-					value := strings.Split(keyVal, "=")
-					hostPid, _ = strconv.Atoi(value[1])
-				} else if strings.HasPrefix(keyVal, "comm=") {
-					value := strings.Split(keyVal, "=")
-					source = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(keyVal, "operation=") {
-					value := strings.Split(keyVal, "=")
-					operation = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(keyVal, "name=") {
-					value := strings.Split(keyVal, "=")
-					resource = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(keyVal, "apparmor=") {
-					value := strings.Split(keyVal, "=")
-					if value[1] == "\"DENIED\"" {
-						action = "Block"
-					} else if value[1] == "\"AUDIT\"" {
-						action = "Audit"
-					} else {
-						action = strings.Replace(value[1], "\"", "", -1)
+			if auditType == "AVC" {
+				for _, keyVal := range words {
+					if strings.HasPrefix(keyVal, "pid=") {
+						value := strings.Split(keyVal, "=")
+						hostPid, _ = strconv.Atoi(value[1])
+					} else if strings.HasPrefix(keyVal, "comm=") {
+						value := strings.Split(keyVal, "=")
+						source = strings.Replace(value[1], "\"", "", -1)
+					} else if strings.HasPrefix(keyVal, "operation=") {
+						value := strings.Split(keyVal, "=")
+						operation = strings.Replace(value[1], "\"", "", -1)
+					} else if strings.HasPrefix(keyVal, "name=") {
+						value := strings.Split(keyVal, "=")
+						resource = strings.Replace(value[1], "\"", "", -1)
+					} else if strings.HasPrefix(keyVal, "apparmor=") {
+						value := strings.Split(keyVal, "=")
+						if value[1] == "\"ALLOWED\"" {
+							result = "Allowed"
+						} else if value[1] == "\"DENIED\"" {
+							result = "Blocked"
+						} else if value[1] == "\"AUDIT\"" {
+							result = "Audited"
+						} else {
+							result = strings.Replace(value[1], "\"", "", -1)
+						}
+					}
+				}
+			} else if auditType == "SYSCALL" {
+				for _, keyVal := range words {
+					if strings.HasPrefix(keyVal, "pid=") {
+						value := strings.Split(keyVal, "=")
+						hostPid, _ = strconv.Atoi(value[1])
+					} else if strings.HasPrefix(keyVal, "exe=") {
+						value := strings.Split(keyVal, "=")
+						source = strings.Replace(value[1], "\"", "", -1)
+					} else if strings.HasPrefix(keyVal, "syscall=") {
+						value := strings.Split(keyVal, "=")
+						syscallNum, _ := strconv.Atoi(value[1])
+						operation = "syscall"
+						resource = getSyscallName(syscallNum)
+					} else if strings.HasPrefix(keyVal, "exit=-") {
+						value := strings.Split(keyVal, "=")
+						errNo, _ := strconv.Atoi(value[1])
+						result = fmt.Sprintf("Failed (%s)", getErrorMessage(errNo))
 					}
 				}
 			}
@@ -337,13 +363,13 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 			auditLog.UpdatedTime = kl.GetDateTimeNow()
 
 			auditLog.HostName = al.HostName
-			auditLog.ContainerID, auditLog.ContainerName = al.GetContainerInfoFromHostPid(hostPid)
+			auditLog.NamespaceName, auditLog.PodName, auditLog.ContainerID, auditLog.ContainerName = al.GetContainerInfoFromHostPid(hostPid)
 
 			auditLog.HostPID = int32(hostPid)
 			auditLog.Source = source
 			auditLog.Operation = operation
 			auditLog.Resource = resource
-			auditLog.Action = action
+			auditLog.Result = result
 
 			// == //
 

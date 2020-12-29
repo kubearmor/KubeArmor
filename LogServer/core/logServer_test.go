@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"context"
@@ -11,14 +11,13 @@ import (
 
 func TestLogServer(t *testing.T) {
 	Output = false
-	port := ":32767"
 	serverAddr := "localhost:32767"
 
 	// == //
 
 	t.Log("[INFO] Start LogServer")
 
-	server := NewLogServer(port)
+	server := NewLogServer(":32767")
 
 	t.Log("[PASS] Started LogServer")
 
@@ -39,7 +38,6 @@ func TestLogServer(t *testing.T) {
 		t.Errorf("[FAIL] %v", err)
 		return
 	}
-
 	t.Log("[PASS] Connected to LogServer")
 
 	// == //
@@ -58,7 +56,7 @@ func TestLogServer(t *testing.T) {
 	nonce := pb.NonceMessage{Nonce: rand}
 	res, err := client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("[FAIL] %v", err)
 		return
 	}
 
@@ -66,7 +64,6 @@ func TestLogServer(t *testing.T) {
 		t.Errorf("[FAIL] Unexpected result: %d (expected: %d)", res.Retval, rand)
 		return
 	}
-
 	t.Log("[PASS] Tested HealthCheck API")
 
 	// == //
@@ -75,31 +72,22 @@ func TestLogServer(t *testing.T) {
 
 	auditStream, err := client.AuditLogs(context.Background())
 	if err != nil {
-		t.Error(err)
+		t.Errorf("[FAIL] %v", err)
 		return
 	}
 
 	auditLog := pb.AuditLog{}
-	auditLog.UpdatedTime = "UpdatedTime"
-	auditLog.HostName = "HostName"
-	auditLog.ContainerID = "ContainerID"
-	auditLog.ContainerName = "ContainerName"
-	auditLog.Source = "Source"
-	auditLog.Operation = "Operation"
-	auditLog.Resource = "Resource"
-	auditLog.Action = "Action"
 	auditStream.Send(&auditLog)
 
 	res, err = auditStream.CloseAndRecv()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("[FAIL] %v", err)
 		return
 	}
 
 	if res.Retval != 0 {
 		t.Errorf("[FAIL] Unexpected result: %d", res.Retval)
 	}
-
 	t.Log("[PASS] Tested AuditLogs API")
 
 	// == //
@@ -108,29 +96,22 @@ func TestLogServer(t *testing.T) {
 
 	systemStream, err := client.SystemLogs(context.Background())
 	if err != nil {
-		t.Error(err)
+		t.Errorf("[FAIL] %v", err)
 		return
 	}
 
 	systemLog := pb.SystemLog{}
-	systemLog.UpdatedTime = "UpdatedTime"
-	systemLog.HostName = "HostName"
-	systemLog.ContainerID = "ContainerID"
-	systemLog.ContainerName = "ContainerName"
-	systemLog.Comm = "Comm"
-	systemLog.Syscall = "Syscall"
 	systemStream.Send(&systemLog)
 
 	res, err = systemStream.CloseAndRecv()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("[FAIL] %v", err)
 		return
 	}
 
 	if res.Retval != 0 {
 		t.Errorf("[FAIL] Unexpected result: %d", res.Retval)
 	}
-
 	t.Log("[PASS] Tested SystemLogs API")
 
 	// == //
@@ -138,10 +119,9 @@ func TestLogServer(t *testing.T) {
 	t.Log("[INFO] Disconnect from LogServer")
 
 	if err := conn.Close(); err != nil {
-		t.Error(err)
+		t.Errorf("[FAIL] %v", err)
 		return
 	}
-
 	t.Log("[PASS] Disconnected from LogServer")
 
 	// == //
