@@ -304,15 +304,15 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() {
 // ================= //
 
 // GetNameFromContainerID Function
-func (mon *ContainerMonitor) GetNameFromContainerID(id string) string {
+func (mon *ContainerMonitor) GetNameFromContainerID(id string) (string, string, string) {
 	mon.ContainersLock.Lock()
 	defer mon.ContainersLock.Unlock()
 
 	if val, ok := mon.Containers[id]; ok {
-		return val.ContainerName
+		return val.NamespaceName, val.ContainerGroupName, val.ContainerName
 	}
 
-	return "unknown"
+	return "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET"
 }
 
 // BuildSystemLogCommon Function
@@ -324,7 +324,7 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	log.HostName = mon.HostName
 
 	log.ContainerID = msg.ContainerID
-	log.ContainerName = mon.GetNameFromContainerID(msg.ContainerID)
+	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(msg.ContainerID)
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
@@ -553,6 +553,12 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				}
 
 				log.Data = "cap=" + cap + " syscall=" + syscall
+			}
+
+			// == //
+
+			if log.Retval >= 0 {
+				continue
 			}
 
 			// == //
