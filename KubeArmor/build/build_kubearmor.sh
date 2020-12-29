@@ -1,20 +1,22 @@
 #!/bin/bash
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
+cd $ARMOR_HOME/build
 
 # remove old images
+
 docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
 echo "[INFO] Removed existing KubeArmor images"
 
-cd $ARMOR_HOME/build
-
 # remove old files (just in case)
+
 $ARMOR_HOME/build/clean_source_files.sh
 
 echo "[INFO] Removed source files just in case"
 
 # copy files to build
+
 $ARMOR_HOME/build/copy_source_files.sh
 
 echo "[INFO] Copied new source files"
@@ -35,6 +37,7 @@ else
 fi
 
 # remove old files
+
 $ARMOR_HOME/build/clean_source_files.sh
 
 echo "[INFO] Removed source files"

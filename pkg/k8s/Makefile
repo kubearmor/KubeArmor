@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= kubearmor/kubearmor-controller:latest
+IMG ?= accuknox/kubearmor-controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:crdVersions=v1"
 

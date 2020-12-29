@@ -1,13 +1,15 @@
 #!/bin/bash
 
 AUDIT_HOME=`dirname $(realpath "$0")`
+cd $AUDIT_HOME
 
 # remove old images
+
 docker images | grep kubearmor-cos-auditd | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
 echo "[INFO] Removed existing KubeArmor-COS-Auditd images"
 
-cd $AUDIT_HOME
+# build a new image
 
 if [ -z $1 ]; then
     echo "[INFO] Building accuknox/kubearmor-cos-auditd:latest"

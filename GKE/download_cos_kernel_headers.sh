@@ -1,8 +1,9 @@
 #!/bin/bash
 
-. /media/root/etc/os-release
-
 cd /KubeArmor/GKE
+
+# get OS info
+. /media/root/etc/os-release
 
 # remove old kernel headers (just in case)
 rm -rf kernel-headers.tgz kernel

@@ -1,6 +1,8 @@
 package monitor
 
-import "regexp"
+import (
+	"regexp"
+)
 
 // ===================== //
 // == Const. Vaiables == //

@@ -5,24 +5,24 @@ $ cd examples/multiubuntu
 (examples/multiubuntu) $ kubectl apply -f .
 ```
 
-# Policy Descriptions
+# Policy Verifications
 
-For testing, we provide 8 security policies for the example microservice.
+For testing, we provide several security policies for the example microservice.
 
-Here is the coverage of those security policies in the containers of the example microservice.
+Here is the overview of the example microservice in terms of labels.
 
-(diagram will be added)
+<center><img src=../../documentation/resources/multiubuntu.png></center>
 
-# (Sample) Policy Verification - Blocking a process execution
+# (Sample) Blocking a process execution
 
 * Deploying a system policy
 
 ```
 $ cd security-policies
-(security-policies) $ kubectl -n multiubuntu apply -f ksp-group-1-to-sleep.yaml
+(security-policies) $ kubectl -n multiubuntu apply -f ksp-group-1-proc-path-block.yaml
 ```
 
-* Executing a command (/bin/sleep)
+* Executing a command, /bin/sleep
 
 ```
 $ kubectl -n multiubuntu exec -it {pod name for ubuntu 1} -- bash
@@ -36,7 +36,7 @@ $ kubectl -n multiubuntu exec -it {pod name for ubuntu 1} -- bash
 $ kubectl -n kube-system logs {KubeArmor daemon in the node where ubuntu 1 is located}
 ```
 
-# (Sample) Policy Verification - Blocking a file access
+# (Sample) Blocking a file access
 
 * Deploying a system policy
 
@@ -45,7 +45,7 @@ $ cd security-policies
 (security-policies) $ kubectl -n multiubuntu apply -f ksp-ubuntu-5-file-dir-recursive-block.yaml
 ```
 
-* Open a file (/credentials/password)
+* Open a file, /credentials/password
 
 ```
 $ kubectl -n multiubuntu exec -it {pod name for ubuntu 5} -- bash
