@@ -47,7 +47,7 @@ func NewFeeder(server, logType string) *Feeder {
 	fd.server = server
 	fd.logType = logType
 
-	kg.Printf("Checking gRPC server (%s)", fd.server)
+	kg.Printf("Checking gRPC server for %s (%s)", logType, fd.server)
 
 	for {
 		_, ok := fd.DoHealthCheck()
@@ -82,7 +82,7 @@ func NewFeeder(server, logType string) *Feeder {
 		fd.systemLogStream = systemLogStream
 	}
 
-	kg.Print("Connected to gRPC server")
+	kg.Printf("Connected to gRPC server for %s", logType)
 
 	return fd
 }
