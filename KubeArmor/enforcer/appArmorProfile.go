@@ -915,11 +915,11 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 	allowLines := []string{}
 	allowCount := 0
 
-	denyLines := []string{}
-	denyCount := 0
-
 	auditLines := []string{}
 	auditCount := 0
+
+	denyLines := []string{}
+	denyCount := 0
 
 	whiteList := false
 
@@ -1050,7 +1050,7 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 	}
 
 	if newProfile != oldProfile {
-		return allowCount + denyCount, newProfile, true
+		return allowCount + auditCount + denyCount, newProfile, true
 	}
 
 	return 0, "", false
