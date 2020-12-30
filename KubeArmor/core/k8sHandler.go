@@ -214,7 +214,7 @@ func (kh *K8sHandler) GetContainerRuntime() string {
 	// get a node from k8s api client
 	node, err := kh.K8sClient.CoreV1().Nodes().Get(context.Background(), hostName, metav1.GetOptions{})
 	if err != nil {
-		return ""
+		return "Unknown"
 	}
 
 	return node.Status.NodeInfo.ContainerRuntimeVersion
