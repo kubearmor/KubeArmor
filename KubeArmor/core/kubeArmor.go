@@ -304,14 +304,28 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 
 		kg.Printf("Container Runtime: %s", cr)
 
-		if strings.Contains(cr, "containerd") {
-			// monitor containerd events
-			go dm.MonitorContainerdEvents()
-			WgDaemon.Add(1)
-		} else if strings.Contains(cr, "docker") {
+		if strings.Contains(cr, "docker") {
 			// monitor docker events
 			go dm.MonitorDockerEvents()
 			WgDaemon.Add(1)
+		} else if strings.Contains(cr, "containerd") {
+			// monitor containerd events
+			go dm.MonitorContainerdEvents()
+			WgDaemon.Add(1)
+		} else {
+			kg.Print("Trying to monitor both Docker and Containerd")
+
+			// monitor containerd events
+			go dm.MonitorContainerdEvents()
+			WgDaemon.Add(1)
+
+			// monitor docker events
+			go dm.MonitorDockerEvents()
+			WgDaemon.Add(1)
+
+			if Docker == nil && Containerd == nil {
+				kg.Print("Detected no container runtime")
+			}
 		}
 
 		// watch k8s pods
