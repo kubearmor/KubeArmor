@@ -1,10 +1,20 @@
 # Contribution Guide
 
-If you are interested in this project and want to make a contribution, please follow the steps below.
+If you want to make a contribution, please follow the steps below.
 
 1. Fork this repository (KubeArmor)
 
-    Fork this repository by clicking on the Fork button (top right). This will create a copy of this repository in your account.
+    Fork this repository by clicking on the Fork button (top right).
+    
+    <center><img src=resources/images/fork_button.png></center>
+    
+    Then, click your ID on the pop-up screen.
+    
+    <center><img src=resources/images/fork_screen.png></center>
+
+    This will create a copy of KubeArmor in your account.
+
+    <center><img src=resources/images/forked_repo.png></center>
 
 2. Clone the repository
 
@@ -14,31 +24,9 @@ If you are interested in this project and want to make a contribution, please fo
     $ git clone https://github.com/[your GitHub ID]/KubeArmor
     ```
 
-    Then, you will get the full code of KubeArmor.
+    Then, you will get the full code of KubeArmor in your machine.
 
-3. Create a branch
-
-    First, go into the repository directory.
-
-    ```
-    $ cd KubeArmor
-    ```
-
-    Then, please create a branch using the "git checkout" command.
-
-    ```
-    (KubeArmor) $ git checkout -b [your branch name]
-    ```
-
-    For example:
-
-    ```
-    (KubeArmor) $ git checkout -b "add_a_new_feature"
-    ```
-
-    It would be good to have the specific purpose of your contribution in the branch name.
-
-4. Make changes and commit the changes
+3. Make changes and commit the changes
 
     First, go into the repository directory and make some changes.
 
@@ -65,15 +53,25 @@ If you are interested in this project and want to make a contribution, please fo
     Push your changes using the "git push" command.
 
     ```
-    (KubeArmor) $ git push origin [your branch name]
+    (KubeArmor) $ git push
     ```
 
 6. Submit your changes for review
 
-    If you go to your repository on GitHub, you can see the "Pull request" button. Click on that button.
+    First, go to your repository on GitHub. You will see something like the below screen.
 
-    Now, you see the "Open a pull request" screen. Please fill a title and a comment as specific as possible. You need to make sure that you include an issue number in the comment if you fix a certain issue.
+    <center><img src=resources/images/commit_ahead.png></center>
+
+    Then, please click "Pull request" button. You will see a screen like the below.
+
+    <center><img src=resources/images/after_pull_request.png></center>
+
+    After checking your changes, please click 'Create pull request'.
+
+    <center><img src=resources/images/open_pull_request.png></center>
+
+    As shown in the upper screenshot, a pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: #(issue number)".
 
     Finally, click the "Create pull request" button.
 
-    Now, please let us review your code. We will merge all your changes into the master branch of KubeArmor. Once your changes have been merged, you will get a notification.
+    Now, please let us review your code. We will merge all your changes into the master branch of KubeArmor. Once your changes have been merged, you will get a notification and the issue that you fixed will be closed as well.
