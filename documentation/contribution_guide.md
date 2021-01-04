@@ -4,7 +4,7 @@ If you want to make a contribution, please follow the steps below.
 
 1. Fork this repository (KubeArmor)
 
-    Fork this repository by clicking on the Fork button (top right).
+    First, fork this repository by clicking on the Fork button (top right).
     
     <center><img src=resources/images/fork_button.png></center>
     
@@ -74,4 +74,4 @@ If you want to make a contribution, please follow the steps below.
 
     Finally, click the "Create pull request" button.
 
-    Now, please let us review your code. We will merge all your changes into the master branch of KubeArmor. Once your changes have been merged, you will get a notification and the issue that you fixed will be closed as well.
+    Now, please let us review your code. We will merge all your changes into the master branch of KubeArmor. Once your changes are merged, you will get a notification, and the issue that you fixed will be closed as well.
