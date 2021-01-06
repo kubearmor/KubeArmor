@@ -1,6 +1,6 @@
 # KubeArmor
 
-[![Build Status](https://travis-ci.com/accuknox/KubeArmor.svg?branch=master)](https://travis-ci.org/accuknox/KubeArmor)
+[![Build Status](https://travis-ci.com/accuknox/KubeArmor.svg?branch=master)](https://travis-ci.com/accuknox/KubeArmor)
 
 KubeArmor is a container-aware runtime security enforcement system that restricts the behavior (such as process execution, file access, networking operation, and resource utilization) of containers at the system level.
 
