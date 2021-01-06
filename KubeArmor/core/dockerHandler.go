@@ -1,8 +1,11 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -27,14 +30,41 @@ func init() {
 	Docker = NewDockerHandler()
 }
 
+// DockerVersion Structure
+type DockerVersion struct {
+	APIVersion string `json:"ApiVersion"`
+}
+
 // DockerHandler Structure
 type DockerHandler struct {
 	DockerClient *client.Client
+	Version      DockerVersion
 }
 
 // NewDockerHandler Function
 func NewDockerHandler() *DockerHandler {
 	docker := &DockerHandler{}
+
+	// specify the docker api version that we want to use
+	// Versioned API: https://docs.docker.com/engine/api/
+
+	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
+	if err != nil {
+		return nil
+	}
+
+	json.Unmarshal([]byte(versionStr), &docker.Version)
+	apiVersion, _ := strconv.ParseFloat(docker.Version.APIVersion, 64)
+
+	if apiVersion >= 1.39 {
+		// downgrade the api version to 1.39
+		os.Setenv("DOCKER_API_VERSION", "1.39")
+	} else {
+		// set the current api version
+		os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion)
+	}
+
+	// create a new client with the above env variable
 
 	DockerClient, err := client.NewEnvClient()
 	if err != nil {
