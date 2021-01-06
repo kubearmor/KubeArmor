@@ -14,8 +14,8 @@ sudo apt-get install -y linux-headers-$(uname -r)
 sudo snap install microk8s --classic
 
 # check microk8s
-sudo microk8s kubectl get nodes
-sudo microk8s kubectl get services
+# sudo microk8s kubectl get nodes
+# sudo microk8s kubectl get services
 
 # copy k8s config
 mkdir -p $HOME/.kube
@@ -28,4 +28,4 @@ chmod +x kubectl
 sudo mv kubectl /usr/local/bin/
 
 # check kubectl
-kubectl cluster-info
+# kubectl cluster-info
