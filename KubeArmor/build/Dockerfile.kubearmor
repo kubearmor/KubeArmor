@@ -20,9 +20,11 @@ COPY ./monitor ./build/monitor
 COPY ./types ./build/types
 COPY ./go.mod ./build
 COPY ./main.go ./build
+COPY ./patch.sh ./build
 
 WORKDIR /usr/src/KubeArmor/build
 
+RUN ./patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
 ### Make executable image
