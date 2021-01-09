@@ -5,7 +5,7 @@ FROM golang:1.15.2-alpine3.12 as builder
 WORKDIR /usr/src/LogServer
 
 RUN apk update
-RUN apk add --no-cache build-base
+RUN apk add --no-cache build-base git
 
 COPY ./src .
 
