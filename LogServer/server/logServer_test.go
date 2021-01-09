@@ -1,15 +1,14 @@
-package feeder
+package core
 
 import (
 	"testing"
-	"time"
 
+	"github.com/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
-	"github.com/accuknox/KubeArmor/LogServer/server"
 )
 
-func TestFeeder(t *testing.T) {
-	server.Output = false
+func TestLogServer(t *testing.T) {
+	Output = false
 
 	// == //
 
@@ -17,7 +16,7 @@ func TestFeeder(t *testing.T) {
 
 	t.Log("[INFO] Start LogServer")
 
-	server := server.NewLogServer(":32767")
+	server := NewLogServer(":32767")
 
 	t.Log("[PASS] Started LogServer")
 
@@ -37,7 +36,7 @@ func TestFeeder(t *testing.T) {
 
 	t.Log("[INFO] Create Feeder for AuditLog")
 
-	auditFeeder := NewFeeder("localhost:32767", "AuditLog")
+	auditFeeder := feeder.NewFeeder("localhost:32767", "AuditLog")
 	if auditFeeder == nil {
 		t.Error("[FAIL] Failed to create Feeder")
 		return
@@ -47,23 +46,23 @@ func TestFeeder(t *testing.T) {
 
 	// == //
 
-	// Check DoHealthCheck()
+	// Check HealthCheck API
 
-	t.Log("[INFO] Check DoHealthCheck()")
+	t.Log("[INFO] Check HealthCheck API")
 
 	msg, ok := auditFeeder.DoHealthCheck()
 	if !ok {
-		t.Errorf("[FAIL] Failed to check DoHealthCheck() (%s)", msg)
+		t.Errorf("[FAIL] Failed to check HealthCheck API (%s)", msg)
 		return
 	}
 
-	t.Log("[PASS] Checked DoHealthCheck()")
+	t.Log("[PASS] Checked HealthCheck API")
 
 	// == //
 
-	// Send AuditLog
+	// Check AuditLogs API
 
-	t.Log("[INFO] Send AuditLog")
+	t.Log("[INFO] Test AuditLogs API")
 
 	auditLog := tp.AuditLog{}
 	err := auditFeeder.SendAuditLog(auditLog)
@@ -72,7 +71,7 @@ func TestFeeder(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Sent AuditLog")
+	t.Log("[PASS] Tested AuditLogs API")
 
 	// == //
 
@@ -86,15 +85,11 @@ func TestFeeder(t *testing.T) {
 
 	// == //
 
-	time.Sleep(time.Second * 1)
-
-	// == //
-
 	// Create Feeder for SystemLog
 
 	t.Log("[INFO] Create Feeder for SystemLog")
 
-	systemFeeder := NewFeeder("localhost:32767", "SystemLog")
+	systemFeeder := feeder.NewFeeder("localhost:32767", "SystemLog")
 	if systemFeeder == nil {
 		t.Error("[FAIL] Failed to create Feeder")
 		return
@@ -104,9 +99,9 @@ func TestFeeder(t *testing.T) {
 
 	// == //
 
-	// Send SystemLog
+	// Check SystemLogs API
 
-	t.Log("[INFO] Send SystemLog")
+	t.Log("[INFO] Check SystemLogs API")
 
 	systemLog := tp.SystemLog{}
 	err = auditFeeder.SendSystemLog(systemLog)
@@ -115,7 +110,7 @@ func TestFeeder(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Sent SystemLog")
+	t.Log("[PASS] Checked SystemLogs API")
 
 	// == //
 

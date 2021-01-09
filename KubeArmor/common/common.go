@@ -18,14 +18,10 @@ import (
 // == Common == //
 // ============ //
 
-// RemoveStrFromSlice Function
-func RemoveStrFromSlice(s []string, r string) []string {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
-		}
-	}
-	return s
+// Clone Function
+func Clone(src, dst interface{}) {
+	arr, _ := json.Marshal(src)
+	json.Unmarshal(arr, dst)
 }
 
 // ContainsElement Function
@@ -45,19 +41,13 @@ func ContainsElement(slice interface{}, element interface{}) bool {
 	return false
 }
 
-// Clone Function
-func Clone(src, dst interface{}) {
-	arr, _ := json.Marshal(src)
-	json.Unmarshal(arr, dst)
-}
-
 // ========== //
 // == Time == //
 // ========== //
 
 // Time Format
 const (
-	TimeFormUTC string = "2006-01-02T15:04:05.000000Z"
+	TimeFormUTC string = "2020-01-01T00:00:00.000000Z"
 )
 
 // GetDateTimeNow Function
@@ -71,7 +61,7 @@ func GetDateTimeNow() string {
 func GetUptimeTimestamp() float64 {
 	now := time.Now().UTC()
 
-	res := GetCommandOutput("cat", []string{"/proc/uptime"})
+	res := GetCommandOutputWithoutErr("cat", []string{"/proc/uptime"})
 
 	uptimeDiff := strings.Split(res, " ")[0]
 	uptimeDiffSec, _ := strconv.Atoi(strings.Split(uptimeDiff, ".")[0]) // second
@@ -113,16 +103,6 @@ func GetDateTimeFromTimestamp(timestamp float64) string {
 // == Command Execution == //
 // ======================= //
 
-// GetCommandOutput Function
-func GetCommandOutput(cmd string, args []string) string {
-	res := exec.Command(cmd, args...)
-	out, err := res.Output()
-	if err != nil {
-		return ""
-	}
-	return string(out)
-}
-
 // GetCommandOutputWithErr Function
 func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	res := exec.Command(cmd, args...)
@@ -136,14 +116,11 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 // GetCommandOutputWithoutErr Function
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	res := exec.Command(cmd, args...)
-	out, _ := res.Output()
+	out, err := res.Output()
+	if err != nil {
+		return ""
+	}
 	return string(out)
-}
-
-// GetCommandWithoutOutput Function
-func GetCommandWithoutOutput(cmd string, args []string) {
-	res := exec.Command(cmd, args...)
-	res.Run()
 }
 
 // ========== //
@@ -185,7 +162,7 @@ func StrToFile(str, destFile string) {
 
 // GetExternalInterface Function
 func GetExternalInterface() string {
-	route := GetCommandOutput("ip", []string{"route", "get", "8.8.8.8"})
+	route := GetCommandOutputWithoutErr("ip", []string{"route", "get", "8.8.8.8"})
 	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
 
 	for idx, word := range routeData {

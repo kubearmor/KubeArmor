@@ -9,6 +9,6 @@ spec:
       container: ubuntu-1
   process:
     matchDirectories:
-    - dir: /sbin/ # try route
+    - dir: /sbin/ # try route (permission denied)
   action:
     Block

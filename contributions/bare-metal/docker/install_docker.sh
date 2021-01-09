@@ -10,21 +10,21 @@ fi
 # update repo
 sudo apt-get update
 
-# add the GPG key
+# add GPG key
 sudo apt-get install -y curl
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
-# add the Docker repository
+# add Docker repository
 sudo apt-get install -y software-properties-common
 sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 
-# update repo
+# update the Docker repo
 sudo apt-get update
 
-# make sure we install Docker from the Docker repo instead of Ubuntu 16.04 repo
+# make sure we install Docker from the Docker repo
 sudo apt-cache policy docker-ce
 
-# install Docker (the oldest version among the versions that the Ubuntu supports)
+# install Docker (the oldest version among the versions that Ubuntu supports)
 case "$VERSION" in
 "16."*)
     sudo apt-get install -y docker-ce=17.12.1~ce-0~ubuntu;;

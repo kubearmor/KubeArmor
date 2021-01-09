@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	pb "github.com/accuknox/KubeArmor/LogServer/protobuf"
+	pb "github.com/accuknox/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
 
@@ -33,7 +33,10 @@ func init() {
 
 // LogServer Structure
 type LogServer struct {
-	listener  net.Listener
+	// gRPC listener
+	listener net.Listener
+
+	// log server
 	logServer *grpc.Server
 }
 
@@ -61,7 +64,7 @@ func (t *LogMessage) AuditLogs(stream pb.LogMessage_AuditLogsServer) error {
 		}
 
 		if err != nil {
-			fmt.Println(err.Error())
+			// fmt.Println(err.Error())
 			return nil
 		}
 
@@ -100,7 +103,7 @@ func (t *LogMessage) SystemLogs(stream pb.LogMessage_SystemLogsServer) error {
 		}
 
 		if err != nil {
-			fmt.Println(err.Error())
+			// fmt.Println(err.Error())
 			return nil
 		}
 
@@ -116,17 +119,14 @@ func (t *LogMessage) SystemLogs(stream pb.LogMessage_SystemLogsServer) error {
 			fmt.Printf("Container Name: %s\n", res.ContainerName)
 
 			fmt.Printf("Source: %s\n", res.Source)
-			fmt.Printf("Syscall: %s\n", res.Syscall)
+			fmt.Printf("Operation: %s\n", res.Operation)
+			fmt.Printf("Resource: %s\n", res.Resource)
 
 			if len(res.Args) > 0 {
 				fmt.Printf("Arguments: %s\n", res.Args)
 			}
 
-			if len(res.ErrorMessage) > 0 {
-				fmt.Printf("Retval: %d (%s)\n", res.Retval, res.ErrorMessage)
-			} else {
-				fmt.Printf("Retval: %d\n", res.Retval)
-			}
+			fmt.Printf("Result: %s\n", res.Result)
 		}
 	}
 
@@ -208,13 +208,6 @@ func NewLogServer(port string) *LogServer {
 	return ls
 }
 
-// DestroyLogServer Function
-func (ls *LogServer) DestroyLogServer() {
-	// if ls.listener != nil {
-	// 	ls.listener.Close()
-	// }
-}
-
 // ReceiveLogs Function
 func (ls *LogServer) ReceiveLogs() {
 	defer WgServer.Done()
@@ -222,5 +215,12 @@ func (ls *LogServer) ReceiveLogs() {
 	// receive logs
 	if err := ls.logServer.Serve(ls.listener); err != nil {
 		fmt.Println(err.Error())
+	}
+}
+
+// DestroyLogServer Function
+func (ls *LogServer) DestroyLogServer() {
+	if ls.listener != nil {
+		ls.listener.Close()
 	}
 }

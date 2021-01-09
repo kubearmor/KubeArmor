@@ -46,16 +46,13 @@ message SystemLog {
   int32 HostPID = 7;
   int32 PPID = 8;
   int32 PID = 9;
-  int32 TID = 10;
-  int32 UID = 11;
+  int32 UID = 10;
 
-  string Source = 12;
-  string Syscall = 13;
-  int32 Argnum = 14;
-  string Args = 15;
-  int64 Retval = 16;
-
-  string ErrorMessage = 17;
+  string Source = 11;
+  string Operation = 12;
+  string Resource = 13;
+  string Args = 14;
+  string Result = 15;
 }
 
 // reply message

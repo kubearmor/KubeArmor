@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# update repo
 sudo apt-get update
 
 # install kernel-headers
