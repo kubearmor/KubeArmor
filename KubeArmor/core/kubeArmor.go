@@ -240,8 +240,6 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	defer WgDaemon.Done()
 
 	go dm.ContainerMonitor.TraceSyscall()
-	go dm.ContainerMonitor.TraceSkb()
-
 	go dm.ContainerMonitor.UpdateSystemLogs()
 }
 

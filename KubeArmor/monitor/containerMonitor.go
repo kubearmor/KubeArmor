@@ -371,7 +371,7 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 
 	log.Operation = "syscall"
 	log.Resource = getSyscallName(int32(msg.ContextSys.EventID))
-	log.Result = fmt.Sprintf("Unknown (%d)", ContextSys.Retval)
+	log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
 
 	if msg.ContextSys.Retval < 0 {
 		message := getErrorMessage(msg.ContextSys.Retval)
@@ -592,7 +592,7 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 			// == //
 
-			if log.Retval >= 0 {
+			if msg.ContextSys.Retval >= 0 {
 				continue
 			}
 
@@ -719,9 +719,6 @@ func (mon *ContainerMonitor) DeleteActivePid(containerID string, ctx SyscallCont
 	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
 			if node.HostPID == ctx.HostPID && node.PID == ctx.PID {
-				if node.Monitored {
-					mon.UpdateHostPidSkbMap(ctx.HostPID, false)
-				}
 				node.Exited = true
 				node.ExitedTime = time.Now()
 			}
@@ -750,6 +747,21 @@ func (mon *ContainerMonitor) CleanUpExitedHostPids() {
 // ======================= //
 // == System Call Trace == //
 // ======================= //
+
+// IsSkipFileDirectory Function
+func (mon *ContainerMonitor) IsSkipFileDirectory(directory string) bool {
+	for _, skipDir := range mon.UntrackedDirs {
+		if strings.HasPrefix(directory, skipDir) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsSkippedExecPaths Function
+func (mon *ContainerMonitor) IsSkippedExecPaths(path string) bool {
+	return kl.ContainsElement(mon.UntrackedExecs, path)
+}
 
 // TraceSyscall Function
 func (mon *ContainerMonitor) TraceSyscall() {
@@ -796,7 +808,6 @@ func (mon *ContainerMonitor) TraceSyscall() {
 			}
 			mon.ContainersLock.Unlock()
 
-			// check system policy
 			if ctx.EventID == SYS_OPEN {
 				if len(args) != 2 {
 					continue
