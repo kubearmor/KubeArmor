@@ -75,10 +75,8 @@ typedef struct __attribute__((__packed__)) sys_context {
     u32 mnt_id;
 
     u32 host_pid;
-
     u32 ppid;
     u32 pid;
-    u32 tid;
     u32 uid;
 
     u32 event_id;
@@ -102,34 +100,6 @@ BPF_PERCPU_ARRAY(bufs, buf_t, MAX_BUFFERS);
 BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
 
 BPF_PERF_OUTPUT(sys_events);
-
-// == Skb Monitor == //
-
-typedef struct __attribute__((__packed__)) skb_context {
-    u64 ts;
-
-    u32 pid_id;
-    u32 mnt_id;
-
-    u32 host_pid;
-
-    u8 l4_proto;
-    u8 pad1[3];
-
-    u32 saddr;
-    u32 daddr;
-
-    u16 sport;
-    u16 dport;
-
-    u32 pad4;
-
-    u64 network_key;
-} skb_context_t;
-
-BPF_HASH(host_pid_skb_map, u32, u32);
-
-BPF_PERF_OUTPUT(skb_events);
 
 // == Kernel Helpers == //
 
@@ -238,7 +208,6 @@ static __always_inline int init_context(sys_context_t *context)
     
     context->ppid = get_task_ns_ppid(task);
     context->pid = get_task_ns_tgid(task);
-    context->tid = get_task_ns_pid(task);
     context->uid = bpf_get_current_uid_gid();
 
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
@@ -479,9 +448,6 @@ int trace_cap_capable(struct pt_regs *ctx,
         int audit = cap_opt;
     #endif
 
-    if (audit == 0)
-        return 0;
-
     init_context(&context);
 
     context.event_id = _CAP_CAPABLE;
@@ -494,11 +460,11 @@ int trace_cap_capable(struct pt_regs *ctx,
     if (submit_p == NULL)
         return 0;
 
+    struct pt_regs *real_ctx = get_task_pt_regs();
+
     save_context_to_buf(submit_p, (void*)&context);
 
     save_to_submit_buf(submit_p, (void*)&cap, sizeof(int), CAP_T);
-
-    struct pt_regs *real_ctx = get_task_pt_regs();
     save_to_submit_buf(submit_p, (void*)&(real_ctx->orig_ax), sizeof(int), SYSCALL_T);
 
     events_perf_submit(ctx);
@@ -857,154 +823,4 @@ int syscall__listen(struct pt_regs *ctx)
 int trace_ret_listen(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));
-}
-
-// == Skb Hooks == //
-
-#define MAC_HEADER_SIZE 14;
-
-#define member_address(source_struct, source_member) \
-    ({ \
-        void* __ret; \
-        __ret = (void*) (((char*)source_struct) + offsetof(typeof(*source_struct), source_member)); \
-        __ret; \
-    })
-
-#define member_read(destination, source_struct, source_member) \
-    do { \
-        bpf_probe_read(destination, sizeof(source_struct->source_member), member_address(source_struct, source_member)); \
-    } while(0)
-
-struct tcphdr {
-	__be16	source;
-	__be16	dest;
-	__be32	seq;
-	__be32	ack_seq;
-    __u8    doff;
-    __u8    th_flags;
-	__be16	window;
-	__sum16	check;
-	__be16	urg_ptr;
-};
-
-union tcp_word_hdr { 
-	struct tcphdr hdr;
-	__be32 		  words[5];
-}; 
-
-struct udphdr {
-	__be16	source;
-	__be16	dest;
-	__be16	len;
-	__sum16	check;
-};
-
-BPF_HASH(network_map, u64, u64, 4096);
-// BPF_TABLE_PINNED("hash", u64, u64, network_map, 4096, "/sys/fs/bpf/kubearmor/network_map");
-
-static int do_skb_trace(skb_context_t *context_skb, struct sk_buff *skb, u32 policy_id)
-{
-    char *head;
-    char *l3_header_address;
-    char *l4_header_address;
-
-    u16 mac_header;
-    u16 network_header;
-
-    struct iphdr iphdr;
-    union tcp_word_hdr tcphdr;
-    struct udphdr udphdr;
-
-    member_read(&head, skb, head);
-    member_read(&mac_header, skb, mac_header);
-    member_read(&network_header, skb, network_header);
-
-    if(network_header == 0) {
-        network_header = mac_header + MAC_HEADER_SIZE;
-    }
-
-    l3_header_address = head + network_header;
-
-    u8 ip_version;
-    bpf_probe_read(&ip_version, sizeof(u8), l3_header_address);
-    ip_version = ip_version >> 4 & 0xf;
-
-    if (ip_version == 4) {
-        bpf_probe_read(&iphdr, sizeof(iphdr), l3_header_address);
-
-        context_skb->l4_proto = iphdr.protocol;
-
-        context_skb->saddr = iphdr.saddr;
-        context_skb->daddr = iphdr.daddr;
-    } else {
-        return -1;
-    }
-
-    l4_header_address = l3_header_address + (iphdr.ihl * 4);
-
-    switch (context_skb->l4_proto) {
-    case IPPROTO_TCP:
-        bpf_probe_read(&tcphdr, sizeof(tcphdr), l4_header_address);
-
-        context_skb->sport = tcphdr.hdr.source;
-        context_skb->dport = tcphdr.hdr.dest;
-
-        break;
-    case IPPROTO_UDP:
-        bpf_probe_read(&udphdr, sizeof(udphdr), l4_header_address);
-
-        context_skb->sport = udphdr.source;
-        context_skb->dport = udphdr.dest;
-
-        break;
-    default:
-        return -1;
-    }
-
-    if (context_skb->saddr == 16777343) { // "127.0.0.1"
-        return 0;
-    }
-
-    u64 network_key = (u64)context_skb->saddr << 24 | context_skb->l4_proto << 16 | context_skb->sport;
-    u64 network_val = (u64) policy_id << 32 | 0xFFFF;
-    network_map.update(&network_key, &network_val);
-
-    context_skb->network_key = network_key;
-    
-    return 0;
-}
-
-static int do_trace(void *ctx, struct sk_buff *skb, void *netdev, u32 policy_id)
-{
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    skb_context_t context_skb = {};
-
-    if (do_skb_trace(&context_skb, skb, policy_id) < 0)
-        return 0;
-
-    context_skb.ts = bpf_ktime_get_ns();
-
-    context_skb.pid_id = get_task_pid_ns_id(task);
-    context_skb.mnt_id = get_task_mnt_ns_id(task);
-
-    u64 id = bpf_get_current_pid_tgid();
-    context_skb.host_pid = id >> 32;
-
-    skb_events.perf_submit(ctx, &context_skb, sizeof(context_skb));
-
-    return 0;
-}
-
-int kprobe__ip_output(struct pt_regs *ctx, struct net *net, struct sock *sk, struct sk_buff *skb)
-{
-    if (!should_trace())
-        return 0;
-
-    u32 host_pid = bpf_get_current_pid_tgid() >> 32;
-
-    u32 *policy_id = host_pid_skb_map.lookup(&host_pid);
-    if (policy_id == 0)
-        return 0;
-
-   return do_trace(ctx, skb, NULL, *policy_id);
 }
