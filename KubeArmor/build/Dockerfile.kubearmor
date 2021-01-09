@@ -25,10 +25,10 @@ WORKDIR /usr/src/KubeArmor/build
 
 RUN ./patch.sh
 
-# RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/audit
-# RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/discovery
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/audit
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/discovery
 # RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/enforcer
-# RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/feeder
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/feeder
 # RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/monitor
 
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
