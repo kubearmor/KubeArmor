@@ -11,7 +11,7 @@ import (
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
-	pb "github.com/accuknox/KubeArmor/KubeArmor/feeder/protobuf"
+	pb "github.com/accuknox/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
 
@@ -47,11 +47,8 @@ func NewFeeder(server, logType string) *Feeder {
 	fd.server = server
 	fd.logType = logType
 
-	kg.Printf("Checking gRPC server for %s (%s)", logType, fd.server)
-
 	for {
-		_, ok := fd.DoHealthCheck()
-		if ok {
+		if _, ok := fd.DoHealthCheck(); ok {
 			break
 		}
 		time.Sleep(time.Second * 1)
@@ -81,8 +78,6 @@ func NewFeeder(server, logType string) *Feeder {
 		}
 		fd.systemLogStream = systemLogStream
 	}
-
-	kg.Printf("Connected to gRPC server for %s", logType)
 
 	return fd
 }
@@ -124,9 +119,9 @@ func (fd *Feeder) DoHealthCheck() (string, bool) {
 }
 
 // SendAuditLog Function
-func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
+func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) error {
 	if fd.logType != "AuditLog" {
-		return
+		return nil
 	}
 
 	log := pb.AuditLog{}
@@ -152,14 +147,12 @@ func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
 	if err := fd.auditLogStream.Send(&log); err != nil {
 		kg.Errf("Failed to send an audit log, trying to reconnect to the gRPC server (%s)", err.Error())
 
-		// reconnect
-
 		fd.conn.Close()
 
 		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
 		if err != nil {
-			kg.Err(err.Error())
-			return
+			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
+			return err
 		}
 		fd.conn = conn
 
@@ -167,26 +160,26 @@ func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) {
 
 		auditLogStream, err := fd.client.AuditLogs(context.Background())
 		if err != nil {
-			kg.Err(err.Error())
-			return
+			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
+			return err
 		}
 		fd.auditLogStream = auditLogStream
 
 		kg.Print("Reconnected the gRPC server for audit logs")
 
-		// resend
-
 		if err := fd.auditLogStream.Send(&log); err != nil {
-			kg.Errf("Failed to resend the audit log (%s)", err.Error())
-			kg.Printf("AuditLog: %v", log)
+			kg.Errf("Failed to send the audit log again (%s)", err.Error())
+			return err
 		}
 	}
+
+	return nil
 }
 
 // SendSystemLog Function
-func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
+func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) error {
 	if fd.logType != "SystemLog" {
-		return
+		return nil
 	}
 
 	log := pb.SystemLog{}
@@ -204,30 +197,23 @@ func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
 	log.HostPID = systemLog.HostPID
 	log.PPID = systemLog.PPID
 	log.PID = systemLog.PID
-	log.TID = systemLog.TID
 	log.UID = systemLog.UID
 
 	log.Source = systemLog.Source
-	log.Syscall = systemLog.Syscall
-	log.Argnum = systemLog.Argnum
+	log.Operation = systemLog.Operation
+	log.Resource = systemLog.Resource
 	log.Args = systemLog.Args
-	log.Retval = systemLog.Retval
-
-	if len(systemLog.ErrorMessage) > 0 {
-		log.ErrorMessage = systemLog.ErrorMessage
-	}
+	log.Result = systemLog.Result
 
 	if err := fd.systemLogStream.Send(&log); err != nil {
 		kg.Errf("Failed to send a system log, trying to reconnect to the gRPC server (%s)", err.Error())
-
-		// reconnect
 
 		fd.conn.Close()
 
 		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
 		if err != nil {
 			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
-			return
+			return err
 		}
 		fd.conn = conn
 
@@ -236,17 +222,17 @@ func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) {
 		systemLogStream, err := fd.client.SystemLogs(context.Background())
 		if err != nil {
 			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
-			return
+			return err
 		}
 		fd.systemLogStream = systemLogStream
 
 		kg.Print("Reconnected the gRPC server for system logs")
 
-		// resend
-
 		if err := fd.systemLogStream.Send(&log); err != nil {
-			kg.Errf("Failed to resend the system log (%s)", err.Error())
-			kg.Printf("SystemLog: %v", log)
+			kg.Errf("Failed to send the system log again (%s)", err.Error())
+			return err
 		}
 	}
+
+	return nil
 }
