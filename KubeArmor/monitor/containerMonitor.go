@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/iovisor/gobpf/bcc"
 
@@ -22,6 +24,83 @@ import (
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
+
+// ===================== //
+// == Const. Vaiables == //
+// ===================== //
+
+var (
+	dockerPattern = regexp.MustCompile(`\d+:.+:/docker/([0-9a-f]{64})`)
+	kubePattern1  = regexp.MustCompile(`\d+:.+:/docker/pod[^/]+/([0-9a-f]{64})`)
+	kubePattern2  = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
+)
+
+const (
+	// file
+	SYS_OPEN  = 2
+	SYS_CLOSE = 3
+
+	// network
+	SYS_SOCKET  = 41
+	SYS_CONNECT = 42
+	SYS_ACCEPT  = 43
+	SYS_BIND    = 49
+	SYS_LISTEN  = 50
+
+	// process
+	SYS_EXECVE   = 59
+	SYS_EXECVEAT = 322
+	DO_EXIT      = 351
+
+	// capabilities
+	CAP_CAPABLE = 352
+)
+
+const (
+	SYSPOL_PROC     = 1
+	SYSPOL_FILE     = 2
+	SYSPOL_PROCFILE = 3
+)
+
+// ======================= //
+// == Namespace Context == //
+// ======================= //
+
+// NsKey Structure
+type NsKey struct {
+	PidNS uint32
+	MntNS uint32
+}
+
+// ===================== //
+// == Syscall Context == //
+// ===================== //
+
+// SyscallContext Structure
+type SyscallContext struct {
+	Ts uint64
+
+	PidID uint32
+	MntID uint32
+
+	HostPID uint32
+	PPID    uint32
+	PID     uint32
+	UID     uint32
+
+	EventID int32
+	Argnum  int32
+	Retval  int64
+
+	Comm [16]byte
+}
+
+// ContextCombined Structure
+type ContextCombined struct {
+	ContainerID string
+	ContextSys  SyscallContext
+	ContextArgs []interface{}
+}
 
 // ======================= //
 // == Container Monitor == //
@@ -37,17 +116,13 @@ func init() {
 
 // ContainerMonitor Structure
 type ContainerMonitor struct {
+	// logging
+	logType   string
+	logTarget string
+	logFeeder *fd.Feeder
+
 	// host name
 	HostName string
-
-	// logging type
-	logType string
-
-	// logging target
-	logTarget string
-
-	// logging feeder
-	logFeeder *fd.Feeder
 
 	// container id -> cotnainer
 	Containers     map[string]tp.Container
@@ -56,9 +131,6 @@ type ContainerMonitor struct {
 	// container id -> host pid
 	ActivePidMap     map[string]tp.PidMap
 	ActivePidMapLock *sync.Mutex
-
-	// security policies
-	SecurityPolicyMap map[string][]tp.NetworkPolicy
 
 	// container monitor
 	BpfModule *bcc.Module
@@ -69,28 +141,10 @@ type ContainerMonitor struct {
 	// context + args
 	ContextChan chan ContextCombined
 
-	// host pid -> on/off
-	ActivePidSkbMap     map[uint32]uint32
-	ActivePidSkbMapLock *sync.Mutex
-
-	// host pid -> network keys (src_ip + proto + src_port)
-	BlockSkbMap map[uint32][]uint64
-
 	// process + file
 	SyscallChannel     chan []byte
 	SyscallLostChannel chan uint64
 	SyscallPerfMap     *bcc.PerfMap
-
-	// skb (ip_output)
-	SkbChannel     chan []byte
-	SkbLostChannel chan uint64
-	SkbPerfMap     *bcc.PerfMap
-
-	// sys -> skb
-	HostPidSkbMap *bcc.Table
-
-	// syssec -> netsec
-	NetworkMap *bcc.Table
 
 	// flags to skip
 	SkipNamespace bool
@@ -125,8 +179,22 @@ func NewContainerMonitor(logOption string, containers map[string]tp.Container, c
 		mon.logType = args[0]
 		mon.logTarget = args[1]
 
-		// create log file
-		kl.GetCommandWithoutOutput("/bin/touch", []string{mon.logTarget})
+		// get the directory part from the path
+		dirLog := filepath.Dir(mon.logTarget)
+
+		// create directories
+		if err := os.MkdirAll(dirLog, 0755); err != nil {
+			kg.Errf("Failed to create a target directory (%s)", err.Error())
+			return nil
+		}
+
+		// create target file
+		targetFile, err := os.Create(mon.logTarget)
+		if err != nil {
+			kg.Errf("Failed to create a target file (%s)", err.Error())
+			return nil
+		}
+		targetFile.Close()
 
 	} else if logOption == "stdout" {
 		mon.logType = "stdout"
@@ -143,15 +211,8 @@ func NewContainerMonitor(logOption string, containers map[string]tp.Container, c
 	mon.ActivePidMap = activePidMap
 	mon.ActivePidMapLock = activePidMapLock
 
-	mon.SecurityPolicyMap = map[string][]tp.NetworkPolicy{}
-
 	mon.NsMap = make(map[NsKey]string)
 	mon.ContextChan = make(chan ContextCombined, 1024)
-
-	mon.ActivePidSkbMap = map[uint32]uint32{}
-	mon.ActivePidSkbMapLock = &sync.Mutex{}
-
-	mon.BlockSkbMap = map[uint32][]uint64{}
 
 	mon.SkipNamespace = true
 	mon.SkipExec = true
@@ -176,11 +237,14 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 			kg.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
 			// get kernel version
-			kernelVersion := kl.GetCommandOutput("uname", []string{"-r"})
+			kernelVersion := kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 			kernelVersion = strings.TrimSuffix(kernelVersion, "\n")
 
 			// check and download kernel headers
-			kl.GetCommandWithoutOutput(HomeDir+"/GKE/download_cos_kernel_headers.sh", []string{})
+			if err := exec.Command(HomeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
+				kg.Errf("Failed to download COS kernel headers (%s)", err.Error())
+				return err
+			}
 
 			kg.Printf("Downloaded kernel headers (%s)", kernelVersion)
 
@@ -208,10 +272,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 	kg.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{
-		"open", "close", // file
-		"socket", "connect", "accept", "bind", "listen", // network
-		"execve", "execveat"} // process
+	systemCalls := []string{"open", "close", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
 
 	for _, syscallName := range systemCalls {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
@@ -232,8 +293,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 		}
 	}
 
-	tracepoints := []string{
-		"do_exit"} // process
+	tracepoints := []string{"do_exit"}
 
 	for _, tracepoint := range tracepoints {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
@@ -255,28 +315,6 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 		return fmt.Errorf("error initializing events perf map: %v", err)
 	}
 
-	// network [skb: ip_output]
-	kp, err := mon.BpfModule.LoadKprobe("kprobe__ip_output")
-	if err != nil {
-		return fmt.Errorf("error loading kprobe %s: %v", "ip_output", err)
-	}
-	err = mon.BpfModule.AttachKprobe("ip_output", kp, -1)
-	if err != nil {
-		return fmt.Errorf("error attaching kprobe %s: %v", "ip_output", err)
-	}
-
-	eventsSkbTable := bcc.NewTable(mon.BpfModule.TableId("skb_events"), mon.BpfModule)
-	mon.SkbChannel = make(chan []byte)
-	mon.SkbLostChannel = make(chan uint64)
-
-	mon.SkbPerfMap, err = bcc.InitPerfMap(eventsSkbTable, mon.SkbChannel, mon.SkbLostChannel)
-	if err != nil {
-		return fmt.Errorf("error initializing monitor_event perf map: %v", err)
-	}
-
-	mon.HostPidSkbMap = bcc.NewTable(mon.BpfModule.TableId("host_pid_skb_map"), mon.BpfModule)
-	mon.NetworkMap = bcc.NewTable(mon.BpfModule.TableId("network_map"), mon.BpfModule)
-
 	return nil
 }
 
@@ -284,10 +322,6 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 func (mon *ContainerMonitor) DestroyContainerMonitor() {
 	if mon.SyscallPerfMap != nil {
 		mon.SyscallPerfMap.Stop()
-	}
-
-	if mon.SkbPerfMap != nil {
-		mon.SkbPerfMap.Stop()
 	}
 
 	if mon.BpfModule != nil {
@@ -333,17 +367,16 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
 	log.PID = int32(msg.ContextSys.PID)
-	log.TID = int32(msg.ContextSys.TID)
 	log.UID = int32(msg.ContextSys.UID)
 
-	log.Syscall = getSyscallName(int32(msg.ContextSys.EventID))
-	log.Argnum = msg.ContextSys.Argnum
-	log.Retval = msg.ContextSys.Retval
+	log.Operation = "syscall"
+	log.Resource = getSyscallName(int32(msg.ContextSys.EventID))
+	log.Result = fmt.Sprintf("Unknown (%d)", ContextSys.Retval)
 
 	if msg.ContextSys.Retval < 0 {
 		message := getErrorMessage(msg.ContextSys.Retval)
 		if message != "" {
-			log.ErrorMessage = message
+			log.Result = fmt.Sprintf("Failed (%s)", message)
 		}
 	}
 
@@ -354,8 +387,6 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 
 // UpdateSystemLogs Function
 func (mon *ContainerMonitor) UpdateSystemLogs() {
-	defer kg.HandleErr()
-
 	for {
 		select {
 		case <-StopChan:
@@ -648,22 +679,15 @@ func (mon *ContainerMonitor) LookupContainerID(pidns uint32, mntns uint32, pid u
 // ================== //
 
 // BuildPidNode Function
-func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string, policy tp.NetworkPolicy) tp.PidNode {
+func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string) tp.PidNode {
 	node := tp.PidNode{}
-
-	node.Policy = policy
 
 	node.HostPID = ctx.HostPID
 	node.PPID = ctx.PPID
 	node.PID = ctx.PID
-	node.TID = ctx.TID
 
 	node.Comm = string(ctx.Comm[:])
 	node.ExecPath = execPath
-
-	if policy.PolicyType == SYSPOL_PROC {
-		node.Monitored = true
-	}
 
 	node.Exited = false
 
@@ -683,26 +707,6 @@ func (mon *ContainerMonitor) AddActivePid(containerID string, node tp.PidNode) {
 	} else {
 		newPidMap := tp.PidMap{node.HostPID: node}
 		mon.ActivePidMap[containerID] = newPidMap
-	}
-}
-
-// UpdateActivePid Function
-func (mon *ContainerMonitor) UpdateActivePid(containerID string, hostPid uint32, policy tp.NetworkPolicy) {
-	if policy.PolicyType == 0 {
-		return
-	}
-
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
-
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
-		if node, ok := pidMap[hostPid]; ok {
-			if !node.Monitored {
-				node.Policy = policy
-				node.Monitored = true
-				pidMap[hostPid] = node // update
-			}
-		}
 	}
 }
 
@@ -743,409 +747,12 @@ func (mon *ContainerMonitor) CleanUpExitedHostPids() {
 	}
 }
 
-// ============================ //
-// == Network Policy Matches == //
-// ============================ //
-
-// IsSkippedExecPaths Function
-func (mon *ContainerMonitor) IsSkippedExecPaths(path string) bool {
-	return kl.ContainsElement(mon.UntrackedExecs, path)
-}
-
-// GetExecPathFromHostPID Function
-func (mon *ContainerMonitor) GetExecPathFromHostPID(containerID string, hostPid uint32) string {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
-
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
-		if pidNode, ok := pidMap[hostPid]; ok {
-			return pidNode.ExecPath
-		}
-	}
-
-	return ""
-}
-
-// GetExecPathFromPPID Function
-func (mon *ContainerMonitor) GetExecPathFromPPID(containerID string, ppid uint32) string {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
-
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
-		for _, pidNode := range pidMap {
-			if pidNode.PID == ppid {
-				return pidNode.ExecPath
-			}
-		}
-	}
-
-	return ""
-}
-
-// IsSkipFileDirectory Function
-func (mon *ContainerMonitor) IsSkipFileDirectory(directory string) bool {
-	for _, skipDir := range mon.UntrackedDirs {
-		if strings.HasPrefix(directory, skipDir) {
-			return true
-		}
-	}
-	return false
-}
-
-// UpdateHostPidSkbMap Function
-func (mon *ContainerMonitor) UpdateHostPidSkbMap(hostPid uint32, monitor bool) {
-	var monitored uint32
-
-	if monitor {
-		monitored = 1
-	} else {
-		monitored = 0
-	}
-
-	mon.ActivePidSkbMapLock.Lock()
-	defer mon.ActivePidSkbMapLock.Unlock()
-
-	if monitor {
-		if _, ok := mon.ActivePidSkbMap[hostPid]; !ok {
-			if err := mon.HostPidSkbMap.SetP(unsafe.Pointer(&hostPid), unsafe.Pointer(&monitored)); err != nil {
-				kg.Err(err.Error())
-			}
-			mon.ActivePidSkbMap[hostPid] = monitored
-		}
-	} else { // delete network keys
-		if val, ok := mon.BlockSkbMap[hostPid]; ok {
-			for _, networkKey := range val {
-				if err := mon.NetworkMap.DeleteP(unsafe.Pointer(&networkKey)); err != nil {
-					kg.Err(err.Error())
-				}
-			}
-			delete(mon.BlockSkbMap, hostPid)
-		}
-
-		if _, ok := mon.ActivePidSkbMap[hostPid]; ok {
-			if err := mon.HostPidSkbMap.DeleteP(unsafe.Pointer(&hostPid)); err != nil {
-				kg.Err(err.Error())
-			}
-			delete(mon.ActivePidSkbMap, hostPid)
-		}
-	}
-}
-
-// UpdateHostPidSkbMapForChildren Function
-func (mon *ContainerMonitor) UpdateHostPidSkbMapForChildren(containerID string, pid uint32, monitor bool) {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
-
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
-		for _, pidNode := range pidMap {
-			if pidNode.PPID == pid {
-				go mon.UpdateHostPidSkbMap(pidNode.HostPID, true)
-				pidNode.Monitored = true
-			}
-		}
-	}
-}
-
-// GetMatchedSecurityPolicy Function
-func (mon *ContainerMonitor) GetMatchedSecurityPolicy(containerID string, eventID int32, hostPid, ppid, pid uint32, exec, file interface{}) tp.NetworkPolicy {
-	matchedFirst := tp.NetworkPolicy{}
-
-	securityPolicies := []tp.NetworkPolicy{}
-	if val, ok := mon.SecurityPolicyMap[containerID]; ok {
-		securityPolicies = val
-	}
-
-	execPath := ""
-	fileName := ""
-
-	if val, ok := exec.(string); ok {
-		execPath = val
-	}
-
-	if val, ok := file.(string); ok {
-		fileName = val
-	}
-
-	for _, policy := range securityPolicies {
-		switch policy.PolicyType {
-		case SYSPOL_PROCFILE:
-			if eventID == SYS_EXECVE || eventID == SYS_EXECVEAT {
-				if len(policy.Process.MatchPaths) > 0 { // exact match
-					if kl.ContainsElement(policy.Process.MatchPaths, execPath) {
-						matchedFirst = policy
-					}
-				} else {
-					for _, name := range policy.Process.MatchNames {
-						if strings.Contains(execPath, name) {
-							matchedFirst = policy
-						}
-					}
-				}
-			} else if eventID == SYS_OPEN {
-				pidPath := mon.GetExecPathFromHostPID(containerID, hostPid)
-				ppidPath := mon.GetExecPathFromPPID(containerID, ppid)
-
-				for _, execPath := range []string{ppidPath, pidPath} {
-					if len(policy.File.MatchPaths) > 0 {
-						if len(policy.Process.MatchPaths) > 0 { // file path + process path
-							processMatched := false
-
-							for _, path := range policy.Process.MatchPaths {
-								if strings.Contains(path, execPath) {
-									processMatched = true
-								}
-							}
-
-							if processMatched && kl.ContainsElement(policy.File.MatchPaths, fileName) {
-								go mon.UpdateHostPidSkbMap(hostPid, true)
-								matchedFirst = policy
-							}
-						} else { // file path + process name
-							processMatched := false
-							for _, name := range policy.Process.MatchNames {
-								if strings.Contains(execPath, name) {
-									processMatched = true
-								}
-							}
-
-							if processMatched && kl.ContainsElement(policy.File.MatchPaths, fileName) {
-								go mon.UpdateHostPidSkbMap(hostPid, true)
-								matchedFirst = policy
-							}
-						}
-					} else {
-						if len(policy.Process.MatchPaths) > 0 { // file name + process path
-							fileMatch := false
-
-							for _, name := range policy.File.MatchNames {
-								if strings.Contains(fileName, name) {
-									fileMatch = true
-								}
-							}
-
-							if fileMatch && kl.ContainsElement(policy.Process.MatchPaths, execPath) {
-								go mon.UpdateHostPidSkbMap(hostPid, true)
-								matchedFirst = policy
-							}
-						} else { // file name + process name
-							fileMatch := false
-
-							for _, name := range policy.File.MatchNames {
-								if strings.Contains(fileName, name) {
-									fileMatch = true
-								}
-							}
-
-							processMatched := false
-
-							for _, name := range policy.Process.MatchNames {
-								if strings.Contains(execPath, name) {
-									processMatched = true
-								}
-							}
-
-							if fileMatch && processMatched {
-								// if a process already has child processes, they should be also monitored
-								mon.UpdateHostPidSkbMapForChildren(containerID, pid, true)
-
-								go mon.UpdateHostPidSkbMap(hostPid, true)
-								matchedFirst = policy
-							}
-						}
-					}
-				}
-			}
-
-		case SYSPOL_PROC:
-			if eventID == SYS_EXECVE || eventID == SYS_EXECVEAT {
-				if len(policy.Process.MatchPaths) > 0 { // exact match
-					if kl.ContainsElement(policy.Process.MatchPaths, execPath) {
-						go mon.UpdateHostPidSkbMap(hostPid, true)
-						return policy
-					}
-				} else {
-					for _, name := range policy.Process.MatchNames {
-						if strings.Contains(execPath, name) {
-							go mon.UpdateHostPidSkbMap(hostPid, true)
-							return policy
-						}
-					}
-				}
-			}
-
-		case SYSPOL_FILE:
-			if eventID == SYS_OPEN {
-				if len(policy.File.MatchPaths) > 0 { // exact match
-					if kl.ContainsElement(policy.File.MatchPaths, fileName) {
-						go mon.UpdateHostPidSkbMap(hostPid, true)
-						return policy
-					}
-				} else {
-					for _, name := range policy.File.MatchNames {
-						if strings.Contains(fileName, name) {
-							go mon.UpdateHostPidSkbMap(hostPid, true)
-							return policy
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// priority = proc > proc+file
-	// priority = file > proc+file
-
-	return matchedFirst
-}
-
-// GetMatchedSecurityPolicyFromPPID Function
-func (mon *ContainerMonitor) GetMatchedSecurityPolicyFromPPID(containerID string, hostPid, ppid uint32) tp.NetworkPolicy {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
-
-	// check ppid whether if the parent process is monitored already
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
-		for _, pidNode := range pidMap {
-			if pidNode.PID == ppid {
-				if pidNode.Policy.PolicyType == SYSPOL_PROCFILE {
-					return pidNode.Policy
-				} else if pidNode.Policy.PolicyType == SYSPOL_PROC {
-					mon.UpdateHostPidSkbMap(hostPid, true)
-					return pidNode.Policy
-				}
-			}
-		}
-	}
-
-	return tp.NetworkPolicy{}
-}
-
-// ================================ //
-// == Network Policy Enforcement == //
-// ================================ //
-
-// GetPolicyType Function
-func GetPolicyType(policy tp.NetworkPolicy) int {
-	procMatches := len(policy.Process.MatchPaths) + len(policy.Process.MatchNames)
-	fileMatches := len(policy.File.MatchPaths) + len(policy.File.MatchNames)
-
-	if fileMatches > 0 && procMatches > 0 {
-		return SYSPOL_PROCFILE
-	} else if procMatches > 0 {
-		return SYSPOL_PROC
-	} else {
-		return SYSPOL_FILE
-	}
-}
-
-// GetContainerIDs Function
-func (mon *ContainerMonitor) GetContainerIDs(contNames []string) []string {
-	mon.ContainersLock.Lock()
-	defer mon.ContainersLock.Unlock()
-
-	conIds := []string{}
-
-	for _, conName := range contNames {
-		for id, cont := range mon.Containers {
-			if cont.ContainerName == conName {
-				conIds = append(conIds, id)
-				break
-			}
-		}
-	}
-
-	return conIds
-}
-
-// UpdateSecurityPolicies Function
-func (mon *ContainerMonitor) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
-	// step 1: update SecurityPolicyMap
-
-	updatedPolicies := []tp.NetworkPolicy{}
-
-	for _, secPolicy := range conGroup.SecurityPolicies {
-		for _, source := range secPolicy.Spec.Network.MatchSources {
-			policy := tp.NetworkPolicy{}
-			kl.Clone(source, &policy)
-
-			policy.PolicyType = GetPolicyType(policy)
-			policy.PolicyAction = secPolicy.Spec.Action
-
-			updatedPolicies = append(updatedPolicies, policy)
-		}
-	}
-
-	activeContainerIDs := mon.GetContainerIDs(conGroup.Containers)
-
-	for _, containerID := range activeContainerIDs {
-		mon.SecurityPolicyMap[containerID] = updatedPolicies
-	}
-
-	// step 2: update removed containers
-
-	removedContainerIDs := []string{}
-
-	for containerID := range mon.SecurityPolicyMap {
-		if _, ok := mon.SecurityPolicyMap[containerID]; !ok {
-			removedContainerIDs = append(removedContainerIDs, containerID)
-		}
-	}
-
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
-
-	// step 3: update ActivePidMaps and HostPidSkbMap
-
-	for containerID, pidMaps := range mon.ActivePidMap {
-		for hostPid, pidNode := range pidMaps {
-			if pidNode.Monitored { // already monitored
-				policies := []tp.NetworkPolicy{}
-				if val, ok := mon.SecurityPolicyMap[containerID]; ok {
-					policies = val
-				}
-
-				if !kl.ContainsElement(policies, pidNode.Policy) {
-					pidNode.Policy = tp.NetworkPolicy{}
-					pidNode.Monitored = false
-					mon.UpdateHostPidSkbMap(hostPid, false)
-					pidMaps[hostPid] = pidNode // update
-				}
-			} else { // if not
-				policy := mon.GetMatchedSecurityPolicy(containerID, SYS_EXECVE, pidNode.HostPID, pidNode.PPID, pidNode.PID, pidNode.ExecPath, "")
-				if policy.PolicyType != 0 {
-					pidNode.Policy = policy
-					if pidNode.Policy.PolicyType == SYSPOL_PROC {
-						pidNode.Monitored = true
-						mon.UpdateHostPidSkbMap(hostPid, true)
-					}
-					pidMaps[hostPid] = pidNode // update
-				}
-			}
-		}
-	}
-
-	// step 4: clean up dead containers
-
-	for _, containerID := range removedContainerIDs {
-		if pidMap, ok := mon.ActivePidMap[containerID]; ok {
-			for hostPid, pidNode := range pidMap {
-				if pidNode.Monitored {
-					mon.UpdateHostPidSkbMap(hostPid, false)
-				}
-			}
-		}
-		delete(mon.ActivePidMap, containerID)
-	}
-}
-
 // ======================= //
 // == System Call Trace == //
 // ======================= //
 
 // TraceSyscall Function
 func (mon *ContainerMonitor) TraceSyscall() {
-	defer kg.HandleErr()
-
 	if mon.SyscallPerfMap != nil {
 		mon.SyscallPerfMap.Start()
 	} else {
@@ -1199,8 +806,6 @@ func (mon *ContainerMonitor) TraceSyscall() {
 					continue
 				}
 
-				policy := mon.GetMatchedSecurityPolicy(containerID, ctx.EventID, ctx.HostPID, ctx.PPID, ctx.PID, "", args[0])
-				mon.UpdateActivePid(containerID, ctx.HostPID, policy)
 			} else if ctx.EventID == SYS_EXECVE {
 				if len(args) != 2 {
 					continue
@@ -1210,13 +815,9 @@ func (mon *ContainerMonitor) TraceSyscall() {
 					continue
 				}
 
-				policy := mon.GetMatchedSecurityPolicy(containerID, ctx.EventID, ctx.HostPID, ctx.PPID, ctx.PID, args[0], "")
-				if policy.PolicyType == 0 { // if policy is nil, check ppid
-					policy = mon.GetMatchedSecurityPolicyFromPPID(containerID, ctx.HostPID, ctx.PPID)
-				}
-
-				pidNode := mon.BuildPidNode(ctx, args[0].(string), policy)
+				pidNode := mon.BuildPidNode(ctx, args[0].(string))
 				mon.AddActivePid(containerID, pidNode)
+
 			} else if ctx.EventID == SYS_EXECVEAT {
 				if len(args) != 4 {
 					continue
@@ -1226,13 +827,9 @@ func (mon *ContainerMonitor) TraceSyscall() {
 					continue
 				}
 
-				policy := mon.GetMatchedSecurityPolicy(containerID, ctx.EventID, ctx.HostPID, ctx.PPID, ctx.PID, args[1], "")
-				if policy.PolicyType == 0 { // if policy is nil, check ppid
-					policy = mon.GetMatchedSecurityPolicyFromPPID(containerID, ctx.HostPID, ctx.PPID)
-				}
-
-				pidNode := mon.BuildPidNode(ctx, args[1].(string), policy)
+				pidNode := mon.BuildPidNode(ctx, args[1].(string))
 				mon.AddActivePid(containerID, pidNode)
+
 			} else if ctx.EventID == DO_EXIT {
 				mon.DeleteActivePid(containerID, ctx)
 			}
@@ -1241,61 +838,6 @@ func (mon *ContainerMonitor) TraceSyscall() {
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
 
 		case _ = <-mon.SyscallLostChannel:
-			continue
-		}
-	}
-}
-
-// =============== //
-// == Skb Trace == //
-// =============== //
-
-// TraceSkb Function
-func (mon *ContainerMonitor) TraceSkb() {
-	defer kg.HandleErr()
-
-	if mon.SkbPerfMap != nil {
-		mon.SkbPerfMap.Start()
-	} else {
-		return
-	}
-
-	for {
-		select {
-		case <-StopChan:
-			return
-
-		case dataRaw, valid := <-mon.SkbChannel:
-			if !valid {
-				continue
-			}
-
-			var event SkbContext
-			err := binary.Read(bytes.NewBuffer(dataRaw), mon.HostByteOrder, &event)
-			if err != nil {
-				kg.Printf("Failed to decode received data: %s\n", err)
-				continue
-			}
-
-			containerID := mon.LookupContainerID(event.PidID, event.MntID, event.HostPID)
-			if containerID == "" {
-				continue
-			}
-
-			if event.NetworkKey == 0 {
-				continue
-			}
-
-			if networkKeys, ok := mon.BlockSkbMap[event.HostPID]; ok {
-				if !kl.ContainsElement(networkKeys, event.NetworkKey) {
-					networkKeys = append(networkKeys, event.NetworkKey)
-					mon.BlockSkbMap[event.HostPID] = networkKeys
-				}
-			} else {
-				mon.BlockSkbMap[event.HostPID] = []uint64{event.NetworkKey}
-			}
-
-		case _ = <-mon.SkbLostChannel:
 			continue
 		}
 	}
