@@ -3,11 +3,19 @@
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 cd $ARMOR_HOME/build
 
+# check version
+
+VERSION=latest
+
+if [ ! -z $1 ]; then
+    VERSION=$1
+fi
+
 # remove old images
 
 docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
-echo "[INFO] Removed existing KubeArmor images"
+echo "[INFO] Removed existing accuknox/kubearmor images"
 
 # remove old files (just in case)
 
@@ -21,18 +29,13 @@ $ARMOR_HOME/build/copy_source_files.sh
 
 echo "[INFO] Copied new source files"
 
-if [ -z $1 ]; then
-    echo "[INFO] Building accuknox/kubearmor:latest"
-    docker build -t accuknox/kubearmor:latest  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
-else
-    echo "[INFO] Building accuknox/kubearmor:$1"
-    docker build -t accuknox/kubearmor:$1  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
-fi
+echo "[INFO] Building accuknox/kubearmor:$VERSION"
+docker build -t accuknox/kubearmor:$VERSION  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
 
 if [ $? == 0 ]; then
-    echo "[PASSED] Built the KubeArmor image"
+    echo "[PASSED] Built accuknox/kubearmor:$VERSION"
 else
-    echo "[FAILED] Failed to build the KubeArmor image"
+    echo "[FAILED] Failed to build accuknox/kubearmor:$VERSION"
     exit 1
 fi
 

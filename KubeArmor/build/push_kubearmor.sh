@@ -1,19 +1,22 @@
 #!/bin/bash
 
-# push the image to Docker Hub
+# check version
 
-if [ -z $1 ]; then
-    echo "[INFO] Pushing accuknox/kubearmor:latest"
-    docker push accuknox/kubearmor:latest
-else
-    echo "[INFO] Pushing accuknox/kubearmor:$1"
-    docker push accuknox/kubearmor:$1
+VERSION=latest
+
+if [ ! -z $1 ]; then
+    VERSION=$1
 fi
 
+# push accuknox/kubearmor
+
+echo "[INFO] Pushing accuknox/kubearmor:$VERSION"
+docker push accuknox/kubearmor:$VERSION
+
 if [ $? == 0 ]; then
-    echo "[PASSED] Pushed the KubeArmor image"
+    echo "[PASSED] Pushed accuknox/kubearmor:$VERSION"
     exit 0
 else
-    echo "[FAILED] Failed to push the KubeArmor image"
+    echo "[FAILED] Failed to push accuknox/kubearmor:$VERSION"
     exit 1
 fi
