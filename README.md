@@ -18,7 +18,7 @@ If there are any violations against security policies, KubeArmor immediately gen
 
 Traditional container security solutions (e.g., Cilium) mostly protect containers by determining their inter-container relations (i.e., service flows) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions (e.g., a specific process should only be allowed to access a sensitive file).
 
-For this, KubeArmor provides the ability to filter process executions, file accesses, system calls, resource utilization, and even network operations inside containers at the system level.
+For this, KubeArmor provides the ability to filter process executions, file accesses, resource utilization, and even network operations inside containers at the system level.
 
 * Enforce security policies to containers in runtime
 
@@ -34,9 +34,9 @@ To address this problem, KubeArmor uses an eBPF-based container monitor, which k
 
 * Provide easy-to-use semantics for policy definitions
 
-KubeArmor provides the ability to monitor containers' processes life cycle and take policy decisions based on that. In general, it is much easier to deny a specific action but it is more difficult to allow only specific action while denying all. KubeArmor manages internal complexities associated with handling such policy decisions and provides easy semantics towards policy language.
+KubeArmor provides the ability to monitor the life cycles of containers' processes and take policy decisions based on them. In general, it is much easier to deny a specific action but it is more difficult to allow only specific actions while denying all. KubeArmor manages internal complexities associated with handling such policy decisions and provides easy semantics towards policy language.
 
-* Integrate with network security solutions
+* Support network security enforcement among containers
 
 KubeArmor aims to protect containers themselves rather than interactions among containers. However, using KubeArmor a user can add policies which could apply policy settings at network system calls (connect(), bind(), accept()) level, thus somewhat controlling interactions among containers.
 
@@ -49,16 +49,30 @@ Please take a look at the following documents.
 3. [Security Policy Examples](./documentation/security_policy_examples.md)
 4. [Technical Roadmap](./documentation/technical_roadmap.md)
 
-If you want to make a contribution, please refer to the following documents.
+If you want to make a contribution, please refer to the following documents too.
 
 1. [Contribution Guide](./documentation/contribution_guide.md)
 2. [Development Guide](./documentation/development_guide.md)
+
+# Screenshots
+
+1. KubeArmor's operations
+
+    TBU
+
+2. Policy violation
+
+    TBU
+
+3. Container-aware audit logs
+
+    TBU
 
 # Community
 
 * Slack
 
-  Please join [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor developers and other users.
+  Please join [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor developers and other users. We always welcome having a discussion about the problems that you face during the use of KubeArmor.
 
 # License
 
