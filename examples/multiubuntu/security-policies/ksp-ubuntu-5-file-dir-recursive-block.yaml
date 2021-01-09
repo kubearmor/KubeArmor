@@ -9,7 +9,7 @@ spec:
       container: ubuntu-5
   file:
     matchDirectories:
-    - dir: /credentials/ # try 'cat /credentials/password'
+    - dir: /credentials/ # try 'cat /credentials/password' (permission denied)
       recursive: true
   action:
     Block

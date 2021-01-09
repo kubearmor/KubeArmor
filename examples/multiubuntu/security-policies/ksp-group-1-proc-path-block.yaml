@@ -9,6 +9,6 @@ spec:
       group: group-1
   process:
     matchPaths:
-    - path: /bin/sleep # try sleep 1
+    - path: /bin/sleep # try sleep 1 (permission denied)
   action:
     Block
