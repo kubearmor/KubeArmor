@@ -11,14 +11,14 @@ spec:
     matchPaths:
     - path: /home/user1/hello
       ownerOnly: true
-    - path: /bin/su # need to change root to user1 / try 'su - user1'
+    - path: /bin/su # required to change root to user1 / try 'su - user1'
   file:
-    matchDirectories: # need to change root to user1 (coarse-grained way)
-    - dir: /etc/
+    matchDirectories: 
+    - dir: /etc/ # required to change root to user1 (coarse-grained way)
       recursive: true
-    - dir: /proc/
+    - dir: /proc/ # required to change root to user1 (coarse-grained way)
       recursive: true
-    matchPaths: # need to change root to user1
-    - path: /run/utmp
+    matchPaths:
+    - path: /run/utmp # required to change root to user1
   action:
     Allow

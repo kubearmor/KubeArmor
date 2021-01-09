@@ -12,8 +12,8 @@ spec:
       - dir: /bin/ # need some exectuables to test
   file:
     matchPaths:
-    - path: /secret.txt # echo "test" >> /secret.txt
-    - path: /credentials/password # echo "test" >> /credentials/password
+    - path: /secret.txt # echo "test" >> /secret.txt (success)
+    - path: /credentials/password # echo "test" >> /credentials/password (permission denied)
       readOnly: true
   action:
     Allow

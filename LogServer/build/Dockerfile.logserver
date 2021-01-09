@@ -9,7 +9,8 @@ RUN apk add --no-cache build-base
 
 COPY ./src .
 
-RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/LogServer/core
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/LogServer/server
+
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-logserver main.go
 
 ### Make executable image

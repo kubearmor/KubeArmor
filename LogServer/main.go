@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/accuknox/KubeArmor/LogServer/core"
+	"github.com/accuknox/KubeArmor/LogServer/server"
 )
 
 // ========== //
@@ -20,18 +20,18 @@ func main() {
 	port := fmt.Sprintf(":%s", *portPtr)
 
 	// start server
-	server := core.NewLogServer(port)
+	logServer := server.NewLogServer(port)
 
 	// receive logs
-	go server.ReceiveLogs()
-	core.WgServer.Add(1)
+	go logServer.ReceiveLogs()
+	server.WgServer.Add(1)
 
 	// listen for interrupt signals
-	sigChan := server.GetChan()
+	sigChan := logServer.GetChan()
 	<-sigChan
 	fmt.Println("Got a signal to terminate the LogServer")
-	server.StopChan()
+	logServer.StopChan()
 
 	// stop server
-	server.DestroyLogServer()
+	logServer.DestroyLogServer()
 }

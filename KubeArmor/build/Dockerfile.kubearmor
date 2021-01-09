@@ -25,6 +25,13 @@ COPY ./patch.sh ./build
 WORKDIR /usr/src/KubeArmor/build
 
 RUN ./patch.sh
+
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/audit
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/discovery
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/enforcer
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/feeder
+RUN GOOS=linux GOARCH=amd64 go test -v github.com/accuknox/KubeArmor/KubeArmor/monitor
+
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
 ### Make executable image
@@ -35,19 +42,16 @@ RUN apk update
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
-RUN apk add bcc bcc-dev bash
+RUN apk add bash bcc bcc-dev
 RUN apk add apparmor@edge audit@edge
 
 COPY --from=builder /usr/src/KubeArmor/build/kubearmor /KubeArmor/kubearmor
-
-COPY --from=builder /usr/src/KubeArmor/AppArmor/* /KubeArmor/AppArmor/
 COPY --from=builder /usr/src/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
-COPY --from=builder /usr/src/KubeArmor/Audit/* /etc/audit/
 
 RUN ln -s /usr/sbin/auditctl /sbin/auditctl
-RUN ln -s /usr/sbin/audispd /sbin/audispd
 RUN ln -s /usr/sbin/auditd /sbin/auditd
+
 RUN mkdir -p /KubeArmor/audit
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]

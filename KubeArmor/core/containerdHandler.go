@@ -73,6 +73,7 @@ func NewContainerdHandler() *ContainerdHandler {
 	}
 
 	if sockFile == "unix://" {
+		// kg.Err("Could not find the unix socket for Containerd")
 		return nil
 	}
 
@@ -197,7 +198,12 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers() []string {
 		_, err := ch.client.Get(ch.ctx, &req)
 		if err != nil {
 			containers = append(containers, containerID)
-			ch.containers = kl.RemoveStrFromSlice(ch.containers, containerID)
+			for idx, id := range ch.containers {
+				if id == containerID {
+					ch.containers = append(ch.containers[:idx], ch.containers[idx+1:]...)
+					break
+				}
+			}
 		}
 	}
 
@@ -206,8 +212,6 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers() []string {
 
 // UpdateContainerdContainer Function
 func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string) {
-	defer kg.HandleErr()
-
 	container := tp.Container{}
 
 	if action == "start" {
@@ -271,7 +275,6 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 
 // MonitorContainerdEvents Function
 func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
-	defer kg.HandleErr()
 	defer WgDaemon.Done()
 
 	if Containerd == nil {

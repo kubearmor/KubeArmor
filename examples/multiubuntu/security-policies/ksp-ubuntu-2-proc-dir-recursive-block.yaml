@@ -9,7 +9,7 @@ spec:
       container: ubuntu-2
   process:
     matchDirectories:
-    - dir: /usr/ # try env or whoami
+    - dir: /usr/ # try env or whoami (permission denied)
       recursive: true
   action:
     Block
