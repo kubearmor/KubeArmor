@@ -11,20 +11,21 @@ docker build -t accuknox/kubearmor:base . -f Dockerfile.builder
 
 if [ $? == 0 ]; then
     echo "[PASSED] Built accuknox/kubearmor:base"
+    # exit 0
 else
     echo "[FAILED] Failed to build accuknox/kubearmor:base"
     exit 1
 fi
 
-# push the base image to Docker Hub
+# push accuknox/kubearmor:base
 
 echo "[INFO] Pushing accuknox/kubearmor:base"
 docker push accuknox/kubearmor:base
 
 if [ $? == 0 ]; then
-    echo "[PASSED] Pushed the base image"
+    echo "[PASSED] Pushed accuknox/kubearmor:base"
     exit 0
 else
-    echo "[FAILED] Failed to push the base image"
+    echo "[FAILED] Failed to push accuknox/kubearmor:base"
     exit 1
 fi
