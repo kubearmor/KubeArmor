@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -18,16 +17,12 @@ import (
 // StopChan Channel
 var StopChan chan struct{}
 
-// WgServer Handler
-var WgServer sync.WaitGroup
-
 // Output Mode
 var Output bool
 
 // init Function
 func init() {
 	StopChan = make(chan struct{})
-	WgServer = sync.WaitGroup{}
 	Output = true
 }
 
@@ -210,8 +205,6 @@ func NewLogServer(port string) *LogServer {
 
 // ReceiveLogs Function
 func (ls *LogServer) ReceiveLogs() {
-	defer WgServer.Done()
-
 	// receive logs
 	if err := ls.logServer.Serve(ls.listener); err != nil {
 		fmt.Println(err.Error())
@@ -220,7 +213,7 @@ func (ls *LogServer) ReceiveLogs() {
 
 // DestroyLogServer Function
 func (ls *LogServer) DestroyLogServer() {
-	if ls.listener != nil {
-		ls.listener.Close()
-	}
+	// if ls.listener != nil {
+	// 	ls.listener.Close()
+	// }
 }
