@@ -24,7 +24,6 @@ func main() {
 
 	// receive logs
 	go logServer.ReceiveLogs()
-	server.WgServer.Add(1)
 
 	// listen for interrupt signals
 	sigChan := logServer.GetChan()
