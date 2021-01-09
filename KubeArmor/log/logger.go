@@ -22,7 +22,7 @@ func init() {
 
 // customTimeEncoder Function
 func customTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-	enc.AppendString(t.Format("2006-01-02 15:04:05.000000"))
+	enc.AppendString(t.Format("2020-01-01 00:00:00.000000"))
 }
 
 // initLogger Function
@@ -110,23 +110,4 @@ func Err(message string) {
 func Errf(message string, args ...interface{}) {
 	zapLogger.Errorf(message, args...)
 	zapLogger.Sync()
-}
-
-// HandleErr Function
-func HandleErr() {
-	// handle panic(), generate system call
-	err, _ := recover().(error)
-	if err != nil {
-		Errf("%v", err)
-	}
-}
-
-// HandleErrRet Function
-func HandleErrRet(ret *bool) {
-	// handle panic(), generate system call, and return value to false
-	err, _ := recover().(error)
-	if err != nil {
-		Errf("%v", err)
-		*ret = false
-	}
 }
