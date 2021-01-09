@@ -1,9 +1,9 @@
-package core
+package server
 
 import (
 	"testing"
 
-	"github.com/KubeArmor/KubeArmor/feeder"
+	"github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 

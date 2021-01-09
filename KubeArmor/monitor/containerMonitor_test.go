@@ -5,5 +5,5 @@ import (
 )
 
 func TestContainerMonitor(t *testing.T) {
-	//
+	t.Log("Nothing to test")
 }
