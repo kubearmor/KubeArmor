@@ -9,6 +9,6 @@ spec:
       container: ubuntu-1
   capabilities:
     matchCapabilities:
-    - net_raw # try 'ping 8.8.8.8' and 'curl www.accuknox.com'
+    - net_raw # try 'ping 8.8.8.8' (operation not permitted) and 'curl www.accuknox.com' (success)
   action:
     Block
