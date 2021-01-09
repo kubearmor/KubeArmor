@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,17 +33,13 @@ func init() {
 
 // AuditLogger Structure
 type AuditLogger struct {
+	// logging
+	logType   string
+	logTarget string
+	logFeeder *fd.Feeder
+
 	// host name
 	HostName string
-
-	// logging type
-	logType string
-
-	// logging target
-	logTarget string
-
-	// logging feeder
-	logFeeder *fd.Feeder
 
 	// container id => cotnainer
 	Containers     map[string]tp.Container
@@ -59,11 +57,6 @@ type AuditLogger struct {
 func NewAuditLogger(logOption string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *AuditLogger {
 	al := &AuditLogger{}
 
-	if kl.IsK8sLocal() {
-		// create a test directory
-		kl.GetCommandWithoutOutput("/bin/mkdir", []string{"-p", "/KubeArmor/audit"})
-	}
-
 	if strings.Contains(logOption, "grpc:") {
 		args := strings.Split(logOption, ":")
 
@@ -78,15 +71,30 @@ func NewAuditLogger(logOption string, containers map[string]tp.Container, contai
 		al.logTarget = args[1] // file path
 		al.logFeeder = nil
 
-		// create log file
-		kl.GetCommandWithoutOutput("/bin/touch", []string{al.logTarget})
+		// get the directory part from the path
+		dirLog := filepath.Dir(al.logTarget)
 
-	} else {
-		if logOption != "stdout" {
-			kg.Printf("Use the default logging option (stdout) since %s is not a supported logging option", logOption)
+		// create directories
+		if err := os.MkdirAll(dirLog, 0755); err != nil {
+			kg.Errf("Failed to create a target directory (%s)", err.Error())
+			return nil
 		}
 
+		// create target file
+		targetFile, err := os.Create(al.logTarget)
+		if err != nil {
+			kg.Errf("Failed to create a target file (%s)", err.Error())
+			return nil
+		}
+		targetFile.Close()
+
+	} else if logOption == "stdout" {
 		al.logType = "stdout"
+		al.logTarget = ""
+		al.logFeeder = nil
+
+	} else {
+		al.logType = "none"
 		al.logTarget = ""
 		al.logFeeder = nil
 	}
@@ -126,34 +134,36 @@ func (al *AuditLogger) InitAuditLogger(homeDir string) error {
 
 			kg.Printf("Created a symbolic link to get audit logs")
 		}
-	} else { // Otherwise
-		// create audit log
-		kl.GetCommandWithoutOutput("/bin/touch", []string{"/KubeArmor/audit/audit.log"})
+	}
 
+	if kl.IsInK8sCluster() && !al.isCOS {
 		// load audit rules
-		kl.GetCommandWithoutOutput("/sbin/auditctl", []string{"-R", "/etc/audit/audit.rules", ">", "/dev/null"})
+		if _, err := kl.GetCommandOutputWithErr("/sbin/auditctl", []string{"-R", "/etc/audit/audit.rules", ">", "/dev/null"}); err != nil {
+			kg.Errf("Failed to load audit rules (%s)", err.Error())
+			return err
+		}
 	}
 
 	return nil
 }
 
 // DestroyAuditLogger Function
-func (al *AuditLogger) DestroyAuditLogger() {
+func (al *AuditLogger) DestroyAuditLogger() error {
 	close(StopChan)
 
-	if kl.IsK8sLocal() {
-		// remove the test directory
-		kl.GetCommandWithoutOutput("/bin/rm", []string{"-rf", "/KubeArmor"})
-	}
-
-	if !al.isCOS {
+	if kl.IsInK8sCluster() && !al.isCOS {
 		// stop the Auditd daemon
-		kl.GetCommandWithoutOutput("/usr/bin/pkill", []string{"-9", "auditd"})
+		if _, err := kl.GetCommandOutputWithErr("/usr/bin/pkill", []string{"-9", "auditd"}); err != nil {
+			kg.Errf("Failed to stop auditd (%s)", err.Error())
+			return err
+		}
 	}
 
 	if al.logFeeder != nil {
 		al.logFeeder.DestroyFeeder()
 	}
+
+	return nil
 }
 
 // ================ //
@@ -161,7 +171,7 @@ func (al *AuditLogger) DestroyAuditLogger() {
 // ================ //
 
 // GetContainerInfoFromHostPid Function
-func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, string, string, string) {
+func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int32) (string, string, string, string) {
 	hostPid := uint32(hostPidInt)
 
 	al.ActivePidMapLock.Lock()
@@ -169,8 +179,8 @@ func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, stri
 
 	containerID := ""
 
-	for id, v := range al.ActivePidMap {
-		for pid := range v {
+	for id, pidMap := range al.ActivePidMap {
+		for pid := range pidMap {
 			if hostPid == pid {
 				containerID = id
 				break
@@ -197,9 +207,9 @@ func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int) (string, stri
 
 // MonitorAuditLogs Function
 func (al *AuditLogger) MonitorAuditLogs() {
-	if !al.isCOS {
+	if kl.IsInK8sCluster() && !al.isCOS {
 		// start auditd
-		kl.GetCommandWithoutOutput("/sbin/auditd", []string{})
+		kl.GetCommandOutputWithoutErr("/sbin/auditd", []string{})
 	}
 
 	// monitor audit logs
@@ -241,151 +251,164 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 				continue
 			}
 			line := string(lineBytes)
-			words := []string{}
-
-			if al.isCOS {
-				line = strings.Replace(line, "\\\"", "\"", -1)
-			}
 
 			// == //
 
-			requiredKeywords := []string{
-				"AVC",
-				"SYSCALL",
-			}
-
-			auditType := ""
-
-			for _, keyword := range requiredKeywords {
-				if strings.Contains(line, keyword) {
-					auditType = keyword
-					break
-				}
-			}
-
+			// if a log is not what we want, do not process the log (skip the following process)
+			auditType := al.GetAuditType(line)
 			if auditType == "" {
 				continue
 			}
 
-			excludedKeywords := []string{
-				"apparmor=\"STATUS\"",
-				"success=yes",
-			}
-
-			skip := false
-
-			for _, keyword := range excludedKeywords {
-				if strings.Contains(line, keyword) {
-					skip = true
-				}
-			}
-
-			if skip {
-				continue
-			}
-
 			// == //
 
-			if al.isCOS {
-				tempWords := strings.Split(line, ",")
+			// build an audit log based on a given log
+			auditLog := al.GetAuditLog(auditType, line)
 
-				for _, tempWord := range tempWords {
-					if strings.Contains(tempWord, "\"MESSAGE\":") {
-						message := strings.Split(tempWord, ":")
-						innerWords := strings.Split(message[1], " ")
-						words = innerWords[1:]
-					}
-				}
-			} else {
-				tempWords := strings.Split(line, " ")
-				words = tempWords[2:]
-			}
-
-			// == //
-
-			hostPid := 0
-			source := ""
-			operation := ""
-			resource := ""
-			result := ""
-
-			if auditType == "AVC" {
-				for _, keyVal := range words {
-					if strings.HasPrefix(keyVal, "pid=") {
-						value := strings.Split(keyVal, "=")
-						hostPid, _ = strconv.Atoi(value[1])
-					} else if strings.HasPrefix(keyVal, "comm=") {
-						value := strings.Split(keyVal, "=")
-						source = strings.Replace(value[1], "\"", "", -1)
-					} else if strings.HasPrefix(keyVal, "operation=") {
-						value := strings.Split(keyVal, "=")
-						operation = strings.Replace(value[1], "\"", "", -1)
-					} else if strings.HasPrefix(keyVal, "name=") {
-						value := strings.Split(keyVal, "=")
-						resource = strings.Replace(value[1], "\"", "", -1)
-					} else if strings.HasPrefix(keyVal, "apparmor=") {
-						value := strings.Split(keyVal, "=")
-						if value[1] == "\"ALLOWED\"" {
-							result = "Allowed"
-						} else if value[1] == "\"DENIED\"" {
-							result = "Blocked"
-						} else if value[1] == "\"AUDIT\"" {
-							result = "Audited"
-						} else {
-							result = strings.Replace(value[1], "\"", "", -1)
-						}
-					}
-				}
-			} else if auditType == "SYSCALL" {
-				for _, keyVal := range words {
-					if strings.HasPrefix(keyVal, "pid=") {
-						value := strings.Split(keyVal, "=")
-						hostPid, _ = strconv.Atoi(value[1])
-					} else if strings.HasPrefix(keyVal, "exe=") {
-						value := strings.Split(keyVal, "=")
-						source = strings.Replace(value[1], "\"", "", -1)
-					} else if strings.HasPrefix(keyVal, "syscall=") {
-						value := strings.Split(keyVal, "=")
-						syscallNum, _ := strconv.Atoi(value[1])
-						operation = "syscall"
-						resource = getSyscallName(syscallNum)
-					} else if strings.HasPrefix(keyVal, "exit=-") {
-						value := strings.Split(keyVal, "=")
-						errNo, _ := strconv.Atoi(value[1])
-						result = fmt.Sprintf("Failed (%s)", getErrorMessage(errNo))
-					}
-				}
-			}
-
-			// == //
-
-			auditLog := tp.AuditLog{}
-			auditLog.UpdatedTime = kl.GetDateTimeNow()
-
+			// add container context into the audit log
 			auditLog.HostName = al.HostName
-			auditLog.NamespaceName, auditLog.PodName, auditLog.ContainerID, auditLog.ContainerName = al.GetContainerInfoFromHostPid(hostPid)
-
-			auditLog.HostPID = int32(hostPid)
-			auditLog.Source = source
-			auditLog.Operation = operation
-			auditLog.Resource = resource
-			auditLog.Result = result
+			auditLog.NamespaceName, auditLog.PodName, auditLog.ContainerID, auditLog.ContainerName = al.GetContainerInfoFromHostPid(auditLog.HostPID)
 
 			// == //
 
 			if al.logType == "grpc" {
-				auditLog.RawData = strings.Join(words[:], " ")
 				al.logFeeder.SendAuditLog(auditLog)
 
 			} else if al.logType == "file" {
-				auditLog.RawData = strings.Join(words[:], " ")
 				arr, _ := json.Marshal(auditLog)
 				kl.StrToFile(string(arr), al.logTarget)
 
-			} else { // stdout
+			} else if al.logType == "stdout" {
 				arr, _ := json.Marshal(auditLog)
 				fmt.Println(string(arr))
 			}
 		}
 	}
+}
+
+// GetAuditType Function
+func (al *AuditLogger) GetAuditType(line string) string {
+	requiredKeywords := []string{
+		"AVC",
+		"SYSCALL",
+	}
+
+	auditType := ""
+
+	for _, keyword := range requiredKeywords {
+		if strings.Contains(line, keyword) {
+			auditType = keyword
+			break
+		}
+	}
+
+	if auditType == "" {
+		return ""
+	}
+
+	excludedKeywords := []string{
+		"apparmor=\"STATUS\"",
+		"success=yes",
+	}
+
+	pass := true
+
+	for _, keyword := range excludedKeywords {
+		if strings.Contains(line, keyword) {
+			pass = false
+		}
+	}
+
+	if !pass {
+		return ""
+	}
+
+	return auditType
+}
+
+// GetAuditLog Function
+func (al *AuditLogger) GetAuditLog(auditType, line string) tp.AuditLog {
+	words := []string{}
+
+	if al.isCOS {
+		line = strings.Replace(line, "\\\"", "\"", -1)
+		tempWords := strings.Split(line, ",")
+
+		for _, tempWord := range tempWords {
+			if strings.Contains(tempWord, "\"MESSAGE\":") {
+				message := strings.Split(tempWord, ":")
+				innerWords := strings.Split(message[1], " ")
+				words = innerWords[1:]
+			}
+		}
+	} else {
+		tempWords := strings.Split(line, " ")
+		words = tempWords[2:]
+	}
+
+	// == //
+
+	auditLog := tp.AuditLog{}
+	auditLog.UpdatedTime = kl.GetDateTimeNow()
+
+	if auditType == "AVC" {
+		for _, keyVal := range words {
+			if strings.HasPrefix(keyVal, "pid=") {
+				value := strings.Split(keyVal, "=")
+				hostPID, _ := strconv.Atoi(value[1])
+				auditLog.HostPID = int32(hostPID)
+
+			} else if strings.HasPrefix(keyVal, "comm=") {
+				value := strings.Split(keyVal, "=")
+				auditLog.Source = strings.Replace(value[1], "\"", "", -1)
+
+			} else if strings.HasPrefix(keyVal, "operation=") {
+				value := strings.Split(keyVal, "=")
+				auditLog.Operation = strings.Replace(value[1], "\"", "", -1)
+
+			} else if strings.HasPrefix(keyVal, "name=") {
+				value := strings.Split(keyVal, "=")
+				auditLog.Resource = strings.Replace(value[1], "\"", "", -1)
+
+			} else if strings.HasPrefix(keyVal, "apparmor=") {
+				value := strings.Split(keyVal, "=")
+				if value[1] == "\"ALLOWED\"" {
+					auditLog.Result = "Allowed"
+				} else if value[1] == "\"DENIED\"" {
+					auditLog.Result = "Blocked"
+				} else if value[1] == "\"AUDIT\"" {
+					auditLog.Result = "Audited"
+				} else {
+					auditLog.Result = strings.Replace(value[1], "\"", "", -1)
+				}
+			}
+		}
+	} else if auditType == "SYSCALL" {
+		for _, keyVal := range words {
+			if strings.HasPrefix(keyVal, "pid=") {
+				value := strings.Split(keyVal, "=")
+				hostPID, _ := strconv.Atoi(value[1])
+				auditLog.HostPID = int32(hostPID)
+
+			} else if strings.HasPrefix(keyVal, "exe=") {
+				value := strings.Split(keyVal, "=")
+				auditLog.Source = strings.Replace(value[1], "\"", "", -1)
+
+			} else if strings.HasPrefix(keyVal, "syscall=") {
+				value := strings.Split(keyVal, "=")
+				syscallNum, _ := strconv.Atoi(value[1])
+				auditLog.Operation = "syscall"
+				auditLog.Resource = getSyscallName(syscallNum)
+
+			} else if strings.HasPrefix(keyVal, "exit=-") {
+				value := strings.Split(keyVal, "=")
+				errNo, _ := strconv.Atoi(value[1])
+				auditLog.Result = fmt.Sprintf("Failed (%s)", getErrorMessage(errNo))
+			}
+		}
+	}
+
+	auditLog.RawData = strings.Join(words[:], " ")
+
+	return auditLog
 }
