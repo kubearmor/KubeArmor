@@ -47,7 +47,7 @@ func ContainsElement(slice interface{}, element interface{}) bool {
 
 // Time Format
 const (
-	TimeFormUTC string = "2020-01-01T00:00:00.000000Z"
+	TimeFormUTC string = "2006-01-02T15:04:05.000000Z"
 )
 
 // GetDateTimeNow Function

@@ -61,38 +61,38 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		"#include <tunables/global>\n" +
 		"\n" +
 		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
-		"	#include <abstractions/base>\n" +
+		"  #include <abstractions/base>\n" +
 		"\n" +
-		"	umount,\n" +
+		"  umount,\n" +
 		"\n" +
-		"	## == PRE START == ##\n" +
-		"	file,\n" +
-		"	network,\n" +
-		"	capability,\n" +
-		"	## == PRE END == ##\n" +
+		"  ## == PRE START == ##\n" +
+		"  file,\n" +
+		"  network,\n" +
+		"  capability,\n" +
+		"  ## == PRE END == ##\n" +
 		"\n" +
-		"	## == POLICY START == ##\n" +
-		"	## == POLICY END == ##\n" +
+		"  ## == POLICY START == ##\n" +
+		"  ## == POLICY END == ##\n" +
 		"\n" +
-		"	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
-		"	deny @{PROC}/sysrq-trigger rwklx,\n" +
-		"	deny @{PROC}/mem rwklx,\n" +
-		"	deny @{PROC}/kmem rwklx,\n" +
-		"	deny @{PROC}/kcore rwklx,\n" +
+		"  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
+		"  deny @{PROC}/sysrq-trigger rwklx,\n" +
+		"  deny @{PROC}/mem rwklx,\n" +
+		"  deny @{PROC}/kmem rwklx,\n" +
+		"  deny @{PROC}/kcore rwklx,\n" +
 		"\n" +
-		"	deny mount,\n" +
+		"  deny mount,\n" +
 		"\n" +
-		"	deny /sys/[^f]*/** wklx,\n" +
-		"	deny /sys/f[^s]*/** wklx,\n" +
-		"	deny /sys/fs/[^c]*/** wklx,\n" +
-		"	deny /sys/fs/c[^g]*/** wklx,\n" +
-		"	deny /sys/fs/cg[^r]*/** wklx,\n" +
-		"	deny /sys/firmware/efi/efivars/** rwklx,\n" +
-		"	deny /sys/kernel/security/** rwklx,\n" +
+		"  deny /sys/[^f]*/** wklx,\n" +
+		"  deny /sys/f[^s]*/** wklx,\n" +
+		"  deny /sys/fs/[^c]*/** wklx,\n" +
+		"  deny /sys/fs/c[^g]*/** wklx,\n" +
+		"  deny /sys/fs/cg[^r]*/** wklx,\n" +
+		"  deny /sys/firmware/efi/efivars/** rwklx,\n" +
+		"  deny /sys/kernel/security/** rwklx,\n" +
 		"\n" +
-		"	## == POST START == ##\n" +
-		"	## == POST END == ##\n" +
-		"}"
+		"  ## == POST START == ##\n" +
+		"  ## == POST END == ##\n" +
+		"}\n"
 
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
@@ -207,9 +207,9 @@ func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, s
 		}
 
 		if output, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + appArmorProfile}); err == nil {
-			kg.Printf("Updated %d security policies to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+			kg.Printf("Updated %d security rules to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
 		} else {
-			kg.Printf("Failed to update %d security policies to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, output)
+			kg.Printf("Failed to update %d security rules to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, output)
 		}
 	} else {
 		if len(newProfile) > 0 {
