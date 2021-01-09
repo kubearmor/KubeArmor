@@ -3,7 +3,6 @@
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 
 # copy files to build
-cp -r $ARMOR_HOME/AppArmor/ $ARMOR_HOME/build/
 cp -r $ARMOR_HOME/audit/ $ARMOR_HOME/build/
 cp -r $ARMOR_HOME/Auditd/ $ARMOR_HOME/build/
 cp -r $ARMOR_HOME/BPF/ $ARMOR_HOME/build/
