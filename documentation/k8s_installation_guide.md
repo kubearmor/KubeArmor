@@ -34,12 +34,10 @@
     (k8s) $ ./initialize_kubernetes.sh flannel master
     ```
 
-    Here, "master" means that you will also use the master node to deploy containers. Thus, if you are going to install Kubernetes in a single machine, please make sure that you put "master" at the above command end.
-
-    Instead of Flannel, you can use other CNIs as well.
+    Instead of Flannel, you can use other CNIs too.
     
     ```
-    (k8s) $ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] master
+    (k8s) $ ./initialize_kubernetes.sh [ weave | calico | cilium ] master
     ```
 
 - Kubernetes Installation (multiple machines)

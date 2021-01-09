@@ -26,13 +26,15 @@ If you want to make a contribution, please follow the steps below.
 
     Then, you will get the full code of KubeArmor in your machine.
 
-3. Make changes and commit the changes
+3. Make changes
 
     First, go into the repository directory and make some changes.
 
-    Please refer to the development guide to set up your environment for KubeArmor contribution.
+    Please refer to [development guide](./development_guide.md) to set up your environment for KubeArmor contribution.
 
-    Then, please see your changes and add them to the branch.
+4. Commit the changes
+
+    Please see your changes using "git status" and add them to the branch using "git add".
 
     ```
     $ cd KubeArmor
@@ -40,7 +42,7 @@ If you want to make a contribution, please follow the steps below.
     (KubeArmor) $ git add [changed file]
     ```
 
-    Now, commit the changes using the "git commit" command.
+    Then, commit the changes using the "git commit" command.
 
     ```
     (KubeArmor) $ git commit -m "Add a new feature by [your name]"
@@ -56,7 +58,7 @@ If you want to make a contribution, please follow the steps below.
     (KubeArmor) $ git push
     ```
 
-6. Submit your changes for review
+6. Create a pull request with your changes
 
     First, go to your repository on GitHub. You will see something like the below screen.
 
