@@ -209,6 +209,7 @@ func (dm *KubeArmorDaemon) InitAuditLogger() bool {
 // MonitorAuditLogs Function
 func (dm *KubeArmorDaemon) MonitorAuditLogs() {
 	defer WgDaemon.Done()
+
 	go dm.AuditLogger.MonitorAuditLogs()
 }
 

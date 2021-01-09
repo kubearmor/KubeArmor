@@ -5,5 +5,5 @@ import (
 )
 
 func TestKRSIEnforcer(t *testing.T) {
-	//
+	t.Log("Nothing to test")
 }

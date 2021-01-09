@@ -2,11 +2,11 @@
 
 Here, we briefly share a plan for next releases (e.g., including features, specs, and platform supports).
 
-- Current Release (under development)
+- Current Release
 
     - Kubernetes Environments
     
-        \- Self-managed Kubernetes, Google Kubernetes Engine (GKE)
+        \- Self-managed Kubernetes (using kubeadm and MicroK8s), Google Kubernetes Engine (GKE)
     
     - Container Platforms
     
@@ -18,20 +18,20 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
 
     - Features
     
+        \- Monitoring container behaviors at the system level
+
         \- Enforcing security policies against:
 
             Process executions (through AppArmor)  
             File accesses (through AppArmor)  
-            Network operations according to protocols (through AppArmor)  
+            Network operations (through AppArmor)  
             Capabilities permitted (through AppArmor)
 
-        \- Producing container-aware audit logs and write them into:
+        \- Producing container-aware audit logs and system logs (for failed system calls) and write them into:
         
-            Standard output  
+            Standard output
             Log file
             gRPC
-
-        \- Monitoring container behaviors at the system level
 
 - Next Release
 
@@ -47,10 +47,9 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
     
         \- (extension) Enforcing security policies against:
         
-            High-level operations instead of specific capabilities (through AppArmor)  
             Resource utilization (through AppArmor)
 
-        \- (extension) Producing container-aware audit logs and write them into:
+        \- (extension) Producing container-aware logs and write them into:
         
             Database (e.g., MySQL and MongoDB)
 
@@ -58,12 +57,13 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
         
             Process executions  
             Files accesses
+            Network operations
 
         \- Enforcing security policies at the eBPF level (using KRSI)
 
             Process executions  
             File accesses  
-            Network operations according to protocols, IP addresses and ports (socket level)  
+            Network operations
             Capabilities permitted
 
         \- Produce telemetry data to monitoring systems
@@ -82,12 +82,10 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
 
     - Features
 
-        \- Producing container-aware audit logs and write them into:
+        \- Producing container-aware logs and write them into:
         
             Other systems (e.g., Kafka and Elasticsearch)
     
         \- Enforcing security policies against inter-container communications at the network level
         
             Integration with network security solutions (e.g., Cilium)
-
-        \- Will be updated soon
