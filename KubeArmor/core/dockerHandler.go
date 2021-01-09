@@ -50,6 +50,7 @@ func NewDockerHandler() *DockerHandler {
 
 	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
 	if err != nil {
+		// kg.Errf("Could not find the API version of Docker (%s)", err.Error())
 		return nil
 	}
 
@@ -172,8 +173,6 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 
 // UpdateDockerContainer Function
 func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
-	defer kg.HandleErr()
-
 	container := tp.Container{}
 
 	if action == "start" {
@@ -241,7 +240,6 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 // MonitorDockerEvents Function
 func (dm *KubeArmorDaemon) MonitorDockerEvents() {
-	defer kg.HandleErr()
 	defer WgDaemon.Done()
 
 	if Docker == nil {

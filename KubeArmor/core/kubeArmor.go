@@ -175,14 +175,12 @@ func (dm *KubeArmorDaemon) GetChan() chan os.Signal {
 
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
-	ret := true
-	defer kg.HandleErrRet(&ret)
-
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.HomeDir)
+	if dm.RuntimeEnforcer == nil {
+		return false
+	}
 
-	kg.Print("Started to protect containers")
-
-	return ret
+	return true
 }
 
 // CloseRuntimeEnforcer Function
@@ -196,24 +194,21 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() {
 
 // InitAuditLogger Function
 func (dm *KubeArmorDaemon) InitAuditLogger() bool {
-	ret := true
-	defer kg.HandleErrRet(&ret)
-
 	dm.AuditLogger = adt.NewAuditLogger(dm.AuditLogOption, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
+	if dm.AuditLogger == nil {
+		return false
+	}
+
 	if err := dm.AuditLogger.InitAuditLogger(dm.HomeDir); err != nil {
 		return false
 	}
 
-	kg.Print("Started to monitor audit logs")
-
-	return ret
+	return true
 }
 
 // MonitorAuditLogs Function
 func (dm *KubeArmorDaemon) MonitorAuditLogs() {
-	defer kg.HandleErr()
 	defer WgDaemon.Done()
-
 	go dm.AuditLogger.MonitorAuditLogs()
 }
 
@@ -228,22 +223,20 @@ func (dm *KubeArmorDaemon) CloseAuditLogger() {
 
 // InitContainerMonitor Function
 func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
-	ret := true
-	defer kg.HandleErrRet(&ret)
-
 	dm.ContainerMonitor = mon.NewContainerMonitor(dm.SystemLogOption, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
+	if dm.ContainerMonitor == nil {
+		return false
+	}
+
 	if err := dm.ContainerMonitor.InitBPF(dm.HomeDir); err != nil {
 		return false
 	}
 
-	kg.Print("Started to monitor system events")
-
-	return ret
+	return true
 }
 
 // MonitorSystemEvents Function
 func (dm *KubeArmorDaemon) MonitorSystemEvents() {
-	defer kg.HandleErr()
 	defer WgDaemon.Done()
 
 	go dm.ContainerMonitor.TraceSyscall()
@@ -272,18 +265,21 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 		kg.Err("Failed to intialize the runtime enforcer")
 		return
 	}
+	kg.Print("Started to protect containers")
 
 	// initialize audit logger
 	if !dm.InitAuditLogger() {
 		kg.Err("Failed to intialize the audit logger")
 		return
 	}
+	kg.Print("Started to monitor audit logs")
 
 	// initialize container monitor
 	if !dm.InitContainerMonitor() {
 		kg.Err("Failed to initialize the container monitor")
 		return
 	}
+	kg.Print("Started to monitor system events")
 
 	// monitor audit logs (audit logger)
 	go dm.MonitorAuditLogs()
