@@ -141,18 +141,14 @@ type SystemLog struct {
 	HostPID int32 `json:"hostPid"`
 	PPID    int32 `json:"ppid"`
 	PID     int32 `json:"pid"`
-	TID     int32 `json:"tid"`
 	UID     int32 `json:"uid"`
 
 	// syscall
-	Source  string `json:"source"`
-	Syscall string `json:"syscall"`
-	Argnum  int32  `json:"argnum"`
-	Args    string `json:"args,omitempty"`
-	Retval  int64  `json:"retval"`
-
-	// error message
-	ErrorMessage string `json:"errorMessage,omitempty"`
+	Source    string `json:"source"`
+	Operation string `json:"operation"`
+	Resource  string `json:"resource"`
+	Args      string `json:"args"`
+	Result    string `json:"result"`
 }
 
 // ===================== //
@@ -296,21 +292,15 @@ type PidMap map[uint32]PidNode
 
 // PidNode Structure
 type PidNode struct {
-	Policy NetworkPolicy
-
 	PidID uint32
 	MntID uint32
 
 	HostPID uint32
 	PPID    uint32
 	PID     uint32
-	TID     uint32
 
 	Comm     string
 	ExecPath string
-
-	EventID   uint32
-	Monitored bool
 
 	Exited     bool
 	ExitedTime time.Time
