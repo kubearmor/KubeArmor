@@ -15,7 +15,7 @@
 
     First of all, KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](./k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses their APIs. If you have other container platforms (e.g., Podman), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs (at least, AppArmor).
 
-    <font color=red>Note that we may not be able to run KubeArmor if you are using MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work if you use Docker Desktops on Windows and MacOS. It is because such environments do not have a full Linux file system.</font>
+    <font color=red>Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work if you use Docker Desktops on Windows and MacOS because such environments do not have a full Linux file system.</font>
 
   - Environmetal Setup
 
@@ -26,9 +26,9 @@
     (bare-metal) $ ./setup.sh
     ```
 
-    [setup.sh](../contributions/bare-metal/setup.sh) will automatically install BCC (latest), Go (v1.15.2), AppArmor (with AppArmor-utils), and Auditd.
+    [setup.sh](../contributions/bare-metal/setup.sh) will automatically install BCC (latest), Go (v1.15.2), and Protobuf (3.14.0).
 
-    Now, you are ready to develop the code for KubeArmor. Please enjoy the journey with KubeArmor.
+    Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
 
   - (Optional) MicroK8s Setup
 
@@ -85,7 +85,7 @@
     (vagrant) $ ./remove.sh
     ```
 
-    You are ready to develop the code for KubeArmor. Please enjoy the journey with KubeArmor.
+    You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
 
     ```
     cd contributions/vagrant
@@ -130,22 +130,18 @@ Here, we briefly give you the overview of KubeArmor's directories.
 
     ```
     KubeArmor/
-      AppArmor    - Script files to create and delete AppArmor profiles
       Auditd      - Configurations for Auditd
     ```
 
   - Scripts for GKE
 
     ```
-    KubeArmor/
-      GKE         - scripts to set up the enforcer in a container-optimized OS (COS)
+    GKE           - scripts to set up the enforcer in a container-optimized OS (COS)
     ```
 
   - Files for testing
 
     ```
-    KubeArmor/
-      build       - Scripts to create a container image for KubeArmor
     examples/
       multiubuntu - Example microservice for testing
     ```

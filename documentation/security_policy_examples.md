@@ -204,34 +204,6 @@ Here, we demonstrate how to define security policies using our example microserv
       - Verification  
       After applying this policy, please get into the container with the 'ubuntu-5' label and run 'cat /secret.txt'. You will see the contents of /secret.txt. Then, please run 'cat /credentials/password'. This command will be blocked due to the security policy.
 
-- Network Operation Restriction
-
-    - Block UDP and ICMP packets (non-TCP packets) ([ksp-ubuntu-5-net-udp-icmp-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-5-net-udp-icmp-block.yaml))
-
-      ```
-      apiVersion: security.accuknox.com/v1
-      kind: KubeArmorPolicy
-      metadata:
-        name: ksp-ubuntu-5-net-udp-icmp-block
-        namespace: multiubuntu
-      spec:
-        selector:
-          matchLabels:
-            container: ubuntu-5
-        network:
-          matchProtocols:
-          - protocol: udp
-          - protocol: icmp
-        action:
-          Block
-      ```
-
-      - Explanation  
-      In general, containers communicate with each other through TCP sessions; thus, we want to block the packets of other protocols. For this, we use matchProtocols to specify protocols (UDP and ICMP).
-
-      - Verification  
-      TBF (under testing)
-
 - Capabilities Restriction
 
     - Block Raw Sockets (i.e., non-TCP/UDP packets) ([ksp-ubuntu-1-cap-net-raw-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-1-cap-net-raw-block.yaml))
