@@ -24,9 +24,6 @@ import (
 // StopChan Channel
 var StopChan chan struct{}
 
-// WgDaemon Handler
-var WgDaemon sync.WaitGroup
-
 // ActivePidMap to map container id and process id
 var ActivePidMap map[string]tp.PidMap
 
@@ -36,7 +33,6 @@ var ActivePidMapLock *sync.Mutex
 // init Function
 func init() {
 	StopChan = make(chan struct{})
-	WgDaemon = sync.WaitGroup{}
 
 	// shared map between container monitor and audit logger
 	ActivePidMap = map[string]tp.PidMap{}
@@ -76,6 +72,9 @@ type KubeArmorDaemon struct {
 	// logging
 	AuditLogOption  string
 	SystemLogOption string
+
+	// WgDaemon Handler
+	WgDaemon sync.WaitGroup
 }
 
 // NewKubeArmorDaemon Function
@@ -107,6 +106,8 @@ func NewKubeArmorDaemon(auditLogOption, systemLogOption string) *KubeArmorDaemon
 	dm.AuditLogOption = auditLogOption
 	dm.SystemLogOption = systemLogOption
 
+	dm.WgDaemon = sync.WaitGroup{}
+
 	return dm
 }
 
@@ -126,47 +127,9 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 	// wait for other routines
 	kg.PrintfNotInsert("Waiting for routine terminations")
-	WgDaemon.Wait()
+	dm.WgDaemon.Wait()
 
 	kg.PrintfNotInsert("Terminated the KubeArmor")
-}
-
-// ==================== //
-// == Signal Handler == //
-// ==================== //
-
-// GetOSSigChannel Function
-func GetOSSigChannel() chan os.Signal {
-	c := make(chan os.Signal, 1)
-
-	signal.Notify(c,
-		syscall.SIGKILL,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-		os.Interrupt)
-
-	return c
-}
-
-// GetChan Function
-func (dm *KubeArmorDaemon) GetChan() chan os.Signal {
-	sigChan := GetOSSigChannel()
-
-	select {
-	case <-sigChan:
-		kg.PrintfNotInsert("Got a signal to terminate the KubeArmor")
-		close(StopChan)
-
-		dm.DestroyKubeArmorDaemon()
-
-		os.Exit(0)
-	default:
-		time.Sleep(time.Second * 1)
-	}
-
-	return sigChan
 }
 
 // ====================== //
@@ -208,7 +171,8 @@ func (dm *KubeArmorDaemon) InitAuditLogger() bool {
 
 // MonitorAuditLogs Function
 func (dm *KubeArmorDaemon) MonitorAuditLogs() {
-	defer WgDaemon.Done()
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 
 	go dm.AuditLogger.MonitorAuditLogs()
 }
@@ -238,7 +202,8 @@ func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
 
 // MonitorSystemEvents Function
 func (dm *KubeArmorDaemon) MonitorSystemEvents() {
-	defer WgDaemon.Done()
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 
 	go dm.ContainerMonitor.TraceSyscall()
 	go dm.ContainerMonitor.UpdateSystemLogs()
@@ -249,12 +214,32 @@ func (dm *KubeArmorDaemon) CloseContainerMonitor() {
 	dm.ContainerMonitor.DestroyContainerMonitor()
 }
 
+// ==================== //
+// == Signal Handler == //
+// ==================== //
+
+// GetOSSigChannel Function
+func GetOSSigChannel() chan os.Signal {
+	c := make(chan os.Signal, 1)
+
+	signal.Notify(c,
+		syscall.SIGKILL,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+		os.Interrupt)
+
+	return c
+}
+
 // ========== //
 // == Main == //
 // ========== //
 
 // KubeArmor Function
 func KubeArmor(auditLogOption, systemLogOption string) {
+	// create a daemon
 	dm := NewKubeArmorDaemon(auditLogOption, systemLogOption)
 
 	kg.Print("Started KubeArmor")
@@ -282,11 +267,9 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 
 	// monitor audit logs (audit logger)
 	go dm.MonitorAuditLogs()
-	WgDaemon.Add(1)
 
 	// monior system events (container monitor)
 	go dm.MonitorSystemEvents()
-	WgDaemon.Add(1)
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
@@ -302,11 +285,9 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 		if strings.Contains(cr, "containerd") {
 			// monitor containerd events
 			go dm.MonitorContainerdEvents()
-			WgDaemon.Add(1)
 		} else if strings.Contains(cr, "docker") {
 			// monitor docker events
 			go dm.MonitorDockerEvents()
-			WgDaemon.Add(1)
 		}
 
 		// watch k8s pods
@@ -317,10 +298,11 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 	}
 
 	// listen for interrupt signals
-	sigChan := dm.GetChan()
+	sigChan := GetOSSigChannel()
 	<-sigChan
 	kg.PrintfNotInsert("Got a signal to terminate the KubeArmor")
 	close(StopChan)
 
+	// destroy the daemon
 	dm.DestroyKubeArmorDaemon()
 }
