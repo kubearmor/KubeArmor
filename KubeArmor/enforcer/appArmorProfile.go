@@ -345,31 +345,6 @@ func allowedFiles(secPolicy tp.SecurityPolicy, allowLines []string, allowCount i
 	return allowLines, allowCount
 }
 
-func allowedNetworks(secPolicy tp.SecurityPolicy, allowLines []string, allowCount int, networkCount int) ([]string, int, int) {
-	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			if proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  network %s,\n", proto.Protocol)
-				allowLines = append(allowLines, line)
-			} else if proto.IPv4 && !proto.IPv6 {
-				line := fmt.Sprintf("  network inet %s,\n", proto.Protocol)
-				allowLines = append(allowLines, line)
-			} else if !proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  network inet6 %s,\n", proto.Protocol)
-				allowLines = append(allowLines, line)
-			} else {
-				line := fmt.Sprintf("  network %s,\n", proto.Protocol)
-				allowLines = append(allowLines, line)
-			}
-
-			networkCount++
-			allowCount++
-		}
-	}
-
-	return allowLines, allowCount, networkCount
-}
-
 func allowedCapabilities(secPolicy tp.SecurityPolicy, allowLines []string, allowCount int, capabilitiesCount int) ([]string, int, int) {
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
@@ -573,31 +548,6 @@ func auditedFiles(secPolicy tp.SecurityPolicy, auditLines []string, auditCount i
 	}
 
 	return auditLines, auditCount
-}
-
-func auditedNetworks(secPolicy tp.SecurityPolicy, auditLines []string, auditCount int, networkCount int) ([]string, int, int) {
-	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			if proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  audit network %s,\n", proto.Protocol)
-				auditLines = append(auditLines, line)
-			} else if proto.IPv4 && !proto.IPv6 {
-				line := fmt.Sprintf("  audit network inet %s,\n", proto.Protocol)
-				auditLines = append(auditLines, line)
-			} else if !proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  audit network inet6 %s,\n", proto.Protocol)
-				auditLines = append(auditLines, line)
-			} else {
-				line := fmt.Sprintf("  audit network %s,\n", proto.Protocol)
-				auditLines = append(auditLines, line)
-			}
-
-			networkCount++
-			auditCount++
-		}
-	}
-
-	return auditLines, auditCount, networkCount
 }
 
 func auditedCapabilities(secPolicy tp.SecurityPolicy, auditLines []string, auditCount int, capabilitiesCount int) ([]string, int, int) {
@@ -805,31 +755,6 @@ func blockedFiles(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int
 	return denyLines, denyCount
 }
 
-func blockedNetworks(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, networkCount int) ([]string, int, int) {
-	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			if proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  audit deny network %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			} else if proto.IPv4 && !proto.IPv6 {
-				line := fmt.Sprintf("  audit deny network inet %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			} else if !proto.IPv4 && proto.IPv6 {
-				line := fmt.Sprintf("  audit deny network inet6 %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			} else {
-				line := fmt.Sprintf("  audit deny network %s,\n", proto.Protocol)
-				denyLines = append(denyLines, line)
-			}
-
-			networkCount++
-			denyCount++
-		}
-	}
-
-	return denyLines, denyCount, networkCount
-}
-
 func blockedCapabilities(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int, capabilitiesCount int) ([]string, int, int) {
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
@@ -936,9 +861,6 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 			// file
 			allowLines, allowCount = allowedFiles(secPolicy, allowLines, allowCount)
 
-			// network
-			allowLines, allowCount, networkCount = allowedNetworks(secPolicy, allowLines, allowCount, networkCount)
-
 			// capabilities
 			allowLines, allowCount, capabilitiesCount = allowedCapabilities(secPolicy, allowLines, allowCount, capabilitiesCount)
 		}
@@ -952,9 +874,6 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 			// file
 			auditLines, auditCount = auditedFiles(secPolicy, auditLines, auditCount)
 
-			// network
-			auditLines, auditCount, networkCount = auditedNetworks(secPolicy, auditLines, auditCount, networkCount)
-
 			// capabilities
 			auditLines, auditCount, capabilitiesCount = auditedCapabilities(secPolicy, auditLines, auditCount, capabilitiesCount)
 		}
@@ -967,9 +886,6 @@ func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.Secur
 
 			// file
 			denyLines, denyCount = blockedFiles(secPolicy, denyLines, denyCount)
-
-			// network
-			denyLines, denyCount, networkCount = blockedNetworks(secPolicy, denyLines, denyCount, networkCount)
 
 			// capabilities
 			denyLines, denyCount, capabilitiesCount = blockedCapabilities(secPolicy, denyLines, denyCount, capabilitiesCount)

@@ -172,56 +172,6 @@ spec:
                       type: object
                     type: array
                 type: object
-              network:
-                properties:
-                  matchProtocols:
-                    items:
-                      properties:
-                        ipv4:
-                          type: boolean
-                        ipv6:
-                          type: boolean
-                        protocol:
-                          enum:
-                          - TCP
-                          - tcp
-                          - UDP
-                          - udp
-                          - ICMP
-                          - icmp
-                          type: string
-                      required:
-                      - protocol
-                      type: object
-                    type: array
-                  matchSources:
-                    items:
-                      properties:
-                        file:
-                          properties:
-                            matchDirectories:
-                              items:
-                                type: string
-                              type: array
-                            matchPaths:
-                              items:
-                                type: string
-                              type: array
-                          type: object
-                        process:
-                          properties:
-                            matchDirectories:
-                              items:
-                                type: string
-                              type: array
-                            matchPaths:
-                              items:
-                                type: string
-                              type: array
-                          type: object
-                      type: object
-                    type: array
-                type: object
               process:
                 properties:
                   matchDirectories:
