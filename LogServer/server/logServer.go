@@ -5,24 +5,17 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+	"sync"
 
 	pb "github.com/accuknox/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
-
-// StopChan Channel
-var StopChan chan struct{}
 
 // Output Mode
 var Output bool
 
 // init Function
 func init() {
-	StopChan = make(chan struct{})
 	Output = true
 }
 
@@ -33,6 +26,9 @@ type LogServer struct {
 
 	// log server
 	logServer *grpc.Server
+
+	// wait group
+	WgServer sync.WaitGroup
 }
 
 // ========== //
@@ -131,49 +127,6 @@ func (t *LogMessage) SystemLogs(stream pb.LogMessage_SystemLogsServer) error {
 	})
 }
 
-// ==================== //
-// == Signal Handler == //
-// ==================== //
-
-// GetOSSigChannel Function
-func GetOSSigChannel() chan os.Signal {
-	c := make(chan os.Signal, 1)
-
-	signal.Notify(c,
-		syscall.SIGKILL,
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-		os.Interrupt)
-
-	return c
-}
-
-// GetChan Function
-func (ls *LogServer) GetChan() chan os.Signal {
-	sigChan := GetOSSigChannel()
-
-	select {
-	case <-sigChan:
-		fmt.Println("Got a signal to terminate the LogServer")
-		close(StopChan)
-
-		ls.DestroyLogServer()
-
-		os.Exit(0)
-	default:
-		time.Sleep(time.Second * 1)
-	}
-
-	return sigChan
-}
-
-// StopChan Function
-func (ls *LogServer) StopChan() {
-	close(StopChan)
-}
-
 // =============== //
 // == LogServer == //
 // =============== //
@@ -200,20 +153,29 @@ func NewLogServer(port string) *LogServer {
 		fmt.Printf("Started Log Server (%s)\n", listener.Addr().String())
 	}
 
+	// set wait group
+	ls.WgServer = sync.WaitGroup{}
+
 	return ls
 }
 
 // ReceiveLogs Function
 func (ls *LogServer) ReceiveLogs() {
+	ls.WgServer.Add(1)
+	defer ls.WgServer.Done()
+
 	// receive logs
-	if err := ls.logServer.Serve(ls.listener); err != nil {
-		fmt.Println(err.Error())
-	}
+	ls.logServer.Serve(ls.listener)
 }
 
 // DestroyLogServer Function
 func (ls *LogServer) DestroyLogServer() {
-	// if ls.listener != nil {
-	// 	ls.listener.Close()
-	// }
+	// close listener
+	if ls.listener != nil {
+		ls.listener.Close()
+		ls.listener = nil
+	}
+
+	// wait for other routines
+	ls.WgServer.Wait()
 }
