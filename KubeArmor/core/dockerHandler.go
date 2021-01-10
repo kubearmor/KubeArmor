@@ -240,7 +240,8 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 // MonitorDockerEvents Function
 func (dm *KubeArmorDaemon) MonitorDockerEvents() {
-	defer WgDaemon.Done()
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 
 	if Docker == nil {
 		return
