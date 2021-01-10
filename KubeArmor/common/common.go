@@ -52,8 +52,8 @@ const (
 
 // GetDateTimeNow Function
 func GetDateTimeNow() string {
-	time := time.Now().UTC()
-	ret := time.Format(TimeFormUTC)
+	utc := time.Now().UTC()
+	ret := utc.Format(TimeFormUTC)
 	return ret
 }
 
