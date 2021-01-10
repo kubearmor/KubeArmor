@@ -97,7 +97,7 @@ func TestAuditLogger(t *testing.T) {
 
 	// == //
 
-	// Remove audit logs
+	// Remove audit log
 
 	t.Log("[INFO] Remove /tmp/kubearmor-audit.log")
 
