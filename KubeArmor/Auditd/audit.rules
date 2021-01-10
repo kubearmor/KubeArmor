@@ -1,6 +1,38 @@
 ## First rule - delete all
 -D
 
+## Get AVC events
+-a always,exit -F msgtype=AVC
+
+## Get failed Syscall events
+-a always,exit -F msgtype=SYSCALL -F success=0
+
+## Filter out other events
+-a always,exclude -F msgtype=DAEMON_START
+-a always,exclude -F msgtype=CONFIG_CHANGE
+-a always,exclude -F msgtype=DAEMON_END
+-a always,exclude -F msgtype=SYSTEM_BOOT
+-a always,exclude -F msgtype=SYSTEM_RUNLEVEL
+-a always,exclude -F msgtype=SYSTEM_SHUTDOWN
+-a always,exclude -F msgtype=SERVICE_START
+-a always,exclude -F msgtype=SERVICE_STOP
+-a always,exclude -F msgtype=USER_START
+-a always,exclude -F msgtype=USER_LOGIN
+-a always,exclude -F msgtype=USER_AUTH
+-a always,exclude -F msgtype=USER_ACCT
+-a always,exclude -F msgtype=USER_CMD
+-a always,exclude -F msgtype=USER_END
+-a always,exclude -F msgtype=CRED_ACQ
+-a always,exclude -F msgtype=CRED_REFR
+-a always,exclude -F msgtype=CRED_DISP
+-a always,exclude -F msgtype=PROCTITLE
+-a always,exclude -F msgtype=ANOM_PROMISCUOUS
+-a always,exclude -F msgtype=NETFILTER_CFG
+-a always,exclude -F msgtype=LOGIN
+-a always,exclude -F msgtype=CWD
+-a always,exclude -F msgtype=PATH
+-a always,exclude -F msgtype=SOCKADDR
+
 ## Increase the buffers to survive stress events.
 ## Make this bigger for busy systems
 -b 8192
