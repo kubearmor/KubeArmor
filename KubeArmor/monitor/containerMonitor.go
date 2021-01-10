@@ -319,7 +319,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 }
 
 // DestroyContainerMonitor Function
-func (mon *ContainerMonitor) DestroyContainerMonitor() {
+func (mon *ContainerMonitor) DestroyContainerMonitor() error {
 	if mon.SyscallPerfMap != nil {
 		mon.SyscallPerfMap.Stop()
 	}
@@ -335,6 +335,8 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() {
 	if mon.ContextChan != nil {
 		close(mon.ContextChan)
 	}
+
+	return nil
 }
 
 // ================= //

@@ -180,6 +180,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
+	// dm.WgDaemon.Add(1)
+	// defer dm.WgDaemon.Done()
+
 	for {
 		if resp := K8s.WatchK8sPods(); resp != nil {
 			defer resp.Body.Close()
@@ -338,6 +341,9 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 
 // WatchSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
+	// dm.WgDaemon.Add(1)
+	// defer dm.WgDaemon.Done()
+
 	for {
 		if K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
 			if resp := K8s.WatchK8sSecurityPolicies(); resp != nil {

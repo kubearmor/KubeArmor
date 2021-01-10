@@ -275,7 +275,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 
 // MonitorContainerdEvents Function
 func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
-	defer WgDaemon.Done()
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 
 	if Containerd == nil {
 		return

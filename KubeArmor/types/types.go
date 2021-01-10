@@ -231,34 +231,6 @@ type FileType struct {
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
 }
 
-// NetworkProtocolType Structure
-type NetworkProtocolType struct {
-	Protocol string `json:"protocol"`
-	IPv4     bool   `json:"ipv4,omitempty"`
-	IPv6     bool   `json:"ipv6,omitempty"`
-}
-
-// NetworkProcFileType Structure
-type NetworkProcFileType struct {
-	MatchPaths []string `json:"matchPaths,omitempty"`
-	MatchNames []string `json:"matchNames,omitempty"`
-}
-
-// NetworkPolicy Structure
-type NetworkPolicy struct {
-	Process NetworkProcFileType `json:"process,omitempty"`
-	File    NetworkProcFileType `json:"file,omitempty"`
-
-	PolicyType   int    `json:"policyType,omitempty"`   // set by container monitor
-	PolicyAction string `json:"policyAction,omitempty"` // set by container monitor
-}
-
-// NetworkType Structure
-type NetworkType struct {
-	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
-	MatchSources   []NetworkPolicy       `json:"matchSources,omitempty"`
-}
-
 // CapabilitiesType Structure
 type CapabilitiesType struct {
 	MatchCapabilities []string `json:"matchCapabilities,omitempty"`
@@ -271,7 +243,6 @@ type SecuritySpec struct {
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`
-	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
 	Action string `json:"action"`
