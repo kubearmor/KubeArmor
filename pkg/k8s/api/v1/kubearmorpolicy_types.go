@@ -1,5 +1,5 @@
 /*
-Copyright 2020 AccuKnox.
+Copyright 2020-2021 AccuKnox.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -123,30 +123,6 @@ type FileType struct {
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=TCP;tcp;UDP;udp;ICMP;icmp
-type MatchProtocolType string
-
-type NetworkProtocolType struct {
-	Protocol MatchProtocolType `json:"protocol"`
-	IPv4     bool              `json:"ipv4,omitempty"`
-	IPv6     bool              `json:"ipv6,omitempty"`
-}
-
-type NetworkProcFileType struct {
-	MatchPaths       []string `json:"matchPaths,omitempty"`
-	MatchDirectories []string `json:"matchDirectories,omitempty"`
-}
-
-type NetworkSourceType struct {
-	Process NetworkProcFileType `json:"process,omitempty"`
-	File    NetworkProcFileType `json:"file,omitempty"`
-}
-
-type NetworkType struct {
-	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
-	MatchSources   []NetworkSourceType   `json:"matchSources,omitempty"`
-}
-
 // +kubebuilder:validation:Enum=chown;dac_override;dac_read_search;fowner;fsetid;kill;setgid;setuid;setpcap;linux_immutable;net_bind_service;net_broadcast;net_admin;net_raw;ipc_lock;ipc_owner;sys_module;sys_rawio;sys_chroot;sys_ptrace;sys_pacct;sys_admin;sys_boot;sys_nice;sys_resource;sys_time;sys_tty_config;mknod;lease;audit_write;audit_control;setfcap;mac_override;mac_admin
 type MatchCapabilitiesType string
 
@@ -170,7 +146,6 @@ type KubeArmorPolicySpec struct {
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`
-	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
 	Action ActionType `json:"action"`
