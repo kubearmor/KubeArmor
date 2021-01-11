@@ -132,6 +132,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		}
 	} else {
 		kg.Printf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
+		return false
 	}
 
 	return true
@@ -175,6 +176,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 		}
 	} else {
 		kg.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
+		return false
 	}
 
 	return true
