@@ -4,25 +4,22 @@
 sudo apt-get update
 sudo apt-get install -y linux-headers-$(uname -r)
 
-# install golang 1.15.2
-sudo apt-get update
-sudo apt-get -y install gcc libsctp-dev make wget
-wget -q https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz -O /tmp/go1.15.2.linux-amd64.tar.gz
-sudo tar -xvf /tmp/go1.15.2.linux-amd64.tar.gz -C /usr/local
+# # install golang 1.15.2
+# sudo apt-get update
+# sudo apt-get -y install gcc libsctp-dev make wget
+# wget -q https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz -O /tmp/go1.15.2.linux-amd64.tar.gz
+# sudo tar -xvf /tmp/go1.15.2.linux-amd64.tar.gz -C /usr/local
 
-# install bcc
+# install bcc and protoc
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
 echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/iovisor.list
 sudo apt-get update
-sudo apt-get install -y bcc-tools libbcc-examples
+sudo apt-get install -y gcc make wget unzip bcc-tools libbcc-examples
 
-# apply env
-export GOPATH=$HOME/go
-export GOROOT=/usr/local/go
-export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
-
-# install dependency on protoc
-sudo apt-get install -y unzip
+# # apply env
+# export GOPATH=$HOME/go
+# export GOROOT=/usr/local/go
+# export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
 
 # download protoc
 mkdir -p /tmp/protoc; cd /tmp/protoc
