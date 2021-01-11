@@ -4,11 +4,37 @@
 sudo apt-get update
 sudo apt-get install -y linux-headers-$(uname -r)
 
+# install golang 1.15.2
+sudo apt-get update
+sudo apt-get -y install gcc libsctp-dev make
+wget -q https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz -O /tmp/build/go1.15.2.linux-amd64.tar.gz
+sudo tar -xvf /tmp/build/go1.15.2.linux-amd64.tar.gz -C /usr/local
+
 # install bcc
-# sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
-# echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/iovisor.list
-# sudo apt-get update
-# sudo apt-get install -y bcc-tools libbcc-examples
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4052245BD4284CDD
+echo "deb https://repo.iovisor.org/apt/$(lsb_release -cs) $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/iovisor.list
+sudo apt-get update
+sudo apt-get install -y bcc-tools libbcc-examples
+
+# apply env
+export GOPATH=$HOME/go
+export GOROOT=/usr/local/go
+export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+
+# install dependency on protoc
+sudo apt-get install -y unzip
+
+# download protoc
+mkdir -p /tmp/build/protoc; cd /tmp/build/protoc
+wget https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/protoc-3.14.0-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.14.0-linux-x86_64.zip
+
+# install protoc
+unzip protoc-3.14.0-linux-x86_64.zip
+sudo mv bin/protoc /usr/local/bin/
+
+# download protoc-gen-go
+go get -u google.golang.org/grpc
+go get -u github.com/golang/protobuf/protoc-gen-go
 
 # install microk8s
 sudo snap install microk8s --classic
