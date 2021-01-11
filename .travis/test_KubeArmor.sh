@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ARMOR_HOME=`dirname $(realpath "$0")`
+ARMOR_HOME=`dirname $(realpath "$0")`/..
 
 # apply env
 export GOPATH=$HOME/go
