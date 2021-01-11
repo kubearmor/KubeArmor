@@ -20,7 +20,7 @@ test:
 	cd $(CURDIR)/audit; go clean -testcache .; go test -v .
 	# cd $(CURDIR)/enforcer; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
 	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
-	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
+	# cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
 
 .PHONY: clean
 clean:
