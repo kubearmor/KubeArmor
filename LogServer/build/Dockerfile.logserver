@@ -7,7 +7,11 @@ WORKDIR /usr/src/LogServer
 RUN apk update
 RUN apk add --no-cache build-base git
 
-COPY ./src .
+COPY ./LogServer ./LogServer
+COPY ./KubeArmor ./KubeArmor
+COPY ./protobuf ./protobuf
+
+WORKDIR /usr/src/LogServer/LogServer
 
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-logserver main.go
 
@@ -17,6 +21,6 @@ FROM alpine:3.12
 
 RUN apk update
 
-COPY --from=builder /usr/src/LogServer/kubearmor-logserver /KubeArmor/kubearmor-logserver
+COPY --from=builder /usr/src/LogServer/LogServer/kubearmor-logserver /KubeArmor/kubearmor-logserver
 
 ENTRYPOINT ["/KubeArmor/kubearmor-logserver"]

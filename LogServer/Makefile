@@ -13,6 +13,7 @@ test:
 clean:
 	rm -f kubearmor-logserver
 	find . -name go.sum | xargs -I {} rm -f {}
+	$(CURDIR)/build/clean_source_files.sh
 
 .PHONY: image
 image:
