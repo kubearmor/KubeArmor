@@ -262,14 +262,14 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 	}
 	bpfSource := string(content)
 
-	kg.Print("Initializing an eBPF program")
+	// kg.Print("Initializing an eBPF program")
 
 	mon.BpfModule = bcc.NewModule(bpfSource, []string{"-w"})
 	if mon.BpfModule == nil {
 		return errors.New("bpf module is nil")
 	}
 
-	kg.Print("Initialized the eBPF program")
+	// kg.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "close", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}

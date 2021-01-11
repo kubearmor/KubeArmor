@@ -2,6 +2,7 @@ package server
 
 import (
 	"testing"
+	"time"
 
 	"github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
@@ -10,31 +11,57 @@ import (
 func TestLogServer(t *testing.T) {
 	Output = false
 
-	// == //
-
 	// Start LogServer
 
-	t.Log("[INFO] Start LogServer")
-
 	server := NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
 
 	t.Log("[PASS] Started LogServer")
 
-	// == //
-
 	// Start to receive logs
-
-	t.Log("[INFO] Start to receive logs")
 
 	go server.ReceiveLogs()
 
 	t.Log("[PASS] Started to receive logs")
 
-	// == //
+	// wait for a while
 
-	// Create Feeder for AuditLog
+	time.Sleep(time.Second * 1)
 
-	t.Log("[INFO] Create Feeder for AuditLog")
+	// Stop LogServer
+
+	server.DestroyLogServer()
+
+	t.Log("[PASS] Stopped LogServer")
+}
+
+func TestHealthCheckAPI(t *testing.T) {
+	Output = false
+
+	// Start LogServer
+
+	server := NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
+
+	t.Log("[PASS] Started LogServer")
+
+	// Start to receive logs
+
+	go server.ReceiveLogs()
+
+	t.Log("[PASS] Started to receive logs")
+
+	// wait for a while
+
+	time.Sleep(time.Second * 1)
+
+	// Create Feeder
 
 	auditFeeder := feeder.NewFeeder("localhost:32767", "AuditLog")
 	if auditFeeder == nil {
@@ -42,13 +69,9 @@ func TestLogServer(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Created Feeder for AuditLog")
-
-	// == //
+	t.Log("[PASS] Created Feeder")
 
 	// Check HealthCheck API
-
-	t.Log("[INFO] Check HealthCheck API")
 
 	msg, ok := auditFeeder.DoHealthCheck()
 	if !ok {
@@ -58,11 +81,53 @@ func TestLogServer(t *testing.T) {
 
 	t.Log("[PASS] Checked HealthCheck API")
 
-	// == //
+	// Destroy Feeder
+
+	auditFeeder.DestroyFeeder()
+
+	t.Log("[PASS] Destroyed Feeder")
+
+	// Stop LogServer
+
+	server.DestroyLogServer()
+
+	t.Log("[PASS] Stopped LogServer")
+}
+
+func TestAuditLogsAPI(t *testing.T) {
+	Output = false
+
+	// Start LogServer
+
+	server := NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
+
+	t.Log("[PASS] Started LogServer")
+
+	// Start to receive logs
+
+	go server.ReceiveLogs()
+
+	t.Log("[PASS] Started to receive logs")
+
+	// wait for a while
+
+	time.Sleep(time.Second * 1)
+
+	// Create Feeder
+
+	auditFeeder := feeder.NewFeeder("localhost:32767", "AuditLog")
+	if auditFeeder == nil {
+		t.Error("[FAIL] Failed to create Feeder")
+		return
+	}
+
+	t.Log("[PASS] Created Feeder")
 
 	// Check AuditLogs API
-
-	t.Log("[INFO] Test AuditLogs API")
 
 	auditLog := tp.AuditLog{}
 	err := auditFeeder.SendAuditLog(auditLog)
@@ -71,23 +136,45 @@ func TestLogServer(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Tested AuditLogs API")
+	t.Log("[PASS] Checked AuditLogs API")
 
-	// == //
-
-	// Destroy Feeder for AuditLog
-
-	t.Log("[INFO] Destroy Feeder for AuditLog")
+	// Destroy Feeder
 
 	auditFeeder.DestroyFeeder()
 
-	t.Log("[PASS] Destroyed Feeder for AuditLog")
+	t.Log("[PASS] Destroyed Feeder")
 
-	// == //
+	// Stop LogServer
 
-	// Create Feeder for SystemLog
+	server.DestroyLogServer()
 
-	t.Log("[INFO] Create Feeder for SystemLog")
+	t.Log("[PASS] Stopped LogServer")
+}
+
+func TestSystemLogsAPI(t *testing.T) {
+	Output = false
+
+	// Start LogServer
+
+	server := NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
+
+	t.Log("[PASS] Started LogServer")
+
+	// Start to receive logs
+
+	go server.ReceiveLogs()
+
+	t.Log("[PASS] Started to receive logs")
+
+	// wait for a while
+
+	time.Sleep(time.Second * 1)
+
+	// Create Feeder
 
 	systemFeeder := feeder.NewFeeder("localhost:32767", "SystemLog")
 	if systemFeeder == nil {
@@ -95,16 +182,12 @@ func TestLogServer(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Created Feeder for SystemLog")
-
-	// == //
+	t.Log("[PASS] Created Feeder")
 
 	// Check SystemLogs API
 
-	t.Log("[INFO] Check SystemLogs API")
-
 	systemLog := tp.SystemLog{}
-	err = auditFeeder.SendSystemLog(systemLog)
+	err := systemFeeder.SendSystemLog(systemLog)
 	if err != nil {
 		t.Errorf("[FAIL] Failed to send SystemLog (%s)", err.Error())
 		return
@@ -112,25 +195,15 @@ func TestLogServer(t *testing.T) {
 
 	t.Log("[PASS] Checked SystemLogs API")
 
-	// == //
-
-	// Destroy Feeder for SystemLog
-
-	t.Log("[INFO] Destroy Feeder for SystemLog")
+	// Destroy Feeder
 
 	systemFeeder.DestroyFeeder()
 
-	t.Log("[PASS] Destroyed Feeder for SystemLog")
-
-	// == //
+	t.Log("[PASS] Destroyed Feeder")
 
 	// Stop LogServer
-
-	t.Log("[INFO] Stop LogServer")
 
 	server.DestroyLogServer()
 
 	t.Log("[PASS] Stopped LogServer")
-
-	// == //
 }

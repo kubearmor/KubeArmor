@@ -17,17 +17,13 @@ import (
 
 // AppArmorEnforcer Structure
 type AppArmorEnforcer struct {
-	HomeDir string
-
 	AppArmorProfiles     map[string]int
 	AppArmorProfilesLock *sync.Mutex
 }
 
 // NewAppArmorEnforcer Function
-func NewAppArmorEnforcer(homeDir string) *AppArmorEnforcer {
+func NewAppArmorEnforcer() *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
-
-	ae.HomeDir = homeDir
 
 	ae.AppArmorProfiles = map[string]int{}
 	ae.AppArmorProfilesLock = &sync.Mutex{}
@@ -44,10 +40,12 @@ func NewAppArmorEnforcer(homeDir string) *AppArmorEnforcer {
 }
 
 // DestroyAppArmorEnforcer Function
-func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() {
+func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 	for profileName := range ae.AppArmorProfiles {
 		ae.UnregisterAppArmorProfile(profileName)
 	}
+
+	return nil
 }
 
 // ================================= //
@@ -134,6 +132,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		}
 	} else {
 		kg.Printf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
+		return false
 	}
 
 	return true
@@ -177,6 +176,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 		}
 	} else {
 		kg.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
+		return false
 	}
 
 	return true

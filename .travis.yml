@@ -1,7 +1,10 @@
-language: generic
+language: go
 
 os: linux
 dist: bionic
+
+go:
+  - 1.15
 
 services:
   - docker
@@ -10,4 +13,5 @@ install:
   - .travis/prepare.sh
 
 script:
+  - .travis/test_KubeArmor.sh
   - .travis/verify_image.sh
