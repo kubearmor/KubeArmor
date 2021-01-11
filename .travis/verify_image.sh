@@ -1,10 +1,10 @@
 #!/bin/bash
 
-KBA_HOME=`dirname $(realpath "$0")`/..
+ARMOR_HOME=`dirname $(realpath "$0")`/..
 
 # build KubeArmor image (including go-test)
 
-$KBA_HOME/KubeArmor/build/build_kubearmor.sh test
+$ARMOR_HOME/KubeArmor/build/build_kubearmor.sh test
 
 # check KubeArmor image
 
@@ -24,7 +24,7 @@ fi
 
 # build KubeArmor-LogServer (including go-test)
 
-$KBA_HOME/LogServer/build/build_logserver.sh test
+$ARMOR_HOME/LogServer/build/build_logserver.sh test
 
 # check KubeArmor-LogServer
 
