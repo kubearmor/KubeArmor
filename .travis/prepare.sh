@@ -6,7 +6,7 @@ sudo apt-get install -y linux-headers-$(uname -r)
 
 # install golang 1.15.2
 sudo apt-get update
-sudo apt-get -y install gcc libsctp-dev make
+sudo apt-get -y install gcc libsctp-dev make wget
 wget -q https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz -O /tmp/build/go1.15.2.linux-amd64.tar.gz
 sudo tar -xvf /tmp/build/go1.15.2.linux-amd64.tar.gz -C /usr/local
 
