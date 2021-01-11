@@ -16,6 +16,6 @@ func NewPolicyDiscovery() *PolicyDiscovery {
 }
 
 // DestroyPolicyDiscovery Function
-func (pd *PolicyDiscovery) DestroyPolicyDiscovery() {
-	//
+func (pd *PolicyDiscovery) DestroyPolicyDiscovery() error {
+	return nil
 }
