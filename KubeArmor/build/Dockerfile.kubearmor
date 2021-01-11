@@ -4,24 +4,12 @@ FROM accuknox/kubearmor:base as builder
 
 WORKDIR /usr/src/KubeArmor
 
-COPY ./Auditd ./Audit
-COPY ./BPF ./BPF
+COPY ./KubeArmor ./KubeArmor
 COPY ./GKE ./GKE
+COPY ./LogServer ./LogServer
+COPY ./protobuf ./protobuf
 
-COPY ./audit ./build/audit
-COPY ./common ./build/common
-COPY ./core ./build/core
-COPY ./discovery ./build/discovery
-COPY ./enforcer ./build/enforcer
-COPY ./feeder ./build/feeder
-COPY ./log ./build/log
-COPY ./monitor ./build/monitor
-COPY ./types ./build/types
-COPY ./go.mod ./build
-COPY ./main.go ./build
-COPY ./patch.sh ./build
-
-WORKDIR /usr/src/KubeArmor/build
+WORKDIR /usr/src/KubeArmor/KubeArmor
 
 RUN ./patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
@@ -37,8 +25,8 @@ RUN apk update
 RUN apk add bash bcc bcc-dev
 RUN apk add apparmor@edge audit@edge
 
-COPY --from=builder /usr/src/KubeArmor/build/kubearmor /KubeArmor/kubearmor
-COPY --from=builder /usr/src/KubeArmor/BPF/* /KubeArmor/BPF/
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
 
 RUN ln -s /usr/sbin/auditctl /sbin/auditctl

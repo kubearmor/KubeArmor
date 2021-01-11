@@ -1,13 +1,37 @@
 CURDIR=$(shell pwd)
+GO_EXEC=$(shell which go)
 
 .PHONY: build
 build:
 	$(CURDIR)/patch.sh
-	go build -o kubearmor main.go
+	@cd $(CURDIR)/audit; go get .
+	@cd $(CURDIR)/common; go get .
+	@cd $(CURDIR)/core; go get .
+	@cd $(CURDIR)/discovery; go get .
+	@cd $(CURDIR)/enforcer; go get .
+	@cd $(CURDIR)/feeder; go get .
+	@cd $(CURDIR)/log; go get .
+	@cd $(CURDIR)/monitor; go get .
+	@cd $(CURDIR)/types; go get .
+	cd $(CURDIR); go build -o kubearmor main.go
+
+.PHONY: test
+test:
+	cd $(CURDIR)/audit; go clean -testcache .; go test -v .
+	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
+
+.PHONY: testall
+testall:
+	cd $(CURDIR)/audit; go clean -testcache .; go test -v .
+	cd $(CURDIR)/enforcer; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
+	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
+	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
 
 .PHONY: clean
 clean:
-	rm -f kubearmor go.sum
+	rm -f kubearmor
+	find . -name go.sum | xargs -I {} rm -f {}
+	$(CURDIR)/build/clean_source_files.sh
 
 .PHONY: image
 image:

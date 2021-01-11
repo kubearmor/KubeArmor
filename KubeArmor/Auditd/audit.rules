@@ -1,13 +1,10 @@
 ## First rule - delete all
 -D
 
-## Get AVC events
--a always,exit -F msgtype=AVC
-
 ## Get failed Syscall events
--a always,exit -F msgtype=SYSCALL -F success=0
+-a always,exit -S all -F success=0 -k syscall_fail
 
-## Filter out other events
+## Filter out other events except AVC events
 -a always,exclude -F msgtype=DAEMON_START
 -a always,exclude -F msgtype=CONFIG_CHANGE
 -a always,exclude -F msgtype=DAEMON_END

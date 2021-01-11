@@ -138,7 +138,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.HomeDir)
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer()
 	if dm.RuntimeEnforcer == nil {
 		return false
 	}

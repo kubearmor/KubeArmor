@@ -20,8 +20,8 @@ func NewSELinuxEnforcer() *SELinuxEnforcer {
 }
 
 // DestroySELinuxEnforcer Function
-func (se *SELinuxEnforcer) DestroySELinuxEnforcer() {
-	//
+func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
+	return nil
 }
 
 // UpdateSecurityPolicies Function
