@@ -1,7 +1,10 @@
-language: generic
+language: go
 
 os: linux
 dist: bionic
+
+go:
+  - 1.15
 
 services:
   - docker
