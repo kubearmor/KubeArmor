@@ -14,4 +14,4 @@ install:
 
 script:
   - .travis/test_KubeArmor.sh
-  # - .travis/verify_image.sh
+  - .travis/verify_image.sh
