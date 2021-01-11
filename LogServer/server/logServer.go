@@ -169,7 +169,7 @@ func (ls *LogServer) ReceiveLogs() {
 }
 
 // DestroyLogServer Function
-func (ls *LogServer) DestroyLogServer() {
+func (ls *LogServer) DestroyLogServer() error {
 	// close listener
 	if ls.listener != nil {
 		ls.listener.Close()
@@ -178,4 +178,6 @@ func (ls *LogServer) DestroyLogServer() {
 
 	// wait for other routines
 	ls.WgServer.Wait()
+
+	return nil
 }

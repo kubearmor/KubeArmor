@@ -83,8 +83,12 @@ func NewFeeder(server, logType string) *Feeder {
 }
 
 // DestroyFeeder Function
-func (fd *Feeder) DestroyFeeder() {
-	fd.conn.Close()
+func (fd *Feeder) DestroyFeeder() error {
+	if err := fd.conn.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DoHealthCheck Function
@@ -147,7 +151,10 @@ func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) error {
 	if err := fd.auditLogStream.Send(&log); err != nil {
 		kg.Errf("Failed to send an audit log, trying to reconnect to the gRPC server (%s)", err.Error())
 
-		fd.conn.Close()
+		if err := fd.conn.Close(); err != nil {
+			kg.Errf("Failed to close the gRPC server (%s)", err.Error())
+			return err
+		}
 
 		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
 		if err != nil {
@@ -208,7 +215,10 @@ func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) error {
 	if err := fd.systemLogStream.Send(&log); err != nil {
 		kg.Errf("Failed to send a system log, trying to reconnect to the gRPC server (%s)", err.Error())
 
-		fd.conn.Close()
+		if err := fd.conn.Close(); err != nil {
+			kg.Errf("Failed to close the gRPC server (%s)", err.Error())
+			return err
+		}
 
 		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
 		if err != nil {

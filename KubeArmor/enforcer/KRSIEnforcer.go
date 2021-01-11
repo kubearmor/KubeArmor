@@ -20,8 +20,8 @@ func NewKRSIEnforcer() *KRSIEnforcer {
 }
 
 // DestroyKRSIEnforcer Function
-func (ke *KRSIEnforcer) DestroyKRSIEnforcer() {
-	//
+func (ke *KRSIEnforcer) DestroyKRSIEnforcer() error {
+	return nil
 }
 
 // UpdateSecurityPolicies Function

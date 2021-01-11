@@ -26,11 +26,6 @@ import (
 // StopChan Channel
 var StopChan chan struct{}
 
-// init Function
-func init() {
-	StopChan = make(chan struct{})
-}
-
 // AuditLogger Structure
 type AuditLogger struct {
 	// logging
@@ -56,6 +51,8 @@ type AuditLogger struct {
 // NewAuditLogger Function
 func NewAuditLogger(logOption string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *AuditLogger {
 	al := &AuditLogger{}
+
+	StopChan = make(chan struct{})
 
 	if strings.Contains(logOption, "grpc:") {
 		args := strings.Split(logOption, ":")
