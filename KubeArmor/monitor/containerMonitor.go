@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iovisor/gobpf/bcc"
+	"github.com/accuknox/gobpf/bcc"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
