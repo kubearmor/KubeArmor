@@ -10,8 +10,55 @@ import (
 )
 
 func TestAuditLogger(t *testing.T) {
-	// == //
+	// Set up Test Data
 
+	// containers
+	Containers := map[string]tp.Container{}
+	ContainersLock := &sync.Mutex{}
+
+	// ActivePidMap
+	ActivePidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := &sync.Mutex{}
+
+	// Create AuditLogger
+
+	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	if auditLogger == nil {
+		t.Log("[FAIL] Failed to create AuditLogger (file:/tmp/kubearmor-audit.log)")
+		return
+	}
+
+	t.Log("[PASS] Created AuditLogger (file:/tmp/kubearmor-audit.log)")
+
+	// Initialize AuditLogger
+
+	if err := auditLogger.InitAuditLogger("homeDir is not required in general"); err != nil {
+		t.Errorf("[FAIL] Failed to initialize AuditLogger (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Initialized AuditLogger")
+
+	// Destroy AuditLogger
+
+	if err := auditLogger.DestroyAuditLogger(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy AuditLogger (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Destroyed AuditLogger")
+
+	// Remove audit log
+
+	if err := os.Remove("/tmp/kubearmor-audit.log"); err != nil {
+		t.Errorf("[FAIL] Failed to remove /tmp/kubearmor-audit.log (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Removed /tmp/kubearmor-audit.log")
+}
+
+func TestGetAuditType(t *testing.T) {
 	// Set up Test Data
 
 	// containers
@@ -25,50 +72,106 @@ func TestAuditLogger(t *testing.T) {
 	// raw logs
 	lines := []string{}
 
-	// output values for validation
-	auditTypeList := []string{}
-	auditLogs := []tp.AuditLog{}
-
-	// == //
+	// expected auditTypes
+	auditTypes := []string{}
 
 	// Create AuditLogger
 
-	t.Log("[INFO] Create AuditLogger (file:/tmp/kubearmor-audit.log)")
-
 	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
 	if auditLogger == nil {
-		t.Log("[FAIL] Failed to create AuditLogger")
+		t.Log("[FAIL] Failed to create AuditLogger (file:/tmp/kubearmor-audit.log)")
 		return
 	}
 
-	t.Log("[PASS] Created AuditLogger")
-
-	// == //
+	t.Log("[PASS] Created AuditLogger (file:/tmp/kubearmor-audit.log)")
 
 	// Initialize AuditLogger
 
-	t.Log("[INFO] Initialize AuditLogger")
-
 	if err := auditLogger.InitAuditLogger("homeDir is not required in general"); err != nil {
-		t.Errorf("[FAIL] %v", err)
+		t.Errorf("[FAIL] Failed to initialize AuditLogger (%s)", err.Error())
 		return
 	}
 
 	t.Log("[PASS] Initialized AuditLogger")
 
-	// == //
-
-	// Check GetAuditType() and GetAuditLog()
-
-	t.Log("[INFO] Check GetAuditType() and GetAuditLog()")
+	// Check GetAuditType API
 
 	for idx, line := range lines {
 		auditType := auditLogger.GetAuditType(line)
 		if auditType == "" {
 			t.Errorf("[FAIL] No auditType (%d)", idx)
 			return
-		} else if auditType != auditTypeList[idx] {
+		} else if auditType != auditTypes[idx] {
 			t.Errorf("[FAIL] Incorrect auditType (%d, %s)", idx, auditType)
+			return
+		}
+	}
+
+	t.Log("[PASS] Checked GetAuditType API")
+
+	// Destroy AuditLogger
+
+	if err := auditLogger.DestroyAuditLogger(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy AuditLogger (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Destroyed AuditLogger")
+
+	// Remove audit log
+
+	if err := os.Remove("/tmp/kubearmor-audit.log"); err != nil {
+		t.Errorf("[FAIL] Failed to remove /tmp/kubearmor-audit.log (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Removed /tmp/kubearmor-audit.log")
+}
+
+func TestGetAuditLog(t *testing.T) {
+	// Set up Test Data
+
+	// containers
+	Containers := map[string]tp.Container{}
+	ContainersLock := &sync.Mutex{}
+
+	// ActivePidMap
+	ActivePidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := &sync.Mutex{}
+
+	// raw logs
+	lines := []string{}
+
+	// expected auditLogs
+	auditLogs := []tp.AuditLog{}
+
+	// Create AuditLogger
+
+	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	if auditLogger == nil {
+		t.Log("[FAIL] Failed to create AuditLogger (file:/tmp/kubearmor-audit.log)")
+		return
+	}
+
+	t.Log("[PASS] Created AuditLogger (file:/tmp/kubearmor-audit.log)")
+
+	// Initialize AuditLogger
+
+	if err := auditLogger.InitAuditLogger("homeDir is not required in general"); err != nil {
+		t.Errorf("[FAIL] Failed to initialize AuditLogger (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Initialized AuditLogger")
+
+	// Check GetAuditLog API
+
+	t.Log("[INFO] Check GetAuditLog API")
+
+	for idx, line := range lines {
+		auditType := auditLogger.GetAuditType(line)
+		if auditType == "" {
+			t.Errorf("[FAIL] No auditType (%d)", idx)
 			return
 		}
 
@@ -80,9 +183,7 @@ func TestAuditLogger(t *testing.T) {
 
 	}
 
-	t.Log("[PASS] Checked GetAuditType() and GetAuditLog()")
-
-	// == //
+	t.Log("[PASS] Checked GetAuditLog API")
 
 	// Destroy AuditLogger
 
@@ -95,11 +196,7 @@ func TestAuditLogger(t *testing.T) {
 
 	t.Log("[PASS] Destroyed AuditLogger")
 
-	// == //
-
 	// Remove audit log
-
-	t.Log("[INFO] Remove /tmp/kubearmor-audit.log")
 
 	if err := os.Remove("/tmp/kubearmor-audit.log"); err != nil {
 		t.Errorf("[FAIL] Failed to remove /tmp/kubearmor-audit.log (%s)", err.Error())
@@ -107,6 +204,4 @@ func TestAuditLogger(t *testing.T) {
 	}
 
 	t.Log("[PASS] Removed /tmp/kubearmor-audit.log")
-
-	// == //
 }

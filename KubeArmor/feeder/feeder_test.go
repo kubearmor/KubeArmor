@@ -11,31 +11,27 @@ import (
 func TestFeeder(t *testing.T) {
 	server.Output = false
 
-	// == //
-
 	// Start LogServer
 
-	t.Log("[INFO] Start LogServer")
-
 	server := server.NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
 
 	t.Log("[PASS] Started LogServer")
 
-	// == //
-
 	// Start to receive logs
-
-	t.Log("[INFO] Start to receive logs")
 
 	go server.ReceiveLogs()
 
 	t.Log("[PASS] Started to receive logs")
 
-	// == //
+	// wait for a while
 
-	// Create Feeder for AuditLog
+	time.Sleep(time.Second * 1)
 
-	t.Log("[INFO] Create Feeder for AuditLog")
+	// Create Feeder
 
 	auditFeeder := NewFeeder("localhost:32767", "AuditLog")
 	if auditFeeder == nil {
@@ -43,56 +39,174 @@ func TestFeeder(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Created Feeder for AuditLog")
+	t.Log("[PASS] Created Feeder")
 
-	// == //
+	// Destroy Feeder
 
-	// Check DoHealthCheck()
-
-	t.Log("[INFO] Check DoHealthCheck()")
-
-	msg, ok := auditFeeder.DoHealthCheck()
-	if !ok {
-		t.Errorf("[FAIL] Failed to check DoHealthCheck() (%s)", msg)
+	if err := auditFeeder.DestroyFeeder(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy Feeder (%s)", err.Error())
 		return
 	}
 
-	t.Log("[PASS] Checked DoHealthCheck()")
+	t.Log("[PASS] Destroyed Feeder")
 
-	// == //
+	// Stop LogServer
 
-	// Send AuditLog
+	if err := server.DestroyLogServer(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy LogServer (%s)", err.Error())
+		return
+	}
 
-	t.Log("[INFO] Send AuditLog")
+	t.Log("[PASS] Stopped LogServer")
+}
+
+func TestDoHealthCheck(t *testing.T) {
+	server.Output = false
+
+	// Start LogServer
+
+	server := server.NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
+
+	t.Log("[PASS] Started LogServer")
+
+	// Start to receive logs
+
+	go server.ReceiveLogs()
+
+	t.Log("[PASS] Started to receive logs")
+
+	// wait for a while
+
+	time.Sleep(time.Second * 1)
+
+	// Create Feeder
+
+	auditFeeder := NewFeeder("localhost:32767", "AuditLog")
+	if auditFeeder == nil {
+		t.Error("[FAIL] Failed to create Feeder")
+		return
+	}
+
+	t.Log("[PASS] Created Feeder")
+
+	// Check DoHealthCheck API
+
+	if msg, ok := auditFeeder.DoHealthCheck(); !ok {
+		t.Errorf("[FAIL] Failed to check DoHealthCheck API (%s)", msg)
+		return
+	}
+
+	t.Log("[PASS] Checked DoHealthCheck API")
+
+	// Destroy Feeder
+
+	if err := auditFeeder.DestroyFeeder(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy Feeder (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Destroyed Feeder")
+
+	// Stop LogServer
+
+	if err := server.DestroyLogServer(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy LogServer (%s)", err.Error())
+		return
+	}
+
+	t.Log("[PASS] Stopped LogServer")
+}
+
+func TestSendAuditLog(t *testing.T) {
+	server.Output = false
+
+	// Start LogServer
+
+	server := server.NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
+
+	t.Log("[PASS] Started LogServer")
+
+	// Start to receive logs
+
+	go server.ReceiveLogs()
+
+	t.Log("[PASS] Started to receive logs")
+
+	// wait for a while
+
+	time.Sleep(time.Second * 1)
+
+	// Create Feeder
+
+	auditFeeder := NewFeeder("localhost:32767", "AuditLog")
+	if auditFeeder == nil {
+		t.Error("[FAIL] Failed to create Feeder")
+		return
+	}
+
+	t.Log("[PASS] Created Feeder")
+
+	// Check SendAuditLog API
 
 	auditLog := tp.AuditLog{}
-	err := auditFeeder.SendAuditLog(auditLog)
-	if err != nil {
+	if err := auditFeeder.SendAuditLog(auditLog); err != nil {
 		t.Errorf("[FAIL] Failed to send AuditLog (%s)", err.Error())
 		return
 	}
 
-	t.Log("[PASS] Sent AuditLog")
+	t.Log("[PASS] Checked SendAuditLog API")
 
-	// == //
+	// Destroy Feeder
 
-	// Destroy Feeder for AuditLog
+	if err := auditFeeder.DestroyFeeder(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy Feeder (%s)", err.Error())
+		return
+	}
 
-	t.Log("[INFO] Destroy Feeder for AuditLog")
+	t.Log("[PASS] Destroyed Feeder")
 
-	auditFeeder.DestroyFeeder()
+	// Stop LogServer
 
-	t.Log("[PASS] Destroyed Feeder for AuditLog")
+	if err := server.DestroyLogServer(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy LogServer (%s)", err.Error())
+		return
+	}
 
-	// == //
+	t.Log("[PASS] Stopped LogServer")
+}
+
+func TestSendSystemLog(t *testing.T) {
+	server.Output = false
+
+	// Start LogServer
+
+	server := server.NewLogServer(":32767")
+	if server == nil {
+		t.Error("[FAIL] Failed to start LogServer")
+		return
+	}
+
+	t.Log("[PASS] Started LogServer")
+
+	// Start to receive logs
+
+	go server.ReceiveLogs()
+
+	t.Log("[PASS] Started to receive logs")
+
+	// wait for a while
 
 	time.Sleep(time.Second * 1)
 
-	// == //
-
-	// Create Feeder for SystemLog
-
-	t.Log("[INFO] Create Feeder for SystemLog")
+	// Create Feeder
 
 	systemFeeder := NewFeeder("localhost:32767", "SystemLog")
 	if systemFeeder == nil {
@@ -100,42 +214,33 @@ func TestFeeder(t *testing.T) {
 		return
 	}
 
-	t.Log("[PASS] Created Feeder for SystemLog")
+	t.Log("[PASS] Created Feeder")
 
-	// == //
-
-	// Send SystemLog
-
-	t.Log("[INFO] Send SystemLog")
+	// Check SendSystemLog API
 
 	systemLog := tp.SystemLog{}
-	err = auditFeeder.SendSystemLog(systemLog)
-	if err != nil {
+	if err := systemFeeder.SendSystemLog(systemLog); err != nil {
 		t.Errorf("[FAIL] Failed to send SystemLog (%s)", err.Error())
 		return
 	}
 
-	t.Log("[PASS] Sent SystemLog")
+	t.Log("[PASS] Checked SendSystemLog API")
 
-	// == //
+	// Destroy Feeder
 
-	// Destroy Feeder for SystemLog
+	if err := systemFeeder.DestroyFeeder(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy Feeder (%s)", err.Error())
+		return
+	}
 
-	t.Log("[INFO] Destroy Feeder for SystemLog")
-
-	systemFeeder.DestroyFeeder()
-
-	t.Log("[PASS] Destroyed Feeder for SystemLog")
-
-	// == //
+	t.Log("[PASS] Destroyed Feeder")
 
 	// Stop LogServer
 
-	t.Log("[INFO] Stop LogServer")
-
-	server.DestroyLogServer()
+	if err := server.DestroyLogServer(); err != nil {
+		t.Errorf("[FAIL] Failed to destroy LogServer (%s)", err.Error())
+		return
+	}
 
 	t.Log("[PASS] Stopped LogServer")
-
-	// == //
 }
