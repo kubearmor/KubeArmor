@@ -30,7 +30,7 @@ func NewAppArmorEnforcer() *AppArmorEnforcer {
 
 	if !kl.IsK8sLocal() {
 		// mount securityfs
-		kl.GetCommandOutputWithoutErr("/bin/mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
+		kl.GetCommandOutputWithoutErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
 	}
 
 	// grep "KubeArmor" /etc/apparmor.d/* 2> /dev/null | awk -F':' '{print $1}' | xargs -I {} apparmor_parser -R {} 2> /dev/null
@@ -122,7 +122,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		}
 	}
 
-	if _, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
+	if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
 		if _, ok := ae.AppArmorProfiles[profileName]; !ok {
 			ae.AppArmorProfiles[profileName] = 1
 			kg.Printf("Registered an AppArmor profile (%s)", profileName)
@@ -161,7 +161,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 			ae.AppArmorProfiles[profileName]--
 			kg.Printf("Decreased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]+1, ae.AppArmorProfiles[profileName], profileName)
 		} else {
-			if _, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-R", "/etc/apparmor.d/" + profileName}); err != nil {
+			if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/etc/apparmor.d/" + profileName}); err != nil {
 				kg.Printf("Failed to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
 				return false
 			}
@@ -206,7 +206,7 @@ func UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, s
 			return
 		}
 
-		if output, err := kl.GetCommandOutputWithErr("/sbin/apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + appArmorProfile}); err == nil {
+		if output, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + appArmorProfile}); err == nil {
 			kg.Printf("Updated %d security rules to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
 		} else {
 			kg.Printf("Failed to update %d security rules to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, output)
