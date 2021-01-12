@@ -46,6 +46,9 @@ type AuditLogger struct {
 
 	// COS flag
 	isCOS bool
+
+	// NoAuditd flag
+	NoAuditd bool
 }
 
 // NewAuditLogger Function
@@ -105,6 +108,7 @@ func NewAuditLogger(logOption string, containers map[string]tp.Container, contai
 	al.ActivePidMapLock = activePidMapLock
 
 	al.isCOS = false
+	al.NoAuditd = false
 
 	return al
 }
@@ -117,7 +121,7 @@ func (al *AuditLogger) InitAuditLogger(homeDir string) error {
 		if strings.Contains(s, "Container-Optimized OS") {
 			al.isCOS = true
 
-			kg.Printf("Trying to create a symbolic link to get audit logs")
+			kg.Print("Trying to create a symbolic link to get audit logs")
 
 			for {
 				// create symbolic link
@@ -129,15 +133,41 @@ func (al *AuditLogger) InitAuditLogger(homeDir string) error {
 				}
 			}
 
-			kg.Printf("Created a symbolic link to get audit logs")
+			kg.Print("Created a symbolic link to get audit logs")
 		}
 	}
 
 	if kl.IsInK8sCluster() && !al.isCOS {
-		// load audit rules
-		if _, err := kl.GetCommandOutputWithErr("/sbin/auditctl", []string{"-R", "/etc/audit/audit.rules", ">", "/dev/null"}); err != nil {
-			kg.Errf("Failed to load audit rules (%s)", err.Error())
+		// get process list and check if Auditd exists
+		output, err := kl.GetCommandOutputWithErr("ps", []string{"-ef"})
+		if err != nil {
+			kg.Errf("Failed to get process list (%s)", err.Error())
 			return err
+		} else if !strings.Contains(output, "/sbin/auditd") {
+			kg.Print("No Auditd is running at the host")
+			al.NoAuditd = true
+		}
+
+		if al.NoAuditd {
+			// load audit rules
+			if _, err := kl.GetCommandOutputWithErr("auditctl", []string{"-R", "/etc/audit/audit.rules"}); err != nil {
+				kg.Errf("Failed to load audit.rules (%s)", err.Error())
+				return err
+			}
+
+			// start auditd
+			if _, err := kl.GetCommandOutputWithErr("auditd", []string{}); err != nil {
+				kg.Errf("Failed to start Auditd in KubeArmor (%s)", err.Error())
+				return err
+			}
+
+			kg.Print("Started Auditd in KubeArmor")
+		} else {
+			// make a symbolic link
+			if err := os.Symlink("/var/log/audit/audit.log", "/KubeArmor/audit/audit.log"); err != nil {
+				kg.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+				return err
+			}
 		}
 	}
 
@@ -149,10 +179,14 @@ func (al *AuditLogger) DestroyAuditLogger() error {
 	close(StopChan)
 
 	if kl.IsInK8sCluster() && !al.isCOS {
-		// stop the Auditd daemon
-		if _, err := kl.GetCommandOutputWithErr("/usr/bin/pkill", []string{"-9", "auditd"}); err != nil {
-			kg.Errf("Failed to stop auditd (%s)", err.Error())
-			return err
+		if al.NoAuditd {
+			// stop the Auditd daemon
+			if _, err := kl.GetCommandOutputWithErr("pkill", []string{"-9", "auditd"}); err != nil {
+				kg.Errf("Failed to start Auditd in KubeArmor (%s)", err.Error())
+				return err
+			}
+
+			kg.Print("Stopped Auditd in KubeArmor")
 		}
 	}
 
@@ -204,11 +238,6 @@ func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int32) (string, st
 
 // MonitorAuditLogs Function
 func (al *AuditLogger) MonitorAuditLogs() {
-	if kl.IsInK8sCluster() && !al.isCOS {
-		// start auditd
-		kl.GetCommandOutputWithoutErr("/sbin/auditd", []string{})
-	}
-
 	// monitor audit logs
 	al.MonitorGenericAuditLogs()
 }
@@ -222,7 +251,7 @@ func (al *AuditLogger) MonitorGenericAuditLogs() {
 	}
 
 	// monitor audit logs
-	cmd := exec.Command("/usr/bin/tail", "-f", logFile)
+	cmd := exec.Command("tail", "-f", logFile)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		kg.Err(err.Error())
