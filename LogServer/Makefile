@@ -5,6 +5,10 @@ build:
 	@cd $(CURDIR)/server; go get .
 	cd $(CURDIR); go build -o kubearmor-logserver main.go
 
+.PHONY: run
+run: $(CURDIR)/kubearmor-logserver
+	cd $(CURDIR); ./kubearmor-logserver
+
 .PHONY: test
 test:
 	cd $(CURDIR)/server; go clean -testcache .; go test -v .
