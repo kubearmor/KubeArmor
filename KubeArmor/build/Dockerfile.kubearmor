@@ -22,16 +22,14 @@ RUN apk update
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
-RUN apk add bash bcc bcc-dev
+RUN apk add bash curl procps bcc bcc-dev
 RUN apk add apparmor@edge audit@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
 
-RUN ln -s /usr/sbin/auditctl /sbin/auditctl
-RUN ln -s /usr/sbin/auditd /sbin/auditd
-
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/Auditd/* /etc/audit/
 RUN mkdir -p /KubeArmor/audit
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]

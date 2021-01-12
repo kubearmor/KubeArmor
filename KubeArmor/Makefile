@@ -15,6 +15,10 @@ build:
 	@cd $(CURDIR)/types; go get .
 	cd $(CURDIR); go build -o kubearmor main.go
 
+.PHONY: run
+run: $(CURDIR)/kubearmor
+	cd $(CURDIR); sudo -E ./kubearmor
+
 .PHONY: test
 test:
 	cd $(CURDIR)/audit; go clean -testcache .; go test -v .
