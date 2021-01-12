@@ -68,8 +68,8 @@ spec:
           mountPath: /sys/kernel/debug
         - name: etc-apparmor-d-path # AppArmor (read-write)
           mountPath: /etc/apparmor.d
-        - name: var-log-path # GKE-Audit (read-only)
-          mountPath: /var/log
+        - name: var-log-audit-path # GKE-Audit (read-only)
+          mountPath: /var/log/audit
           readOnly: true
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
@@ -109,9 +109,9 @@ spec:
         hostPath:
           path: /etc/apparmor.d
           type: Directory
-      - name: var-log-path # GKE-Audit
+      - name: var-log-audit-path # GKE-Audit
         hostPath:
-          path: /var/log
+          path: /var/log/audit
           type: Directory
       - name: os-release-path # OS
         hostPath:
