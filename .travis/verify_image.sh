@@ -2,7 +2,7 @@
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 
-# build KubeArmor image (including go-test)
+# build KubeArmor image
 
 $ARMOR_HOME/KubeArmor/build/build_kubearmor.sh test
 
@@ -22,7 +22,7 @@ else
     # exit 0
 fi
 
-# build KubeArmor-LogServer (including go-test)
+# build KubeArmor-LogServer
 
 $ARMOR_HOME/LogServer/build/build_logserver.sh test
 
