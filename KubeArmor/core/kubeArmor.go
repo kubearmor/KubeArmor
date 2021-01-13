@@ -242,7 +242,7 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 	// create a daemon
 	dm := NewKubeArmorDaemon(auditLogOption, systemLogOption)
 
-	kg.Print("Started KubeArmor")
+	kg.Print("Initializing KubeArmor")
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {
@@ -296,6 +296,15 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 		// watch security policies
 		go dm.WatchSecurityPolicies()
 	}
+
+	// wait for a while
+	time.Sleep(time.Second * 1)
+
+	// == //
+
+	kg.Print("Initialized KubeArmor")
+
+	// == //
 
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
