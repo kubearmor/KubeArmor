@@ -79,12 +79,28 @@ function delete_and_wait_for_microserivce_deletion() {
     fi
 }
 
+function find_no_logs() {
+    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+
+    tail -n 10 $AUDIT_LOG | grep $1 | grep $2
+    if [ $? != 0 ]; then
+        tail -n 10 $SYSTEM_LOG | grep $1 | grep $2 | grep 'Operation not permitted\|Permission denied'
+        if [ $? != 0 ]; then
+            echo "[INFO] Found no log from both audit logs and system logs"
+        else
+            echo -e "${RED}[FAIL] Found the log from system logs${NC}"
+        fi
+    else
+        echo -e "${RED}[FAIL] Found the log from audit logs${NC}"
+    fi
+}
+
 function find_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     tail -n 10 $AUDIT_LOG | grep $1 | grep $2
     if [ $? != 0 ]; then
-        tail -n 10 $SYSTEM_LOG | grep $1 | grep $2
+        tail -n 10 $SYSTEM_LOG | grep $1 | grep $2 | grep 'Operation not permitted\|Permission denied'
         if [ $? != 0 ]; then
             echo -e "${RED}[FAIL] Failed to find the log from both audit logs and system logs${NC}"
         else
@@ -100,9 +116,6 @@ function run_test_scenario() {
 
     YAML_FILE=$(ls *.yaml)
 
-    SOURCE=$(cat source | grep source | awk '{print $2}')
-    POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
-
     echo -e "${GREEN}[INFO] Applying $YAML_FILE into $2${NC}"
     kubectl apply -n $2 -f $YAML_FILE
     echo "[INFO] Applied $YAML_FILE into $2"
@@ -111,6 +124,9 @@ function run_test_scenario() {
 
     for cmd in $(ls cmd*)
     do
+        SOURCE=$(cat $cmd | grep source | awk '{print $2}')
+        POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
+
         CMD=$(cat $cmd | grep cmd | cut -d' ' -f2-)
         COND=$(cat $cmd | grep cmd | awk '{print $2}')
         RESULT=$(cat $cmd | grep result | awk '{print $2}')
@@ -121,7 +137,7 @@ function run_test_scenario() {
         kubectl exec -n $2 -it $POD -- bash -c "$CMD"
         if [ $? == 0 ]; then
             if [ "$RESULT" == "passed" ]; then
-                echo "[INFO] Ran \"$CMD\""
+                find_no_logs $POD $COND
             elif [ "$RESULT" == "audited" ]; then
                 find_logs $POD $COND
             else
@@ -161,6 +177,10 @@ if [ ! -f kubearmor ]; then
     echo "[INFO] Built KubeArmor"
 fi
 
+sudo rm -f $ARMOR_LOG $AUDIT_LOG $SYSTEM_LOG
+
+sleep 1
+
 echo -e "${ORANGE}[INFO] Starting KubeArmor${NC}"
 start_and_wait_for_kubearmor_initialization
 echo "[INFO] Started KubeArmor"
@@ -168,10 +188,6 @@ echo "[INFO] Started KubeArmor"
 ## == Test Scenarios == ##
 
 cd $TEST_HOME
-
-sudo rm -f $ARMOR_LOG $AUDIT_LOG $SYSTEM_LOG
-
-sleep 1
 
 for microservice in $(ls microservices)
 do
