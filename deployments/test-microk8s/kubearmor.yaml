@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: kubearmor
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor
+  namespace: kube-system
+  labels:
+    daemonset: kubearmor
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor
+  template:
+    metadata:
+      labels:
+        container: kubearmor
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined  
+    spec:
+      serviceAccountName: kubearmor
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      containers:
+      - name: kubearmor
+        image: accuknox/kubearmor:latest
+        imagePullPolicy: Always
+        args: ["-audit=file:/KubeArmor/audit.log", "-system=file:/KubeArmor/system.log"]
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - AUDIT_CONTROL # Auditd
+            - AUDIT_READ # Auditd
+            - AUDIT_WRITE # Auditd
+            - SYS_NICE # Auditd
+        volumeMounts:
+        - name: containerd-sock-path # containerd (read-only)
+          mountPath: /var/run/containerd/containerd.sock
+          readOnly: true
+        - name: usr-src-path # BPF (read-only)
+          mountPath: /usr/src
+          readOnly: true
+        - name: lib-modules-path # BPF (read-only)
+          mountPath: /lib/modules
+          readOnly: true
+        - name: sys-fs-bpf-path # BPF (read-write)
+          mountPath: /sys/fs/bpf
+        - name: sys-kernel-debug-path # BPF (read-write)
+          mountPath: /sys/kernel/debug
+        - name: etc-apparmor-d-path # AppArmor (read-write)
+          mountPath: /etc/apparmor.d
+        - name: var-log-audit-path # Auditd (read-only)
+          mountPath: /var/log/audit
+          readOnly: true
+        - name: os-release-path # OS (read-only)
+          mountPath: /media/root/etc/os-release
+          readOnly: true
+        resources:
+          limits:
+            cpu: "1"
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: containerd-sock-path # containerd
+        hostPath:
+          path: /var/snap/microk8s/common/run/containerd.sock
+          type: Socket
+      - name: usr-src-path # BPF
+        hostPath:
+          path: /usr/src
+          type: Directory
+      - name: lib-modules-path # BPF
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: sys-fs-bpf-path # BPF
+        hostPath:
+          path: /sys/fs/bpf
+          type: Directory
+      - name: sys-kernel-debug-path # BPF
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: etc-apparmor-d-path # AppArmor
+        hostPath:
+          path: /etc/apparmor.d
+          type: Directory
+      - name: var-log-audit-path # Auditd
+        hostPath:
+          path: /var/log/audit
+          type: Directory
+      - name: os-release-path # OS
+        hostPath:
+          path: /etc/os-release
+          type: File
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubearmor-logserver
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    container: kubearmor-logserver
+  ports:
+  - port: 32767
+    nodePort: 32767
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-logserver
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor-logserver
+  template:
+    metadata:
+      labels:
+        container: kubearmor-logserver
+    spec:
+      containers:
+        - name: kubearmor-logserver
+          image: accuknox/kubearmor-logserver:latest
+          ports:
+          - containerPort: 32767
