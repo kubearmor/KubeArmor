@@ -157,7 +157,7 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() {
 
 // InitAuditLogger Function
 func (dm *KubeArmorDaemon) InitAuditLogger() bool {
-	dm.AuditLogger = adt.NewAuditLogger(dm.AuditLogOption, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
+	dm.AuditLogger = adt.NewAuditLogger(dm.AuditLogOption, &dm.Containers, &dm.ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if dm.AuditLogger == nil {
 		return false
 	}
@@ -188,7 +188,7 @@ func (dm *KubeArmorDaemon) CloseAuditLogger() {
 
 // InitContainerMonitor Function
 func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
-	dm.ContainerMonitor = mon.NewContainerMonitor(dm.SystemLogOption, dm.Containers, dm.ContainersLock, ActivePidMap, ActivePidMapLock)
+	dm.ContainerMonitor = mon.NewContainerMonitor(dm.AuditLogOption, dm.SystemLogOption, &dm.Containers, &dm.ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if dm.ContainerMonitor == nil {
 		return false
 	}

@@ -9,11 +9,9 @@ import (
 )
 
 func TestLogServer(t *testing.T) {
-	Output = false
-
 	// Start LogServer
 
-	server := NewLogServer(":32767")
+	server := NewLogServer(":32767", "none", "none")
 	if server == nil {
 		t.Error("[FAIL] Failed to start LogServer")
 		return
@@ -39,11 +37,9 @@ func TestLogServer(t *testing.T) {
 }
 
 func TestHealthCheckAPI(t *testing.T) {
-	Output = false
-
 	// Start LogServer
 
-	server := NewLogServer(":32767")
+	server := NewLogServer(":32767", "none", "none")
 	if server == nil {
 		t.Error("[FAIL] Failed to start LogServer")
 		return
@@ -95,11 +91,9 @@ func TestHealthCheckAPI(t *testing.T) {
 }
 
 func TestAuditLogsAPI(t *testing.T) {
-	Output = false
-
 	// Start LogServer
 
-	server := NewLogServer(":32767")
+	server := NewLogServer(":32767", "none", "none")
 	if server == nil {
 		t.Error("[FAIL] Failed to start LogServer")
 		return
@@ -152,11 +146,9 @@ func TestAuditLogsAPI(t *testing.T) {
 }
 
 func TestSystemLogsAPI(t *testing.T) {
-	Output = false
-
 	// Start LogServer
 
-	server := NewLogServer(":32767")
+	server := NewLogServer(":32767", "none", "none")
 	if server == nil {
 		t.Error("[FAIL] Failed to start LogServer")
 		return
