@@ -37,12 +37,12 @@ type AuditLogger struct {
 	HostName string
 
 	// container id => cotnainer
-	Containers     map[string]tp.Container
-	ContainersLock *sync.Mutex
+	Containers     *map[string]tp.Container
+	ContainersLock **sync.Mutex
 
 	// container id => pid
-	ActivePidMap     map[string]tp.PidMap
-	ActivePidMapLock *sync.Mutex
+	ActivePidMap     *map[string]tp.PidMap
+	ActivePidMapLock **sync.Mutex
 
 	// COS flag
 	isCOS bool
@@ -52,7 +52,7 @@ type AuditLogger struct {
 }
 
 // NewAuditLogger Function
-func NewAuditLogger(logOption string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *AuditLogger {
+func NewAuditLogger(logOption string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex) *AuditLogger {
 	al := &AuditLogger{}
 
 	StopChan = make(chan struct{})
@@ -203,14 +203,18 @@ func (al *AuditLogger) DestroyAuditLogger() error {
 
 // GetContainerInfoFromHostPid Function
 func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int32) (string, string, string, string) {
-	hostPid := uint32(hostPidInt)
+	ActivePidMapLock := *(al.ActivePidMapLock)
+	ContainersLock := *(al.ContainersLock)
+	Containers := *(al.Containers)
 
-	al.ActivePidMapLock.Lock()
-	defer al.ActivePidMapLock.Unlock()
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
+
+	hostPid := uint32(hostPidInt)
 
 	containerID := ""
 
-	for id, pidMap := range al.ActivePidMap {
+	for id, pidMap := range *(al.ActivePidMap) {
 		for pid := range pidMap {
 			if hostPid == pid {
 				containerID = id
@@ -223,11 +227,11 @@ func (al *AuditLogger) GetContainerInfoFromHostPid(hostPidInt int32) (string, st
 		}
 	}
 
-	al.ContainersLock.Lock()
-	defer al.ContainersLock.Unlock()
+	ContainersLock.Lock()
+	defer ContainersLock.Unlock()
 
 	if containerID != "" {
-		if val, ok := al.Containers[containerID]; ok {
+		if val, ok := Containers[containerID]; ok {
 			return val.NamespaceName, val.ContainerGroupName, containerID, val.ContainerName
 		}
 		return "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", containerID, "NOT_DISCOVERED_YET"
