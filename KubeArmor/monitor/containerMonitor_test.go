@@ -22,7 +22,7 @@ func TestContainerMonitor(t *testing.T) {
 
 	// Create Container Monitor
 
-	containerMonitor := NewContainerMonitor("file:/tmp/kubearmor-system.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	containerMonitor := NewContainerMonitor("none", "file:/tmp/kubearmor-system.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if containerMonitor == nil {
 		t.Log("[FAIL] Failed to create ContainerMonitor")
 		return
@@ -61,7 +61,7 @@ func TestTraceSyscall(t *testing.T) {
 
 	// Create Container Monitor
 
-	containerMonitor := NewContainerMonitor("file:/tmp/kubearmor-system.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	containerMonitor := NewContainerMonitor("none", "file:/tmp/kubearmor-system.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if containerMonitor == nil {
 		t.Log("[FAIL] Failed to create ContainerMonitor")
 		return

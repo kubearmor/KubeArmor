@@ -17,7 +17,12 @@ build:
 
 .PHONY: run
 run: $(CURDIR)/kubearmor
-	cd $(CURDIR); sudo -E ./kubearmor
+	@sudo rm -f /tmp/kubearmor-audit.log /tmp/kubearmor-system.log
+	cd $(CURDIR); sudo -E ./kubearmor -audit=file:/tmp/kubearmor-audit.log -system=file:/tmp/kubearmor-system.log
+
+.PHONY: run-with-logserver
+run-with-logserver: $(CURDIR)/kubearmor
+	cd $(CURDIR); sudo -E ./kubearmor -audit=grpc:localhost:32767 -system=grpc:localhost:32767
 
 .PHONY: test
 test:
