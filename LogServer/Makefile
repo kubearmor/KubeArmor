@@ -7,7 +7,8 @@ build:
 
 .PHONY: run
 run: $(CURDIR)/kubearmor-logserver
-	cd $(CURDIR); ./kubearmor-logserver
+	@sudo rm -f /tmp/kubearmor-audit.log /tmp/kubearmor-system.log
+	cd $(CURDIR); ./kubearmor-logserver -audit=file:/tmp/kubearmor-audit.log -system=file:/tmp/kubearmor-system.log
 
 .PHONY: test
 test:

@@ -22,7 +22,7 @@ func TestAuditLogger(t *testing.T) {
 
 	// Create AuditLogger
 
-	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if auditLogger == nil {
 		t.Log("[FAIL] Failed to create AuditLogger (file:/tmp/kubearmor-audit.log)")
 		return
@@ -77,7 +77,7 @@ func TestGetAuditType(t *testing.T) {
 
 	// Create AuditLogger
 
-	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if auditLogger == nil {
 		t.Log("[FAIL] Failed to create AuditLogger (file:/tmp/kubearmor-audit.log)")
 		return
@@ -147,7 +147,7 @@ func TestGetAuditLog(t *testing.T) {
 
 	// Create AuditLogger
 
-	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", Containers, ContainersLock, ActivePidMap, ActivePidMapLock)
+	auditLogger := NewAuditLogger("file:/tmp/kubearmor-audit.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
 	if auditLogger == nil {
 		t.Log("[FAIL] Failed to create AuditLogger (file:/tmp/kubearmor-audit.log)")
 		return
