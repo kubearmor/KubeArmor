@@ -116,21 +116,26 @@ func init() {
 
 // ContainerMonitor Structure
 type ContainerMonitor struct {
-	// logging
-	logType   string
-	logTarget string
-	logFeeder *fd.Feeder
+	// audit logs
+	auditLogType   string
+	auditLogTarget string
+	auditLogFeeder *fd.Feeder
+
+	// system logs
+	systemLogType   string
+	systemLogTarget string
+	systemLogFeeder *fd.Feeder
 
 	// host name
 	HostName string
 
 	// container id -> cotnainer
-	Containers     map[string]tp.Container
-	ContainersLock *sync.Mutex
+	Containers     *map[string]tp.Container
+	ContainersLock **sync.Mutex
 
 	// container id -> host pid
-	ActivePidMap     map[string]tp.PidMap
-	ActivePidMapLock *sync.Mutex
+	ActivePidMap     *map[string]tp.PidMap
+	ActivePidMapLock **sync.Mutex
 
 	// container monitor
 	BpfModule *bcc.Module
@@ -161,26 +166,28 @@ type ContainerMonitor struct {
 }
 
 // NewContainerMonitor Function
-func NewContainerMonitor(logOption string, containers map[string]tp.Container, containersLock *sync.Mutex, activePidMap map[string]tp.PidMap, activePidMapLock *sync.Mutex) *ContainerMonitor {
+func NewContainerMonitor(auditLogOption string, systemLogOption string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex) *ContainerMonitor {
 	mon := new(ContainerMonitor)
 
 	mon.HostName = kl.GetHostName()
 
-	if strings.Contains(logOption, "grpc:") {
-		args := strings.Split(logOption, ":")
+	// audit logs
 
-		mon.logType = args[0]
-		mon.logTarget = args[1] + ":" + args[2] // ip:port
-		mon.logFeeder = fd.NewFeeder(mon.logTarget, "SystemLog")
+	if strings.Contains(auditLogOption, "grpc:") {
+		args := strings.Split(auditLogOption, ":")
 
-	} else if strings.Contains(logOption, "file:") {
-		args := strings.Split(logOption, ":")
+		mon.auditLogType = args[0]
+		mon.auditLogTarget = args[1] + ":" + args[2] // ip:port
+		mon.auditLogFeeder = fd.NewFeeder(mon.auditLogTarget, "AuditLog")
 
-		mon.logType = args[0]
-		mon.logTarget = args[1]
+	} else if strings.Contains(auditLogOption, "file:") {
+		args := strings.Split(auditLogOption, ":")
+
+		mon.auditLogType = args[0]
+		mon.auditLogTarget = args[1]
 
 		// get the directory part from the path
-		dirLog := filepath.Dir(mon.logTarget)
+		dirLog := filepath.Dir(mon.auditLogTarget)
 
 		// create directories
 		if err := os.MkdirAll(dirLog, 0755); err != nil {
@@ -189,20 +196,61 @@ func NewContainerMonitor(logOption string, containers map[string]tp.Container, c
 		}
 
 		// create target file
-		targetFile, err := os.Create(mon.logTarget)
+		targetFile, err := os.Create(mon.auditLogTarget)
 		if err != nil {
 			kg.Errf("Failed to create a target file (%s)", err.Error())
 			return nil
 		}
 		targetFile.Close()
 
-	} else if logOption == "stdout" {
-		mon.logType = "stdout"
-		mon.logTarget = ""
+	} else if auditLogOption == "stdout" {
+		mon.auditLogType = "stdout"
+		mon.auditLogTarget = ""
 
 	} else {
-		mon.logType = "none"
-		mon.logTarget = ""
+		mon.auditLogType = "none"
+		mon.auditLogTarget = ""
+	}
+
+	// system logs
+
+	if strings.Contains(systemLogOption, "grpc:") {
+		args := strings.Split(systemLogOption, ":")
+
+		mon.systemLogType = args[0]
+		mon.systemLogTarget = args[1] + ":" + args[2] // ip:port
+		mon.systemLogFeeder = fd.NewFeeder(mon.systemLogTarget, "SystemLog")
+
+	} else if strings.Contains(systemLogOption, "file:") {
+		args := strings.Split(systemLogOption, ":")
+
+		mon.systemLogType = args[0]
+		mon.systemLogTarget = args[1]
+
+		// get the directory part from the path
+		dirLog := filepath.Dir(mon.systemLogTarget)
+
+		// create directories
+		if err := os.MkdirAll(dirLog, 0755); err != nil {
+			kg.Errf("Failed to create a target directory (%s)", err.Error())
+			return nil
+		}
+
+		// create target file
+		targetFile, err := os.Create(mon.systemLogTarget)
+		if err != nil {
+			kg.Errf("Failed to create a target file (%s)", err.Error())
+			return nil
+		}
+		targetFile.Close()
+
+	} else if systemLogOption == "stdout" {
+		mon.systemLogType = "stdout"
+		mon.systemLogTarget = ""
+
+	} else {
+		mon.systemLogType = "none"
+		mon.systemLogTarget = ""
 	}
 
 	mon.Containers = containers
@@ -328,8 +376,12 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() error {
 		mon.BpfModule.Close()
 	}
 
-	if mon.logFeeder != nil {
-		mon.logFeeder.DestroyFeeder()
+	if mon.auditLogFeeder != nil {
+		mon.auditLogFeeder.DestroyFeeder()
+	}
+
+	if mon.systemLogFeeder != nil {
+		mon.systemLogFeeder.DestroyFeeder()
 	}
 
 	if mon.ContextChan != nil {
@@ -345,10 +397,13 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() error {
 
 // GetNameFromContainerID Function
 func (mon *ContainerMonitor) GetNameFromContainerID(id string) (string, string, string) {
-	mon.ContainersLock.Lock()
-	defer mon.ContainersLock.Unlock()
+	ContainersLock := *(mon.ContainersLock)
+	Containers := *(mon.Containers)
 
-	if val, ok := mon.Containers[id]; ok {
+	ContainersLock.Lock()
+	defer ContainersLock.Unlock()
+
+	if val, ok := Containers[id]; ok {
 		return val.NamespaceName, val.ContainerGroupName, val.ContainerName
 	}
 
@@ -373,13 +428,16 @@ func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.System
 
 	log.Operation = "syscall"
 	log.Resource = getSyscallName(int32(msg.ContextSys.EventID))
-	log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
 
 	if msg.ContextSys.Retval < 0 {
 		message := getErrorMessage(msg.ContextSys.Retval)
 		if message != "" {
-			log.Result = fmt.Sprintf("Failed (%s)", message)
+			log.Result = fmt.Sprintf("%s", message)
+		} else {
+			log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
 		}
+	} else {
+		log.Result = "Passed"
 	}
 
 	log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
@@ -399,7 +457,7 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				continue
 			}
 
-			if mon.logType == "none" {
+			if mon.systemLogType == "none" && msg.ContextSys.Retval != -1 {
 				continue
 			}
 
@@ -594,23 +652,54 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 			// == //
 
-			if msg.ContextSys.Retval >= 0 {
-				continue
-			}
+			if mon.systemLogType == "grpc" {
+				mon.systemLogFeeder.SendSystemLog(log)
 
-			// == //
-
-			if mon.logType == "grpc" {
-				mon.logFeeder.SendSystemLog(log)
-
-			} else if mon.logType == "file" {
+			} else if mon.systemLogType == "file" {
 				arr, _ := json.Marshal(log)
-				kl.StrToFile(string(arr), mon.logTarget)
+				kl.StrToFile(string(arr), mon.systemLogTarget)
 
-			} else if mon.logType == "stdout" {
+			} else if mon.systemLogType == "stdout" {
 				arr, _ := json.Marshal(log)
 				fmt.Println(string(arr))
 			}
+
+			if msg.ContextSys.Retval == -1 {
+				auditLog := tp.AuditLog{}
+
+				auditLog.UpdatedTime = log.UpdatedTime
+
+				auditLog.HostName = log.HostName
+
+				auditLog.ContainerID = log.ContainerID
+				auditLog.ContainerName = log.ContainerName
+
+				auditLog.NamespaceName = log.NamespaceName
+				auditLog.PodName = log.PodName
+
+				auditLog.HostPID = log.HostPID
+
+				auditLog.Source = log.Source
+				auditLog.Operation = log.Operation
+				auditLog.Resource = log.Resource
+				auditLog.Result = fmt.Sprintf("Failed (%s)", log.Result)
+
+				auditLog.RawData = ""
+
+				if mon.auditLogType == "grpc" {
+					mon.auditLogFeeder.SendAuditLog(auditLog)
+
+				} else if mon.auditLogType == "file" {
+					arr, _ := json.Marshal(log)
+					kl.StrToFile(string(arr), mon.auditLogTarget)
+
+				} else if mon.auditLogType == "stdout" {
+					arr, _ := json.Marshal(log)
+					fmt.Println(string(arr))
+				}
+			}
+
+			// == //
 		}
 	}
 }
@@ -698,27 +787,33 @@ func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string) t
 
 // AddActivePid Function
 func (mon *ContainerMonitor) AddActivePid(containerID string, node tp.PidNode) {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActivePidMap := *(mon.ActivePidMap)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	// add pid node to AcvtivePidMaps
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
+	if pidMap, ok := ActivePidMap[containerID]; ok {
 		if _, ok := pidMap[node.HostPID]; !ok {
 			pidMap[node.HostPID] = node
 		}
 	} else {
 		newPidMap := tp.PidMap{node.HostPID: node}
-		mon.ActivePidMap[containerID] = newPidMap
+		ActivePidMap[containerID] = newPidMap
 	}
 }
 
 // DeleteActivePid Function
 func (mon *ContainerMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActivePidMap := *(mon.ActivePidMap)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	// delete execve(at) pid
-	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
+	if pidMap, ok := ActivePidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
 			if node.HostPID == ctx.HostPID && node.PID == ctx.PID {
 				node.Exited = true
@@ -730,12 +825,15 @@ func (mon *ContainerMonitor) DeleteActivePid(containerID string, ctx SyscallCont
 
 // CleanUpExitedHostPids Function
 func (mon *ContainerMonitor) CleanUpExitedHostPids() {
-	mon.ActivePidMapLock.Lock()
-	defer mon.ActivePidMapLock.Unlock()
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActivePidMap := *(mon.ActivePidMap)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	now := time.Now()
 
-	for _, pidMap := range mon.ActivePidMap {
+	for _, pidMap := range ActivePidMap {
 		for hostPid, pidNode := range pidMap {
 			if pidNode.Exited {
 				if now.After(pidNode.ExitedTime.Add(time.Second * 10)) {
@@ -801,14 +899,17 @@ func (mon *ContainerMonitor) TraceSyscall() {
 				continue
 			}
 
+			ContainersLock := *(mon.ContainersLock)
+			Containers := *(mon.Containers)
+
 			// skip namespaces
-			mon.ContainersLock.Lock()
-			namespace := mon.Containers[containerID].NamespaceName
+			ContainersLock.Lock()
+			namespace := Containers[containerID].NamespaceName
 			if mon.SkipNamespace && kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-				mon.ContainersLock.Unlock()
+				ContainersLock.Unlock()
 				continue
 			}
-			mon.ContainersLock.Unlock()
+			ContainersLock.Unlock()
 
 			if ctx.EventID == SYS_OPEN {
 				if len(args) != 2 {
