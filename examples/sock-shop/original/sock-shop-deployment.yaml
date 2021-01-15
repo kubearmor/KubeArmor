@@ -3,13 +3,77 @@ kind: Namespace
 metadata:
   name: sock-shop
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: front-end
+  namespace: sock-shop
+  labels:
+    name: front-end
+spec:
+  selector:
+    name: front-end
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 8079
+    nodePort: 30879
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: front-end
+  namespace: sock-shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: front-end
+  template:
+    metadata:
+      labels:
+        name: front-end
+    spec:
+      containers:
+      - name: front-end
+        image: weaveworksdemos/front-end:0.3.12
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 8079
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          capabilities:
+            drop:
+              - all
+          readOnlyRootFilesystem: true
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: carts-db
+  namespace: sock-shop
+  labels:
+    name: carts-db
+spec:
+  selector:
+    name: carts-db
+  ports:
+  - port: 27017
+    targetPort: 27017
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: carts-db
+  namespace: sock-shop
   labels:
     name: carts-db
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -48,25 +112,24 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: carts-db
-  labels:
-    name: carts-db
+  name: carts
   namespace: sock-shop
+  labels:
+    name: carts
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 27017
-    targetPort: 27017
   selector:
-    name: carts-db
+    name: carts
+  ports:
+  - port: 80
+    targetPort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: carts
+  namespace: sock-shop
   labels:
     name: carts
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -109,25 +172,24 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: carts
-  labels:
-    name: carts
+  name: catalogue-db
   namespace: sock-shop
+  labels:
+    name: catalogue-db
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 80
-    targetPort: 80
   selector:
-    name: carts
+    name: catalogue-db
+  ports:
+  - port: 3306
+    targetPort: 3306
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalogue-db
+  namespace: sock-shop
   labels:
     name: catalogue-db
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -155,25 +217,24 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: catalogue-db
-  labels:
-    name: catalogue-db
+  name: catalogue
   namespace: sock-shop
+  labels:
+    name: catalogue
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 3306
-    targetPort: 3306
   selector:
-    name: catalogue-db
+    name: catalogue
+  ports:
+  - port: 80
+    targetPort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: catalogue
+  namespace: sock-shop
   labels:
     name: catalogue
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -204,88 +265,37 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: catalogue
-  labels:
-    name: catalogue
+  name: user-db
   namespace: sock-shop
+  labels:
+    name: user-db
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 80
-    targetPort: 80
   selector:
-    name: catalogue
+    name: user-db
+  ports:
+  - port: 27017
+    targetPort: 27017
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: front-end
+  name: user-db
   namespace: sock-shop
+  labels:
+    name: user-db
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: front-end
+      name: user-db
   template:
     metadata:
       labels:
-        name: front-end
+        name: user-db
     spec:
       containers:
-      - name: front-end
-        image: weaveworksdemos/front-end:0.3.12
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-        ports:
-        - containerPort: 8079
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 10001
-          capabilities:
-            drop:
-              - all
-          readOnlyRootFilesystem: true
-      nodeSelector:
-        beta.kubernetes.io/os: linux
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: front-end
-  labels:
-    name: front-end
-  namespace: sock-shop
-spec:
-  type: NodePort
-  ports:
-  - port: 80
-    targetPort: 8079
-    nodePort: 30001
-  selector:
-    name: front-end
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: orders-db
-  labels:
-    name: orders-db
-  namespace: sock-shop
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: orders-db
-  template:
-    metadata:
-      labels:
-        name: orders-db
-    spec:
-      containers:
-      - name: orders-db
-        image: mongo
+      - name: user-db
+        image: weaveworksdemos/user-db:0.4.0
         ports:
         - name: mongo
           containerPort: 27017
@@ -311,45 +321,42 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: orders-db
-  labels:
-    name: orders-db
+  name: user
   namespace: sock-shop
+  labels:
+    name: user
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 27017
-    targetPort: 27017
   selector:
-    name: orders-db
+    name: user
+  ports:
+  - port: 80
+    targetPort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: orders
-  labels:
-    name: orders
+  name: user
   namespace: sock-shop
+  labels:
+    name: user
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: orders
+      name: user
   template:
     metadata:
       labels:
-        name: orders
+        name: user
     spec:
       containers:
-      - name: orders
-        image: weaveworksdemos/orders:0.4.7
-        env:
-         - name: ZIPKIN
-           value: zipkin.jaeger.svc.cluster.local
-         - name: JAVA_OPTS
-           value: -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom
+      - name: user
+        image: weaveworksdemos/user:0.4.7
         ports:
         - containerPort: 80
+        env:
+        - name: MONGO_HOST
+          value: user-db:27017
         securityContext:
           runAsNonRoot: true
           runAsUser: 10001
@@ -359,38 +366,30 @@ spec:
             add:
               - NET_BIND_SERVICE
           readOnlyRootFilesystem: true
-        volumeMounts:
-        - mountPath: /tmp
-          name: tmp-volume
-      volumes:
-        - name: tmp-volume
-          emptyDir:
-            medium: Memory
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: orders
-  labels:
-    name: orders
+  name: payment
   namespace: sock-shop
+  labels:
+    name: payment
 spec:
+  selector:
+    name: payment
   ports:
-    # the port that this service should serve on
   - port: 80
     targetPort: 80
-  selector:
-    name: orders
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: payment
+  namespace: sock-shop
   labels:
     name: payment
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -421,25 +420,26 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: payment
-  labels:
-    name: payment
+  name: queue-master
   namespace: sock-shop
+  labels:
+    name: queue-master
+  annotations:
+    prometheus.io/path: "/prometheus"
 spec:
+  selector:
+    name: queue-master
   ports:
-    # the port that this service should serve on
   - port: 80
     targetPort: 80
-  selector:
-    name: payment
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: queue-master
+  namespace: sock-shop
   labels:
     name: queue-master
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -461,27 +461,24 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: queue-master
-  labels:
-    name: queue-master
-  annotations:
-    prometheus.io/path: "/prometheus"
+  name: rabbitmq
   namespace: sock-shop
+  labels:
+    name: rabbitmq
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 80
-    targetPort: 80
   selector:
-    name: queue-master
+    name: rabbitmq
+  ports:
+  - port: 5672
+    targetPort: 5672
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rabbitmq
+  namespace: sock-shop
   labels:
     name: rabbitmq
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -513,25 +510,24 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: rabbitmq
-  labels:
-    name: rabbitmq
+  name: shipping
   namespace: sock-shop
+  labels:
+    name: shipping
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 5672
-    targetPort: 5672
   selector:
-    name: rabbitmq
+    name: shipping
+  ports:
+  - port: 80
+    targetPort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: shipping
+  namespace: sock-shop
   labels:
     name: shipping
-  namespace: sock-shop
 spec:
   replicas: 1
   selector:
@@ -574,38 +570,37 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: shipping
-  labels:
-    name: shipping
+  name: orders-db
   namespace: sock-shop
+  labels:
+    name: orders-db
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 80
-    targetPort: 80
   selector:
-    name: shipping
+    name: orders-db
+  ports:
+  - port: 27017
+    targetPort: 27017
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user-db
-  labels:
-    name: user-db
+  name: orders-db
   namespace: sock-shop
+  labels:
+    name: orders-db
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: user-db
+      name: orders-db
   template:
     metadata:
       labels:
-        name: user-db
+        name: orders-db
     spec:
       containers:
-      - name: user-db
-        image: weaveworksdemos/user-db:0.4.0
+      - name: orders-db
+        image: mongo
         ports:
         - name: mongo
           containerPort: 27017
@@ -631,43 +626,44 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: user-db
-  labels:
-    name: user-db
+  name: orders
   namespace: sock-shop
+  labels:
+    name: orders
 spec:
-  ports:
-    # the port that this service should serve on
-  - port: 27017
-    targetPort: 27017
   selector:
-    name: user-db
+    name: orders
+  ports:
+  - port: 80
+    targetPort: 80
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: user
-  labels:
-    name: user
+  name: orders
   namespace: sock-shop
+  labels:
+    name: orders
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: user
+      name: orders
   template:
     metadata:
       labels:
-        name: user
+        name: orders
     spec:
       containers:
-      - name: user
-        image: weaveworksdemos/user:0.4.7
+      - name: orders
+        image: weaveworksdemos/orders:0.4.7
+        env:
+         - name: ZIPKIN
+           value: zipkin.jaeger.svc.cluster.local
+         - name: JAVA_OPTS
+           value: -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom
         ports:
         - containerPort: 80
-        env:
-        - name: MONGO_HOST
-          value: user-db:27017
         securityContext:
           runAsNonRoot: true
           runAsUser: 10001
@@ -677,20 +673,12 @@ spec:
             add:
               - NET_BIND_SERVICE
           readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-volume
+      volumes:
+        - name: tmp-volume
+          emptyDir:
+            medium: Memory
       nodeSelector:
         beta.kubernetes.io/os: linux
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: user
-  labels:
-    name: user
-  namespace: sock-shop
-spec:
-  ports:
-    # the port that this service should serve on
-  - port: 80
-    targetPort: 80
-  selector:
-    name: user
