@@ -47,13 +47,15 @@ func GetOSSigChannel() chan os.Signal {
 func main() {
 	// ger arguments
 	portPtr := flag.String("port", "32767", "gRPC port number (default: 32767)")
+	auditLogOptionPtr := flag.String("audit", "stdout", "file:[absolute path] | stdout}")
+	systemLogOptionPtr := flag.String("system", "none", "file:[absolute path] | stdout | none}")
 	flag.Parse()
 
 	// get gRPC port
 	port := fmt.Sprintf(":%s", *portPtr)
 
 	// start server
-	LogServer = server.NewLogServer(port)
+	LogServer = server.NewLogServer(port, *auditLogOptionPtr, *systemLogOptionPtr)
 
 	// receive logs
 	go LogServer.ReceiveLogs()

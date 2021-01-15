@@ -5,18 +5,34 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	pb "github.com/accuknox/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
 
-// Output Mode
-var Output bool
+// AuditLogType for audit logs
+var AuditLogType string
+
+// AuditLogPath for audit logs
+var AuditLogPath string
+
+// SystemLogType for system logs
+var SystemLogType string
+
+// SystemLogPath for system logs
+var SystemLogPath string
 
 // init Function
 func init() {
-	Output = true
+	AuditLogType = "stdout"
+	AuditLogPath = ""
+
+	SystemLogType = "none"
+	SystemLogPath = ""
 }
 
 // LogServer Structure
@@ -55,11 +71,37 @@ func (t *LogMessage) AuditLogs(stream pb.LogMessage_AuditLogsServer) error {
 		}
 
 		if err != nil {
-			// fmt.Println(err.Error())
 			return nil
 		}
 
-		if Output {
+		if AuditLogType == "file" {
+			// write audit log in an audit path
+
+			file, err := os.OpenFile(AuditLogPath, os.O_WRONLY|os.O_APPEND, 0644)
+			if err != nil {
+				fmt.Errorf("%v", err)
+			}
+
+			str := fmt.Sprintf("== Audit Log / %s ==\n", res.UpdatedTime)
+
+			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
+			str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
+			str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
+			str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
+			str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
+
+			str = str + fmt.Sprintf("Source: %s\n", res.Source)
+			str = str + fmt.Sprintf("Operation: %s\n", res.Operation)
+			str = str + fmt.Sprintf("Resource: %s\n", res.Resource)
+			str = str + fmt.Sprintf("Result: %s\n", res.Result)
+
+			_, err = file.WriteString(str)
+			if err != nil {
+				fmt.Errorf("%v", err)
+			}
+
+			file.Close()
+		} else if AuditLogType == "stdout" {
 			// print audit log
 
 			fmt.Printf("== Audit Log / %s ==\n", res.UpdatedTime)
@@ -94,11 +136,42 @@ func (t *LogMessage) SystemLogs(stream pb.LogMessage_SystemLogsServer) error {
 		}
 
 		if err != nil {
-			// fmt.Println(err.Error())
 			return nil
 		}
 
-		if Output {
+		if SystemLogType == "file" {
+			// write system log in a system path
+
+			file, err := os.OpenFile(SystemLogPath, os.O_WRONLY|os.O_APPEND, 0644)
+			if err != nil {
+				fmt.Errorf("%v", err)
+			}
+
+			str := fmt.Sprintf("== System Log / %s ==\n", res.UpdatedTime)
+
+			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
+			str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
+			str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
+			str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
+			str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
+
+			str = str + fmt.Sprintf("Source: %s\n", res.Source)
+			str = str + fmt.Sprintf("Operation: %s\n", res.Operation)
+			str = str + fmt.Sprintf("Resource: %s\n", res.Resource)
+
+			if len(res.Args) > 0 {
+				str = str + fmt.Sprintf("Arguments: %s\n", res.Args)
+			}
+
+			str = str + fmt.Sprintf("Result: %s\n", res.Result)
+
+			_, err = file.WriteString(str)
+			if err != nil {
+				fmt.Errorf("%v", err)
+			}
+
+			file.Close()
+		} else if SystemLogType == "stdout" {
 			// print system log
 
 			fmt.Printf("== System Log / %s ==\n", res.UpdatedTime)
@@ -132,7 +205,7 @@ func (t *LogMessage) SystemLogs(stream pb.LogMessage_SystemLogsServer) error {
 // =============== //
 
 // NewLogServer Function
-func NewLogServer(port string) *LogServer {
+func NewLogServer(port, auditLogOption, systemLogOption string) *LogServer {
 	ls := new(LogServer)
 
 	// listen to gRPC port
@@ -142,6 +215,59 @@ func NewLogServer(port string) *LogServer {
 	}
 	ls.listener = listener
 
+	// set Output modes
+	auditArgs := strings.Split(auditLogOption, ":")
+
+	AuditLogType = auditArgs[0]
+	if AuditLogType == "file" {
+		AuditLogPath = auditArgs[1]
+
+		// get the directory part from the path
+		dirLog := filepath.Dir(AuditLogPath)
+
+		// create directories
+		if err := os.MkdirAll(dirLog, 0755); err != nil {
+			fmt.Errorf("Failed to create a target directory (%s)", err.Error())
+			return nil
+		}
+
+		// create target file
+		targetFile, err := os.Create(AuditLogPath)
+		if err != nil {
+			fmt.Errorf("Failed to create a target file (%s)", err.Error())
+			return nil
+		}
+		targetFile.Close()
+	} else {
+		AuditLogPath = ""
+	}
+
+	systemArgs := strings.Split(systemLogOption, ":")
+
+	SystemLogType = systemArgs[0]
+	if SystemLogType == "file" {
+		SystemLogPath = systemArgs[1]
+
+		// get the directory part from the path
+		dirLog := filepath.Dir(SystemLogPath)
+
+		// create directories
+		if err := os.MkdirAll(dirLog, 0755); err != nil {
+			fmt.Errorf("Failed to create a target directory (%s)", err.Error())
+			return nil
+		}
+
+		// create target file
+		targetFile, err := os.Create(SystemLogPath)
+		if err != nil {
+			fmt.Errorf("Failed to create a target file (%s)", err.Error())
+			return nil
+		}
+		targetFile.Close()
+	} else {
+		SystemLogPath = ""
+	}
+
 	// create a log server
 	ls.logServer = grpc.NewServer()
 
@@ -149,7 +275,7 @@ func NewLogServer(port string) *LogServer {
 	logService := &LogMessage{}
 	pb.RegisterLogMessageServer(ls.logServer, logService)
 
-	if Output {
+	if AuditLogType != "none" && SystemLogType != "none" {
 		fmt.Printf("Started Log Server (%s)\n", listener.Addr().String())
 	}
 
@@ -178,6 +304,10 @@ func (ls *LogServer) DestroyLogServer() error {
 
 	// wait for other routines
 	ls.WgServer.Wait()
+
+	if AuditLogType != "none" && SystemLogType != "none" {
+		fmt.Println("Stopped Log Server")
+	}
 
 	return nil
 }
