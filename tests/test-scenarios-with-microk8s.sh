@@ -125,7 +125,7 @@ function delete_and_wait_for_microserivce_deletion() {
 function find_no_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v kubearmor-logserver | awk '{print $1}')
 
-    sleep 1
+    sleep 2
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
@@ -145,7 +145,7 @@ function find_no_logs() {
 function find_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v kubearmor-logserver | awk '{print $1}')
 
-    sleep 1
+    sleep 2
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 

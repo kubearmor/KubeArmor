@@ -20,6 +20,7 @@ import (
 // UpdateContainerGroupWithContainer Function
 func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, container tp.Container) {
 	dm.ContainerGroupsLock.Lock()
+	defer dm.ContainerGroupsLock.Unlock()
 
 	// find the corresponding container group
 
@@ -34,7 +35,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 
 	if conGroupIdx == -1 {
 		kg.Errf("No container group (%s/%s) for a container (%s)", container.NamespaceName, container.ContainerGroupName, container.ContainerID[:12])
-		dm.ContainerGroupsLock.Unlock()
 		return
 	}
 
@@ -73,8 +73,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 	// enforce the security policy
 
 	dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
-
-	dm.ContainerGroupsLock.Unlock()
 }
 
 // ================ //
@@ -84,6 +82,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 // UpdateContainerGroupWithPod Function
 func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8sPod) {
 	dm.ContainerGroupsLock.Lock()
+	defer dm.ContainerGroupsLock.Unlock()
 
 	if action == "ADDED" {
 		// create a new container group
@@ -174,8 +173,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 
 		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
 	}
-
-	dm.ContainerGroupsLock.Unlock()
 }
 
 // WatchK8sPods Function
