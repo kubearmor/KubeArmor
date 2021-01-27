@@ -16,13 +16,9 @@ func TestContainerMonitor(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := &sync.Mutex{}
 
-	// ActivePidMap
-	ActivePidMap := map[string]tp.PidMap{}
-	ActivePidMapLock := &sync.Mutex{}
-
 	// Create Container Monitor
 
-	containerMonitor := NewContainerMonitor("none", "file:/tmp/kubearmor-system.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
+	containerMonitor := NewContainerMonitor(nil, &Containers, &ContainersLock)
 	if containerMonitor == nil {
 		t.Log("[FAIL] Failed to create ContainerMonitor")
 		return
@@ -37,15 +33,6 @@ func TestContainerMonitor(t *testing.T) {
 	}
 
 	t.Log("[PASS] Destroyed ContainerMonitor")
-
-	// Remove system log
-
-	if err := os.Remove("/tmp/kubearmor-system.log"); err != nil {
-		t.Errorf("[FAIL] Failed to remove /tmp/kubearmor-system.log (%s)", err.Error())
-		return
-	}
-
-	t.Log("[PASS] Removed /tmp/kubearmor-system.log")
 }
 
 func TestTraceSyscall(t *testing.T) {
@@ -55,13 +42,9 @@ func TestTraceSyscall(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := &sync.Mutex{}
 
-	// ActivePidMap
-	ActivePidMap := map[string]tp.PidMap{}
-	ActivePidMapLock := &sync.Mutex{}
-
 	// Create Container Monitor
 
-	containerMonitor := NewContainerMonitor("none", "file:/tmp/kubearmor-system.log", &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock)
+	containerMonitor := NewContainerMonitor(nil, &Containers, &ContainersLock)
 	if containerMonitor == nil {
 		t.Log("[FAIL] Failed to create ContainerMonitor")
 		return
@@ -105,13 +88,4 @@ func TestTraceSyscall(t *testing.T) {
 	}
 
 	t.Log("[PASS] Destroyed ContainerMonitor")
-
-	// Remove system log
-
-	if err := os.Remove("/tmp/kubearmor-system.log"); err != nil {
-		t.Errorf("[FAIL] Failed to remove /tmp/kubearmor-system.log (%s)", err.Error())
-		return
-	}
-
-	t.Log("[PASS] Removed /tmp/kubearmor-system.log")
 }
