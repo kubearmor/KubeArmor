@@ -22,15 +22,16 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
 
         \- Enforcing security policies against:
 
-            Process executions (through AppArmor)  
-            File accesses (through AppArmor)  
-            Network operations (through AppArmor)  
-            Capabilities permitted (through AppArmor)
+            Process executions  
+            File accesses  
+            Network operations  
+            Capabilities permitted  
+            Resource uses
 
         \- Producing container-aware audit logs and system logs (for failed system calls) and write them into:
         
-            Standard output
-            Log file
+            Standard output  
+            Log file  
             gRPC
 
 - Next Release
@@ -44,10 +45,6 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
         \- (extension) KRSI (requiring Linux kernel v5.8 or newer)
 
     - Features
-    
-        \- (extension) Enforcing security policies against:
-        
-            Resource utilization (through AppArmor)
 
         \- (extension) Producing container-aware logs and write them into:
         
@@ -56,14 +53,14 @@ Here, we briefly share a plan for next releases (e.g., including features, specs
         \- Generating security policies for given containers automatically
         
             Process executions  
-            Files accesses
+            Files accesses  
             Network operations
 
         \- Enforcing security policies at the eBPF level (using KRSI)
 
             Process executions  
             File accesses  
-            Network operations
+            Network operations  
             Capabilities permitted
 
         \- Produce telemetry data to monitoring systems

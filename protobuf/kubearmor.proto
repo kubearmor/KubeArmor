@@ -9,30 +9,19 @@ message NonceMessage {
   int32 nonce = 1;
 }
 
-// audit log
-message AuditLog {
+// message struct
+message Message {
   string UpdatedTime = 1;
 
-  string HostName = 2;
+  string Source = 2;
+  string SourceIP = 3;
 
-  string NamespaceName = 3;
-  string PodName = 4;
-
-  string ContainerID = 5;
-  string ContainerName = 6;
-
-  int32 HostPID = 7;
-
-  string Source = 8;
-  string Operation = 9;
-  string Resource = 10;
-  string Result = 11;
-
-  string RawData = 12;
+  string Level = 4;
+  string Message = 5;
 }
 
-// system log
-message SystemLog {
+// log struct
+message Log {
   string UpdatedTime = 1;
 
   string HostName = 2;
@@ -48,11 +37,22 @@ message SystemLog {
   int32 PID = 9;
   int32 UID = 10;
 
-  string Source = 11;
-  string Operation = 12;
-  string Resource = 13;
-  string Args = 14;
-  string Result = 15;
+  string PolicyName = 11;
+  string Severity = 12;
+
+  string Type = 13;
+  string Source = 14;
+  string Operation = 15;
+  string Resource = 16;
+  string Data = 17;
+
+  string Action = 18;
+  string Result = 19;
+}
+
+// request message
+message RequestMessage {
+  string Filter = 1;
 }
 
 // reply message
@@ -60,8 +60,8 @@ message ReplyMessage {
   int32 Retval = 1;
 }
 
-service LogMessage {
+service LogService {
   rpc HealthCheck(NonceMessage) returns (ReplyMessage);
-  rpc AuditLogs(stream AuditLog) returns (ReplyMessage);
-  rpc SystemLogs(stream SystemLog) returns (ReplyMessage);
+  rpc WatchMessages(RequestMessage) returns (stream Message);
+  rpc WatchLogs(RequestMessage) returns (stream Log);
 }

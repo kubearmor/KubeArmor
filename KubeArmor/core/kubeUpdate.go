@@ -70,8 +70,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 		}
 	}
 
-	// enforce the security policy
-
+	// enforce security policies
 	dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
 }
 
@@ -116,15 +115,12 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		newGroup.AppArmorProfiles = map[string]string{}
 
 		// update security policies with the identities
-
 		newGroup.SecurityPolicies = dm.GetSecurityPolicies(newGroup.Identities)
 
 		// add the container group into the container group list
-
 		dm.ContainerGroups = append(dm.ContainerGroups, newGroup)
 
 		// update security profiles
-
 		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
 
 	} else if action == "MODIFIED" {
@@ -161,25 +157,22 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
-		// update security policies with the updated identities
-
+		// get security policies according to the updated identities
 		dm.ContainerGroups[conGroupIdx].SecurityPolicies = dm.GetSecurityPolicies(dm.ContainerGroups[conGroupIdx].Identities)
 
-		// enforce the security policy
+		// update security policies
+		dm.ContainerMonitor.UpdateSecurityPolicies(action, dm.ContainerGroups[conGroupIdx])
 
+		// enforce security policies
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
 	} else { // DELETED
 		// update security profiles
-
 		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
 	}
 }
 
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
-	// dm.WgDaemon.Add(1)
-	// defer dm.WgDaemon.Done()
-
 	for {
 		if resp := K8s.WatchK8sPods(); resp != nil {
 			defer resp.Body.Close()
@@ -263,7 +256,6 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				kg.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 
 				// update a container group corresponding to the pod
-
 				dm.UpdateContainerGroupWithPod(event.Type, pod)
 			}
 		} else {
@@ -278,9 +270,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 // GetSecurityPolicies Function
 func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.SecurityPolicy {
-	secPolicies := []tp.SecurityPolicy{}
-
 	dm.SecurityPoliciesLock.Lock()
+	defer dm.SecurityPoliciesLock.Unlock()
+
+	secPolicies := []tp.SecurityPolicy{}
 
 	for _, policy := range dm.SecurityPolicies {
 		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
@@ -290,14 +283,13 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 		}
 	}
 
-	dm.SecurityPoliciesLock.Unlock()
-
 	return secPolicies
 }
 
 // UpdateSecurityPolicy Function
 func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
 	dm.ContainerGroupsLock.Lock()
+	defer dm.ContainerGroupsLock.Unlock()
 
 	for idx, conGroup := range dm.ContainerGroups {
 		// update a security policy
@@ -328,19 +320,17 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 				}
 			}
 
-			// enforce the security policy
+			// update security policies
+			dm.ContainerMonitor.UpdateSecurityPolicies("UPDATED", dm.ContainerGroups[idx])
+
+			// enforce security policies
 			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
 		}
 	}
-
-	dm.ContainerGroupsLock.Unlock()
 }
 
 // WatchSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
-	// dm.WgDaemon.Add(1)
-	// defer dm.WgDaemon.Done()
-
 	for {
 		if K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
 			if resp := K8s.WatchK8sSecurityPolicies(); resp != nil {
@@ -384,6 +374,17 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 
 					kl.Clone(event.Object.Spec, &secPolicy.Spec)
+
+					secPolicy.Spec.Severity = strings.ToUpper(secPolicy.Spec.Severity)
+
+					switch secPolicy.Spec.Action {
+					case "block":
+						secPolicy.Spec.Action = "Block"
+					case "audit":
+						secPolicy.Spec.Action = "Audit"
+					case "allowwithaudit":
+						secPolicy.Spec.Action = "AllowWithAudit"
+					}
 
 					// add identities
 
@@ -432,7 +433,6 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					kg.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to containers
-
 					dm.UpdateSecurityPolicy(event.Type, secPolicy)
 				}
 			}

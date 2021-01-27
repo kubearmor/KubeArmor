@@ -6,7 +6,6 @@ WORKDIR /usr/src/KubeArmor
 
 COPY ./KubeArmor ./KubeArmor
 COPY ./GKE ./GKE
-COPY ./LogServer ./LogServer
 COPY ./protobuf ./protobuf
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
@@ -23,13 +22,10 @@ RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc
 
 RUN apk update
 RUN apk add bash curl procps bcc bcc-dev
-RUN apk add apparmor@edge audit@edge
+RUN apk add apparmor@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
-
-COPY --from=builder /usr/src/KubeArmor/KubeArmor/Auditd/* /etc/audit/
-RUN mkdir -p /KubeArmor/audit
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]

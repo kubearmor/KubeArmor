@@ -1,3 +1,7 @@
 source: ubuntu-4-deployment
 cmd: sleep 1
 result: audited
+---
+operation: Process
+condition: sleep
+action: Audit

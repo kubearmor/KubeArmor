@@ -73,7 +73,6 @@ func NewContainerdHandler() *ContainerdHandler {
 	}
 
 	if sockFile == "unix://" {
-		// kg.Err("Could not find the unix socket for Containerd")
 		return nil
 	}
 

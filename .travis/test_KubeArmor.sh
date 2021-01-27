@@ -7,9 +7,3 @@ cd $ARMOR_HOME/KubeArmor
 
 # test KubeArmor
 make test
-
-# move to LogServer
-cd $ARMOR_HOME/LogServer
-
-# test LogServer
-make test
