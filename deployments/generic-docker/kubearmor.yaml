@@ -23,12 +23,10 @@ metadata:
   name: kubearmor
   namespace: kube-system
 spec:
-  type: NodePort
   selector:
     container: kubearmor
   ports:
   - port: 32767
-    nodePort: 32767
     protocol: TCP
 ---
 apiVersion: apps/v1
