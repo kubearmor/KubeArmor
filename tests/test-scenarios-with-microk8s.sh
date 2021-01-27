@@ -4,8 +4,7 @@ TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../deployments/test-microk8s
 
-AUDIT_LOG="/KubeArmor/audit.log"
-SYSTEM_LOG="/KubeArmor/system.log"
+ARMOR_LOG="/KubeArmor/kubearmor.log"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -22,11 +21,6 @@ function start_and_wait_for_kubearmor_initialization() {
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to apply $1${NC}"
         exit 1
-    fi
-
-    if [ ! -f /sbin/auditd ]; then
-        sudo apt-get install -y auditd
-        sudo service auditd start
     fi
 
     cd $ARMOR_HOME
@@ -51,7 +45,7 @@ function start_and_wait_for_kubearmor_initialization() {
         sleep 1
     done
 
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v kubearmor-logserver | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
     for (( ; ; ))
     do
@@ -123,42 +117,32 @@ function delete_and_wait_for_microserivce_deletion() {
 }
 
 function find_no_logs() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v kubearmor-logserver | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
     sleep 2
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $AUDIT_LOG" | grep $1 | grep $2
+    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $ARMOR_LOG" | grep PolicyMatched | grep $1 | grep $2 | grep $3 | grep $4
     if [ $? != 0 ]; then
-        kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $SYSTEM_LOG" | grep $1 | grep $2 | grep 'Operation not permitted\|Permission denied'
-        if [ $? != 0 ]; then
-            echo "[INFO] Found no log from both audit logs and system logs"
-        else
-            echo -e "${RED}[FAIL] Found the log from system logs${NC}"
-        fi
+        echo "[INFO] Found no log from logs"
     else
-        echo -e "${RED}[FAIL] Found the log from audit logs${NC}"
+        echo -e "${RED}[FAIL] Found the log from logs${NC}"
     fi
 }
 
 function find_logs() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v kubearmor-logserver | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
     sleep 2
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $AUDIT_LOG" | grep $1 | grep $2
+    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $ARMOR_LOG" | grep PolicyMatched | grep $1 | grep $2 | grep $3 | grep $4
     if [ $? != 0 ]; then
-        kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $SYSTEM_LOG" | grep $1 | grep $2 | grep 'Operation not permitted\|Permission denied'
-        if [ $? != 0 ]; then
-            echo -e "${RED}[FAIL] Failed to find the log from both audit logs and system logs${NC}"
-        else
-            echo "[INFO] Found the log from system logs"
-        fi
+        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
     else
-        echo "[INFO] Found the log from audit logs"
+        echo "[INFO] Found the log from logs"
     fi
 }
 
@@ -179,8 +163,11 @@ function run_test_scenario() {
         POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
 
         CMD=$(cat $cmd | grep cmd | cut -d' ' -f2-)
-        COND=$(cat $cmd | grep cmd | awk '{print $2}')
         RESULT=$(cat $cmd | grep result | awk '{print $2}')
+
+        OP=$(cat $cmd | grep operation | awk '{print $2}')
+        COND=$(cat $cmd | grep condition | cut -d' ' -f2-)
+        ACTION=$(cat $cmd | grep action | awk '{print $2}')
 
         FINAL=1
 
@@ -188,15 +175,15 @@ function run_test_scenario() {
         kubectl exec -n $2 -it $POD -- bash -c "$CMD"
         if [ $? == 0 ]; then
             if [ "$RESULT" == "passed" ]; then
-                find_no_logs $POD $COND
+                find_no_logs $POD $OP $COND $ACTION
             elif [ "$RESULT" == "audited" ]; then
-                find_logs $POD $COND
+                find_logs $POD $OP $COND $ACTION
             else
                 FINAL=0
             fi
         else
             if [ "$RESULT" == "failed" ]; then
-                find_logs $POD $COND
+                find_logs $POD $OP $COND $ACTION
             else
                 FINAL=0
             fi
