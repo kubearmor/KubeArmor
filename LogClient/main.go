@@ -38,6 +38,9 @@ type LogClient struct {
 	// client
 	client pb.LogServiceClient
 
+	// statistics
+	statStream pb.LogService_WatchStatisticsClient
+
 	// messages
 	msgStream pb.LogService_WatchMessagesClient
 
@@ -78,6 +81,16 @@ func NewClient(server string) *LogClient {
 	lc.conn = conn
 
 	lc.client = pb.NewLogServiceClient(lc.conn)
+
+	statIn := pb.RequestMessage{}
+	statIn.Filter = ""
+
+	statStream, err := lc.client.WatchStatistics(context.Background(), &statIn)
+	if err != nil {
+		fmt.Errorf("Failed to call WatchStatistics() (%s)", err.Error())
+		return nil
+	}
+	lc.statStream = statStream
 
 	msgIn := pb.RequestMessage{}
 	msgIn.Filter = ""
@@ -125,6 +138,94 @@ func (lc *LogClient) DoHealthCheck() bool {
 	return true
 }
 
+// WatchStatistics Function
+func (lc *LogClient) WatchStatistics(statPath string, raw bool) error {
+	lc.WgClient.Add(1)
+	defer lc.WgClient.Done()
+
+	for {
+		res, err := lc.statStream.Recv()
+		if err != nil {
+			fmt.Errorf("Failed to receive a message (%s)", err.Error())
+			break
+		}
+
+		if statPath != "stdout" && statPath != "none" && raw {
+			arr, _ := json.Marshal(res)
+			StrToFile(string(arr), statPath)
+			continue
+		}
+
+		str := fmt.Sprintf("== Host Statistics / %s ==\n", res.UpdatedTime)
+
+		str = str + fmt.Sprintf("HostName:\t%s\n", res.HostStats.HostName)
+
+		str = str + fmt.Sprintf(" AllowedCount:\t%d\n", res.HostStats.AllowedCount)
+		str = str + fmt.Sprintf(" AuditedCount:\t%d\n", res.HostStats.AuditedCount)
+		str = str + fmt.Sprintf(" BlockedCount:\t%d\n", res.HostStats.BlockedCount)
+		str = str + fmt.Sprintf(" FailedCount:\t%d\n", res.HostStats.FailedCount)
+
+		if len(res.NamespaceStats) > 0 {
+			str = str + fmt.Sprintf("== Namespace Statistics / %d / %s ==\n", len(res.NamespaceStats), res.UpdatedTime)
+
+			for _, stats := range res.NamespaceStats {
+				if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+					str = str + fmt.Sprintf("HostName:\t%s\n", res.HostStats.HostName)
+					str = str + fmt.Sprintf("NamespaceName:\t%s\n", stats.NamespaceName)
+
+					str = str + fmt.Sprintf(" AllowedCount:\t%d\n", stats.AllowedCount)
+					str = str + fmt.Sprintf(" AuditedCount:\t%d\n", stats.AuditedCount)
+					str = str + fmt.Sprintf(" BlockedCount:\t%d\n", stats.BlockedCount)
+					str = str + fmt.Sprintf(" FailedCount:\t%d\n", stats.FailedCount)
+				}
+			}
+		}
+
+		if len(res.PodStats) > 0 {
+			str = str + fmt.Sprintf("== Pod Statistics / %d / %s ==\n", len(res.PodStats), res.UpdatedTime)
+
+			for _, stats := range res.PodStats {
+				if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+					str = str + fmt.Sprintf("Host Name:\t%s\n", res.HostStats.HostName)
+					str = str + fmt.Sprintf("Namespace Name:\t%s\n", stats.NamespaceName)
+					str = str + fmt.Sprintf("Pod Name:\t%s\n", stats.PodName)
+
+					str = str + fmt.Sprintf(" Allowed Count:\t%d\n", stats.AllowedCount)
+					str = str + fmt.Sprintf(" Audited Count:\t%d\n", stats.AuditedCount)
+					str = str + fmt.Sprintf(" Blocked Count:\t%d\n", stats.BlockedCount)
+					str = str + fmt.Sprintf(" Failed Count:\t%d\n", stats.FailedCount)
+				}
+			}
+		}
+
+		if len(res.ContainerStats) > 0 {
+			str = str + fmt.Sprintf("== Container Statistics / %d / %s ==\n", len(res.ContainerStats), res.UpdatedTime)
+
+			for _, stats := range res.ContainerStats {
+				if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+					str = str + fmt.Sprintf("Host Name:\t%s\n", res.HostStats.HostName)
+					str = str + fmt.Sprintf("Namespace Name:\t%s\n", stats.NamespaceName)
+					str = str + fmt.Sprintf("Pod Name:\t%s\n", stats.PodName)
+					str = str + fmt.Sprintf("Container Name:\t%s\n", stats.ContainerName)
+
+					str = str + fmt.Sprintf(" Allowed Count:\t%d\n", stats.AllowedCount)
+					str = str + fmt.Sprintf(" Audited Count:\t%d\n", stats.AuditedCount)
+					str = str + fmt.Sprintf(" Blocked Count:\t%d\n", stats.BlockedCount)
+					str = str + fmt.Sprintf(" Failed Count:\t%d\n", stats.FailedCount)
+				}
+			}
+		}
+
+		if statPath == "stdout" {
+			fmt.Printf("%s", str)
+		} else {
+			StrToFile(str, statPath)
+		}
+	}
+
+	return nil
+}
+
 // WatchMessages Function
 func (lc *LogClient) WatchMessages(msgPath string, raw bool) error {
 	lc.WgClient.Add(1)
@@ -148,11 +249,11 @@ func (lc *LogClient) WatchMessages(msgPath string, raw bool) error {
 		str = str + fmt.Sprintf("Source: %s\n", res.Source)
 		str = str + fmt.Sprintf("Source IP: %s\n", res.SourceIP)
 		str = str + fmt.Sprintf("Level: %s\n", res.Level)
-		str = str + fmt.Sprintf("Message: %s\n", res.Message)
+		str = str + fmt.Sprintf("Message: %s", res.Message)
 
 		if msgPath == "stdout" {
 			fmt.Println(str)
-		} else if msgPath != "none" {
+		} else {
 			StrToFile(str, msgPath)
 		}
 	}
@@ -207,11 +308,11 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 			str = str + fmt.Sprintf("Action: %s\n", res.Action)
 		}
 
-		str = str + fmt.Sprintf("Result: %s\n", res.Result)
+		str = str + fmt.Sprintf("Result: %s", res.Result)
 
 		if logPath == "stdout" {
 			fmt.Println(str)
-		} else if logPath != "none" {
+		} else {
 			StrToFile(str, logPath)
 		}
 	}
@@ -256,6 +357,7 @@ func GetOSSigChannel() chan os.Signal {
 func main() {
 	// get arguments
 	grpcPtr := flag.String("grpc", "localhost:32767", "gRPC server information (default -> localhost:32767)")
+	statPtr := flag.String("stat", "none", "Output for statistics, {File path | stdout | none (default)}")
 	msgPtr := flag.String("msg", "none", "Output for messages, {File path | stdout | none (default)}")
 	logPtr := flag.String("log", "stdout", "Output for logs, {File path | stdout (default) | none}")
 	rawPtr := flag.Bool("raw", false, "Raw file format")
@@ -276,13 +378,23 @@ func main() {
 	}
 	fmt.Println("Checked the liveness of the gRPC server")
 
-	// watch messages
-	go logClient.WatchMessages(*msgPtr, *rawPtr)
-	fmt.Println("Started to watch messages")
+	if *statPtr != "none" {
+		// watch statistics
+		go logClient.WatchStatistics(*statPtr, *rawPtr)
+		fmt.Println("Started to watch statistics")
+	}
 
-	// watch logs
-	go logClient.WatchLogs(*logPtr, *rawPtr)
-	fmt.Println("Started to watch logs")
+	if *msgPtr != "none" {
+		// watch messages
+		go logClient.WatchMessages(*msgPtr, *rawPtr)
+		fmt.Println("Started to watch messages")
+	}
+
+	if *logPtr != "none" {
+		// watch logs
+		go logClient.WatchLogs(*logPtr, *rawPtr)
+		fmt.Println("Started to watch logs")
+	}
 
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
