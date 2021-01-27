@@ -1,4 +1,4 @@
-source: ubuntu-1-deployment
+source: ubuntu-5-deployment
 cmd: curl www.accuknox.com
 result: passed
 ---
