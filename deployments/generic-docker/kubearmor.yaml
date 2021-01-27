@@ -58,6 +58,8 @@ spec:
       - name: kubearmor
         image: accuknox/kubearmor:latest
         imagePullPolicy: Always
+        securityContext:
+          privileged: true
         args: ["-port=32767", "-output=/tmp/kubearmor.log"]
         ports:
         - containerPort: 32767

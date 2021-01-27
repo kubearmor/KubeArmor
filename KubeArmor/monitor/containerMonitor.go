@@ -155,6 +155,9 @@ type ContainerMonitor struct {
 
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
+
+	// GKE
+	IsCOS bool
 }
 
 // NewContainerMonitor Function
@@ -184,6 +187,8 @@ func NewContainerMonitor(feeder *fd.Feeder, containers *map[string]tp.Container,
 
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
+
+	mon.IsCOS = false
 
 	return mon
 }
@@ -223,7 +228,15 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 						time.Sleep(time.Second * 1)
 					}
 				}
+
+				mon.IsCOS = true
 			} else {
+				// create directories
+				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
+					kg.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+					return nil
+				}
+
 				// make a symbolic link
 				if err := os.Symlink("/var/log/audit/audit.log", "/KubeArmor/audit/audit.log"); err != nil {
 					kg.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
