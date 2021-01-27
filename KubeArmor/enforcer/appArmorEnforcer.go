@@ -33,8 +33,39 @@ func NewAppArmorEnforcer() *AppArmorEnforcer {
 		kl.GetCommandOutputWithoutErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
 	}
 
-	// grep "KubeArmor" /etc/apparmor.d/* 2> /dev/null | awk -F':' '{print $1}' | xargs -I {} apparmor_parser -R {} 2> /dev/null
-	// grep "KubeArmor" /etc/apparmor.d/* 2> /dev/null | awk -F':' '{print $1}' | xargs -I {} rm -f {}
+	files, err := ioutil.ReadDir("/etc/apparmor.d")
+	if err != nil {
+		kg.Errf("Failed to read /etc/apparmor.d (%s)", err.Error())
+		return nil
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		fileName := file.Name()
+
+		data, err := ioutil.ReadFile("/etc/apparmor.d/" + fileName)
+		if err != nil {
+			kg.Errf("Failed to read /etc/apparmor.d/%s (%s)", fileName, err.Error())
+			return nil
+		}
+
+		str := string(data)
+
+		if strings.Contains(str, "KubeArmor") {
+			if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/etc/apparmor.d/" + fileName}); err != nil {
+				kg.Errf("Failed to detach /etc/apparmor.d/%s (%s)", fileName, err.Error())
+				return nil
+			}
+
+			if err := os.Remove("/etc/apparmor.d/" + fileName); err != nil {
+				kg.Errf("Failed to remove /etc/apparmor.d/%s (%s)", fileName, err.Error())
+				return nil
+			}
+		}
+	}
 
 	return ae
 }
