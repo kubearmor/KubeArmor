@@ -50,7 +50,6 @@ func NewDockerHandler() *DockerHandler {
 
 	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
 	if err != nil {
-		// kg.Errf("Could not find the API version of Docker (%s)", err.Error())
 		return nil
 	}
 
