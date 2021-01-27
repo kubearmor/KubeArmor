@@ -4,6 +4,7 @@ metadata:
   name: ksp-ubuntu-3-proc-path-owner-allow
   namespace: multiubuntu
 spec:
+  severity: high
   selector:
     matchLabels:
       container: ubuntu-3
