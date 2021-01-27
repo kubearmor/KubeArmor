@@ -4,6 +4,7 @@ metadata:
   name: ksp-ubuntu-2-proc-dir-recursive-block
   namespace: multiubuntu
 spec:
+  severity: low
   selector:
     matchLabels:
       container: ubuntu-2

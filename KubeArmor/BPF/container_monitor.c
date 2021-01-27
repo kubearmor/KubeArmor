@@ -6,9 +6,6 @@
 #include <linux/pid_namespace.h>
 
 #include <linux/un.h>
-#include <linux/ip.h>
-
-#include <net/sock.h>
 #include <net/inet_sock.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
@@ -519,9 +516,6 @@ int trace_ret_execve(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    if (context.retval == 0)
-        return 0;
-
     set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
 
     buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
@@ -585,9 +579,6 @@ int trace_ret_execveat(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    if (context.retval == 0)
-        return 0;
-
     set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
 
     buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
@@ -615,9 +606,6 @@ int trace_do_exit(struct pt_regs *ctx, long code)
     context.retval = code;
 
     remove_pid_ns();
-
-    if (context.retval == 0)
-        return 0;
 
     set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
 
@@ -715,9 +703,6 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     context.argnum = get_arg_num(types);
     context.retval = PT_REGS_RC(ctx);
 
-    if (context.retval == 0)
-        return 0;
-
     set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
 
     buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
@@ -737,7 +722,7 @@ int syscall__open(struct pt_regs *ctx)
     if (should_trace() == 0)
         return 0;       
 
-    return save_args(_SYS_OPEN, ctx);   
+    return save_args(_SYS_OPEN, ctx);
 }
 
 int trace_ret_open(struct pt_regs *ctx)
@@ -776,7 +761,7 @@ int trace_ret_socket(struct pt_regs *ctx)
 int syscall__connect(struct pt_regs *ctx)
 { 
     if (should_trace() == 0)
-        return 0;       
+        return 0;
 
     return save_args(_SYS_CONNECT, ctx);   
 }

@@ -10,6 +10,8 @@ metadata:
   namespace: [namespace name]
 
 spec:
+  severity: [high|medium|low]
+
   selector:
     matchLabels:
       [key1]: [value1]
@@ -19,28 +21,56 @@ spec:
     matchPaths:
     - path: [absolute executable path]
       ownerOnly: [true|false]
+      fromSource:                        # --> optional (under development)
+        - path: [absolute exectuable path]
+        - dir: [absolute directory path]
+          recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]
       ownerOnly: [true|false]
+      fromSource:                        # --> optional (under development)
+        - path: [absolute exectuable path]
+        - dir: [absolute directory path]
+          recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]
+      fromSource:                        # --> optional (under development)
+        - path: [absolute exectuable path]
+        - dir: [absolute directory path]
+          recursive: [true|false]
 
   file:
     matchPaths:
     - path: [absolute file path]
       readOnly: [true|false]
       ownerOnly: [true|false]
+      fromSource:                        # --> optional (under development)
+        - path: [absolute exectuable path]
+        - dir: [absolute directory path]
+          recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]
       readOnly: [true|false]
       ownerOnly: [true|false]
+      fromSource:                        # --> optional (under development)
+        - path: [absolute exectuable path]
+        - dir: [absolute directory path]
+          recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]
       ownerOnly: [true|false]
+      fromSource:                        # --> optional (under development)
+        - path: [absolute exectuable path]
+        - dir: [absolute directory path]
+          recursive: [true|false]
+
+  network:
+    matchProtocols:
+    - [TCP|tcp|UDP|udp|ICMP|icmp]
 
   capabilities:
     matchCapabilities:
@@ -48,7 +78,7 @@ spec:
     matchOperations:
     - [operation name]
 
-  action: [Block|Allow|Audit]
+  action: [Allow|Block|Audit]
 ```
 
 # Policy Spec Description
@@ -66,6 +96,14 @@ Now, we will briefly explain how to define a security policy.
       name: [policy name]
       namespace: [namespace name]
     ```
+
+- Severity
+
+  The severity part is somewhat important. You can specify the severity of a given policy among "high", "medium", and "low". This severity will appear in alerts.
+
+  ```
+  severity: [high|medium|low]
+  ```
 
 - Selector
 
@@ -104,7 +142,7 @@ Now, we will briefly explain how to define a security policy.
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional (under development)
         - path: [absolute exectuable path]
-        - dir: [absolute directory path]    
+        - dir: [absolute directory path]
           recursive: [true|false]
     ```
 
@@ -118,7 +156,7 @@ Now, we will briefly explain how to define a security policy.
     
         If this is enabled, the coverage will extend to the subdirectories of the directory defined with matchDirectories.
     
-    - fromSource
+    - fromSource (under development)
     
         If a path or a directory is specified in fromSource, the executables defined with matchPaths or matchDirectories will be only launched by the executable of the path or the executables in the directory.
 
@@ -171,6 +209,16 @@ Now, we will briefly explain how to define a security policy.
     
         If this is enabled, the read operation will be only allowed, and any other operations (e.g., write) will be blocked.
 
+- Network
+
+    In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+
+    ```
+    network:
+      matchProtocols:
+      - [protocol]                         # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+    ```
+
 - Capabilities
 
     In the case of capabilities, there are two types of matches: matchCapabilities and matchOperations. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](./supported_capability_list.md). For convenience, KubeArmor also allows you to define certain operations at the high level rather than specifically defining capability names. You can check available operations in [Operation List](./supported_operation_list.md).
@@ -185,8 +233,12 @@ Now, we will briefly explain how to define a security policy.
 
 - Action
 
-    The action would be Allow, Block, or Audit. According to the action, given security policies will be handled in a blacklist manner or a whitelist manner. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](./consideration_in_policy_action.md) for more details. In the case of Audit, it is similar to Block, but KubeArmor does not actually block specific executions or accesses. KubeArmor just generates some audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
+    The action would be Allow, Block, Audit, or AllowWithAudit. According to the action, given security policies will be handled in a blacklist manner or a whitelist manner. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](./consideration_in_policy_action.md) for more details.
+
+    In the case of Audit, it is similar to Block, but KubeArmor does not block specific executions or accesses. Instead, KubeArmor generates some audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
+
+    What about AllowWithAudit? When we use the 'Allow' action, we will get some logs for objects and operations that are not allowed to access and conduct, which means that we don't have actual logs for allowed accesses. If we want to get some logs for such allowed accesses, we can use the AllowWithAudit action.
     
     ```
-    action: [Allow|Block|Audit]
+    action: [Allow|Block|Audit|AllowWithAudit]
     ```

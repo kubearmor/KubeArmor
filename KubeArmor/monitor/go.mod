@@ -8,12 +8,11 @@ replace (
 	github.com/accuknox/KubeArmor/KubeArmor/feeder => ../feeder
 	github.com/accuknox/KubeArmor/KubeArmor/log => ../log
 	github.com/accuknox/KubeArmor/KubeArmor/types => ../types
-	github.com/accuknox/KubeArmor/LogServer/server => ../../LogServer/server
 	github.com/accuknox/KubeArmor/protobuf => ../../protobuf
 )
 
 require (
-	github.com/accuknox/KubeArmor/KubeArmor/common v0.0.0-00010101000000-000000000000
+	github.com/accuknox/KubeArmor/KubeArmor/common v0.0.0-20210115063132-678f631bae38
 	github.com/accuknox/KubeArmor/KubeArmor/feeder v0.0.0-00010101000000-000000000000
 	github.com/accuknox/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
 	github.com/accuknox/KubeArmor/KubeArmor/types v0.0.0-00010101000000-000000000000

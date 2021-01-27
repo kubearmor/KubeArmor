@@ -2,246 +2,390 @@ package feeder
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"math/rand"
+	"net"
 	"os"
-	"strings"
+	"path/filepath"
+	"sync"
 	"time"
 
+	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
 	pb "github.com/accuknox/KubeArmor/protobuf"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )
 
+// Running flag
+var Running bool
+
+// MsgQueue for Messages
+var MsgQueue []pb.Message
+
+// MsgLock for Messages
+var MsgLock sync.Mutex
+
+// LogQueue for Logs
+var LogQueue []pb.Log
+
+// LogLock for Logs
+var LogLock sync.Mutex
+
+func init() {
+	Running = true
+
+	MsgQueue = []pb.Message{}
+	MsgLock = sync.Mutex{}
+
+	LogQueue = []pb.Log{}
+	LogLock = sync.Mutex{}
+}
+
+// ========== //
+// == gRPC == //
+// ========== //
+
+// MsgStruct Structure
+type MsgStruct struct {
+	Client pb.LogService_WatchMessagesServer
+	Filter string
+}
+
+// LogStruct Structure
+type LogStruct struct {
+	Client pb.LogService_WatchLogsServer
+	Filter string
+}
+
+// LogService Structure
+type LogService struct {
+	MsgStructs map[string]MsgStruct
+	MsgLock    sync.Mutex
+
+	LogStructs map[string]LogStruct
+	LogLock    sync.Mutex
+}
+
+// HealthCheck Function
+func (ls *LogService) HealthCheck(ctx context.Context, nonce *pb.NonceMessage) (*pb.ReplyMessage, error) {
+	replyMessage := pb.ReplyMessage{Retval: nonce.Nonce}
+	return &replyMessage, nil
+}
+
+// addMsgStruct Function
+func (ls *LogService) addMsgStruct(uid string, srv pb.LogService_WatchMessagesServer, filter string) {
+	ls.MsgLock.Lock()
+	defer ls.MsgLock.Unlock()
+
+	msgStruct := MsgStruct{}
+	msgStruct.Client = srv
+	msgStruct.Filter = filter
+
+	ls.MsgStructs[uid] = msgStruct
+}
+
+// removeMsgStruct Function
+func (ls *LogService) removeMsgStruct(uid string) {
+	ls.MsgLock.Lock()
+	defer ls.MsgLock.Unlock()
+
+	delete(ls.MsgStructs, uid)
+}
+
+// getMsgStructs Function
+func (ls *LogService) getMsgStructs() []MsgStruct {
+	msgStructs := []MsgStruct{}
+
+	ls.MsgLock.Lock()
+	defer ls.MsgLock.Unlock()
+
+	for _, mgs := range ls.MsgStructs {
+		msgStructs = append(msgStructs, mgs)
+	}
+
+	return msgStructs
+}
+
+// WatchMessages Function
+func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
+	uid := uuid.Must(uuid.NewRandom()).String()
+
+	ls.addMsgStruct(uid, svr, req.Filter)
+	defer ls.removeMsgStruct(uid)
+
+	for Running {
+		MsgLock.Lock()
+
+		msgStructs := ls.getMsgStructs()
+
+		for len(MsgQueue) != 0 {
+			msg := MsgQueue[0]
+			MsgQueue = MsgQueue[1:]
+
+			for _, mgs := range msgStructs {
+				mgs.Client.Send(&msg)
+			}
+		}
+
+		MsgLock.Unlock()
+
+		time.Sleep(time.Millisecond)
+	}
+
+	return nil
+}
+
+// addLogStruct Function
+func (ls *LogService) addLogStruct(uid string, srv pb.LogService_WatchLogsServer, filter string) {
+	ls.LogLock.Lock()
+	defer ls.LogLock.Unlock()
+
+	logStruct := LogStruct{}
+	logStruct.Client = srv
+	logStruct.Filter = filter
+
+	ls.LogStructs[uid] = logStruct
+}
+
+// removeLogStruct Function
+func (ls *LogService) removeLogStruct(uid string) {
+	ls.LogLock.Lock()
+	defer ls.LogLock.Unlock()
+
+	delete(ls.LogStructs, uid)
+}
+
+// getLogStructs Function
+func (ls *LogService) getLogStructs() []LogStruct {
+	logStructs := []LogStruct{}
+
+	ls.LogLock.Lock()
+	defer ls.LogLock.Unlock()
+
+	for _, lgs := range ls.LogStructs {
+		logStructs = append(logStructs, lgs)
+	}
+
+	return logStructs
+}
+
+// WatchLogs Function
+func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchLogsServer) error {
+	uid := uuid.Must(uuid.NewRandom()).String()
+
+	ls.addLogStruct(uid, svr, req.Filter)
+	defer ls.removeLogStruct(uid)
+
+	for Running {
+		LogLock.Lock()
+
+		logStructs := ls.getLogStructs()
+
+		for len(LogQueue) != 0 {
+			log := LogQueue[0]
+			LogQueue = LogQueue[1:]
+
+			for _, lgs := range logStructs {
+				lgs.Client.Send(&log)
+			}
+		}
+
+		LogLock.Unlock()
+
+		time.Sleep(time.Millisecond)
+	}
+
+	return nil
+}
+
+// ============ //
+// == Feeder == //
+// ============ //
+
 // Feeder Structure
 type Feeder struct {
-	// server
-	server string
+	// port
+	port string
 
-	// log type
-	logType string
+	// output
+	output string
 
-	// connection
-	conn *grpc.ClientConn
+	// gRPC listener
+	listener net.Listener
 
-	// client
-	client pb.LogMessageClient
+	// log server
+	logServer *grpc.Server
 
-	// audit log stream
-	auditLogStream pb.LogMessage_AuditLogsClient
-
-	// system log stream
-	systemLogStream pb.LogMessage_SystemLogsClient
+	// wait group
+	WgServer sync.WaitGroup
 }
 
 // NewFeeder Function
-func NewFeeder(server, logType string) *Feeder {
+func NewFeeder(port, output string) *Feeder {
 	fd := &Feeder{}
 
-	if strings.HasPrefix(server, "kubearmor-logserver") {
-		server = strings.Replace(server, "kubearmor-logserver", os.Getenv("KUBEARMOR_LOGSERVER_SERVICE_HOST"), -1)
-	}
+	fd.port = fmt.Sprintf(":%s", port)
+	fd.output = output
 
-	fd.server = server
-	fd.logType = logType
+	// output mode
+	if fd.output != "stdout" && fd.output != "none" {
+		// get the directory part from the path
+		dirLog := filepath.Dir(fd.output)
 
-	for {
-		if _, ok := fd.DoHealthCheck(); ok {
-			break
+		// create directories
+		if err := os.MkdirAll(dirLog, 0755); err != nil {
+			kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
+			return nil
 		}
-		time.Sleep(time.Second * 1)
+
+		// create target file
+		targetFile, err := os.Create(fd.output)
+		if err != nil {
+			kg.Errf("Failed to create a target file (%s, %s)", fd.output, err.Error())
+			return nil
+		}
+		targetFile.Close()
 	}
 
-	conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
+	// listen to gRPC port
+	listener, err := net.Listen("tcp", fd.port)
 	if err != nil {
-		kg.Err(err.Error())
 		return nil
 	}
-	fd.conn = conn
+	fd.listener = listener
 
-	fd.client = pb.NewLogMessageClient(fd.conn)
+	// create a log server
+	fd.logServer = grpc.NewServer()
 
-	if logType == "AuditLog" {
-		auditLogStream, err := fd.client.AuditLogs(context.Background())
-		if err != nil {
-			kg.Err(err.Error())
-			return nil
-		}
-		fd.auditLogStream = auditLogStream
-	} else if logType == "SystemLog" {
-		systemLogStream, err := fd.client.SystemLogs(context.Background())
-		if err != nil {
-			kg.Err(err.Error())
-			return nil
-		}
-		fd.systemLogStream = systemLogStream
+	// register a log service
+	logService := &LogService{
+		MsgStructs: make(map[string]MsgStruct),
+		MsgLock:    sync.Mutex{},
+		LogStructs: make(map[string]LogStruct),
+		LogLock:    sync.Mutex{},
 	}
+	pb.RegisterLogServiceServer(fd.logServer, logService)
+
+	// set wait group
+	fd.WgServer = sync.WaitGroup{}
 
 	return fd
 }
 
 // DestroyFeeder Function
 func (fd *Feeder) DestroyFeeder() error {
-	if err := fd.conn.Close(); err != nil {
-		return err
+	// stop gRPC service
+	Running = false
+
+	// wait for a while
+	time.Sleep(time.Second * 1)
+
+	// close listener
+	if fd.listener != nil {
+		fd.listener.Close()
+		fd.listener = nil
 	}
+
+	// wait for other routines
+	fd.WgServer.Wait()
 
 	return nil
 }
 
-// DoHealthCheck Function
-func (fd *Feeder) DoHealthCheck() (string, bool) {
-	// connect to server
-	conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
-	if err != nil {
-		kg.Err(err.Error())
-		return fmt.Sprintf("Failed to connect the server (%s)", fd.server), false
-	}
-	defer conn.Close()
+// =============== //
+// == Log Feeds == //
+// =============== //
 
-	// set client
-	client := pb.NewLogMessageClient(conn)
+// ServeLogFeeds Function
+func (fd *Feeder) ServeLogFeeds() {
+	fd.WgServer.Add(1)
+	defer fd.WgServer.Done()
 
-	// generate nonce
-	rand := rand.Int31()
-
-	// send a nonce
-	nonce := pb.NonceMessage{Nonce: rand}
-	res, err := client.HealthCheck(context.Background(), &nonce)
-	if err != nil {
-		return err.Error(), false
-	}
-
-	// check nonces
-	if rand != res.Retval {
-		return "Nonces are different", false
-	}
-
-	return "success", true
+	// feed logs
+	fd.logServer.Serve(fd.listener)
 }
 
-// SendAuditLog Function
-func (fd *Feeder) SendAuditLog(auditLog tp.AuditLog) error {
-	if fd.logType != "AuditLog" {
+// PushMessage Function
+func (fd *Feeder) PushMessage(msg tp.Message) error {
+	if msg.UpdatedTime == "" {
 		return nil
 	}
 
-	log := pb.AuditLog{}
+	pbMsg := pb.Message{}
 
-	log.UpdatedTime = auditLog.UpdatedTime
+	pbMsg.UpdatedTime = msg.UpdatedTime
 
-	log.HostName = auditLog.HostName
+	pbMsg.Source = msg.Source
+	pbMsg.SourceIP = msg.SourceIP
 
-	log.NamespaceName = auditLog.NamespaceName
-	log.PodName = auditLog.PodName
+	pbMsg.Level = msg.Level
+	pbMsg.Message = msg.Message
 
-	log.ContainerID = auditLog.ContainerID
-	log.ContainerName = auditLog.ContainerName
-
-	log.HostPID = auditLog.HostPID
-	log.Source = auditLog.Source
-	log.Operation = auditLog.Operation
-	log.Resource = auditLog.Resource
-	log.Result = auditLog.Result
-
-	log.RawData = auditLog.RawData
-
-	if err := fd.auditLogStream.Send(&log); err != nil {
-		kg.Errf("Failed to send an audit log, trying to reconnect to the gRPC server (%s)", err.Error())
-
-		if err := fd.conn.Close(); err != nil {
-			kg.Errf("Failed to close the gRPC server (%s)", err.Error())
-			return err
-		}
-
-		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
-		if err != nil {
-			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
-			return err
-		}
-		fd.conn = conn
-
-		fd.client = pb.NewLogMessageClient(fd.conn)
-
-		auditLogStream, err := fd.client.AuditLogs(context.Background())
-		if err != nil {
-			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
-			return err
-		}
-		fd.auditLogStream = auditLogStream
-
-		kg.Print("Reconnected the gRPC server for audit logs")
-
-		if err := fd.auditLogStream.Send(&log); err != nil {
-			kg.Errf("Failed to send the audit log again (%s)", err.Error())
-			return err
-		}
-	}
+	MsgLock.Lock()
+	MsgQueue = append(MsgQueue, pbMsg)
+	MsgLock.Unlock()
 
 	return nil
 }
 
-// SendSystemLog Function
-func (fd *Feeder) SendSystemLog(systemLog tp.SystemLog) error {
-	if fd.logType != "SystemLog" {
+// PushLog Function
+func (fd *Feeder) PushLog(log tp.Log) error {
+	if log.UpdatedTime == "" {
 		return nil
 	}
 
-	log := pb.SystemLog{}
+	pbLog := pb.Log{}
 
-	log.UpdatedTime = systemLog.UpdatedTime
+	pbLog.UpdatedTime = log.UpdatedTime
 
-	log.HostName = systemLog.HostName
+	pbLog.HostName = log.HostName
 
-	log.NamespaceName = systemLog.NamespaceName
-	log.PodName = systemLog.PodName
+	pbLog.NamespaceName = log.NamespaceName
+	pbLog.PodName = log.PodName
+	pbLog.ContainerID = log.ContainerID
+	pbLog.ContainerName = log.ContainerName
 
-	log.ContainerID = systemLog.ContainerID
-	log.ContainerName = systemLog.ContainerName
+	pbLog.HostPID = log.HostPID
+	pbLog.PPID = log.PPID
+	pbLog.PID = log.PID
+	pbLog.UID = log.UID
 
-	log.HostPID = systemLog.HostPID
-	log.PPID = systemLog.PPID
-	log.PID = systemLog.PID
-	log.UID = systemLog.UID
+	if len(log.PolicyName) > 0 {
+		pbLog.PolicyName = log.PolicyName
+	}
 
-	log.Source = systemLog.Source
-	log.Operation = systemLog.Operation
-	log.Resource = systemLog.Resource
-	log.Args = systemLog.Args
-	log.Result = systemLog.Result
+	if len(log.Severity) > 0 {
+		pbLog.Severity = log.Severity
+	}
 
-	if err := fd.systemLogStream.Send(&log); err != nil {
-		kg.Errf("Failed to send a system log, trying to reconnect to the gRPC server (%s)", err.Error())
+	pbLog.Type = log.Type
+	pbLog.Source = log.Source
+	pbLog.Operation = log.Operation
+	pbLog.Resource = log.Resource
 
-		if err := fd.conn.Close(); err != nil {
-			kg.Errf("Failed to close the gRPC server (%s)", err.Error())
-			return err
-		}
+	if len(log.Data) > 0 {
+		pbLog.Data = log.Data
+	}
 
-		conn, err := grpc.Dial(fd.server, grpc.WithInsecure())
-		if err != nil {
-			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
-			return err
-		}
-		fd.conn = conn
+	if len(log.Action) > 0 {
+		pbLog.Action = log.Action
+	}
 
-		fd.client = pb.NewLogMessageClient(fd.conn)
+	pbLog.Result = log.Result
 
-		systemLogStream, err := fd.client.SystemLogs(context.Background())
-		if err != nil {
-			kg.Errf("Failed to reconnect to the gRPC server (%s)", err.Error())
-			return err
-		}
-		fd.systemLogStream = systemLogStream
+	LogLock.Lock()
+	LogQueue = append(LogQueue, pbLog)
+	LogLock.Unlock()
 
-		kg.Print("Reconnected the gRPC server for system logs")
-
-		if err := fd.systemLogStream.Send(&log); err != nil {
-			kg.Errf("Failed to send the system log again (%s)", err.Error())
-			return err
-		}
+	if fd.output == "stdout" {
+		arr, _ := json.Marshal(log)
+		fmt.Println(string(arr))
+	} else if fd.output != "none" {
+		arr, _ := json.Marshal(log)
+		kl.StrToFile(string(arr), fd.output)
 	}
 
 	return nil

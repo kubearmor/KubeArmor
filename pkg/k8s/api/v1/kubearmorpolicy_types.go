@@ -23,6 +23,9 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// +kubebuilder:validation:Enum=HIGH;high;MEDIUM;medium;LOW;low
+type SeverityType string
+
 type SelectorType struct {
 	MatchNames  map[string]string `json:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
@@ -123,6 +126,13 @@ type FileType struct {
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=TCP;tcp;UDP;udp;ICMP;icmp
+type MatchNetworkProtocolType string
+
+type NetworkType struct {
+	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols,omitempty"`
+}
+
 // +kubebuilder:validation:Enum=chown;dac_override;dac_read_search;fowner;fsetid;kill;setgid;setuid;setpcap;linux_immutable;net_bind_service;net_broadcast;net_admin;net_raw;ipc_lock;ipc_owner;sys_module;sys_rawio;sys_chroot;sys_ptrace;sys_pacct;sys_admin;sys_boot;sys_nice;sys_resource;sys_time;sys_tty_config;mknod;lease;audit_write;audit_control;setfcap;mac_override;mac_admin
 type MatchCapabilitiesType string
 
@@ -134,7 +144,19 @@ type CapabilitiesType struct {
 	MatchOperations   []MatchOperationsType   `json:"matchOperations,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Allow;allow;Block;block;Audit;audit
+// +kubebuilder:validation:Enum=cpu;fsize;rss;nofile;nproc
+type ResourceLimitType string
+
+type ResourceValueType struct {
+	Resource ResourceLimitType `json:"resource"`
+	Value    string            `json:"value"`
+}
+
+type ResourceType struct {
+	MatchResources []ResourceValueType `json:"matchResources,omitempty"`
+}
+
+// +kubebuilder:validation:Enum=Allow;allow;Block;block;Audit;audit;AllowWithAudit;allowwithaudit
 type ActionType string
 
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
@@ -142,11 +164,15 @@ type KubeArmorPolicySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	Severity SeverityType `json:"severity"`
+
 	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`
+	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
+	Resource     ResourceType     `json:"resource,omitempty"`
 
 	Action ActionType `json:"action"`
 }
