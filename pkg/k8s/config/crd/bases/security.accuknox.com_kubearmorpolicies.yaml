@@ -44,6 +44,8 @@ spec:
                 - block
                 - Audit
                 - audit
+                - AllowWithAudit
+                - allowwithaudit
                 type: string
               capabilities:
                 properties:
@@ -172,6 +174,20 @@ spec:
                       type: object
                     type: array
                 type: object
+              network:
+                properties:
+                  matchProtocols:
+                    items:
+                      enum:
+                      - TCP
+                      - tcp
+                      - UDP
+                      - udp
+                      - ICMP
+                      - icmp
+                      type: string
+                    type: array
+                type: object
               process:
                 properties:
                   matchDirectories:
@@ -247,6 +263,27 @@ spec:
                       type: object
                     type: array
                 type: object
+              resource:
+                properties:
+                  matchResources:
+                    items:
+                      properties:
+                        resource:
+                          enum:
+                          - cpu
+                          - fsize
+                          - rss
+                          - nofile
+                          - nproc
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - resource
+                      - value
+                      type: object
+                    type: array
+                type: object
               selector:
                 properties:
                   matchLabels:
@@ -258,9 +295,19 @@ spec:
                       type: string
                     type: object
                 type: object
+              severity:
+                enum:
+                - HIGH
+                - high
+                - MEDIUM
+                - medium
+                - LOW
+                - low
+                type: string
             required:
             - action
             - selector
+            - severity
             type: object
           status:
             description: KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
