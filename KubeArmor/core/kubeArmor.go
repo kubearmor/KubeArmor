@@ -12,8 +12,8 @@ import (
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
-	adt "github.com/accuknox/KubeArmor/KubeArmor/audit"
 	efc "github.com/accuknox/KubeArmor/KubeArmor/enforcer"
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	mon "github.com/accuknox/KubeArmor/KubeArmor/monitor"
 )
 
@@ -24,19 +24,9 @@ import (
 // StopChan Channel
 var StopChan chan struct{}
 
-// ActivePidMap to map container id and process id
-var ActivePidMap map[string]tp.PidMap
-
-// ActivePidMapLock for ActivePidMap
-var ActivePidMapLock *sync.Mutex
-
 // init Function
 func init() {
 	StopChan = make(chan struct{})
-
-	// shared map between container monitor and audit logger
-	ActivePidMap = map[string]tp.PidMap{}
-	ActivePidMapLock = &sync.Mutex{}
 }
 
 // KubeArmorDaemon Structure
@@ -60,25 +50,21 @@ type KubeArmorDaemon struct {
 	SecurityPolicies     []tp.SecurityPolicy
 	SecurityPoliciesLock *sync.Mutex
 
+	// log feeder
+	LogFeeder *fd.Feeder
+
 	// runtime enforcer
 	RuntimeEnforcer *efc.RuntimeEnforcer
 
-	// audit logger
-	AuditLogger *adt.AuditLogger
-
 	// container monitor
 	ContainerMonitor *mon.ContainerMonitor
-
-	// logging
-	AuditLogOption  string
-	SystemLogOption string
 
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(auditLogOption, systemLogOption string) *KubeArmorDaemon {
+func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -99,12 +85,9 @@ func NewKubeArmorDaemon(auditLogOption, systemLogOption string) *KubeArmorDaemon
 	dm.SecurityPolicies = []tp.SecurityPolicy{}
 	dm.SecurityPoliciesLock = &sync.Mutex{}
 
+	dm.LogFeeder = nil
 	dm.RuntimeEnforcer = nil
-	dm.AuditLogger = nil
 	dm.ContainerMonitor = nil
-
-	dm.AuditLogOption = auditLogOption
-	dm.SystemLogOption = systemLogOption
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -115,21 +98,48 @@ func NewKubeArmorDaemon(auditLogOption, systemLogOption string) *KubeArmorDaemon
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	// close runtime enforcer
 	dm.CloseRuntimeEnforcer()
-	kg.PrintfNotInsert("Closed the runtime enforcer")
-
-	// close audit logger
-	dm.CloseAuditLogger()
-	kg.PrintfNotInsert("Closed the audit logger")
+	kg.PrintfNotInsert("Stopped the runtime enforcer")
 
 	// close container monitor
 	dm.CloseContainerMonitor()
-	kg.PrintfNotInsert("Closed the container monitor")
+	kg.PrintfNotInsert("Stopped the container monitor")
+
+	// close log feeder
+	dm.CloseLogFeeder()
+	kg.PrintfNotInsert("Stopped the log feeder")
 
 	// wait for other routines
 	kg.PrintfNotInsert("Waiting for routine terminations")
 	dm.WgDaemon.Wait()
 
 	kg.PrintfNotInsert("Terminated the KubeArmor")
+}
+
+// ================ //
+// == Log Feeder == //
+// ================ //
+
+// InitLogFeeder Function
+func (dm *KubeArmorDaemon) InitLogFeeder(port, output string) bool {
+	dm.LogFeeder = fd.NewFeeder(port, output)
+	if dm.LogFeeder == nil {
+		return false
+	}
+
+	return true
+}
+
+// ServeLogFeeds Function
+func (dm *KubeArmorDaemon) ServeLogFeeds() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
+	go dm.LogFeeder.ServeLogFeeds()
+}
+
+// CloseLogFeeder Function
+func (dm *KubeArmorDaemon) CloseLogFeeder() {
+	dm.LogFeeder.DestroyFeeder()
 }
 
 // ====================== //
@@ -151,44 +161,13 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() {
 	dm.RuntimeEnforcer.DestroyRuntimeEnforcer()
 }
 
-// ================== //
-// == Audit Logger == //
-// ================== //
-
-// InitAuditLogger Function
-func (dm *KubeArmorDaemon) InitAuditLogger() bool {
-	dm.AuditLogger = adt.NewAuditLogger(dm.AuditLogOption, &dm.Containers, &dm.ContainersLock, &ActivePidMap, &ActivePidMapLock)
-	if dm.AuditLogger == nil {
-		return false
-	}
-
-	if err := dm.AuditLogger.InitAuditLogger(dm.HomeDir); err != nil {
-		return false
-	}
-
-	return true
-}
-
-// MonitorAuditLogs Function
-func (dm *KubeArmorDaemon) MonitorAuditLogs() {
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
-
-	go dm.AuditLogger.MonitorAuditLogs()
-}
-
-// CloseAuditLogger Function
-func (dm *KubeArmorDaemon) CloseAuditLogger() {
-	dm.AuditLogger.DestroyAuditLogger()
-}
-
 // ======================= //
 // == Container Monitor == //
 // ======================= //
 
 // InitContainerMonitor Function
 func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
-	dm.ContainerMonitor = mon.NewContainerMonitor(dm.AuditLogOption, dm.SystemLogOption, &dm.Containers, &dm.ContainersLock, &ActivePidMap, &ActivePidMapLock)
+	dm.ContainerMonitor = mon.NewContainerMonitor(dm.LogFeeder, &dm.Containers, &dm.ContainersLock)
 	if dm.ContainerMonitor == nil {
 		return false
 	}
@@ -206,7 +185,8 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	defer dm.WgDaemon.Done()
 
 	go dm.ContainerMonitor.TraceSyscall()
-	go dm.ContainerMonitor.UpdateSystemLogs()
+	go dm.ContainerMonitor.MonitorAuditLogs()
+	go dm.ContainerMonitor.UpdateLogs()
 }
 
 // CloseContainerMonitor Function
@@ -238,11 +218,18 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(auditLogOption, systemLogOption string) {
+func KubeArmor(port, output string) {
 	// create a daemon
-	dm := NewKubeArmorDaemon(auditLogOption, systemLogOption)
+	dm := NewKubeArmorDaemon()
 
 	kg.Print("Initializing KubeArmor")
+
+	// initialize log feeder
+	if !dm.InitLogFeeder(port, output) {
+		kg.Err("Failed to intialize the log feeder")
+		return
+	}
+	kg.Print("Started to serve gRPC-based log feeds")
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {
@@ -251,13 +238,6 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 	}
 	kg.Print("Started to protect containers")
 
-	// initialize audit logger
-	if !dm.InitAuditLogger() {
-		kg.Err("Failed to intialize the audit logger")
-		return
-	}
-	kg.Print("Started to monitor audit logs")
-
 	// initialize container monitor
 	if !dm.InitContainerMonitor() {
 		kg.Err("Failed to initialize the container monitor")
@@ -265,8 +245,8 @@ func KubeArmor(auditLogOption, systemLogOption string) {
 	}
 	kg.Print("Started to monitor system events")
 
-	// monitor audit logs (audit logger)
-	go dm.MonitorAuditLogs()
+	// serve log feeds
+	go dm.ServeLogFeeds()
 
 	// monior system events (container monitor)
 	go dm.MonitorSystemEvents()
