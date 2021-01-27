@@ -4,13 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -116,26 +114,27 @@ func init() {
 
 // ContainerMonitor Structure
 type ContainerMonitor struct {
-	// audit logs
-	auditLogType   string
-	auditLogTarget string
-	auditLogFeeder *fd.Feeder
-
-	// system logs
-	systemLogType   string
-	systemLogTarget string
-	systemLogFeeder *fd.Feeder
+	// logs
+	LogFeeder *fd.Feeder
 
 	// host name
 	HostName string
+
+	// namespace anme + container group name -> corresponding security policies
+	SecurityPolicies     map[string]tp.MatchPolicies
+	SecurityPoliciesLock *sync.Mutex
 
 	// container id -> cotnainer
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.Mutex
 
+	// container id -> pid
+	ActivePidMap     map[string]tp.PidMap
+	ActivePidMapLock *sync.Mutex
+
 	// container id -> host pid
-	ActivePidMap     *map[string]tp.PidMap
-	ActivePidMapLock **sync.Mutex
+	ActiveHostPidMap     map[string]tp.PidMap
+	ActiveHostPidMapLock *sync.Mutex
 
 	// container monitor
 	BpfModule *bcc.Module
@@ -151,124 +150,37 @@ type ContainerMonitor struct {
 	SyscallLostChannel chan uint64
 	SyscallPerfMap     *bcc.PerfMap
 
-	// flags to skip
-	SkipNamespace bool
-	SkipExec      bool
-	SkipDir       bool
-
 	// lists to skip
 	UntrackedNamespaces []string
-	UntrackedExecs      []string
-	UntrackedDirs       []string
 
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
 }
 
 // NewContainerMonitor Function
-func NewContainerMonitor(auditLogOption string, systemLogOption string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex) *ContainerMonitor {
+func NewContainerMonitor(feeder *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.Mutex) *ContainerMonitor {
 	mon := new(ContainerMonitor)
+
+	mon.LogFeeder = feeder
 
 	mon.HostName = kl.GetHostName()
 
-	// audit logs
-
-	if strings.Contains(auditLogOption, "grpc:") {
-		args := strings.Split(auditLogOption, ":")
-
-		mon.auditLogType = args[0]
-		mon.auditLogTarget = args[1] + ":" + args[2] // ip:port
-		mon.auditLogFeeder = fd.NewFeeder(mon.auditLogTarget, "AuditLog")
-
-	} else if strings.Contains(auditLogOption, "file:") {
-		args := strings.Split(auditLogOption, ":")
-
-		mon.auditLogType = args[0]
-		mon.auditLogTarget = args[1]
-
-		// get the directory part from the path
-		dirLog := filepath.Dir(mon.auditLogTarget)
-
-		// create directories
-		if err := os.MkdirAll(dirLog, 0755); err != nil {
-			kg.Errf("Failed to create a target directory (%s)", err.Error())
-			return nil
-		}
-
-		// create target file
-		targetFile, err := os.Create(mon.auditLogTarget)
-		if err != nil {
-			kg.Errf("Failed to create a target file (%s)", err.Error())
-			return nil
-		}
-		targetFile.Close()
-
-	} else if auditLogOption == "stdout" {
-		mon.auditLogType = "stdout"
-		mon.auditLogTarget = ""
-
-	} else {
-		mon.auditLogType = "none"
-		mon.auditLogTarget = ""
-	}
-
-	// system logs
-
-	if strings.Contains(systemLogOption, "grpc:") {
-		args := strings.Split(systemLogOption, ":")
-
-		mon.systemLogType = args[0]
-		mon.systemLogTarget = args[1] + ":" + args[2] // ip:port
-		mon.systemLogFeeder = fd.NewFeeder(mon.systemLogTarget, "SystemLog")
-
-	} else if strings.Contains(systemLogOption, "file:") {
-		args := strings.Split(systemLogOption, ":")
-
-		mon.systemLogType = args[0]
-		mon.systemLogTarget = args[1]
-
-		// get the directory part from the path
-		dirLog := filepath.Dir(mon.systemLogTarget)
-
-		// create directories
-		if err := os.MkdirAll(dirLog, 0755); err != nil {
-			kg.Errf("Failed to create a target directory (%s)", err.Error())
-			return nil
-		}
-
-		// create target file
-		targetFile, err := os.Create(mon.systemLogTarget)
-		if err != nil {
-			kg.Errf("Failed to create a target file (%s)", err.Error())
-			return nil
-		}
-		targetFile.Close()
-
-	} else if systemLogOption == "stdout" {
-		mon.systemLogType = "stdout"
-		mon.systemLogTarget = ""
-
-	} else {
-		mon.systemLogType = "none"
-		mon.systemLogTarget = ""
-	}
+	mon.SecurityPolicies = map[string]tp.MatchPolicies{}
+	mon.SecurityPoliciesLock = &sync.Mutex{}
 
 	mon.Containers = containers
 	mon.ContainersLock = containersLock
 
-	mon.ActivePidMap = activePidMap
-	mon.ActivePidMapLock = activePidMapLock
+	mon.ActivePidMap = map[string]tp.PidMap{}
+	mon.ActivePidMapLock = &sync.Mutex{}
+
+	mon.ActiveHostPidMap = map[string]tp.PidMap{}
+	mon.ActiveHostPidMapLock = &sync.Mutex{}
 
 	mon.NsMap = make(map[NsKey]string)
 	mon.ContextChan = make(chan ContextCombined, 1024)
 
-	mon.SkipNamespace = true
-	mon.SkipExec = true
-	mon.SkipDir = true
-
 	mon.UntrackedNamespaces = []string{"kube-system"}
-	mon.UntrackedExecs = []string{}
-	mon.UntrackedDirs = []string{}
 
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
@@ -278,29 +190,46 @@ func NewContainerMonitor(auditLogOption string, systemLogOption string, containe
 
 // InitBPF Function
 func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
-	// check if COS
-	if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
-		s := string(b)
-		if strings.Contains(s, "Container-Optimized OS") {
-			kg.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
+	if kl.IsInK8sCluster() {
+		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+			s := string(b)
+			if strings.Contains(s, "Container-Optimized OS") {
+				kg.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
-			// get kernel version
-			kernelVersion := kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
-			kernelVersion = strings.TrimSuffix(kernelVersion, "\n")
+				// get kernel version
+				kernelVersion := kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
+				kernelVersion = strings.TrimSuffix(kernelVersion, "\n")
 
-			// check and download kernel headers
-			if err := exec.Command(HomeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
-				kg.Errf("Failed to download COS kernel headers (%s)", err.Error())
-				return err
+				// check and download kernel headers
+				if err := exec.Command(HomeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
+					kg.Errf("Failed to download COS kernel headers (%s)", err.Error())
+					return err
+				}
+
+				kg.Printf("Downloaded kernel headers (%s)", kernelVersion)
+
+				// set a new location for kernel headers
+				os.Setenv("BCC_KERNEL_SOURCE", HomeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
+
+				// just for safety
+				time.Sleep(time.Second * 1)
+
+				for {
+					// create symbolic link
+					if err := exec.Command(HomeDir + "/GKE/create_symbolic_link.sh").Run(); err == nil {
+						break
+					} else {
+						// wait until cos-auditd is ready
+						time.Sleep(time.Second * 1)
+					}
+				}
+			} else {
+				// make a symbolic link
+				if err := os.Symlink("/var/log/audit/audit.log", "/KubeArmor/audit/audit.log"); err != nil {
+					kg.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+					return nil
+				}
 			}
-
-			kg.Printf("Downloaded kernel headers (%s)", kernelVersion)
-
-			// set a new location for kernel headers
-			os.Setenv("BCC_KERNEL_SOURCE", HomeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
-
-			// just for safety
-			time.Sleep(time.Second * 1)
 		}
 	}
 
@@ -341,7 +270,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 		}
 	}
 
-	tracepoints := []string{"do_exit"}
+	tracepoints := []string{"do_exit"} // , "cap_capable"}
 
 	for _, tracepoint := range tracepoints {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
@@ -376,14 +305,6 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() error {
 		mon.BpfModule.Close()
 	}
 
-	if mon.auditLogFeeder != nil {
-		mon.auditLogFeeder.DestroyFeeder()
-	}
-
-	if mon.systemLogFeeder != nil {
-		mon.systemLogFeeder.DestroyFeeder()
-	}
-
 	if mon.ContextChan != nil {
 		close(mon.ContextChan)
 	}
@@ -391,14 +312,14 @@ func (mon *ContainerMonitor) DestroyContainerMonitor() error {
 	return nil
 }
 
-// ================= //
-// == System Logs == //
-// ================= //
+// ========== //
+// == Logs == //
+// ========== //
 
 // GetNameFromContainerID Function
 func (mon *ContainerMonitor) GetNameFromContainerID(id string) (string, string, string) {
-	ContainersLock := *(mon.ContainersLock)
 	Containers := *(mon.Containers)
+	ContainersLock := *(mon.ContainersLock)
 
 	ContainersLock.Lock()
 	defer ContainersLock.Unlock()
@@ -407,46 +328,42 @@ func (mon *ContainerMonitor) GetNameFromContainerID(id string) (string, string, 
 		return val.NamespaceName, val.ContainerGroupName, val.ContainerName
 	}
 
-	return "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET", "NOT_DISCOVERED_YET"
+	return "", "", ""
 }
 
-// BuildSystemLogCommon Function
-func (mon *ContainerMonitor) BuildSystemLogCommon(msg ContextCombined) tp.SystemLog {
-	log := tp.SystemLog{}
+// BuildLogBase Function
+func (mon *ContainerMonitor) BuildLogBase(msg ContextCombined) tp.Log {
+	log := tp.Log{}
 
-	log.UpdatedTime = kl.GetDateTimeFromTimestamp(mon.UptimeTimeStamp + (float64(msg.ContextSys.Ts) / 1000000000.0))
+	log.UpdatedTime = kl.GetDateTimeNow()
 
 	log.HostName = mon.HostName
 
 	log.ContainerID = msg.ContainerID
-	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(msg.ContainerID)
+	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(log.ContainerID)
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
 	log.PID = int32(msg.ContextSys.PID)
 	log.UID = int32(msg.ContextSys.UID)
 
-	log.Operation = "syscall"
-	log.Resource = getSyscallName(int32(msg.ContextSys.EventID))
-
-	if msg.ContextSys.Retval < 0 {
-		message := getErrorMessage(msg.ContextSys.Retval)
-		if message != "" {
-			log.Result = fmt.Sprintf("%s", message)
-		} else {
-			log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
-		}
+	if msg.ContextSys.EventID == SYS_EXECVE || msg.ContextSys.EventID == SYS_EXECVEAT {
+		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PPID)
 	} else {
-		log.Result = "Passed"
+		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID)
 	}
 
-	log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
+	if log.Source == "" {
+		log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
+	}
 
 	return log
 }
 
-// UpdateSystemLogs Function
-func (mon *ContainerMonitor) UpdateSystemLogs() {
+// UpdateLogs Function
+func (mon *ContainerMonitor) UpdateLogs() {
+	execLogMap := map[int32]tp.Log{}
+
 	for {
 		select {
 		case <-StopChan:
@@ -457,11 +374,7 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 				continue
 			}
 
-			if mon.systemLogType == "none" && msg.ContextSys.Retval != -1 {
-				continue
-			}
-
-			log := mon.BuildSystemLogCommon(msg)
+			log := mon.BuildLogBase(msg)
 
 			switch msg.ContextSys.EventID {
 			case SYS_OPEN:
@@ -477,105 +390,26 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					}
 				}
 
-				log.Args = "filename=" + fileName + " flags=" + fileOpenFlags
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "flags=" + fileOpenFlags
 
-				if msg.ContextSys.Retval > 0 {
-					log.Args = log.Args + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
+				if msg.ContextSys.Retval == -13 {
+					continue
 				}
 
 			case SYS_CLOSE:
+				var fd string
+
 				if len(msg.ContextArgs) == 1 {
 					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.Args = "fd=" + strconv.Itoa(int(val))
-					}
-				}
-
-			case SYS_SOCKET: // domain, type, proto
-				var sockDomain string
-				var sockType string
-				var sockProtocol string
-
-				if len(msg.ContextArgs) == 3 {
-					if val, ok := msg.ContextArgs[0].(string); ok {
-						sockDomain = val
-					}
-					if val, ok := msg.ContextArgs[1].(string); ok {
-						sockType = val
-					}
-					if val, ok := msg.ContextArgs[2].(int32); ok {
-						sockProtocol = strconv.Itoa(int(val))
-					}
-				}
-
-				log.Args = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
-
-				if msg.ContextSys.Retval > 0 {
-					log.Args = log.Args + " fd=" + strconv.FormatInt(msg.ContextSys.Retval, 10)
-				}
-
-			case SYS_CONNECT: // fd, sockaddr
-				var fd string
-				var sockAddr map[string]string
-
-				if len(msg.ContextArgs) == 2 {
-					if val, ok := msg.ContextArgs[0].(int32); ok {
 						fd = strconv.Itoa(int(val))
 					}
-					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
-						sockAddr = val
-					}
 				}
 
-				log.Args = "fd=" + fd
-
-				for k, v := range sockAddr {
-					log.Args = log.Args + " " + k + "=" + v
-				}
-
-			case SYS_ACCEPT: // fd, sockaddr
-				var fd string
-				var sockAddr map[string]string
-
-				if len(msg.ContextArgs) == 2 {
-					if val, ok := msg.ContextArgs[0].(int32); ok {
-						fd = strconv.Itoa(int(val))
-					}
-					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
-						sockAddr = val
-					}
-				}
-
-				log.Args = "fd=" + fd
-
-				for k, v := range sockAddr {
-					log.Args = log.Args + " " + k + "=" + v
-				}
-
-			case SYS_BIND: // fd, sockaddr
-				var fd string
-				var sockAddr map[string]string
-
-				if len(msg.ContextArgs) == 2 {
-					if val, ok := msg.ContextArgs[0].(int32); ok {
-						fd = strconv.Itoa(int(val))
-					}
-					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
-						sockAddr = val
-					}
-				}
-
-				log.Args = "fd=" + fd
-
-				for k, v := range sockAddr {
-					log.Args = log.Args + " " + k + "=" + v
-				}
-
-			case SYS_LISTEN:
-				if len(msg.ContextArgs) == 2 {
-					if val, ok := msg.ContextArgs[0].(int32); ok {
-						log.Args = "fd=" + strconv.Itoa(int(val))
-					}
-				}
+				log.Operation = "File"
+				log.Resource = getSyscallName(int32(msg.ContextSys.EventID))
+				log.Data = "fd=" + fd
 
 			case SYS_EXECVE: // path, args
 				var procExecPath string
@@ -588,15 +422,29 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					if val, ok := msg.ContextArgs[1].([]string); ok {
 						procArgs = val
 					}
-				}
 
-				log.Args = "exec=" + procExecPath
+					log.Operation = "Process"
+					log.Resource = procExecPath
 
-				for idx, arg := range procArgs {
-					if idx == 0 {
+					for idx, arg := range procArgs {
+						if idx == 0 {
+							continue
+						} else {
+							log.Resource = log.Resource + " " + arg
+						}
+					}
+
+					log.Data = ""
+
+					execLogMap[log.HostPID] = log
+
+					continue
+				} else {
+					log = execLogMap[log.HostPID]
+					delete(execLogMap, log.HostPID)
+
+					if msg.ContextSys.Retval == -13 {
 						continue
-					} else {
-						log.Args = log.Args + " a" + strconv.Itoa(idx) + "=" + arg
 					}
 				}
 
@@ -619,19 +467,130 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 					if val, ok := msg.ContextArgs[3].(string); ok {
 						procExecFlag = val
 					}
-				}
 
-				log.Args = "fd=" + fd + " exec=" + procExecPath
+					log.Operation = "Process"
+					log.Resource = procExecPath
 
-				for idx, arg := range procArgs {
-					if idx == 0 {
+					for idx, arg := range procArgs {
+						if idx == 0 {
+							continue
+						} else {
+							log.Resource = log.Resource + " " + arg
+						}
+					}
+
+					log.Data = "fd=" + fd + " flag=" + procExecFlag
+
+					execLogMap[log.HostPID] = log
+
+					continue
+				} else {
+					log = execLogMap[log.HostPID]
+					delete(execLogMap, log.HostPID)
+
+					if msg.ContextSys.Retval == -13 {
 						continue
-					} else {
-						log.Args = log.Args + " a" + strconv.Itoa(idx) + "=" + arg
 					}
 				}
 
-				log.Args = " flag=" + procExecFlag
+			case SYS_SOCKET: // domain, type, proto
+				var sockDomain string
+				var sockType string
+				var sockProtocol string
+
+				if len(msg.ContextArgs) == 3 {
+					if val, ok := msg.ContextArgs[0].(string); ok {
+						sockDomain = val
+					}
+					if val, ok := msg.ContextArgs[1].(string); ok {
+						sockType = val
+					}
+					if val, ok := msg.ContextArgs[2].(int32); ok {
+						sockProtocol = strconv.Itoa(int(val))
+					}
+				}
+
+				log.Operation = "Network"
+				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
+				log.Data = ""
+
+			case SYS_CONNECT: // fd, sockaddr
+				var fd string
+				var sockAddr map[string]string
+
+				if len(msg.ContextArgs) == 2 {
+					if val, ok := msg.ContextArgs[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
+						sockAddr = val
+					}
+				}
+
+				log.Operation = "Network"
+				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+
+				for k, v := range sockAddr {
+					log.Resource = log.Resource + " " + k + "=" + v
+				}
+
+				log.Data = "fd=" + fd
+
+			case SYS_ACCEPT: // fd, sockaddr
+				var fd string
+				var sockAddr map[string]string
+
+				if len(msg.ContextArgs) == 2 {
+					if val, ok := msg.ContextArgs[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
+						sockAddr = val
+					}
+				}
+
+				log.Operation = "Network"
+				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Data = "fd=" + fd
+
+				for k, v := range sockAddr {
+					log.Resource = log.Resource + " " + k + "=" + v
+				}
+
+			case SYS_BIND: // fd, sockaddr
+				var fd string
+				var sockAddr map[string]string
+
+				if len(msg.ContextArgs) == 2 {
+					if val, ok := msg.ContextArgs[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+					if val, ok := msg.ContextArgs[1].(map[string]string); ok {
+						sockAddr = val
+					}
+				}
+
+				log.Operation = "Network"
+				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+
+				for k, v := range sockAddr {
+					log.Resource = log.Resource + " " + k + "=" + v
+				}
+
+				log.Data = "fd=" + fd
+
+			case SYS_LISTEN: // fd
+				var fd string
+
+				if len(msg.ContextArgs) == 2 {
+					if val, ok := msg.ContextArgs[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+				}
+
+				log.Operation = "Network"
+				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Data = "fd=" + fd
 
 			case CAP_CAPABLE:
 				var cap string
@@ -647,56 +606,36 @@ func (mon *ContainerMonitor) UpdateSystemLogs() {
 
 				}
 
-				log.Args = "cap=" + cap + " syscall=" + syscall
+				log.Operation = "Capabilities"
+				log.Resource = "capability=" + cap + " syscall=" + syscall
+				log.Data = ""
+
+			default:
+				continue
 			}
 
 			// == //
 
-			if mon.systemLogType == "grpc" {
-				mon.systemLogFeeder.SendSystemLog(log)
-
-			} else if mon.systemLogType == "file" {
-				arr, _ := json.Marshal(log)
-				kl.StrToFile(string(arr), mon.systemLogTarget)
-
-			} else if mon.systemLogType == "stdout" {
-				arr, _ := json.Marshal(log)
-				fmt.Println(string(arr))
+			if msg.ContextSys.Retval < 0 {
+				message := getErrorMessage(msg.ContextSys.Retval)
+				if message != "" {
+					log.Result = fmt.Sprintf("%s", message)
+				} else {
+					log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
+				}
+			} else {
+				log.Result = "Passed"
 			}
 
-			if msg.ContextSys.Retval == -1 {
-				auditLog := tp.AuditLog{}
+			// == //
 
-				auditLog.UpdatedTime = log.UpdatedTime
+			log = mon.UpdateMatchedPolicy(log, msg.ContextSys.Retval)
+			if log.Type == "" {
+				continue
+			}
 
-				auditLog.HostName = log.HostName
-
-				auditLog.ContainerID = log.ContainerID
-				auditLog.ContainerName = log.ContainerName
-
-				auditLog.NamespaceName = log.NamespaceName
-				auditLog.PodName = log.PodName
-
-				auditLog.HostPID = log.HostPID
-
-				auditLog.Source = log.Source
-				auditLog.Operation = log.Operation
-				auditLog.Resource = log.Resource
-				auditLog.Result = fmt.Sprintf("Failed (%s)", log.Result)
-
-				auditLog.RawData = ""
-
-				if mon.auditLogType == "grpc" {
-					mon.auditLogFeeder.SendAuditLog(auditLog)
-
-				} else if mon.auditLogType == "file" {
-					arr, _ := json.Marshal(log)
-					kl.StrToFile(string(arr), mon.auditLogTarget)
-
-				} else if mon.auditLogType == "stdout" {
-					arr, _ := json.Marshal(log)
-					fmt.Println(string(arr))
-				}
+			if mon.LogFeeder != nil {
+				mon.LogFeeder.PushLog(log)
 			}
 
 			// == //
@@ -770,15 +709,24 @@ func (mon *ContainerMonitor) LookupContainerID(pidns uint32, mntns uint32, pid u
 // ================== //
 
 // BuildPidNode Function
-func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string) tp.PidNode {
+func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string, args []string) tp.PidNode {
 	node := tp.PidNode{}
 
 	node.HostPID = ctx.HostPID
 	node.PPID = ctx.PPID
 	node.PID = ctx.PID
+	node.UID = ctx.UID
 
 	node.Comm = string(ctx.Comm[:])
 	node.ExecPath = execPath
+
+	for idx, arg := range args {
+		if idx == 0 {
+			continue
+		} else {
+			node.ExecPath = node.ExecPath + " " + arg
+		}
+	}
 
 	node.Exited = false
 
@@ -787,81 +735,134 @@ func (mon *ContainerMonitor) BuildPidNode(ctx SyscallContext, execPath string) t
 
 // AddActivePid Function
 func (mon *ContainerMonitor) AddActivePid(containerID string, node tp.PidNode) {
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMap := *(mon.ActivePidMap)
-
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
+	mon.ActivePidMapLock.Lock()
 
 	// add pid node to AcvtivePidMaps
-	if pidMap, ok := ActivePidMap[containerID]; ok {
+	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
+		if _, ok := pidMap[node.PID]; !ok {
+			pidMap[node.PID] = node
+		}
+	} else {
+		newPidMap := tp.PidMap{node.PID: node}
+		mon.ActivePidMap[containerID] = newPidMap
+	}
+
+	mon.ActivePidMapLock.Unlock()
+
+	mon.ActiveHostPidMapLock.Lock()
+
+	// add pid node to AcvtivePidMaps
+	if pidMap, ok := mon.ActiveHostPidMap[containerID]; ok {
 		if _, ok := pidMap[node.HostPID]; !ok {
 			pidMap[node.HostPID] = node
 		}
 	} else {
 		newPidMap := tp.PidMap{node.HostPID: node}
-		ActivePidMap[containerID] = newPidMap
+		mon.ActiveHostPidMap[containerID] = newPidMap
 	}
+
+	mon.ActiveHostPidMapLock.Unlock()
+}
+
+// GetExecPath Function
+func (mon *ContainerMonitor) GetExecPath(containerID string, pid uint32) string {
+	mon.ActivePidMapLock.Lock()
+	defer mon.ActivePidMapLock.Unlock()
+
+	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
+		if node, ok := pidMap[pid]; ok {
+			if node.PID == pid {
+				return node.ExecPath
+			}
+		}
+	}
+
+	return ""
+}
+
+// GetExecPathWithHostPID Function
+func (mon *ContainerMonitor) GetExecPathWithHostPID(containerID string, hostPid uint32) string {
+	mon.ActiveHostPidMapLock.Lock()
+	defer mon.ActiveHostPidMapLock.Unlock()
+
+	if pidMap, ok := mon.ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			if node.HostPID == hostPid {
+				return node.ExecPath
+			}
+		}
+	}
+
+	return ""
 }
 
 // DeleteActivePid Function
 func (mon *ContainerMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMap := *(mon.ActivePidMap)
-
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
+	mon.ActivePidMapLock.Lock()
 
 	// delete execve(at) pid
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		if node, ok := pidMap[ctx.HostPID]; ok {
-			if node.HostPID == ctx.HostPID && node.PID == ctx.PID {
+	if pidMap, ok := mon.ActivePidMap[containerID]; ok {
+		if node, ok := pidMap[ctx.PID]; ok {
+			if node.PID == ctx.PID {
 				node.Exited = true
 				node.ExitedTime = time.Now()
 			}
 		}
 	}
+
+	mon.ActivePidMapLock.Unlock()
+
+	mon.ActiveHostPidMapLock.Lock()
+
+	// delete execve(at) host pid
+	if pidMap, ok := mon.ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[ctx.HostPID]; ok {
+			if node.HostPID == ctx.HostPID {
+				node.Exited = true
+				node.ExitedTime = time.Now()
+			}
+		}
+	}
+
+	mon.ActiveHostPidMapLock.Unlock()
 }
 
 // CleanUpExitedHostPids Function
 func (mon *ContainerMonitor) CleanUpExitedHostPids() {
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMap := *(mon.ActivePidMap)
-
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
 	now := time.Now()
 
-	for _, pidMap := range ActivePidMap {
-		for hostPid, pidNode := range pidMap {
+	mon.ActivePidMapLock.Lock()
+
+	for _, pidMap := range mon.ActivePidMap {
+		for pid, pidNode := range pidMap {
 			if pidNode.Exited {
 				if now.After(pidNode.ExitedTime.Add(time.Second * 10)) {
-					delete(pidMap, hostPid)
+					delete(pidMap, pid)
 				}
 			}
 		}
 	}
+
+	mon.ActivePidMapLock.Unlock()
+
+	mon.ActiveHostPidMapLock.Lock()
+
+	for _, pidMap := range mon.ActiveHostPidMap {
+		for pid, pidNode := range pidMap {
+			if pidNode.Exited {
+				if now.After(pidNode.ExitedTime.Add(time.Second * 10)) {
+					delete(pidMap, pid)
+				}
+			}
+		}
+	}
+
+	mon.ActiveHostPidMapLock.Unlock()
 }
 
 // ======================= //
 // == System Call Trace == //
 // ======================= //
-
-// IsSkipFileDirectory Function
-func (mon *ContainerMonitor) IsSkipFileDirectory(directory string) bool {
-	for _, skipDir := range mon.UntrackedDirs {
-		if strings.HasPrefix(directory, skipDir) {
-			return true
-		}
-	}
-	return false
-}
-
-// IsSkippedExecPaths Function
-func (mon *ContainerMonitor) IsSkippedExecPaths(path string) bool {
-	return kl.ContainsElement(mon.UntrackedExecs, path)
-}
 
 // TraceSyscall Function
 func (mon *ContainerMonitor) TraceSyscall() {
@@ -899,13 +900,13 @@ func (mon *ContainerMonitor) TraceSyscall() {
 				continue
 			}
 
-			ContainersLock := *(mon.ContainersLock)
 			Containers := *(mon.Containers)
+			ContainersLock := *(mon.ContainersLock)
 
 			// skip namespaces
 			ContainersLock.Lock()
 			namespace := Containers[containerID].NamespaceName
-			if mon.SkipNamespace && kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+			if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
 				ContainersLock.Unlock()
 				continue
 			}
@@ -916,36 +917,25 @@ func (mon *ContainerMonitor) TraceSyscall() {
 					continue
 				}
 
-				if mon.SkipDir && mon.IsSkipFileDirectory(args[0].(string)) {
-					continue
-				}
-
 			} else if ctx.EventID == SYS_EXECVE {
-				if len(args) != 2 {
+				if len(args) == 2 {
+					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
+					mon.AddActivePid(containerID, pidNode)
+				} else if len(args) != 0 {
 					continue
 				}
-
-				if mon.SkipExec && mon.IsSkippedExecPaths(args[0].(string)) {
-					continue
-				}
-
-				pidNode := mon.BuildPidNode(ctx, args[0].(string))
-				mon.AddActivePid(containerID, pidNode)
 
 			} else if ctx.EventID == SYS_EXECVEAT {
-				if len(args) != 4 {
+				if len(args) == 4 {
+					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
+					mon.AddActivePid(containerID, pidNode)
+				} else if len(args) != 0 {
 					continue
 				}
-
-				if mon.SkipExec && mon.IsSkippedExecPaths(args[0].(string)) {
-					continue
-				}
-
-				pidNode := mon.BuildPidNode(ctx, args[1].(string))
-				mon.AddActivePid(containerID, pidNode)
 
 			} else if ctx.EventID == DO_EXIT {
 				mon.DeleteActivePid(containerID, ctx)
+				continue
 			}
 
 			// push the context to the channel for system logging
