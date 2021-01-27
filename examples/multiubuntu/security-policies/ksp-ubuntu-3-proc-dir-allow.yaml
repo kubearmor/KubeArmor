@@ -4,6 +4,7 @@ metadata:
   name: ksp-ubuntu-3-proc-dir-allow
   namespace: multiubuntu
 spec:
+  severity: medium
   selector:
     matchLabels:
       container: ubuntu-3
@@ -15,4 +16,4 @@ spec:
       - dir: /credentials/ # allow accessing the files in this directory; otherwise, deny all
         recursive: true
   action:
-    Allow
+    AllowWithAudit
