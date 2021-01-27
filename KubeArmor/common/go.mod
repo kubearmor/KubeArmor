@@ -5,6 +5,7 @@ go 1.15
 replace (
 	github.com/accuknox/KubeArmor => ../../
 	github.com/accuknox/KubeArmor/KubeArmor => ../
+	github.com/accuknox/KubeArmor/KubeArmor/common => ./
 	github.com/accuknox/KubeArmor/KubeArmor/log => ../log
 )
 
