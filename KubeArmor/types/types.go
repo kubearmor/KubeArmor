@@ -92,37 +92,8 @@ type Message struct {
 	UpdatedTime string `json:"updatedTime"`
 }
 
-// AuditLog Structure
-type AuditLog struct {
-	// updated time
-	UpdatedTime string `json:"updatedTime"`
-
-	// host
-	HostName string `json:"hostName"`
-
-	// k8s
-	NamespaceName string `json:"namespaceName"`
-	PodName       string `json:"podName"`
-
-	// container
-	ContainerID   string `json:"containerID"`
-	ContainerName string `json:"containerName"`
-
-	// common
-	HostPID int32 `json:"hostPid"`
-
-	// audit
-	Source    string `json:"source"`
-	Operation string `json:"operation"`
-	Resource  string `json:"resource"`
-	Result    string `json:"result"`
-
-	// raw
-	RawData string `json:"rawData,omitempty"`
-}
-
-// SystemLog Structure
-type SystemLog struct {
+// Log Structure
+type Log struct {
 	// updated time
 	UpdatedTime string `json:"updatedTime"`
 
@@ -143,12 +114,34 @@ type SystemLog struct {
 	PID     int32 `json:"pid"`
 	UID     int32 `json:"uid"`
 
-	// syscall
+	// policy
+	PolicyName string `json:"policyName,omitempty"`
+
+	// severity
+	Severity string `json:"severity,omitempty"`
+
+	// log
+	Type      string `json:"type"`
 	Source    string `json:"source"`
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
-	Args      string `json:"args"`
+	Data      string `json:"data,omitempty"`
+	Action    string `json:"action,omitempty"`
 	Result    string `json:"result"`
+}
+
+// MatchPolicy Structure
+type MatchPolicy struct {
+	PolicyName string
+	Severity   string
+	Operation  string
+	Resource   string
+	Action     string
+}
+
+// MatchPolicies Structure
+type MatchPolicies struct {
+	Policies []MatchPolicy
 }
 
 // ===================== //
@@ -231,19 +224,39 @@ type FileType struct {
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
 }
 
+// NetworkType Structure
+type NetworkType struct {
+	MatchProtocols []string `json:"matchProtocols,omitempty"`
+}
+
 // CapabilitiesType Structure
 type CapabilitiesType struct {
 	MatchCapabilities []string `json:"matchCapabilities,omitempty"`
 	MatchOperations   []string `json:"matchOperations,omitempty"`
 }
 
+// ResourceValueType Structure
+type ResourceValueType struct {
+	Resource string `json:"resource"`
+	Value    string `json:"value"`
+}
+
+// ResourceType Structure
+type ResourceType struct {
+	MatchResources []ResourceValueType `json:"matchResources,omitempty"`
+}
+
 // SecuritySpec Structure
 type SecuritySpec struct {
+	Severity string `json:"severity"`
+
 	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`
+	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
+	Resource     ResourceType     `json:"resource,omitempty"`
 
 	Action string `json:"action"`
 }
@@ -269,6 +282,7 @@ type PidNode struct {
 	HostPID uint32
 	PPID    uint32
 	PID     uint32
+	UID     uint32
 
 	Comm     string
 	ExecPath string
