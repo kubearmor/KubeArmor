@@ -49,6 +49,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerID)
 			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 		}
+
+		// update container in log feeder
+		dm.LogFeeder.AddContainerInfo(container)
 	} else { // DELETED
 		if kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
 			for idxL, identity := range dm.ContainerGroups[conGroupIdx].Identities {
@@ -68,6 +71,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			}
 			delete(dm.ContainerGroups[conGroupIdx].AppArmorProfiles, container.ContainerID)
 		}
+
+		// update container in log feeder
+		dm.LogFeeder.RemoveContainerInfo(container)
 	}
 
 	// enforce security policies

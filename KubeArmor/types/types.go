@@ -144,6 +144,68 @@ type MatchPolicies struct {
 	Policies []MatchPolicy
 }
 
+// ================ //
+// == Statistics == //
+// ================ //
+
+// HostStatType Structure
+type HostStatType struct {
+	HostName string
+
+	AllowedCount int32
+	AuditedCount int32
+	BlockedCount int32
+	FailedCount  int32
+}
+
+// NamespaceStatType Structure
+type NamespaceStatType struct {
+	HostName      string
+	NamespaceName string
+
+	Containers []string
+
+	AllowedCount int32
+	AuditedCount int32
+	BlockedCount int32
+	FailedCount  int32
+}
+
+// PodStatType Structure
+type PodStatType struct {
+	HostName      string
+	NamespaceName string
+	PodName       string
+
+	Containers []string
+
+	AllowedCount int32
+	AuditedCount int32
+	BlockedCount int32
+	FailedCount  int32
+}
+
+// ContainerStatType Structure
+type ContainerStatType struct {
+	HostName      string
+	NamespaceName string
+	PodName       string
+	ContainerName string
+
+	AllowedCount int32
+	AuditedCount int32
+	BlockedCount int32
+	FailedCount  int32
+}
+
+// StatsType Structure
+type StatsType struct {
+	HostStats      HostStatType
+	NamespaceStats map[string]NamespaceStatType
+	PodStats       map[string]PodStatType
+	ContainerStats map[string]ContainerStatType
+}
+
 // ===================== //
 // == Security Policy == //
 // ===================== //
