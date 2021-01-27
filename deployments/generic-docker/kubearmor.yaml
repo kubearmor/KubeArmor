@@ -17,6 +17,20 @@ subjects:
   name: kubearmor
   namespace: kube-system
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubearmor
+  namespace: kube-system
+spec:
+  type: NodePort
+  selector:
+    container: kubearmor
+  ports:
+  - port: 32767
+    nodePort: 32767
+    protocol: TCP
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -46,15 +60,9 @@ spec:
       - name: kubearmor
         image: accuknox/kubearmor:latest
         imagePullPolicy: Always
-        args: ["-audit=grpc:kubearmor-logserver:32767", "-system=grpc:kubearmor-logserver:32767"]
-        securityContext:
-          privileged: true
-          capabilities:
-            add:
-            - AUDIT_CONTROL # Auditd
-            - AUDIT_READ # Auditd
-            - AUDIT_WRITE # Auditd
-            - SYS_NICE # Auditd
+        args: ["-port=32767", "-output=/tmp/kubearmor.log"]
+        ports:
+        - containerPort: 32767
         volumeMounts:
         - name: docker-sock-path # docker (read-only)
           mountPath: /var/run/docker.sock
@@ -120,37 +128,3 @@ spec:
         hostPath:
           path: /etc/os-release
           type: File
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kubearmor-logserver
-  namespace: kube-system
-spec:
-  type: NodePort
-  selector:
-    container: kubearmor-logserver
-  ports:
-  - port: 32767
-    nodePort: 32767
-    protocol: TCP
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kubearmor-logserver
-  namespace: kube-system
-spec:
-  selector:
-    matchLabels:
-      container: kubearmor-logserver
-  template:
-    metadata:
-      labels:
-        container: kubearmor-logserver
-    spec:
-      containers:
-        - name: kubearmor-logserver
-          image: accuknox/kubearmor-logserver:latest
-          ports:
-          - containerPort: 32767
