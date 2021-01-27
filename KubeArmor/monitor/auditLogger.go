@@ -204,6 +204,10 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 				continue
 			}
 
+			if mon.IsCOS {
+				line = strings.Replace(line, "\\\"", "\"", -1)
+			}
+
 			hostPid := int32(0)
 
 			profileName := ""
