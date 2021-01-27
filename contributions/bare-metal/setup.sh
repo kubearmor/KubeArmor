@@ -69,6 +69,9 @@ fi
 # install apparmor and audit
 sudo apt-get install -y apparmor apparmor-utils auditd
 
+# enable auditd
+sudo systemctl enable auditd && sudo systemctl start auditd
+
 # install dependency on protoc
 sudo apt-get install -y unzip
 
