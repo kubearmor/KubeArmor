@@ -1,0 +1,23 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-sa-block
+  namespace: wordpress-mysql
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchDirectories:
+    - dir: /run/secrets/kubernetes.io/serviceaccount/
+      recursive: true
+
+      # cat /run/secrets/kubernetes.io/serviceaccount/token
+      # env
+      # echo $KUBERNETES_PORT_443_TCP_ADDR
+      # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure
+      # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
+
+  action:
+    Block
