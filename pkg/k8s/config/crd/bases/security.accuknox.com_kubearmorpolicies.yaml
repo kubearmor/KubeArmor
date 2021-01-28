@@ -296,14 +296,9 @@ spec:
                     type: object
                 type: object
               severity:
-                enum:
-                - HIGH
-                - high
-                - MEDIUM
-                - medium
-                - LOW
-                - low
-                type: string
+                maximum: 10
+                minimum: 1
+                type: integer
             required:
             - action
             - selector

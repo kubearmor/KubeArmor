@@ -4,7 +4,7 @@ metadata:
   name: ksp-ubuntu-1-cap-net-raw-block
   namespace: multiubuntu
 spec:
-  severity: low
+  severity: 1
   selector:
     matchLabels:
       container: ubuntu-1

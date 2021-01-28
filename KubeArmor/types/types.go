@@ -310,7 +310,7 @@ type ResourceType struct {
 
 // SecuritySpec Structure
 type SecuritySpec struct {
-	Severity string `json:"severity"`
+	Severity int `json:"severity"`
 
 	Selector SelectorType `json:"selector"`
 
