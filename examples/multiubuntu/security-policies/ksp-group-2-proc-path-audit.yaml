@@ -4,7 +4,7 @@ metadata:
   name: ksp-group-2-proc-path-audit
   namespace: multiubuntu
 spec:
-  severity: medium
+  severity: 4
   selector:
     matchLabels:
       group: group-2

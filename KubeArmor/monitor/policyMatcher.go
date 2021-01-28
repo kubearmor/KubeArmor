@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"strconv"
 	"strings"
 
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
@@ -22,7 +23,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 				for _, path := range secPolicy.Spec.Process.MatchPaths {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
-					match.Severity = secPolicy.Spec.Severity
+					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 					match.Operation = "Process"
 					match.Resource = path.Path
 					match.Action = secPolicy.Spec.Action
@@ -34,7 +35,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 				for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
-					match.Severity = secPolicy.Spec.Severity
+					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 					match.Operation = "Process"
 					match.Resource = dir.Directory
 					match.Action = secPolicy.Spec.Action
@@ -50,7 +51,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 				for _, path := range secPolicy.Spec.File.MatchPaths {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
-					match.Severity = secPolicy.Spec.Severity
+					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 					match.Operation = "File"
 					match.Resource = path.Path
 					match.Action = secPolicy.Spec.Action
@@ -66,7 +67,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 				for _, dir := range secPolicy.Spec.File.MatchDirectories {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
-					match.Severity = secPolicy.Spec.Severity
+					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 					match.Operation = "File"
 					match.Resource = dir.Directory
 					match.Action = secPolicy.Spec.Action
@@ -78,7 +79,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 				for _, protocol := range secPolicy.Spec.Network.MatchProtocols {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
-					match.Severity = secPolicy.Spec.Severity
+					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 					match.Operation = "Network"
 
 					switch protocol {
@@ -99,7 +100,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 				for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
-					match.Severity = secPolicy.Spec.Severity
+					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
 					switch cap {
 					case "net_raw":

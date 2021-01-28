@@ -4,7 +4,7 @@ metadata:
   name: ksp-mysql-dir-audit
   namespace: wordpress-mysql
 spec:
-  severity: medium
+  severity: 5
   selector:
     matchLabels:
       app: mysql
