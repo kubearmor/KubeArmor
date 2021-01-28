@@ -14,6 +14,9 @@ spec:
     listKind: KubeArmorPolicyList
     plural: kubearmorpolicies
     singular: kubearmorpolicy
+    shortNames:
+      - ksp
+      - kap
   scope: Namespaced
   versions:
   - name: v1
