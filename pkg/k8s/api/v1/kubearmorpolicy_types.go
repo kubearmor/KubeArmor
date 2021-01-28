@@ -23,8 +23,9 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// +kubebuilder:validation:Enum=HIGH;high;MEDIUM;medium;LOW;low
-type SeverityType string
+// +kubebuilder:validation:Minimum:=1
+// +kubebuilder:validation:Maximum:=10
+type SeverityType int
 
 type SelectorType struct {
 	MatchNames  map[string]string `json:"matchNames,omitempty"`

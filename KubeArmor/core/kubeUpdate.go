@@ -381,8 +381,6 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 					kl.Clone(event.Object.Spec, &secPolicy.Spec)
 
-					secPolicy.Spec.Severity = strings.ToUpper(secPolicy.Spec.Severity)
-
 					switch secPolicy.Spec.Action {
 					case "block":
 						secPolicy.Spec.Action = "Block"
