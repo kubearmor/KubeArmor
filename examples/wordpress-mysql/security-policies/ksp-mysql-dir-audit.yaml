@@ -12,8 +12,10 @@ spec:
     matchDirectories:
     - dir: /var/lib/mysql/
       recursive: true
-    matchPatterns:
-    - pattern: /tmp/*.MYD
-    - pattern: /tmp/*.MYI
+
+      # cd /var/lib/mysql
+      # ls
+      # touch test
+
   action:
     Audit
