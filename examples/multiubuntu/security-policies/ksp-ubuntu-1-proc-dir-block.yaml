@@ -4,7 +4,7 @@ metadata:
   name: ksp-ubuntu-1-proc-dir-block
   namespace: multiubuntu
 spec:
-  severity: low
+  severity: 6
   selector:
     matchLabels:
       container: ubuntu-1

@@ -4,7 +4,7 @@ metadata:
   name: ksp-ubuntu-5-file-dir-recursive-block
   namespace: multiubuntu
 spec:
-  severity: high
+  severity: 9
   selector:
     matchLabels:
       container: ubuntu-5

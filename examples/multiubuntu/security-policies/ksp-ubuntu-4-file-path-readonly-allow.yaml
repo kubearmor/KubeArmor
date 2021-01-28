@@ -4,7 +4,7 @@ metadata:
   name: ksp-ubuntu-4-file-path-readonly-allow
   namespace: multiubuntu
 spec:
-  severity: high
+  severity: 10
   selector:
     matchLabels:
       container: ubuntu-4
