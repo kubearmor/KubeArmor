@@ -283,7 +283,13 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 			LogQueue = LogQueue[1:]
 
 			for _, lgs := range logStructs {
-				lgs.Client.Send(&log)
+				if lgs.Filter == "" {
+					lgs.Client.Send(&log)
+				} else if lgs.Filter == "policy" && log.Type == "PolicyMatched" {
+					lgs.Client.Send(&log)
+				} else if lgs.Filter == "system" && log.Type == "SystemLog" {
+					lgs.Client.Send(&log)
+				}
 			}
 		}
 

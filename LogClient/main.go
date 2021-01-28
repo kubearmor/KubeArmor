@@ -68,7 +68,7 @@ func StrToFile(str, destFile string) {
 }
 
 // NewClient Function
-func NewClient(server string) *LogClient {
+func NewClient(server, statPath, msgPath, logPath, logType string) *LogClient {
 	lc := &LogClient{}
 
 	lc.server = server
@@ -82,35 +82,46 @@ func NewClient(server string) *LogClient {
 
 	lc.client = pb.NewLogServiceClient(lc.conn)
 
-	statIn := pb.RequestMessage{}
-	statIn.Filter = ""
+	if statPath != "none" {
+		statIn := pb.RequestMessage{}
+		statIn.Filter = ""
 
-	statStream, err := lc.client.WatchStatistics(context.Background(), &statIn)
-	if err != nil {
-		fmt.Errorf("Failed to call WatchStatistics() (%s)", err.Error())
-		return nil
+		statStream, err := lc.client.WatchStatistics(context.Background(), &statIn)
+		if err != nil {
+			fmt.Errorf("Failed to call WatchStatistics() (%s)", err.Error())
+			return nil
+		}
+		lc.statStream = statStream
 	}
-	lc.statStream = statStream
 
-	msgIn := pb.RequestMessage{}
-	msgIn.Filter = ""
+	if msgPath != "none" {
+		msgIn := pb.RequestMessage{}
+		msgIn.Filter = ""
 
-	msgStream, err := lc.client.WatchMessages(context.Background(), &msgIn)
-	if err != nil {
-		fmt.Errorf("Failed to call WatchMessages() (%s)", err.Error())
-		return nil
+		msgStream, err := lc.client.WatchMessages(context.Background(), &msgIn)
+		if err != nil {
+			fmt.Errorf("Failed to call WatchMessages() (%s)", err.Error())
+			return nil
+		}
+		lc.msgStream = msgStream
 	}
-	lc.msgStream = msgStream
 
-	logIn := pb.RequestMessage{}
-	logIn.Filter = ""
+	if logPath != "none" {
+		logIn := pb.RequestMessage{}
 
-	logStream, err := lc.client.WatchLogs(context.Background(), &logIn)
-	if err != nil {
-		fmt.Errorf("Failed to call WatchLogs() (%s)", err.Error())
-		return nil
+		if logType == "all" {
+			logIn.Filter = ""
+		} else {
+			logIn.Filter = logType
+		}
+
+		logStream, err := lc.client.WatchLogs(context.Background(), &logIn)
+		if err != nil {
+			fmt.Errorf("Failed to call WatchLogs() (%s)", err.Error())
+			return nil
+		}
+		lc.logStream = logStream
 	}
-	lc.logStream = logStream
 
 	lc.WgClient = sync.WaitGroup{}
 
@@ -360,11 +371,17 @@ func main() {
 	statPtr := flag.String("stat", "none", "Output for statistics, {File path | stdout | none (default)}")
 	msgPtr := flag.String("msg", "none", "Output for messages, {File path | stdout | none (default)}")
 	logPtr := flag.String("log", "stdout", "Output for logs, {File path | stdout (default) | none}")
+	typePtr := flag.String("type", "all", "Filter for what kinds of logs to receive, {all (default) | policy | system}")
 	rawPtr := flag.Bool("raw", false, "Raw file format")
 	flag.Parse()
 
+	if *typePtr != "all" && *typePtr != "policy" && *typePtr != "system" {
+		fmt.Errorf("Type should be 'all', 'policy', or 'system'")
+		return
+	}
+
 	// create a client
-	logClient := NewClient(*grpcPtr)
+	logClient := NewClient(*grpcPtr, *statPtr, *msgPtr, *logPtr, *typePtr)
 	if logClient == nil {
 		fmt.Errorf("Failed to connect to the gRPC server (%s)", *grpcPtr)
 		return
