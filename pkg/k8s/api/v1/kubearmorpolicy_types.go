@@ -187,6 +187,7 @@ type KubeArmorPolicyStatus struct {
 // +kubebuilder:object:root=true
 
 // KubeArmorPolicy is the Schema for the kubearmorpolicies API
+// +kubebuilder:resource:shortName=kap;ksp
 type KubeArmorPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
