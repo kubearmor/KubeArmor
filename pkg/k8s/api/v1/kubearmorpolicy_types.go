@@ -41,6 +41,9 @@ type MatchDirectoryType string
 type MatchSourceType struct {
 	Path      MatchPathType      `json:"path,omitempty"`
 	Directory MatchDirectoryType `json:"dir,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	Recursive bool `json:"recursive,omitempty"`
 }
 
 type ProcessPathType struct {
@@ -50,7 +53,7 @@ type ProcessPathType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	FromSource MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type ProcessDirectoryType struct {
@@ -62,7 +65,7 @@ type ProcessDirectoryType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	FromSource MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type ProcessPatternType struct {
@@ -72,9 +75,6 @@ type ProcessPatternType struct {
 	ReadOnly bool `json:"readOnly,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
-
-	// +kubebuilder:validation:optional
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type ProcessType struct {
@@ -92,7 +92,7 @@ type FilePathType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	FromSource MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type FileDirectoryType struct {
@@ -106,7 +106,7 @@ type FileDirectoryType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+	FromSource MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type FilePatternType struct {
@@ -116,9 +116,6 @@ type FilePatternType struct {
 	ReadOnly bool `json:"readOnly,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
-
-	// +kubebuilder:validation:optional
-	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type FileType struct {
