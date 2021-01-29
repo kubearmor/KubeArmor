@@ -15,7 +15,6 @@ spec:
 
       # cat /run/secrets/kubernetes.io/serviceaccount/token
       # env
-      # echo $KUBERNETES_PORT_443_TCP_ADDR
       # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure
       # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
 
