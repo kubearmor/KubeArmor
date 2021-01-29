@@ -90,7 +90,7 @@ func (mon *ContainerMonitor) GetContainerInfoFromContainerID(log tp.Log, profile
 		ContainersLock.Lock()
 
 		for _, container := range Containers {
-			if container.AppArmorProfile == profileName {
+			if strings.HasPrefix(profileName, container.AppArmorProfile) {
 				log.NamespaceName = container.NamespaceName
 				log.PodName = container.ContainerGroupName
 				log.ContainerID = container.ContainerID
@@ -137,7 +137,7 @@ func (mon *ContainerMonitor) UpdateSourceAndResource(log tp.Log, source, resourc
 }
 
 // GenerateAuditLog Function
-func (mon *ContainerMonitor) GenerateAuditLog(hostPid int32, profileName, source, operation, resource, data string) {
+func (mon *ContainerMonitor) GenerateAuditLog(hostPid int32, profileName, source, operation, resource, action, data string) {
 	log := tp.Log{}
 
 	log.UpdatedTime = kl.GetDateTimeNow()
@@ -151,7 +151,12 @@ func (mon *ContainerMonitor) GenerateAuditLog(hostPid int32, profileName, source
 	log = mon.UpdateSourceAndResource(log, source, resource)    // Source, Resource
 
 	log.Data = data
-	log.Result = "Permission denied"
+
+	if action == "AUDIT" {
+		log.Result = "Passed"
+	} else {
+		log.Result = "Permission denied"
+	}
 
 	log = mon.UpdateMatchedPolicy(log, -13)
 
@@ -215,6 +220,7 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 			source := ""
 			operation := ""
 			resource := ""
+			action := ""
 
 			requested := ""
 			denied := ""
@@ -238,6 +244,9 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 				} else if strings.HasPrefix(word, "name=") {
 					value := strings.Split(word, "=")
 					resource = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "apparmor=") {
+					value := strings.Split(word, "=")
+					action = strings.Replace(value[1], "\"", "", -1)
 				} else if strings.HasPrefix(word, "requested_mask=") {
 					value := strings.Split(word, "=")
 					requested = strings.Replace(value[1], "\"", "", -1)
@@ -253,9 +262,12 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 				operation = "File"
 			}
 
-			data := "requested=" + requested + " denied=" + denied
+			data := "requested=" + requested
+			if denied != "" {
+				data = data + " denied=" + denied
+			}
 
-			go mon.GenerateAuditLog(hostPid, profileName, source, operation, resource, data)
+			go mon.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
 		}
 	}
 }
