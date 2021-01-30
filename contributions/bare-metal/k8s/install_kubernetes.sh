@@ -24,3 +24,9 @@ sudo apt-get install -y kubelet kubeadm
 
 # mount bpffs (for cilium)
 echo "bpffs                                     /sys/fs/bpf     bpf     defaults          0       0" | sudo tee -a /etc/fstab
+
+# install apparmor and audit
+sudo apt-get install -y apparmor apparmor-utils auditd
+
+# enable auditd
+sudo systemctl enable auditd && sudo systemctl start auditd
