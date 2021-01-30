@@ -11,6 +11,7 @@ spec:
   process:
     matchPaths:
     - path: /usr/bin/apt-get
+    - path: /usr/bin/apt
     - path: /usr/bin/curl
 
       # apt-get update

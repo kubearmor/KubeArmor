@@ -14,7 +14,7 @@ spec:
       ownerOnly: true
 
       # cd /var/www/html
-      # ls
+      # ls -l
       # ps -ef
       # cat index.php
       # cat wp-config.php
