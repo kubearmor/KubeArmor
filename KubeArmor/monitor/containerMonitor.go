@@ -219,6 +219,12 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 				// just for safety
 				time.Sleep(time.Second * 1)
 
+				// create directories
+				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
+					kg.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+					return nil
+				}
+
 				for {
 					// create symbolic link
 					if err := exec.Command(HomeDir + "/GKE/create_symbolic_link.sh").Run(); err == nil {

@@ -107,16 +107,16 @@ spec:
                           pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
                           type: string
                         fromSource:
-                          items:
-                            properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
-                              path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                                type: string
-                            type: object
-                          type: array
+                          properties:
+                            dir:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                              type: string
+                            path:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                              type: string
+                            recursive:
+                              type: boolean
+                          type: object
                         ownerOnly:
                           type: boolean
                         readOnly:
@@ -131,16 +131,16 @@ spec:
                     items:
                       properties:
                         fromSource:
-                          items:
-                            properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
-                              path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                                type: string
-                            type: object
-                          type: array
+                          properties:
+                            dir:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                              type: string
+                            path:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                              type: string
+                            recursive:
+                              type: boolean
+                          type: object
                         ownerOnly:
                           type: boolean
                         path:
@@ -155,17 +155,6 @@ spec:
                   matchPatterns:
                     items:
                       properties:
-                        fromSource:
-                          items:
-                            properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
-                              path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                                type: string
-                            type: object
-                          type: array
                         ownerOnly:
                           type: boolean
                         pattern:
@@ -200,16 +189,16 @@ spec:
                           pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
                           type: string
                         fromSource:
-                          items:
-                            properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
-                              path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                                type: string
-                            type: object
-                          type: array
+                          properties:
+                            dir:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                              type: string
+                            path:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                              type: string
+                            recursive:
+                              type: boolean
+                          type: object
                         ownerOnly:
                           type: boolean
                         recursive:
@@ -222,16 +211,16 @@ spec:
                     items:
                       properties:
                         fromSource:
-                          items:
-                            properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
-                              path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                                type: string
-                            type: object
-                          type: array
+                          properties:
+                            dir:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                              type: string
+                            path:
+                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                              type: string
+                            recursive:
+                              type: boolean
+                          type: object
                         ownerOnly:
                           type: boolean
                         path:
@@ -244,17 +233,6 @@ spec:
                   matchPatterns:
                     items:
                       properties:
-                        fromSource:
-                          items:
-                            properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
-                              path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                                type: string
-                            type: object
-                          type: array
                         ownerOnly:
                           type: boolean
                         pattern:

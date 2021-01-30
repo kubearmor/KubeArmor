@@ -90,11 +90,9 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		"#include <tunables/global>\n" +
 		"\n" +
 		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
-		"  #include <abstractions/base>\n" +
-		"\n" +
-		"  umount,\n" +
-		"\n" +
 		"  ## == PRE START == ##\n" +
+		"  #include <abstractions/base>\n" +
+		"  umount,\n" +
 		"  file,\n" +
 		"  network,\n" +
 		"  capability,\n" +
@@ -103,6 +101,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		"  ## == POLICY START == ##\n" +
 		"  ## == POLICY END == ##\n" +
 		"\n" +
+		"  ## == POST START == ##\n" +
 		"  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
 		"  deny @{PROC}/sysrq-trigger rwklx,\n" +
 		"  deny @{PROC}/mem rwklx,\n" +
@@ -118,8 +117,6 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		"  deny /sys/fs/cg[^r]*/** wklx,\n" +
 		"  deny /sys/firmware/efi/efivars/** rwklx,\n" +
 		"  deny /sys/kernel/security/** rwklx,\n" +
-		"\n" +
-		"  ## == POST START == ##\n" +
 		"  ## == POST END == ##\n" +
 		"}\n"
 

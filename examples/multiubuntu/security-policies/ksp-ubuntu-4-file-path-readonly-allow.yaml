@@ -14,6 +14,8 @@ spec:
   file:
     matchPaths:
     - path: /secret.txt # echo "test" >> /secret.txt (success)
+      # fromSource:
+      #   path: /bin/dash
     - path: /credentials/password # echo "test" >> /credentials/password (permission denied)
       readOnly: true
   action:

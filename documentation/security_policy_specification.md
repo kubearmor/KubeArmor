@@ -10,7 +10,7 @@ metadata:
   namespace: [namespace name]
 
 spec:
-  severity: [high|medium|low]
+  severity: [1-10]
 
   selector:
     matchLabels:
@@ -99,10 +99,10 @@ Now, we will briefly explain how to define a security policy.
 
 - Severity
 
-  The severity part is somewhat important. You can specify the severity of a given policy among "high", "medium", and "low". This severity will appear in alerts.
+  The severity part is somewhat important. You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts.
 
   ```
-  severity: [high|medium|low]
+  severity: [1-10]
   ```
 
 - Selector
