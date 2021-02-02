@@ -123,6 +123,8 @@ func (mon *ContainerMonitor) UpdateSourceAndResource(log tp.Log, source, resourc
 		log.Resource = mon.GetExecPath(log.ContainerID, uint32(log.PID))
 		if log.Resource == "" {
 			log.Resource = resource
+		} else if !strings.HasPrefix(log.Resource, resource) {
+			log.Resource = resource
 		}
 	} else { // File
 		log.Source = mon.GetExecPath(log.ContainerID, uint32(log.PID))
@@ -203,7 +205,7 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 
 			if !strings.Contains(line, "type=AVC") {
 				continue
-			} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
+			} else if !strings.Contains(line, "DENIED") { // !strings.Contains(line, "AUDIT")
 				continue
 			} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
 				continue
