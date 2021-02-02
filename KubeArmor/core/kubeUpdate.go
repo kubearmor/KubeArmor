@@ -229,34 +229,43 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					pod.Annotations[k] = v
 
 					if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
-						containerName := strings.Split(k, "/")[1]
-						appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
+						if v == "unconfined" {
+							containerName := strings.Split(k, "/")[1]
+							appArmorAnnotations[containerName] = v
+						} else {
+							containerName := strings.Split(k, "/")[1]
+							appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
+						}
 					}
 				}
 
 				updateAppArmor := false
 				for _, container := range event.Object.Spec.Containers {
+					if container.Name == "istio-proxy" {
+						continue
+					}
+
 					if _, ok := appArmorAnnotations[container.Name]; !ok {
 						appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + pod.Metadata["podName"] + "-" + container.Name
 						updateAppArmor = true
 					}
 				}
 
-				if event.Type == "ADDED" && pod.Metadata["namespaceName"] != "kube-system" {
-					if updateAppArmor && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
-						deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
-						if deploymentName != "" {
-							if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
-								kg.Errf("Failed to update AppArmor Profiles (%s)", err.Error())
-							} else {
-								kg.Printf("Updated AppArmor Profiles (%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
+				if updateAppArmor {
+					if pod.Metadata["namespaceName"] != "kube-system" && pod.Metadata["namespaceName"] != "cilium" {
+						if event.Type == "ADDED" {
+							if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
+								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
+								if deploymentName != "" {
+									if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
+										kg.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+									} else {
+										kg.Printf("Updated AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+									}
+								}
 							}
 						}
-						dm.K8sPodsLock.Unlock()
-						continue
-					}
-				} else if pod.Metadata["namespaceName"] != "kube-system" {
-					if updateAppArmor && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
+
 						dm.K8sPodsLock.Unlock()
 						continue
 					}
