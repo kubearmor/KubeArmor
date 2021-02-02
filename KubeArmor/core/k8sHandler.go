@@ -233,8 +233,16 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 
 	spec := `{"spec":{"template":{"metadata":{"annotations":{`
 
+	count := len(annotations)
+
 	for k, v := range annotations {
 		kv := `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
+
+		if count > 1 {
+			kv = kv + ","
+		}
+		count--
+
 		spec = spec + kv
 	}
 
