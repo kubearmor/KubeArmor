@@ -13,6 +13,17 @@ ORANGE='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+YES=$1
+
+if [ ! -z $1 ]; then
+    if [ "$YES" != "-y" ]; then
+        echo "Usage: $0 [-y]"
+        echo "Options:"
+        echo "  -y => automatically clean logs up"
+        exit
+    fi
+fi
+
 ## == Functions == ##
 
 function start_and_wait_for_kubearmor_initialization() {
@@ -65,7 +76,8 @@ function apply_and_wait_for_microservice_creation() {
     kubectl apply -f .
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to apply $1${NC}"
-        exit 1
+        res_microservice=1
+        return
     fi
 
     for (( ; ; ))
@@ -89,27 +101,33 @@ function delete_and_wait_for_microserivce_deletion() {
     kubectl delete -f .
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to delete $1${NC}"
-        exit 1
+        res_delete=1
     fi
 }
 
 function find_no_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    tail -n 10 $ARMOR_LOG | grep PolicyMatched | grep $1 | grep $2 | grep $3 | grep $4
-    if [ $? != 0 ]; then
-        echo "[INFO] Found no log from logs"
-    else
+    sleep 2
+
+    tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    if [ $? == 0 ]; then
         echo -e "${RED}[FAIL] Found the log from logs${NC}"
+        res_cmd=1
+    else
+        echo "[INFO] Found no log from logs"
     fi
 }
 
 function find_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    tail -n 10 $ARMOR_LOG | grep PolicyMatched | grep $1 | grep $2 | grep $3 | grep $4
+    sleep 2
+
+    tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+        res_cmd=1
     else
         echo "[INFO] Found the log from logs"
     fi
@@ -122,6 +140,11 @@ function run_test_scenario() {
 
     echo -e "${GREEN}[INFO] Applying $YAML_FILE into $2${NC}"
     kubectl apply -n $2 -f $YAML_FILE
+    if [ $? != 0 ]; then
+        echo -e "${RED}[FAIL] Failed to apply $YAML_FILE into $2${NC}"
+        res_case=1
+        return
+    fi
     echo "[INFO] Applied $YAML_FILE into $2"
 
     sleep 1
@@ -138,37 +161,45 @@ function run_test_scenario() {
         COND=$(cat $cmd | grep condition | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep action | awk '{print $2}')
 
-        FINAL=1
+        res_cmd=0
 
         echo -e "${GREEN}[INFO] Running \"$CMD\"${NC}"
         kubectl exec -n $2 -it $POD -- bash -c "$CMD"
         if [ $? == 0 ]; then
-            if [ "$RESULT" == "passed" ]; then
+            if [ "$ACTION" == "Allow" ] && [ "$RESULT" == "passed" ]; then
                 find_no_logs $POD $OP $COND $ACTION
-            elif [ "$RESULT" == "audited" ]; then
+            elif [ "$ACTION" == "AllowWithAudit" ] && [ "$RESULT" == "passed" ]; then
                 find_logs $POD $OP $COND $ACTION
-            else
-                FINAL=0
+            elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
+                find_logs $POD $OP $COND $ACTION
             fi
         else
             if [ "$RESULT" == "failed" ]; then
                 find_logs $POD $OP $COND $ACTION
-            else
-                FINAL=0
             fi
+        fi
+
+        if [ $res_cmd != 0 ]; then
+            break
         fi
 
         sleep 1
     done
 
-    if [ $FINAL == 1 ]; then
-        echo -e "${BLUE}[PASS] Passed $3${NC}"
-    else
+    if [ $res_cmd != 0 ]; then
         echo -e "${RED}[FAIL] Failed $3${NC}"
+        res_case=1
+    else
+        echo -e "${BLUE}[PASS] Passed $3${NC}"
     fi
 
     echo -e "${GREEN}[INFO] Deleting $YAML_FILE from $2${NC}"
     kubectl delete -n $2 -f $YAML_FILE
+    if [ $? != 0 ]; then
+        echo -e "${RED}[FAIL] Failed to delete $YAML_FILE from $2${NC}"
+        res_case=1
+        return
+    fi
     echo "[INFO] Deleted $YAML_FILE from $2"
 
     sleep 1
@@ -196,45 +227,84 @@ echo "[INFO] Started KubeArmor"
 
 cd $TEST_HOME
 
+res_microservice=0
+
 for microservice in $(ls microservices)
 do
     ## == ##
 
     echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
     apply_and_wait_for_microservice_creation $microservice
-    echo "[INFO] Applied $microservice"
 
     ## == ##
 
-    cd $TEST_HOME/scenarios
+    if [ $res_microservice == 0 ]; then
+        echo "[INFO] Applied $microservice"
 
-    for testcase in $(ls -d $microservice_*)
-    do
-        echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
-        run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
-        echo "[INFO] Tested $testcase"
-    done
+        cd $TEST_HOME/scenarios
+
+        for testcase in $(ls -d $microservice_*)
+        do
+            res_case=0
+
+            echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
+            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
+
+            if [ $res_case != 0 ]; then
+                res_microservice=1
+                break
+            fi
+
+            echo "[INFO] Tested $testcase"
+        done
+
+        res_delete=0
+
+        echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
+        delete_and_wait_for_microserivce_deletion $microservice
+
+        if [ $res_delete == 0 ]; then
+            echo "[INFO] Deleted $microservice"
+        fi
+    fi
 
     ## == ##
 
-    echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
-    delete_and_wait_for_microserivce_deletion $microservice
-    echo "[INFO] Deleted $microservice"
+    if [ $res_microservice != 0 ]; then
+        break
+    fi
 
     ## == ##
 done
 
 ## == KubeArmor == ##
 
+res_kubearmor=0
+
 echo -e "${ORANGE}[INFO] Stopping KubeArmor${NC}"
 stop_and_wait_for_kubearmor_termination
-echo "[INFO] Stopped KubeArmor"
 
-while true;
-do
-    read -p "Do you want to delete log files (Yn)?" yn
-    case $yn in
-        [Nn]*) break;;
-        *) sudo rm -f $ARMOR_MSG $ARMOR_LOG; break;;
-    esac
-done
+if [ $res_kubearmor == 0 ]; then
+    echo "[INFO] Stopped KubeArmor"
+fi
+
+if [ "$YES" == "-y" ]; then
+    sudo rm -f $ARMOR_MSG $ARMOR_LOG
+else
+    while true;
+    do
+        read -p "Do you want to delete log files (Yn)?" yn
+        case $yn in
+            [Nn]*) break;;
+            *) sudo rm -f $ARMOR_MSG $ARMOR_LOG; break;;
+        esac
+    done
+fi
+
+if [ $res_microservice != 0 ]; then
+    echo -e "${RED}[FAIL] Failed to test KubeArmor${NC}"
+    exit 1
+else
+    echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
+    exit 0
+fi
