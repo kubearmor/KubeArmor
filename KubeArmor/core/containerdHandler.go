@@ -247,9 +247,12 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 		}
 		dm.ContainersLock.Unlock()
 
+		if ok := dm.UpdateContainerGroupWithContainer("ADDED", container); !ok {
+			return
+		}
+
 		kg.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerID[:12])
 
-		dm.UpdateContainerGroupWithContainer("ADDED", container)
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
 		val, ok := dm.Containers[containerID]
@@ -266,9 +269,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 			return
 		}
 
-		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerID[:12])
+		if ok := dm.UpdateContainerGroupWithContainer("DELETED", container); !ok {
+			return
+		}
 
-		dm.UpdateContainerGroupWithContainer("DELETED", container)
+		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerID[:12])
 	}
 }
 

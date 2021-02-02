@@ -15,6 +15,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -218,6 +219,71 @@ func (kh *K8sHandler) GetContainerRuntime() string {
 	}
 
 	return node.Status.NodeInfo.ContainerRuntimeVersion
+}
+
+// ================ //
+// == Deployment == //
+// ================ //
+
+// PatchDeploymentWithAppArmorAnnotations Function
+func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, deploymentName string, annotations map[string]string) error {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	spec := `{"spec":{"template":{"metadata":{"annotations":{`
+
+	count := len(annotations)
+
+	for k, v := range annotations {
+		kv := `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
+
+		if count > 1 {
+			kv = kv + ","
+		}
+		count--
+
+		spec = spec + kv
+	}
+
+	spec = spec + `}}}}}`
+
+	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ================ //
+// == ReplicaSet == //
+// ================ //
+
+// GetDeploymentNameControllingReplicaSet Function
+func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, replicaSetName string) string {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return ""
+	}
+
+	// get replicaSet from k8s api client
+	rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		return ""
+	}
+
+	// check if we have ownerReferences
+	if len(rs.ObjectMeta.OwnerReferences) == 0 {
+		return ""
+	}
+
+	// check if given ownerReferences are for Deployment
+	if rs.ObjectMeta.OwnerReferences[0].Kind != "Deployment" {
+		return ""
+	}
+
+	// return the deployment name
+	return rs.ObjectMeta.OwnerReferences[0].Name
 }
 
 // ========== //

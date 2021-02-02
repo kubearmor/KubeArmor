@@ -25,3 +25,9 @@ sudo mv kubectl /usr/local/bin/
 
 # check kubectl
 kubectl cluster-info
+
+# install apparmor and audit
+sudo apt-get install -y apparmor apparmor-utils auditd
+
+# enable auditd
+sudo systemctl enable auditd && sudo systemctl start auditd
