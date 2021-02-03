@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -113,14 +111,12 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		kg.Err(err.Error())
 		return false
 	}
 
 	// creates the clientset
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		kg.Err(err.Error())
 		return false
 	}
 	kh.K8sClient = client
@@ -132,7 +128,6 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 func (kh *K8sHandler) InitInclusterAPIClient() bool {
 	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		kg.Err(err.Error())
 		return false
 	}
 	kh.K8sToken = string(read)
@@ -148,7 +143,6 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 
 	client, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		kg.Err(err.Error())
 		return false
 	}
 	kh.K8sClient = client
@@ -301,39 +295,6 @@ func (kh *K8sHandler) GetK8sPod(K8sPods []tp.K8sPod, namespaceName, containerGro
 	return tp.K8sPod{}
 }
 
-// GetK8sPods Function
-func (kh *K8sHandler) GetK8sPods() []tp.K8sPod {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return []tp.K8sPod{}
-	}
-
-	// get pods from k8s api client
-	pods, err := kh.K8sClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return []tp.K8sPod{}
-	}
-
-	newPods := []tp.K8sPod{}
-
-	for _, pod := range pods.Items {
-		metadata := pod.ObjectMeta
-
-		k8spod := tp.K8sPod{}
-
-		k8spod.Metadata = map[string]string{}
-		k8spod.Metadata["podName"] = metadata.Name
-		k8spod.Metadata["namespaceName"] = metadata.Namespace
-		k8spod.Metadata["generation"] = strconv.FormatInt(metadata.Generation, 10)
-
-		kl.Clone(metadata.Annotations, &k8spod.Annotations)
-		kl.Clone(metadata.Labels, &k8spod.Labels)
-
-		newPods = append(newPods, k8spod)
-	}
-
-	return newPods
-}
-
 // WatchK8sPods Function
 func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	if !kl.IsK8sEnv() { // not Kubernetes
@@ -411,51 +372,6 @@ func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) bool {
 	}
 
 	return false
-}
-
-// GetK8sSecurityPolicies Function
-func (kh *K8sHandler) GetK8sSecurityPolicies() []tp.SecurityPolicy {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return []tp.SecurityPolicy{}
-	}
-
-	if resBody, errOut := kh.DoRequest("GET", nil, "/apis/security.accuknox.com/v1/kubearmorpolicies"); errOut == nil {
-		res := tp.K8sKubeArmorPolicies{}
-		if errIn := json.Unmarshal(resBody, &res); errIn == nil {
-			securityPolicies := []tp.SecurityPolicy{}
-
-			for _, item := range res.Items {
-				securityPolicy := tp.SecurityPolicy{}
-
-				securityPolicy.Metadata = map[string]string{}
-				securityPolicy.Metadata["namespaceName"] = item.Metadata.Namespace
-				securityPolicy.Metadata["policyName"] = item.Metadata.Name
-				securityPolicy.Metadata["generation"] = strconv.FormatInt(item.Metadata.Generation, 10)
-
-				kl.Clone(item.Spec, &securityPolicy.Spec)
-
-				securityPolicy.Spec.Selector.Identities = append(securityPolicy.Spec.Selector.Identities, "namespaceName="+item.Metadata.Namespace)
-
-				for k, v := range securityPolicy.Spec.Selector.MatchNames {
-					if kl.ContainsElement([]string{"containerGroupName", "containerName", "hostName", "imageName"}, k) {
-						securityPolicy.Spec.Selector.Identities = append(securityPolicy.Spec.Selector.Identities, k+"="+v)
-					}
-				}
-
-				for k, v := range securityPolicy.Spec.Selector.MatchLabels {
-					securityPolicy.Spec.Selector.Identities = append(securityPolicy.Spec.Selector.Identities, k+"="+v)
-				}
-
-				kg.Printf("Fetched a new Security Policy (%s/%s)", securityPolicy.Metadata["namespaceName"], securityPolicy.Metadata["policyName"])
-
-				securityPolicies = append(securityPolicies, securityPolicy)
-			}
-
-			return securityPolicies
-		}
-	}
-
-	return []tp.SecurityPolicy{}
 }
 
 // WatchK8sSecurityPolicies Function

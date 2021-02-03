@@ -1479,7 +1479,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 // == //
 
 // GenerateAppArmorProfile Function
-func GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
+func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
 	// check apparmor profile
 
 	if _, err := os.Stat("/etc/apparmor.d/" + appArmorProfile); os.IsNotExist(err) {
