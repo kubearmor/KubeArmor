@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
@@ -78,7 +77,6 @@ func NewContainerdHandler() *ContainerdHandler {
 
 	conn, err := grpc.Dial(sockFile, grpc.WithInsecure())
 	if err != nil {
-		kg.Err(err.Error())
 		return nil
 	}
 
@@ -219,7 +217,6 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 		// get container information from containerd client
 		container, err = Containerd.GetContainerInfo(containerID)
 		if err != nil {
-			// kg.Err(err.Error())
 			return
 		}
 
@@ -251,7 +248,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 			return
 		}
 
-		kg.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerID[:12])
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
@@ -273,7 +270,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 			return
 		}
 
-		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerID[:12])
 	}
 }
 
@@ -286,7 +283,7 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 		return
 	}
 
-	kg.Print("Started to monitor Containerd events")
+	dm.LogFeeder.Print("Started to monitor Containerd events")
 
 	for {
 		select {

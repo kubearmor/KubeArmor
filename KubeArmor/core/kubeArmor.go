@@ -86,8 +86,8 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.SecurityPoliciesLock = &sync.Mutex{}
 
 	dm.LogFeeder = nil
-	dm.RuntimeEnforcer = nil
 	dm.ContainerMonitor = nil
+	dm.RuntimeEnforcer = nil
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -96,23 +96,30 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
-	// close runtime enforcer
-	dm.CloseRuntimeEnforcer()
-	kg.PrintfNotInsert("Stopped the runtime enforcer")
+	if dm.RuntimeEnforcer != nil {
+		// close runtime enforcer
+		dm.CloseRuntimeEnforcer()
+		dm.LogFeeder.Print("Stopped the runtime enforcer")
+	}
 
-	// close container monitor
-	dm.CloseContainerMonitor()
-	kg.PrintfNotInsert("Stopped the container monitor")
+	if dm.ContainerMonitor != nil {
+		// close container monitor
+		dm.CloseContainerMonitor()
+		dm.LogFeeder.Print("Stopped the container monitor")
+	}
+
+	dm.LogFeeder.Print("Terminated the KubeArmor")
+
+	// wait for a while
+	time.Sleep(time.Second * 1)
 
 	// close log feeder
 	dm.CloseLogFeeder()
-	kg.PrintfNotInsert("Stopped the log feeder")
+	kg.Print("Stopped the log feeder")
 
 	// wait for other routines
-	kg.PrintfNotInsert("Waiting for routine terminations")
+	kg.Print("Waiting for remaining routine terminations")
 	dm.WgDaemon.Wait()
-
-	kg.PrintfNotInsert("Terminated the KubeArmor")
 }
 
 // ================ //
@@ -148,7 +155,7 @@ func (dm *KubeArmorDaemon) CloseLogFeeder() {
 
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer()
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.LogFeeder)
 	if dm.RuntimeEnforcer == nil {
 		return false
 	}
@@ -222,34 +229,41 @@ func KubeArmor(port, output string) {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
 
-	kg.Print("Initializing KubeArmor")
-
 	// initialize log feeder
 	if !dm.InitLogFeeder(port, output) {
 		kg.Err("Failed to intialize the log feeder")
 		return
 	}
-	kg.Print("Started to serve gRPC-based log feeds")
-
-	// initialize runtime enforcer
-	if !dm.InitRuntimeEnforcer() {
-		kg.Err("Failed to intialize the runtime enforcer")
-		return
-	}
-	kg.Print("Started to protect containers")
-
-	// initialize container monitor
-	if !dm.InitContainerMonitor() {
-		kg.Err("Failed to initialize the container monitor")
-		return
-	}
-	kg.Print("Started to monitor system events")
+	kg.Print("Initialized the log feeder")
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
+	kg.Print("Started to serve gRPC-based log feeds")
+
+	// initialize container monitor
+	if !dm.InitContainerMonitor() {
+		dm.LogFeeder.Err("Failed to initialize the container monitor")
+
+		// destroy the daemon
+		dm.DestroyKubeArmorDaemon()
+
+		return
+	}
+	dm.LogFeeder.Print("Started to monitor system events")
 
 	// monior system events (container monitor)
 	go dm.MonitorSystemEvents()
+
+	// initialize runtime enforcer
+	if !dm.InitRuntimeEnforcer() {
+		dm.LogFeeder.Err("Failed to intialize the runtime enforcer")
+
+		// destroy the daemon
+		dm.DestroyKubeArmorDaemon()
+
+		return
+	}
+	dm.LogFeeder.Print("Started to protect containers")
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
@@ -257,10 +271,12 @@ func KubeArmor(port, output string) {
 	// == //
 
 	if K8s.InitK8sClient() {
+		dm.LogFeeder.Print("Initialized the Kubernetes client")
+
 		// get current CRI
 		cr := K8s.GetContainerRuntime()
 
-		kg.Printf("Container Runtime: %s", cr)
+		dm.LogFeeder.Printf("Container Runtime: %s", cr)
 
 		if strings.Contains(cr, "containerd") {
 			// monitor containerd events
@@ -272,9 +288,13 @@ func KubeArmor(port, output string) {
 
 		// watch k8s pods
 		go dm.WatchK8sPods()
+		dm.LogFeeder.Print("Started to monitor Pod events")
 
 		// watch security policies
 		go dm.WatchSecurityPolicies()
+		dm.LogFeeder.Print("Started to monitor security policies")
+	} else {
+		dm.LogFeeder.Err("Failed to initialize the Kubernetes client")
 	}
 
 	// wait for a while
@@ -282,14 +302,14 @@ func KubeArmor(port, output string) {
 
 	// == //
 
-	kg.Print("Initialized KubeArmor")
+	dm.LogFeeder.Print("Initialized KubeArmor")
 
 	// == //
 
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
 	<-sigChan
-	kg.PrintfNotInsert("Got a signal to terminate the KubeArmor")
+	dm.LogFeeder.Print("Got a signal to terminate the KubeArmor")
 	close(StopChan)
 
 	// destroy the daemon

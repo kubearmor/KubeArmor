@@ -1,6 +1,7 @@
 package enforcer
 
 import (
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -10,12 +11,16 @@ import (
 
 // KRSIEnforcer Structure
 type KRSIEnforcer struct {
-	//
+	// logs
+	LogFeeder *fd.Feeder
 }
 
 // NewKRSIEnforcer Function
-func NewKRSIEnforcer() *KRSIEnforcer {
+func NewKRSIEnforcer(feeder *fd.Feeder) *KRSIEnforcer {
 	ke := &KRSIEnforcer{}
+
+	ke.LogFeeder = feeder
+
 	return ke
 }
 

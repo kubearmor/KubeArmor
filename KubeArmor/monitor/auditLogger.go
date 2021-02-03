@@ -8,7 +8,6 @@ import (
 	"time"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -179,12 +178,12 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 	cmd := exec.Command("tail", "-f", logFile)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		kg.Err(err.Error())
+		mon.LogFeeder.Err(err.Error())
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		kg.Err(err.Error())
+		mon.LogFeeder.Err(err.Error())
 		return
 	}
 

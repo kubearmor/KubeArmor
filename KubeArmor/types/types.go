@@ -77,73 +77,6 @@ type K8sKubeArmorPolicies struct {
 	Items []K8sKubeArmorPolicy `json:"items"`
 }
 
-// ============= //
-// == Logging == //
-// ============= //
-
-// Message Structure
-type Message struct {
-	Source   string `json:"source"`
-	SourceIP string `json:"sourceIP"`
-
-	Level   string `json:"level"`
-	Message string `json:"message"`
-
-	UpdatedTime string `json:"updatedTime"`
-}
-
-// Log Structure
-type Log struct {
-	// updated time
-	UpdatedTime string `json:"updatedTime"`
-
-	// host
-	HostName string `json:"hostName"`
-
-	// k8s
-	NamespaceName string `json:"namespaceName"`
-	PodName       string `json:"podName"`
-
-	// container
-	ContainerID   string `json:"containerID"`
-	ContainerName string `json:"containerName"`
-
-	// common
-	HostPID int32 `json:"hostPid"`
-	PPID    int32 `json:"ppid"`
-	PID     int32 `json:"pid"`
-	UID     int32 `json:"uid"`
-
-	// policy
-	PolicyName string `json:"policyName,omitempty"`
-
-	// severity
-	Severity string `json:"severity,omitempty"`
-
-	// log
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Operation string `json:"operation"`
-	Resource  string `json:"resource"`
-	Data      string `json:"data,omitempty"`
-	Action    string `json:"action,omitempty"`
-	Result    string `json:"result"`
-}
-
-// MatchPolicy Structure
-type MatchPolicy struct {
-	PolicyName string
-	Severity   string
-	Operation  string
-	Resource   string
-	Action     string
-}
-
-// MatchPolicies Structure
-type MatchPolicies struct {
-	Policies []MatchPolicy
-}
-
 // ================ //
 // == Statistics == //
 // ================ //
@@ -204,6 +137,62 @@ type StatsType struct {
 	NamespaceStats map[string]NamespaceStatType
 	PodStats       map[string]PodStatType
 	ContainerStats map[string]ContainerStatType
+}
+
+// ============= //
+// == Logging == //
+// ============= //
+
+// Log Structure
+type Log struct {
+	// updated time
+	UpdatedTime string `json:"updatedTime"`
+
+	// host
+	HostName string `json:"hostName"`
+
+	// k8s
+	NamespaceName string `json:"namespaceName"`
+	PodName       string `json:"podName"`
+
+	// container
+	ContainerID   string `json:"containerID"`
+	ContainerName string `json:"containerName"`
+
+	// common
+	HostPID int32 `json:"hostPid"`
+	PPID    int32 `json:"ppid"`
+	PID     int32 `json:"pid"`
+	UID     int32 `json:"uid"`
+
+	// policy
+	PolicyName string `json:"policyName,omitempty"`
+
+	// severity
+	Severity string `json:"severity,omitempty"`
+
+	// log
+	Type      string `json:"type"`
+	Source    string `json:"source"`
+	Operation string `json:"operation"`
+	Resource  string `json:"resource"`
+	Data      string `json:"data,omitempty"`
+	Action    string `json:"action,omitempty"`
+	Result    string `json:"result"`
+}
+
+// MatchPolicy Structure
+type MatchPolicy struct {
+	PolicyName string
+	Severity   string
+	Operation  string
+	Resource   string
+	Action     string
+}
+
+// MatchPolicies Structure
+type MatchPolicies struct {
+	Policies []MatchPolicy
 }
 
 // ===================== //

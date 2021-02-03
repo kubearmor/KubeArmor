@@ -26,6 +26,12 @@ import (
 // Running flag
 var Running bool
 
+// MsgQueue for Messages
+var MsgQueue []pb.Message
+
+// MsgLock for Messages
+var MsgLock sync.Mutex
+
 // Stats for Statistics
 var Stats tp.StatsType
 
@@ -34,12 +40,6 @@ var StatQueue []pb.Stats
 
 // StatLock for Statistics
 var StatLock sync.Mutex
-
-// MsgQueue for Messages
-var MsgQueue []pb.Message
-
-// MsgLock for Messages
-var MsgLock sync.Mutex
 
 // LogQueue for Logs
 var LogQueue []pb.Log
@@ -50,6 +50,9 @@ var LogLock sync.Mutex
 func init() {
 	Running = true
 
+	MsgQueue = []pb.Message{}
+	MsgLock = sync.Mutex{}
+
 	Stats = tp.StatsType{}
 	Stats.HostStats = tp.HostStatType{HostName: kl.GetHostName()}
 	Stats.NamespaceStats = map[string]tp.NamespaceStatType{}
@@ -59,9 +62,6 @@ func init() {
 	StatQueue = []pb.Stats{}
 	StatLock = sync.Mutex{}
 
-	MsgQueue = []pb.Message{}
-	MsgLock = sync.Mutex{}
-
 	LogQueue = []pb.Log{}
 	LogLock = sync.Mutex{}
 }
@@ -70,15 +70,15 @@ func init() {
 // == gRPC == //
 // ========== //
 
-// StatStruct Structure
-type StatStruct struct {
-	Client pb.LogService_WatchStatisticsServer
-	Filter string
-}
-
 // MsgStruct Structure
 type MsgStruct struct {
 	Client pb.LogService_WatchMessagesServer
+	Filter string
+}
+
+// StatStruct Structure
+type StatStruct struct {
+	Client pb.LogService_WatchStatisticsServer
 	Filter string
 }
 
@@ -90,11 +90,11 @@ type LogStruct struct {
 
 // LogService Structure
 type LogService struct {
-	StatStructs map[string]StatStruct
-	StatLock    sync.Mutex
-
 	MsgStructs map[string]MsgStruct
 	MsgLock    sync.Mutex
+
+	StatStructs map[string]StatStruct
+	StatLock    sync.Mutex
 
 	LogStructs map[string]LogStruct
 	LogLock    sync.Mutex
@@ -104,69 +104,6 @@ type LogService struct {
 func (ls *LogService) HealthCheck(ctx context.Context, nonce *pb.NonceMessage) (*pb.ReplyMessage, error) {
 	replyMessage := pb.ReplyMessage{Retval: nonce.Nonce}
 	return &replyMessage, nil
-}
-
-// addStatStruct Function
-func (ls *LogService) addStatStruct(uid string, srv pb.LogService_WatchStatisticsServer, filter string) {
-	ls.MsgLock.Lock()
-	defer ls.MsgLock.Unlock()
-
-	statStruct := StatStruct{}
-	statStruct.Client = srv
-	statStruct.Filter = filter
-
-	ls.StatStructs[uid] = statStruct
-}
-
-// removeStatStruct Function
-func (ls *LogService) removeStatStruct(uid string) {
-	ls.StatLock.Lock()
-	defer ls.StatLock.Unlock()
-
-	delete(ls.StatStructs, uid)
-}
-
-// getStatStructs Function
-func (ls *LogService) getStatStructs() []StatStruct {
-	statStructs := []StatStruct{}
-
-	ls.StatLock.Lock()
-	defer ls.StatLock.Unlock()
-
-	for _, sts := range ls.StatStructs {
-		statStructs = append(statStructs, sts)
-	}
-
-	return statStructs
-}
-
-// WatchStatistics Function
-func (ls *LogService) WatchStatistics(req *pb.RequestMessage, svr pb.LogService_WatchStatisticsServer) error {
-	uid := uuid.Must(uuid.NewRandom()).String()
-
-	ls.addStatStruct(uid, svr, req.Filter)
-	defer ls.removeStatStruct(uid)
-
-	for Running {
-		StatLock.Lock()
-
-		statStructs := ls.getStatStructs()
-
-		for len(StatQueue) != 0 {
-			stat := StatQueue[0]
-			StatQueue = StatQueue[1:]
-
-			for _, sts := range statStructs {
-				sts.Client.Send(&stat)
-			}
-		}
-
-		StatLock.Unlock()
-
-		time.Sleep(time.Millisecond)
-	}
-
-	return nil
 }
 
 // addMsgStruct Function
@@ -225,6 +162,69 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		}
 
 		MsgLock.Unlock()
+
+		time.Sleep(time.Millisecond)
+	}
+
+	return nil
+}
+
+// addStatStruct Function
+func (ls *LogService) addStatStruct(uid string, srv pb.LogService_WatchStatisticsServer, filter string) {
+	ls.MsgLock.Lock()
+	defer ls.MsgLock.Unlock()
+
+	statStruct := StatStruct{}
+	statStruct.Client = srv
+	statStruct.Filter = filter
+
+	ls.StatStructs[uid] = statStruct
+}
+
+// removeStatStruct Function
+func (ls *LogService) removeStatStruct(uid string) {
+	ls.StatLock.Lock()
+	defer ls.StatLock.Unlock()
+
+	delete(ls.StatStructs, uid)
+}
+
+// getStatStructs Function
+func (ls *LogService) getStatStructs() []StatStruct {
+	statStructs := []StatStruct{}
+
+	ls.StatLock.Lock()
+	defer ls.StatLock.Unlock()
+
+	for _, sts := range ls.StatStructs {
+		statStructs = append(statStructs, sts)
+	}
+
+	return statStructs
+}
+
+// WatchStatistics Function
+func (ls *LogService) WatchStatistics(req *pb.RequestMessage, svr pb.LogService_WatchStatisticsServer) error {
+	uid := uuid.Must(uuid.NewRandom()).String()
+
+	ls.addStatStruct(uid, svr, req.Filter)
+	defer ls.removeStatStruct(uid)
+
+	for Running {
+		StatLock.Lock()
+
+		statStructs := ls.getStatStructs()
+
+		for len(StatQueue) != 0 {
+			stat := StatQueue[0]
+			StatQueue = StatQueue[1:]
+
+			for _, sts := range statStructs {
+				sts.Client.Send(&stat)
+			}
+		}
+
+		StatLock.Unlock()
 
 		time.Sleep(time.Millisecond)
 	}
@@ -325,6 +325,10 @@ type Feeder struct {
 	// ticker
 	TickCount   int
 	StatsTicker *time.Ticker
+
+	// host
+	hostName string
+	hostIP   string
 }
 
 // NewFeeder Function
@@ -367,10 +371,10 @@ func NewFeeder(port, output string) *Feeder {
 
 	// register a log service
 	logService := &LogService{
-		StatStructs: make(map[string]StatStruct),
-		StatLock:    sync.Mutex{},
 		MsgStructs:  make(map[string]MsgStruct),
 		MsgLock:     sync.Mutex{},
+		StatStructs: make(map[string]StatStruct),
+		StatLock:    sync.Mutex{},
 		LogStructs:  make(map[string]LogStruct),
 		LogLock:     sync.Mutex{},
 	}
@@ -383,6 +387,10 @@ func NewFeeder(port, output string) *Feeder {
 	fd.StatsTicker = time.NewTicker(time.Second * 10)
 
 	go fd.PushStatistics()
+
+	// set host info
+	fd.hostName = kl.GetHostName()
+	fd.hostIP = kl.GetExternalIPAddr()
 
 	return fd
 }
@@ -410,9 +418,52 @@ func (fd *Feeder) DestroyFeeder() error {
 	return nil
 }
 
-// ======================= //
-// == Statistics Update == //
-// ======================= //
+// ============== //
+// == Messages == //
+// ============== //
+
+// Print Function
+func (fd *Feeder) Print(message string) {
+	fd.PushMessage("INFO", message)
+	kg.Print(message)
+}
+
+// Printf Function
+func (fd *Feeder) Printf(message string, args ...interface{}) {
+	str := fmt.Sprintf(message, args...)
+	fd.PushMessage("INFO", str)
+	kg.Print(str)
+}
+
+// Debug Function
+func (fd *Feeder) Debug(message string) {
+	fd.PushMessage("DEBUG", message)
+	kg.Debug(message)
+}
+
+// Debugf Function
+func (fd *Feeder) Debugf(message string, args ...interface{}) {
+	str := fmt.Sprintf(message, args...)
+	fd.PushMessage("DEBUG", str)
+	kg.Debug(str)
+}
+
+// Err Function
+func (fd *Feeder) Err(message string) {
+	fd.PushMessage("ERROR", message)
+	kg.Err(message)
+}
+
+// Errf Function
+func (fd *Feeder) Errf(message string, args ...interface{}) {
+	str := fmt.Sprintf(message, args...)
+	fd.PushMessage("ERROR", str)
+	kg.Err(str)
+}
+
+// ================ //
+// == Statistics == //
+// ================ //
 
 // AddContainerInfo Function
 func (fd *Feeder) AddContainerInfo(container tp.Container) {
@@ -699,20 +750,16 @@ func (fd *Feeder) ServeLogFeeds() {
 }
 
 // PushMessage Function
-func (fd *Feeder) PushMessage(msg tp.Message) error {
-	if msg.UpdatedTime == "" {
-		return nil
-	}
-
+func (fd *Feeder) PushMessage(level, message string) error {
 	pbMsg := pb.Message{}
 
-	pbMsg.UpdatedTime = msg.UpdatedTime
+	pbMsg.UpdatedTime = kl.GetDateTimeNow()
 
-	pbMsg.Source = msg.Source
-	pbMsg.SourceIP = msg.SourceIP
+	pbMsg.Source = fd.hostName
+	pbMsg.SourceIP = fd.hostIP
 
-	pbMsg.Level = msg.Level
-	pbMsg.Message = msg.Message
+	pbMsg.Level = level
+	pbMsg.Message = message
 
 	MsgLock.Lock()
 	MsgQueue = append(MsgQueue, pbMsg)
