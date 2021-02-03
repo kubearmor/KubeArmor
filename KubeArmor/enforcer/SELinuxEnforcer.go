@@ -1,6 +1,7 @@
 package enforcer
 
 import (
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -10,12 +11,16 @@ import (
 
 // SELinuxEnforcer Structure
 type SELinuxEnforcer struct {
-	//
+	// logs
+	LogFeeder *fd.Feeder
 }
 
 // NewSELinuxEnforcer Function
-func NewSELinuxEnforcer() *SELinuxEnforcer {
+func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se := &SELinuxEnforcer{}
+
+	se.LogFeeder = feeder
+
 	return se
 }
 

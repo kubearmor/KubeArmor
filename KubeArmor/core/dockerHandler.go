@@ -14,7 +14,6 @@ import (
 	"golang.org/x/net/context"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -180,7 +179,6 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// get container information from docker client
 		container, err = Docker.GetContainerInfo(containerID)
 		if err != nil {
-			kg.Err(err.Error())
 			return
 		}
 
@@ -212,7 +210,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		kg.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerName)
+		dm.LogFeeder.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerName)
 
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
@@ -238,7 +236,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		kg.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerName)
+		dm.LogFeeder.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerName)
 	}
 }
 
@@ -251,7 +249,7 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 		return
 	}
 
-	kg.Print("Started to monitor Docker events")
+	dm.LogFeeder.Print("Started to monitor Docker events")
 
 	EventChan := Docker.GetEventChannel()
 
