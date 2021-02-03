@@ -9,7 +9,6 @@ import (
 	"time"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -258,9 +257,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
 								if deploymentName != "" {
 									if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
-										kg.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										dm.LogFeeder.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 									} else {
-										kg.Printf("Updated AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+										dm.LogFeeder.Printf("Updated AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
 									}
 								}
 							}
@@ -304,7 +303,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				dm.K8sPodsLock.Unlock()
 
-				kg.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
+				dm.LogFeeder.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 
 				// update a container group corresponding to the pod
 				dm.UpdateContainerGroupWithPod(event.Type, pod)
@@ -479,7 +478,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 					dm.SecurityPoliciesLock.Unlock()
 
-					kg.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
+					dm.LogFeeder.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to containers
 					dm.UpdateSecurityPolicy(event.Type, secPolicy)

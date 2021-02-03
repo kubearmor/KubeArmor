@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"strings"
 
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
 // RuntimeEnforcer Structure
 type RuntimeEnforcer struct {
+	// logs
+	LogFeeder *fd.Feeder
+
+	// LSM type
 	enforcerType string
 
 	// LSMs
@@ -19,30 +23,30 @@ type RuntimeEnforcer struct {
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer() *RuntimeEnforcer {
+func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
 	re := &RuntimeEnforcer{}
 
-	checkLSM := false
+	re.LogFeeder = feeder
 
-	// AppArmor by default
+	checkLSM := false
 	re.enforcerType = "AppArmor"
 
 	if strings.Contains(re.enforcerType, "KRSI") {
-		re.krsiEnforcer = NewKRSIEnforcer()
+		re.krsiEnforcer = NewKRSIEnforcer(feeder)
 		if re.krsiEnforcer != nil {
 			checkLSM = true
 		}
 	}
 
 	if strings.Contains(re.enforcerType, "AppArmor") {
-		re.appArmorEnforcer = NewAppArmorEnforcer()
+		re.appArmorEnforcer = NewAppArmorEnforcer(feeder)
 		if re.appArmorEnforcer != nil {
 			checkLSM = true
 		}
 	}
 
 	if strings.Contains(re.enforcerType, "SELinux") {
-		re.seLinuxEnforcer = NewSELinuxEnforcer()
+		re.seLinuxEnforcer = NewSELinuxEnforcer(feeder)
 		if re.seLinuxEnforcer != nil {
 			checkLSM = true
 		}
@@ -101,7 +105,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	if strings.Contains(re.enforcerType, "KRSI") {
 		if re.krsiEnforcer != nil {
 			if err := re.krsiEnforcer.DestroyKRSIEnforcer(); err != nil {
-				kg.Err(err.Error())
+				re.LogFeeder.Err(err.Error())
 
 				if errorLSM == "" {
 					errorLSM = "KRSI"
@@ -115,7 +119,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	if strings.Contains(re.enforcerType, "AppArmor") {
 		if re.appArmorEnforcer != nil {
 			if err := re.appArmorEnforcer.DestroyAppArmorEnforcer(); err != nil {
-				kg.Err(err.Error())
+				re.LogFeeder.Err(err.Error())
 
 				if errorLSM == "" {
 					errorLSM = "AppArmor"
@@ -129,7 +133,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	if strings.Contains(re.enforcerType, "SELinux") {
 		if re.seLinuxEnforcer != nil {
 			if err := re.seLinuxEnforcer.DestroySELinuxEnforcer(); err != nil {
-				kg.Err(err.Error())
+				re.LogFeeder.Err(err.Error())
 
 				if errorLSM == "" {
 					errorLSM = "SELinux"

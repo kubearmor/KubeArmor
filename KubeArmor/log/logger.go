@@ -76,12 +76,6 @@ func Print(message string) {
 	zapLogger.Sync()
 }
 
-// PrintfNotInsert Function
-func PrintfNotInsert(message string, args ...interface{}) {
-	zapLogger.Infof(message, args...)
-	zapLogger.Sync()
-}
-
 // Printf Function
 func Printf(message string, args ...interface{}) {
 	zapLogger.Infof(message, args...)

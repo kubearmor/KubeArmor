@@ -9,6 +9,17 @@ message NonceMessage {
   int32 nonce = 1;
 }
 
+// message struct
+message Message {
+  string UpdatedTime = 1;
+
+  string Source = 2;
+  string SourceIP = 3;
+
+  string Level = 4;
+  string Message = 5;
+}
+
 message HostStatType {
   string HostName = 1;
 
@@ -61,17 +72,6 @@ message Stats {
   repeated ContainerStatType ContainerStats = 5;
 }
 
-// message struct
-message Message {
-  string UpdatedTime = 1;
-
-  string Source = 2;
-  string SourceIP = 3;
-
-  string Level = 4;
-  string Message = 5;
-}
-
 // log struct
 message Log {
   string UpdatedTime = 1;
@@ -114,7 +114,7 @@ message ReplyMessage {
 
 service LogService {
   rpc HealthCheck(NonceMessage) returns (ReplyMessage);
-  rpc WatchStatistics(RequestMessage) returns (stream Stats);
   rpc WatchMessages(RequestMessage) returns (stream Message);
+  rpc WatchStatistics(RequestMessage) returns (stream Stats);
   rpc WatchLogs(RequestMessage) returns (stream Log);
 }

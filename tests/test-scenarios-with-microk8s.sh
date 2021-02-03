@@ -2,9 +2,9 @@
 
 TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
-ARMOR_HOME=`dirname $(realpath "$0")`/../deployments/test-microk8s
+ARMOR_HOME=`dirname $(realpath "$0")`/../deployments/microk8s
 
-ARMOR_LOG="/KubeArmor/kubearmor.log"
+ARMOR_LOG="/tmp/kubearmor.log"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -118,14 +118,14 @@ function delete_and_wait_for_microserivce_deletion() {
     fi
 }
 
-function find_no_logs() {
+function find_allow_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
     sleep 2
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
     if [ $? == 0 ]; then
         echo -e "${RED}[FAIL] Found the log from logs${NC}"
         res_cmd=1
@@ -134,14 +134,30 @@ function find_no_logs() {
     fi
 }
 
-function find_logs() {
+function find_audit_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
     sleep 2
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4
+    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    if [ $? != 0 ]; then
+        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+        res_cmd=1
+    else
+        echo "[INFO] Found the log from logs"
+    fi
+}
+
+function find_block_logs() {
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+
+    sleep 2
+
+    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+
+    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
         res_cmd=1
@@ -184,15 +200,15 @@ function run_test_scenario() {
         kubectl exec -n $2 -it $POD -- bash -c "$CMD"
         if [ $? == 0 ]; then
             if [ "$ACTION" == "Allow" ] && [ "$RESULT" == "passed" ]; then
-                find_no_logs $POD $OP $COND $ACTION
+                find_allow_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "AllowWithAudit" ] && [ "$RESULT" == "passed" ]; then
-                find_logs $POD $OP $COND $ACTION
+                find_audit_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
-                find_logs $POD $OP $COND $ACTION
+                find_audit_logs $POD $OP $COND $ACTION
             fi
         else
             if [ "$RESULT" == "failed" ]; then
-                find_logs $POD $OP $COND $ACTION
+                find_block_logs $POD $OP $COND $ACTION
             fi
         fi
 

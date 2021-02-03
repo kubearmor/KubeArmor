@@ -19,7 +19,6 @@ import (
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -199,7 +198,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
 			s := string(b)
 			if strings.Contains(s, "Container-Optimized OS") {
-				kg.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
+				mon.LogFeeder.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
 				// get kernel version
 				kernelVersion := kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
@@ -207,11 +206,11 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 
 				// check and download kernel headers
 				if err := exec.Command(HomeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
-					kg.Errf("Failed to download COS kernel headers (%s)", err.Error())
+					mon.LogFeeder.Errf("Failed to download COS kernel headers (%s)", err.Error())
 					return err
 				}
 
-				kg.Printf("Downloaded kernel headers (%s)", kernelVersion)
+				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", kernelVersion)
 
 				// set a new location for kernel headers
 				os.Setenv("BCC_KERNEL_SOURCE", HomeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
@@ -221,7 +220,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 
 				// create directories
 				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
-					kg.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+					mon.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
 					return nil
 				}
 
@@ -239,13 +238,13 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 			} else {
 				// create directories
 				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
-					kg.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+					mon.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
 					return nil
 				}
 
 				// make a symbolic link
 				if err := os.Symlink("/var/log/audit/audit.log", "/KubeArmor/audit/audit.log"); err != nil {
-					kg.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+					mon.LogFeeder.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
 					return nil
 				}
 			}
@@ -258,14 +257,14 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 	}
 	bpfSource := string(content)
 
-	kg.Print("Initializing an eBPF program")
+	mon.LogFeeder.Print("Initializing an eBPF program")
 
 	mon.BpfModule = bcc.NewModule(bpfSource, []string{"-w"})
 	if mon.BpfModule == nil {
 		return errors.New("bpf module is nil")
 	}
 
-	kg.Print("Initialized the eBPF program")
+	mon.LogFeeder.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "close", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
@@ -904,7 +903,7 @@ func (mon *ContainerMonitor) TraceSyscall() {
 			dataBuff := bytes.NewBuffer(dataRaw)
 			ctx, err := readContextFromBuff(dataBuff)
 			if err != nil {
-				kg.Err(err.Error())
+				mon.LogFeeder.Err(err.Error())
 				continue
 			}
 
