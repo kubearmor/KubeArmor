@@ -302,6 +302,14 @@ if [ $res_kubearmor == 0 ]; then
     echo "[INFO] Stopped KubeArmor"
 fi
 
+if [ $res_microservice != 0 ]; then
+    echo -e "${RED}[FAIL] Failed to test KubeArmor${NC}"
+    exit 1
+else
+    echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
+    exit 0
+fi
+
 if [ "$YES" == "-y" ]; then
     sudo rm -f $ARMOR_MSG $ARMOR_LOG
 else
@@ -313,12 +321,4 @@ else
             *) sudo rm -f $ARMOR_MSG $ARMOR_LOG; break;;
         esac
     done
-fi
-
-if [ $res_microservice != 0 ]; then
-    echo -e "${RED}[FAIL] Failed to test KubeArmor${NC}"
-    exit 1
-else
-    echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
-    exit 0
 fi
