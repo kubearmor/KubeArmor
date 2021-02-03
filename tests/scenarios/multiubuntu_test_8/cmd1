@@ -1,0 +1,7 @@
+source: ubuntu-3-deployment
+cmd: cat /credentials/password
+result: passed
+---
+operation: File
+condition: password
+action: AllowWithAudit
