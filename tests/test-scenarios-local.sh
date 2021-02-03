@@ -105,12 +105,12 @@ function delete_and_wait_for_microserivce_deletion() {
     fi
 }
 
-function find_no_logs() {
+function find_allow_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     sleep 2
 
-    tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
     if [ $? == 0 ]; then
         echo -e "${RED}[FAIL] Found the log from logs${NC}"
         res_cmd=1
@@ -119,12 +119,26 @@ function find_no_logs() {
     fi
 }
 
-function find_logs() {
+function find_audit_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     sleep 2
 
-    tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4
+    cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    if [ $? != 0 ]; then
+        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+        res_cmd=1
+    else
+        echo "[INFO] Found the log from logs"
+    fi
+}
+
+function find_block_logs() {
+    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+
+    sleep 2
+
+    cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
         res_cmd=1
@@ -167,15 +181,15 @@ function run_test_scenario() {
         kubectl exec -n $2 -it $POD -- bash -c "$CMD"
         if [ $? == 0 ]; then
             if [ "$ACTION" == "Allow" ] && [ "$RESULT" == "passed" ]; then
-                find_no_logs $POD $OP $COND $ACTION
+                find_allow_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "AllowWithAudit" ] && [ "$RESULT" == "passed" ]; then
-                find_logs $POD $OP $COND $ACTION
+                find_audit_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
-                find_logs $POD $OP $COND $ACTION
+                find_audit_logs $POD $OP $COND $ACTION
             fi
         else
             if [ "$RESULT" == "failed" ]; then
-                find_logs $POD $OP $COND $ACTION
+                find_block_logs $POD $OP $COND $ACTION
             fi
         fi
 
