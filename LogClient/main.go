@@ -368,7 +368,7 @@ func main() {
 	}
 
 	// create a client
-	logClient := NewClient(*grpcPtr, *statPtr, *msgPtr, *logPtr, *typePtr)
+	logClient := NewClient(*grpcPtr, *msgPtr, *statPtr, *logPtr, *typePtr)
 	if logClient == nil {
 		fmt.Errorf("Failed to connect to the gRPC server (%s)", *grpcPtr)
 		return

@@ -204,7 +204,7 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 
 			if !strings.Contains(line, "type=AVC") {
 				continue
-			} else if !strings.Contains(line, "DENIED") { // !strings.Contains(line, "AUDIT")
+			} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
 				continue
 			} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
 				continue
