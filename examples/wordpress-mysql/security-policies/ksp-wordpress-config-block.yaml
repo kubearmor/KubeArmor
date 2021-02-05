@@ -1,17 +1,18 @@
 apiVersion: security.accuknox.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-wordpress-config-owner-only
+  name: ksp-wordpress-config-block
   namespace: wordpress-mysql
 spec:
-  severity: 5
+  severity: 10
   selector:
     matchLabels:
       app: wordpress
   file:
     matchPaths:
     - path: /var/www/html/wp-config.php
-      ownerOnly: true
+      fromSource:
+        path: /bin/cat
 
       # cd /var/www/html
       # ls -l
