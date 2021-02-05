@@ -4,7 +4,7 @@ metadata:
   name: ksp-wordpress-sa-block
   namespace: wordpress-mysql
 spec:
-  severity: 5
+  severity: 7
   selector:
     matchLabels:
       app: wordpress
@@ -14,8 +14,6 @@ spec:
       recursive: true
 
       # cat /run/secrets/kubernetes.io/serviceaccount/token
-      # env
-      # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure
       # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
 
   action:

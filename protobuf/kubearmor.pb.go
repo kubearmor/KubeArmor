@@ -78,11 +78,11 @@ type Message struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UpdatedTime string `protobuf:"bytes,1,opt,name=UpdatedTime,proto3" json:"UpdatedTime,omitempty"`
-	Source      string `protobuf:"bytes,2,opt,name=Source,proto3" json:"Source,omitempty"`
-	SourceIP    string `protobuf:"bytes,3,opt,name=SourceIP,proto3" json:"SourceIP,omitempty"`
-	Level       string `protobuf:"bytes,4,opt,name=Level,proto3" json:"Level,omitempty"`
-	Message     string `protobuf:"bytes,5,opt,name=Message,proto3" json:"Message,omitempty"`
+	UpdatedTime string `protobuf:"bytes,1,opt,name=UpdatedTime,proto3" json:"UpdatedTime"`
+	Source      string `protobuf:"bytes,2,opt,name=Source,proto3" json:"Source"`
+	SourceIP    string `protobuf:"bytes,3,opt,name=SourceIP,proto3" json:"SourceIP"`
+	Level       string `protobuf:"bytes,4,opt,name=Level,proto3" json:"Level"`
+	Message     string `protobuf:"bytes,5,opt,name=Message,proto3" json:"Message"`
 }
 
 func (x *Message) Reset() {
@@ -157,11 +157,11 @@ type HostStatType struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	HostName     string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName,omitempty"`
-	AllowedCount int32  `protobuf:"varint,2,opt,name=AllowedCount,proto3" json:"AllowedCount,omitempty"`
-	AuditedCount int32  `protobuf:"varint,3,opt,name=AuditedCount,proto3" json:"AuditedCount,omitempty"`
-	BlockedCount int32  `protobuf:"varint,4,opt,name=BlockedCount,proto3" json:"BlockedCount,omitempty"`
-	FailedCount  int32  `protobuf:"varint,5,opt,name=FailedCount,proto3" json:"FailedCount,omitempty"`
+	HostName     string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName"`
+	AllowedCount int32  `protobuf:"varint,2,opt,name=AllowedCount,proto3" json:"AllowedCount"`
+	AuditedCount int32  `protobuf:"varint,3,opt,name=AuditedCount,proto3" json:"AuditedCount"`
+	BlockedCount int32  `protobuf:"varint,4,opt,name=BlockedCount,proto3" json:"BlockedCount"`
+	FailedCount  int32  `protobuf:"varint,5,opt,name=FailedCount,proto3" json:"FailedCount"`
 }
 
 func (x *HostStatType) Reset() {
@@ -236,12 +236,12 @@ type NamespaceStatType struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	HostName      string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName,omitempty"`
-	NamespaceName string `protobuf:"bytes,2,opt,name=NamespaceName,proto3" json:"NamespaceName,omitempty"`
-	AllowedCount  int32  `protobuf:"varint,3,opt,name=AllowedCount,proto3" json:"AllowedCount,omitempty"`
-	AuditedCount  int32  `protobuf:"varint,4,opt,name=AuditedCount,proto3" json:"AuditedCount,omitempty"`
-	BlockedCount  int32  `protobuf:"varint,5,opt,name=BlockedCount,proto3" json:"BlockedCount,omitempty"`
-	FailedCount   int32  `protobuf:"varint,6,opt,name=FailedCount,proto3" json:"FailedCount,omitempty"`
+	HostName      string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName"`
+	NamespaceName string `protobuf:"bytes,2,opt,name=NamespaceName,proto3" json:"NamespaceName"`
+	AllowedCount  int32  `protobuf:"varint,3,opt,name=AllowedCount,proto3" json:"AllowedCount"`
+	AuditedCount  int32  `protobuf:"varint,4,opt,name=AuditedCount,proto3" json:"AuditedCount"`
+	BlockedCount  int32  `protobuf:"varint,5,opt,name=BlockedCount,proto3" json:"BlockedCount"`
+	FailedCount   int32  `protobuf:"varint,6,opt,name=FailedCount,proto3" json:"FailedCount"`
 }
 
 func (x *NamespaceStatType) Reset() {
@@ -323,13 +323,13 @@ type PodStatType struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	HostName      string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName,omitempty"`
-	NamespaceName string `protobuf:"bytes,2,opt,name=NamespaceName,proto3" json:"NamespaceName,omitempty"`
-	PodName       string `protobuf:"bytes,3,opt,name=PodName,proto3" json:"PodName,omitempty"`
-	AllowedCount  int32  `protobuf:"varint,4,opt,name=AllowedCount,proto3" json:"AllowedCount,omitempty"`
-	AuditedCount  int32  `protobuf:"varint,5,opt,name=AuditedCount,proto3" json:"AuditedCount,omitempty"`
-	BlockedCount  int32  `protobuf:"varint,6,opt,name=BlockedCount,proto3" json:"BlockedCount,omitempty"`
-	FailedCount   int32  `protobuf:"varint,7,opt,name=FailedCount,proto3" json:"FailedCount,omitempty"`
+	HostName      string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName"`
+	NamespaceName string `protobuf:"bytes,2,opt,name=NamespaceName,proto3" json:"NamespaceName"`
+	PodName       string `protobuf:"bytes,3,opt,name=PodName,proto3" json:"PodName"`
+	AllowedCount  int32  `protobuf:"varint,4,opt,name=AllowedCount,proto3" json:"AllowedCount"`
+	AuditedCount  int32  `protobuf:"varint,5,opt,name=AuditedCount,proto3" json:"AuditedCount"`
+	BlockedCount  int32  `protobuf:"varint,6,opt,name=BlockedCount,proto3" json:"BlockedCount"`
+	FailedCount   int32  `protobuf:"varint,7,opt,name=FailedCount,proto3" json:"FailedCount"`
 }
 
 func (x *PodStatType) Reset() {
@@ -418,14 +418,14 @@ type ContainerStatType struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	HostName      string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName,omitempty"`
-	NamespaceName string `protobuf:"bytes,2,opt,name=NamespaceName,proto3" json:"NamespaceName,omitempty"`
-	PodName       string `protobuf:"bytes,3,opt,name=PodName,proto3" json:"PodName,omitempty"`
-	ContainerName string `protobuf:"bytes,4,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
-	AllowedCount  int32  `protobuf:"varint,5,opt,name=AllowedCount,proto3" json:"AllowedCount,omitempty"`
-	AuditedCount  int32  `protobuf:"varint,6,opt,name=AuditedCount,proto3" json:"AuditedCount,omitempty"`
-	BlockedCount  int32  `protobuf:"varint,7,opt,name=BlockedCount,proto3" json:"BlockedCount,omitempty"`
-	FailedCount   int32  `protobuf:"varint,8,opt,name=FailedCount,proto3" json:"FailedCount,omitempty"`
+	HostName      string `protobuf:"bytes,1,opt,name=HostName,proto3" json:"HostName"`
+	NamespaceName string `protobuf:"bytes,2,opt,name=NamespaceName,proto3" json:"NamespaceName"`
+	PodName       string `protobuf:"bytes,3,opt,name=PodName,proto3" json:"PodName"`
+	ContainerName string `protobuf:"bytes,4,opt,name=ContainerName,proto3" json:"ContainerName"`
+	AllowedCount  int32  `protobuf:"varint,5,opt,name=AllowedCount,proto3" json:"AllowedCount"`
+	AuditedCount  int32  `protobuf:"varint,6,opt,name=AuditedCount,proto3" json:"AuditedCount"`
+	BlockedCount  int32  `protobuf:"varint,7,opt,name=BlockedCount,proto3" json:"BlockedCount"`
+	FailedCount   int32  `protobuf:"varint,8,opt,name=FailedCount,proto3" json:"FailedCount"`
 }
 
 func (x *ContainerStatType) Reset() {
@@ -522,11 +522,11 @@ type Stats struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UpdatedTime    string               `protobuf:"bytes,1,opt,name=UpdatedTime,proto3" json:"UpdatedTime,omitempty"`
-	HostStats      *HostStatType        `protobuf:"bytes,2,opt,name=HostStats,proto3" json:"HostStats,omitempty"`
-	NamespaceStats []*NamespaceStatType `protobuf:"bytes,3,rep,name=NamespaceStats,proto3" json:"NamespaceStats,omitempty"`
-	PodStats       []*PodStatType       `protobuf:"bytes,4,rep,name=PodStats,proto3" json:"PodStats,omitempty"`
-	ContainerStats []*ContainerStatType `protobuf:"bytes,5,rep,name=ContainerStats,proto3" json:"ContainerStats,omitempty"`
+	UpdatedTime    string               `protobuf:"bytes,1,opt,name=UpdatedTime,proto3" json:"UpdatedTime"`
+	HostStats      *HostStatType        `protobuf:"bytes,2,opt,name=HostStats,proto3" json:"HostStats"`
+	NamespaceStats []*NamespaceStatType `protobuf:"bytes,3,rep,name=NamespaceStats,proto3" json:"NamespaceStats"`
+	PodStats       []*PodStatType       `protobuf:"bytes,4,rep,name=PodStats,proto3" json:"PodStats"`
+	ContainerStats []*ContainerStatType `protobuf:"bytes,5,rep,name=ContainerStats,proto3" json:"ContainerStats"`
 }
 
 func (x *Stats) Reset() {
@@ -602,25 +602,25 @@ type Log struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UpdatedTime   string `protobuf:"bytes,1,opt,name=UpdatedTime,proto3" json:"UpdatedTime,omitempty"`
-	HostName      string `protobuf:"bytes,2,opt,name=HostName,proto3" json:"HostName,omitempty"`
-	NamespaceName string `protobuf:"bytes,3,opt,name=NamespaceName,proto3" json:"NamespaceName,omitempty"`
-	PodName       string `protobuf:"bytes,4,opt,name=PodName,proto3" json:"PodName,omitempty"`
-	ContainerID   string `protobuf:"bytes,5,opt,name=ContainerID,proto3" json:"ContainerID,omitempty"`
-	ContainerName string `protobuf:"bytes,6,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
-	HostPID       int32  `protobuf:"varint,7,opt,name=HostPID,proto3" json:"HostPID,omitempty"`
-	PPID          int32  `protobuf:"varint,8,opt,name=PPID,proto3" json:"PPID,omitempty"`
-	PID           int32  `protobuf:"varint,9,opt,name=PID,proto3" json:"PID,omitempty"`
-	UID           int32  `protobuf:"varint,10,opt,name=UID,proto3" json:"UID,omitempty"`
+	UpdatedTime   string `protobuf:"bytes,1,opt,name=UpdatedTime,proto3" json:"UpdatedTime"`
+	HostName      string `protobuf:"bytes,2,opt,name=HostName,proto3" json:"HostName"`
+	NamespaceName string `protobuf:"bytes,3,opt,name=NamespaceName,proto3" json:"NamespaceName"`
+	PodName       string `protobuf:"bytes,4,opt,name=PodName,proto3" json:"PodName"`
+	ContainerID   string `protobuf:"bytes,5,opt,name=ContainerID,proto3" json:"ContainerID"`
+	ContainerName string `protobuf:"bytes,6,opt,name=ContainerName,proto3" json:"ContainerName"`
+	HostPID       int32  `protobuf:"varint,7,opt,name=HostPID,proto3" json:"HostPID"`
+	PPID          int32  `protobuf:"varint,8,opt,name=PPID,proto3" json:"PPID"`
+	PID           int32  `protobuf:"varint,9,opt,name=PID,proto3" json:"PID"`
+	UID           int32  `protobuf:"varint,10,opt,name=UID,proto3" json:"UID"`
 	PolicyName    string `protobuf:"bytes,11,opt,name=PolicyName,proto3" json:"PolicyName,omitempty"`
 	Severity      string `protobuf:"bytes,12,opt,name=Severity,proto3" json:"Severity,omitempty"`
-	Type          string `protobuf:"bytes,13,opt,name=Type,proto3" json:"Type,omitempty"`
-	Source        string `protobuf:"bytes,14,opt,name=Source,proto3" json:"Source,omitempty"`
-	Operation     string `protobuf:"bytes,15,opt,name=Operation,proto3" json:"Operation,omitempty"`
-	Resource      string `protobuf:"bytes,16,opt,name=Resource,proto3" json:"Resource,omitempty"`
+	Type          string `protobuf:"bytes,13,opt,name=Type,proto3" json:"Type"`
+	Source        string `protobuf:"bytes,14,opt,name=Source,proto3" json:"Source"`
+	Operation     string `protobuf:"bytes,15,opt,name=Operation,proto3" json:"Operation"`
+	Resource      string `protobuf:"bytes,16,opt,name=Resource,proto3" json:"Resource"`
 	Data          string `protobuf:"bytes,17,opt,name=Data,proto3" json:"Data,omitempty"`
 	Action        string `protobuf:"bytes,18,opt,name=Action,proto3" json:"Action,omitempty"`
-	Result        string `protobuf:"bytes,19,opt,name=Result,proto3" json:"Result,omitempty"`
+	Result        string `protobuf:"bytes,19,opt,name=Result,proto3" json:"Result"`
 }
 
 func (x *Log) Reset() {
