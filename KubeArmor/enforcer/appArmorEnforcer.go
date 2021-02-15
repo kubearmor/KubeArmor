@@ -33,11 +33,6 @@ func NewAppArmorEnforcer(feeder *fd.Feeder) *AppArmorEnforcer {
 	ae.AppArmorProfiles = map[string]int{}
 	ae.AppArmorProfilesLock = &sync.Mutex{}
 
-	if !kl.IsK8sLocal() {
-		// mount securityfs
-		kl.GetCommandOutputWithoutErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
-	}
-
 	files, err := ioutil.ReadDir("/etc/apparmor.d")
 	if err != nil {
 		ae.LogFeeder.Errf("Failed to read /etc/apparmor.d (%s)", err.Error())
