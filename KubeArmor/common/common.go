@@ -85,12 +85,12 @@ func GetDateTimeFromTimestamp(timestamp float64) string {
 
 	sec64, err := strconv.ParseInt(secTS, 10, 64)
 	if err != nil {
-		panic(err)
+		kg.Err(err.Error())
 	}
 
 	nano64, err := strconv.ParseInt(nanoTS, 10, 64)
 	if err != nil {
-		panic(err)
+		kg.Err(err.Error())
 	}
 
 	tm := time.Unix(sec64, nano64)
