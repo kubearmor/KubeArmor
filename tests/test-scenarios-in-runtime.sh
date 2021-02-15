@@ -1,8 +1,24 @@
 #!/bin/bash
 
+realpath() {
+    CURR=$PWD
+
+    cd "$(dirname "$0")"
+    LINK=$(readlink "$(basename "$0")")
+
+    while [ "$LINK" ]; do
+        cd "$(dirname "$LINK")"
+        LINK=$(readlink "$(basename "$1")")
+    done
+
+    REALPATH="$PWD/$(basename "$1")"
+    echo "$REALPATH"
+
+    cd $CURR
+}
+
 TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
-ARMOR_HOME=`dirname $(realpath "$0")`/../deployments/microk8s
 
 ARMOR_LOG="/tmp/kubearmor.log"
 
@@ -10,6 +26,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 
 ## == Functions == ##
@@ -23,18 +40,19 @@ function wait_for_kubearmor_initialization() {
         exit 1
     fi
 
-    cd $ARMOR_HOME
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v cos | awk '{print $1}')
 
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
-
-    for (( ; ; ))
+    for ARMOR in $KUBEARMOR
     do
-        kubectl -n kube-system logs $KUBEARMOR | grep "Initialized KubeArmor" &> /dev/null
-        if [ $? == 0 ]; then
-            break
-        fi
+        for (( ; ; ))
+        do
+            kubectl -n kube-system logs $ARMOR | grep "Initialized KubeArmor" &> /dev/null
+            if [ $? == 0 ]; then
+                break
+            fi
 
-        sleep 1
+            sleep 1
+        done
     done
 
     sleep 1
@@ -78,13 +96,14 @@ function delete_and_wait_for_microserivce_deletion() {
 }
 
 function find_allow_logs() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | awk '{print $1}')
 
-    sleep 2
+    sleep 1
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail -n 10 | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed"
     if [ $? == 0 ]; then
         echo -e "${RED}[FAIL] Found the log from logs${NC}"
         res_cmd=1
@@ -94,34 +113,56 @@ function find_allow_logs() {
 }
 
 function find_audit_logs() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | awk '{print $1}')
 
-    sleep 2
+    sleep 1
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
-        res_cmd=1
+    if [ "$KUBEARMOR" != "" ]; then
+        kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail -n 10 | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed"
+        if [ $? != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found the log from logs"
+        fi
     else
-        echo "[INFO] Found the log from logs"
+        grep PolicyMatched $ARMOR_LOG | tail -n 10 | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+        if [ $? != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found the log from logs"
+        fi
     fi
 }
 
 function find_block_logs() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | awk '{print $1}')
 
-    sleep 2
+    sleep 1
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG" | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
-        res_cmd=1
+    if [ "$KUBEARMOR" != "" ]; then
+        kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail -n 10 | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed"
+        if [ $? != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found the log from logs"
+        fi
     else
-        echo "[INFO] Found the log from logs"
+        grep PolicyMatched $ARMOR_LOG | tail -n 10 | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
+        if [ $? != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found the log from logs"
+        fi
     fi
 }
 
@@ -139,7 +180,7 @@ function run_test_scenario() {
     fi
     echo "[INFO] Applied $YAML_FILE into $2"
 
-    sleep 1
+    sleep 2
 
     for cmd in $(ls cmd*)
     do
@@ -164,10 +205,14 @@ function run_test_scenario() {
                 find_audit_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
                 find_audit_logs $POD $OP $COND $ACTION
+            elif [ "$RESULT" == "failed" ]; then
+                echo -e "${MAGENTA}[WARN] Expected failure, but got success${NC}"
             fi
         else
             if [ "$RESULT" == "failed" ]; then
                 find_block_logs $POD $OP $COND $ACTION
+            else
+                echo -e "${MAGENTA}[WARN] Expected success, but got failure${NC}"
             fi
         fi
 
@@ -220,6 +265,10 @@ do
 
     if [ $res_microservice == 0 ]; then
         echo "[INFO] Applied $microservice"
+
+        echo "[INFO] Wait for initialization"
+        sleep 30
+        echo "[INFO] Started to run testcases"
 
         cd $TEST_HOME/scenarios
 
