@@ -1,11 +1,10 @@
 package monitor
 
 import (
-	"bufio"
-	"os/exec"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/hpcloud/tail"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
@@ -36,8 +35,6 @@ func (mon *ContainerMonitor) GetProcessInfoFromHostPid(log tp.Log, hostPid int32
 	mon.ActiveHostPidMapLock.Unlock()
 
 	if log.ContainerID == "" {
-		time.Sleep(time.Millisecond * 1)
-
 		mon.ActiveHostPidMapLock.Lock()
 
 		for id, pidMap := range mon.ActiveHostPidMap {
@@ -61,7 +58,7 @@ func (mon *ContainerMonitor) GetProcessInfoFromHostPid(log tp.Log, hostPid int32
 		mon.ActiveHostPidMapLock.Unlock()
 	}
 
-	if log.PPID == 0 {
+	if log.PID == 0 {
 		log.PPID = -1
 		log.PID = -1
 		log.UID = -1
@@ -85,7 +82,9 @@ func (mon *ContainerMonitor) GetContainerInfoFromContainerID(log tp.Log, profile
 		}
 
 		ContainersLock.Unlock()
-	} else {
+	}
+
+	if log.ContainerID == "" {
 		ContainersLock.Lock()
 
 		for _, container := range Containers {
@@ -175,100 +174,98 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 	}
 
 	// monitor audit logs
-	cmd := exec.Command("tail", "-f", logFile)
-	stdout, err := cmd.StdoutPipe()
+	logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
 	if err != nil {
 		mon.LogFeeder.Err(err.Error())
 		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		mon.LogFeeder.Err(err.Error())
-		return
-	}
+	for log := range logs.Lines {
+		line := log.Text
 
-	r := bufio.NewReader(stdout)
+		if !strings.Contains(line, "AVC") {
+			continue
+		} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
+			continue
+		} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
+			continue
+		}
 
-	for {
-		select {
-		case <-StopChan:
-			stdout.Close()
-			return
+		if mon.IsCOS {
+			cosLine := ""
 
-		default:
-			lineBytes, _, err := r.ReadLine()
-			if err != nil {
-				continue
-			}
-			line := string(lineBytes)
-
-			if !strings.Contains(line, "type=AVC") {
-				continue
-			} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
-				continue
-			} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
-				continue
-			}
-
-			if mon.IsCOS {
-				line = strings.Replace(line, "\\\"", "\"", -1)
-			}
-
-			hostPid := int32(0)
-
-			profileName := ""
-
-			source := ""
-			operation := ""
-			resource := ""
-			action := ""
-
-			requested := ""
-			denied := ""
-
-			words := strings.Split(line, " ")
-
-			for _, word := range words {
-				if strings.HasPrefix(word, "pid=") {
-					value := strings.Split(word, "=")
-					pid, _ := strconv.Atoi(value[1])
-					hostPid = int32(pid)
-				} else if strings.HasPrefix(word, "profile=") {
-					value := strings.Split(word, "=")
-					profileName = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "comm=") {
-					value := strings.Split(word, "=")
-					source = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "operation=") {
-					value := strings.Split(word, "=")
-					operation = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "name=") {
-					value := strings.Split(word, "=")
-					resource = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "apparmor=") {
-					value := strings.Split(word, "=")
-					action = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "requested_mask=") {
-					value := strings.Split(word, "=")
-					requested = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "denied_mask=") {
-					value := strings.Split(word, "=")
-					denied = strings.Replace(value[1], "\"", "", -1)
+			for _, cosKV := range strings.Split(line, ",") {
+				if strings.Contains(cosKV, "AVC apparmor=") {
+					kv := strings.Split(cosKV, ":")
+					if len(kv) == 2 {
+						cosLine = kv[1]
+						break
+					}
 				}
 			}
 
-			if operation == "exec" {
-				operation = "Process"
-			} else { // open
-				operation = "File"
+			if cosLine == "" {
+				continue
 			}
 
-			data := "requested=" + requested
-			if denied != "" {
-				data = data + " denied=" + denied
-			}
-
-			go mon.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
+			line = strings.Replace(cosLine, "\\\"", "\"", -1)
+			line = line[1 : len(line)-1]
 		}
+
+		hostPid := int32(0)
+
+		profileName := ""
+
+		source := ""
+		operation := ""
+		resource := ""
+		action := ""
+
+		requested := ""
+		denied := ""
+
+		words := strings.Split(line, " ")
+
+		for _, word := range words {
+			if strings.HasPrefix(word, "pid=") {
+				value := strings.Split(word, "=")
+				pid, _ := strconv.Atoi(value[1])
+				hostPid = int32(pid)
+			} else if strings.HasPrefix(word, "profile=") {
+				value := strings.Split(word, "=")
+				profileName = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "comm=") {
+				value := strings.Split(word, "=")
+				source = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "operation=") {
+				value := strings.Split(word, "=")
+				operation = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "name=") {
+				value := strings.Split(word, "=")
+				resource = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "apparmor=") {
+				value := strings.Split(word, "=")
+				action = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "requested_mask=") {
+				value := strings.Split(word, "=")
+				requested = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "denied_mask=") {
+				value := strings.Split(word, "=")
+				denied = strings.Replace(value[1], "\"", "", -1)
+			}
+		}
+
+		if operation == "exec" {
+			operation = "Process"
+		} else { // open
+			operation = "File"
+		}
+
+		data := "requested=" + requested
+		if denied != "" {
+			data = data + " denied=" + denied
+		}
+
+		go mon.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
 	}
 }
