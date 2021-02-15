@@ -28,8 +28,7 @@ import (
 
 var (
 	dockerPattern = regexp.MustCompile(`\d+:.+:/docker/([0-9a-f]{64})`)
-	kubePattern1  = regexp.MustCompile(`\d+:.+:/docker/pod[^/]+/([0-9a-f]{64})`)
-	kubePattern2  = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
+	kubePattern   = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
 )
 
 const (
@@ -678,45 +677,69 @@ func (mon *ContainerMonitor) LookupContainerID(pidns uint32, mntns uint32, pid u
 
 	// approach 2: look up container id from cgroup
 
-	f, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
+	cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
 		return "" // this is nature, just meaning that the PID no longer exists
 	}
-	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	if kl.IsK8sEnv() { // kubernetes
-		for scanner.Scan() {
-			line := scanner.Text()
+	cgroupScanner := bufio.NewScanner(cgroup)
+	for cgroupScanner.Scan() {
+		line := cgroupScanner.Text()
 
-			// k8s
-			parts := kubePattern1.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// k8s
-			parts = kubePattern2.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
+		// k8s
+		parts := kubePattern.FindStringSubmatch(line)
+		if parts != nil {
+			containerID = parts[1]
+			break
 		}
-	} else { // docker
-		for scanner.Scan() {
-			line := scanner.Text()
-			parts := dockerPattern.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
+
+		// docker
+		parts = dockerPattern.FindStringSubmatch(line)
+		if parts != nil {
+			containerID = parts[1]
+			break
 		}
 	}
+
+	cgroup.Close()
 
 	// update newly found container id
 	if containerID != "" {
 		mon.NsMap[key] = containerID
+		return containerID
+	}
+
+	// approach 3: look up container id from cmdline
+
+	cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", pid))
+	if err != nil {
+		return "" // this is nature, just meaning that the PID no longer exists
+	}
+
+	cmdScanner := bufio.NewScanner(cmdline)
+	for cmdScanner.Scan() {
+		line := cmdScanner.Text()
+
+		parts := strings.Split(line, "-id")
+		if len(parts) < 2 {
+			break
+		}
+
+		parts = strings.Split(parts[1], "-addr")
+		if len(parts) < 2 {
+			break
+		}
+
+		containerID = parts[0]
+		break
+	}
+
+	cmdline.Close()
+
+	// update newly found container id
+	if containerID != "" {
+		mon.NsMap[key] = containerID
+		return containerID
 	}
 
 	return ""

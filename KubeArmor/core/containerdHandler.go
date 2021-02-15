@@ -2,11 +2,11 @@ package core
 
 import (
 	"context"
-	"io"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
@@ -161,50 +161,67 @@ func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container,
 // == Containerd Events == //
 // ======================= //
 
-// GetNewContainerdContainers Function
-func (ch *ContainerdHandler) GetNewContainerdContainers() []string {
+// GetContainerdContainers Function
+func (ch *ContainerdHandler) GetContainerdContainers() []string {
+	containers := []string{}
+
 	req := pb.ListContainersRequest{}
-	stream, err := ch.client.ListStream(ch.ctx, &req)
+	containerList, err := ch.client.List(ch.ctx, &req)
 	if err != nil {
 		return []string{}
 	}
 
-	containers := []string{}
-
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return []string{}
-		}
-
-		containers = append(containers, res.Container.ID)
-		ch.containers = append(ch.containers, res.Container.ID)
+	for _, container := range containerList.Containers {
+		containers = append(containers, container.ID)
 	}
 
 	return containers
 }
 
-// GetDeletedContainerdContainers Function
-func (ch *ContainerdHandler) GetDeletedContainerdContainers() []string {
-	containers := []string{}
+// GetNewContainerdContainers Function
+func (ch *ContainerdHandler) GetNewContainerdContainers(containers []string) []string {
+	newContainers := []string{}
 
-	for _, containerID := range ch.containers {
-		req := pb.GetContainerRequest{ID: containerID}
-		_, err := ch.client.Get(ch.ctx, &req)
-		if err != nil {
-			containers = append(containers, containerID)
-			for idx, id := range ch.containers {
-				if id == containerID {
-					ch.containers = append(ch.containers[:idx], ch.containers[idx+1:]...)
-					break
-				}
+	for _, activeContainerID := range containers {
+		exist := false
+
+		for _, globalContainerID := range ch.containers {
+			if activeContainerID == globalContainerID {
+				exist = true
+				break
 			}
+		}
+
+		if !exist {
+			newContainers = append(newContainers, activeContainerID)
 		}
 	}
 
-	return containers
+	return newContainers
+}
+
+// GetDeletedContainerdContainers Function
+func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers []string) []string {
+	deletedContainers := []string{}
+
+	for _, globalContainerID := range ch.containers {
+		exist := false
+
+		for _, activeContainerID := range containers {
+			if globalContainerID == activeContainerID {
+				exist = true
+				break
+			}
+		}
+
+		if !exist {
+			deletedContainers = append(deletedContainers, globalContainerID)
+		}
+	}
+
+	ch.containers = containers
+
+	return deletedContainers
 }
 
 // UpdateContainerdContainer Function
@@ -291,17 +308,23 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 			return
 
 		default:
-			newContainers := Containerd.GetNewContainerdContainers()
+			containers := Containerd.GetContainerdContainers()
 
-			for _, containerID := range newContainers {
-				dm.UpdateContainerdContainer(containerID, "start")
+			newContainers := Containerd.GetNewContainerdContainers(containers)
+			if len(newContainers) > 0 {
+				for _, containerID := range newContainers {
+					dm.UpdateContainerdContainer(containerID, "start")
+				}
 			}
 
-			deletedContainers := Containerd.GetDeletedContainerdContainers()
-
-			for _, containerID := range deletedContainers {
-				dm.UpdateContainerdContainer(containerID, "destroy")
+			deletedContainers := Containerd.GetDeletedContainerdContainers(containers)
+			if len(deletedContainers) > 0 {
+				for _, containerID := range deletedContainers {
+					dm.UpdateContainerdContainer(containerID, "destroy")
+				}
 			}
 		}
+
+		time.Sleep(time.Second * 1)
 	}
 }
