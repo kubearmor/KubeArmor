@@ -1,5 +1,5 @@
 source: ubuntu-1-deployment
-cmd: ping 8.8.8.8
+cmd: ping -c 1 8.8.8.8
 result: failed
 ---
 operation: Network
