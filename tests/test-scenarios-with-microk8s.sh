@@ -10,6 +10,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 
 ## == Functions == ##
@@ -121,7 +122,7 @@ function delete_and_wait_for_microserivce_deletion() {
 function find_allow_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
-    sleep 2
+    sleep 1
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
@@ -137,7 +138,7 @@ function find_allow_logs() {
 function find_audit_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
-    sleep 2
+    sleep 1
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
@@ -153,7 +154,7 @@ function find_audit_logs() {
 function find_block_logs() {
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
 
-    sleep 2
+    sleep 1
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
@@ -180,7 +181,7 @@ function run_test_scenario() {
     fi
     echo "[INFO] Applied $YAML_FILE into $2"
 
-    sleep 1
+    sleep 2
 
     for cmd in $(ls cmd*)
     do
@@ -205,10 +206,14 @@ function run_test_scenario() {
                 find_audit_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
                 find_audit_logs $POD $OP $COND $ACTION
+            elif [ "$RESULT" == "failed" ]; then
+                echo -e "${MAGENTA}[WARN] Expected failure, but got success${NC}"
             fi
         else
             if [ "$RESULT" == "failed" ]; then
                 find_block_logs $POD $OP $COND $ACTION
+            else
+                echo -e "${MAGENTA}[WARN] Expected success, but got failure${NC}"
             fi
         fi
 
@@ -261,6 +266,10 @@ do
 
     if [ $res_microservice == 0 ]; then
         echo "[INFO] Applied $microservice"
+
+        echo "[INFO] Wait for initialization"
+        sleep 30
+        echo "[INFO] Started to run testcases"
 
         cd $TEST_HOME/scenarios
 

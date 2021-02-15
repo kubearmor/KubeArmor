@@ -11,6 +11,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 
 YES=$1
@@ -108,9 +109,9 @@ function delete_and_wait_for_microserivce_deletion() {
 function find_allow_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 2
+    sleep 1
 
-    cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
     if [ $? == 0 ]; then
         echo -e "${RED}[FAIL] Found the log from logs${NC}"
         res_cmd=1
@@ -122,9 +123,9 @@ function find_allow_logs() {
 function find_audit_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 2
+    sleep 1
 
-    cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
         res_cmd=1
@@ -136,9 +137,9 @@ function find_audit_logs() {
 function find_block_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 2
+    sleep 1
 
-    cat $ARMOR_LOG | grep PolicyMatched | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
+    grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
         res_cmd=1
@@ -161,7 +162,7 @@ function run_test_scenario() {
     fi
     echo "[INFO] Applied $YAML_FILE into $2"
 
-    sleep 1
+    sleep 2
 
     for cmd in $(ls cmd*)
     do
@@ -186,10 +187,14 @@ function run_test_scenario() {
                 find_audit_logs $POD $OP $COND $ACTION
             elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
                 find_audit_logs $POD $OP $COND $ACTION
+            elif [ "$RESULT" == "failed" ]; then
+                echo -e "${MAGENTA}[WARN] Expected failure, but got success${NC}"
             fi
         else
             if [ "$RESULT" == "failed" ]; then
                 find_block_logs $POD $OP $COND $ACTION
+            else
+                echo -e "${MAGENTA}[WARN] Expected success, but got failure${NC}"
             fi
         fi
 
@@ -255,6 +260,10 @@ do
     if [ $res_microservice == 0 ]; then
         echo "[INFO] Applied $microservice"
 
+        echo "[INFO] Wait for initialization"
+        sleep 30
+        echo "[INFO] Started to run testcases"
+
         cd $TEST_HOME/scenarios
 
         for testcase in $(ls -d $microservice_*)
@@ -304,10 +313,8 @@ fi
 
 if [ $res_microservice != 0 ]; then
     echo -e "${RED}[FAIL] Failed to test KubeArmor${NC}"
-    exit 1
 else
     echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
-    exit 0
 fi
 
 if [ "$YES" == "-y" ]; then
@@ -321,4 +328,10 @@ else
             *) sudo rm -f $ARMOR_MSG $ARMOR_LOG; break;;
         esac
     done
+fi
+
+if [ $res_microservice != 0 ]; then
+    exit 1
+else
+    exit 0
 fi

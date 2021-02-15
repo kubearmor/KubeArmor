@@ -163,7 +163,7 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 
 		MsgLock.Unlock()
 
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond * 1)
 	}
 
 	return nil
@@ -226,7 +226,7 @@ func (ls *LogService) WatchStatistics(req *pb.RequestMessage, svr pb.LogService_
 
 		StatLock.Unlock()
 
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond * 1)
 	}
 
 	return nil
@@ -295,7 +295,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 
 		LogLock.Unlock()
 
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond * 1)
 	}
 
 	return nil

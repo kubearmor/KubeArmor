@@ -5,6 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"log"
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/accuknox/KubeArmor/KubeArmor/core"
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 )
@@ -30,7 +34,14 @@ func main() {
 
 	portPtr := flag.String("port", "32767", "gRPC port number")
 	outputPtr := flag.String("output", "none", "log file path")
+	pprofPtr := flag.String("pprof", "none", "pprof port number")
 	flag.Parse()
+
+	if *pprofPtr != "none" {
+		go func() {
+			log.Println(http.ListenAndServe("0.0.0.0:"+*pprofPtr, nil))
+		}()
+	}
 
 	// == //
 

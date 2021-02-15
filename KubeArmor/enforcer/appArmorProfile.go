@@ -179,18 +179,19 @@ func allowedFiles(secPolicy tp.SecurityPolicy, allowLines []string, allowCount i
 	return allowLines, allowCount, !(allowCount == oldCount)
 }
 
-func allowedNetworks(secPolicy tp.SecurityPolicy, allowLines []string, allowCount int) ([]string, int, bool) {
-	oldCount := allowCount
+func allowedNetworks(secPolicy tp.SecurityPolicy, allowLines []string, allowCount int) ([]string, int, []string) {
+	networkWhiteList := []string{}
 
 	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 		for _, protocol := range secPolicy.Spec.Network.MatchProtocols {
+			networkWhiteList = append(networkWhiteList, protocol)
 			line := fmt.Sprintf("  network %s,\n", protocol)
 			allowLines = append(allowLines, line)
 			allowCount++
 		}
 	}
 
-	return allowLines, allowCount, !(allowCount == oldCount)
+	return allowLines, allowCount, networkWhiteList
 }
 
 func allowedCapabilities(secPolicy tp.SecurityPolicy, allowLines []string, allowCount int) ([]string, int, bool) {
@@ -543,16 +544,19 @@ func blockedFiles(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int
 	return denyLines, denyCount
 }
 
-func blockedNetworks(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int) {
+func blockedNetworks(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int, []string) {
+	networkBlackList := []string{}
+
 	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 		for _, protocol := range secPolicy.Spec.Network.MatchProtocols {
+			networkBlackList = append(networkBlackList, protocol)
 			line := fmt.Sprintf("  deny network %s,\n", protocol)
 			denyLines = append(denyLines, line)
 			denyCount++
 		}
 	}
 
-	return denyLines, denyCount
+	return denyLines, denyCount, networkBlackList
 }
 
 func blockedCapabilities(secPolicy tp.SecurityPolicy, denyLines []string, denyCount int) ([]string, int) {
@@ -1232,7 +1236,7 @@ func blockedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 // == //
 
 // GenerateProfileHead Function
-func GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilitiesWhiteList bool, profileBody string) string {
+func GenerateProfileHead(processWhiteList, fileWhiteList bool, networkWhiteList, networkBlackList []string, capabilitiesWhiteList bool, profileBody string) string {
 	// pre
 
 	profileBody = profileBody + "  #include <abstractions/base>\n"
@@ -1242,8 +1246,25 @@ func GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capa
 		profileBody = profileBody + "  file,\n"
 	}
 
-	if !networkWhiteList {
-		profileBody = profileBody + "  network,\n"
+	if len(networkWhiteList) == 0 {
+		if len(networkBlackList) > 0 {
+			for _, protocol := range []string{"tcp", "udp", "icmp"} {
+				blocked := false
+
+				for _, blockedProtocol := range networkBlackList {
+					if protocol == blockedProtocol {
+						blocked = true
+						break
+					}
+				}
+
+				if !blocked {
+					profileBody = profileBody + fmt.Sprintf("  network %s,\n", protocol)
+				}
+			}
+		} else {
+			profileBody = profileBody + "  network,\n"
+		}
 	}
 
 	if !capabilitiesWhiteList {
@@ -1293,8 +1314,10 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	processWhiteList := false
 	fileWhiteList := false
-	networkWhiteList := false
 	capabilitiesWhiteList := false
+
+	networkWhiteList := []string{}
+	networkBlackList := []string{}
 
 	for _, secPolicy := range securityPolicies {
 		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
@@ -1313,10 +1336,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			}
 
 			// network
-			allowLines, allowCount, whiteList = allowedNetworks(secPolicy, allowLines, allowCount)
-			if whiteList {
-				networkWhiteList = true
-			}
+			allowLines, allowCount, networkWhiteList = allowedNetworks(secPolicy, allowLines, allowCount)
 
 			// capabilities
 			allowLines, allowCount, whiteList = allowedCapabilities(secPolicy, allowLines, allowCount)
@@ -1345,7 +1365,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			denyLines, denyCount = blockedFiles(secPolicy, denyLines, denyCount)
 
 			// network
-			denyLines, denyCount = blockedNetworks(secPolicy, denyLines, denyCount)
+			denyLines, denyCount, networkBlackList = blockedNetworks(secPolicy, denyLines, denyCount)
 
 			// capabilities
 			denyLines, denyCount = blockedCapabilities(secPolicy, denyLines, denyCount)
@@ -1356,7 +1376,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	profileBody := "  ## == PRE START == ##\n"
 
-	profileBody = GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilitiesWhiteList, profileBody)
+	profileBody = GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, networkBlackList, capabilitiesWhiteList, profileBody)
 
 	profileBody = profileBody + "  ## == PRE END == ##\n"
 
