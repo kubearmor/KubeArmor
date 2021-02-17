@@ -11,7 +11,10 @@ services:
 
 install:
   - .travis/prepare.sh
+  #- .travis/install_k8s.sh
 
 script:
-  - .travis/test_KubeArmor.sh
+  #- .travis/check_lsm.sh
+  #- .travis/check_k8s.sh
+  #- .travis/test_kubearmor.sh
   - .travis/verify_image.sh
