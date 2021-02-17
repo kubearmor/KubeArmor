@@ -9,12 +9,11 @@ docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {}
 echo "[INFO] Building accuknox/kubearmor:base"
 docker build -t accuknox/kubearmor:base . -f Dockerfile.builder
 
-if [ $? == 0 ]; then
-    echo "[PASSED] Built accuknox/kubearmor:base"
-    # exit 0
-else
+if [ $? != 0 ]; then
     echo "[FAILED] Failed to build accuknox/kubearmor:base"
     exit 1
+else
+    echo "[PASSED] Built accuknox/kubearmor:base"
 fi
 
 # push accuknox/kubearmor:base
@@ -22,10 +21,10 @@ fi
 echo "[INFO] Pushing accuknox/kubearmor:base"
 docker push accuknox/kubearmor:base
 
-if [ $? == 0 ]; then
-    echo "[PASSED] Pushed accuknox/kubearmor:base"
-    exit 0
-else
+if [ $? != 0 ]; then
     echo "[FAILED] Failed to push accuknox/kubearmor:base"
     exit 1
+else
+    echo "[PASSED] Pushed accuknox/kubearmor:base"
+    exit 0
 fi

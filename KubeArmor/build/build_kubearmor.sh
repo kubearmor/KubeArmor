@@ -32,11 +32,11 @@ echo "[INFO] Copied new source files"
 echo "[INFO] Building accuknox/kubearmor:$VERSION"
 docker build -t accuknox/kubearmor:$VERSION  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
 
-if [ $? == 0 ]; then
-    echo "[PASSED] Built accuknox/kubearmor:$VERSION"
-else
+if [ $? != 0 ]; then
     echo "[FAILED] Failed to build accuknox/kubearmor:$VERSION"
     exit 1
+else
+    echo "[PASSED] Built accuknox/kubearmor:$VERSION"
 fi
 
 # remove old files
