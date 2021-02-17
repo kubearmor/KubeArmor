@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -16,9 +17,16 @@ func TestContainerMonitor(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := &sync.Mutex{}
 
+	// Create Feeder
+	logFeeder := fd.NewFeeder("32767", "none")
+	if logFeeder == nil {
+		t.Log("[FAIL] Failed to create Feeder")
+		return
+	}
+
 	// Create Container Monitor
 
-	containerMonitor := NewContainerMonitor(nil, &Containers, &ContainersLock)
+	containerMonitor := NewContainerMonitor(logFeeder, &Containers, &ContainersLock)
 	if containerMonitor == nil {
 		t.Log("[FAIL] Failed to create ContainerMonitor")
 		return
@@ -33,6 +41,14 @@ func TestContainerMonitor(t *testing.T) {
 	}
 
 	t.Log("[PASS] Destroyed ContainerMonitor")
+
+	// destroy Feeder
+	if err := logFeeder.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy Feeder")
+		return
+	}
+
+	t.Log("[PASS] Destroyed Feeder")
 }
 
 func TestTraceSyscall(t *testing.T) {
@@ -42,9 +58,16 @@ func TestTraceSyscall(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := &sync.Mutex{}
 
+	// Create Feeder
+	logFeeder := fd.NewFeeder("32767", "none")
+	if logFeeder == nil {
+		t.Log("[FAIL] Failed to create Feeder")
+		return
+	}
+
 	// Create Container Monitor
 
-	containerMonitor := NewContainerMonitor(nil, &Containers, &ContainersLock)
+	containerMonitor := NewContainerMonitor(logFeeder, &Containers, &ContainersLock)
 	if containerMonitor == nil {
 		t.Log("[FAIL] Failed to create ContainerMonitor")
 		return
@@ -88,4 +111,12 @@ func TestTraceSyscall(t *testing.T) {
 	}
 
 	t.Log("[PASS] Destroyed ContainerMonitor")
+
+	// destroy Feeder
+	if err := logFeeder.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy Feeder")
+		return
+	}
+
+	t.Log("[PASS] Destroyed Feeder")
 }
