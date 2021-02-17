@@ -2,12 +2,21 @@ package enforcer
 
 import (
 	"testing"
+
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 )
 
 func TestAppArmorEnforcer(t *testing.T) {
+	// Create Feeder
+	logFeeder := fd.NewFeeder("32767", "none")
+	if logFeeder == nil {
+		t.Log("[FAIL] Failed to create Feeder")
+		return
+	}
+
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer()
+	enforcer := NewAppArmorEnforcer(logFeeder)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -23,12 +32,27 @@ func TestAppArmorEnforcer(t *testing.T) {
 	}
 
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
+
+	// destroy Feeder
+	if err := logFeeder.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy Feeder")
+		return
+	}
+
+	t.Log("[PASS] Destroyed Feeder")
 }
 
 func TestAppArmorProfile(t *testing.T) {
+	// Create Feeder
+	logFeeder := fd.NewFeeder("32767", "none")
+	if logFeeder == nil {
+		t.Log("[FAIL] Failed to create Feeder")
+		return
+	}
+
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer()
+	enforcer := NewAppArmorEnforcer(logFeeder)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -62,4 +86,12 @@ func TestAppArmorProfile(t *testing.T) {
 	}
 
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
+
+	// destroy Feeder
+	if err := logFeeder.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy Feeder")
+		return
+	}
+
+	t.Log("[PASS] Destroyed Feeder")
 }
