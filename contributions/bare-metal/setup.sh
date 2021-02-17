@@ -13,24 +13,20 @@ sudo apt-get update
 case "$VERSION" in
 "16."*)
     # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-dev python3-pip \
-                            clang-3.7 libllvm3.7 llvm-3.7-dev libclang-3.7-dev zlib1g-dev libelf-dev \
-                            arping netperf iperf3 luajit luajit-5.1-dev libedit-dev bc;;
+    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
+                            clang-3.7 libllvm3.7 llvm-3.7-dev libclang-3.7-dev zlib1g-dev libelf-dev libedit-dev;;
 "18."*)
     # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
-                            clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev bc \
-                            arping netperf iperf3;;
+    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
+                            clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev;;
 "20.04"*)
     # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
-                            clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev bc \
-                            arping netperf iperf3;;
+    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
+                            clang-7 libllvm7 llvm-7-dev libclang-7-dev zlib1g-dev libelf-dev libedit-dev;;
 "20.10"*)
     # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip python3-distutils \
-                            clang-8 libllvm8 llvm-8-dev libclang-8-dev zlib1g-dev libelf-dev libedit-dev bc \
-                            arping netperf iperf3;;
+    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
+                            clang-8 libllvm8 llvm-8-dev libclang-8-dev zlib1g-dev libelf-dev libedit-dev;;
 *)
     echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
 esac
