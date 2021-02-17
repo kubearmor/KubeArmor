@@ -45,7 +45,7 @@ spec:
       labels:
         container: kubearmor
       annotations:
-        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined  
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
     spec:
       serviceAccountName: kubearmor
       tolerations:

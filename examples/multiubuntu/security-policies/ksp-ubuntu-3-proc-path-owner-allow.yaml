@@ -14,7 +14,7 @@ spec:
       ownerOnly: true
     - path: /bin/su # required to change root to user1 / try 'su - user1'
   file:
-    matchDirectories: 
+    matchDirectories:
     - dir: /etc/ # required to change root to user1 (coarse-grained way)
       recursive: true
     - dir: /proc/ # required to change root to user1 (coarse-grained way)
