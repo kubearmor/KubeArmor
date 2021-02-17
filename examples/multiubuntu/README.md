@@ -35,7 +35,7 @@ $ kubectl -n multiubuntu exec -it {pod name for ubuntu 1} -- bash
 * Check audit logs
 
 ```
-$ kubectl -n kube-system logs {KubeArmor in the node where ubuntu 1 is located}
+$ kubectl -n kube-system exec -it {KubeArmor in the node where ubuntu 1 is located} -- tail /tmp/kubearmor.log
 ```
 
 # Example 2 - Block a file access
@@ -58,5 +58,5 @@ $ kubectl -n multiubuntu exec -it {pod name for ubuntu 5} -- bash
 * Check audit logs
 
 ```
-$ kubectl -n kube-system logs {KubeArmor in the node where ubuntu 5 is located}
+$ kubectl -n kube-system exec -it {KubeArmor in the node where ubuntu 5 is located} -- tail /tmp/kubearmor.log
 ```
