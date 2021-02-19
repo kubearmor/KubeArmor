@@ -1,88 +1,100 @@
 # Technical Roadmap
 
-Here, we briefly share a plan for next releases (e.g., including features, specs, and platform supports).
+Here, we briefly share a plan for next releases \(e.g., including features, specs, and platform supports\).
 
-- Current Release
+* Current Release
+  * Kubernetes Environments
 
-    - Kubernetes Environments
-    
-        \- Self-managed Kubernetes (using kubeadm and MicroK8s), Google Kubernetes Engine (GKE)
-    
-    - Container Platforms
-    
-        \- Docker, Containerd
-        
-    - LSM Supports
-    
-        \- AppArmor
+    - Self-managed Kubernetes \(using kubeadm and MicroK8s\), Google Kubernetes Engine \(GKE\)
 
-    - Features
-    
-        \- Monitoring container behaviors at the system level
+  * Container Platforms
 
-        \- Enforcing security policies against:
+    - Docker, Containerd
 
-            Process executions  
-            File accesses  
-            Network operations  
-            Capabilities permitted  
-            Resource uses
+  * LSM Supports
 
-        \- Producing container-aware audit logs and system logs (for failed system calls) and write them into:
-        
-            Standard output  
-            Log file  
-            gRPC
+    - AppArmor
 
-- Next Release
+  * Features
 
-    - Kubernetes Environments
-    
-        \- (extension) Amazon Elastic Kubernetes Service (EKS), Azure Kubernetes Service (AKS)
-        
-    - LSM Supports
-    
-        \- (extension) KRSI (requiring Linux kernel v5.8 or newer)
+    - Monitoring container behaviors at the system level
 
-    - Features
+    - Enforcing security policies against:
 
-        \- (extension) Producing container-aware logs and write them into:
-        
-            Database (e.g., MySQL and MongoDB)
+    ```text
+      Process executions  
+      File accesses  
+      Network operations  
+      Capabilities permitted  
+      Resource uses
+    ```
 
-        \- Generating security policies for given containers automatically
-        
-            Process executions  
-            Files accesses  
-            Network operations
+    - Producing container-aware audit logs and system logs \(for failed system calls\) and write them into:
 
-        \- Enforcing security policies at the eBPF level (using KRSI)
+    ```text
+      Standard output  
+      Log file  
+      gRPC
+    ```
+* Next Release
+  * Kubernetes Environments
 
-            Process executions  
-            File accesses  
-            Network operations  
-            Capabilities permitted
+    - \(extension\) Amazon Elastic Kubernetes Service \(EKS\), Azure Kubernetes Service \(AKS\)
 
-        \- Produce telemetry data to monitoring systems
+  * LSM Supports
 
-            Prometheus
+    - \(extension\) KRSI \(requiring Linux kernel v5.8 or newer\)
 
-- Future Releases
+  * Features
 
-    - Container Platforms
-    
-        \- (extension) Podman
-        
-    - LSM Supports
-    
-        \- (extension) SELinux
+    - \(extension\) Producing container-aware logs and write them into:
 
-    - Features
+    ```text
+      Database (e.g., MySQL and MongoDB)
+    ```
 
-        \- Producing container-aware logs and write them into:
-        
-            Other systems (e.g., Kafka and Elasticsearch)
-    
-        \- Enforcing security policies against inter-container communications at the network level
-        
-            Integration with network security solutions (e.g., Cilium)
+    - Generating security policies for given containers automatically
+
+    ```text
+      Process executions  
+      Files accesses  
+      Network operations
+    ```
+
+    - Enforcing security policies at the eBPF level \(using KRSI\)
+
+    ```text
+      Process executions  
+      File accesses  
+      Network operations  
+      Capabilities permitted
+    ```
+
+    - Produce telemetry data to monitoring systems
+
+    ```text
+      Prometheus
+    ```
+* Future Releases
+  * Container Platforms
+
+    - \(extension\) Podman
+
+  * LSM Supports
+
+    - \(extension\) SELinux
+
+  * Features
+
+    - Producing container-aware logs and write them into:
+
+    ```text
+      Other systems (e.g., Kafka and Elasticsearch)
+    ```
+
+    - Enforcing security policies against inter-container communications at the network level
+
+    ```text
+      Integration with network security solutions (e.g., Cilium)
+    ```
+

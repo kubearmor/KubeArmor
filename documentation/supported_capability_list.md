@@ -2,7 +2,7 @@
 
 The capabilities that are currently supported are:
 
-```
+```text
 chown
 dac_override
 dac_read_search
@@ -38,3 +38,4 @@ setfcap
 mac_override
 mac_admin
 ```
+
