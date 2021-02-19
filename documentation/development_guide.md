@@ -1,140 +1,140 @@
-# Development Guide
+# development\_guide
+
+## Development Guide
 
 1. Bare-metal Environment
+   * Requirements
 
-  - Requirements
+     Here is the list of requirements for a bare-metal environment.
 
-    Here is the list of requirements for a bare-metal environment.
+     ```text
+     Kubernetes - v1.19 (or newer)
+     Docker - 18.03 (or newer) / Containerd - 1.3.7 (or newer)
+     Linux Kernel - v4.15 (or newer)
+     LSM - AppArmor (+ SELinux and KRSI)
+     ```
 
-    ```
-    Kubernetes - v1.19 (or newer)
-    Docker - 18.03 (or newer) / Containerd - 1.3.7 (or newer)
-    Linux Kernel - v4.15 (or newer)
-    LSM - AppArmor (+ SELinux and KRSI)
-    ```
+     First of all, KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses their APIs. If you have other container platforms \(e.g., Podman\), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
 
-    First of all, KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](./k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses their APIs. If you have other container platforms (e.g., Podman), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs (at least, AppArmor).
+     Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work if you use Docker Desktops on Windows and MacOS because such environments do not have a full Linux file system.
 
-    <font color=red>Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work if you use Docker Desktops on Windows and MacOS because such environments do not have a full Linux file system.</font>
+   * Environmetal Setup
 
-  - Environmetal Setup
+     In order to install all dependencies, please run the following command.
 
-    In order to install all dependencies, please run the following command.
+     ```text
+     $ cd contributions/bare-metal
+     (bare-metal) $ ./setup.sh
+     ```
 
-    ```
-    $ cd contributions/bare-metal
-    (bare-metal) $ ./setup.sh
-    ```
+     [setup.sh](https://github.com/accuknox/KubeArmor/tree/2da01a6c9b8bcee32577671aef0dba853b2deb7b/contributions/bare-metal/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
 
-    [setup.sh](../contributions/bare-metal/setup.sh) will automatically install BCC (latest), Go (v1.15.2), and Protobuf (3.14.0).
+     Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
 
-    Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
+   * \(Optional\) MicroK8s Setup
 
-  - (Optional) MicroK8s Setup
+     In order to install MicroK8s, please run the following command.
 
-    In order to install MicroK8s, please run the following command.
-
-    ```
-    $ cd contributions/bare-metal/microk8s
-    (microk8s) $ ./install_microk8s.sh
-    ```
-
+     ```text
+     $ cd contributions/bare-metal/microk8s
+     (microk8s) $ ./install_microk8s.sh
+     ```
 2. Vagrant Environment
+   * Requirements
 
-  - Requirements
+     Here is the list of requirements for a Vagrant environment
 
-    Here is the list of requirements for a Vagrant environment
+     ```text
+     Vagrant - v2.2.9
+     VirtualBox - v6.0
+     ```
 
-    ```
-    Vagrant - v2.2.9
-    VirtualBox - v6.0
-    ```
+     If you do not have Vagrant and VirtualBox in your environment, you can easily install them by running the following command.
 
-    If you do not have Vagrant and VirtualBox in your environment, you can easily install them by running the following command.
+     ```text
+     cd contributions/vagrant
+     (vagrant) $ ./setup.sh
+     ```
 
-    ```
-    cd contributions/vagrant
-    (vagrant) $ ./setup.sh
-    ```
+   * VM Setup using Vagrant
 
-  - VM Setup using Vagrant
+     Now, it is time to create a VM for development.
 
-    Now, it is time to create a VM for development.
+     ```text
+     cd contributions/vagrant
+     (vagrant) $ ./create.sh
+     ```
 
-    ```
-    cd contributions/vagrant
-    (vagrant) $ ./create.sh
-    ```
+     You can directly use the vagrant command to create a VM.
 
-    You can directly use the vagrant command to create a VM.
+     ```text
+     (vagrant) $ vagrant up
+     ```
 
-    ```
-    (vagrant) $ vagrant up
-    ```
+     In this case, please make sure that you have ssh keys in '~/.ssh'. If you do not have ssh keys yet, please run the following command before running the above command \(i.e., 'vagrant up'\).
 
-    In this case, please make sure that you have ssh keys in '~/.ssh'. If you do not have ssh keys yet, please run the following command before running the above command (i.e., 'vagrant up').
+     ```text
+     (vagrant) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
+     ```
 
-    ```
-    (vagrant) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
-    ```
+     If you want to remove the created VM, please run the following command.
 
-    If you want to remove the created VM, please run the following command.
+     ```text
+     cd contributions/vagrant
+     (vagrant) $ ./remove.sh
+     ```
 
-    ```
-    cd contributions/vagrant
-    (vagrant) $ ./remove.sh
-    ```
+     You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
 
-    You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
+     ```text
+     cd contributions/vagrant
+     (vagrant) $ vagrant ssh
+     ```
 
-    ```
-    cd contributions/vagrant
-    (vagrant) $ vagrant ssh
-    ```
-
-# Code Directories
+## Code Directories
 
 Here, we briefly give you the overview of KubeArmor's directories.
 
-  - Source code for KubeArmor (/KubeArmor)
+* Source code for KubeArmor \(/KubeArmor\)
 
-    ```
-    KubeArmor/
-      core        - The main body (start point) of KubeArmor
-      discovery   - Automated security policy discovery (under development)
-      enforcer    - Runtime policy enforcer (enforcing security policies into LSMs)
-      feeder      - gRPC-based feeder (sending audit/system logs to a log server)
-      monitor     - eBPF-based container monitor (mapping process IDs to container IDs)
-      BPF         - eBPF code for container monitor
-      log         - Message logger (stdout) for KubeArmor
-      common      - Libraries internally used
-      types       - Type definitions
-    protobuf/     - Protocol buffer
-    ```
+  ```text
+  KubeArmor/
+    core        - The main body (start point) of KubeArmor
+    discovery   - Automated security policy discovery (under development)
+    enforcer    - Runtime policy enforcer (enforcing security policies into LSMs)
+    feeder      - gRPC-based feeder (sending audit/system logs to a log server)
+    monitor     - eBPF-based container monitor (mapping process IDs to container IDs)
+    BPF         - eBPF code for container monitor
+    log         - Message logger (stdout) for KubeArmor
+    common      - Libraries internally used
+    types       - Type definitions
+  protobuf/     - Protocol buffer
+  ```
 
-  - Source code for KubeArmor's log client
+* Source code for KubeArmor's log client
 
-    ```
-    LogClient/    - gRPC-based log server
-    protobuf/     - Protocol buffer
-    ```
+  ```text
+  LogClient/    - gRPC-based log server
+  protobuf/     - Protocol buffer
+  ```
 
-  - Source code for KubeArmor's custom resource defintion (CRD)
+* Source code for KubeArmor's custom resource defintion \(CRD\)
 
-    ```
-    pkg/
-      k8s         - CRD Code generated by Kube-Builder
-    ```
+  ```text
+  pkg/
+    k8s         - CRD Code generated by Kube-Builder
+  ```
 
-  - Scripts for GKE
+* Scripts for GKE
 
-    ```
-    GKE/          - scripts to set up the enforcer in a container-optimized OS (COS)
-    ```
+  ```text
+  GKE/          - scripts to set up the enforcer in a container-optimized OS (COS)
+  ```
 
-  - Files for testing
+* Files for testing
 
-    ```
-    examples/
-      multiubuntu - Example microservice for testing
-    ```
+  ```text
+  examples/
+    multiubuntu - Example microservice for testing
+  ```
+

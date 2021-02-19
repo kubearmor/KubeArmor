@@ -1,8 +1,10 @@
-# Security Policy Specification
+# security\_policy\_specification
+
+## Security Policy Specification
 
 Here is the specification of a security policy.
 
-```
+```text
 apiVersion: security.accuknox.com/v1
 kind:KubeArmorPolicy
 metadata:
@@ -81,46 +83,46 @@ spec:
   action: [Allow|Block|Audit]
 ```
 
-# Policy Spec Description
+## Policy Spec Description
 
 Now, we will briefly explain how to define a security policy.
 
-- Base
+* Base
 
-    A security policy starts with base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you wnat to apply the policy.
+  A security policy starts with base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you wnat to apply the policy.
 
-    ```
+  ```text
     apiVersion: security.accuknox.com/v1
     kind:KubeArmorPolicy
     metadata:
       name: [policy name]
       namespace: [namespace name]
-    ```
+  ```
 
-- Severity
+* Severity
 
   The severity part is somewhat important. You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts.
 
-  ```
+  ```text
   severity: [1-10]
   ```
 
-- Selector
+* Selector
 
-    The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify target pods or a group of pods based on labels.
-    
-    ```
+  The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify target pods or a group of pods based on labels.
+
+  ```text
     selector:
       matchLabels:
         [key1]: [value1]
         [keyN]: [valueN]
-     ```
+  ```
 
-- Process
+* Process
 
-    In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, the coverage of regular expressions is highly dependent on AppArmor ([Policy Core Reference](https://gitlab.com/apparmor/apparmor/-/wikis/AppArmor_Core_Policy_Reference)). Thus, we generally do not recommend to use this match.
-    
-    ```
+  In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, the coverage of regular expressions is highly dependent on AppArmor \([Policy Core Reference](https://gitlab.com/apparmor/apparmor/-/wikis/AppArmor_Core_Policy_Reference)\). Thus, we generally do not recommend to use this match.
+
+  ```text
     process:
       matchPaths:
       - path: [absolute executable path]
@@ -144,37 +146,37 @@ Now, we will briefly explain how to define a security policy.
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
           recursive: [true|false]
+  ```
+
+  In each match, there are three options.
+
+  * ownerOnly \(false by default\)
+
+    ownerOnly works with the 'Allow' action only. If this is enabled, the executable\(s\) defined with matchPaths and matchDirectories will be executed by their owners only.
+
+  * recursive \(false by default\)
+
+    If this is enabled, the coverage will extend to the subdirectories of the directory defined with matchDirectories.
+
+  * fromSource \(under development\)
+
+    If a path or a directory is specified in fromSource, the executables defined with matchPaths or matchDirectories will be only launched by the executable of the path or the executables in the directory.
+
+    For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked.
+
+    ```text
+      process:
+        matchPaths:
+        - path: /bin/sleep
+          fromSource:
+          - path: /bin/bash
     ```
 
-    In each match, there are three options.
-    
-    - ownerOnly (false by default)
-    
-        ownerOnly works with the 'Allow' action only. If this is enabled, the executable(s) defined with matchPaths and matchDirectories will be executed by their owners only.
-        
-    - recursive (false by default)
-    
-        If this is enabled, the coverage will extend to the subdirectories of the directory defined with matchDirectories.
-    
-    - fromSource (under development)
-    
-        If a path or a directory is specified in fromSource, the executables defined with matchPaths or matchDirectories will be only launched by the executable of the path or the executables in the directory.
+* File
 
-        For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked.
-        
-        ```
-        process:
-          matchPaths:
-          - path: /bin/sleep
-            fromSource:
-            - path: /bin/bash
-        ```
+  The file section is quite similar to the process section.
 
-- File
-
-    The file section is quite similar to the process section.
-    
-    ```
+  ```text
     file:
       matchPaths:
       - path: [absolute file path]
@@ -201,44 +203,45 @@ Now, we will briefly explain how to define a security policy.
         - path: [absolute file path]
         - dir: [absolute directory path]
           recursive: [true:false]
-    ```
+  ```
 
-    The only difference between 'process' and 'file' is the readOnly option.
-    
-    - readOnly (false by default)
-    
-        If this is enabled, the read operation will be only allowed, and any other operations (e.g., write) will be blocked.
+  The only difference between 'process' and 'file' is the readOnly option.
 
-- Network
+  * readOnly \(false by default\)
 
-    In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+    If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.
 
-    ```
+* Network
+
+  In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
+
+  ```text
     network:
       matchProtocols:
       - [protocol]                         # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
-    ```
+  ```
 
-- Capabilities
+* Capabilities
 
-    In the case of capabilities, there are two types of matches: matchCapabilities and matchOperations. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](./supported_capability_list.md). For convenience, KubeArmor also allows you to define certain operations at the high level rather than specifically defining capability names. You can check available operations in [Operation List](./supported_operation_list.md).
-    
-    ```
+  In the case of capabilities, there are two types of matches: matchCapabilities and matchOperations. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md). For convenience, KubeArmor also allows you to define certain operations at the high level rather than specifically defining capability names. You can check available operations in [Operation List](supported_operation_list.md).
+
+  ```text
     capabilities:
       matchCapabilities:
       - [capability name]
       matchOperations:
       - [operation name]
-    ```
+  ```
 
-- Action
+* Action
 
-    The action would be Allow, Block, Audit, or AllowWithAudit. According to the action, given security policies will be handled in a blacklist manner or a whitelist manner. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](./consideration_in_policy_action.md) for more details.
+  The action would be Allow, Block, Audit, or AllowWithAudit. According to the action, given security policies will be handled in a blacklist manner or a whitelist manner. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details.
 
-    In the case of Audit, it is similar to Block, but KubeArmor does not block specific executions or accesses. Instead, KubeArmor generates some audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
+  In the case of Audit, it is similar to Block, but KubeArmor does not block specific executions or accesses. Instead, KubeArmor generates some audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
 
-    What about AllowWithAudit? When we use the 'Allow' action, we will get some logs for objects and operations that are not allowed to access and conduct, which means that we don't have actual logs for allowed accesses. If we want to get some logs for such allowed accesses, we can use the AllowWithAudit action.
-    
-    ```
+  What about AllowWithAudit? When we use the 'Allow' action, we will get some logs for objects and operations that are not allowed to access and conduct, which means that we don't have actual logs for allowed accesses. If we want to get some logs for such allowed accesses, we can use the AllowWithAudit action.
+
+  ```text
     action: [Allow|Block|Audit|AllowWithAudit]
-    ```
+  ```
+
