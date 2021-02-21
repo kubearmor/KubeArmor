@@ -1,3 +1,5 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -52,48 +54,58 @@ spec:
                 properties:
                   matchCapabilities:
                     items:
-                      enum:
-                      - chown
-                      - dac_override
-                      - dac_read_search
-                      - fowner
-                      - fsetid
-                      - kill
-                      - setgid
-                      - setuid
-                      - setpcap
-                      - linux_immutable
-                      - net_bind_service
-                      - net_broadcast
-                      - net_admin
-                      - net_raw
-                      - ipc_lock
-                      - ipc_owner
-                      - sys_module
-                      - sys_rawio
-                      - sys_chroot
-                      - sys_ptrace
-                      - sys_pacct
-                      - sys_admin
-                      - sys_boot
-                      - sys_nice
-                      - sys_resource
-                      - sys_time
-                      - sys_tty_config
-                      - mknod
-                      - lease
-                      - audit_write
-                      - audit_control
-                      - setfcap
-                      - mac_override
-                      - mac_admin
-                      type: string
-                    type: array
-                  matchOperations:
-                    items:
-                      enum:
-                      - TODO
-                      type: string
+                      properties:
+                        capability:
+                          enum:
+                          - chown
+                          - dac_override
+                          - dac_read_search
+                          - fowner
+                          - fsetid
+                          - kill
+                          - setgid
+                          - setuid
+                          - setpcap
+                          - linux_immutable
+                          - net_bind_service
+                          - net_broadcast
+                          - net_admin
+                          - net_raw
+                          - ipc_lock
+                          - ipc_owner
+                          - sys_module
+                          - sys_rawio
+                          - sys_chroot
+                          - sys_ptrace
+                          - sys_pacct
+                          - sys_admin
+                          - sys_boot
+                          - sys_nice
+                          - sys_resource
+                          - sys_time
+                          - sys_tty_config
+                          - mknod
+                          - lease
+                          - audit_write
+                          - audit_control
+                          - setfcap
+                          - mac_override
+                          - mac_admin
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              dir:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                                type: string
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                              recursive:
+                                type: boolean
+                            type: object
+                          type: array
+                      type: object
                     type: array
                 type: object
               file:
@@ -105,16 +117,18 @@ spec:
                           pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
                           type: string
                         fromSource:
-                          properties:
-                            dir:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                              type: string
-                            path:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                              type: string
-                            recursive:
-                              type: boolean
-                          type: object
+                          items:
+                            properties:
+                              dir:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                                type: string
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                              recursive:
+                                type: boolean
+                            type: object
+                          type: array
                         ownerOnly:
                           type: boolean
                         readOnly:
@@ -129,16 +143,18 @@ spec:
                     items:
                       properties:
                         fromSource:
-                          properties:
-                            dir:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                              type: string
-                            path:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                              type: string
-                            recursive:
-                              type: boolean
-                          type: object
+                          items:
+                            properties:
+                              dir:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                                type: string
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                              recursive:
+                                type: boolean
+                            type: object
+                          type: array
                         ownerOnly:
                           type: boolean
                         path:
@@ -168,14 +184,30 @@ spec:
                 properties:
                   matchProtocols:
                     items:
-                      enum:
-                      - TCP
-                      - tcp
-                      - UDP
-                      - udp
-                      - ICMP
-                      - icmp
-                      type: string
+                      properties:
+                        fromSource:
+                          items:
+                            properties:
+                              dir:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                                type: string
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                              recursive:
+                                type: boolean
+                            type: object
+                          type: array
+                        protocol:
+                          enum:
+                          - TCP
+                          - tcp
+                          - UDP
+                          - udp
+                          - ICMP
+                          - icmp
+                          type: string
+                      type: object
                     type: array
                 type: object
               process:
@@ -187,16 +219,18 @@ spec:
                           pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
                           type: string
                         fromSource:
-                          properties:
-                            dir:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                              type: string
-                            path:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                              type: string
-                            recursive:
-                              type: boolean
-                          type: object
+                          items:
+                            properties:
+                              dir:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                                type: string
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                              recursive:
+                                type: boolean
+                            type: object
+                          type: array
                         ownerOnly:
                           type: boolean
                         recursive:
@@ -209,16 +243,18 @@ spec:
                     items:
                       properties:
                         fromSource:
-                          properties:
-                            dir:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                              type: string
-                            path:
-                              pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                              type: string
-                            recursive:
-                              type: boolean
-                          type: object
+                          items:
+                            properties:
+                              dir:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                                type: string
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                              recursive:
+                                type: boolean
+                            type: object
+                          type: array
                         ownerOnly:
                           type: boolean
                         path:
@@ -235,8 +271,6 @@ spec:
                           type: boolean
                         pattern:
                           type: string
-                        readOnly:
-                          type: boolean
                       required:
                       - pattern
                       type: object
