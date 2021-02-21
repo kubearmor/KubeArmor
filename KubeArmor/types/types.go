@@ -216,17 +216,17 @@ type MatchSourceType struct {
 
 // ProcessPathType Structure
 type ProcessPathType struct {
-	Path       string          `json:"path"`
-	OwnerOnly  bool            `json:"ownerOnly,omitempty"`
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	Path       string            `json:"path"`
+	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 // ProcessDirectoryType Structure
 type ProcessDirectoryType struct {
-	Directory  string          `json:"dir"`
-	Recursive  bool            `json:"recursive,omitempty"`
-	OwnerOnly  bool            `json:"ownerOnly,omitempty"`
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	Directory  string            `json:"dir"`
+	Recursive  bool              `json:"recursive,omitempty"`
+	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 // ProcessPatternType Structure
@@ -244,19 +244,19 @@ type ProcessType struct {
 
 // FilePathType Structure
 type FilePathType struct {
-	Path       string          `json:"path"`
-	ReadOnly   bool            `json:"readOnly,omitempty"`
-	OwnerOnly  bool            `json:"ownerOnly,omitempty"`
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	Path       string            `json:"path"`
+	ReadOnly   bool              `json:"readOnly,omitempty"`
+	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 // FileDirectoryType Structure
 type FileDirectoryType struct {
-	Directory  string          `json:"dir"`
-	ReadOnly   bool            `json:"readOnly,omitempty"`
-	Recursive  bool            `json:"recursive,omitempty"`
-	OwnerOnly  bool            `json:"ownerOnly,omitempty"`
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	Directory  string            `json:"dir"`
+	ReadOnly   bool              `json:"readOnly,omitempty"`
+	Recursive  bool              `json:"recursive,omitempty"`
+	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 // FilePatternType Structure
@@ -273,15 +273,26 @@ type FileType struct {
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
 }
 
+// NetworkProtocolType
+type NetworkProtocolType struct {
+	Protocol   string            `json:"protocol"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+}
+
 // NetworkType Structure
 type NetworkType struct {
-	MatchProtocols []string `json:"matchProtocols,omitempty"`
+	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
+}
+
+// CapabilitiesCapabilityType
+type CapabilitiesCapabilityType struct {
+	Capability string            `json:"capability"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 // CapabilitiesType Structure
 type CapabilitiesType struct {
-	MatchCapabilities []string `json:"matchCapabilities,omitempty"`
-	MatchOperations   []string `json:"matchOperations,omitempty"`
+	MatchCapabilities []CapabilitiesCapabilityType `json:"matchCapabilities,omitempty"`
 }
 
 // ResourceValueType Structure
