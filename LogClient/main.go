@@ -60,8 +60,6 @@ func StrToFile(str, destFile string) {
 	}
 	defer file.Close()
 
-	str = str + "\n"
-
 	_, err = file.WriteString(str)
 	if err != nil {
 		fmt.Errorf("Failed to write a string into the file (%s, %s)", destFile, err.Error())
@@ -162,19 +160,20 @@ func (lc *LogClient) WatchMessages(msgPath string, raw bool) error {
 			break
 		}
 
-		if msgPath != "stdout" && msgPath != "none" && raw {
+		str := ""
+
+		if raw {
 			arr, _ := json.Marshal(res)
-			StrToFile(string(arr), msgPath)
-			continue
+			str = fmt.Sprintf("%s\n", string(arr))
+		} else {
+			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
+			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
+
+			str = fmt.Sprintf("%s  %s  [%s]  %s\n", updatedTime, res.Source, res.Level, res.Message)
 		}
 
-		updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
-		updatedTime = strings.Replace(updatedTime, "Z", "", -1)
-
-		str := fmt.Sprintf("%s  %s  [%s]  %s", updatedTime, res.Source, res.Level, res.Message)
-
 		if msgPath == "stdout" {
-			fmt.Println(str)
+			fmt.Printf("%s", str)
 		} else {
 			StrToFile(str, msgPath)
 		}
@@ -195,48 +194,49 @@ func (lc *LogClient) WatchStatistics(statPath string, raw bool) error {
 			break
 		}
 
-		if statPath != "stdout" && statPath != "none" && raw {
+		str := ""
+
+		if raw {
 			arr, _ := json.Marshal(res)
-			StrToFile(string(arr), statPath)
-			continue
-		}
+			str = fmt.Sprintf("%s\n", string(arr))
+		} else {
+			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
+			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
 
-		updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
-		updatedTime = strings.Replace(updatedTime, "Z", "", -1)
+			str := fmt.Sprintf("== Host Statistics / %s ==\n", updatedTime)
 
-		str := fmt.Sprintf("== Host Statistics / %s ==\n", updatedTime)
+			str = str + fmt.Sprintf("Host: %s  Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", res.HostStats.HostName, res.HostStats.AllowedCount, res.HostStats.AuditedCount, res.HostStats.BlockedCount, res.HostStats.FailedCount)
 
-		str = str + fmt.Sprintf("Host: %s  Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", res.HostStats.HostName, res.HostStats.AllowedCount, res.HostStats.AuditedCount, res.HostStats.BlockedCount, res.HostStats.FailedCount)
+			if len(res.NamespaceStats) > 0 {
+				str = str + fmt.Sprintf("== Namespace Statistics / %d / %s ==\n", len(res.NamespaceStats), updatedTime)
 
-		if len(res.NamespaceStats) > 0 {
-			str = str + fmt.Sprintf("== Namespace Statistics / %d / %s ==\n", len(res.NamespaceStats), updatedTime)
-
-			for _, stats := range res.NamespaceStats {
-				if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
-					str = str + fmt.Sprintf("Host: %s  Namespace: %s  ", res.HostStats.HostName, stats.NamespaceName)
-					str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
+				for _, stats := range res.NamespaceStats {
+					if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+						str = str + fmt.Sprintf("Host: %s  Namespace: %s  ", res.HostStats.HostName, stats.NamespaceName)
+						str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
+					}
 				}
 			}
-		}
 
-		if len(res.PodStats) > 0 {
-			str = str + fmt.Sprintf("== Pod Statistics / %d / %s ==\n", len(res.PodStats), updatedTime)
+			if len(res.PodStats) > 0 {
+				str = str + fmt.Sprintf("== Pod Statistics / %d / %s ==\n", len(res.PodStats), updatedTime)
 
-			for _, stats := range res.PodStats {
-				if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
-					str = str + fmt.Sprintf("Host: %s  Namespace: %s Pod: %s\n", res.HostStats.HostName, stats.NamespaceName, stats.PodName)
-					str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
+				for _, stats := range res.PodStats {
+					if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+						str = str + fmt.Sprintf("Host: %s  Namespace: %s Pod: %s\n", res.HostStats.HostName, stats.NamespaceName, stats.PodName)
+						str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
+					}
 				}
 			}
-		}
 
-		if len(res.ContainerStats) > 0 {
-			str = str + fmt.Sprintf("== Container Statistics / %d / %s ==\n", len(res.ContainerStats), updatedTime)
+			if len(res.ContainerStats) > 0 {
+				str = str + fmt.Sprintf("== Container Statistics / %d / %s ==\n", len(res.ContainerStats), updatedTime)
 
-			for _, stats := range res.ContainerStats {
-				if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
-					str = str + fmt.Sprintf("Host: %s  Namespace: %s Pod: %s Container: %s\n", res.HostStats.HostName, stats.NamespaceName, stats.PodName, stats.ContainerName)
-					str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
+				for _, stats := range res.ContainerStats {
+					if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+						str = str + fmt.Sprintf("Host: %s  Namespace: %s Pod: %s Container: %s\n", res.HostStats.HostName, stats.NamespaceName, stats.PodName, stats.ContainerName)
+						str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
+					}
 				}
 			}
 		}
@@ -263,48 +263,49 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 			break
 		}
 
-		if logPath != "stdout" && logPath != "none" && raw {
+		str := ""
+
+		if raw {
 			arr, _ := json.Marshal(res)
-			StrToFile(string(arr), logPath)
-			continue
+			str = fmt.Sprintf("%s\n", string(arr))
+		} else {
+			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
+			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
+
+			str := fmt.Sprintf("== Log / %s ==\n", updatedTime)
+
+			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
+			str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
+			str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
+			str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
+			str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
+
+			if len(res.PolicyName) > 0 {
+				str = str + fmt.Sprintf("Policy Name: %s\n", res.PolicyName)
+			}
+
+			if len(res.Severity) > 0 {
+				str = str + fmt.Sprintf("Severity: %s\n", res.Severity)
+			}
+
+			str = str + fmt.Sprintf("Type: %s\n", res.Type)
+			str = str + fmt.Sprintf("Source: %s\n", res.Source)
+			str = str + fmt.Sprintf("Operation: %s\n", res.Operation)
+			str = str + fmt.Sprintf("Resource: %s\n", res.Resource)
+
+			if len(res.Data) > 0 {
+				str = str + fmt.Sprintf("Data: %s\n", res.Data)
+			}
+
+			if len(res.Action) > 0 {
+				str = str + fmt.Sprintf("Action: %s\n", res.Action)
+			}
+
+			str = str + fmt.Sprintf("Result: %s\n", res.Result)
 		}
-
-		updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
-		updatedTime = strings.Replace(updatedTime, "Z", "", -1)
-
-		str := fmt.Sprintf("== Log / %s ==\n", updatedTime)
-
-		str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
-		str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
-		str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
-		str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
-		str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
-
-		if len(res.PolicyName) > 0 {
-			str = str + fmt.Sprintf("Policy Name: %s\n", res.PolicyName)
-		}
-
-		if len(res.Severity) > 0 {
-			str = str + fmt.Sprintf("Severity: %s\n", res.Severity)
-		}
-
-		str = str + fmt.Sprintf("Type: %s\n", res.Type)
-		str = str + fmt.Sprintf("Source: %s\n", res.Source)
-		str = str + fmt.Sprintf("Operation: %s\n", res.Operation)
-		str = str + fmt.Sprintf("Resource: %s\n", res.Resource)
-
-		if len(res.Data) > 0 {
-			str = str + fmt.Sprintf("Data: %s\n", res.Data)
-		}
-
-		if len(res.Action) > 0 {
-			str = str + fmt.Sprintf("Action: %s\n", res.Action)
-		}
-
-		str = str + fmt.Sprintf("Result: %s", res.Result)
 
 		if logPath == "stdout" {
-			fmt.Println(str)
+			fmt.Printf("%s", str)
 		} else {
 			StrToFile(str, logPath)
 		}
