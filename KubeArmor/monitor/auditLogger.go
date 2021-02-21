@@ -100,13 +100,6 @@ func (mon *ContainerMonitor) GetContainerInfoFromContainerID(log tp.Log, profile
 		ContainersLock.Unlock()
 	}
 
-	if log.ContainerID == "" {
-		log.NamespaceName = "NOT_DISCOVERED"
-		log.PodName = "NOT_DISCOVERED"
-		log.ContainerID = "NOT_DISCOVERED"
-		log.ContainerName = "NOT_DISCOVERED"
-	}
-
 	return log
 }
 
