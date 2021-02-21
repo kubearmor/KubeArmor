@@ -1,6 +1,6 @@
 # Deployment Guide
 
-1. Deploy a custom resource definition
+1. Deploy a custom resource definition for security policies
 
    Kubernetes cannot recognize the specification of security policies for KubeArmor unless you register the custom resource definition for KubeArmor's security policy. Thus, you first need to apply the custom resource definition for KubeArmor's security policy into Kubernetes.
 
@@ -11,16 +11,16 @@
 
 2. Deploy KubeArmor in your Kubernetes environment
 
-   KubeArmor currently supports a bare-metal environment and Google Kubernetes Engine \(GKE\). It will support Amazon Elastic Kubernetes Service \(EKS\) and Azure Kubernetes Service \(AKS\) soon.
+   KubeArmor currently supports self-managed Kubernetes and Google Kubernetes Engine \(GKE\). It will support Amazon Elastic Kubernetes Service \(EKS\) and Azure Kubernetes Service \(AKS\) later.
 
-   * Deploy KubeArmor in a bare-metal environment \(Docker\)
+   * Deploy KubeArmor in self-managed Kubernetes \(with Docker\)
 
      ```text
        $ cd deployments/generic-docker
        (deployments/generic-docker) $ kubectl apply -f .
      ```
 
-   * Deploy KubeArmor in a bare-metal environment \(Containerd\)
+   * Deploy KubeArmor in self-managed Kubernetes \(with Containerd\)
 
      ```text
        $ cd deployments/generic-containerd
@@ -52,4 +52,3 @@
      ```text
        Coming soon
      ```
-

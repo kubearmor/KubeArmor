@@ -76,13 +76,13 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 			}
 
 			if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-				for _, protocol := range secPolicy.Spec.Network.MatchProtocols {
+				for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 					match := tp.MatchPolicy{}
 					match.PolicyName = secPolicy.Metadata["policyName"]
 					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 					match.Operation = "Network"
 
-					switch protocol {
+					switch proto.Protocol {
 					case "TCP", "tcp":
 						match.Resource = "type=SOCK_STREAM"
 					case "UDP", "udp":
@@ -102,7 +102,7 @@ func (mon *ContainerMonitor) UpdateSecurityPolicies(action string, conGroup tp.C
 					match.PolicyName = secPolicy.Metadata["policyName"]
 					match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
-					switch cap {
+					switch cap.Capability {
 					case "net_raw":
 						match.Operation = "Network"
 						match.Resource = "type=SOCK_RAW protocol=1"
@@ -187,8 +187,6 @@ func (mon *ContainerMonitor) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Lo
 				break
 			}
 		}
-
-		//
 	}
 
 	mon.SecurityPoliciesLock.Unlock()
