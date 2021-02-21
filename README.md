@@ -1,6 +1,6 @@
 # README
 
-## KubeArmor
+## Introduction to KubeArmor
 
 [![Build Status](https://travis-ci.com/accuknox/KubeArmor.svg?branch=master)](https://travis-ci.com/accuknox/KubeArmor)
 
@@ -38,7 +38,7 @@ KubeArmor provides the ability to monitor the life cycles of containers' process
 
 * Support network security enforcement among containers
 
-KubeArmor aims to protect containers themselves rather than interactions among containers. However, using KubeArmor a user can add policies which could apply policy settings at network system calls \(connect\(\), bind\(\), accept\(\)\) level, thus somewhat controlling interactions among containers.
+KubeArmor aims to protect containers themselves rather than interactions among containers. However, using KubeArmor a user can add policies which could apply policy settings at the level of network system calls \(e.g., bind\(\), listen\(\), accept\(\), and connect\(\)\), thus somewhat controlling interactions among containers.
 
 ## Getting Started
 
@@ -54,20 +54,6 @@ If you want to make a contribution, please refer to the following documents too.
 1. [Contribution Guide](documentation/contribution_guide.md)
 2. [Development Guide](documentation/development_guide.md)
 
-## Screenshots
-
-1. KubeArmor's operations
-
-   TBU
-
-2. Policy violation
-
-   TBU
-
-3. Container-aware audit logs
-
-   TBU
-
 ## Community
 
 * Slack
@@ -78,4 +64,3 @@ If you want to make a contribution, please refer to the following documents too.
 
 KubeArmor is licensed under the Apache License, Version 2.0.  
 The eBPF-based container monitor is licensed under the General Public License, Version 2.0.
-
