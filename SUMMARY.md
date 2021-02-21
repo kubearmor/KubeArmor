@@ -2,7 +2,6 @@
 
 ## Getting Started
 
-  * [Introduction to KubeArmor](README.md)
   * [Deployment Guide](documentation/deployment_guide.md)
   * [Security Policy Specification](documentation/security_policy_specification.md)
   * [Security Policy Examples](documentation/security_policy_examples.md)
