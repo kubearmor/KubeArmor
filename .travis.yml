@@ -10,10 +10,11 @@ services:
   - docker
 
 install:
-  - .travis/prepare.sh
+  - .travis/install_kernel_headers.sh
+  #- onboarding/check_system.sh
   #- .travis/install_k8s.sh
+  #- onboarding/check_k8s.sh
 
 script:
-  #- .travis/check_k8s.sh
-  #- .travis/test_kubearmor.sh
+  #- KubeArmor/build/test_kubearmor.sh
   - .travis/verify_image.sh
