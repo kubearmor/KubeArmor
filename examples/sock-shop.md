@@ -1,4 +1,4 @@
-# README
+# Sock-Shop
 
 ## Deployment
 

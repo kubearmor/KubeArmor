@@ -1,4 +1,4 @@
-# README
+# Wordpress-MySQL
 
 ## Deployment
 
