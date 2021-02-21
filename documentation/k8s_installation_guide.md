@@ -1,4 +1,4 @@
-# Docker and Kubernetes Installation
+# Self-managed Kubernetes Installation
 
 * Requirements
 
@@ -61,4 +61,3 @@
     ```text
     $ sudo kubeadm ... (the command that you get from the master node)
     ```
-
