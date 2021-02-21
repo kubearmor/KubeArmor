@@ -10,6 +10,6 @@ spec:
       container: ubuntu-5
   network:
     matchProtocols:
-    - icmp # try 'ping 8.8.8.8' (permission deined) and 'curl www.accuknox.com' (success)
+    - protocol: icmp # try 'ping 8.8.8.8' (permission deined) and 'curl www.accuknox.com' (success)
   action:
     Block
