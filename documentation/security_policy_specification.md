@@ -1,6 +1,6 @@
-# security\_policy\_specification
+# Security Policy Specification
 
-## Security Policy Specification
+## Policy Specification
 
 Here is the specification of a security policy.
 
@@ -22,74 +22,72 @@ spec:
   process:
     matchPaths:
     - path: [absolute executable path]
-      ownerOnly: [true|false]
-      fromSource:                        # --> optional (under development)
+      ownerOnly: [true|false]              # --> optional
+      fromSource:                          # --> optional
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
           recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
-      recursive: [true|false]
-      ownerOnly: [true|false]
-      fromSource:                        # --> optional (under development)
+      recursive: [true|false]              # --> optional
+      ownerOnly: [true|false]              # --> optional
+      fromSource:                          # --> optional
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
           recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
-      ownerOnly: [true|false]
-      fromSource:                        # --> optional (under development)
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      ownerOnly: [true|false]              # --> optional
 
   file:
     matchPaths:
     - path: [absolute file path]
-      readOnly: [true|false]
-      ownerOnly: [true|false]
-      fromSource:                        # --> optional (under development)
+      readOnly: [true|false]               # --> optional
+      ownerOnly: [true|false]              # --> optional
+      fromSource:                          # --> optional
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
           recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
-      recursive: [true|false]
-      readOnly: [true|false]
-      ownerOnly: [true|false]
-      fromSource:                        # --> optional (under development)
+      recursive: [true|false]              # --> optional
+      readOnly: [true|false]               # --> optional
+      ownerOnly: [true|false]              # --> optional
+      fromSource:                          # --> optional
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
           recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
-      readOnly: [true|false]
-      ownerOnly: [true|false]
-      fromSource:                        # --> optional (under development)
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      readOnly: [true|false]               # --> optional
+      ownerOnly: [true|false]              # --> optional
 
   network:
     matchProtocols:
-    - [TCP|tcp|UDP|udp|ICMP|icmp]
+    - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
+      fromSource:                          # --> optional
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
 
   capabilities:
     matchCapabilities:
-    - [capability name]
-    matchOperations:
-    - [operation name]
+    - capability: [capability name]
+      fromSource:                          # --> optional
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
 
-  action: [Allow|Block|Audit]
+  action: [Allow|Block|Audit|AllowWithAudit]
 ```
 
 ## Policy Spec Description
 
 Now, we will briefly explain how to define a security policy.
 
-* Base
+* Common
 
-  A security policy starts with base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you wnat to apply the policy.
+  A security policy starts with the base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you want to apply the policy.
 
   ```text
     apiVersion: security.accuknox.com/v1
@@ -101,7 +99,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Severity
 
-  The severity part is somewhat important. You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts.
+  The severity part is somewhat important. You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts when policy violations happen.
 
   ```text
   severity: [1-10]
@@ -109,7 +107,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Selector
 
-  The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify target pods or a group of pods based on labels.
+  The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify (a group of) pods based on labels.
 
   ```text
     selector:
@@ -127,7 +125,7 @@ Now, we will briefly explain how to define a security policy.
       matchPaths:
       - path: [absolute executable path]
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional (under development)
+        fromSource:                        # --> optional
         - path: [absolute executable path]
         - dir: [absolute directory path]
           recursive: [true|false]
@@ -135,32 +133,28 @@ Now, we will briefly explain how to define a security policy.
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional (under development)
+        fromSource:                        # --> optional
         - path: [absolute exectuable path]
         - dir: [absolute directory path]
           recursive: [true|false]
       matchPatterns:
       - pattern: [regex pattern]
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional (under development)
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
   ```
 
   In each match, there are three options.
 
-  * ownerOnly \(false by default\)
+  * ownerOnly (static action: allow owner only; otherwise block all)
 
-    ownerOnly works with the 'Allow' action only. If this is enabled, the executable\(s\) defined with matchPaths and matchDirectories will be executed by their owners only.
+    If this is enabled, the owners of the executable\(s\) defined with matchPaths and matchDirectories will be only allowed to execute.
 
-  * recursive \(false by default\)
+  * recursive
 
     If this is enabled, the coverage will extend to the subdirectories of the directory defined with matchDirectories.
 
-  * fromSource \(under development\)
+  * fromSource
 
-    If a path or a directory is specified in fromSource, the executables defined with matchPaths or matchDirectories will be only launched by the executable of the path or the executables in the directory.
+    If a path or a directory is specified in fromSource, the executable of the path or the executables in the directory will be allowed/blocked to execute the executables defined with matchPaths or matchDirectories.
 
     For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked.
 
@@ -182,7 +176,7 @@ Now, we will briefly explain how to define a security policy.
       - path: [absolute file path]
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional (under development)
+        fromSource:                        # --> optional
         - path: [absolute file path]
         - dir: [absolute directory path]
           recursive: [true:false]
@@ -191,7 +185,7 @@ Now, we will briefly explain how to define a security policy.
         recursive: [true|false]            # --> optional
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional (under development)
+        fromSource:                        # --> optional
         - path: [absolute file path]
         - dir: [absolute directory path]
           recursive: [true:false]
@@ -199,15 +193,11 @@ Now, we will briefly explain how to define a security policy.
       - pattern: [regex pattern]
         readOnly: [true|false]             # --> optional
         ownerOnly: [true|false]            # --> optional
-        fromSource:                        # --> optional (under development)
-        - path: [absolute file path]
-        - dir: [absolute directory path]
-          recursive: [true:false]
   ```
 
   The only difference between 'process' and 'file' is the readOnly option.
 
-  * readOnly \(false by default\)
+  * readOnly (static action: allow to read only; otherwise block all)
 
     If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.
 
@@ -218,28 +208,34 @@ Now, we will briefly explain how to define a security policy.
   ```text
     network:
       matchProtocols:
-      - [protocol]                         # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+      - protocol: [protocol]               # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+        fromSource:                        # --> optional
+        - path: [absolute file path]
+        - dir: [absolute directory path]
+          recursive: [true:false]
   ```
 
 * Capabilities
 
-  In the case of capabilities, there are two types of matches: matchCapabilities and matchOperations. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md). For convenience, KubeArmor also allows you to define certain operations at the high level rather than specifically defining capability names. You can check available operations in [Operation List](supported_operation_list.md).
+  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md).
 
   ```text
     capabilities:
       matchCapabilities:
-      - [capability name]
-      matchOperations:
-      - [operation name]
+      - capability: [capability name]
+        fromSource:                        # --> optional
+        - path: [absolute file path]
+        - dir: [absolute directory path]
+          recursive: [true:false]
   ```
 
 * Action
 
-  The action would be Allow, Block, Audit, or AllowWithAudit. According to the action, given security policies will be handled in a blacklist manner or a whitelist manner. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details.
+  The action could be Allow, Block, Audit, or AllowWithAudit, and security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details.
 
-  In the case of Audit, it is similar to Block, but KubeArmor does not block specific executions or accesses. Instead, KubeArmor generates some audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
+  In the case of Audit, this action is similar to the Block action, but KubeArmor does not block specific executions or accesses. Instead, KubeArmor generates audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
 
-  What about AllowWithAudit? When we use the 'Allow' action, we will get some logs for objects and operations that are not allowed to access and conduct, which means that we don't have actual logs for allowed accesses. If we want to get some logs for such allowed accesses, we can use the AllowWithAudit action.
+  When we use the 'Allow' action, we will get logs for objects and operations not allowed to access and conduct. However, we don't have actual logs for allowed accesses. Therefore, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action.
 
   ```text
     action: [Allow|Block|Audit|AllowWithAudit]
