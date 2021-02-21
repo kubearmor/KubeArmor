@@ -26,10 +26,10 @@ Vagrant.configure("2") do |config|
   config.vm.provision :file, source: "~/.gitconfig", destination: "$HOME/.gitconfig"
 
   # Provision bash scripts
-  config.vm.provision :shell, path: kubearmor_home + "/contributions/bare-metal/setup.sh"
-  config.vm.provision :shell, path: kubearmor_home + "/contributions/bare-metal/docker/install_docker.sh"
-  config.vm.provision :shell, path: kubearmor_home + "/contributions/bare-metal/k8s/install_kubernetes.sh"
+  config.vm.provision :shell, path: kubearmor_home + "/contributions/self-managed-k8s/setup.sh"
+  config.vm.provision :shell, path: kubearmor_home + "/contributions/self-managed-k8s/docker/install_docker.sh"
+  config.vm.provision :shell, path: kubearmor_home + "/contributions/self-managed-k8s/k8s/install_kubernetes.sh"
 
   # Initialize Kubernetes
-  config.vm.provision :shell, path: kubearmor_home + "/contributions/bare-metal/k8s/initialize_kubernetes.sh"
+  config.vm.provision :shell, path: kubearmor_home + "/contributions/self-managed-k8s/k8s/initialize_kubernetes.sh"
 end
