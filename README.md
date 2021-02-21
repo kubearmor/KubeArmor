@@ -1,4 +1,4 @@
-# README
+# KubeArmor
 
 ## Introduction to KubeArmor
 
@@ -44,15 +44,15 @@ KubeArmor aims to protect containers themselves rather than interactions among c
 
 Please take a look at the following documents.
 
-1. [Deployment Guide](documentation/deployment_guide.md)
-2. [Security Policy Specification](documentation/security_policy_specification.md)
-3. [Security Policy Examples](documentation/security_policy_examples.md)
-4. [Technical Roadmap](documentation/technical_roadmap.md)
+1. [Deployment Guide](getting-started/deployment_guide.md)
+2. [Security Policy Specification](getting-started/security_policy_specification.md)
+3. [Security Policy Examples](getting-started/security_policy_examples.md)
+4. [Technical Roadmap](contribution/technical_roadmap.md)
 
 If you want to make a contribution, please refer to the following documents too.
 
-1. [Contribution Guide](documentation/contribution_guide.md)
-2. [Development Guide](documentation/development_guide.md)
+1. [Contribution Guide](contribution/contribution_guide.md)
+2. [Development Guide](contribution/development_guide.md)
 
 ## Community
 
@@ -64,3 +64,4 @@ If you want to make a contribution, please refer to the following documents too.
 
 KubeArmor is licensed under the Apache License, Version 2.0.  
 The eBPF-based container monitor is licensed under the General Public License, Version 2.0.
+

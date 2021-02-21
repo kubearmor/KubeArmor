@@ -107,7 +107,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Selector
 
-  The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify (a group of) pods based on labels.
+  The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify \(a group of\) pods based on labels.
 
   ```text
     selector:
@@ -144,7 +144,7 @@ Now, we will briefly explain how to define a security policy.
 
   In each match, there are three options.
 
-  * ownerOnly (static action: allow owner only; otherwise block all)
+  * ownerOnly \(static action: allow owner only; otherwise block all\)
 
     If this is enabled, the owners of the executable\(s\) defined with matchPaths and matchDirectories will be only allowed to execute.
 
@@ -197,7 +197,7 @@ Now, we will briefly explain how to define a security policy.
 
   The only difference between 'process' and 'file' is the readOnly option.
 
-  * readOnly (static action: allow to read only; otherwise block all)
+  * readOnly \(static action: allow to read only; otherwise block all\)
 
     If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.
 
@@ -217,7 +217,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Capabilities
 
-  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md).
+  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](../reference/supported_capability_list.md).
 
   ```text
     capabilities:
