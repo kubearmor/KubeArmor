@@ -1,4 +1,4 @@
-# Docker and Kubernetes Installation
+# Kubernetes Installation
 
 * Requirements
 
