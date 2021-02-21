@@ -53,7 +53,7 @@ type ProcessPathType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type ProcessDirectoryType struct {
@@ -65,14 +65,12 @@ type ProcessDirectoryType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type ProcessPatternType struct {
 	Pattern string `json:"pattern"`
 
-	// +kubebuilder:validation:Optional
-	ReadOnly bool `json:"readOnly,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 }
@@ -92,7 +90,7 @@ type FilePathType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type FileDirectoryType struct {
@@ -106,7 +104,7 @@ type FileDirectoryType struct {
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
 
 	// +kubebuilder:validation:optional
-	FromSource MatchSourceType `json:"fromSource,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 }
 
 type FilePatternType struct {
@@ -125,21 +123,31 @@ type FileType struct {
 }
 
 // +kubebuilder:validation:Enum=TCP;tcp;UDP;udp;ICMP;icmp
-type MatchNetworkProtocolType string
+type MatchNetworkProtocolStringType string
+
+type MatchNetworkProtocolType struct {
+	Protocol MatchNetworkProtocolStringType `json:"protocol,omitempty"`
+
+	// +kubebuilder:validation:optional
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+}
 
 type NetworkType struct {
 	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=chown;dac_override;dac_read_search;fowner;fsetid;kill;setgid;setuid;setpcap;linux_immutable;net_bind_service;net_broadcast;net_admin;net_raw;ipc_lock;ipc_owner;sys_module;sys_rawio;sys_chroot;sys_ptrace;sys_pacct;sys_admin;sys_boot;sys_nice;sys_resource;sys_time;sys_tty_config;mknod;lease;audit_write;audit_control;setfcap;mac_override;mac_admin
-type MatchCapabilitiesType string
+type MatchCapabilitiesStringType string
 
-// +kubebuilder:validation:Enum=TODO
-type MatchOperationsType string
+type MatchCapabilitiesType struct {
+	Capability MatchCapabilitiesStringType `json:"capability,omitempty"`
+
+	// +kubebuilder:validation:optional
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+}
 
 type CapabilitiesType struct {
 	MatchCapabilities []MatchCapabilitiesType `json:"matchCapabilities,omitempty"`
-	MatchOperations   []MatchOperationsType   `json:"matchOperations,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=cpu;fsize;rss;nofile;nproc

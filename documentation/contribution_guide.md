@@ -54,15 +54,14 @@ If you want to make a contribution, please follow the steps below.
 
 6. Create a pull request with your changes
 
-   First, go to your repository on GitHub. You will see something like the below screen.
+   First, go to your repository on GitHub.
 
-   Then, please click "Pull request" button. You will see a screen like the below.
+   Then, please click "Pull request" button.
 
    After checking your changes, please click 'Create pull request'.
 
-   As shown in the upper screenshot, a pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: \#\(issue number\)".
+   A pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: \#\(issue number\)".
 
    Finally, click the "Create pull request" button.
 
    Now, please let us review your code. We will merge all your changes into the master branch of KubeArmor. Once your changes are merged, you will get a notification, and the issue that you fixed will be closed as well.
-
