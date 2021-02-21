@@ -1,26 +1,29 @@
 # Table of contents
 
+* [KubeArmor](README.md)
+
 ## Getting Started
 
-  * [Deployment Guide](documentation/deployment_guide.md)
-  * [Security Policy Specification](documentation/security_policy_specification.md)
-  * [Security Policy Examples](documentation/security_policy_examples.md)
-  * [Consideration in Policy Action](documentation/consideration_in_policy_action.md)
+* [Deployment Guide](getting-started/deployment_guide.md)
+* [Security Policy Specification](getting-started/security_policy_specification.md)
+* [Security Policy Examples](getting-started/security_policy_examples.md)
+* [Consideration in Policy Action](getting-started/consideration_in_policy_action.md)
 
 ## Contribution
 
-  * [Contribution Guide](documentation/contribution_guide.md)
-  * [Development Guide](documentation/development_guide.md)
-  * [Docker and Kubernetes Installation](documentation/k8s_installation_guide.md)
-  * [Technical Roadmap](documentation/technical_roadmap.md)
+* [Contribution Guide](contribution/contribution_guide.md)
+* [Development Guide](contribution/development_guide.md)
+* [Docker and Kubernetes Installation](contribution/k8s_installation_guide.md)
+* [Technical Roadmap](contribution/technical_roadmap.md)
 
 ## Examples
 
-  * [Multiubuntu](examples/multiubuntu.md)
-  * [Sock-Shop](examples/sock-shop.md)
-  * [Wordpress-MySQL](examples/wordpress-mysql.md)
+* [Multiubuntu](examples/multiubuntu.md)
+* [Sock-Shop](examples/sock-shop.md)
+* [Wordpress-MySQL](examples/wordpress-mysql.md)
 
 ## Reference
 
-  * [Supported Capability List](documentation/supported_capability_list.md)
-  * [Supported Operation List](documentation/supported_operation_list.md)
+* [Supported Capability List](reference/supported_capability_list.md)
+* [Supported Operation List](reference/supported_operation_list.md)
+
