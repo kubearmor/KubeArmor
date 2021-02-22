@@ -6,9 +6,15 @@ If you want to make a contribution, please follow the steps below.
 
    First, fork this repository by clicking on the Fork button \(top right\).
 
+![Alt text](resources/images/fork_button.png)
+
    Then, click your ID on the pop-up screen.
 
+![Alt text](resources/images/fork_screen.png)
+
    This will create a copy of KubeArmor in your account.
+
+![Alt text](resources/images/forked_repo.png)
 
 2. Clone the repository
 
@@ -56,13 +62,19 @@ If you want to make a contribution, please follow the steps below.
 
    First, go to your repository on GitHub.
 
-   Then, please click "Pull request" button.
+![Alt text](resources/images/commit_ahead.png)
 
-   After checking your changes, please click 'Create pull request'.
+   Then, click "Pull request" button.
+
+![Alt text](resources/images/after_pull_request.png)
+
+   After checking your changes, click 'Create pull request'.
+
+![Alt text](resources/images/open_pull_request.png)
 
    A pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: \#\(issue number\)".
 
    Finally, click the "Create pull request" button.
 
-   Now, please let us review your code. We will merge all your changes into the master branch of KubeArmor. Once your changes are merged, you will get a notification, and the issue that you fixed will be closed as well.
+   The changes would be merged post a review by the respective module owners. Once the changes are merged, you will get a notification, and the corresponding issue will be closed.
 
