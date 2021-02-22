@@ -6,15 +6,15 @@ If you want to make a contribution, please follow the steps below.
 
    First, fork this repository by clicking on the Fork button \(top right\).
 
-![Alt text](documentation/resources/images/fork_button.png)
+![Alt text](../resources/images/fork_button.png)
 
    Then, click your ID on the pop-up screen.
 
-![Alt text](documentation/resources/images/fork_screen.png)
+![Alt text](../resources/images/fork_screen.png)
 
    This will create a copy of KubeArmor in your account.
 
-![Alt text](documentation/resources/images/forked_repo.png)
+![Alt text](../resources/images/forked_repo.png)
 
 2. Clone the repository
 
@@ -62,15 +62,15 @@ If you want to make a contribution, please follow the steps below.
 
    First, go to your repository on GitHub.
 
-![Alt text](documentation/resources/images/commit_ahead.png)
+![Alt text](../resources/images/commit_ahead.png)
 
    Then, click "Pull request" button.
 
-![Alt text](documentation/resources/images/after_pull_request.png)
+![Alt text](../resources/images/after_pull_request.png)
 
    After checking your changes, click 'Create pull request'.
 
-![Alt text](documentation/resources/images/open_pull_request.png)
+![Alt text](../resources/images/open_pull_request.png)
 
    A pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: \#\(issue number\)".
 
