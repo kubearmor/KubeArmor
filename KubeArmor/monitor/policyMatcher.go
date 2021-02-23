@@ -195,6 +195,10 @@ func (mon *ContainerMonitor) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Lo
 		return tp.Log{}
 	}
 
+	// if log.Action == "Block" && log.Result != "Passed" {
+	// 	return tp.Log{}
+	// }
+
 	if log.Type == "" && retval < 0 {
 		if log.Operation == "Process" && allowProcPolicy != "" {
 			log.PolicyName = allowProcPolicy

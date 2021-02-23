@@ -1,3 +1,3 @@
-FROM gcr.io/stackdriver-agents/stackdriver-logging-agent:0.6-1.6.0-1
+FROM gcr.io/stackdriver-agents/stackdriver-logging-agent:1.8.6
 
 ADD google-fluentd.conf /etc/google-fluentd/google-fluentd.conf

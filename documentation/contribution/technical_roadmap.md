@@ -3,12 +3,19 @@
 Here, we briefly share a plan for next releases \(e.g., including features, specs, and platform supports\).
 
 * Current Release
+
   * Kubernetes Environments
+
     * Self-managed Kubernetes \(using kubeadm\), MicroK8s, Google Kubernetes Engine \(GKE\)
+
   * Container Platforms
+
     * Docker, Containerd
+
   * LSM Supports
+
     * AppArmor
+
   * Features
 
     * Monitor container behaviors at the system level
@@ -28,11 +35,17 @@ Here, we briefly share a plan for next releases \(e.g., including features, spec
       Log file  
       gRPC
     ```
+
 * Next Release
+
   * Kubernetes Environments
+
     * \(extension\) Amazon Elastic Kubernetes Service \(EKS\), Azure Kubernetes Service \(AKS\)
+
   * LSM Supports
+
     * \(extension\) KRSI \(requiring Linux kernel v5.8 or newer\)
+
   * Features
 
     * \(extension\) Produce container-aware logs and write them into:
@@ -62,11 +75,17 @@ Here, we briefly share a plan for next releases \(e.g., including features, spec
     ```text
       Prometheus
     ```
+
 * Future Releases
+
   * Container Platforms
+
     * \(extension\) Podman
+
   * LSM Supports
+
     * \(extension\) SELinux
+
   * Features
 
     * Produce container-aware logs and write them into:
@@ -80,4 +99,3 @@ Here, we briefly share a plan for next releases \(e.g., including features, spec
     ```text
       Integration with network security solutions (e.g., Cilium)
     ```
-
