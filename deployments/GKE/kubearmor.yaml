@@ -85,6 +85,17 @@ spec:
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              if [ -z $(pgrep kubearmor) ]; then
+                exit 1;
+              fi;
+          initialDelaySeconds: 30
+          periodSeconds: 10
         # resources:
         #   limits:
         #     cpu: "1"
@@ -164,7 +175,7 @@ spec:
         resources:
           requests:
             memory: "10Mi"
-            cpu: "10m"  
+            cpu: "10m"
       containers:
       - name: kubearmor-cos-auditd
         image: accuknox/kubearmor-cos-auditd:latest
@@ -175,38 +186,19 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: spec.nodeName
-        livenessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -c
-            - |
-              LIVENESS_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-300}; STUCK_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-900}; if [ ! -e /var/log/fluentd-buffers ]; then
-                exit 1;
-              fi; touch -d "${STUCK_THRESHOLD_SECONDS} seconds ago" /tmp/marker-stuck; if [[ -z "$(find /var/log/fluentd-buffers -type f -newer /tmp/marker-stuck -print -quit)" ]]; then
-                rm -rf /var/log/fluentd-buffers;
-                exit 1;
-              fi; touch -d "${LIVENESS_THRESHOLD_SECONDS} seconds ago" /tmp/marker-liveness; if [[ -z "$(find /var/log/fluentd-buffers -type f -newer /tmp/marker-liveness -print -quit)" ]]; then
-                exit 1;
-              fi;
-          failureThreshold: 3
-          initialDelaySeconds: 600
-          periodSeconds: 60
-          successThreshold: 1
-          timeoutSeconds: 1
         volumeMounts:
         - name: lib-systemd-path
           mountPath: /host/lib
           readOnly: true
         - name: var-log-path
           mountPath: /var/log
-        resources:
-          limits:
-            cpu: "1"
-            memory: 500Mi
-          requests:
-            cpu: 100m
-            memory: 200Mi
+        # resources:
+        #   limits:
+        #     cpu: "1"
+        #     memory: 500Mi
+        #   requests:
+        #     cpu: 100m
+        #     memory: 200Mi
         terminationMessagePolicy: File
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
