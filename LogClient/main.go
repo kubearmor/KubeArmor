@@ -204,14 +204,18 @@ func (lc *LogClient) WatchStatistics(statPath string, raw bool) error {
 			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
 
 			str := fmt.Sprintf("== Host Statistics / %s ==\n", updatedTime)
-
 			str = str + fmt.Sprintf("Host: %s  Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", res.HostStats.HostName, res.HostStats.AllowedCount, res.HostStats.AuditedCount, res.HostStats.BlockedCount, res.HostStats.FailedCount)
 
 			if len(res.NamespaceStats) > 0 {
-				str = str + fmt.Sprintf("== Namespace Statistics / %d / %s ==\n", len(res.NamespaceStats), updatedTime)
+				head := false
 
 				for _, stats := range res.NamespaceStats {
 					if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+						if !head {
+							str = str + fmt.Sprintf("== Namespace Statistics / %d / %s ==\n", len(res.NamespaceStats), updatedTime)
+							head = true
+						}
+
 						str = str + fmt.Sprintf("Host: %s  Namespace: %s  ", res.HostStats.HostName, stats.NamespaceName)
 						str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
 					}
@@ -219,10 +223,15 @@ func (lc *LogClient) WatchStatistics(statPath string, raw bool) error {
 			}
 
 			if len(res.PodStats) > 0 {
-				str = str + fmt.Sprintf("== Pod Statistics / %d / %s ==\n", len(res.PodStats), updatedTime)
+				head := false
 
 				for _, stats := range res.PodStats {
 					if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+						if !head {
+							str = str + fmt.Sprintf("== Pod Statistics / %d / %s ==\n", len(res.PodStats), updatedTime)
+							head = true
+						}
+
 						str = str + fmt.Sprintf("Host: %s  Namespace: %s Pod: %s\n", res.HostStats.HostName, stats.NamespaceName, stats.PodName)
 						str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
 					}
@@ -230,10 +239,15 @@ func (lc *LogClient) WatchStatistics(statPath string, raw bool) error {
 			}
 
 			if len(res.ContainerStats) > 0 {
-				str = str + fmt.Sprintf("== Container Statistics / %d / %s ==\n", len(res.ContainerStats), updatedTime)
+				head := false
 
 				for _, stats := range res.ContainerStats {
 					if stats.AllowedCount+stats.AuditedCount+stats.BlockedCount+stats.FailedCount > 0 {
+						if !head {
+							str = str + fmt.Sprintf("== Container Statistics / %d / %s ==\n", len(res.ContainerStats), updatedTime)
+							head = true
+						}
+
 						str = str + fmt.Sprintf("Host: %s  Namespace: %s Pod: %s Container: %s\n", res.HostStats.HostName, stats.NamespaceName, stats.PodName, stats.ContainerName)
 						str = str + fmt.Sprintf("Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", stats.AllowedCount, stats.AuditedCount, stats.BlockedCount, stats.FailedCount)
 					}
