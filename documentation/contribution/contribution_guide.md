@@ -77,4 +77,3 @@ If you want to make a contribution, please follow the steps below.
    Finally, click the "Create pull request" button.
 
    The changes would be merged post a review by the respective module owners. Once the changes are merged, you will get a notification, and the corresponding issue will be closed.
-

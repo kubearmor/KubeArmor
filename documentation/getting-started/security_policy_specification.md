@@ -78,7 +78,7 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]
 
-  action: [Allow|Block|Audit|AllowWithAudit]
+  action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
 ```
 
 ## Policy Spec Description
@@ -231,13 +231,10 @@ Now, we will briefly explain how to define a security policy.
 
 * Action
 
-  The action could be Allow, Block, Audit, or AllowWithAudit, and security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details.
+  The action could be Audit, Allow, or Block, and security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
 
-  In the case of Audit, this action is similar to the Block action, but KubeArmor does not block specific executions or accesses. Instead, KubeArmor generates audit logs against the policy with the Audit action. Thus, we can use the Audit action for policy verification before applying a security policy with the Block action.
-
-  When we use the 'Allow' action, we will get logs for objects and operations not allowed to access and conduct. However, we don't have actual logs for allowed accesses. Therefore, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action.
+  When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
 
   ```text
-    action: [Allow|Block|Audit|AllowWithAudit]
+    action: [Audit|Allow|Block|AllowWithAudit]
   ```
-
