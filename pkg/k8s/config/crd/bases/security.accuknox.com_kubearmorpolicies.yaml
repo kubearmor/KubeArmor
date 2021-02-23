@@ -41,14 +41,11 @@ spec:
             properties:
               action:
                 enum:
-                - Allow
-                - allow
-                - Block
-                - block
                 - Audit
-                - audit
+                - Allow
+                - Block
                 - AllowWithAudit
-                - allowwithaudit
+                - BlockWithAudit
                 type: string
               capabilities:
                 properties:

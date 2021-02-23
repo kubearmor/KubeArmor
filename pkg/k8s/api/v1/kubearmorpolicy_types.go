@@ -162,7 +162,7 @@ type ResourceType struct {
 	MatchResources []ResourceValueType `json:"matchResources,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Allow;allow;Block;block;Audit;audit;AllowWithAudit;allowwithaudit
+// +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
 type ActionType string
 
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
