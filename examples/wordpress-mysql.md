@@ -8,4 +8,3 @@ To deploy the wordpress-mysql microservice, please run the following commands.
 $ cd examples/wordpress-mysql
 (examples/wordpress-mysql) $ kubectl apply -f .
 ```
-

@@ -85,6 +85,17 @@ spec:
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              if [ -z $(pgrep kubearmor) ]; then
+                exit 1;
+              fi;
+          initialDelaySeconds: 30
+          periodSeconds: 10
         # resources:
         #   limits:
         #     cpu: "1"
