@@ -2,7 +2,7 @@
 
 * Requirements
 
-  You can install Docker and Kubernetes in any Ubuntu platforms \(e.g., 16.04, 18.04, 20.04, and 20.10\).
+  You can install Docker and Kubernetes in any Ubuntu platforms.
 
 * Prerequisites
 
@@ -61,4 +61,3 @@
     ```text
     $ sudo kubeadm ... (the command that you get from the master node)
     ```
-

@@ -258,7 +258,7 @@ func (mon *ContainerMonitor) InitBPF(HomeDir string) error {
 
 	mon.LogFeeder.Print("Initializing an eBPF program")
 
-	mon.BpfModule = bcc.NewModule(bpfSource, []string{"-w"})
+	mon.BpfModule = bcc.NewModule(bpfSource, []string{})
 	if mon.BpfModule == nil {
 		return errors.New("bpf module is nil")
 	}

@@ -1086,7 +1086,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	// preparation - global
 
 	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "AllowWithAudit" {
+		if secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
 			whiteList := []string{}
 
 			// process
@@ -1128,7 +1128,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	}
 
 	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Block" {
+		if secPolicy.Spec.Action == "Block" || secPolicy.Spec.Action == "BlockWithAudit" {
 			blackList := []string{}
 
 			// process
@@ -1172,7 +1172,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	// preparation - fromSource
 
 	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "AllowWithAudit" {
+		if secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
 			// process
 			allowedProcessesFromSource(secPolicy, fromSources)
 
@@ -1188,7 +1188,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	}
 
 	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Block" {
+		if secPolicy.Spec.Action == "Block" || secPolicy.Spec.Action == "BlockWithAudit" {
 			// process
 			blockedProcessesFromSource(secPolicy, fromSources)
 
