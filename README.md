@@ -1,5 +1,7 @@
 # KubeArmor
 
+![Alt Text](documentation/resources/logo.png)
+
 ## Introduction to KubeArmor
 
 [![Build Status](https://travis-ci.com/accuknox/KubeArmor.svg?branch=master)](https://travis-ci.com/accuknox/KubeArmor)
