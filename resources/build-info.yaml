@@ -1,0 +1,98 @@
+# Build_steps stage used to build the source code of the application
+build_steps:
+  - name: Code Compile
+    source: "."
+    image:
+        name: maven
+        docker_run_params: '-u 0:0 -v /root/.m2:/root/.m2'
+    commands:
+      - "mvn -v"
+      #- "ls /root/.m2"
+      #- "mvn package -Dmaven.test.skip=true"
+
+    # artifacts step is optional which is used deploy artifacts  
+    #artifacts:
+    #  type: mvn
+    #  deploy:
+    #    command: "mvn deploy -B -DskipTests"
+    #    artifactory_id: snapshots
+
+
+# Dcoker_build stage builds the docker image from the Dockerfile
+docker_build:
+  - name: kubearmor
+    Dockerfile_dir: .
+    Dockerfile_name: Dockerfile.kubearmor
+    pre_steps:
+      - ls -l
+      - echo cp
+    tag: 1.0.2
+
+# used to build and push multiple images 
+#  - name: new-image1
+#    Dockerfile_dir: .
+#    Dockerfile_name: Dockerfile
+#    pre_steps:
+#      - ls -l
+#      - echo cp
+#    tag: 1.0.2
+
+
+#sonar properties will pass the information server name and runner tool name
+# which was configured in managed jenkins
+ 
+# sonar_properties:
+#    quality_gate:
+#      enabled: "true"
+#      timeout: "5" 
+#    sonarqube_server_name: "sonar-scan"
+#    sonar_runnner_tools_name: "SonarQubeScanner"
+
+#    image:
+#        name: sonarsource/sonar-scanner-cli
+#        docker_run_params:  -v /usr/local/bin:/usr/local/bin 
+
+# #sonar_conf containts properties section to run Sonar
+#    sonar_conf:
+#    -   sonar.projectKey: sonar-ci-jenkins
+#        sonar.projectName: sonar-ci-jenkins
+#        sonar.projectVersion: 2.7
+#        sonar.language: java
+#        sonar.java.binaries: ./
+#        sonar.sourcepath: src
+#        sonar.sourceEncoding : UTF-8
+#        sonar.web.host: http://35.232.229.106
+#        sonar.web.port: 80
+#        sonar.login: "b912168c2d3567e45034b90d64857d41cb2c3611"
+
+
+# Lints and package the helm chart 
+helm_build:
+  - name: kubearmor
+    image:
+      name: "hypnoglow/kubernetes-helm"
+      docker_run_params: ""
+    helm_dir: helm
+    tag: 1.0.1
+    commands:
+      - helm lint
+      - helm package .
+
+# publish docker image, helmchart and artifacts to specified artifactory locations
+publish_config:
+    publish_jfrog_credentials: "jfrog-artifact"
+    docker:
+      snapshot: accuknox.jfrog.io/docker-dev/test/snapshot
+      dev: accuknox.jfrog.io/docker-dev/test/dev
+      verify: accuknox.jfrog.io/docker-dev/test/verify
+      prod: accuknox.jfrog.io/docker-dev/test/prod
+    helm:
+      snapshot: https://accuknox.jfrog.io/artifactory/helmpackages/test4
+      dev: https://accuknox.jfrog.io/artifactory/helmpackages/test3
+      verify: https://accuknox.jfrog.io/artifactory/helmpackages/test2
+      prod: https://accuknox.jfrog.io/artifactory/helmpackages/test1
+    #artifacts:
+    #  snapshot: https://accuknox.jfrog.io/artifactory/maven-artifacts/
+    #  dev: https://accuknox.jfrog.io/artifactory/maven-artifacts/
+    #  verify: https://accuknox.jfrog.io/artifactory/maven-artifacts/
+    #  prod: https://accuknox.jfrog.io/artifactory/maven-artifacts/
