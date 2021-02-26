@@ -242,9 +242,9 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 			ae.LogFeeder.Printf("Failed to update %d security rules to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, output)
 		}
 	} else {
-		if len(newProfile) > 0 {
-			ae.LogFeeder.Err(newProfile) // error message instead of new profile
-		}
+		// if len(newProfile) > 0 {
+		// 	ae.LogFeeder.Err(newProfile) // error message instead of new profile
+		// }
 	}
 }
 
