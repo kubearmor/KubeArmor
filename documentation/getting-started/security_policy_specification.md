@@ -236,5 +236,5 @@ Now, we will briefly explain how to define a security policy.
   When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
 
   ```text
-    action: [Audit|Allow|Block|AllowWithAudit]
+    action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
   ```
