@@ -13,6 +13,8 @@
 
    KubeArmor currently supports self-managed Kubernetes and Google Kubernetes Engine \(GKE\). It will support Amazon Elastic Kubernetes Service \(EKS\) and Azure Kubernetes Service \(AKS\) later.
 
+   According to your environment, you can choose one of the following.
+
    * Deploy KubeArmor in self-managed Kubernetes \(with Docker\)
 
      ```text
