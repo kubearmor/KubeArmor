@@ -2,7 +2,7 @@
 
 * Requirements
 
-  You can install Docker and Kubernetes in any Ubuntu platforms.
+  You can install Docker and Kubernetes on any Ubuntu platform.
 
 * Prerequisites
 

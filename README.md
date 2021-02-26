@@ -1,6 +1,6 @@
 # KubeArmor
 
-![Alt Text](documentation/resources/logo.png)
+![KubeArmor Logo](documentation/resources/logo.png)
 
 ## Introduction to KubeArmor
 
@@ -10,11 +10,11 @@ KubeArmor is a container-aware runtime security enforcement system that restrict
 
 KubeArmor operates with [Linux security modules \(LSMs\)](https://en.wikipedia.org/wiki/Linux_Security_Modules), meaning that it can work on top of any Linux platforms \(such as Alpine, Ubuntu, and Container-optimized OS from Google\) if Linux security modules \(e.g., [AppArmor](https://en.wikipedia.org/wiki/AppArmor), [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux), or [KRSI](https://lwn.net/Articles/808048/)\) are enabled in the Linux Kernel. KubeArmor will use the appropriate LSMs to enforce the required policies.
 
-KubeArmor is designed for Kubernetes environments; thus, operators only need to define security policies and apply them into Kubernetes. Then, KubeArmor will automatically detect the changes in security policies from Kubernetes and enforce them to the corresponding containers without any human intervention.
+KubeArmor is designed for Kubernetes environments; thus, operators only need to define security policies and apply them to Kubernetes. Then, KubeArmor will automatically detect the changes in security policies from Kubernetes and enforce them to the corresponding containers without any human intervention.
 
 If there are any violations against security policies, KubeArmor immediately generates audit logs with container identities. If operators have any logging systems, it automatically sends audit logs to their systems as well.
 
-![Alt text](documentation/resources/kubearmor_overview.png "KubeArmor High Level Design")
+![KubeArmor High Level Design](documentation/resources/kubearmor_overview.png)
 
 ## Functionality Overview
 
@@ -42,7 +42,7 @@ KubeArmor provides the ability to monitor the life cycles of containers' process
 
 * Support network security enforcement among containers
 
-KubeArmor aims to protect containers themselves rather than interactions among containers. However, using KubeArmor a user can add policies which could apply policy settings at the level of network system calls \(e.g., bind\(\), listen\(\), accept\(\), and connect\(\)\), thus somewhat controlling interactions among containers.
+KubeArmor aims to protect containers themselves rather than interactions among containers. However, using KubeArmor a user can add policies that could apply policy settings at the level of network system calls \(e.g., bind\(\), listen\(\), accept\(\), and connect\(\)\), thus somewhat controlling interactions among containers.
 
 ## Getting Started
 
@@ -62,7 +62,7 @@ If you want to make a contribution, please refer to the following documents too.
 
 * Slack
 
-  Please join [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor developers and other users. We always welcome having a discussion about the problems that you face during the use of KubeArmor.
+  Please join the [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor developers and other users. We always welcome having a discussion about the problems that you face during the use of KubeArmor.
 
 ## License
 

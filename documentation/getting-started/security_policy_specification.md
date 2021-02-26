@@ -118,7 +118,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Process
 
-  In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, the coverage of regular expressions is highly dependent on AppArmor \([Policy Core Reference](https://gitlab.com/apparmor/apparmor/-/wikis/AppArmor_Core_Policy_Reference)\). Thus, we generally do not recommend to use this match.
+  In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, the coverage of regular expressions is highly dependent on AppArmor \([Policy Core Reference](https://gitlab.com/apparmor/apparmor/-/wikis/AppArmor_Core_Policy_Reference)\). Thus, we generally do not recommend using this match.
 
   ```text
     process:
@@ -231,7 +231,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Action
 
-  The action could be Audit, Allow, or Block, and security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
+  The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
 
   When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
 
