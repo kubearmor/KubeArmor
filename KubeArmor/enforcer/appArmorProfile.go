@@ -192,6 +192,152 @@ func allowedCapabilities(secPolicy tp.SecurityPolicy) []string {
 
 //
 
+func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
+	processAuditList := []string{}
+
+	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
+		for _, path := range secPolicy.Spec.Process.MatchPaths {
+			if len(path.FromSource) > 0 {
+				continue
+			}
+
+			if path.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
+				processAuditList = append(processAuditList, line)
+			} else { // !path.OwnerOnly
+				line := fmt.Sprintf("  audit %s ix,\n", path.Path)
+				processAuditList = append(processAuditList, line)
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
+		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
+			if len(dir.FromSource) > 0 {
+				continue
+			}
+
+			if dir.Recursive && dir.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
+				processAuditList = append(processAuditList, line)
+			} else if dir.Recursive && !dir.OwnerOnly {
+				line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
+				processAuditList = append(processAuditList, line)
+			} else if !dir.Recursive && dir.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
+				processAuditList = append(processAuditList, line)
+			} else { // !dir.Recursive && !dir.OwnerOnly
+				line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
+				processAuditList = append(processAuditList, line)
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
+		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
+			if pat.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
+				processAuditList = append(processAuditList, line)
+			} else { // !pat.OwnerOnly
+				line := fmt.Sprintf("  audit %s* ix,\n", pat.Pattern)
+				processAuditList = append(processAuditList, line)
+			}
+		}
+	}
+
+	return processAuditList
+}
+
+func auditedFiles(secPolicy tp.SecurityPolicy) []string {
+	fileAuditList := []string{}
+
+	if len(secPolicy.Spec.File.MatchPaths) > 0 {
+		for _, path := range secPolicy.Spec.File.MatchPaths {
+			if len(path.FromSource) > 0 {
+				continue
+			}
+
+			if path.ReadOnly && path.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
+				fileAuditList = append(fileAuditList, line)
+			} else if path.ReadOnly && !path.OwnerOnly {
+				line := fmt.Sprintf("  audit %s r,\n", path.Path)
+				fileAuditList = append(fileAuditList, line)
+			} else if !path.ReadOnly && path.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
+				fileAuditList = append(fileAuditList, line)
+			} else { // !path.ReadOnly && !path.OwnerOnly
+				line := fmt.Sprintf("  audit %s rw,\n", path.Path)
+				fileAuditList = append(fileAuditList, line)
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+		for _, dir := range secPolicy.Spec.File.MatchDirectories {
+			if len(dir.FromSource) > 0 {
+				continue
+			}
+
+			if dir.ReadOnly && dir.OwnerOnly {
+				if dir.Recursive {
+					line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				}
+			} else if dir.ReadOnly && !dir.OwnerOnly {
+				if dir.Recursive {
+					line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				}
+			} else if !dir.ReadOnly && dir.OwnerOnly {
+				if dir.Recursive {
+					line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				}
+			} else { // !dir.ReadOnly && !dir.OwnerOnly
+				if dir.Recursive {
+					line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
+					fileAuditList = append(fileAuditList, line)
+				}
+			}
+		}
+	}
+
+	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+		for _, pat := range secPolicy.Spec.File.MatchPatterns {
+			if pat.ReadOnly && pat.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
+				fileAuditList = append(fileAuditList, line)
+			} else if pat.ReadOnly && !pat.OwnerOnly {
+				line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
+				fileAuditList = append(fileAuditList, line)
+			} else if !pat.ReadOnly && pat.OwnerOnly {
+				line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
+				fileAuditList = append(fileAuditList, line)
+			} else { // !pat.ReadOnly && !pat.OwnerOnly
+				line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
+				fileAuditList = append(fileAuditList, line)
+			}
+		}
+	}
+
+	return fileAuditList
+}
+
+//
+
 func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
 	processBlackList := []string{}
 
@@ -1070,9 +1216,11 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	count := 0
 
 	processWhiteList := []string{}
+	processAuditList := []string{}
 	processBlackList := []string{}
 
 	fileWhiteList := []string{}
+	fileAuditList := []string{}
 	fileBlackList := []string{}
 
 	networkWhiteList := []string{}
@@ -1086,7 +1234,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	// preparation - global
 
 	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
+		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
 			whiteList := []string{}
 
 			// process
@@ -1122,6 +1270,30 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			for _, line := range whiteList {
 				if !kl.ContainsElement(capabilityWhiteList, line) {
 					capabilityWhiteList = append(capabilityWhiteList, line)
+				}
+			}
+		}
+	}
+
+	for _, secPolicy := range securityPolicies {
+		if secPolicy.Spec.Action == "Audit" {
+			auditList := []string{}
+
+			// process
+			auditList = auditedProcesses(secPolicy)
+
+			for _, line := range auditList {
+				if !kl.ContainsElement(processAuditList, line) {
+					processAuditList = append(processAuditList, line)
+				}
+			}
+
+			// file
+			auditList = auditedFiles(secPolicy)
+
+			for _, line := range auditList {
+				if !kl.ContainsElement(fileAuditList, line) {
+					fileAuditList = append(fileAuditList, line)
 				}
 			}
 		}
@@ -1317,6 +1489,20 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	}
 
 	count = count + len(capabilityWhiteList)
+
+	// body - audit list
+
+	for _, line := range processAuditList {
+		profileBody = profileBody + line
+	}
+
+	count = count + len(processAuditList)
+
+	for _, line := range fileAuditList {
+		profileBody = profileBody + line
+	}
+
+	count = count + len(fileAuditList)
 
 	// body - black list
 

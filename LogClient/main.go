@@ -203,7 +203,7 @@ func (lc *LogClient) WatchStatistics(statPath string, raw bool) error {
 			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
 			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
 
-			str := fmt.Sprintf("== Host Statistics / %s ==\n", updatedTime)
+			str = fmt.Sprintf("== Host Statistics / %s ==\n", updatedTime)
 			str = str + fmt.Sprintf("Host: %s  Allowed: %d  Audited: %d  Blocked: %d  Failed: %d\n", res.HostStats.HostName, res.HostStats.AllowedCount, res.HostStats.AuditedCount, res.HostStats.BlockedCount, res.HostStats.FailedCount)
 
 			if len(res.NamespaceStats) > 0 {
@@ -286,7 +286,7 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
 			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
 
-			str := fmt.Sprintf("== Log / %s ==\n", updatedTime)
+			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
 
 			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
 			str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
