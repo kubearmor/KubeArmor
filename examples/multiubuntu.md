@@ -1,5 +1,7 @@
 # Multiubuntu
 
+![multiubuntu](.gitbook/assets/multiubuntu.png)
+
 ## Deployment
 
 To deploy the multiubuntu microservice, please run the following commands.
