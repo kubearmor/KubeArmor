@@ -185,6 +185,7 @@ type Log struct {
 type MatchPolicy struct {
 	PolicyName string
 	Severity   string
+	Source     string
 	Operation  string
 	Resource   string
 	Action     string
