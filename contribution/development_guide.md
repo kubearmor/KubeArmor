@@ -3,7 +3,6 @@
 ## Development
 
 1. Self-managed Kubernetes
-
    * Requirements
 
      Here is the list of minimum requirements for self-managed Kubernetes.
@@ -17,7 +16,9 @@
 
      KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
 
-     Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives such as LSMs.
+  
+     Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives such as LSMs.  
+
 
      * \(Optional\) MicroK8s Setup
 
@@ -39,10 +40,8 @@
 
      [setup.sh](https://github.com/accuknox/KubeArmor/blob/master/contributions/bare-metal/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
 
-     Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
-
+     Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
 2. Vagrant Environment
-
    * Requirements
 
      Here is the list of requirements for a Vagrant environment
@@ -130,3 +129,4 @@ Here, we briefly give you an overview of KubeArmor's directories.
   examples/     - Example microservices for testing
   tests/        - Automated test framework for KubeArmor
   ```
+

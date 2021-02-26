@@ -1,6 +1,6 @@
 # KubeArmor
 
-![KubeArmor Logo](documentation/resources/logo.png)
+![KubeArmor Logo](.gitbook/assets/logo.png)
 
 ## Introduction to KubeArmor
 
@@ -14,7 +14,7 @@ KubeArmor is designed for Kubernetes environments; thus, operators only need to 
 
 If there are any violations against security policies, KubeArmor immediately generates audit logs with container identities. If operators have any logging systems, it automatically sends audit logs to their systems as well.
 
-![KubeArmor High Level Design](documentation/resources/kubearmor_overview.png)
+![KubeArmor High Level Design](.gitbook/assets/kubearmor_overview.png)
 
 ## Functionality Overview
 
@@ -48,15 +48,15 @@ KubeArmor aims to protect containers themselves rather than interactions among c
 
 Please take a look at the following documents.
 
-1. [Deployment Guide](documentation/getting-started/deployment_guide.md)
-2. [Security Policy Specification](documentation/getting-started/security_policy_specification.md)
-3. [Security Policy Examples](documentation/getting-started/security_policy_examples.md)
+1. [Deployment Guide](getting-started/deployment_guide.md)
+2. [Security Policy Specification](getting-started/security_policy_specification.md)
+3. [Security Policy Examples](getting-started/security_policy_examples.md)
 
 If you want to make a contribution, please refer to the following documents too.
 
-1. [Contribution Guide](documentation/contribution/contribution_guide.md)
-2. [Development Guide](documentation/contribution/development_guide.md)
-3. [Technical Roadmap](documentation/contribution/technical_roadmap.md)
+1. [Contribution Guide](contribution/contribution_guide.md)
+2. [Development Guide](contribution/development_guide.md)
+3. [Technical Roadmap](contribution/technical_roadmap.md)
 
 ## Community
 
@@ -68,3 +68,4 @@ If you want to make a contribution, please refer to the following documents too.
 
 KubeArmor is licensed under the Apache License, Version 2.0.  
 The eBPF-based container monitor is licensed under the General Public License, Version 2.0.
+

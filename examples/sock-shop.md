@@ -8,3 +8,4 @@ To deploy the sock-shop microservice, please run the following commands.
 $ cd examples/sock-shop
 (examples/sock-shop) $ kubectl apply -f .
 ```
+
