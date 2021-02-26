@@ -1,6 +1,6 @@
 # Technical Roadmap
 
-Here, we briefly share a plan for next releases \(e.g., including features, specs, and platforms\).
+Here, we briefly share a plan for the next releases \(e.g., including features, specs, and platforms\).
 
 * Current Release
 
