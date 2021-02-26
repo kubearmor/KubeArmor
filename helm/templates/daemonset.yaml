@@ -1,0 +1,191 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor
+  namespace: kube-system
+  labels:
+    daemonset: kubearmor
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor
+  template:
+    metadata:
+      labels:
+        container: kubearmor
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+    spec:
+      serviceAccountName: kubearmor
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      containers:
+      - name: kubearmor
+        image: accuknox/kubearmor:latest
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        args: ["-port=32767", "-output=/tmp/kubearmor.log"]
+        ports:
+        - containerPort: 32767
+        volumeMounts:
+        - name: docker-sock-path # docker (read-only)
+          mountPath: /var/run/docker.sock
+          readOnly: true
+        - name: usr-src-path # BPF (read-only)
+          mountPath: /usr/src
+          readOnly: true
+        - name: lib-modules-path # BPF (read-only)
+          mountPath: /lib/modules
+          readOnly: true
+        - name: sys-fs-bpf-path # BPF (read-write)
+          mountPath: /sys/fs/bpf
+        - name: sys-kernel-debug-path # BPF (read-write)
+          mountPath: /sys/kernel/debug
+        - name: etc-apparmor-d-path # AppArmor (read-write)
+          mountPath: /etc/apparmor.d
+        - name: var-log-audit-path # GKE-Auditd (read-only)
+          mountPath: /var/log/audit
+          readOnly: true
+        - name: os-release-path # OS (read-only)
+          mountPath: /media/root/etc/os-release
+          readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              if [ -z $(pgrep kubearmor) ]; then
+                exit 1;
+              fi;
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        # resources:
+        #   limits:
+        #     cpu: "1"
+        #     memory: 500Mi
+        #   requests:
+        #     cpu: 100m
+        #     memory: 200Mi
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: docker-sock-path # docker
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: usr-src-path # BPF
+        hostPath:
+          path: /usr/src
+          type: Directory
+      - name: lib-modules-path # BPF
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: sys-fs-bpf-path # BPF
+        hostPath:
+          path: /sys/fs/bpf
+          type: Directory
+      - name: sys-kernel-debug-path # BPF
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: etc-apparmor-d-path # AppArmor
+        hostPath:
+          path: /etc/apparmor.d
+          type: Directory
+      - name: var-log-audit-path # GKE-Auditd
+        hostPath:
+          path: /var/log/audit
+          type: Directory
+      - name: os-release-path # OS
+        hostPath:
+          path: /etc/os-release
+          type: File
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor-cos-auditd
+  namespace: kube-system
+  labels:
+    daemonset: kubearmor-cos-auditd
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor-cos-auditd
+  template:
+    metadata:
+      labels:
+        container: kubearmor-cos-auditd
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-os-distribution: cos
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      initContainers:
+      - name: kubearmor-cos-auditd-setup
+        image: ubuntu
+        command: ["chroot", "/host", "systemctl", "start", "cloud-audit-setup"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: host-path
+          mountPath: /host
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+      containers:
+      - name: kubearmor-cos-auditd
+        image: accuknox/kubearmor-cos-auditd:latest
+        imagePullPolicy: Always
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: lib-systemd-path
+          mountPath: /host/lib
+          readOnly: true
+        - name: var-log-path
+          mountPath: /var/log
+        # resources:
+        #   limits:
+        #     cpu: "1"
+        #     memory: 500Mi
+        #   requests:
+        #     cpu: 100m
+        #     memory: 200Mi
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: node.alpha.kubernetes.io/ismaster
+      - effect: NoExecute
+        operator: Exists
+      volumes:
+      - name: host-path
+        hostPath:
+          path: /
+          type: Directory
+      - name: lib-systemd-path
+        hostPath:
+          path: /usr/lib64
+          type: Directory
+      - name: var-log-path
+        hostPath:
+          path: /var/log
+          type: Directory
