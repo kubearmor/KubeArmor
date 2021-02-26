@@ -1,7 +1,7 @@
 apiVersion: security.accuknox.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-mysql-dir-audit
+  name: ksp-mysql-audit-dir
   namespace: wordpress-mysql
 spec:
   severity: 5

@@ -1,7 +1,7 @@
 apiVersion: security.accuknox.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-wordpress-sa-block
+  name: ksp-wordpress-block-sa
   namespace: wordpress-mysql
 spec:
   severity: 7
