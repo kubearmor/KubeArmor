@@ -58,3 +58,4 @@ $ kubectl -n multiubuntu exec -it {pod name for ubuntu 5} -- bash
 ```text
 $ kubectl -n kube-system exec -it {KubeArmor in the node where ubuntu 5 is located} -- tail /tmp/kubearmor.log
 ```
+

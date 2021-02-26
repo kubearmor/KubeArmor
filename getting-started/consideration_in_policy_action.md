@@ -8,4 +8,5 @@ Here, we introduce an example of how security policies are handled differently. 
 
 After that, let us say that the operator also wants the pods with role=A to execute /app only. Then, this policy will be enforced into Pod A. At this point, a problem may occur. Since Pod A has an 'Allow' policy and a 'Block' policy together, the way to handle those policies is changed from a blacklist manner to a whitelist manner, which means that Pod A will be only able to execute /app. Here, if Pod A needs to only run /app, then everything will be fine. However, what if Pod A had to implicitly execute some other applications \(e.g., /agent\)? Then, there will be a severe problem since all applications except for /app will be blocked in Pod A.
 
-![Action Conflict](../resources/policy_action_conflict.png)
+![Action Conflict](../.gitbook/assets/policy_action_conflict.png)
+

@@ -2,7 +2,7 @@
 
 * Requirements
 
-  You can install Docker and Kubernetes on any Ubuntu platform.
+  You can install Docker and Kubernetes on any Ubuntu platform.  
 
 * Prerequisites
 
@@ -40,11 +40,12 @@
     (k8s) $ ./initialize_kubernetes.sh [ weave | calico | cilium ] master
   ```
 
-  Please make sure that you need to put "master" at the above command end if you have only a single machine.
+  Please make sure that you need to put "master" at the above command end if you have only a single machine.  
 
 * Kubernetes Installation \(multiple machines\)
 
-  If you use multiple machines to set up a multi-node environment, Please run the following command.
+  If you use multiple machines to set up a multi-node environment, Please run the following commands.  
+
 
   * Master Node
 
@@ -54,10 +55,11 @@
     (k8s) $ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] (master)
     ```
 
-    Here, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.
+    Here, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.  
 
   * Worker Node
 
     ```text
     $ sudo kubeadm ... (the command that you get from the master node)
     ```
+

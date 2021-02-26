@@ -154,9 +154,7 @@ Now, we will briefly explain how to define a security policy.
 
   * fromSource
 
-    If a path or a directory is specified in fromSource, the executable of the path or the executables in the directory will be allowed/blocked to execute the executables defined with matchPaths or matchDirectories.
-
-    For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked.
+    If a path or a directory is specified in fromSource, the executable of the path or those in the directory will be allowed/blocked to execute the executables defined with matchPaths or matchDirectories. For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked.
 
     ```text
       process:
@@ -199,7 +197,7 @@ Now, we will briefly explain how to define a security policy.
 
   * readOnly \(static action: allow to read only; otherwise block all\)
 
-    If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.
+    If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.  
 
 * Network
 
@@ -233,8 +231,10 @@ Now, we will briefly explain how to define a security policy.
 
   The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
 
+  
   When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
 
   ```text
     action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
   ```
+
