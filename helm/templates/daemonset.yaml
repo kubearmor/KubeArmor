@@ -25,7 +25,7 @@ spec:
       restartPolicy: Always
       containers:
       - name: kubearmor
-        image: accuknox/kubearmor:1.0
+        image: accuknox/kubearmor:latest
         imagePullPolicy: Always
         securityContext:
           privileged: true
@@ -147,7 +147,7 @@ spec:
             cpu: "10m"
       containers:
       - name: kubearmor-cos-auditd
-        image: accuknox/kubearmor-cos-auditd:1.0
+        image: accuknox/kubearmor-cos-auditd:latest
         imagePullPolicy: Always
         env:
         - name: NODE_NAME
