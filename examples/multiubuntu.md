@@ -1,6 +1,6 @@
 # Multiubuntu
 
-![multiubuntu](.gitbook/assets/multiubuntu.png)
+![multiubuntu](../.gitbook/assets/multiubuntu.png)
 
 ## Deployment
 
