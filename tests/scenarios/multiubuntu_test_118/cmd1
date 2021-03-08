@@ -3,6 +3,6 @@ cmd: tabs -V
 result: failed
 ---
 operation: Process
-condition: tabs -V 
+condition: tabs
 action: Block
 severity: 1
