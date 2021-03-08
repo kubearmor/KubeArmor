@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: tabs -V 
+result: failed
+---
+operation: Process
+condition: tabs -V 
+action: Block
+severity: 1

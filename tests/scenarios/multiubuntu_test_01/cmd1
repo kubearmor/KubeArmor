@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: mkdir /credentials/test
+result: failed
+---
+operation: Process
+condition: mkdir
+action: Block
+severity: 6

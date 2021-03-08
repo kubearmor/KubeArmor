@@ -1,0 +1,8 @@
+source: ubuntu-3-deployment
+cmd: cd /credentials/ ; mkdir test0350
+result: failed
+---
+operation: Process
+condition: mkdir
+action: Allow
+severity: 4

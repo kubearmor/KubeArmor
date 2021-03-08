@@ -1,0 +1,8 @@
+source: ubuntu-3-deployment
+cmd: whoami
+result: failed
+---
+operation: Process
+condition: whoami
+action: Block
+severity: 6

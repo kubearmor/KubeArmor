@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: genl -V
+result: passed
+---
+operation: Process
+condition: genl -V
+action: Block
+severity: 1

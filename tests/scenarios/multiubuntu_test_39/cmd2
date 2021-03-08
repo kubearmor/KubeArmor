@@ -1,0 +1,8 @@
+ source: ubuntu-3-deployment
+cmd: tabs 1
+result: passed
+---
+operation: Process
+condition: tabs 1
+action: Block
+severity: 4

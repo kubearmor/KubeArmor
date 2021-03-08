@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: cd /credentials/ ; mkdir test0230g2
+result: passed
+---
+operation: Process
+condition: mkdir
+action: Allow
+severity: 4

@@ -1,0 +1,8 @@
+source: ubuntu-4-deployment
+cmd: cd /credentials/ ; ls
+result: passed
+---
+operation: Process
+condition: ls
+action: Allow
+severity: 4

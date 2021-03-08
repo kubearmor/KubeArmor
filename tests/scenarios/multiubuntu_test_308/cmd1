@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: cd /credentials/ ; echo 1
+result: passed
+---
+operation: Process
+condition: echo
+action: Allow
+severity: 4

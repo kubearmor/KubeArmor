@@ -1,0 +1,19 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-container-1-proc-dir-allow-0296
+  namespace: multiubuntu
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchDirectories:
+    - dir: /bin/
+  file:
+    matchDirectories:
+      - dir: /credentials/ # some files to test
+        recursive: true
+  action:
+    Allow

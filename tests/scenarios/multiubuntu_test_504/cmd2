@@ -1,0 +1,8 @@
+source: ubuntu-4-deployment
+cmd: route
+result: passed
+---
+operation: Process
+condition: route
+action: Block
+severity: 1

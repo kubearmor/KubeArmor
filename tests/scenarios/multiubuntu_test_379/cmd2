@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: cd /credentials/ ; ls
+result: failed
+---
+operation: Process
+condition: hostid
+action: ls
+severity: 4

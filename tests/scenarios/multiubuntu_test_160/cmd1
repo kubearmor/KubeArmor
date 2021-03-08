@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: arp -V
+result: failed
+---
+operation: Process
+condition: arp  
+action: Block
+severity: 4

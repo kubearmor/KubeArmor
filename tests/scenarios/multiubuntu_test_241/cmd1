@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd: mkdir test0241
+result: failed
+---
+operation: Process
+condition: mkdir
+action: Allow
+severity: 6

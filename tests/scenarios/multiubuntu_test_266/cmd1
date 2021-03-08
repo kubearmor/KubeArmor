@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: cd /credentials/ ; whoami
+result: failed
+---
+operation: Process
+condition: whoami
+action: Allow
+severity: 4

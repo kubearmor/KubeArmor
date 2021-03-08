@@ -1,0 +1,8 @@
+source: ubuntu-4-deployment
+cmd: cat /credentials/keys/cert.ca
+result: passed
+---
+operation: File
+condition: /credentials/keys/cert.ca
+action: Block
+severity: 2

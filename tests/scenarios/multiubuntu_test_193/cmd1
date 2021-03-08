@@ -1,0 +1,8 @@
+source: ubuntu-4-deployment
+cmd: flask --version
+result: failed
+---
+operation: Process
+condition: flask 
+action: Block
+severity: 2

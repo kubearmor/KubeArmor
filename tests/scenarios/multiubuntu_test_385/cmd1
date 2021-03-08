@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: curl www.google.com
+result: passed
+---
+operation: Process
+condition: curl
+action: Allow
+severity: 4

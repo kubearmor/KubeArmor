@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: echo 1
+result: passed
+---
+operation: Process
+condition: echo
+action: Allow
+severity: 4

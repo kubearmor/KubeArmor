@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd: cd /credentials/ ; tabs -V
+result: passed
+---
+operation: Process
+condition: tabs
+action: Allow
+severity: 4

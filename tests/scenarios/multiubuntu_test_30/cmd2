@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd: lsblk
+result: passed
+---
+operation: Process
+condition: lsblk
+action: Block
+severity: 3

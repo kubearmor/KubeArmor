@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: hostid
+result: failed
+---
+operation: Process
+condition: hostid
+action: Block
+severity: 4

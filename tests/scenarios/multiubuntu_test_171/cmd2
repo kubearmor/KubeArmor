@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd: ps
+result: passed
+---
+operation: Process
+condition: ps
+action: Block
+severity: 5

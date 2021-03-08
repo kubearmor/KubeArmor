@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: tunelp -V
+result: failed
+---
+operation: Process
+condition: tunelp 
+action: Block
+severity: 3

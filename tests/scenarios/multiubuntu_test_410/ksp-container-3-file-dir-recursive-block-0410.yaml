@@ -1,0 +1,16 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-container-3-file-dir-recursive-block-0410
+  namespace: multiubuntu
+spec:
+  severity: 3
+  selector:
+    matchLabels:
+      container: ubuntu-3
+  file:
+    matchDirectories:
+    - dir: /credentials/ 
+      recursive: true
+  action:
+    Block

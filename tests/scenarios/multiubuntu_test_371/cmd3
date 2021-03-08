@@ -1,0 +1,8 @@
+source: ubuntu-3-deployment
+cmd: cd /credentials/ ; env
+result: passed
+---
+operation: Process
+condition: env
+action: Allow
+severity: 4

@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd:  curl www.google.com
+result: passed
+---
+operation: Process
+condition: curl
+action: Block
+severity: 1

@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: env
+result: passed
+---
+operation: Process
+condition: env
+action: Allow
+severity: 4

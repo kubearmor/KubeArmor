@@ -1,0 +1,19 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-proc-dir-allow-0238
+  namespace: multiubuntu
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      group: group-1
+  process:
+    matchDirectories:
+    - dir: /bin/
+  file:
+    matchDirectories:
+      - dir: /credentials/ # some files to test
+        recursive: true
+  action:
+    Allow

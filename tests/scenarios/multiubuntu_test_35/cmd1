@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd: whoami
+result: passed
+---
+operation: Process
+condition: whoami
+action: Block
+severity: 4

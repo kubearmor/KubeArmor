@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-container-2-proc-path-block-0542
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-2
+  process:
+    matchPaths:
+    - path: /usr/local/bin/flask
+  action:
+    Block

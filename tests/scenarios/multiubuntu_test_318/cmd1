@@ -1,0 +1,8 @@
+source: ubuntu-2-deployment
+cmd: cd /credentials/ ; ls
+result: failed
+---
+operation: Process
+condition: ls
+action: Allow
+severity: 6

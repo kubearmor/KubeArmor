@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-proc-dir-block-057
+  namespace: multiubuntu
+spec:
+  severity: 2
+  selector:
+    matchLabels:
+      group: group-1
+  process:
+    matchDirectories:
+    - dir: /usr/bin/
+  action:
+    Block

@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-2-proc-path-block-0526
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      group: group-2
+  process:
+    matchPaths:
+    - path: /usr/bin/hostid
+  action:
+    Block

@@ -1,0 +1,8 @@
+source: ubuntu-3-deployment
+cmd: echo 1
+result: passed
+---
+operation: Process
+condition: echo 1
+action: Block
+ severity: 6

@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: ls
+result: passed
+---
+operation: Process
+condition: ls
+action: Block
+severity: 5

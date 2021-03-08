@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: cat /credentials/password
+result: passed
+---
+operation: File
+condition: /credentials/password
+action: Block
+severity: 4

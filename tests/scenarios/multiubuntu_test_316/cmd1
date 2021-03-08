@@ -1,0 +1,8 @@
+source: ubuntu-4-deployment
+cmd: cd /credentials/ ; hostid
+result: passed
+---
+operation: Process
+condition: hostid
+action: Allow
+severity: 4

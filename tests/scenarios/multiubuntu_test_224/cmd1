@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: hostname
+result: passed
+---
+operation: Process
+condition: hostname
+action: Block
+severity: 1

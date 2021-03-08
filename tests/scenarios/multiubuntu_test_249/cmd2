@@ -1,0 +1,8 @@
+source: ubuntu-3-deployment
+cmd: mkdir test0249c2
+result: failed
+---
+operation: Process
+condition: mkdir
+action: Allow
+severity: 4

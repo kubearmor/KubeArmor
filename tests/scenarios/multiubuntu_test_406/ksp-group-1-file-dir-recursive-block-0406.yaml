@@ -1,0 +1,16 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-file-dir-recursive-block-0406
+  namespace: multiubuntu
+spec:
+  severity: 6
+  selector:
+    matchLabels:
+      group: group-1
+  file:
+    matchDirectories:
+    - dir: /credentials/ 
+      recursive: true
+  action:
+    Block

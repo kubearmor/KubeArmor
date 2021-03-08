@@ -1,0 +1,8 @@
+source: ubuntu-1-deployment
+cmd: sleep 1
+result: passed
+---
+operation: Process
+condition: sleep
+action: Block
+severity: 5

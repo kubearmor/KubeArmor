@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: flask --version
+result: passed
+---
+operation: Process
+condition: flask 
+action: Block
+severity: 1

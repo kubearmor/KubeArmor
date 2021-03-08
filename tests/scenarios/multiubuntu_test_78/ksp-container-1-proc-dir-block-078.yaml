@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-container-1-proc-dir-block-078
+  namespace: multiubuntu
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchDirectories:
+    - dir: /usr/bin/
+  action:
+    Block

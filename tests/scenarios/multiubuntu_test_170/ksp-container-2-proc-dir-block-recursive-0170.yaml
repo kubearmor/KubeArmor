@@ -1,0 +1,16 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-container-2-proc-dir-block-recursive-0170
+  namespace: multiubuntu
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      container: ubuntu-2
+  process:
+    matchDirectories:
+    - dir: /usr/
+      recursive: true
+  action:
+    Block

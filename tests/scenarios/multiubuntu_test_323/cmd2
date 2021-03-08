@@ -1,0 +1,8 @@
+source: ubuntu-5-deployment
+cmd: cd /credentials/ ; sleep 1
+result: failed
+---
+operation: Process
+condition: sleep
+action: Allow
+severity: 4

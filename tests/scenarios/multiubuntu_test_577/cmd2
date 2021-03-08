@@ -1,0 +1,8 @@
+source: ubuntu-3-deployment
+cmd: df 
+result: passed
+---
+operation: Process
+condition: df 
+action: Block
+severity: 1

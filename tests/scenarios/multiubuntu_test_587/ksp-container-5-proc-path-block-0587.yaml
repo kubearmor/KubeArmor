@@ -1,0 +1,15 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-container-5-proc-path-block-0587
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-5
+  process:
+    matchPaths:
+    - path: /usr/bin/env
+  action:
+    Block
