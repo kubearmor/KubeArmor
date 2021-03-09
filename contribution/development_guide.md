@@ -25,7 +25,7 @@
        In order to install MicroK8s, please run the following command.
 
        ```text
-       $ cd contributions/bare-metal/microk8s
+       $ cd contribution/microk8s
        (microk8s) $ ./install_microk8s.sh
        ```
 
@@ -34,11 +34,11 @@
      In order to install all dependencies, please run the following command.
 
      ```text
-     $ cd contributions/self-managed-k8s
+     $ cd contribution/self-managed-k8s
      (self-managed-k8s) $ ./setup.sh
      ```
 
-     [setup.sh](https://github.com/accuknox/KubeArmor/blob/master/contributions/bare-metal/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
+     [setup.sh](https://github.com/accuknox/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
 2. Vagrant Environment
@@ -54,7 +54,7 @@
      If you do not have Vagrant and VirtualBox in your environment, you can easily install them by running the following command.
 
      ```text
-     cd contributions/vagrant
+     cd contribution/vagrant
      (vagrant) $ ./setup.sh
      ```
 
