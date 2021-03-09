@@ -19,7 +19,7 @@
   You can simply install Docker through the following command.
 
   ```text
-    $ cd KubeArmor/contributions/self-managed-k8s/docker
+    $ cd KubeArmor/contribution/self-managed-k8s/docker
     (docker) $ ./install_docker.sh
     (docker) $ exit
   ```
@@ -29,7 +29,7 @@
   Now, you are ready to install Kubernetes. Please run the following command.
 
   ```text
-    $ cd KubeArmor/contributions/self-managed-k8s/k8s
+    $ cd KubeArmor/contribution/self-managed-k8s/k8s
     (k8s) $ ./install_kubernetes.sh
     (k8s) $ ./initialize_kubernetes.sh flannel master
   ```
@@ -50,7 +50,7 @@
   * Master Node
 
     ```text
-    $ cd KubeArmor/contributions/self-managed-k8s/k8s
+    $ cd KubeArmor/contribution/self-managed-k8s/k8s
     (k8s) $ ./install_kubernetes.sh
     (k8s) $ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] (master)
     ```
