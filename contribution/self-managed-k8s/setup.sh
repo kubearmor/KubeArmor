@@ -14,19 +14,19 @@ case "$VERSION" in
 "16."*)
     # install dependencies for bcc
     sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-3.7 libllvm3.7 llvm-3.7-dev libclang-3.7-dev zlib1g-dev libelf-dev libedit-dev;;
+                            clang-3.7 libllvm3.7 llvm-3.7-dev libclang-3.7-dev zlib1g-dev libelf-dev libedit-dev libfl-dev;;
 "18."*)
     # install dependencies for bcc
     sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev;;
+                            clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev libfl-dev;;
 "20.04"*)
     # install dependencies for bcc
     sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-7 libllvm7 llvm-7-dev libclang-7-dev zlib1g-dev libelf-dev libedit-dev;;
+                            clang-7 libllvm7 llvm-7-dev libclang-7-dev zlib1g-dev libelf-dev libedit-dev libfl-dev;;
 "20.10"*)
     # install dependencies for bcc
     sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-8 libllvm8 llvm-8-dev libclang-8-dev zlib1g-dev libelf-dev libedit-dev;;
+                            clang-8 libllvm8 llvm-8-dev libclang-8-dev zlib1g-dev libelf-dev libedit-dev libfl-dev;;
 *)
     echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
 esac
