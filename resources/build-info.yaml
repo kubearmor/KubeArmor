@@ -138,16 +138,16 @@ helm_build:
 #for artifactory credentials use username/API Token combo which was created in jenkins manage credentials.
 #Pass the repostiry url for docker helm and artifacts where images need to push
 #***********************************************************************************************************************************#
+# publish docker image, helmchart and artifacts to specified artifactory locations
 publish_config:
-    publish_jfrog_credentials: "jfrog-artifact"
+    publish_jfrog_credentials: "accunoxwithnexus"
     docker:
-      snapshot: accuknox.jfrog.io/docker-dev/test/snapshot
-      dev: accuknox.jfrog.io/docker-dev/test/dev
-      verify: accuknox.jfrog.io/docker-dev/test/verify
-      prod: accuknox.jfrog.io/docker-dev/test/prod
+      snapshot: artifactory.accuknox.com/repository/docker-snapshot
+      dev:  artifactory.accuknox.com/repository/accu-docker
+      verify:  artifactory.accuknox.com/repository/accu-docker
+      prod:  artifactory.accuknox.com/repository/accu-docker
     helm:
-      snapshot: https://accuknox.jfrog.io/artifactory/helmpackages/test4
-      dev: https://accuknox.jfrog.io/artifactory/helmpackages/test3
-      verify: https://accuknox.jfrog.io/artifactory/helmpackages/test2
-      prod: https://accuknox.jfrog.io/artifactory/helmpackages/test1
-    
+      snapshot: https://artifactory.accuknox.com/repository/helm-snapshot/
+      dev: https://artifactory.accuknox.com/repository/helm-dev/
+      verify: https://artifactory.accuknox.com/repository/helm-verify/
+      prod: https://artifactory.accuknox.com/repository/helm-prod/
