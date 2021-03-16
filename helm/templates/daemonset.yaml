@@ -25,7 +25,7 @@ spec:
       restartPolicy: Always
       containers:
       - name: kubearmor
-        image: accuknox/kubearmor:latest
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: Always
         securityContext:
           privileged: true
