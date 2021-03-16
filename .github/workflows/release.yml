@@ -15,6 +15,7 @@ jobs:
       - name: Checkout KubeArmor code
         uses: actions/checkout@v2
       - name: Set Environment
+        id: vars
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
       - name: Generate KubeArmor artifacts
         run: ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
