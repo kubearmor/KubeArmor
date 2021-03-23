@@ -424,6 +424,8 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 
 					kl.Clone(event.Object.Spec, &secPolicy.Spec)
+					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 					switch secPolicy.Spec.Action {
 					case "block":
