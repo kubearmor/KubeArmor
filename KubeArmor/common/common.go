@@ -41,6 +41,63 @@ func ContainsElement(slice interface{}, element interface{}) bool {
 	return false
 }
 
+// ObjCommaCanBeExpanded Function
+func ObjCommaCanBeExpanded(objptr interface{}) bool {
+	ovptr := reflect.ValueOf(objptr)
+	if ovptr.Kind() != reflect.Ptr {
+		return false
+	}
+
+	ov := ovptr.Elem()
+	if ov.Kind() != reflect.Slice {
+		return false
+	}
+
+	if ov.Len() == 0 {
+		return false
+	}
+
+	ovelm := ov.Index(0)
+	if ovelm.Kind() != reflect.Struct {
+		return false
+	}
+
+	field0 := ovelm.Field(0)
+	if field0.Kind() != reflect.String {
+		return false
+	}
+
+	value := field0.Interface().(string)
+	if strings.Split(value, ",")[0] == value {
+		return false
+	}
+
+	return true
+}
+
+// ObjCommaExpand Function
+func ObjCommaExpand(v reflect.Value) []string {
+	return strings.Split(v.Field(0).Interface().(string), ",")
+}
+
+// ObjCommaExpandFirstDupOthers Function
+func ObjCommaExpandFirstDupOthers(objptr interface{}) {
+	if ObjCommaCanBeExpanded(objptr) {
+		old := reflect.ValueOf(objptr).Elem()
+		new := reflect.New(reflect.TypeOf(objptr).Elem()).Elem()
+
+		for i := 0; i < old.Len(); i++ {
+			for _, f := range ObjCommaExpand(old.Index(i)) {
+				field := strings.ReplaceAll(f, " ", "")
+				new.Set(reflect.Append(new, old.Index(i)))
+				new.Index(new.Len()-1).Field(0).SetString(field)
+			}
+		}
+
+		reflect.ValueOf(objptr).Elem().Set(new)
+	}
+}
+
 // ========== //
 // == Time == //
 // ========== //
