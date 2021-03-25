@@ -79,66 +79,21 @@ type K8sKubeArmorPolicies struct {
 	Items []K8sKubeArmorPolicy `json:"items"`
 }
 
-// ================ //
-// == Statistics == //
-// ================ //
-
-// HostStatType Structure
-type HostStatType struct {
-	HostName string
-
-	AllowedCount int32
-	AuditedCount int32
-	BlockedCount int32
-	FailedCount  int32
+// K8sKubeArmorHostPolicyEvent Structure
+type K8sKubeArmorHostPolicyEvent struct {
+	Type   string                 `json:"type"`
+	Object K8sKubeArmorHostPolicy `json:"object"`
 }
 
-// NamespaceStatType Structure
-type NamespaceStatType struct {
-	HostName      string
-	NamespaceName string
-
-	Containers []string
-
-	AllowedCount int32
-	AuditedCount int32
-	BlockedCount int32
-	FailedCount  int32
+// K8sKubeArmorHostPolicy Structure
+type K8sKubeArmorHostPolicy struct {
+	Metadata metav1.ObjectMeta `json:"metadata"`
+	Spec     HostSecuritySpec  `json:"spec"`
 }
 
-// PodStatType Structure
-type PodStatType struct {
-	HostName      string
-	NamespaceName string
-	PodName       string
-
-	Containers []string
-
-	AllowedCount int32
-	AuditedCount int32
-	BlockedCount int32
-	FailedCount  int32
-}
-
-// ContainerStatType Structure
-type ContainerStatType struct {
-	HostName      string
-	NamespaceName string
-	PodName       string
-	ContainerName string
-
-	AllowedCount int32
-	AuditedCount int32
-	BlockedCount int32
-	FailedCount  int32
-}
-
-// StatsType Structure
-type StatsType struct {
-	HostStats      HostStatType
-	NamespaceStats map[string]NamespaceStatType
-	PodStats       map[string]PodStatType
-	ContainerStats map[string]ContainerStatType
+// K8sKubeArmorPolicies Structure
+type K8sKubeArmorHostPolicies struct {
+	Items []K8sKubeArmorHostPolicy `json:"items"`
 }
 
 // ============= //
@@ -313,6 +268,9 @@ type ResourceType struct {
 type SecuritySpec struct {
 	Severity int `json:"severity"`
 
+	Tags    []string `json:"tags,omitempty"`
+	Message string   `json:"message,omitempty"`
+
 	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
@@ -328,6 +286,41 @@ type SecuritySpec struct {
 type SecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     SecuritySpec      `json:"spec"`
+}
+
+// ========================== //
+// == Host Security Policy == //
+// ========================== //
+
+// NodeSelectorType Structure
+type NodeSelectorType struct {
+	MatchNames  map[string]string `json:"matchNames,omitempty"`
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	Identities []string `json:"identities,omitempty"` // set during policy update
+}
+
+// HostSecuritySpec Structure
+type HostSecuritySpec struct {
+	Severity int `json:"severity"`
+
+	Tags    []string `json:"tags,omitempty"`
+	Message string   `json:"message,omitempty"`
+
+	NodeSelector NodeSelectorType `json:"nodeSelector"`
+
+	Process      ProcessType      `json:"process,omitempty"`
+	File         FileType         `json:"file,omitempty"`
+	Network      NetworkType      `json:"network,omitempty"`
+	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
+
+	Action string `json:"action"`
+}
+
+// HostSecurityPolicy Structure
+type HostSecurityPolicy struct {
+	Metadata map[string]string `json:"metadata"`
+	Spec     HostSecuritySpec  `json:"spec"`
 }
 
 // ================== //
