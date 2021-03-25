@@ -109,12 +109,19 @@ function delete_and_wait_for_microserivce_deletion() {
 function find_allow_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 1
+    sleep 2
 
     grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
     if [ $? == 0 ]; then
-        echo -e "${RED}[FAIL] Found the log from logs${NC}"
-        res_cmd=1
+        sleep 2
+
+        grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+        if [ $? == 0 ]; then
+            echo -e "${RED}[FAIL] Found the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found no log from logs"
+        fi
     else
         echo "[INFO] Found no log from logs"
     fi
@@ -123,12 +130,19 @@ function find_allow_logs() {
 function find_audit_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 1
+    sleep 2
 
     grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
     if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
-        res_cmd=1
+        sleep 2
+
+        grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+        if [ $? != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found the log from logs"
+        fi
     else
         echo "[INFO] Found the log from logs"
     fi
@@ -137,12 +151,19 @@ function find_audit_logs() {
 function find_block_logs() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 1
+    sleep 2
 
     grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
     if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
-        res_cmd=1
+        sleep 2
+
+        grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
+        if [ $? != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            res_cmd=1
+        else
+            echo "[INFO] Found the log from logs"
+        fi
     else
         echo "[INFO] Found the log from logs"
     fi
@@ -274,11 +295,11 @@ do
             run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
             if [ $res_case != 0 ]; then
+                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
                 res_microservice=1
-                break
+            else
+                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
             fi
-
-            echo "[INFO] Tested $testcase"
         done
 
         res_delete=0
@@ -290,14 +311,6 @@ do
             echo "[INFO] Deleted $microservice"
         fi
     fi
-
-    ## == ##
-
-    if [ $res_microservice != 0 ]; then
-        break
-    fi
-
-    ## == ##
 done
 
 ## == KubeArmor == ##
