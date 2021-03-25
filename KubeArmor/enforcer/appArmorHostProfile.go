@@ -1234,10 +1234,6 @@ func (ae *AppArmorEnforcer) GenerateAppArmorHostProfile(secPolicies []tp.HostSec
 
 	if ae.HostProfile != newProfile {
 		ae.HostProfile = newProfile
-
-		// debug
-		fmt.Println(newProfile)
-
 		return count, newProfile, true
 	}
 
