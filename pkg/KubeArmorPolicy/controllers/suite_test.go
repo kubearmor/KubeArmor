@@ -28,7 +28,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	securityv1 "github.com/accuknox/KubeArmor/pkg/k8s/api/v1"
+	securityv1 "github.com/accuknox/KubeArmor/pkg/KubeArmorPolicy/api/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	// +kubebuilder:scaffold:imports

@@ -172,6 +172,9 @@ type KubeArmorPolicySpec struct {
 
 	Severity SeverityType `json:"severity"`
 
+	Tags    []string `json:"tags,omitempty"`
+	Message string   `json:"message,omitempty"`
+
 	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
@@ -192,7 +195,7 @@ type KubeArmorPolicyStatus struct {
 // +kubebuilder:object:root=true
 
 // KubeArmorPolicy is the Schema for the kubearmorpolicies API
-// +kubebuilder:resource:shortName=kap;ksp
+// +kubebuilder:resource:shortName=ksp
 type KubeArmorPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

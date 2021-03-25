@@ -14,7 +14,6 @@ spec:
     listKind: KubeArmorPolicyList
     plural: kubearmorpolicies
     shortNames:
-    - kap
     - ksp
     singular: kubearmorpolicy
   scope: Namespaced
@@ -53,41 +52,7 @@ spec:
                     items:
                       properties:
                         capability:
-                          enum:
-                          - chown
-                          - dac_override
-                          - dac_read_search
-                          - fowner
-                          - fsetid
-                          - kill
-                          - setgid
-                          - setuid
-                          - setpcap
-                          - linux_immutable
-                          - net_bind_service
-                          - net_broadcast
-                          - net_admin
-                          - net_raw
-                          - ipc_lock
-                          - ipc_owner
-                          - sys_module
-                          - sys_rawio
-                          - sys_chroot
-                          - sys_ptrace
-                          - sys_pacct
-                          - sys_admin
-                          - sys_boot
-                          - sys_nice
-                          - sys_resource
-                          - sys_time
-                          - sys_tty_config
-                          - mknod
-                          - lease
-                          - audit_write
-                          - audit_control
-                          - setfcap
-                          - mac_override
-                          - mac_admin
+                          pattern: (chown|dac_override|dac_read_search|fowner|fsetid|kill|setgid|setuid|setpcap|linux_immutable|net_bind_service|net_broadcast|net_admin|net_raw|ipc_lock|ipc_owner|sys_module|sys_rawio|sys_chroot|sys_ptrace|sys_pacct|sys_admin|sys_boot|sys_nice|sys_resource|sys_time|sys_tty_config|mknod|lease|audit_write|audit_control|setfcap|mac_override|mac_admin)$
                           type: string
                         fromSource:
                           items:
@@ -177,6 +142,8 @@ spec:
                       type: object
                     type: array
                 type: object
+              message:
+                type: string
               network:
                 properties:
                   matchProtocols:
@@ -196,13 +163,7 @@ spec:
                             type: object
                           type: array
                         protocol:
-                          enum:
-                          - TCP
-                          - tcp
-                          - UDP
-                          - udp
-                          - ICMP
-                          - icmp
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
                           type: string
                       type: object
                     type: array
@@ -309,6 +270,10 @@ spec:
                 maximum: 10
                 minimum: 1
                 type: integer
+              tags:
+                items:
+                  type: string
+                type: array
             required:
             - action
             - selector
