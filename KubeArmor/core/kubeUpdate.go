@@ -10,6 +10,7 @@ import (
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	v1 "k8s.io/api/core/v1"
 )
 
 // ============================ //
@@ -123,6 +124,15 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		// update security policies with the identities
 		newGroup.SecurityPolicies = dm.GetSecurityPolicies(newGroup.Identities)
 
+		// update selinux profile names to the container group
+		newGroup.SELinuxProfiles = map[string]string{}
+		for k, v := range pod.Metadata {
+			if strings.HasPrefix(k, "selinux-") {
+				contName := strings.Split(k, "selinux-")[1]
+				newGroup.SELinuxProfiles[contName] = v
+			}
+		}
+
 		// add the container group into the container group list
 		dm.ContainerGroups = append(dm.ContainerGroups, newGroup)
 
@@ -139,6 +149,10 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 				conGroupIdx = idx
 				break
 			}
+		}
+
+		if conGroupIdx == -1 {
+			return
 		}
 
 		// update the labels and identities of the container group
@@ -239,6 +253,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				updateAppArmor := false
+
 				for _, container := range event.Object.Spec.Containers {
 					if container.Name == "istio-proxy" {
 						continue
@@ -250,16 +265,80 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				if updateAppArmor {
+				if dm.RuntimeEnforcer.GetEnforcerType() == "apparmor" && updateAppArmor {
 					if pod.Metadata["namespaceName"] != "kube-system" && pod.Metadata["namespaceName"] != "cilium" {
 						if event.Type == "ADDED" {
 							if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
 								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
 								if deploymentName != "" {
 									if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
-										dm.LogFeeder.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										dm.LogFeeder.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 									} else {
 										dm.LogFeeder.Printf("Updated AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+									}
+								}
+							}
+						}
+
+						dm.K8sPodsLock.Unlock()
+						continue
+					}
+				}
+
+				// == selinux == //
+
+				seLinuxContexts := map[string]string{}
+				updateSELinux := false
+
+				for _, container := range event.Object.Spec.Containers {
+					if pod.Metadata["namespaceName"] == "kube-system" || pod.Metadata["namespaceName"] == "cilium" {
+						continue
+					}
+
+					if container.SecurityContext == nil || container.SecurityContext.SELinuxOptions == nil || container.SecurityContext.SELinuxOptions.Type == "" {
+						if _, ok := seLinuxContexts[container.Name]; !ok {
+							deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
+							if deploymentName == "" {
+								continue
+							}
+
+							seLinuxType := "kubearmor-" + pod.Metadata["namespaceName"] + "-" + deploymentName + "-" + container.Name
+							container.SecurityContext = &v1.SecurityContext{
+								SELinuxOptions: &v1.SELinuxOptions{
+									Type: seLinuxType + ".process",
+								},
+							}
+
+							// if not delete volumeMounts, update error
+							container.VolumeMounts = []v1.VolumeMount{}
+
+							b, _ := json.Marshal(container)
+							seLinuxContexts[container.Name] = string(b)
+
+							updateSELinux = true
+						}
+					} else {
+						if container.SecurityContext != nil && container.SecurityContext.SELinuxOptions != nil {
+							if strings.Contains(container.SecurityContext.SELinuxOptions.Type, ".process") {
+								if _, ok := pod.Metadata["selinux-"+container.Name]; !ok {
+									selinuxContext := strings.Split(container.SecurityContext.SELinuxOptions.Type, ".process")[0]
+									pod.Metadata["selinux-"+container.Name] = selinuxContext
+								}
+							}
+						}
+					}
+				}
+
+				if dm.RuntimeEnforcer.GetEnforcerType() == "selinux" && updateSELinux {
+					if pod.Metadata["namespaceName"] != "kube-system" && pod.Metadata["namespaceName"] != "cilium" {
+						if event.Type == "ADDED" {
+							if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
+								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
+								if deploymentName != "" {
+									if err := K8s.PatchDeploymentWithSELinuxOptions(pod.Metadata["namespaceName"], deploymentName, seLinuxContexts); err != nil {
+										dm.LogFeeder.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+									} else {
+										dm.LogFeeder.Printf("Updated SELinux security options (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
 									}
 								}
 							}
