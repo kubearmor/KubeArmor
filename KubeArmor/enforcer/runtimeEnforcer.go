@@ -96,6 +96,21 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) 
 				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
 			}
 		}
+	} else if strings.Contains(re.enforcerType, "selinux") {
+		selinuxProfiles := []string{}
+		for k, v := range pod.Metadata {
+			if strings.HasPrefix(k, "selinux-") {
+				selinuxProfiles = append(selinuxProfiles, v)
+			}
+		}
+
+		for _, profile := range selinuxProfiles {
+			if action == "ADDED" {
+				re.seLinuxEnforcer.RegisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
+			} else if action == "DELETED" {
+				re.seLinuxEnforcer.UnRegisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
+			}
+		}
 	}
 }
 
@@ -171,4 +186,21 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	}
 
 	return nil
+}
+
+// GetEnforcerType Function
+func (re *RuntimeEnforcer) GetEnforcerType() string {
+	if strings.Contains(re.enforcerType, "krsi") {
+		return "krsi"
+	}
+
+	if strings.Contains(re.enforcerType, "apparmor") {
+		return "apparmor"
+	}
+
+	if strings.Contains(re.enforcerType, "selinux") {
+		return "selinux"
+	}
+
+	return "None"
 }

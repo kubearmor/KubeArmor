@@ -250,6 +250,33 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 	return nil
 }
 
+// PatchDeploymentWithSELinuxOptions Function
+func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespaceName, deploymentName string, seLinuxContexts map[string]string) error {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	spec := `{"spec":{"template":{"spec":{"containers":[`
+
+	for _, v := range seLinuxContexts {
+		spec = spec + v + ","
+	}
+
+	// delete last ','
+	if last := len(spec) - 1; last >= 0 && spec[last] == ',' {
+		spec = spec[:last]
+	}
+
+	spec = spec + `]}}}}`
+
+	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ================ //
 // == ReplicaSet == //
 // ================ //

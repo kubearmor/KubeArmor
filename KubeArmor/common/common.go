@@ -170,6 +170,20 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	return string(out), nil
 }
 
+// GetCommandWaitOutputWithErr Function
+func GetCommandWaitOutputWithErr(cmd string, args []string) error {
+	command := exec.Command(cmd, args...)
+	if err := command.Start(); err != nil {
+		return err
+	}
+
+	if err := command.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetCommandOutputWithoutErr Function
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	res := exec.Command(cmd, args...)

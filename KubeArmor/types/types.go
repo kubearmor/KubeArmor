@@ -39,8 +39,10 @@ type ContainerGroup struct {
 
 	Containers []string `json:"containers"`
 
-	SecurityPolicies []SecurityPolicy  `json:"securityPolicies"`
+	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
+
 	AppArmorProfiles map[string]string `json:"apparmorProfiles"`
+	SELinuxProfiles  map[string]string `json:"selinuxProfiles"`
 }
 
 // ================ //
