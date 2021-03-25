@@ -32,6 +32,7 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se := &SELinuxEnforcer{}
 
 	se.LogFeeder = feeder
+
 	se.SELinuxProfiles = map[string]int{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
@@ -46,11 +47,6 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 // ================================ //
 // == SELinux Profile Management == //
 // ================================ //
-
-// UpdateSecurityPolicies Function
-func (se *SELinuxEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
-	//
-}
 
 // RegisterSELinuxProfile Function
 func (se *SELinuxEnforcer) RegisterSELinuxProfile(namespace, podName, profileName string) bool {
@@ -96,8 +92,8 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(namespace, podName, profileNam
 	return false
 }
 
-// UnRegisterSELinuxProfile Function
-func (se *SELinuxEnforcer) UnRegisterSELinuxProfile(namespace, podName, profileName string) bool {
+// UnregisterSELinuxProfile Function
+func (se *SELinuxEnforcer) UnregisterSELinuxProfile(namespace, podName, profileName string) bool {
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
@@ -140,4 +136,14 @@ func (se *SELinuxEnforcer) UnRegisterSELinuxProfile(namespace, podName, profileN
 	}
 
 	return true
+}
+
+// UpdateSecurityPolicies Function
+func (se *SELinuxEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
+	//
+}
+
+// UpdateHostSecurityPolicies Function
+func (se *SELinuxEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	//
 }

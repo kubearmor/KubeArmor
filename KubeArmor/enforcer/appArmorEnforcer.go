@@ -20,6 +20,9 @@ type AppArmorEnforcer struct {
 	// logs
 	LogFeeder *fd.Feeder
 
+	HostName    string
+	HostProfile string
+
 	AppArmorProfiles     map[string]int
 	AppArmorProfilesLock *sync.Mutex
 }
@@ -29,6 +32,8 @@ func NewAppArmorEnforcer(feeder *fd.Feeder) *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
 
 	ae.LogFeeder = feeder
+
+	ae.HostName = kl.GetHostName()
 
 	ae.AppArmorProfiles = map[string]int{}
 	ae.AppArmorProfilesLock = &sync.Mutex{}
@@ -67,6 +72,10 @@ func NewAppArmorEnforcer(feeder *fd.Feeder) *AppArmorEnforcer {
 		}
 	}
 
+	if ok := ae.RegisterAppArmorHostProfile(); !ok {
+		return nil
+	}
+
 	return ae
 }
 
@@ -75,6 +84,8 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 	for profileName := range ae.AppArmorProfiles {
 		ae.UnregisterAppArmorProfile(profileName)
 	}
+
+	ae.UnregisterAppArmorHostProfile()
 
 	return nil
 }
@@ -92,8 +103,9 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
 		"  ## == PRE START == ##\n" +
 		"  #include <abstractions/base>\n" +
-		"  umount,\n" +
 		"  file,\n" +
+		"  umount,\n" +
+		"  signal,\n" +
 		"  network,\n" +
 		"  capability,\n" +
 		"  ## == PRE END == ##\n" +
@@ -212,6 +224,108 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 	return true
 }
 
+// ====================================== //
+// == AppArmor Host Profile Management == //
+// ====================================== //
+
+func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
+	apparmorHostDefault := "## == Managed by KubeArmor == ##\n" +
+		"\n" +
+		"#include <tunables/global>\n" +
+		"\n" +
+		"profile kubearmor.host /** flags=(attach_disconnected,mediate_deleted) {\n" +
+		"  #include <abstractions/base>\n" +
+		"\n" +
+		"  file,\n" +
+		"  mount,\n" +
+		"  umount,\n" +
+		"  ptrace,\n" +
+		"  network,\n" +
+		"  capability,\n" +
+		"\n" +
+		"  /usr/bin/runc Ux,\n" +
+		"\n" +
+		"  ## == POLICY START == ##\n" +
+		"  ## == POLICY END == ##\n" +
+		"}\n"
+
+	newfile, err := os.Create("/tmp/kubearmor.host")
+	if err != nil {
+		ae.LogFeeder.Err(err.Error())
+		return err
+	}
+	defer newfile.Close()
+
+	if _, err := newfile.WriteString(apparmorHostDefault); err != nil {
+		ae.LogFeeder.Err(err.Error())
+		return err
+	}
+
+	if err := newfile.Sync(); err != nil {
+		ae.LogFeeder.Err(err.Error())
+		return err
+	}
+
+	ae.HostProfile = apparmorHostDefault
+
+	return nil
+}
+
+func (ae *AppArmorEnforcer) RemoveAppArmorHostProfile() error {
+	if _, err := os.Stat("/tmp/kubearmor.host"); err != nil {
+		return nil
+	}
+
+	if err := os.Remove("/tmp/kubearmor.host"); err != nil {
+		ae.LogFeeder.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// RegisterAppArmorHostProfile Function
+func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
+	if err := ae.CreateAppArmorHostProfile(); err != nil {
+		ae.LogFeeder.Errf("Failed to create the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		return false
+	}
+
+	if output, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "-C", "/tmp/kubearmor.host"}); err == nil {
+		ae.LogFeeder.Printf("Registered an AppArmor host profile in %s", ae.HostName)
+	} else {
+		ae.LogFeeder.Printf("Failed to registered an AppArmor host profile in %s (%s)", ae.HostName, output)
+	}
+
+	if err := ae.RemoveAppArmorHostProfile(); err != nil {
+		ae.LogFeeder.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		return false
+	}
+
+	return true
+}
+
+// UnregisterAppArmorHostProfile Function
+func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
+	if err := ae.CreateAppArmorHostProfile(); err != nil {
+		ae.LogFeeder.Errf("Failed to create the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		return false
+	}
+
+	if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/tmp/kubearmor.host"}); err == nil {
+		ae.LogFeeder.Printf("Unegistered an AppArmor host profile in %s", ae.HostName)
+	} else {
+		ae.LogFeeder.Printf("Failed to unregister the AppArmor host profile (%s)", err.Error())
+	}
+
+	if err := ae.RemoveAppArmorHostProfile(); err != nil {
+		ae.LogFeeder.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		return false
+	}
+
+	return true
+}
+
 // ================================= //
 // == Security Policy Enforcement == //
 // ================================= //
@@ -241,10 +355,6 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 		} else {
 			ae.LogFeeder.Printf("Failed to update %d security rules to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, output)
 		}
-	} else {
-		// if len(newProfile) > 0 {
-		// 	ae.LogFeeder.Err(newProfile) // error message instead of new profile
-		// }
 	}
 }
 
@@ -267,4 +377,46 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	for _, appArmorProfile := range appArmorProfiles {
 		ae.UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
 	}
+}
+
+// ====================================== //
+// == Host Security Policy Enforcement == //
+// ====================================== //
+
+// UpdateAppArmorHostProfile Function
+func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecurityPolicy) {
+	if policyCount, newProfile, ok := ae.GenerateAppArmorHostProfile(secPolicies); ok {
+		newfile, err := os.Create("/tmp/kubearmor.host")
+		if err != nil {
+			ae.LogFeeder.Err(err.Error())
+			return
+		}
+		defer newfile.Close()
+
+		if _, err := newfile.WriteString(newProfile); err != nil {
+			ae.LogFeeder.Err(err.Error())
+			return
+		}
+
+		if err := newfile.Sync(); err != nil {
+			ae.LogFeeder.Err(err.Error())
+			return
+		}
+
+		if output, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "/tmp/kubearmor.host"}); err == nil {
+			ae.LogFeeder.Printf("Updated %d host security rules to the AppArmor host profile in %s", policyCount, ae.HostName)
+		} else {
+			ae.LogFeeder.Printf("Failed to update %d host security rules to the AppArmor host profile in %s (%s)", policyCount, ae.HostName, output)
+		}
+
+		if err := ae.RemoveAppArmorHostProfile(); err != nil {
+			ae.LogFeeder.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+			return
+		}
+	}
+}
+
+// UpdateHostSecurityPolicies Function
+func (ae *AppArmorEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	ae.UpdateAppArmorHostProfile(secPolicies)
 }

@@ -1,9 +1,7 @@
 package enforcer
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
@@ -12,187 +10,17 @@ import (
 
 // == //
 
-func allowedProcesses(secPolicy tp.SecurityPolicy) []string {
-	processWhiteList := []string{}
+// no allowedProcesses for hosts
 
-	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
-		for _, path := range secPolicy.Spec.Process.MatchPaths {
-			if len(path.FromSource) > 0 {
-				continue
-			}
+// no allowedFiles for hosts
 
-			if path.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
-				processWhiteList = append(processWhiteList, line)
-			} else { // !path.OwnerOnly
-				line := fmt.Sprintf("  audit %s ix,\n", path.Path)
-				processWhiteList = append(processWhiteList, line)
-			}
-		}
-	}
+// no allowedNetworks for hosts
 
-	if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
-		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-			if len(dir.FromSource) > 0 {
-				continue
-			}
-
-			if dir.Recursive && dir.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
-			} else if dir.Recursive && !dir.OwnerOnly {
-				line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
-			} else if !dir.Recursive && dir.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
-		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-			if pat.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
-				processWhiteList = append(processWhiteList, line)
-			} else { // !pat.OwnerOnly
-				line := fmt.Sprintf("  audit %s* ix,\n", pat.Pattern)
-				processWhiteList = append(processWhiteList, line)
-			}
-		}
-	}
-
-	return processWhiteList
-}
-
-func allowedFiles(secPolicy tp.SecurityPolicy) []string {
-	fileWhiteList := []string{}
-
-	if len(secPolicy.Spec.File.MatchPaths) > 0 {
-		for _, path := range secPolicy.Spec.File.MatchPaths {
-			if len(path.FromSource) > 0 {
-				continue
-			}
-
-			if path.ReadOnly && path.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
-			} else if path.ReadOnly && !path.OwnerOnly {
-				line := fmt.Sprintf("  audit %s r,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
-			} else if !path.ReadOnly && path.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				line := fmt.Sprintf("  audit %s rw,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.File.MatchDirectories) > 0 {
-		for _, dir := range secPolicy.Spec.File.MatchDirectories {
-			if len(dir.FromSource) > 0 {
-				continue
-			}
-
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				} else {
-					line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				} else {
-					line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				} else {
-					line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				} else {
-					line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
-				}
-			}
-		}
-	}
-
-	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
-		for _, pat := range secPolicy.Spec.File.MatchPatterns {
-			if pat.ReadOnly && pat.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
-			} else if pat.ReadOnly && !pat.OwnerOnly {
-				line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
-			} else if !pat.ReadOnly && pat.OwnerOnly {
-				line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
-			} else { // !pat.ReadOnly && !pat.OwnerOnly
-				line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
-			}
-		}
-	}
-
-	return fileWhiteList
-}
-
-func allowedNetworks(secPolicy tp.SecurityPolicy) []string {
-	networkWhiteList := []string{}
-
-	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			if len(proto.FromSource) > 0 {
-				continue
-			}
-
-			line := fmt.Sprintf("  network %s,\n", proto.Protocol)
-			networkWhiteList = append(networkWhiteList, line)
-		}
-	}
-
-	return networkWhiteList
-}
-
-func allowedCapabilities(secPolicy tp.SecurityPolicy) []string {
-	capabilityWhiteList := []string{}
-
-	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
-		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-			if len(cap.FromSource) > 0 {
-				continue
-			}
-
-			line := fmt.Sprintf("  capability %s,\n", cap.Capability)
-			capabilityWhiteList = append(capabilityWhiteList, line)
-		}
-	}
-
-	return capabilityWhiteList
-}
+// no allowedCapabilities for hosts
 
 //
 
-func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
+func auditedHostProcesses(secPolicy tp.HostSecurityPolicy) []string {
 	processAuditList := []string{}
 
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
@@ -248,7 +76,7 @@ func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
 	return processAuditList
 }
 
-func auditedFiles(secPolicy tp.SecurityPolicy) []string {
+func auditedHostFiles(secPolicy tp.HostSecurityPolicy) []string {
 	fileAuditList := []string{}
 
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
@@ -338,7 +166,7 @@ func auditedFiles(secPolicy tp.SecurityPolicy) []string {
 
 //
 
-func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
+func blockedHostProcesses(secPolicy tp.HostSecurityPolicy) []string {
 	processBlackList := []string{}
 
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
@@ -394,7 +222,7 @@ func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
 	return processBlackList
 }
 
-func blockedFiles(secPolicy tp.SecurityPolicy) []string {
+func blockedHostFiles(secPolicy tp.HostSecurityPolicy) []string {
 	fileBlackList := []string{}
 
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
@@ -482,43 +310,13 @@ func blockedFiles(secPolicy tp.SecurityPolicy) []string {
 	return fileBlackList
 }
 
-func blockedNetworks(secPolicy tp.SecurityPolicy) []string {
-	networkBlackList := []string{}
+// no blockedNetworks for hosts
 
-	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			if len(proto.FromSource) > 0 {
-				continue
-			}
-
-			line := fmt.Sprintf("  deny network %s,\n", proto.Protocol)
-			networkBlackList = append(networkBlackList, line)
-		}
-	}
-
-	return networkBlackList
-}
-
-func blockedCapabilities(secPolicy tp.SecurityPolicy) []string {
-	capabilityBlackList := []string{}
-
-	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
-		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-			if len(cap.FromSource) > 0 {
-				continue
-			}
-
-			line := fmt.Sprintf("  deny capability %s,\n", cap.Capability)
-			capabilityBlackList = append(capabilityBlackList, line)
-		}
-	}
-
-	return capabilityBlackList
-}
+// no blockedCapabilities for hosts
 
 // == //
 
-func allowedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func allowedHostProcessesFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -620,7 +418,7 @@ func allowedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 	}
 }
 
-func allowedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func allowedHostFilesFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.File.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -760,7 +558,7 @@ func allowedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 	}
 }
 
-func allowedNetworksFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func allowedHostNetworksFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 			if len(proto.FromSource) == 0 {
@@ -800,7 +598,7 @@ func allowedNetworksFromSource(secPolicy tp.SecurityPolicy, fromSources map[stri
 	}
 }
 
-func allowedCapabilitiesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func allowedHostCapabilitiesFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			if len(cap.FromSource) == 0 {
@@ -842,7 +640,7 @@ func allowedCapabilitiesFromSource(secPolicy tp.SecurityPolicy, fromSources map[
 
 //
 
-func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func blockedHostProcessesFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -944,7 +742,7 @@ func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 	}
 }
 
-func blockedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func blockedHostFilesFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.File.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -1084,7 +882,7 @@ func blockedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 	}
 }
 
-func blockedNetworksFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func blockedHostNetworksFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 			if len(proto.FromSource) == 0 {
@@ -1124,7 +922,7 @@ func blockedNetworksFromSource(secPolicy tp.SecurityPolicy, fromSources map[stri
 	}
 }
 
-func blockedCapabilitiesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func blockedHostCapabilitiesFromSource(secPolicy tp.HostSecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			if len(cap.FromSource) == 0 {
@@ -1166,123 +964,61 @@ func blockedCapabilitiesFromSource(secPolicy tp.SecurityPolicy, fromSources map[
 
 // == //
 
-// GenerateProfileHead Function
-func GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string) string {
-	profileHead := "  #include <abstractions/base>\n"
-	profileHead = profileHead + "  umount,\n"
-
-	if len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
-		profileHead = profileHead + "  file,\n"
-	}
-
-	if len(networkWhiteList) == 0 {
-		profileHead = profileHead + "  network,\n"
-	}
-
-	if len(capabilityWhiteList) == 0 {
-		profileHead = profileHead + "  capability,\n"
-	}
+// GenerateHostProfileHead Function
+func GenerateHostProfileHead() string {
+	profileHead := "## == Managed by KubeArmor == ##\n" +
+		"\n" +
+		"#include <tunables/global>\n" +
+		"\n" +
+		"profile kubearmor.host /** flags=(attach_disconnected,mediate_deleted) {\n" +
+		"  #include <abstractions/base>\n" +
+		"\n" +
+		"  file,\n" +
+		"  mount,\n" +
+		"  umount,\n" +
+		"  ptrace,\n" +
+		"  network,\n" +
+		"  capability,\n" +
+		"\n" +
+		"  /usr/bin/runc Ux,\n" +
+		"\n" +
+		"  ## == POLICY START == ##\n"
 
 	return profileHead
 }
 
-// GenerateProfileFoot Function
-func GenerateProfileFoot() string {
-	profileFoot := "  /lib/x86_64-linux-gnu/{*,**} r,\n"
-	profileFoot = profileFoot + "\n"
-	profileFoot = profileFoot + "  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n"
-	profileFoot = profileFoot + "  deny @{PROC}/sysrq-trigger rwklx,\n"
-	profileFoot = profileFoot + "  deny @{PROC}/mem rwklx,\n"
-	profileFoot = profileFoot + "  deny @{PROC}/kmem rwklx,\n"
-	profileFoot = profileFoot + "  deny @{PROC}/kcore rwklx,\n"
-	profileFoot = profileFoot + "\n"
-	profileFoot = profileFoot + "  deny mount,\n"
-	profileFoot = profileFoot + "\n"
-	profileFoot = profileFoot + "  deny /sys/[^f]*/** wklx,\n"
-	profileFoot = profileFoot + "  deny /sys/f[^s]*/** wklx,\n"
-	profileFoot = profileFoot + "  deny /sys/fs/[^c]*/** wklx,\n"
-	profileFoot = profileFoot + "  deny /sys/fs/c[^g]*/** wklx,\n"
-	profileFoot = profileFoot + "  deny /sys/fs/cg[^r]*/** wklx,\n"
-	profileFoot = profileFoot + "  deny /sys/firmware/efi/efivars/** rwklx,\n"
-	profileFoot = profileFoot + "  deny /sys/kernel/security/** rwklx,\n"
+// GenerateHostProfileFoot Function
+func GenerateHostProfileFoot() string {
+	profileFoot := "  ## == POLICY END == ##\n" +
+		"}\n"
 
 	return profileFoot
 }
 
 // == //
 
-// GenerateProfileBody Function
-func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securityPolicies []tp.SecurityPolicy) (int, string) {
+// GenerateHostProfileBody Function
+func GenerateHostProfileBody(secPolicies []tp.HostSecurityPolicy) (int, string) {
 	// preparation
 
 	count := 0
 
-	processWhiteList := []string{}
 	processAuditList := []string{}
 	processBlackList := []string{}
 
-	fileWhiteList := []string{}
 	fileAuditList := []string{}
 	fileBlackList := []string{}
-
-	networkWhiteList := []string{}
-	networkBlackList := []string{}
-
-	capabilityWhiteList := []string{}
-	capabilityBlackList := []string{}
 
 	fromSources := map[string][]string{}
 
 	// preparation - global
 
-	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
-			whiteList := []string{}
-
-			// process
-			whiteList = allowedProcesses(secPolicy)
-
-			for _, line := range whiteList {
-				if !kl.ContainsElement(processWhiteList, line) {
-					processWhiteList = append(processWhiteList, line)
-				}
-			}
-
-			// file
-			whiteList = allowedFiles(secPolicy)
-
-			for _, line := range whiteList {
-				if !kl.ContainsElement(fileWhiteList, line) {
-					fileWhiteList = append(fileWhiteList, line)
-				}
-			}
-
-			// network
-			whiteList = allowedNetworks(secPolicy)
-
-			for _, line := range whiteList {
-				if !kl.ContainsElement(networkWhiteList, line) {
-					networkWhiteList = append(networkWhiteList, line)
-				}
-			}
-
-			// capabilities
-			whiteList = allowedCapabilities(secPolicy)
-
-			for _, line := range whiteList {
-				if !kl.ContainsElement(capabilityWhiteList, line) {
-					capabilityWhiteList = append(capabilityWhiteList, line)
-				}
-			}
-		}
-	}
-
-	for _, secPolicy := range securityPolicies {
+	for _, secPolicy := range secPolicies {
 		if secPolicy.Spec.Action == "Audit" {
 			auditList := []string{}
 
 			// process
-			auditList = auditedProcesses(secPolicy)
+			auditList = auditedHostProcesses(secPolicy)
 
 			for _, line := range auditList {
 				if !kl.ContainsElement(processAuditList, line) {
@@ -1291,7 +1027,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			}
 
 			// file
-			auditList = auditedFiles(secPolicy)
+			auditList = auditedHostFiles(secPolicy)
 
 			for _, line := range auditList {
 				if !kl.ContainsElement(fileAuditList, line) {
@@ -1301,12 +1037,12 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 		}
 	}
 
-	for _, secPolicy := range securityPolicies {
+	for _, secPolicy := range secPolicies {
 		if secPolicy.Spec.Action == "Block" || secPolicy.Spec.Action == "BlockWithAudit" {
 			blackList := []string{}
 
 			// process
-			blackList = blockedProcesses(secPolicy)
+			blackList = blockedHostProcesses(secPolicy)
 
 			for _, line := range blackList {
 				if !kl.ContainsElement(processBlackList, line) {
@@ -1315,29 +1051,11 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			}
 
 			// file
-			blackList = blockedFiles(secPolicy)
+			blackList = blockedHostFiles(secPolicy)
 
 			for _, line := range blackList {
 				if !kl.ContainsElement(fileBlackList, line) {
 					fileBlackList = append(fileBlackList, line)
-				}
-			}
-
-			// network
-			blackList = blockedNetworks(secPolicy)
-
-			for _, line := range blackList {
-				if !kl.ContainsElement(networkBlackList, line) {
-					networkBlackList = append(networkBlackList, line)
-				}
-			}
-
-			// capabilities
-			blackList = blockedCapabilities(secPolicy)
-
-			for _, line := range blackList {
-				if !kl.ContainsElement(capabilityBlackList, line) {
-					capabilityBlackList = append(capabilityBlackList, line)
 				}
 			}
 		}
@@ -1345,45 +1063,37 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	// preparation - fromSource
 
-	for _, secPolicy := range securityPolicies {
+	for _, secPolicy := range secPolicies {
 		if secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
 			// process
-			allowedProcessesFromSource(secPolicy, fromSources)
+			allowedHostProcessesFromSource(secPolicy, fromSources)
 
 			// file
-			allowedFilesFromSource(secPolicy, fromSources)
+			allowedHostFilesFromSource(secPolicy, fromSources)
 
 			// network
-			allowedNetworksFromSource(secPolicy, fromSources)
+			allowedHostNetworksFromSource(secPolicy, fromSources)
 
 			// capabilities
-			allowedCapabilitiesFromSource(secPolicy, fromSources)
+			allowedHostCapabilitiesFromSource(secPolicy, fromSources)
 		}
 	}
 
-	for _, secPolicy := range securityPolicies {
+	for _, secPolicy := range secPolicies {
 		if secPolicy.Spec.Action == "Block" || secPolicy.Spec.Action == "BlockWithAudit" {
 			// process
-			blockedProcessesFromSource(secPolicy, fromSources)
+			blockedHostProcessesFromSource(secPolicy, fromSources)
 
 			// file
-			blockedFilesFromSource(secPolicy, fromSources)
+			blockedHostFilesFromSource(secPolicy, fromSources)
 
 			// network
-			blockedNetworksFromSource(secPolicy, fromSources)
+			blockedHostNetworksFromSource(secPolicy, fromSources)
 
 			// capabilities
-			blockedCapabilitiesFromSource(secPolicy, fromSources)
+			blockedHostCapabilitiesFromSource(secPolicy, fromSources)
 		}
 	}
-
-	// head
-
-	profileHead := "  ## == PRE START == ##\n"
-
-	profileHead = profileHead + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList)
-
-	profileHead = profileHead + "  ## == PRE END == ##\n"
 
 	// body
 
@@ -1398,10 +1108,8 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s r,\n", source)
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE START (%s) == ##\n", source)
-
 		bodyFromSource = bodyFromSource + "    #include <abstractions/base>\n"
-		bodyFromSource = bodyFromSource + "    umount,\n"
+		bodyFromSource = bodyFromSource + "\n"
 
 		file := true
 		network := true
@@ -1429,20 +1137,25 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			file = false
 		}
 
-		if file && len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
+		if file {
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if network && len(networkWhiteList) == 0 {
+		bodyFromSource = bodyFromSource + "    mount,\n"
+		bodyFromSource = bodyFromSource + "    umount,\n"
+		bodyFromSource = bodyFromSource + "    ptrace,\n"
+
+		if network {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if capability && len(capabilityWhiteList) == 0 {
+		if capability {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n", source)
-		bodyFromSource = bodyFromSource + strings.Replace(profileBody, "  ", "    ", -1)
+		bodyFromSource = bodyFromSource + "    /usr/bin/runc Ux,\n"
+		bodyFromSource = bodyFromSource + "\n"
+
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n\n", source)
 
 		//
@@ -1454,43 +1167,12 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 		//
 
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY END (%s) == ##\n\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST START (%s) == ##\n", source)
-
-		bodyFromSource = bodyFromSource + strings.Replace(GenerateProfileFoot(), "  ", "    ", -1)
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST END (%s) == ##\n", source)
 		bodyFromSource = bodyFromSource + "  }\n"
 	}
 
 	for _, source := range fromSources {
 		count = count + len(source)
 	}
-
-	// body - white list
-
-	for _, line := range processWhiteList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(processWhiteList)
-
-	for _, line := range fileWhiteList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(fileWhiteList)
-
-	for _, line := range networkWhiteList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(networkWhiteList)
-
-	for _, line := range capabilityWhiteList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(capabilityWhiteList)
 
 	// body - audit list
 
@@ -1520,119 +1202,19 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	count = count + len(fileBlackList)
 
-	for _, line := range networkBlackList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(networkBlackList)
-
-	for _, line := range capabilityBlackList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(capabilityBlackList)
-
-	// body - together
-
-	profileBody = "  ## == POLICY START == ##\n" + bodyFromSource + profileBody + "  ## == POLICY END == ##\n"
-
-	// foot
-
-	profileFoot := "  ## == POST START == ##\n" + GenerateProfileFoot() + "  ## == POST END == ##\n"
-
 	// finalization
 
-	profile := profileHead
-
-	for _, preMid := range oldContentsPreMid {
-		profile = profile + preMid
-	}
-
-	profile = profile + profileBody
-
-	for _, midPost := range oldConetntsMidPost {
-		profile = profile + midPost
-	}
-
-	profile = profile + profileFoot
+	profile := bodyFromSource + profileBody
 
 	return count, profile
 }
 
-// == //
-
-// GenerateAppArmorProfile Function
-func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
-	// check apparmor profile
-
-	if _, err := os.Stat("/etc/apparmor.d/" + appArmorProfile); os.IsNotExist(err) {
-		return 0, err.Error(), false
-	}
-
-	// get the old profile
-
-	oldProfile := ""
-
-	oldContentsHead := []string{}
-	oldContentsPreMid := []string{}
-	oldConetntsMidPost := []string{}
-	oldContentsFoot := []string{}
-
-	file, err := os.Open("/etc/apparmor.d/" + appArmorProfile)
-	if err != nil {
-		return 0, err.Error(), false
-	}
-
-	fscanner := bufio.NewScanner(file)
-	pos := "HEAD"
-
-	for fscanner.Scan() {
-		line := fscanner.Text()
-
-		oldProfile += (line + "\n")
-
-		if strings.Contains(line, "## == PRE START == ##") {
-			pos = "PRE"
-			continue
-		} else if strings.Contains(line, "## == PRE END == ##") {
-			pos = "PRE-MIDDLE"
-			continue
-		} else if strings.Contains(line, "## == POLICY START == ##") {
-			pos = "POLICY"
-			continue
-		} else if strings.Contains(line, "## == POLICY END == ##") {
-			pos = "MIDDLE-POST"
-			continue
-		} else if strings.Contains(line, "## == POST START == ##") {
-			pos = "POST"
-			continue
-		} else if strings.Contains(line, "## == POST END == ##") {
-			pos = "FOOT"
-			continue
-		}
-
-		if pos == "HEAD" {
-			oldContentsHead = append(oldContentsHead, line+"\n")
-		} else if pos == "PRE" {
-			//
-		} else if pos == "PRE-MIDDLE" {
-			oldContentsPreMid = append(oldContentsPreMid, line+"\n")
-		} else if pos == "POLICY" {
-			//
-		} else if pos == "MIDDLE-POST" {
-			oldConetntsMidPost = append(oldConetntsMidPost, line+"\n")
-		} else if pos == "POST" {
-			//
-		} else if pos == "FOOT" {
-			oldContentsFoot = append(oldContentsFoot, line+"\n")
-		}
-	}
-
-	file.Close()
+// GenerateAppArmorHostProfile Function
+func (ae *AppArmorEnforcer) GenerateAppArmorHostProfile(secPolicies []tp.HostSecurityPolicy) (int, string, bool) {
 
 	// generate a profile body
 
-	count, profileBody := GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost, securityPolicies)
+	count, profileBody := GenerateHostProfileBody(secPolicies)
 
 	// generate a new profile
 
@@ -1640,9 +1222,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	// head
 
-	for _, head := range oldContentsHead {
-		newProfile = newProfile + head
-	}
+	newProfile = newProfile + GenerateHostProfileHead()
 
 	// body
 
@@ -1650,11 +1230,14 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	// foot
 
-	for _, foot := range oldContentsFoot {
-		newProfile = newProfile + foot
-	}
+	newProfile = newProfile + GenerateHostProfileFoot()
 
-	if newProfile != oldProfile {
+	if ae.HostProfile != newProfile {
+		ae.HostProfile = newProfile
+
+		// debug
+		fmt.Println(newProfile)
+
 		return count, newProfile, true
 	}
 

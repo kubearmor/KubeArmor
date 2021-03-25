@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
-	v1 "k8s.io/api/core/v1"
 )
 
 // ============================ //
@@ -48,9 +49,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerID)
 			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 		}
-
-		// update container in log feeder
-		dm.LogFeeder.AddContainerInfo(container)
 	} else { // DELETED
 		if kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
 			for idxL, identity := range dm.ContainerGroups[conGroupIdx].Identities {
@@ -70,9 +68,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			}
 			delete(dm.ContainerGroups[conGroupIdx].AppArmorProfiles, container.ContainerID)
 		}
-
-		// update container in log feeder
-		dm.LogFeeder.RemoveContainerInfo(container)
 	}
 
 	// enforce security policies
@@ -181,7 +176,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		dm.ContainerGroups[conGroupIdx].SecurityPolicies = dm.GetSecurityPolicies(dm.ContainerGroups[conGroupIdx].Identities)
 
 		// update security policies
-		dm.ContainerMonitor.UpdateSecurityPolicies(action, dm.ContainerGroups[conGroupIdx])
+		dm.LogFeeder.UpdateSecurityPolicies(action, dm.ContainerGroups[conGroupIdx])
 
 		// enforce security policies
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
@@ -235,6 +230,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				// == AppArmor == //
+
 				pod.Annotations = map[string]string{}
 				appArmorAnnotations := map[string]string{}
 
@@ -272,7 +269,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
 								if deploymentName != "" {
 									if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
-										dm.LogFeeder.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										dm.LogFeeder.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 									} else {
 										dm.LogFeeder.Printf("Updated AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
 									}
@@ -285,7 +282,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				// == selinux == //
+				// == SELinux == //
 
 				seLinuxContexts := map[string]string{}
 				updateSELinux := false
@@ -348,6 +345,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						continue
 					}
 				}
+
+				//
 
 				pod.Labels = map[string]string{}
 				for k, v := range event.Object.Labels {
@@ -450,7 +449,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			}
 
 			// update security policies
-			dm.ContainerMonitor.UpdateSecurityPolicies("UPDATED", dm.ContainerGroups[idx])
+			dm.LogFeeder.UpdateSecurityPolicies("UPDATED", dm.ContainerGroups[idx])
 
 			// enforce security policies
 			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
@@ -503,16 +502,21 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 
 					kl.Clone(event.Object.Spec, &secPolicy.Spec)
+
 					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
 					switch secPolicy.Spec.Action {
+					case "allow":
+						secPolicy.Spec.Action = "Allow"
 					case "block":
 						secPolicy.Spec.Action = "Block"
 					case "audit":
 						secPolicy.Spec.Action = "Audit"
 					case "allowwithaudit":
 						secPolicy.Spec.Action = "AllowWithAudit"
+					case "blockwithaudit":
+						secPolicy.Spec.Action = "BlockWithAudit"
 					}
 
 					// add identities
@@ -563,6 +567,143 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 					// apply security policies to containers
 					dm.UpdateSecurityPolicy(event.Type, secPolicy)
+				}
+			}
+		} else {
+			time.Sleep(time.Second * 1)
+		}
+	}
+}
+
+// UpdateHostSecurityPolicy Function
+func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy() {
+	// get node identities
+	nodeIdentities := K8s.GetNodeIdentities()
+
+	dm.HostSecurityPoliciesLock.Lock()
+	defer dm.HostSecurityPoliciesLock.Unlock()
+
+	secPolicies := []tp.HostSecurityPolicy{}
+
+	for _, policy := range dm.HostSecurityPolicies {
+		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, nodeIdentities) {
+			secPolicies = append(secPolicies, policy)
+		}
+	}
+
+	// update host security policies
+	dm.LogFeeder.UpdateHostSecurityPolicies("UPDATED", secPolicies)
+
+	// enforce host security policies
+	dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+}
+
+// WatchHostSecurityPolicies Function
+func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
+	for {
+		if K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+			if resp := K8s.WatchK8sHostSecurityPolicies(); resp != nil {
+				defer resp.Body.Close()
+
+				decoder := json.NewDecoder(resp.Body)
+				for {
+					event := tp.K8sKubeArmorHostPolicyEvent{}
+					if err := decoder.Decode(&event); err == io.EOF {
+						break
+					} else if err != nil {
+						break
+					}
+
+					dm.HostSecurityPoliciesLock.Lock()
+
+					// create a host security policy
+
+					secPolicy := tp.HostSecurityPolicy{}
+
+					secPolicy.Metadata = map[string]string{}
+					secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
+					secPolicy.Metadata["generation"] = strconv.FormatInt(event.Object.Metadata.Generation, 10)
+
+					if event.Type == "ADDED" || event.Type == "MODIFIED" {
+						exist := false
+						for _, policy := range dm.HostSecurityPolicies {
+							if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
+								policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
+								exist = true
+								break
+							}
+						}
+
+						if exist {
+							dm.HostSecurityPoliciesLock.Unlock()
+							continue
+						}
+					}
+
+					kl.Clone(event.Object.Spec, &secPolicy.Spec)
+
+					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
+
+					switch secPolicy.Spec.Action {
+					case "allow":
+						secPolicy.Spec.Action = "Allow"
+					case "block":
+						secPolicy.Spec.Action = "Block"
+					case "audit":
+						secPolicy.Spec.Action = "Audit"
+					case "allowwithaudit":
+						secPolicy.Spec.Action = "AllowWithAudit"
+					case "blockwithaudit":
+						secPolicy.Spec.Action = "BlockWithAudit"
+					}
+
+					// add identities
+
+					for k, v := range secPolicy.Spec.NodeSelector.MatchNames {
+						if kl.ContainsElement([]string{"hostName", "architecture", "osType", "osName", "osVersion", "kernelVersion", "runtimePlatform"}, k) {
+							secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
+						}
+					}
+
+					for k, v := range secPolicy.Spec.NodeSelector.MatchLabels {
+						if !kl.ContainsElement(secPolicy.Spec.NodeSelector.Identities, k+"="+v) {
+							secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
+						}
+					}
+
+					// update a security policy into the policy list
+
+					if event.Type == "ADDED" {
+						if !kl.ContainsElement(dm.HostSecurityPolicies, secPolicy) {
+							dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
+						}
+					} else if event.Type == "DELETED" {
+						for idx, policy := range dm.HostSecurityPolicies {
+							if reflect.DeepEqual(secPolicy, policy) {
+								dm.HostSecurityPolicies = append(dm.HostSecurityPolicies[:idx], dm.HostSecurityPolicies[idx+1:]...)
+								break
+							}
+						}
+					} else { // MODIFIED
+						targetIdx := -1
+						for idx, policy := range dm.HostSecurityPolicies {
+							if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+								targetIdx = idx
+								break
+							}
+						}
+						if targetIdx != -1 {
+							dm.HostSecurityPolicies[targetIdx] = secPolicy
+						}
+					}
+
+					dm.HostSecurityPoliciesLock.Unlock()
+
+					dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
+
+					// apply security policies to a host
+					dm.UpdateHostSecurityPolicy()
 				}
 			}
 		} else {

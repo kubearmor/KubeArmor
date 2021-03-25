@@ -1,10 +1,11 @@
 module github.com/accuknox/KubeArmor/KubeArmor
 
-go 1.14
+go 1.15
 
 replace (
 	github.com/accuknox/KubeArmor => ../../
 	github.com/accuknox/KubeArmor/KubeArmor => ../
+	github.com/accuknox/KubeArmor/KubeArmor/audit => ./audit
 	github.com/accuknox/KubeArmor/KubeArmor/common => ./common
 	github.com/accuknox/KubeArmor/KubeArmor/core => ./core
 	github.com/accuknox/KubeArmor/KubeArmor/discover => ./discovery
@@ -18,6 +19,7 @@ replace (
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
+	github.com/accuknox/KubeArmor/KubeArmor/audit v0.0.0-00010101000000-000000000000 // indirect
 	github.com/accuknox/KubeArmor/KubeArmor/core v0.0.0-00010101000000-000000000000
 	github.com/accuknox/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
 	github.com/containerd/containerd v1.4.3
