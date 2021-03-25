@@ -32,15 +32,6 @@ var MsgQueue []pb.Message
 // MsgLock for Messages
 var MsgLock sync.Mutex
 
-// Stats for Statistics
-var Stats tp.StatsType
-
-// StatQueue for Statistics
-var StatQueue []pb.Stats
-
-// StatLock for Statistics
-var StatLock sync.Mutex
-
 // LogQueue for Logs
 var LogQueue []pb.Log
 
@@ -52,15 +43,6 @@ func init() {
 
 	MsgQueue = []pb.Message{}
 	MsgLock = sync.Mutex{}
-
-	Stats = tp.StatsType{}
-	Stats.HostStats = tp.HostStatType{HostName: kl.GetHostName()}
-	Stats.NamespaceStats = map[string]tp.NamespaceStatType{}
-	Stats.PodStats = map[string]tp.PodStatType{}
-	Stats.ContainerStats = map[string]tp.ContainerStatType{}
-
-	StatQueue = []pb.Stats{}
-	StatLock = sync.Mutex{}
 
 	LogQueue = []pb.Log{}
 	LogLock = sync.Mutex{}
@@ -76,12 +58,6 @@ type MsgStruct struct {
 	Filter string
 }
 
-// StatStruct Structure
-type StatStruct struct {
-	Client pb.LogService_WatchStatisticsServer
-	Filter string
-}
-
 // LogStruct Structure
 type LogStruct struct {
 	Client pb.LogService_WatchLogsServer
@@ -92,9 +68,6 @@ type LogStruct struct {
 type LogService struct {
 	MsgStructs map[string]MsgStruct
 	MsgLock    sync.Mutex
-
-	StatStructs map[string]StatStruct
-	StatLock    sync.Mutex
 
 	LogStructs map[string]LogStruct
 	LogLock    sync.Mutex
@@ -162,69 +135,6 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		}
 
 		MsgLock.Unlock()
-
-		time.Sleep(time.Millisecond * 1)
-	}
-
-	return nil
-}
-
-// addStatStruct Function
-func (ls *LogService) addStatStruct(uid string, srv pb.LogService_WatchStatisticsServer, filter string) {
-	ls.MsgLock.Lock()
-	defer ls.MsgLock.Unlock()
-
-	statStruct := StatStruct{}
-	statStruct.Client = srv
-	statStruct.Filter = filter
-
-	ls.StatStructs[uid] = statStruct
-}
-
-// removeStatStruct Function
-func (ls *LogService) removeStatStruct(uid string) {
-	ls.StatLock.Lock()
-	defer ls.StatLock.Unlock()
-
-	delete(ls.StatStructs, uid)
-}
-
-// getStatStructs Function
-func (ls *LogService) getStatStructs() []StatStruct {
-	statStructs := []StatStruct{}
-
-	ls.StatLock.Lock()
-	defer ls.StatLock.Unlock()
-
-	for _, sts := range ls.StatStructs {
-		statStructs = append(statStructs, sts)
-	}
-
-	return statStructs
-}
-
-// WatchStatistics Function
-func (ls *LogService) WatchStatistics(req *pb.RequestMessage, svr pb.LogService_WatchStatisticsServer) error {
-	uid := uuid.Must(uuid.NewRandom()).String()
-
-	ls.addStatStruct(uid, svr, req.Filter)
-	defer ls.removeStatStruct(uid)
-
-	for Running {
-		StatLock.Lock()
-
-		statStructs := ls.getStatStructs()
-
-		for len(StatQueue) != 0 {
-			stat := StatQueue[0]
-			StatQueue = StatQueue[1:]
-
-			for _, sts := range statStructs {
-				sts.Client.Send(&stat)
-			}
-		}
-
-		StatLock.Unlock()
 
 		time.Sleep(time.Millisecond * 1)
 	}
@@ -322,13 +232,13 @@ type Feeder struct {
 	// wait group
 	WgServer sync.WaitGroup
 
-	// ticker
-	TickCount   int
-	StatsTicker *time.Ticker
-
 	// host
 	hostName string
 	hostIP   string
+
+	// namespace name + container group name / host name -> corresponding security policies
+	SecurityPolicies     map[string]tp.MatchPolicies
+	SecurityPoliciesLock *sync.Mutex
 }
 
 // NewFeeder Function
@@ -371,26 +281,23 @@ func NewFeeder(port, output string) *Feeder {
 
 	// register a log service
 	logService := &LogService{
-		MsgStructs:  make(map[string]MsgStruct),
-		MsgLock:     sync.Mutex{},
-		StatStructs: make(map[string]StatStruct),
-		StatLock:    sync.Mutex{},
-		LogStructs:  make(map[string]LogStruct),
-		LogLock:     sync.Mutex{},
+		MsgStructs: make(map[string]MsgStruct),
+		MsgLock:    sync.Mutex{},
+		LogStructs: make(map[string]LogStruct),
+		LogLock:    sync.Mutex{},
 	}
 	pb.RegisterLogServiceServer(fd.logServer, logService)
 
 	// set wait group
 	fd.WgServer = sync.WaitGroup{}
 
-	// set ticker
-	fd.StatsTicker = time.NewTicker(time.Second * 10)
-
-	go fd.PushStatistics()
-
 	// set host info
 	fd.hostName = kl.GetHostName()
 	fd.hostIP = kl.GetExternalIPAddr()
+
+	// initialize security policies
+	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
+	fd.SecurityPoliciesLock = &sync.Mutex{}
 
 	return fd
 }
@@ -399,9 +306,6 @@ func NewFeeder(port, output string) *Feeder {
 func (fd *Feeder) DestroyFeeder() error {
 	// stop gRPC service
 	Running = false
-
-	// stop ticker
-	fd.StatsTicker.Stop()
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
@@ -461,281 +365,6 @@ func (fd *Feeder) Errf(message string, args ...interface{}) {
 	kg.Err(str)
 }
 
-// ================ //
-// == Statistics == //
-// ================ //
-
-// AddContainerInfo Function
-func (fd *Feeder) AddContainerInfo(container tp.Container) {
-	StatLock.Lock()
-	defer StatLock.Unlock()
-
-	if _, ok := Stats.NamespaceStats[container.NamespaceName]; !ok {
-		nStat := tp.NamespaceStatType{}
-
-		nStat.HostName = container.HostName
-		nStat.NamespaceName = container.NamespaceName
-
-		nStat.Containers = []string{container.ContainerID}
-
-		Stats.NamespaceStats[container.NamespaceName] = nStat
-	} else {
-		nStat := Stats.NamespaceStats[container.NamespaceName]
-		nStat.Containers = append(nStat.Containers, container.ContainerID)
-		Stats.NamespaceStats[container.NamespaceName] = nStat
-	}
-
-	podName := container.NamespaceName + "_" + container.ContainerGroupName
-
-	if _, ok := Stats.PodStats[podName]; !ok {
-		pStat := tp.PodStatType{}
-
-		pStat.HostName = container.HostName
-		pStat.NamespaceName = container.NamespaceName
-		pStat.PodName = container.ContainerGroupName
-
-		pStat.Containers = []string{container.ContainerID}
-
-		Stats.PodStats[podName] = pStat
-	} else {
-		pStat := Stats.PodStats[podName]
-		pStat.Containers = append(pStat.Containers, container.ContainerID)
-		Stats.PodStats[podName] = pStat
-	}
-
-	if _, ok := Stats.ContainerStats[container.ContainerID]; !ok {
-		cStat := tp.ContainerStatType{}
-
-		cStat.HostName = container.HostName
-		cStat.NamespaceName = container.NamespaceName
-		cStat.PodName = container.ContainerGroupName
-		cStat.ContainerName = container.ContainerName
-
-		Stats.ContainerStats[container.ContainerID] = cStat
-	}
-}
-
-// RemoveContainerInfo Function
-func (fd *Feeder) RemoveContainerInfo(container tp.Container) {
-	StatLock.Lock()
-	defer StatLock.Unlock()
-
-	if len(Stats.NamespaceStats[container.NamespaceName].Containers) == 1 {
-		delete(Stats.NamespaceStats, container.NamespaceName)
-	} else {
-		nStat := Stats.NamespaceStats[container.NamespaceName]
-		for idx, id := range nStat.Containers {
-			if id == container.ContainerID {
-				nStat.Containers = append(nStat.Containers[:idx], nStat.Containers[idx+1:]...)
-				break
-			}
-		}
-		Stats.NamespaceStats[container.NamespaceName] = nStat
-	}
-
-	podName := container.NamespaceName + "_" + container.ContainerGroupName
-
-	if len(Stats.PodStats[podName].Containers) == 1 {
-		delete(Stats.PodStats, podName)
-	} else {
-		pStat := Stats.PodStats[podName]
-		for idx, id := range pStat.Containers {
-			if id == container.ContainerID {
-				pStat.Containers = append(pStat.Containers[:idx], pStat.Containers[idx+1:]...)
-				break
-			}
-		}
-		Stats.PodStats[podName] = pStat
-	}
-
-	delete(Stats.ContainerStats, container.ContainerID)
-}
-
-// UpdateStatistics Function
-func (fd *Feeder) UpdateStatistics(log tp.Log) {
-	StatLock.Lock()
-	defer StatLock.Unlock()
-
-	if log.ContainerName == "" {
-		return
-	}
-
-	if log.PolicyName != "" { // PolicyMatched
-		if (log.Action == "Allow" || log.Action == "AllowWithAudit") && log.Result == "Passed" {
-			Stats.HostStats.AllowedCount++
-
-			nStat := Stats.NamespaceStats[log.NamespaceName]
-			nStat.AllowedCount++
-			Stats.NamespaceStats[log.NamespaceName] = nStat
-
-			pStat := Stats.PodStats[log.NamespaceName+"_"+log.PodName]
-			pStat.AllowedCount++
-			Stats.PodStats[log.NamespaceName+"_"+log.PodName] = pStat
-
-			cStat := Stats.ContainerStats[log.ContainerID]
-			cStat.AllowedCount++
-			Stats.ContainerStats[log.ContainerID] = cStat
-		} else if log.Action == "Audit" && log.Result == "Passed" {
-			Stats.HostStats.AuditedCount++
-
-			nStat := Stats.NamespaceStats[log.NamespaceName]
-			nStat.AuditedCount++
-			Stats.NamespaceStats[log.NamespaceName] = nStat
-
-			pStat := Stats.PodStats[log.NamespaceName+"_"+log.PodName]
-			pStat.AuditedCount++
-			Stats.PodStats[log.NamespaceName+"_"+log.PodName] = pStat
-
-			cStat := Stats.ContainerStats[log.ContainerID]
-			cStat.AuditedCount++
-			Stats.ContainerStats[log.ContainerID] = cStat
-		} else { // Block
-			Stats.HostStats.BlockedCount++
-
-			nStat := Stats.NamespaceStats[log.NamespaceName]
-			nStat.BlockedCount++
-			Stats.NamespaceStats[log.NamespaceName] = nStat
-
-			pStat := Stats.PodStats[log.NamespaceName+"_"+log.PodName]
-			pStat.BlockedCount++
-			Stats.PodStats[log.NamespaceName+"_"+log.PodName] = pStat
-
-			cStat := Stats.ContainerStats[log.ContainerID]
-			cStat.BlockedCount++
-			Stats.ContainerStats[log.ContainerID] = cStat
-		}
-	} else { // SystemLog
-		Stats.HostStats.FailedCount++
-
-		nStat := Stats.NamespaceStats[log.NamespaceName]
-		nStat.FailedCount++
-		Stats.NamespaceStats[log.NamespaceName] = nStat
-
-		pStat := Stats.PodStats[log.NamespaceName+"_"+log.PodName]
-		pStat.FailedCount++
-		Stats.PodStats[log.NamespaceName+"_"+log.PodName] = pStat
-
-		cStat := Stats.ContainerStats[log.ContainerID]
-		cStat.FailedCount++
-		Stats.ContainerStats[log.ContainerID] = cStat
-	}
-}
-
-// PushStatistics Function
-func (fd *Feeder) PushStatistics() {
-	for range fd.StatsTicker.C {
-		StatLock.Lock()
-
-		pbStats := pb.Stats{}
-
-		pbStats.UpdatedTime = kl.GetDateTimeNow()
-
-		hostStats := pb.HostStatType{}
-
-		hostStats.HostName = Stats.HostStats.HostName
-
-		hostStats.AllowedCount = Stats.HostStats.AllowedCount
-		hostStats.AuditedCount = Stats.HostStats.AuditedCount
-		hostStats.BlockedCount = Stats.HostStats.BlockedCount
-		hostStats.FailedCount = Stats.HostStats.FailedCount
-
-		Stats.HostStats.AllowedCount = 0
-		Stats.HostStats.AuditedCount = 0
-		Stats.HostStats.BlockedCount = 0
-		Stats.HostStats.FailedCount = 0
-
-		pbStats.HostStats = &hostStats
-
-		namespaceStats := []*pb.NamespaceStatType{}
-
-		for namespaceName := range Stats.NamespaceStats {
-			stats := pb.NamespaceStatType{}
-
-			nStats := Stats.NamespaceStats[namespaceName]
-
-			stats.HostName = nStats.HostName
-			stats.NamespaceName = nStats.NamespaceName
-
-			stats.AllowedCount = nStats.AllowedCount
-			stats.AuditedCount = nStats.AuditedCount
-			stats.BlockedCount = nStats.BlockedCount
-			stats.FailedCount = nStats.FailedCount
-
-			nStats.AllowedCount = 0
-			nStats.AuditedCount = 0
-			nStats.BlockedCount = 0
-			nStats.FailedCount = 0
-
-			Stats.NamespaceStats[namespaceName] = nStats
-
-			namespaceStats = append(namespaceStats, &stats)
-		}
-
-		pbStats.NamespaceStats = namespaceStats
-
-		podStats := []*pb.PodStatType{}
-
-		for nsPodName := range Stats.PodStats {
-			stats := pb.PodStatType{}
-
-			pStats := Stats.PodStats[nsPodName]
-
-			stats.HostName = pStats.HostName
-			stats.NamespaceName = pStats.NamespaceName
-			stats.PodName = pStats.PodName
-
-			stats.AllowedCount = pStats.AllowedCount
-			stats.AuditedCount = pStats.AuditedCount
-			stats.BlockedCount = pStats.BlockedCount
-			stats.FailedCount = pStats.FailedCount
-
-			pStats.AllowedCount = 0
-			pStats.AuditedCount = 0
-			pStats.BlockedCount = 0
-			pStats.FailedCount = 0
-
-			Stats.PodStats[nsPodName] = pStats
-
-			podStats = append(podStats, &stats)
-		}
-
-		pbStats.PodStats = podStats
-
-		containerStats := []*pb.ContainerStatType{}
-
-		for containerID := range Stats.ContainerStats {
-			stats := pb.ContainerStatType{}
-
-			cStats := Stats.ContainerStats[containerID]
-
-			stats.HostName = cStats.HostName
-			stats.NamespaceName = cStats.NamespaceName
-			stats.PodName = cStats.PodName
-			stats.ContainerName = cStats.ContainerName
-
-			stats.AllowedCount = cStats.AllowedCount
-			stats.AuditedCount = cStats.AuditedCount
-			stats.BlockedCount = cStats.BlockedCount
-			stats.FailedCount = cStats.FailedCount
-
-			cStats.AllowedCount = 0
-			cStats.AuditedCount = 0
-			cStats.BlockedCount = 0
-			cStats.FailedCount = 0
-
-			Stats.ContainerStats[containerID] = cStats
-
-			containerStats = append(containerStats, &stats)
-		}
-
-		pbStats.ContainerStats = containerStats
-
-		StatQueue = append(StatQueue, pbStats)
-
-		StatLock.Unlock()
-	}
-}
-
 // =============== //
 // == Log Feeds == //
 // =============== //
@@ -769,10 +398,12 @@ func (fd *Feeder) PushMessage(level, message string) error {
 }
 
 // PushLog Function
-func (fd *Feeder) PushLog(log tp.Log) error {
+func (fd *Feeder) PushLog(log tp.Log, retval int64) error {
 	if log.UpdatedTime == "" {
 		return nil
 	}
+
+	log = fd.UpdateMatchedPolicy(log, retval)
 
 	pbLog := pb.Log{}
 
@@ -816,8 +447,6 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 	LogLock.Lock()
 	LogQueue = append(LogQueue, pbLog)
 	LogLock.Unlock()
-
-	fd.UpdateStatistics(log)
 
 	if fd.output == "stdout" {
 		arr, _ := json.Marshal(log)
