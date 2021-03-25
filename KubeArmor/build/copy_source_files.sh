@@ -5,6 +5,7 @@ ARMOR_HOME=`dirname $(realpath "$0")`/..
 # copy files to build
 mkdir -p $ARMOR_HOME/build/KubeArmor
 cp -r $ARMOR_HOME/BPF/ $ARMOR_HOME/build/KubeArmor/
+cp -r $ARMOR_HOME/audit/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/common/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/core/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/discovery/ $ARMOR_HOME/build/KubeArmor/
