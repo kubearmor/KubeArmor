@@ -20,58 +20,6 @@ message Message {
   string Message = 5;
 }
 
-message HostStatType {
-  string HostName = 1;
-
-  int32 AllowedCount = 2;
-  int32 AuditedCount = 3;
-  int32 BlockedCount = 4;
-  int32 FailedCount = 5;
-}
-
-message NamespaceStatType {
-  string HostName = 1;
-  string NamespaceName = 2;
-
-  int32 AllowedCount = 3;
-  int32 AuditedCount = 4;
-  int32 BlockedCount = 5;
-  int32 FailedCount = 6;
-}
-
-message PodStatType {
-  string HostName = 1;
-  string NamespaceName = 2;
-  string PodName = 3;
-
-  int32 AllowedCount = 4;
-  int32 AuditedCount = 5;
-  int32 BlockedCount = 6;
-  int32 FailedCount = 7;
-}
-
-message ContainerStatType {
-  string HostName = 1;
-  string NamespaceName = 2;
-  string PodName = 3;
-  string ContainerName = 4;
-
-  int32 AllowedCount = 5;
-  int32 AuditedCount = 6;
-  int32 BlockedCount = 7;
-  int32 FailedCount = 8;
-}
-
-// Stats struct
-message Stats {
-  string UpdatedTime = 1;
-
-  HostStatType HostStats = 2;
-  repeated NamespaceStatType NamespaceStats = 3;
-  repeated PodStatType PodStats = 4;
-  repeated ContainerStatType ContainerStats = 5;
-}
-
 // log struct
 message Log {
   string UpdatedTime = 1;
@@ -115,6 +63,5 @@ message ReplyMessage {
 service LogService {
   rpc HealthCheck(NonceMessage) returns (ReplyMessage);
   rpc WatchMessages(RequestMessage) returns (stream Message);
-  rpc WatchStatistics(RequestMessage) returns (stream Stats);
   rpc WatchLogs(RequestMessage) returns (stream Log);
 }

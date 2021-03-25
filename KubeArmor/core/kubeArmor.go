@@ -12,6 +12,7 @@ import (
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
+	adt "github.com/accuknox/KubeArmor/KubeArmor/audit"
 	efc "github.com/accuknox/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	mon "github.com/accuknox/KubeArmor/KubeArmor/monitor"
@@ -50,14 +51,29 @@ type KubeArmorDaemon struct {
 	SecurityPolicies     []tp.SecurityPolicy
 	SecurityPoliciesLock *sync.Mutex
 
+	// Host Security policies
+	HostSecurityPolicies     []tp.HostSecurityPolicy
+	HostSecurityPoliciesLock *sync.Mutex
+
+	// container id -> pid
+	ActivePidMap     map[string]tp.PidMap
+	ActivePidMapLock *sync.Mutex
+
+	// container id -> host pid
+	ActiveHostPidMap     map[string]tp.PidMap
+	ActiveHostPidMapLock *sync.Mutex
+
 	// log feeder
 	LogFeeder *fd.Feeder
 
 	// runtime enforcer
 	RuntimeEnforcer *efc.RuntimeEnforcer
 
-	// container monitor
-	ContainerMonitor *mon.ContainerMonitor
+	// system monitor
+	SystemMonitor *mon.SystemMonitor
+
+	// audit logger
+	AuditLogger *adt.AuditLogger
 
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
@@ -71,6 +87,7 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	if err != nil {
 		panic(err)
 	}
+
 	dm.HomeDir = dir
 
 	dm.Containers = map[string]tp.Container{}
@@ -85,9 +102,19 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.SecurityPolicies = []tp.SecurityPolicy{}
 	dm.SecurityPoliciesLock = &sync.Mutex{}
 
+	dm.HostSecurityPolicies = []tp.HostSecurityPolicy{}
+	dm.HostSecurityPoliciesLock = &sync.Mutex{}
+
+	dm.ActivePidMap = map[string]tp.PidMap{}
+	dm.ActivePidMapLock = &sync.Mutex{}
+
+	dm.ActiveHostPidMap = map[string]tp.PidMap{}
+	dm.ActiveHostPidMapLock = &sync.Mutex{}
+
 	dm.LogFeeder = nil
-	dm.ContainerMonitor = nil
+	dm.SystemMonitor = nil
 	dm.RuntimeEnforcer = nil
+	dm.AuditLogger = nil
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -102,10 +129,16 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		dm.LogFeeder.Print("Stopped the runtime enforcer")
 	}
 
-	if dm.ContainerMonitor != nil {
-		// close container monitor
-		dm.CloseContainerMonitor()
-		dm.LogFeeder.Print("Stopped the container monitor")
+	if dm.SystemMonitor != nil {
+		// close system monitor
+		dm.CloseSystemMonitor()
+		dm.LogFeeder.Print("Stopped the system monitor")
+	}
+
+	if dm.AuditLogger != nil {
+		// close audit logger
+		dm.CloseAuditLogger()
+		dm.LogFeeder.Print("Stopped the audit logger")
 	}
 
 	dm.LogFeeder.Print("Terminated the KubeArmor")
@@ -168,18 +201,18 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() {
 	dm.RuntimeEnforcer.DestroyRuntimeEnforcer()
 }
 
-// ======================= //
-// == Container Monitor == //
-// ======================= //
+// ==================== //
+// == System Monitor == //
+// ==================== //
 
-// InitContainerMonitor Function
-func (dm *KubeArmorDaemon) InitContainerMonitor() bool {
-	dm.ContainerMonitor = mon.NewContainerMonitor(dm.LogFeeder, &dm.Containers, &dm.ContainersLock)
-	if dm.ContainerMonitor == nil {
+// InitSystemMonitor Function
+func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
+	dm.SystemMonitor = mon.NewSystemMonitor(dm.LogFeeder, &dm.Containers, &dm.ContainersLock, &dm.ActivePidMap, &dm.ActivePidMapLock, &dm.ActiveHostPidMap, &dm.ActiveHostPidMapLock)
+	if dm.SystemMonitor == nil {
 		return false
 	}
 
-	if err := dm.ContainerMonitor.InitBPF(dm.HomeDir); err != nil {
+	if err := dm.SystemMonitor.InitBPF(dm.HomeDir); err != nil {
 		return false
 	}
 
@@ -191,14 +224,40 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
-	go dm.ContainerMonitor.TraceSyscall()
-	go dm.ContainerMonitor.MonitorAuditLogs()
-	go dm.ContainerMonitor.UpdateLogs()
+	go dm.SystemMonitor.TraceSyscall()
+	go dm.SystemMonitor.UpdateLogs()
 }
 
-// CloseContainerMonitor Function
-func (dm *KubeArmorDaemon) CloseContainerMonitor() {
-	dm.ContainerMonitor.DestroyContainerMonitor()
+// CloseSystemMonitor Function
+func (dm *KubeArmorDaemon) CloseSystemMonitor() {
+	dm.SystemMonitor.DestroySystemMonitor()
+}
+
+// ================== //
+// == Audit Logger == //
+// ================== //
+
+// InitAuditLogger Function
+func (dm *KubeArmorDaemon) InitAuditLogger() bool {
+	dm.AuditLogger = adt.NewAuditLogger(dm.LogFeeder, dm.HomeDir, &dm.Containers, &dm.ContainersLock, &dm.ActivePidMap, &dm.ActivePidMapLock, &dm.ActiveHostPidMap, &dm.ActiveHostPidMapLock)
+	if dm.AuditLogger == nil {
+		return false
+	}
+
+	return true
+}
+
+// MonitorAuditLogs Function
+func (dm *KubeArmorDaemon) MonitorAuditLogs() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
+	go dm.AuditLogger.MonitorAuditLogs()
+}
+
+// CloseAuditLogger Function
+func (dm *KubeArmorDaemon) CloseAuditLogger() {
+	dm.AuditLogger.DestroyAuditLogger()
 }
 
 // ==================== //
@@ -240,9 +299,9 @@ func KubeArmor(port, output string) {
 	go dm.ServeLogFeeds()
 	kg.Print("Started to serve gRPC-based log feeds")
 
-	// initialize container monitor
-	if !dm.InitContainerMonitor() {
-		dm.LogFeeder.Err("Failed to initialize the container monitor")
+	// initialize system monitor
+	if !dm.InitSystemMonitor() {
+		dm.LogFeeder.Err("Failed to initialize the system monitor")
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
@@ -251,8 +310,22 @@ func KubeArmor(port, output string) {
 	}
 	dm.LogFeeder.Print("Started to monitor system events")
 
-	// monior system events (container monitor)
+	// monior system events
 	go dm.MonitorSystemEvents()
+
+	// initialize audit logger
+	if !dm.InitAuditLogger() {
+		dm.LogFeeder.Err("Failed to initialize the audit logger")
+
+		// destroy the daemon
+		dm.DestroyKubeArmorDaemon()
+
+		return
+	}
+	dm.LogFeeder.Print("Started to monitor audit logger")
+
+	// monitor audit logs
+	go dm.MonitorAuditLogs()
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {
@@ -293,6 +366,10 @@ func KubeArmor(port, output string) {
 		// watch security policies
 		go dm.WatchSecurityPolicies()
 		dm.LogFeeder.Print("Started to monitor security policies")
+
+		// watch host security policies
+		go dm.WatchHostSecurityPolicies()
+		dm.LogFeeder.Print("Started to monitor host security policies")
 	} else {
 		dm.LogFeeder.Err("Failed to initialize the Kubernetes client")
 	}

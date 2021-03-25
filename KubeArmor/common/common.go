@@ -90,7 +90,7 @@ func ObjCommaExpandFirstDupOthers(objptr interface{}) {
 			for _, f := range ObjCommaExpand(old.Index(i)) {
 				field := strings.ReplaceAll(f, " ", "")
 				new.Set(reflect.Append(new, old.Index(i)))
-				new.Index(new.Len()-1).Field(0).SetString(field)
+				new.Index(new.Len() - 1).Field(0).SetString(field)
 			}
 		}
 
@@ -170,6 +170,16 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	return string(out), nil
 }
 
+// GetCommandOutputWithoutErr Function
+func GetCommandOutputWithoutErr(cmd string, args []string) string {
+	res := exec.Command(cmd, args...)
+	out, err := res.Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
 // GetCommandWaitOutputWithErr Function
 func GetCommandWaitOutputWithErr(cmd string, args []string) error {
 	command := exec.Command(cmd, args...)
@@ -182,16 +192,6 @@ func GetCommandWaitOutputWithErr(cmd string, args []string) error {
 	}
 
 	return nil
-}
-
-// GetCommandOutputWithoutErr Function
-func GetCommandOutputWithoutErr(cmd string, args []string) string {
-	res := exec.Command(cmd, args...)
-	out, err := res.Output()
-	if err != nil {
-		return ""
-	}
-	return string(out)
 }
 
 // ========== //

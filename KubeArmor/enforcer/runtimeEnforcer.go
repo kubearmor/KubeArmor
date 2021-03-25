@@ -108,7 +108,7 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) 
 			if action == "ADDED" {
 				re.seLinuxEnforcer.RegisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
 			} else if action == "DELETED" {
-				re.seLinuxEnforcer.UnRegisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
+				re.seLinuxEnforcer.UnregisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
 			}
 		}
 	}
@@ -126,6 +126,21 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 
 	if strings.Contains(re.enforcerType, "selinux") {
 		re.seLinuxEnforcer.UpdateSecurityPolicies(conGroup)
+	}
+}
+
+// UpdateHostSecurityPolicies Function
+func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	if strings.Contains(re.enforcerType, "krsi") {
+		re.krsiEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	}
+
+	if strings.Contains(re.enforcerType, "apparmor") {
+		re.appArmorEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	}
+
+	if strings.Contains(re.enforcerType, "selinux") {
+		re.seLinuxEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	}
 }
 

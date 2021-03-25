@@ -14,6 +14,8 @@
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
 * [Kubernetes Installation](contribution/k8s_installation_guide.md)
+* [Local Test Guide](contribution/local_test_guide.md)
+* [Troubleshooting Guide](contribution/trouble_shooting_guide.md)
 * [Technical Roadmap](contribution/technical_roadmap.md)
 
 ## Reference

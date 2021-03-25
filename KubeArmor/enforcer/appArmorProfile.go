@@ -840,6 +840,8 @@ func allowedCapabilitiesFromSource(secPolicy tp.SecurityPolicy, fromSources map[
 	}
 }
 
+//
+
 func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
@@ -1394,12 +1396,12 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	for source, lines := range fromSources {
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s r,\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s r,\n", source)
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  ## == PRE START (%s) == ##\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE START (%s) == ##\n", source)
 
-		bodyFromSource = bodyFromSource + "  #include <abstractions/base>\n"
-		bodyFromSource = bodyFromSource + "  umount,\n"
+		bodyFromSource = bodyFromSource + "    #include <abstractions/base>\n"
+		bodyFromSource = bodyFromSource + "    umount,\n"
 
 		file := true
 		network := true
@@ -1428,35 +1430,35 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 		}
 
 		if file && len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
-			bodyFromSource = bodyFromSource + "  file,\n"
+			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
 		if network && len(networkWhiteList) == 0 {
-			bodyFromSource = bodyFromSource + "  network,\n"
+			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
 		if capability && len(capabilityWhiteList) == 0 {
-			bodyFromSource = bodyFromSource + "  capability,\n"
+			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  ## == PRE END (%s) == ##\n", source)
-		bodyFromSource = bodyFromSource + profileBody
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  ## == POLICY START (%s) == ##\n\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n", source)
+		bodyFromSource = bodyFromSource + strings.Replace(profileBody, "  ", "    ", -1)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n\n", source)
 
 		//
 
 		for _, line := range lines {
-			bodyFromSource = bodyFromSource + line
+			bodyFromSource = bodyFromSource + "  " + line
 		}
 
 		//
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  ## == POLICY END (%s) == ##\n\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  ## == POST START (%s) == ##\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY END (%s) == ##\n\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST START (%s) == ##\n", source)
 
-		bodyFromSource = bodyFromSource + GenerateProfileFoot()
+		bodyFromSource = bodyFromSource + strings.Replace(GenerateProfileFoot(), "  ", "    ", -1)
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  ## == POST END (%s) == ##\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST END (%s) == ##\n", source)
 		bodyFromSource = bodyFromSource + "  }\n"
 	}
 
