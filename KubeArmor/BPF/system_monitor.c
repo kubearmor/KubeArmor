@@ -1,4 +1,4 @@
-//#define KBUILD_MODNAME "kubearmor_container_monitor"
+//#define KBUILD_MODNAME "kubearmor_system_monitor"
 
 #include <linux/version.h>
 

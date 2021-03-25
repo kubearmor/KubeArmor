@@ -1,20 +1,124 @@
-package monitor
+package audit
 
 import (
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/hpcloud/tail"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
+	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
-// GetProcessInfoFromHostPid Function
-func (mon *ContainerMonitor) GetProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.Log {
-	mon.ActiveHostPidMapLock.Lock()
+// ================== //
+// == Audit Logger == //
+// ================== //
 
-	for id, pidMap := range mon.ActiveHostPidMap {
+type AuditLogger struct {
+	// logs
+	LogFeeder *fd.Feeder
+
+	// host name
+	HostName string
+
+	// container id -> cotnainer
+	Containers     *map[string]tp.Container
+	ContainersLock **sync.Mutex
+
+	// container id -> pid
+	ActivePidMap     *map[string]tp.PidMap
+	ActivePidMapLock **sync.Mutex
+
+	// container id -> host pid
+	ActiveHostPidMap     *map[string]tp.PidMap
+	ActiveHostPidMapLock **sync.Mutex
+
+	// GKE
+	IsCOS bool
+}
+
+// NewAuditLogger Function
+func NewAuditLogger(feeder *fd.Feeder, HomeDir string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex, activeHostPidMap *map[string]tp.PidMap, activeHostPidMapLock **sync.Mutex) *AuditLogger {
+	adt := new(AuditLogger)
+
+	adt.LogFeeder = feeder
+
+	adt.HostName = kl.GetHostName()
+
+	adt.Containers = containers
+	adt.ContainersLock = containersLock
+
+	adt.ActivePidMap = activePidMap
+	adt.ActivePidMapLock = activePidMapLock
+
+	adt.ActiveHostPidMap = activeHostPidMap
+	adt.ActiveHostPidMapLock = activeHostPidMapLock
+
+	adt.IsCOS = false
+
+	if kl.IsInK8sCluster() {
+		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+			s := string(b)
+			if strings.Contains(s, "Container-Optimized OS") {
+				// create directories
+				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
+					adt.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+					return nil
+				}
+
+				for {
+					// create symbolic link
+					if err := exec.Command(HomeDir + "/GKE/create_symbolic_link.sh").Run(); err == nil {
+						break
+					} else {
+						// wait until cos-auditd is ready
+						time.Sleep(time.Second * 1)
+					}
+				}
+
+				adt.IsCOS = true
+			} else {
+				// create directories
+				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
+					adt.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+					return nil
+				}
+
+				// make a symbolic link
+				if err := os.Symlink("/var/log/audit/audit.log", "/KubeArmor/audit/audit.log"); err != nil {
+					adt.LogFeeder.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+					return nil
+				}
+			}
+		}
+	}
+
+	return adt
+}
+
+// DestroyAuditLogger Function
+func (adt *AuditLogger) DestroyAuditLogger() error {
+	return nil
+}
+
+// ============ //
+// == Auditd == //
+// ============ //
+
+// GetProcessInfoFromHostPid Function
+func (adt *AuditLogger) GetProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.Log {
+	ActiveHostPidMap := *(adt.ActiveHostPidMap)
+	ActiveHostPidMapLock := *(adt.ActiveHostPidMapLock)
+
+	ActiveHostPidMapLock.Lock()
+
+	for id, pidMap := range ActiveHostPidMap {
 		for pid, node := range pidMap {
 			if hostPid == int32(pid) {
 				log.ContainerID = id
@@ -32,12 +136,12 @@ func (mon *ContainerMonitor) GetProcessInfoFromHostPid(log tp.Log, hostPid int32
 		}
 	}
 
-	mon.ActiveHostPidMapLock.Unlock()
+	ActiveHostPidMapLock.Unlock()
 
 	if log.ContainerID == "" {
-		mon.ActiveHostPidMapLock.Lock()
+		ActiveHostPidMapLock.Lock()
 
-		for id, pidMap := range mon.ActiveHostPidMap {
+		for id, pidMap := range ActiveHostPidMap {
 			for pid, node := range pidMap {
 				if hostPid == int32(pid) {
 					log.ContainerID = id
@@ -55,7 +159,7 @@ func (mon *ContainerMonitor) GetProcessInfoFromHostPid(log tp.Log, hostPid int32
 			}
 		}
 
-		mon.ActiveHostPidMapLock.Unlock()
+		ActiveHostPidMapLock.Unlock()
 	}
 
 	if log.PID == 0 {
@@ -68,9 +172,9 @@ func (mon *ContainerMonitor) GetProcessInfoFromHostPid(log tp.Log, hostPid int32
 }
 
 // GetContainerInfoFromContainerID Function
-func (mon *ContainerMonitor) GetContainerInfoFromContainerID(log tp.Log, profileName string) tp.Log {
-	Containers := *(mon.Containers)
-	ContainersLock := *(mon.ContainersLock)
+func (adt *AuditLogger) GetContainerInfoFromContainerID(log tp.Log, profileName string) tp.Log {
+	Containers := *(adt.Containers)
+	ContainersLock := *(adt.ContainersLock)
 
 	if log.ContainerID != "" {
 		ContainersLock.Lock()
@@ -103,22 +207,41 @@ func (mon *ContainerMonitor) GetContainerInfoFromContainerID(log tp.Log, profile
 	return log
 }
 
+// GetExecPath Function
+func (adt *AuditLogger) GetExecPath(containerID string, pid uint32) string {
+	ActivePidMap := *(adt.ActivePidMap)
+	ActivePidMapLock := *(adt.ActivePidMapLock)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
+
+	if pidMap, ok := ActivePidMap[containerID]; ok {
+		if node, ok := pidMap[pid]; ok {
+			if node.PID == pid {
+				return node.ExecPath
+			}
+		}
+	}
+
+	return ""
+}
+
 // UpdateSourceAndResource Function
-func (mon *ContainerMonitor) UpdateSourceAndResource(log tp.Log, source, resource string) tp.Log {
+func (adt *AuditLogger) UpdateSourceAndResource(log tp.Log, source, resource string) tp.Log {
 	if log.Operation == "Process" {
-		log.Source = mon.GetExecPath(log.ContainerID, uint32(log.PPID))
+		log.Source = adt.GetExecPath(log.ContainerID, uint32(log.PPID))
 		if log.Source == "" {
 			log.Source = source
 		}
 
-		log.Resource = mon.GetExecPath(log.ContainerID, uint32(log.PID))
+		log.Resource = adt.GetExecPath(log.ContainerID, uint32(log.PID))
 		if log.Resource == "" {
 			log.Resource = resource
 		} else if !strings.HasPrefix(log.Resource, resource) {
 			log.Resource = resource
 		}
 	} else { // File
-		log.Source = mon.GetExecPath(log.ContainerID, uint32(log.PID))
+		log.Source = adt.GetExecPath(log.ContainerID, uint32(log.PID))
 		if log.Source == "" {
 			log.Source = source
 		}
@@ -130,18 +253,18 @@ func (mon *ContainerMonitor) UpdateSourceAndResource(log tp.Log, source, resourc
 }
 
 // GenerateAuditLog Function
-func (mon *ContainerMonitor) GenerateAuditLog(hostPid int32, profileName, source, operation, resource, action, data string) {
+func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, operation, resource, action, data string) {
 	log := tp.Log{}
 
 	log.UpdatedTime = kl.GetDateTimeNow()
 
-	log.HostName = mon.HostName
+	log.HostName = adt.HostName
 	log.HostPID = hostPid
 	log.Operation = operation
 
-	log = mon.GetProcessInfoFromHostPid(log, hostPid)           // ContainerID, PPID, PID, UID
-	log = mon.GetContainerInfoFromContainerID(log, profileName) // NamespaceName, PodName, ContainerName
-	log = mon.UpdateSourceAndResource(log, source, resource)    // Source, Resource
+	log = adt.GetProcessInfoFromHostPid(log, hostPid)           // ContainerID, PPID, PID, UID
+	log = adt.GetContainerInfoFromContainerID(log, profileName) // NamespaceName, PodName, ContainerName
+	log = adt.UpdateSourceAndResource(log, source, resource)    // Source, Resource
 
 	log.Data = data
 
@@ -151,15 +274,13 @@ func (mon *ContainerMonitor) GenerateAuditLog(hostPid int32, profileName, source
 		log.Result = "Permission denied"
 	}
 
-	log = mon.UpdateMatchedPolicy(log, -13)
-
-	if mon.LogFeeder != nil {
-		mon.LogFeeder.PushLog(log)
+	if adt.LogFeeder != nil {
+		adt.LogFeeder.PushLog(log, -13)
 	}
 }
 
 // MonitorAuditLogs Function
-func (mon *ContainerMonitor) MonitorAuditLogs() {
+func (adt *AuditLogger) MonitorAuditLogs() {
 	logFile := "/KubeArmor/audit/audit.log"
 
 	if kl.IsK8sLocal() {
@@ -169,7 +290,7 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 	// monitor audit logs
 	logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
 	if err != nil {
-		mon.LogFeeder.Err(err.Error())
+		adt.LogFeeder.Err(err.Error())
 		return
 	}
 
@@ -184,7 +305,7 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 			continue
 		}
 
-		if mon.IsCOS {
+		if adt.IsCOS {
 			cosLine := ""
 
 			for _, cosKV := range strings.Split(line, ",") {
@@ -259,6 +380,6 @@ func (mon *ContainerMonitor) MonitorAuditLogs() {
 			data = data + " denied=" + denied
 		}
 
-		go mon.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
+		go adt.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
 	}
 }

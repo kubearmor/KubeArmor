@@ -10,12 +10,20 @@ import (
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
-func TestContainerMonitor(t *testing.T) {
+func TestSystemMonitor(t *testing.T) {
 	// Set up Test Data
 
 	// containers
 	Containers := map[string]tp.Container{}
 	ContainersLock := &sync.Mutex{}
+
+	// container id -> pid
+	ActivePidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := &sync.Mutex{}
+
+	// container id -> host pid
+	ActiveHostPidMap := map[string]tp.PidMap{}
+	ActiveHostPidMapLock := &sync.Mutex{}
 
 	// Create Feeder
 	logFeeder := fd.NewFeeder("32767", "none")
@@ -24,23 +32,23 @@ func TestContainerMonitor(t *testing.T) {
 		return
 	}
 
-	// Create Container Monitor
+	// Create System Monitor
 
-	containerMonitor := NewContainerMonitor(logFeeder, &Containers, &ContainersLock)
-	if containerMonitor == nil {
-		t.Log("[FAIL] Failed to create ContainerMonitor")
+	systemMonitor := NewSystemMonitor(logFeeder, &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock, &ActiveHostPidMap, &ActiveHostPidMapLock)
+	if systemMonitor == nil {
+		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
 	}
 
-	t.Log("[PASS] Created ContainerMonitor")
+	t.Log("[PASS] Created SystemMonitor")
 
-	// Destroy Container Monitor
+	// Destroy System Monitor
 
-	if err := containerMonitor.DestroyContainerMonitor(); err != nil {
-		t.Log("[FAIL] Failed to destroy ContainerMonitor")
+	if err := systemMonitor.DestroySystemMonitor(); err != nil {
+		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
 
-	t.Log("[PASS] Destroyed ContainerMonitor")
+	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
 	if err := logFeeder.DestroyFeeder(); err != nil {
@@ -58,6 +66,14 @@ func TestTraceSyscall(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := &sync.Mutex{}
 
+	// container id -> pid
+	ActivePidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := &sync.Mutex{}
+
+	// container id -> host pid
+	ActiveHostPidMap := map[string]tp.PidMap{}
+	ActiveHostPidMapLock := &sync.Mutex{}
+
 	// Create Feeder
 	logFeeder := fd.NewFeeder("32767", "none")
 	if logFeeder == nil {
@@ -65,15 +81,15 @@ func TestTraceSyscall(t *testing.T) {
 		return
 	}
 
-	// Create Container Monitor
+	// Create System Monitor
 
-	containerMonitor := NewContainerMonitor(logFeeder, &Containers, &ContainersLock)
-	if containerMonitor == nil {
-		t.Log("[FAIL] Failed to create ContainerMonitor")
+	systemMonitor := NewSystemMonitor(logFeeder, &Containers, &ContainersLock, &ActivePidMap, &ActivePidMapLock, &ActiveHostPidMap, &ActiveHostPidMapLock)
+	if systemMonitor == nil {
+		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
 	}
 
-	t.Log("[PASS] Created ContainerMonitor")
+	t.Log("[PASS] Created SystemMonitor")
 
 	// Get the current directory
 
@@ -83,7 +99,7 @@ func TestTraceSyscall(t *testing.T) {
 
 	// Initialize BPF
 
-	if err := containerMonitor.InitBPF(dir + "/.."); err != nil {
+	if err := systemMonitor.InitBPF(dir + "/.."); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
@@ -96,7 +112,7 @@ func TestTraceSyscall(t *testing.T) {
 
 	// Start to trace syscalls
 
-	go containerMonitor.TraceSyscall()
+	go systemMonitor.TraceSyscall()
 
 	t.Log("[PASS] Started to trace syscalls")
 
@@ -104,13 +120,13 @@ func TestTraceSyscall(t *testing.T) {
 
 	time.Sleep(time.Second * 1)
 
-	// Destroy Container Monitor
+	// Destroy System Monitor
 
-	if err := containerMonitor.DestroyContainerMonitor(); err != nil {
-		t.Log("[FAIL] Failed to destroy ContainerMonitor")
+	if err := systemMonitor.DestroySystemMonitor(); err != nil {
+		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
 
-	t.Log("[PASS] Destroyed ContainerMonitor")
+	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
 	if err := logFeeder.DestroyFeeder(); err != nil {
