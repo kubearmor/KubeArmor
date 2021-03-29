@@ -252,6 +252,19 @@ func (adt *AuditLogger) UpdateSourceAndResource(log tp.Log, source, resource str
 	return log
 }
 
+// UpdateHostSourceAndResource Function
+func (adt *AuditLogger) UpdateHostSourceAndResource(log tp.Log, source, resource string) tp.Log {
+	if log.Operation == "Process" {
+		log.Source = source
+		log.Resource = resource
+	} else { // File
+		log.Source = source
+		log.Resource = resource
+	}
+
+	return log
+}
+
 // GenerateAuditLog Function
 func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, operation, resource, action, data string) {
 	log := tp.Log{}
@@ -262,9 +275,13 @@ func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, ope
 	log.HostPID = hostPid
 	log.Operation = operation
 
-	log = adt.GetProcessInfoFromHostPid(log, hostPid)           // ContainerID, PPID, PID, UID
-	log = adt.GetContainerInfoFromContainerID(log, profileName) // NamespaceName, PodName, ContainerName
-	log = adt.UpdateSourceAndResource(log, source, resource)    // Source, Resource
+	if profileName == "kubearmor.host" {
+		log = adt.UpdateHostSourceAndResource(log, source, resource) // Source, Resource
+	} else {
+		log = adt.GetProcessInfoFromHostPid(log, hostPid)           // ContainerID, PPID, PID, UID
+		log = adt.GetContainerInfoFromContainerID(log, profileName) // NamespaceName, PodName, ContainerName
+		log = adt.UpdateSourceAndResource(log, source, resource)    // Source, Resource
+	}
 
 	log.Data = data
 
