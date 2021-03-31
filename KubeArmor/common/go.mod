@@ -12,4 +12,5 @@ replace (
 require (
 	github.com/accuknox/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.16.0 // indirect
+	golang.org/x/sys v0.0.0-20190412213103-97732733099d
 )
