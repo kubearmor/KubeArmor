@@ -11,6 +11,14 @@ import (
 // == Docker == //
 // ============ //
 
+// HostMountedVolume Structure
+type HostMountedVolume struct {
+	UsedByContainer map[string]bool // key: container name, val: readOnly
+	VolumeName      string
+	PathName        string
+	Type            string
+}
+
 // Container Structure
 type Container struct {
 	ContainerID   string `json:"containerID"`
@@ -37,7 +45,8 @@ type ContainerGroup struct {
 	Labels     []string `json:"labels"`
 	Identities []string `json:"identities"`
 
-	Containers []string `json:"containers"`
+	Containers  []string            `json:"containers"`
+	HostVolumes []HostMountedVolume `json:"hostVolumes"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
@@ -54,6 +63,7 @@ type K8sPod struct {
 	Metadata    map[string]string
 	Annotations map[string]string
 	Labels      map[string]string
+	HostVolumes []HostMountedVolume
 }
 
 // K8sPodEvent Structure

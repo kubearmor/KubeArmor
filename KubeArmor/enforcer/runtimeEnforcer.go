@@ -97,18 +97,14 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) 
 			}
 		}
 	} else if strings.Contains(re.enforcerType, "selinux") {
-		selinuxProfiles := []string{}
-		for k, v := range pod.Metadata {
-			if strings.HasPrefix(k, "selinux-") {
-				selinuxProfiles = append(selinuxProfiles, v)
-			}
-		}
-
-		for _, profile := range selinuxProfiles {
-			if action == "ADDED" {
-				re.seLinuxEnforcer.RegisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
-			} else if action == "DELETED" {
-				re.seLinuxEnforcer.UnregisterSELinuxProfile(pod.Metadata["namespaceName"], pod.Metadata["podName"], profile)
+		for k, selinuxProfile := range pod.Metadata {
+			if strings.HasPrefix(k, "selinux-") { // selinux- + [container_name]
+				containerName := strings.Split(k, "selinux-")[1]
+				if action == "ADDED" {
+					re.seLinuxEnforcer.RegisterSELinuxProfile(pod, containerName, selinuxProfile)
+				} else if action == "DELETED" {
+					re.seLinuxEnforcer.UnregisterSELinuxProfile(pod, containerName, selinuxProfile)
+				}
 			}
 		}
 	}
