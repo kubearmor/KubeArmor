@@ -21,6 +21,9 @@ import (
 // ================== //
 
 type AuditLogger struct {
+	// audit log monitoring flag
+	WatchLogs bool
+
 	// logs
 	LogFeeder *fd.Feeder
 
@@ -46,6 +49,8 @@ type AuditLogger struct {
 // NewAuditLogger Function
 func NewAuditLogger(feeder *fd.Feeder, HomeDir string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex, activeHostPidMap *map[string]tp.PidMap, activeHostPidMapLock **sync.Mutex) *AuditLogger {
 	adt := new(AuditLogger)
+
+	adt.WatchLogs = true
 
 	adt.LogFeeder = feeder
 
@@ -104,6 +109,9 @@ func NewAuditLogger(feeder *fd.Feeder, HomeDir string, containers *map[string]tp
 
 // DestroyAuditLogger Function
 func (adt *AuditLogger) DestroyAuditLogger() error {
+	// stop monitoring audit logs
+	adt.WatchLogs = false
+
 	return nil
 }
 
@@ -252,14 +260,31 @@ func (adt *AuditLogger) UpdateSourceAndResource(log tp.Log, source, resource str
 	return log
 }
 
-// UpdateHostSourceAndResource Function
-func (adt *AuditLogger) UpdateHostSourceAndResource(log tp.Log, source, resource string) tp.Log {
-	if log.Operation == "Process" {
-		log.Source = source
-		log.Resource = resource
-	} else { // File
-		log.Source = source
-		log.Resource = resource
+// GetHostProcessInfoFromHostPid Function
+func (adt *AuditLogger) GetHostProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.Log {
+	ActiveHostPidMap := *(adt.ActiveHostPidMap)
+	ActiveHostPidMapLock := *(adt.ActiveHostPidMapLock)
+
+	ActiveHostPidMapLock.Lock()
+
+	for _, pidMap := range ActiveHostPidMap {
+		for pid, node := range pidMap {
+			if hostPid == int32(pid) {
+				log.PPID = int32(node.PPID)
+				log.PID = int32(node.PID)
+				log.UID = int32(node.UID)
+
+				break
+			}
+		}
+	}
+
+	ActiveHostPidMapLock.Unlock()
+
+	if log.PID == 0 {
+		log.PPID = -1
+		log.PID = hostPid
+		log.UID = -1
 	}
 
 	return log
@@ -276,12 +301,13 @@ func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, ope
 	log.Operation = operation
 
 	if profileName == "kubearmor.host" {
-		log = adt.UpdateHostSourceAndResource(log, source, resource) // Source, Resource
+		log = adt.GetHostProcessInfoFromHostPid(log, hostPid) // PPID, PID, UID
 	} else {
 		log = adt.GetProcessInfoFromHostPid(log, hostPid)           // ContainerID, PPID, PID, UID
 		log = adt.GetContainerInfoFromContainerID(log, profileName) // NamespaceName, PodName, ContainerName
-		log = adt.UpdateSourceAndResource(log, source, resource)    // Source, Resource
 	}
+
+	log = adt.UpdateSourceAndResource(log, source, resource) // Source, Resource
 
 	log.Data = data
 
@@ -304,99 +330,106 @@ func (adt *AuditLogger) MonitorAuditLogs() {
 		logFile = "/var/log/audit/audit.log"
 	}
 
-	// monitor audit logs
-	logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
-	if err != nil {
-		adt.LogFeeder.Err(err.Error())
-		return
-	}
-
-	for log := range logs.Lines {
-		line := log.Text
-
-		if !strings.Contains(line, "AVC") {
-			continue
-		} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
-			continue
-		} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
+	for adt.WatchLogs {
+		// monitor audit logs
+		logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
+		if err != nil {
+			adt.LogFeeder.Err(err.Error())
+			time.Sleep(time.Millisecond * 1)
 			continue
 		}
 
-		if adt.IsCOS {
-			cosLine := ""
+		for log := range logs.Lines {
+			line := log.Text
 
-			for _, cosKV := range strings.Split(line, ",") {
-				if strings.Contains(cosKV, "AVC apparmor=") {
-					kv := strings.Split(cosKV, ":")
-					if len(kv) == 2 {
-						cosLine = kv[1]
-						break
-					}
-				}
+			if !adt.WatchLogs {
+				break
 			}
 
-			if cosLine == "" {
+			if !strings.Contains(line, "AVC") {
+				continue
+			} else if !strings.Contains(line, "DENIED") { // && !strings.Contains(line, "AUDIT") {
+				continue
+			} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
 				continue
 			}
 
-			line = strings.Replace(cosLine, "\\\"", "\"", -1)
-			line = line[1 : len(line)-1]
-		}
+			if adt.IsCOS {
+				cosLine := ""
 
-		hostPid := int32(0)
+				for _, cosKV := range strings.Split(line, ",") {
+					if strings.Contains(cosKV, "AVC apparmor=") {
+						kv := strings.Split(cosKV, ":")
+						if len(kv) == 2 {
+							cosLine = kv[1]
+							break
+						}
+					}
+				}
 
-		profileName := ""
+				if cosLine == "" {
+					continue
+				}
 
-		source := ""
-		operation := ""
-		resource := ""
-		action := ""
-
-		requested := ""
-		denied := ""
-
-		words := strings.Split(line, " ")
-
-		for _, word := range words {
-			if strings.HasPrefix(word, "pid=") {
-				value := strings.Split(word, "=")
-				pid, _ := strconv.Atoi(value[1])
-				hostPid = int32(pid)
-			} else if strings.HasPrefix(word, "profile=") {
-				value := strings.Split(word, "=")
-				profileName = strings.Replace(value[1], "\"", "", -1)
-			} else if strings.HasPrefix(word, "comm=") {
-				value := strings.Split(word, "=")
-				source = strings.Replace(value[1], "\"", "", -1)
-			} else if strings.HasPrefix(word, "operation=") {
-				value := strings.Split(word, "=")
-				operation = strings.Replace(value[1], "\"", "", -1)
-			} else if strings.HasPrefix(word, "name=") {
-				value := strings.Split(word, "=")
-				resource = strings.Replace(value[1], "\"", "", -1)
-			} else if strings.HasPrefix(word, "apparmor=") {
-				value := strings.Split(word, "=")
-				action = strings.Replace(value[1], "\"", "", -1)
-			} else if strings.HasPrefix(word, "requested_mask=") {
-				value := strings.Split(word, "=")
-				requested = strings.Replace(value[1], "\"", "", -1)
-			} else if strings.HasPrefix(word, "denied_mask=") {
-				value := strings.Split(word, "=")
-				denied = strings.Replace(value[1], "\"", "", -1)
+				line = strings.Replace(cosLine, "\\\"", "\"", -1)
+				line = line[1 : len(line)-1]
 			}
-		}
 
-		if operation == "exec" {
-			operation = "Process"
-		} else { // open
-			operation = "File"
-		}
+			hostPid := int32(0)
 
-		data := "requested=" + requested
-		if denied != "" {
-			data = data + " denied=" + denied
-		}
+			profileName := ""
 
-		go adt.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
+			source := ""
+			operation := ""
+			resource := ""
+			action := ""
+
+			requested := ""
+			denied := ""
+
+			words := strings.Split(line, " ")
+
+			for _, word := range words {
+				if strings.HasPrefix(word, "pid=") {
+					value := strings.Split(word, "=")
+					pid, _ := strconv.Atoi(value[1])
+					hostPid = int32(pid)
+				} else if strings.HasPrefix(word, "profile=") {
+					value := strings.Split(word, "=")
+					profileName = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "comm=") {
+					value := strings.Split(word, "=")
+					source = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "operation=") {
+					value := strings.Split(word, "=")
+					operation = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "name=") {
+					value := strings.Split(word, "=")
+					resource = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "apparmor=") {
+					value := strings.Split(word, "=")
+					action = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "requested_mask=") {
+					value := strings.Split(word, "=")
+					requested = strings.Replace(value[1], "\"", "", -1)
+				} else if strings.HasPrefix(word, "denied_mask=") {
+					value := strings.Split(word, "=")
+					denied = strings.Replace(value[1], "\"", "", -1)
+				}
+			}
+
+			if operation == "exec" {
+				operation = "Process"
+			} else { // open
+				operation = "File"
+			}
+
+			data := "requested=" + requested
+			if denied != "" {
+				data = data + " denied=" + denied
+			}
+
+			go adt.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
+		}
 	}
 }
