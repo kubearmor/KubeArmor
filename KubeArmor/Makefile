@@ -3,7 +3,7 @@ GO_EXEC=$(shell which go)
 
 .PHONY: build
 build:
-	#$(CURDIR)/patch.sh
+	$(CURDIR)/patch.sh
 	cd $(CURDIR); go build -o kubearmor main.go
 
 .PHONY: run

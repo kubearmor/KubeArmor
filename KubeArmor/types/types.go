@@ -119,12 +119,12 @@ type Log struct {
 	HostName string `json:"hostName"`
 
 	// k8s
-	NamespaceName string `json:"namespaceName"`
-	PodName       string `json:"podName"`
+	NamespaceName string `json:"namespaceName,omitempty"`
+	PodName       string `json:"podName,omitempty"`
 
 	// container
-	ContainerID   string `json:"containerID"`
-	ContainerName string `json:"containerName"`
+	ContainerID   string `json:"containerID,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
 
 	// common
 	HostPID int32 `json:"hostPid"`
