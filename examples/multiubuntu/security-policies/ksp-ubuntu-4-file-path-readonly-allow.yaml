@@ -12,10 +12,17 @@ spec:
     matchDirectories:
       - dir: /bin/ # need some exectuables to test
   file:
+    matchDirectories:
+      - dir: /dev/pts/
+        recursive: true
     matchPaths:
+    - path: /dev/tty
+      readOnly: false
+    - path: /etc/passwd
+      readOnly: true
+    - path: /etc/nsswitch.conf
+      readOnly: true
     - path: /secret.txt # echo "test" >> /secret.txt (success)
-      # fromSource:
-      #   path: /bin/dash
     - path: /credentials/password # echo "test" >> /credentials/password (permission denied)
       readOnly: true
   action:
