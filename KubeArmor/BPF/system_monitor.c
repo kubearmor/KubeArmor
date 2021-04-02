@@ -3,6 +3,7 @@
 #include <linux/version.h>
 
 #include <linux/nsproxy.h>
+#include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
 
 #include <linux/un.h>
@@ -12,14 +13,11 @@
 #error Minimal required kernel version is 4.14
 #endif
 
-// == Syscall Monitor == //
+// == Structures == //
 
-#define MAX_PERCPU_BUFSIZE  (1 << 15)
-#define MAX_STRING_SIZE     4096
-#define MAX_STR_ARR_ELEM    20
-
-#define MAX_BUFFERS     1
-#define SUBMIT_BUF_IDX  0
+#define MAX_BUFFER_SIZE   32768
+#define MAX_STRING_SIZE   4096
+#define MAX_STR_ARR_ELEM  20
 
 #define NONE_T        0UL
 #define INT_T         1UL
@@ -30,9 +28,6 @@
 #define EXEC_FLAGS_T  14UL
 #define SOCK_DOM_T    15UL
 #define SOCK_TYPE_T   16UL
-#define CAP_T         17UL
-#define SYSCALL_T     18UL
-#define TYPE_MAX      255UL
 
 #define MAX_ARGS               6
 #define ENC_ARG_TYPE(n, type)  type<<(8*n)
@@ -60,9 +55,6 @@ enum {
     _SYS_EXECVE = 59,
     _SYS_EXECVEAT = 322,
     _DO_EXIT = 351,
-
-    // capabilities
-    _CAP_CAPABLE = 352,
 };
 
 typedef struct __attribute__((__packed__)) sys_context {
@@ -83,18 +75,20 @@ typedef struct __attribute__((__packed__)) sys_context {
     char comm[TASK_COMM_LEN];
 } sys_context_t;
 
+BPF_HASH(pid_ns_map, u32, u32);
+
 typedef struct args {
     unsigned long args[6];
 } args_t;
 
-typedef struct simple_buf {
-    u8 buf[MAX_PERCPU_BUFSIZE];
-} buf_t;
-
-BPF_HASH(pids_map, u32, u32);
 BPF_HASH(args_map, u64, args_t);
-BPF_PERCPU_ARRAY(bufs, buf_t, MAX_BUFFERS);
-BPF_PERCPU_ARRAY(bufs_off, u32, MAX_BUFFERS);
+
+typedef struct buffers {
+    u8 buf[MAX_BUFFER_SIZE];
+} bufs_t;
+
+BPF_PERCPU_ARRAY(bufs, bufs_t, 1);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 1);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -117,38 +111,49 @@ static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
 
 static __always_inline u32 get_task_ns_ppid(struct task_struct *task)
 {
+    unsigned int level = task->real_parent->nsproxy->pid_ns_for_children->level;
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-    return task->real_parent->pids[PIDTYPE_PID].pid->numbers[task->real_parent->nsproxy->pid_ns_for_children->level].nr;
+    return task->real_parent->pids[PIDTYPE_PID].pid->numbers[level].nr;
 #else
-    return task->real_parent->thread_pid->numbers[task->real_parent->nsproxy->pid_ns_for_children->level].nr;
+    return task->real_parent->thread_pid->numbers[level].nr;
 #endif
 }
 
 static __always_inline u32 get_task_ns_tgid(struct task_struct *task)
 {
+    unsigned int level = task->nsproxy->pid_ns_for_children->level;
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-    return task->group_leader->pids[PIDTYPE_PID].pid->numbers[task->nsproxy->pid_ns_for_children->level].nr;
+    return task->group_leader->pids[PIDTYPE_PID].pid->numbers[level].nr;
 #else
-    return task->group_leader->thread_pid->numbers[task->nsproxy->pid_ns_for_children->level].nr;
+    return task->group_leader->thread_pid->numbers[level].nr;
 #endif
 }
 
 static __always_inline u32 get_task_ns_pid(struct task_struct *task)
 {
+    unsigned int level = task->nsproxy->pid_ns_for_children->level;
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
-    return task->pids[PIDTYPE_PID].pid->numbers[task->nsproxy->pid_ns_for_children->level].nr;
+    return task->pids[PIDTYPE_PID].pid->numbers[level].nr;
 #else
-    return task->thread_pid->numbers[task->nsproxy->pid_ns_for_children->level].nr;
+    return task->thread_pid->numbers[level].nr;
 #endif
 }
 
-// == Pid Management == //
+static __always_inline u32 get_task_ppid(struct task_struct *task)
+{
+    return task->real_parent->pid;
+}
+
+// == Pid NS Management == //
 
 static __always_inline u32 lookup_pid_ns(struct task_struct *task)
 {
     u32 task_pid_ns = get_task_pid_ns_id(task);
 
-    u32 *pid_ns = pids_map.lookup(&task_pid_ns);
+    u32 *pid_ns = pid_ns_map.lookup(&task_pid_ns);
     if (pid_ns == 0) {
         return 0;
     }
@@ -159,52 +164,80 @@ static __always_inline u32 lookup_pid_ns(struct task_struct *task)
 static __always_inline u32 add_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    u32 pid_ns = get_task_pid_ns_id(task);
 
-    if (pids_map.lookup(&pid_ns) != 0) {
+    // host or container
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == 0) {
+        return 0;
+    }
+
+    // container
+
+    if (pid_ns_map.lookup(&pid_ns) != 0) {
         return pid_ns;
     }
 
     if (get_task_ns_pid(task) == 1) {
-        pids_map.update(&pid_ns, &pid_ns);
+        pid_ns_map.update(&pid_ns, &pid_ns);
+        return pid_ns;
+    }
+
+    // in case that containers were running before KubeArmor is deployed
+
+    if ((get_task_ns_tgid(task) != bpf_get_current_pid_tgid() >> 32) && (get_task_ns_ppid(task) == get_task_ppid(task))) {
+        pid_ns_map.update(&pid_ns, &pid_ns);
         return pid_ns;
     }
 
     return 0;
 }
 
-static __always_inline void remove_pid_ns()
+static __always_inline u32 remove_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    u32 pid_ns = get_task_pid_ns_id(task);
-    
-    if ((pids_map.lookup(&pid_ns) != 0) && (get_task_ns_pid(task) == 1)) {
-        pids_map.delete(&pid_ns);
-    }
-}
 
-static __always_inline int should_trace()
-{
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return lookup_pid_ns(task);
+    // host or container
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == 0) {
+        return 0;
+    }
+
+    // container
+
+    if ((pid_ns_map.lookup(&pid_ns) != 0) && (get_task_ns_pid(task) == 1)) {
+        pid_ns_map.delete(&pid_ns);
+        return pid_ns;
+    }
+
+    return 0;
 }
 
 // == Context Management == //
 
 static __always_inline int init_context(sys_context_t *context)
 {
-    struct task_struct *task;
-    task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
     context->ts = bpf_ktime_get_ns();
 
-    context->pid_id = get_task_pid_ns_id(task);
-    context->mnt_id = get_task_mnt_ns_id(task);
+    context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-    context->host_pid = bpf_get_current_pid_tgid() >> 32;    
-    
-    context->ppid = get_task_ns_ppid(task);
-    context->pid = get_task_ns_tgid(task);
+    if (lookup_pid_ns(task)) {
+        context->pid_id = get_task_pid_ns_id(task);
+        context->mnt_id = get_task_mnt_ns_id(task);
+
+        context->ppid = get_task_ns_ppid(task);
+        context->pid = get_task_ns_tgid(task);
+    } else { // host-side
+        context->pid_id = 0;
+        context->mnt_id = 0;
+
+        context->ppid = get_task_ppid(task);
+        context->pid = bpf_get_current_pid_tgid() >> 32;
+    }
+
     context->uid = bpf_get_current_uid_gid();
 
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
@@ -214,60 +247,60 @@ static __always_inline int init_context(sys_context_t *context)
 
 // == Buffer Management == //
 
-static __always_inline buf_t* get_buf(int idx)
+static __always_inline bufs_t* get_buffer(int idx)
 {
     return bufs.lookup(&idx);
 }
 
-static __always_inline void set_buf_off(int buf_idx, u32 new_off)
+static __always_inline void set_buffer_offset(int buf_idx, u32 new_off)
 {
-    bufs_off.update(&buf_idx, &new_off);
+    bufs_offset.update(&buf_idx, &new_off);
 }
 
-static __always_inline u32* get_buf_off(int buf_idx)
+static __always_inline u32* get_buffer_offset(int buf_idx)
 {
-    return bufs_off.lookup(&buf_idx);
+    return bufs_offset.lookup(&buf_idx);
 }
 
-static __always_inline int save_context_to_buf(buf_t *submit_p, void *ptr)
+static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    if (bpf_probe_read(&(submit_p->buf[0]), sizeof(sys_context_t), ptr) == 0) {
+    if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0) {
         return sizeof(sys_context_t);
     }
 
     return 0;
 }
 
-static __always_inline int save_str_to_buf(buf_t *submit_p, void *ptr)
+static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    u32 *off = get_buf_off(SUBMIT_BUF_IDX);
+    u32 *off = get_buffer_offset(0);
     if (off == NULL) {
         return -1;
     }
 
-    if (*off > MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - sizeof(int)) {
+    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
         return 0; // not enough space - return
     }
 
     u8 type = STR_T;
-    bpf_probe_read(&(submit_p->buf[*off & (MAX_PERCPU_BUFSIZE-1)]), 1, &type);
+    bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE-1)]), 1, &type);
 
     *off += 1;
 
-    if (*off > MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - sizeof(int)) {
+    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
         return 0;
     }
 
-    int sz = bpf_probe_read_str(&(submit_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
+    int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
     if (sz > 0) {
-        if (*off > MAX_PERCPU_BUFSIZE - sizeof(int)) {
+        if (*off > MAX_BUFFER_SIZE - sizeof(int)) {
             return 0;
         }
 
-        bpf_probe_read(&(submit_p->buf[*off]), sizeof(int), &sz);
+        bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
 
         *off += sz + sizeof(int);
-        set_buf_off(SUBMIT_BUF_IDX, *off);
+        set_buffer_offset(0, *off);
 
         return sz + sizeof(int);
     }
@@ -275,7 +308,7 @@ static __always_inline int save_str_to_buf(buf_t *submit_p, void *ptr)
     return 0;
 }
 
-static __always_inline int save_to_submit_buf(buf_t *submit_p, void *ptr, int size, u8 type)
+static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
 {
     // the biggest element that can be saved with this function should be defined here
     #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
@@ -284,68 +317,68 @@ static __always_inline int save_to_submit_buf(buf_t *submit_p, void *ptr, int si
         return 0;
     }
 
-    u32 *off = get_buf_off(SUBMIT_BUF_IDX);
+    u32 *off = get_buffer_offset(0);
     if (off == NULL) {
         return -1;
     }
-    if (*off > MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE) {
+    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
         return 0;
     }
 
-    if (bpf_probe_read(&(submit_p->buf[*off]), 1, &type) != 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0) {
         return 0;
     }
 
     *off += 1;
 
-    if (*off > MAX_PERCPU_BUFSIZE - MAX_ELEMENT_SIZE) {
+    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
         return 0;
     }
 
-    if (bpf_probe_read(&(submit_p->buf[*off]), size, ptr) == 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
         *off += size;
-        set_buf_off(SUBMIT_BUF_IDX, *off);
+        set_buffer_offset(0, *off);
         return size;
     }
 
     return 0;
 }
 
-static __always_inline int save_argv(buf_t *submit_p, void *ptr)
+static __always_inline int save_argv(bufs_t *bufs_p, void *ptr)
 {
     const char *argp = NULL;
     bpf_probe_read(&argp, sizeof(argp), ptr);
 
     if (argp) {
-        return save_str_to_buf(submit_p, (void *)(argp));
+        return save_str_to_buffer(bufs_p, (void *)(argp));
     }
 
     return 0;
 }
 
-static __always_inline int save_str_arr_to_buf(buf_t *submit_p, const char __user *const __user *ptr)
+static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr)
 {
     int i;
 
-    save_to_submit_buf(submit_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
 
     #pragma unroll
     for (i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        if (save_argv(submit_p, (void *)&ptr[i]) == 0) {
+        if (save_argv(bufs_p, (void *)&ptr[i]) == 0) {
              goto out;
         }
     }
 
     char ellipsis[] = "...";
-    save_str_to_buf(submit_p, (void *)ellipsis);
+    save_str_to_buffer(bufs_p, (void *)ellipsis);
 
 out:
-    save_to_submit_buf(submit_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
 
     return 0;
 }
 
-static __always_inline int save_args_to_submit_buf(u64 types, args_t *args)
+static __always_inline int save_args_to_buffer(u64 types, args_t *args)
 {
     int i;
 
@@ -353,8 +386,8 @@ static __always_inline int save_args_to_submit_buf(u64 types, args_t *args)
         return 0;
     }
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL) {
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL) {
         return 0;
     }
 
@@ -364,19 +397,19 @@ static __always_inline int save_args_to_submit_buf(u64 types, args_t *args)
             case NONE_T:
                 break;
             case INT_T:
-                save_to_submit_buf(submit_p, (void*)&(args->args[i]), sizeof(int), INT_T);
+                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), INT_T);
                 break;
             case OPEN_FLAGS_T:
-                save_to_submit_buf(submit_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
+                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
                 break;
             case STR_T:
-                save_str_to_buf(submit_p, (void *)args->args[i]);
+                save_str_to_buffer(bufs_p, (void *)args->args[i]);
                 break;
             case SOCK_DOM_T:
-                save_to_submit_buf(submit_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T);
+                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T);
                 break;
             case SOCK_TYPE_T:
-                save_to_submit_buf(submit_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
+                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
                 break;
             case SOCKADDR_T:
                 if (args->args[i]) {
@@ -384,16 +417,16 @@ static __always_inline int save_args_to_submit_buf(u64 types, args_t *args)
                     bpf_probe_read(&family, sizeof(short), (void*)args->args[i]);
                     switch (family) {
                         case AF_UNIX:
-                            save_to_submit_buf(submit_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
+                            save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
                             break;
                         case AF_INET:
-                            save_to_submit_buf(submit_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
+                            save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
                             break;
                         case AF_INET6:
-                            save_to_submit_buf(submit_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
+                            save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
                             break;
                         default:
-                            save_to_submit_buf(submit_p, (void*)&family, sizeof(short), SOCKADDR_T);
+                            save_to_buffer(bufs_p, (void*)&family, sizeof(short), SOCKADDR_T);
                     }
                 }
                 break;
@@ -405,68 +438,18 @@ static __always_inline int save_args_to_submit_buf(u64 types, args_t *args)
 
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
 {
-    u32 *off = get_buf_off(SUBMIT_BUF_IDX);
+    u32 *off = get_buffer_offset(0);
     if (off == NULL)
         return -1;
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return -1;
 
-    int size = *off & (MAX_PERCPU_BUFSIZE-1);
-    void *data = submit_p->buf;
+    int size = *off & (MAX_BUFFER_SIZE-1);
+    void *data = bufs_p->buf;
 
     return sys_events.perf_submit(ctx, data, size);
-}
-
-// == Capabilities Hook == //
-
-static __always_inline struct pt_regs* get_task_pt_regs()
-{
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    void* task_stack_page = task->stack;
-    void* __ptr = task_stack_page + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
-    return ((struct pt_regs *)__ptr) - 1;
-}
-
-int trace_cap_capable(struct pt_regs *ctx,
-    const struct cred *cred,
-    struct user_namespace *targ_ns,
-    int cap, int cap_opt)
-{
-    sys_context_t context = {};
-
-    if (should_trace() == 0)
-        return 0;
-
-    #ifdef CAP_OPT_NONE
-        int audit = (cap_opt & 0b10) == 0;
-    #else
-        int audit = cap_opt;
-    #endif
-
-    init_context(&context);
-
-    context.event_id = _CAP_CAPABLE;
-    context.argnum = 2;
-    context.retval = 0;
-
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
-
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
-        return 0;
-
-    struct pt_regs *real_ctx = get_task_pt_regs();
-
-    save_context_to_buf(submit_p, (void*)&context);
-
-    save_to_submit_buf(submit_p, (void*)&cap, sizeof(int), CAP_T);
-    save_to_submit_buf(submit_p, (void*)&(real_ctx->orig_ax), sizeof(int), SYSCALL_T);
-
-    events_perf_submit(ctx);
-
-    return 0;
 }
 
 // == Syscall Hooks (Process) == //
@@ -478,8 +461,7 @@ int syscall__execve(struct pt_regs *ctx,
 {
     sys_context_t context = {};
 
-    if (add_pid_ns() == 0)
-        return 0;
+    add_pid_ns();
 
     init_context(&context);
 
@@ -487,16 +469,16 @@ int syscall__execve(struct pt_regs *ctx,
     context.argnum = 2;
     context.retval = 0;
 
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buf(submit_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context);
 
-    save_str_to_buf(submit_p, (void *)filename);
-    save_str_arr_to_buf(submit_p, __argv);
+    save_str_to_buffer(bufs_p, (void *)filename);
+    save_str_arr_to_buffer(bufs_p, __argv);
 
     events_perf_submit(ctx);
 
@@ -507,22 +489,19 @@ int trace_ret_execve(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
-    if (should_trace() == 0)
-        return 0;
-
     init_context(&context);
 
     context.event_id = _SYS_EXECVE;
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buf(submit_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context);
 
     events_perf_submit(ctx);
 
@@ -538,9 +517,7 @@ int syscall__execveat(struct pt_regs *ctx,
 {
     sys_context_t context = {};
 
-    u32 ret = add_pid_ns();
-    if (ret == 0)
-        return 0;
+    add_pid_ns();
 
     init_context(&context);
 
@@ -548,18 +525,18 @@ int syscall__execveat(struct pt_regs *ctx,
     context.argnum = 4;
     context.retval = 0;
 
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buf(submit_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context);
 
-    save_to_submit_buf(submit_p, (void*)&dirfd, sizeof(int), INT_T);
-    save_str_to_buf(submit_p, (void *)pathname);
-    save_str_arr_to_buf(submit_p, __argv);
-    save_to_submit_buf(submit_p, (void*)&flags, sizeof(int), EXEC_FLAGS_T);
+    save_to_buffer(bufs_p, (void*)&dirfd, sizeof(int), INT_T);
+    save_str_to_buffer(bufs_p, (void *)pathname);
+    save_str_arr_to_buffer(bufs_p, __argv);
+    save_to_buffer(bufs_p, (void*)&flags, sizeof(int), EXEC_FLAGS_T);
 
     events_perf_submit(ctx);
 
@@ -570,22 +547,19 @@ int trace_ret_execveat(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
-    if (should_trace() == 0)
-        return 0;
-
     init_context(&context);
 
     context.event_id = _SYS_EXECVEAT;
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buf(submit_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context);
 
     events_perf_submit(ctx);
 
@@ -596,9 +570,6 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 {
     sys_context_t context = {};
 
-    if (should_trace() == 0)
-        return 0;
-
     init_context(&context);
 
     context.event_id = _DO_EXIT;
@@ -607,13 +578,13 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     remove_pid_ns();
 
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buf(submit_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context);
 
     events_perf_submit(ctx);
 
@@ -694,23 +665,20 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     if (load_args(id, &args) != 0)
         return -1;
 
-    if (should_trace() == 0)
-        return -1;
-
     init_context(&context);
 
     context.event_id = id;
     context.argnum = get_arg_num(types);
     context.retval = PT_REGS_RC(ctx);
 
-    set_buf_off(SUBMIT_BUF_IDX, sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    buf_t *submit_p = get_buf(SUBMIT_BUF_IDX);
-    if (submit_p == NULL)
+    bufs_t *bufs_p = get_buffer(0);
+    if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buf(submit_p, (void*)&context);
-    save_args_to_submit_buf(types, &args);
+    save_context_to_buffer(bufs_p, (void*)&context);
+    save_args_to_buffer(types, &args);
 
     events_perf_submit(ctx);
 
@@ -719,9 +687,6 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
 int syscall__open(struct pt_regs *ctx)
 {   
-    if (should_trace() == 0)
-        return 0;       
-
     return save_args(_SYS_OPEN, ctx);
 }
 
@@ -732,9 +697,6 @@ int trace_ret_open(struct pt_regs *ctx)
 
 int syscall__close(struct pt_regs *ctx)
 { 
-    if (should_trace() == 0)
-        return 0;       
-
     return save_args(_SYS_CLOSE, ctx);
 }
 
@@ -747,9 +709,6 @@ int trace_ret_close(struct pt_regs *ctx)
 
 int syscall__socket(struct pt_regs *ctx)
 { 
-    if (should_trace() == 0)
-        return 0;       
-
     return save_args(_SYS_SOCKET, ctx);   
 }
 
@@ -760,9 +719,6 @@ int trace_ret_socket(struct pt_regs *ctx)
 
 int syscall__connect(struct pt_regs *ctx)
 { 
-    if (should_trace() == 0)
-        return 0;
-
     return save_args(_SYS_CONNECT, ctx);   
 }
 
@@ -773,9 +729,6 @@ int trace_ret_connect(struct pt_regs *ctx)
 
 int syscall__accept(struct pt_regs *ctx)
 { 
-    if (should_trace() == 0)
-        return 0;       
-
     return save_args(_SYS_ACCEPT, ctx);   
 }
 
@@ -786,9 +739,6 @@ int trace_ret_accept(struct pt_regs *ctx)
 
 int syscall__bind(struct pt_regs *ctx)
 { 
-    if (should_trace() == 0)
-        return 0;       
-
     return save_args(_SYS_BIND, ctx);   
 }
 
@@ -799,9 +749,6 @@ int trace_ret_bind(struct pt_regs *ctx)
 
 int syscall__listen(struct pt_regs *ctx)
 { 
-    if (should_trace() == 0)
-        return 0;
-
     return save_args(_SYS_LISTEN, ctx);   
 }
 
