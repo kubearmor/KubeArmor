@@ -206,7 +206,6 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// create a pod
 
 				pod := tp.K8sPod{}
-
 				pod.HostVolumes = []tp.HostMountedVolume{}
 
 				pod.Metadata = map[string]string{}

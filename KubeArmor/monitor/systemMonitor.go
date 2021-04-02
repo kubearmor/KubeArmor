@@ -227,7 +227,7 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 	mon.LogFeeder.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "close", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
+	systemCalls := []string{"open", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
 
 	for _, syscallName := range systemCalls {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
@@ -589,23 +589,23 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			// skip if container id not found
-			containerID := mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID)
-			if containerID == "" {
-				continue
-			}
-
 			Containers := *(mon.Containers)
 			ContainersLock := *(mon.ContainersLock)
 
-			// skip namespaces
-			ContainersLock.Lock()
-			namespace := Containers[containerID].NamespaceName
-			if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-				ContainersLock.Unlock()
-				continue
+			containerID := ""
+
+			if ctx.PidID != 0 && ctx.MntID != 0 {
+				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID)
+				if containerID != "" {
+					ContainersLock.Lock()
+					namespace := Containers[containerID].NamespaceName
+					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+						ContainersLock.Unlock()
+						continue
+					}
+					ContainersLock.Unlock()
+				}
 			}
-			ContainersLock.Unlock()
 
 			if ctx.EventID == SYS_OPEN {
 				if len(args) != 2 {
