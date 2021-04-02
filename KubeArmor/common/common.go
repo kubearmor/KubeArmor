@@ -12,6 +12,7 @@ import (
 	"time"
 
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
+	"golang.org/x/sys/unix"
 )
 
 // ============ //
@@ -330,4 +331,57 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 
 	// otherwise, return true
 	return matched
+}
+
+// ============= //
+// == SELinux == //
+// ============= //
+
+// Lgetxattr returns a []byte slice containing the value of
+// an extended attribute attr set for path.
+func Lgetxattr(path, attr string) ([]byte, error) {
+	// Start with a 128 length byte array
+	dest := make([]byte, 128)
+	sz, errno := DoLgetxattr(path, attr, dest)
+	for errno == unix.ERANGE {
+		// Buffer too small, use zero-sized buffer to get the actual size
+		sz, errno = DoLgetxattr(path, attr, []byte{})
+		if errno != nil {
+			return nil, errno
+		}
+
+		dest = make([]byte, sz)
+		sz, errno = DoLgetxattr(path, attr, dest)
+	}
+	if errno != nil {
+		return nil, errno
+	}
+
+	return dest[:sz], nil
+}
+
+// DoLgetxattr is a wrapper that retries on EINTR
+func DoLgetxattr(path, attr string, dest []byte) (int, error) {
+	for {
+		sz, err := unix.Lgetxattr(path, attr, dest)
+		if err != unix.EINTR {
+			return sz, err
+		}
+	}
+}
+
+func GetSELinuxType(path string) (string, error) {
+	xattrNameSelinux := "security.selinux"
+
+	label, err := Lgetxattr(path, xattrNameSelinux)
+	if err != nil {
+		return "", err
+	}
+
+	// Trim the NUL byte at the end of the byte buffer, if present.
+	if len(label) > 0 && label[len(label)-1] == '\x00' {
+		label = label[:len(label)-1]
+	}
+
+	return strings.Split(string(label), ":")[2], nil
 }

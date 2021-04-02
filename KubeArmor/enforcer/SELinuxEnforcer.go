@@ -10,6 +10,50 @@ import (
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
+const (
+	BaseContainer = `(block container
+		(type process)
+		(type socket)
+		(roletype system_r process)
+		(typeattributeset domain (process ))
+		(typeattributeset container_domain (process ))
+		(typeattributeset svirt_sandbox_domain (process ))
+		(typeattributeset file_type (socket ))
+		(allow process socket (sock_file (create open getattr setattr read write rename link unlink ioctl lock append)))
+		(allow process proc_type (file (getattr open read)))
+		(allow process cpu_online_t (file (getattr open read)))
+		(allow container_runtime_t process (key (create link read search setattr view write)))
+		)
+
+		`
+
+	BaseNetwork = `(block net_container
+		(blockinherit container)
+		(typeattributeset sandbox_net_domain (process))
+	)
+	
+	(block restricted_net_container
+		(blockinherit container)
+	
+		(allow process process (tcp_socket (ioctl read getattr lock write setattr append bind connect getopt setopt shutdown create listen accept)))
+		(allow process process (udp_socket (ioctl read getattr lock write setattr append bind connect getopt setopt shutdown create)))
+	
+		(allow process proc_t (lnk_file (read)))
+	
+		(allow process node_t (node (tcp_recv tcp_send recvfrom sendto)))
+		(allow process node_t (node (udp_recv recvfrom)))
+		(allow process node_t (node (udp_send sendto)))
+	
+		(allow process node_t (udp_socket (node_bind)))
+		(allow process node_t (tcp_socket (node_bind)))
+	
+		(allow process http_port_t (tcp_socket (name_connect)))
+		(allow process http_port_t (tcp_socket (recv_msg send_msg)))
+	)
+
+	`
+)
+
 // ====================== //
 // == SELinux Enforcer == //
 // ====================== //
@@ -48,12 +92,45 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 // == SELinux Profile Management == //
 // ================================ //
 
+const (
+	SELinuxDirReadOnly   = "getattr search open read lock ioctl"
+	SELinuxDirReadWrite  = "getattr search open read lock ioctl setattr write link add_name remove_name reparent lock create unlink rename rmdir"
+	SELinuxFileReadOnly  = "getattr ioctl lock open read"
+	SELinuxFileReadWrite = "getattr ioctl lock open read write append lock create rename link unlink"
+)
+
 // RegisterSELinuxProfile Function
-func (se *SELinuxEnforcer) RegisterSELinuxProfile(namespace, podName, profileName string) bool {
-	selinuxDefault := "(block " + profileName + "\n" +
+func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, profileName string) bool {
+	namespace := pod.Metadata["namespaceName"]
+	podName := pod.Metadata["podName"]
+
+	selinuxVolumeDefault := "(block " + profileName + "\n" +
 		"	(blockinherit container)\n" +
 		"	(blockinherit restricted_net_container)\n" +
-		")\n"
+		"	(allow process process (capability (dac_override)))\n"
+
+	for _, hostVolume := range pod.HostVolumes {
+		if readOnly, ok := hostVolume.UsedByContainer[containerName]; ok {
+			if context, err := kl.GetSELinuxType(hostVolume.PathName); err != nil {
+				se.LogFeeder.Err(err.Error())
+				return false
+			} else {
+				contextLine := "	(allow process " + context
+
+				if readOnly {
+					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+					selinuxVolumeDefault = selinuxVolumeDefault + contextDirLine + contextFileLine
+				} else {
+					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+					selinuxVolumeDefault = selinuxVolumeDefault + contextDirLine + contextFileLine
+				}
+			}
+		}
+	}
+
+	selinuxVolumeDefault = selinuxVolumeDefault + ")\n"
 
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
@@ -73,7 +150,7 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(namespace, podName, profileNam
 		return false
 	}
 
-	if _, err := newFile.WriteString(selinuxDefault); err != nil {
+	if _, err := newFile.WriteString(selinuxVolumeDefault); err != nil {
 		se.LogFeeder.Err(err.Error())
 		return false
 	}
@@ -93,7 +170,10 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(namespace, podName, profileNam
 }
 
 // UnregisterSELinuxProfile Function
-func (se *SELinuxEnforcer) UnregisterSELinuxProfile(namespace, podName, profileName string) bool {
+func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, containerName, profileName string) bool {
+	namespace := pod.Metadata["namespaceName"]
+	podName := pod.Metadata["podName"]
+
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 

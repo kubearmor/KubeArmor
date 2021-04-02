@@ -207,6 +207,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				pod := tp.K8sPod{}
 
+				pod.HostVolumes = []tp.HostMountedVolume{}
+
 				pod.Metadata = map[string]string{}
 				pod.Metadata["namespaceName"] = event.Object.ObjectMeta.Namespace
 				pod.Metadata["podName"] = event.Object.ObjectMeta.Name
@@ -287,9 +289,32 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				seLinuxContexts := map[string]string{}
 				updateSELinux := false
 
+				// update host-mounted volumes
+				for _, v := range event.Object.Spec.Volumes {
+					if v.HostPath != nil {
+						hostVolume := tp.HostMountedVolume{}
+						hostVolume.UsedByContainer = map[string]bool{}
+						hostVolume.VolumeName = v.Name
+						hostVolume.PathName = v.HostPath.Path
+						hostVolume.Type = string(*v.HostPath.Type)
+						pod.HostVolumes = append(pod.HostVolumes, hostVolume)
+					}
+				}
+
 				for _, container := range event.Object.Spec.Containers {
 					if pod.Metadata["namespaceName"] == "kube-system" || pod.Metadata["namespaceName"] == "cilium" {
 						continue
+					}
+
+					// match container volumes to host mounted volume
+					for _, containerVolume := range container.VolumeMounts {
+						for i, hostVoulme := range pod.HostVolumes {
+							if containerVolume.Name == hostVoulme.VolumeName {
+								if _, ok := pod.HostVolumes[i].UsedByContainer[container.Name]; !ok {
+									pod.HostVolumes[i].UsedByContainer[container.Name] = containerVolume.ReadOnly
+								}
+							}
+						}
 					}
 
 					if container.SecurityContext == nil || container.SecurityContext.SELinuxOptions == nil || container.SecurityContext.SELinuxOptions.Type == "" {
@@ -306,7 +331,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								},
 							}
 
-							// if not delete volumeMounts, update error
+							// clear container volume, if not delete volumeMounts, rolling update error
 							container.VolumeMounts = []v1.VolumeMount{}
 
 							b, _ := json.Marshal(container)
@@ -346,7 +371,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				//
+				// == //
 
 				pod.Labels = map[string]string{}
 				for k, v := range event.Object.Labels {

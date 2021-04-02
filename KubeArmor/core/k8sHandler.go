@@ -288,7 +288,7 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 }
 
 // PatchDeploymentWithSELinuxOptions Function
-func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespaceName, deploymentName string, seLinuxContexts map[string]string) error {
+func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentName string, seLinuxContexts map[string]string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
@@ -306,7 +306,7 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespaceName, deploymen
 
 	spec = spec + `]}}}}`
 
-	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+	_, err := kh.K8sClient.AppsV1().Deployments(namespace).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}
