@@ -803,11 +803,17 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Log {
 			log.Severity = allowNetworkPolicySeverity
 			log.Type = "PolicyMatched"
 			log.Action = "Allow"
-		} else {
+		} else if log.NamespaceName != "" {
 			log.Type = "SystemLog"
+		} else {
+			return tp.Log{}
 		}
 	} else if log.Type != "PolicyMatched" {
 		return tp.Log{}
+	}
+
+	if log.NamespaceName == "" && log.Type == "PolicyMatched" {
+		log.Type = "HostPolicyMatched"
 	}
 
 	return log

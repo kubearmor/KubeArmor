@@ -195,7 +195,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 			for _, lgs := range logStructs {
 				if lgs.Filter == "" {
 					lgs.Client.Send(&log)
-				} else if lgs.Filter == "policy" && log.Type == "PolicyMatched" {
+				} else if lgs.Filter == "policy" && (log.Type == "PolicyMatched" || log.Type == "HostPolicyMatched") {
 					lgs.Client.Send(&log)
 				} else if lgs.Filter == "system" && log.Type == "SystemLog" {
 					lgs.Client.Send(&log)
@@ -399,11 +399,11 @@ func (fd *Feeder) PushMessage(level, message string) error {
 
 // PushLog Function
 func (fd *Feeder) PushLog(log tp.Log, retval int64) error {
+	log = fd.UpdateMatchedPolicy(log, retval)
+
 	if log.UpdatedTime == "" {
 		return nil
 	}
-
-	log = fd.UpdateMatchedPolicy(log, retval)
 
 	pbLog := pb.Log{}
 
