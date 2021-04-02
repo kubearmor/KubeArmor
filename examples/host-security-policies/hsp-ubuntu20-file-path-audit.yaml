@@ -1,0 +1,14 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-ubuntu20-file-path-audit
+spec:
+  nodeSelector:
+    matchNames:
+      hostName: ubuntu20
+  severity: 5
+  file:
+    matchPaths:
+    - path: /etc/shadow # cat /etc/shadow
+  action:
+    Audit
