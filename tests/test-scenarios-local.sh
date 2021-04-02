@@ -4,8 +4,9 @@ TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 
-ARMOR_MSG=$TEST_HOME/message.log
-ARMOR_LOG=$TEST_HOME/kubearmor.log
+ARMOR_MSG=/tmp/kubearmor.msg
+ARMOR_LOG=/tmp/kubearmor.log
+TEST_LOG=/tmp/kubearmor.test
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -19,8 +20,8 @@ YES=$1
 if [ ! -z $1 ]; then
     if [ "$YES" != "-y" ]; then
         echo "Usage: $0 [-y]"
-        echo "Options:"
-        echo "  -y => automatically clean logs up"
+        echo "<Options>"
+        echo "  -y : automatically clean logs up"
         exit
     fi
 fi
@@ -106,65 +107,74 @@ function delete_and_wait_for_microserivce_deletion() {
     fi
 }
 
-function find_allow_logs() {
+function should_not_find_any_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     sleep 2
 
-    grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
     if [ $? == 0 ]; then
         sleep 2
 
-        grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+        audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
         if [ $? == 0 ]; then
+            echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
             res_cmd=1
         else
+            audit_log="<No Log>"
             echo "[INFO] Found no log from logs"
         fi
     else
+        audit_log="<No Log>"
         echo "[INFO] Found no log from logs"
     fi
 }
 
-function find_audit_logs() {
+function should_find_passed_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     sleep 2
 
-    grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+    audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
     if [ $? != 0 ]; then
         sleep 2
 
-        grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed
+        audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
         if [ $? != 0 ]; then
+            audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
             res_cmd=1
         else
+            echo $audit_log
             echo "[INFO] Found the log from logs"
         fi
     else
+        echo $audit_log
         echo "[INFO] Found the log from logs"
     fi
 }
 
-function find_block_logs() {
+function should_find_blocked_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     sleep 2
 
-    grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
+    audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
     if [ $? != 0 ]; then
         sleep 2
 
-        grep PolicyMatched $ARMOR_LOG | tail -n 10 $ARMOR_LOG | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed
+        audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
         if [ $? != 0 ]; then
+            audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
             res_cmd=1
         else
+            echo $audit_log
             echo "[INFO] Found the log from logs"
         fi
     else
+        echo $audit_log
         echo "[INFO] Found the log from logs"
     fi
 }
@@ -184,53 +194,92 @@ function run_test_scenario() {
     echo "[INFO] Applied $YAML_FILE into $2"
 
     sleep 2
+    cmd_count=0
 
     for cmd in $(ls cmd*)
     do
-        SOURCE=$(cat $cmd | grep source | awk '{print $2}')
+        cmd_count=$((cmd_count+1))
+
+        SOURCE=$(cat $cmd | grep "^source" | awk '{print $2}')
         POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
 
-        CMD=$(cat $cmd | grep cmd | cut -d' ' -f2-)
-        RESULT=$(cat $cmd | grep result | awk '{print $2}')
+        CMD=$(cat $cmd | grep "^cmd" | cut -d' ' -f2-)
+        RESULT=$(cat $cmd | grep "^result" | awk '{print $2}')
 
-        OP=$(cat $cmd | grep operation | awk '{print $2}')
-        COND=$(cat $cmd | grep condition | cut -d' ' -f2-)
-        ACTION=$(cat $cmd | grep action | awk '{print $2}')
+        OP=$(cat $cmd | grep "^operation" | awk '{print $2}')
+        COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
+        ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
 
         res_cmd=0
+        audit_log=""
+        actual_res="passed"
 
         echo -e "${GREEN}[INFO] Running \"$CMD\"${NC}"
         kubectl exec -n $2 -it $POD -- bash -c "$CMD"
-        if [ $? == 0 ]; then
-            if [ "$ACTION" == "Allow" ] && [ "$RESULT" == "passed" ]; then
-                find_allow_logs $POD $OP $COND $ACTION
-            elif [ "$ACTION" == "AllowWithAudit" ] && [ "$RESULT" == "passed" ]; then
-                find_audit_logs $POD $OP $COND $ACTION
-            elif [ "$ACTION" == "Audit" ] && [ "$RESULT" == "audited" ]; then
-                find_audit_logs $POD $OP $COND $ACTION
-            elif [ "$RESULT" == "failed" ]; then
-                echo -e "${MAGENTA}[WARN] Expected failure, but got success${NC}"
-            fi
-        else
-            if [ "$RESULT" == "failed" ]; then
-                find_block_logs $POD $OP $COND $ACTION
+        if [ $? != 0 ]; then
+            actual_res="failed"
+        fi
+
+        if [ "$ACTION" == "Allow" ]; then
+            if [ "$RESULT" == "passed" ]; then
+                echo "[INFO] $ACTION action, and the command should be passed"
+                should_not_find_any_log $POD $OP $COND $ACTION
             else
-                echo -e "${MAGENTA}[WARN] Expected success, but got failure${NC}"
+                echo "[INFO] $ACTION action, but the command should be failed"
+                should_find_blocked_log $POD $OP $COND $ACTION
+            fi
+        elif [ "$ACTION" == "Audit" ] || [ "$ACTION" == "AllowWithAudit" ]; then
+            if [ "$RESULT" == "passed" ]; then
+                echo "[INFO] $ACTION action, and the command should be passed"
+                should_find_passed_log $POD $OP $COND $ACTION
+            else
+                echo "[INFO] $ACTION action, but the command should be failed"
+                should_find_blocked_log $POD $OP $COND $ACTION
+            fi
+        elif [ "$ACTION" == "Block" ] || [ "$ACTION" == "BlockWithAudit" ]; then
+            if [ "$RESULT" == "passed" ]; then
+                echo "[INFO] $ACTION action, but the command should be passed"
+                should_not_find_any_log $POD $OP $COND $ACTION
+            else
+                echo "[INFO] $ACTION action, and the command should be failed"
+                should_find_blocked_log $POD $OP $COND $ACTION
             fi
         fi
 
-        if [ $res_cmd != 0 ]; then
-            break
+        if [ $res_cmd == 0 ]; then
+            echo "Testcase: $3 (command #$cmd_count)" >> $TEST_LOG
+            echo "Policy: $YAML_FILE" >> $TEST_LOG
+            echo "Action: $ACTION" >> $TEST_LOG
+            echo "Pod: $SOURCE" >> $TEST_LOG
+            echo "Command: $CMD" >> $TEST_LOG
+            echo "Result: $RESULT (expected) / $actual_res (actual)" >> $TEST_LOG
+            echo "Log:" >> $TEST_LOG
+            echo $audit_log >> $TEST_LOG
+            echo >> $TEST_LOG
+        else
+            echo "Testcase: $3 (command #$cmd_count)" >> $TEST_LOG
+            echo "Policy: $YAML_FILE" >> $TEST_LOG
+            echo "Action: $ACTION" >> $TEST_LOG
+            echo "Pod: $SOURCE" >> $TEST_LOG
+            echo "Command: $CMD" >> $TEST_LOG
+            echo "Result: $RESULT (expected) / $actual_res (actual)" >> $TEST_LOG
+            echo "Output:" >> $TEST_LOG
+            echo ""$(kubectl exec -n $2 -it $POD -- bash -c "$CMD") >> $TEST_LOG
+            echo "Log:" >> $TEST_LOG
+            echo $audit_log >> $TEST_LOG
+            echo >> $TEST_LOG
+            res_case=1
         fi
 
         sleep 1
     done
 
-    if [ $res_cmd != 0 ]; then
+    if [ $res_case != 0 ]; then
         echo -e "${RED}[FAIL] Failed $3${NC}"
-        res_case=1
+        failed_testcases+=("$3")
     else
         echo -e "${BLUE}[PASS] Passed $3${NC}"
+        passed_testcases+=("$3")
     fi
 
     echo -e "${GREEN}[INFO] Deleting $YAML_FILE from $2${NC}"
@@ -247,6 +296,20 @@ function run_test_scenario() {
 
 ## == KubeArmor == ##
 
+sudo rm -f $ARMOR_MSG $ARMOR_LOG
+
+total_testcases=$(ls -l $TEST_HOME/scenarios | grep ^d | wc -l)
+
+passed_testcases=()
+failed_testcases=()
+
+echo "< KubeArmor Test Report >" > $TEST_LOG
+echo >> $TEST_LOG
+echo "Date:" $(date "+%Y-%m-%d %H:%M:%S %Z") >> $TEST_LOG
+echo >> $TEST_LOG
+echo "== Testcases ==" >> $TEST_LOG
+echo >> $TEST_LOG
+
 cd $ARMOR_HOME
 
 if [ ! -f kubearmor ]; then
@@ -254,8 +317,6 @@ if [ ! -f kubearmor ]; then
     make clean; make
     echo "[INFO] Built KubeArmor"
 fi
-
-sudo rm -f $ARMOR_MSG $ARMOR_LOG
 
 sleep 1
 
@@ -312,6 +373,27 @@ do
         fi
     fi
 done
+
+echo "== Summary ==" >> $TEST_LOG
+echo >> $TEST_LOG
+echo "Passed testcases: ${#passed_testcases[@]}/$total_testcases" >> $TEST_LOG
+echo >> $TEST_LOG
+if [ "${#passed_testcases[@]}" != "0" ]; then
+    for (( i=0; i<${#passed_testcases[@]}; i++ ));
+    do
+        echo "${passed_testcases[$i]}" >> $TEST_LOG;
+    done
+fi
+echo >> $TEST_LOG
+echo "Failed testcases: ${#failed_testcases[@]}/$total_testcases" >> $TEST_LOG
+echo >> $TEST_LOG
+if [ "${#failed_testcases[@]}" != "0" ]; then
+    for (( i=0; i<${#failed_testcases[@]}; i++ ));
+    do
+        echo "${failed_testcases[$i]}" >> $TEST_LOG;
+    done
+fi
+echo >> $TEST_LOG
 
 ## == KubeArmor == ##
 
