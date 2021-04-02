@@ -36,8 +36,10 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 	log.HostName = mon.HostName
 
-	log.ContainerID = msg.ContainerID
-	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(log.ContainerID)
+	if msg.ContainerID != "" {
+		log.ContainerID = msg.ContainerID
+		log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(log.ContainerID)
+	}
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
