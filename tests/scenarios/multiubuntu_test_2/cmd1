@@ -1,6 +1,6 @@
 source: ubuntu-4-deployment
 cmd: sleep 1
-result: audited
+result: passed
 ---
 operation: Process
 condition: sleep
