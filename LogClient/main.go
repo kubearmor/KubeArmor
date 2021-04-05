@@ -47,7 +47,7 @@ func main() {
 	// get arguments
 	grpcPtr := flag.String("grpc", "localhost:32767", "gRPC server information")
 	msgPtr := flag.String("msg", "none", "Output for messages, {File path | stdout | none}")
-	logPtr := flag.String("log", "none", "Output for logs, {File path | stdout | none}")
+	logPtr := flag.String("log", "stdout", "Output for logs, {File path | stdout | none}")
 	typePtr := flag.String("type", "policy", "Filter for what kinds of logs to receive, {all | policy | system}")
 	rawPtr := flag.Bool("raw", false, "Flag to print logs in a raw format")
 	flag.Parse()
