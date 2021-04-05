@@ -215,9 +215,19 @@ func GetHostName() string {
 
 // StrToFile Function
 func StrToFile(str, destFile string) {
+	if _, err := os.Stat(destFile); err != nil {
+		newFile, err := os.Create(destFile)
+		if err != nil {
+			kg.Err(err.Error())
+			return
+		}
+		newFile.Close()
+	}
+
 	file, err := os.OpenFile(destFile, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		kg.Err(err.Error())
+		return
 	}
 	defer file.Close()
 

@@ -135,11 +135,11 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		dm.LogFeeder.Print("Stopped the system monitor")
 	}
 
-	if dm.AuditLogger != nil {
-		// close audit logger
-		dm.CloseAuditLogger()
-		dm.LogFeeder.Print("Stopped the audit logger")
-	}
+	// if dm.AuditLogger != nil {
+	// 	// close audit logger
+	// 	dm.CloseAuditLogger()
+	// 	dm.LogFeeder.Print("Stopped the audit logger")
+	// }
 
 	dm.LogFeeder.Print("Terminated the KubeArmor")
 
@@ -293,7 +293,6 @@ func KubeArmor(port, output string) {
 		kg.Err("Failed to intialize the log feeder")
 		return
 	}
-	kg.Print("Initialized the log feeder")
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
@@ -308,24 +307,24 @@ func KubeArmor(port, output string) {
 
 		return
 	}
-	dm.LogFeeder.Print("Started to monitor system events")
 
 	// monior system events
 	go dm.MonitorSystemEvents()
+	dm.LogFeeder.Print("Started to monitor system events")
 
-	// initialize audit logger
-	if !dm.InitAuditLogger() {
-		dm.LogFeeder.Err("Failed to initialize the audit logger")
+	// // initialize audit logger
+	// if !dm.InitAuditLogger() {
+	// 	dm.LogFeeder.Err("Failed to initialize the audit logger")
 
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
+	// 	// destroy the daemon
+	// 	dm.DestroyKubeArmorDaemon()
 
-		return
-	}
-	dm.LogFeeder.Print("Started to monitor audit logger")
+	// 	return
+	// }
 
-	// monitor audit logs
-	go dm.MonitorAuditLogs()
+	// // monitor audit logs
+	// go dm.MonitorAuditLogs()
+	// dm.LogFeeder.Print("Started to monitor audit logs")
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {
@@ -336,7 +335,7 @@ func KubeArmor(port, output string) {
 
 		return
 	}
-	dm.LogFeeder.Print("Started to protect containers")
+	dm.LogFeeder.Print("Started to protect a host and containers")
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
@@ -345,6 +344,18 @@ func KubeArmor(port, output string) {
 
 	if K8s.InitK8sClient() {
 		dm.LogFeeder.Print("Initialized the Kubernetes client")
+
+		// watch k8s pods
+		go dm.WatchK8sPods()
+		dm.LogFeeder.Print("Started to monitor Pod events")
+
+		// watch security policies
+		go dm.WatchSecurityPolicies()
+		dm.LogFeeder.Print("Started to monitor security policies")
+
+		// watch host security policies
+		go dm.WatchHostSecurityPolicies()
+		dm.LogFeeder.Print("Started to monitor host security policies")
 
 		// get current CRI
 		cr := K8s.GetContainerRuntime()
@@ -358,18 +369,6 @@ func KubeArmor(port, output string) {
 			// monitor docker events
 			go dm.MonitorDockerEvents()
 		}
-
-		// watch k8s pods
-		go dm.WatchK8sPods()
-		dm.LogFeeder.Print("Started to monitor Pod events")
-
-		// watch security policies
-		go dm.WatchSecurityPolicies()
-		dm.LogFeeder.Print("Started to monitor security policies")
-
-		// watch host security policies
-		go dm.WatchHostSecurityPolicies()
-		dm.LogFeeder.Print("Started to monitor host security policies")
 	} else {
 		dm.LogFeeder.Err("Failed to initialize the Kubernetes client")
 	}

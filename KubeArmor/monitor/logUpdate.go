@@ -93,9 +93,10 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "flags=" + fileOpenFlags
 
-				if msg.ContextSys.Retval == -13 {
-					continue
-				}
+				// // let the audit logger handle this
+				// if msg.ContextSys.Retval == -13 {
+				// 	continue
+				// }
 
 			case SYS_CLOSE:
 				var fd string
@@ -142,9 +143,10 @@ func (mon *SystemMonitor) UpdateLogs() {
 					log = execLogMap[log.HostPID]
 					delete(execLogMap, log.HostPID)
 
-					if msg.ContextSys.Retval == -13 {
-						continue
-					}
+					// // let the audit logger handle this
+					// if msg.ContextSys.Retval == -13 {
+					// 	continue
+					// }
 				}
 
 			case SYS_EXECVEAT: // dirfd, path, args, flags
@@ -188,9 +190,10 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 					delete(execLogMap, log.HostPID)
 
-					if msg.ContextSys.Retval == -13 { // Permission Denied -> use auditLogger instead of this
-						continue
-					}
+					// // let the audit logger handle this
+					// if msg.ContextSys.Retval == -13 {
+					// 	continue
+					// }
 				}
 
 			case SYS_SOCKET: // domain, type, proto
