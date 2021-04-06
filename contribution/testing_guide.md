@@ -1,7 +1,7 @@
 # Local Test Guide
 
 *  Test in manual
-    1. Apply custom resource definitions (CRDs) into Kubernetes
+    1. Apply [custom resource definitions (CRDs)](../deployments/CRD) into Kubernetes
 
         ```text
         $ cd KubeArmor/deployments/CRD
@@ -22,21 +22,21 @@
         (KubeArmor) $ make run
         ```
 
-        If you want to change the gRPC port or the location of a log file, you can run KubeArmor like this.
+        If you want to change the gRPC port or the location of a log file, run KubeArmor like the below.
 
         ```text
         (KubeArmor) $ sudo -E ./kubearmor sudo -E ./kubearmor -port=[gRPC port number] -output=[log file path]
         ```
 
-    4. Apply security policies for testing
+    4. Apply security policies for the testing purpose
 
         ```text
         kubectl apply -f [policy file]
         ```
 
-        Instead, you can use the security policies defined for example microservices in the [examples](../examples/README.md) directory.
+        You can refer to the security policies defined for example microservices in [examples](../examples).
 
-    5. Generate logs by triggering policy violations
+    5. Trigger policy violations to generate logs
 
         ```text
         kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
@@ -49,7 +49,7 @@
             $ tail (-f) /tmp/kubearmor.log
             ```
 
-            If you changed the location of a log file, you need to check that file instead of '/tmp/kubearmor.log'.
+            If you changed the location of a log file, check your file instead of the default file.
 
             ```text
             $ tail (-f) [your log file path]
@@ -57,14 +57,14 @@
 
         - Log client
 
-            First, compile a log client.
+            Compile a log client.
 
             ```text
             $ cd KubeArmor/LogClient
             (LogClient) $ make
             ```
 
-            Then, run the log client.
+            Run the log client.
 
             ```text
             (LogClient) $ ./kubearmor-client (options...)
@@ -80,7 +80,7 @@
             -raw                       Flag to print messages and logs in a JSON format
             ```
 
-            Note that you will receive the messages and logs created after the log client runs, meaning that you need to run the log client to get the logs before any policy violations happen.
+            Note that you will see the messages and logs created right after the log client runs, which means that the log client should be ran before any policy violations happen.
 
 *  Test using the auto-testing framework
 
@@ -90,27 +90,45 @@
 
         - Microservices
 
-            You need to define a microservice by creating a directory.
+            Create a directory for a microservice in [microservices](../tests/microservices).
 
             ```text
             $ cd KubeArmor/tests/microservices
             (microservices) $ mkdir [microservice name]
             ```
 
-            Then, you create YAML files for the microservice.
+            Then, create YAML files for the microservice.
 
             ```text
             $ cd KubeArmor/tests/microservices/[microservice name]
             (microservice name) $ ...
             ```
 
-            As an example, we created the 'multiubuntu' directory in 'microservices', and defined 'multiubuntu-deployment.yaml' in 'multiubuntu'.
+            As an example, we created [multiubuntu](../tests/microservices/multiubuntu) in [microservices](../tests/microservices), and defined [multiubuntu-deployment.yaml](../tests/microservices/multiubuntu/multiubuntu-deployment.yaml) in the multiubuntu directory.
 
         - Test scenarios
 
-            In terms of testcases, you need to define a scenario per directory and make the directory name like '[microservice name]_[test scenario name]'. Then, you need to define a YAML file as a test policy in the directory.
+            Create a directory whose name is like '[microservice name]_[test scenario name]' in [scenarios](../tests/scenarios).
+            
+            ```text
+            $ cd KubeArmor/tests/scenarios
+            (scenarios) $ mkdir [microservice name]_[test scenario name]
+            ```
+            
+            Then, define a YAML file for a test policy in the directory.
+            
+            ```text
+            (scenarios) $ cd [microservice name]_[test scenario name]
+            ([microservice name]_[test scenario name]) $ vi [policy name].yaml
+            ```
 
-            As a next step, you need to create cmd files whose names are like 'cmd#'. Here is a template for a cmd file.
+            As a next step, create cmd files whose names are like 'cmd#'.
+            
+            ```text
+            ([microservice name]_[test scenario name]) $ vi cmd1 / cmd2 / ...
+            ```
+            
+            Here is a template for a cmd file.
 
             ```text
             source: [pod name]
@@ -134,20 +152,20 @@
             action: Block
             ```
 
-            You can refer to our scenarios in 'scenarios'.
+            You can refer to our scenarios in [scenarios](../tests/scenarios).
 
     2. Test in local
 
         When you are developing KubeArmor on running Kubernetes, you can choose this option.
 
-        First, you compile KubeArmor.
+        Compile KubeArmor.
 
         ```text
         $ cd KubeArmor/KubeArmor
         (KubeArmor) $ make clean && make
         ```
 
-        Next, you need to make sure that KubeArmor's CRDs are deployed and 'kubectl proxy' is running.
+        Make sure that KubeArmor's CRDs are deployed and 'kubectl proxy' is running.
 
         ```text
         $ cd KubeArmor/deployments/CRD
@@ -158,7 +176,7 @@
         $ kubectl proxy &
         ```
 
-        Then, you run the auto-testing framework.
+        Run the auto-testing framework.
 
         ```text
         $ cd KubeArmor/tests
@@ -169,14 +187,14 @@
 
         When you are developing KubeArmor with MicroK8s, you can choose this option.
 
-        First, you compile KubeArmor.
+        Compile KubeArmor.
 
         ```text
         $ cd KubeArmor/KubeArmor
         (KubeArmor) $ make clean && make
         ```
 
-        Next, you need to make sure that KubeArmor's CRDs are deployed and 'kubectl proxy' is running.
+        Make sure that KubeArmor's CRDs are deployed and 'kubectl proxy' is running.
 
         ```text
         $ cd KubeArmor/deployments/CRD
@@ -187,7 +205,7 @@
         $ kubectl proxy &
         ```
 
-        Then, you run the auto-testing framework.
+        Run the auto-testing framework.
 
         ```text
         $ cd KubeArmor/tests
@@ -197,6 +215,8 @@
     4. Test in runtime
 
         When KubeArmor is already deployed on running Kubernetes, you can choose this option.
+
+        Run the auto-testing framework.
 
         ```text
         $ cd KubeArmor/tests
