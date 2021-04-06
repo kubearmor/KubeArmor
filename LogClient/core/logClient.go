@@ -167,10 +167,13 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
 
 			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
-			str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
-			str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
-			str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
-			str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
+
+			if res.NamespaceName != "" {
+				str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
+				str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
+				str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
+				str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
+			}
 
 			if len(res.PolicyName) > 0 {
 				str = str + fmt.Sprintf("Policy Name: %s\n", res.PolicyName)

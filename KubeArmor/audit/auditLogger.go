@@ -348,7 +348,7 @@ func (adt *AuditLogger) MonitorAuditLogs() {
 
 			if !strings.Contains(line, "AVC") {
 				continue
-			} else if !strings.Contains(line, "DENIED") { // && !strings.Contains(line, "AUDIT") {
+			} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
 				continue
 			} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
 				continue
