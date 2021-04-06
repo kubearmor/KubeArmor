@@ -104,7 +104,7 @@
             (microservice name) $ ...
             ```
 
-            As an example, we created [multiubuntu](../tests/microservices/multiubuntu) in [microservices](../tests/microservices), and defined [multiubuntu-deployment.yaml](../tests/microservices/multiubuntu/multiubuntu-deployment.yaml) in the multiubuntu directory.
+            As an example, we created 'multiubuntu' in [microservices](../tests/microservices), and defined 'multiubuntu-deployment.yaml' in [multiubuntu](../examples/multiubuntu).
 
         - Test scenarios
 
