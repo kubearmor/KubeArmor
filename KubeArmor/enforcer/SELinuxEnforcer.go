@@ -1,57 +1,15 @@
 package enforcer
 
 import (
+	"bufio"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 
 	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
-)
-
-const (
-	BaseContainer = `(block container
-		(type process)
-		(type socket)
-		(roletype system_r process)
-		(typeattributeset domain (process ))
-		(typeattributeset container_domain (process ))
-		(typeattributeset svirt_sandbox_domain (process ))
-		(typeattributeset file_type (socket ))
-		(allow process socket (sock_file (create open getattr setattr read write rename link unlink ioctl lock append)))
-		(allow process proc_type (file (getattr open read)))
-		(allow process cpu_online_t (file (getattr open read)))
-		(allow container_runtime_t process (key (create link read search setattr view write)))
-		)
-
-		`
-
-	BaseNetwork = `(block net_container
-		(blockinherit container)
-		(typeattributeset sandbox_net_domain (process))
-	)
-	
-	(block restricted_net_container
-		(blockinherit container)
-	
-		(allow process process (tcp_socket (ioctl read getattr lock write setattr append bind connect getopt setopt shutdown create listen accept)))
-		(allow process process (udp_socket (ioctl read getattr lock write setattr append bind connect getopt setopt shutdown create)))
-	
-		(allow process proc_t (lnk_file (read)))
-	
-		(allow process node_t (node (tcp_recv tcp_send recvfrom sendto)))
-		(allow process node_t (node (udp_recv recvfrom)))
-		(allow process node_t (node (udp_send sendto)))
-	
-		(allow process node_t (udp_socket (node_bind)))
-		(allow process node_t (tcp_socket (node_bind)))
-	
-		(allow process http_port_t (tcp_socket (name_connect)))
-		(allow process http_port_t (tcp_socket (recv_msg send_msg)))
-	)
-
-	`
 )
 
 // ====================== //
@@ -104,13 +62,13 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 	namespace := pod.Metadata["namespaceName"]
 	podName := pod.Metadata["podName"]
 
-	selinuxVolumeDefault := "(block " + profileName + "\n" +
+	defaultProfile := "(block " + profileName + "\n" +
 		"	(blockinherit container)\n" +
-		"	(blockinherit restricted_net_container)\n" +
+		// "	(blockinherit restricted_net_container)\n" +
 		"	(allow process process (capability (dac_override)))\n"
 
 	for _, hostVolume := range pod.HostVolumes {
-		if readOnly, ok := hostVolume.UsedByContainer[containerName]; ok {
+		if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
 			if context, err := kl.GetSELinuxType(hostVolume.PathName); err != nil {
 				se.LogFeeder.Err(err.Error())
 				return false
@@ -120,17 +78,17 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 				if readOnly {
 					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
 					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-					selinuxVolumeDefault = selinuxVolumeDefault + contextDirLine + contextFileLine
+					defaultProfile = defaultProfile + contextDirLine + contextFileLine
 				} else {
 					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
 					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-					selinuxVolumeDefault = selinuxVolumeDefault + contextDirLine + contextFileLine
+					defaultProfile = defaultProfile + contextDirLine + contextFileLine
 				}
 			}
 		}
 	}
 
-	selinuxVolumeDefault = selinuxVolumeDefault + ")\n"
+	defaultProfile = defaultProfile + ")\n"
 
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
@@ -150,7 +108,7 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 		return false
 	}
 
-	if _, err := newFile.WriteString(selinuxVolumeDefault); err != nil {
+	if _, err := newFile.WriteString(defaultProfile); err != nil {
 		se.LogFeeder.Err(err.Error())
 		return false
 	}
@@ -218,10 +176,200 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, containerName
 	return true
 }
 
+// ================================= //
+// == Security Policy Enforcement == //
+// ================================= //
+
+// GenerateSELinuxProfile Function
+func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profileName string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
+	// check profile
+	securityRules := 0
+
+	if _, err := os.Stat(selinuxContextTemplates + profileName + ".cil"); os.IsNotExist(err) {
+		return 0, err.Error(), false
+	}
+
+	file, err := os.Open(selinuxContextTemplates + profileName + ".cil")
+	if err != nil {
+		return 0, err.Error(), false
+	}
+
+	oldProfile := ""
+
+	fscanner := bufio.NewScanner(file)
+	for fscanner.Scan() {
+		line := fscanner.Text()
+		oldProfile += (line + "\n")
+	}
+	file.Close()
+
+	se.LogFeeder.Print("[OLD]" + oldProfile)
+
+	mountedPathToHostPath := map[string]string{} // key: container-side path, val: host-side path
+
+	// write default volume
+	newProfile := "(block " + profileName + "\n" +
+		"	(blockinherit container)\n" +
+		// "	(blockinherit restricted_net_container)\n" +
+		"	(allow process process (capability (dac_override)))\n"
+
+	found := false
+	for _, hostVolume := range pod.HostVolumes {
+		for containerName := range hostVolume.UsedByContainerPath {
+			if !strings.Contains(profileName, containerName) {
+				continue
+			}
+
+			found = true
+
+			if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
+				mountedPathToHostPath[hostVolume.UsedByContainerPath[containerName]] = hostVolume.PathName
+
+				if context, err := kl.GetSELinuxType(hostVolume.PathName); err != nil {
+					se.LogFeeder.Err(err.Error())
+					return 0, "", false
+				} else {
+					contextLine := "	(allow process " + context
+
+					if readOnly {
+						contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+						contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+						newProfile = newProfile + contextDirLine + contextFileLine
+					} else {
+						contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+						contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+						newProfile = newProfile + contextDirLine + contextFileLine
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		return 0, "", false
+	}
+
+	// write policy volume
+	for _, policy := range securityPolicies {
+		// file
+		for _, file := range policy.Spec.File.MatchPaths {
+			absolutePath := file.Path
+			readOnly := file.ReadOnly
+
+			for containerPath, hostPath := range mountedPathToHostPath {
+				if strings.Contains(absolutePath, containerPath) {
+					filePath := strings.Split(absolutePath, containerPath)[1]
+					hostAbsolutePath := hostPath + filePath
+
+					if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+						se.LogFeeder.Err(err.Error())
+						break
+					} else {
+						contextLine := "	(allow process " + context
+
+						if readOnly {
+							contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+							newProfile = newProfile + contextFileLine
+							securityRules++
+						} else {
+							contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+							newProfile = newProfile + contextFileLine
+							securityRules++
+						}
+					}
+				}
+			}
+		}
+
+		// dir
+		for _, dir := range policy.Spec.File.MatchDirectories {
+			absolutePath := dir.Directory
+			readOnly := dir.ReadOnly
+
+			for containerPath, hostPath := range mountedPathToHostPath {
+				if strings.Contains(absolutePath, containerPath) {
+					filePath := strings.Split(absolutePath, containerPath)[1]
+					hostAbsolutePath := hostPath + filePath
+
+					if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+						se.LogFeeder.Err(err.Error())
+						break
+					} else {
+						contextLine := "	(allow process " + context
+
+						if readOnly {
+							contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+							newProfile = newProfile + contextDirLine
+							securityRules++
+						} else {
+							contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+							newProfile = newProfile + contextDirLine
+							securityRules++
+						}
+					}
+				}
+			}
+		}
+	}
+
+	newProfile = newProfile + ")\n"
+
+	se.LogFeeder.Print("[NEW]" + newProfile)
+
+	if newProfile != oldProfile {
+		return securityRules, newProfile, true
+	}
+
+	return 0, "", false
+}
+
+// UpdateSELinuxProfile Function
+func (se *SELinuxEnforcer) UpdateSELinuxProfile(conGroup tp.ContainerGroup, seLinuxProfile string, securityPolicies []tp.SecurityPolicy) {
+	if ruleCount, newProfile, ok := se.GenerateSELinuxProfile(conGroup, seLinuxProfile, securityPolicies); ok {
+		newfile, err := os.Create(selinuxContextTemplates + seLinuxProfile + ".cil")
+		if err != nil {
+			se.LogFeeder.Err(err.Error())
+			return
+		}
+		defer newfile.Close()
+
+		if _, err := newfile.WriteString(newProfile); err != nil {
+			se.LogFeeder.Err(err.Error())
+			return
+		}
+
+		if err := newfile.Sync(); err != nil {
+			se.LogFeeder.Err(err.Error())
+			return
+		}
+
+		if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
+			se.LogFeeder.Printf("Updated %d security rules to %s/%s/%s", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile)
+		} else {
+			se.LogFeeder.Printf("Failed to update %d security rules to %s/%s/%s (%s)", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile, output)
+		}
+	}
+}
+
 // UpdateSecurityPolicies Function
 func (se *SELinuxEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
-	//
+	selinuxProfiles := []string{}
+
+	for _, seLinuxProfile := range conGroup.SELinuxProfiles {
+		if !kl.ContainsElement(selinuxProfiles, seLinuxProfile) {
+			selinuxProfiles = append(selinuxProfiles, seLinuxProfile)
+		}
+	}
+
+	for _, selinuxProfile := range selinuxProfiles {
+		se.LogFeeder.Printf("[UpdateSecurityPolicies] %s", selinuxProfile)
+		se.UpdateSELinuxProfile(conGroup, selinuxProfile, conGroup.SecurityPolicies)
+	}
 }
+
+// ====================================== //
+// == Host Security Policy Enforcement == //
+// ====================================== //
 
 // UpdateHostSecurityPolicies Function
 func (se *SELinuxEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {

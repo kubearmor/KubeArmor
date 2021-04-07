@@ -13,10 +13,11 @@ import (
 
 // HostMountedVolume Structure
 type HostMountedVolume struct {
-	UsedByContainer map[string]bool // key: container name, val: readOnly
-	VolumeName      string
-	PathName        string
-	Type            string
+	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
+	UsedByContainerPath     map[string]string // key: container name, val: mounted path
+	VolumeName              string
+	PathName                string
+	Type                    string
 }
 
 // Container Structure
