@@ -5,6 +5,7 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 5
+  message: "block the sleep command"
   selector:
     matchLabels:
       group: group-1

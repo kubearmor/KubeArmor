@@ -40,14 +40,17 @@ message Log {
   string PolicyName = 11;
   string Severity = 12;
 
-  string Type = 13;
-  string Source = 14;
-  string Operation = 15;
-  string Resource = 16;
-  string Data = 17;
+  string Tags = 13;
+  string Message = 14;
 
-  string Action = 18;
-  string Result = 19;
+  string Type = 15;
+  string Source = 16;
+  string Operation = 17;
+  string Resource = 18;
+  string Data = 19;
+
+  string Action = 20;
+  string Result = 21;
 }
 
 // request message

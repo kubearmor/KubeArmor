@@ -5,8 +5,10 @@
 ## Getting Started
 
 * [Deployment Guide](getting-started/deployment_guide.md)
-* [Security Policy Specification](getting-started/security_policy_specification.md)
-* [Security Policy Examples](getting-started/security_policy_examples.md)
+* [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
+* [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
+* [Security Policy Specification for Nodes (Hosts)](getting-started/host_security_policy_specification.md)
+* [Security Policy Examples for Nodes (Hosts)](getting-started/host_security_policy_examples.md)
 * [Consideration in Policy Action](getting-started/consideration_in_policy_action.md)
 
 ## Contribution

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # download gobpf
-go get github.com/iovisor/gobpf
+go get -u github.com/iovisor/gobpf
 
 # fix module.go
 for GOBPF in $(ls $GOPATH/pkg/mod/github.com/iovisor);
