@@ -1,0 +1,10 @@
+(block tty_container
+    (blockinherit container)
+
+    (allow process device_t (dir (getattr search open)))
+    (allow process device_t (dir (ioctl read getattr lock search open)))
+    (allow process device_t (lnk_file (read getattr)))
+
+    (allow process devtty_t (chr_file (ioctl read write getattr lock append open)))
+)
+

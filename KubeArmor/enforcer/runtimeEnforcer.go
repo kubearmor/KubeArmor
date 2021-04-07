@@ -103,7 +103,7 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) 
 				if action == "ADDED" {
 					re.seLinuxEnforcer.RegisterSELinuxProfile(pod, containerName, selinuxProfile)
 				} else if action == "DELETED" {
-					re.seLinuxEnforcer.UnregisterSELinuxProfile(pod, containerName, selinuxProfile)
+					re.seLinuxEnforcer.UnregisterSELinuxProfile(pod, selinuxProfile)
 				}
 			}
 		}
