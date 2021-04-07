@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 )
 
@@ -27,6 +28,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = path.Path
@@ -41,6 +45,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = path.Path
@@ -52,6 +59,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
@@ -73,6 +83,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = dir.Directory
@@ -87,6 +100,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = dir.Directory
@@ -98,6 +114,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
@@ -123,6 +142,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = path.Path
@@ -137,6 +159,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = path.Path
@@ -148,6 +173,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
@@ -173,6 +201,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = dir.Directory
@@ -187,6 +218,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = dir.Directory
@@ -198,6 +232,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
@@ -218,6 +255,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
 
 						match.Source = ""
 						match.Operation = "Network"
@@ -247,6 +287,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "Network"
 
@@ -272,6 +315,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "Network"
@@ -307,6 +353,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						switch cap.Capability {
 						case "net_raw":
 							match.Source = ""
@@ -324,6 +373,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								switch cap.Capability {
 								case "net_raw":
 									match.Source = src.Path
@@ -338,6 +390,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								switch cap.Capability {
 								case "net_raw":
@@ -387,6 +442,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = path.Path
@@ -401,6 +459,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = path.Path
@@ -412,6 +473,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
@@ -433,6 +497,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = dir.Directory
@@ -447,6 +514,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = dir.Directory
@@ -458,6 +528,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
@@ -483,6 +556,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = path.Path
@@ -497,6 +573,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = path.Path
@@ -508,6 +587,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
@@ -533,6 +615,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 						match.PolicyName = secPolicy.Metadata["policyName"]
 						match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+						match.Tags = secPolicy.Spec.Tags
+						match.Message = secPolicy.Spec.Message
+
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = dir.Directory
@@ -547,6 +632,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = dir.Directory
@@ -558,6 +646,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
@@ -580,6 +671,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Path
 								match.Operation = "Network"
@@ -606,6 +700,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								match.Source = src.Directory
 								match.Operation = "Network"
@@ -643,6 +740,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
 
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
+
 								switch cap.Capability {
 								case "net_raw":
 									match.Source = src.Path
@@ -657,6 +757,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 								match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
+
+								match.Tags = secPolicy.Spec.Tags
+								match.Message = secPolicy.Spec.Message
 
 								switch cap.Capability {
 								case "net_raw":
@@ -685,15 +788,21 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 // ==================== //
 
 // UpdateMatchedPolicy Function
-func (fd *Feeder) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Log {
+func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	allowProcPolicy := ""
 	allowProcPolicySeverity := ""
+	allowProcTags := []string{}
+	allowProcMessage := ""
 
 	allowFilePolicy := ""
 	allowFilePolicySeverity := ""
+	allowFileTags := []string{}
+	allowFileMessage := ""
 
 	allowNetworkPolicy := ""
 	allowNetworkPolicySeverity := ""
+	allowNetworkTags := []string{}
+	allowNetworkMessage := ""
 
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.Lock()
@@ -712,25 +821,73 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Log {
 						if allowProcPolicy == "" {
 							allowProcPolicy = secPolicy.PolicyName
 							allowProcPolicySeverity = secPolicy.Severity
+
+							for _, tag := range secPolicy.Tags {
+								if !kl.ContainsElement(allowProcTags, tag) {
+									allowProcTags = append(allowProcTags, tag)
+								}
+							}
+
+							allowProcMessage = secPolicy.Message
 						} else if !strings.Contains(allowProcPolicy, secPolicy.PolicyName) {
 							allowProcPolicy = allowProcPolicy + "," + secPolicy.PolicyName
 							allowProcPolicySeverity = allowProcPolicySeverity + "," + secPolicy.Severity
+
+							for _, tag := range secPolicy.Tags {
+								if !kl.ContainsElement(allowProcTags, tag) {
+									allowProcTags = append(allowProcTags, tag)
+								}
+							}
+
+							allowProcMessage = allowProcMessage + "," + secPolicy.Message
 						}
 					} else if secPolicy.Operation == "File" {
 						if allowFilePolicy == "" {
 							allowFilePolicy = secPolicy.PolicyName
 							allowFilePolicySeverity = secPolicy.Severity
+
+							for _, tag := range secPolicy.Tags {
+								if !kl.ContainsElement(allowFileTags, tag) {
+									allowFileTags = append(allowFileTags, tag)
+								}
+							}
+
+							allowFileMessage = secPolicy.Message
 						} else if !strings.Contains(allowFilePolicy, secPolicy.PolicyName) {
 							allowFilePolicy = allowFilePolicy + "," + secPolicy.PolicyName
 							allowFilePolicySeverity = allowFilePolicySeverity + "," + secPolicy.Severity
+
+							for _, tag := range secPolicy.Tags {
+								if !kl.ContainsElement(allowFileTags, tag) {
+									allowFileTags = append(allowFileTags, tag)
+								}
+							}
+
+							allowFileMessage = allowFileMessage + "," + secPolicy.Message
 						}
 					} else if secPolicy.Operation == "Network" {
 						if allowNetworkPolicy == "" {
 							allowNetworkPolicy = secPolicy.PolicyName
 							allowNetworkPolicySeverity = secPolicy.Severity
+
+							for _, tag := range secPolicy.Tags {
+								if !kl.ContainsElement(allowNetworkTags, tag) {
+									allowNetworkTags = append(allowNetworkTags, tag)
+								}
+							}
+
+							allowNetworkMessage = secPolicy.Message
 						} else if !strings.Contains(allowNetworkPolicy, secPolicy.PolicyName) {
 							allowNetworkPolicy = allowNetworkPolicy + "," + secPolicy.PolicyName
 							allowNetworkPolicySeverity = allowNetworkPolicySeverity + "," + secPolicy.Severity
+
+							for _, tag := range secPolicy.Tags {
+								if !kl.ContainsElement(allowNetworkTags, tag) {
+									allowNetworkTags = append(allowNetworkTags, tag)
+								}
+							}
+
+							allowNetworkMessage = allowNetworkMessage + "," + secPolicy.Message
 						}
 					}
 				}
@@ -743,14 +900,34 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Log {
 						if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
 							log.Type = "PolicyMatched"
 							log.Action = secPolicy.Action
+
 							break
 						} else if secPolicy.Source == "" {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
 							log.Type = "PolicyMatched"
 							log.Action = secPolicy.Action
+
 							break
 						}
 					}
@@ -761,14 +938,34 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Log {
 						if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
 							log.Type = "PolicyMatched"
 							log.Action = secPolicy.Action
+
 							break
 						} else if secPolicy.Source == "" {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
 							log.Type = "PolicyMatched"
 							log.Action = secPolicy.Action
+
 							break
 						}
 					}
@@ -779,42 +976,132 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log, retval int64) tp.Log {
 		fd.SecurityPoliciesLock.Unlock()
 	}
 
+	// use 'AllowWithAudit' to get the logs for allowed operations
 	if log.Action == "Allow" && log.Result == "Passed" {
 		return tp.Log{}
 	}
 
+	// // use 'BlockWithAudit' to get the logs for blocked operations
 	// if log.Action == "Block" && log.Result != "Passed" {
 	// 	return tp.Log{}
 	// }
 
-	if log.Type == "" && retval < 0 {
-		if log.Operation == "Process" && allowProcPolicy != "" {
-			log.PolicyName = allowProcPolicy
-			log.Severity = allowProcPolicySeverity
-			log.Type = "PolicyMatched"
-			log.Action = "Allow"
-		} else if log.Operation == "File" && allowFilePolicy != "" {
-			log.PolicyName = allowFilePolicy
-			log.Severity = allowFilePolicySeverity
-			log.Type = "PolicyMatched"
-			log.Action = "Allow"
-		} else if log.Operation == "Network" && allowNetworkPolicy != "" {
-			log.PolicyName = allowNetworkPolicy
-			log.Severity = allowNetworkPolicySeverity
-			log.Type = "PolicyMatched"
-			log.Action = "Allow"
-		} else if log.NamespaceName != "" {
-			log.Type = "SystemLog"
-		} else {
-			return tp.Log{}
+	if log.NamespaceName != "" { // container
+		if log.Type == "" && log.Result != "Passed" {
+			if log.Operation == "Process" && allowProcPolicy != "" {
+				log.PolicyName = allowProcPolicy
+				log.Severity = allowProcPolicySeverity
+
+				if len(allowProcTags) > 0 {
+					log.Tags = strings.Join(allowProcTags[:], ",")
+				}
+
+				if len(allowProcMessage) > 0 {
+					log.Message = allowProcMessage
+				}
+
+				log.Type = "PolicyMatched"
+				log.Action = "Allow"
+
+				return log
+			} else if log.Operation == "File" && allowFilePolicy != "" {
+				log.PolicyName = allowFilePolicy
+				log.Severity = allowFilePolicySeverity
+
+				if len(allowFileTags) > 0 {
+					log.Tags = strings.Join(allowFileTags[:], ",")
+				}
+
+				if len(allowFileMessage) > 0 {
+					log.Message = allowFileMessage
+				}
+
+				log.Type = "PolicyMatched"
+				log.Action = "Allow"
+
+				return log
+			} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+				log.PolicyName = allowNetworkPolicy
+				log.Severity = allowNetworkPolicySeverity
+
+				if len(allowNetworkTags) > 0 {
+					log.Tags = strings.Join(allowNetworkTags[:], ",")
+				}
+
+				if len(allowNetworkMessage) > 0 {
+					log.Message = allowNetworkMessage
+				}
+
+				log.Type = "PolicyMatched"
+				log.Action = "Allow"
+
+				return log
+			} else if log.NamespaceName != "" {
+				log.Type = "ContainerLog"
+				return log
+			}
+		} else if log.Type == "PolicyMatched" {
+			return log
 		}
-	} else if log.Type != "PolicyMatched" {
-		return tp.Log{}
+	} else { // host
+		if log.Type == "" && log.Result != "Passed" {
+			if log.Operation == "Process" && allowProcPolicy != "" {
+				log.PolicyName = allowProcPolicy
+				log.Severity = allowProcPolicySeverity
+
+				if len(allowProcTags) > 0 {
+					log.Tags = strings.Join(allowProcTags[:], ",")
+				}
+
+				if len(allowProcMessage) > 0 {
+					log.Message = allowProcMessage
+				}
+
+				log.Type = "HostPolicyMatched"
+				log.Action = "Allow"
+
+				return log
+			} else if log.Operation == "File" && allowFilePolicy != "" {
+				log.PolicyName = allowFilePolicy
+				log.Severity = allowFilePolicySeverity
+
+				if len(allowFileTags) > 0 {
+					log.Tags = strings.Join(allowFileTags[:], ",")
+				}
+
+				if len(allowFileMessage) > 0 {
+					log.Message = allowFileMessage
+				}
+
+				log.Type = "HostPolicyMatched"
+				log.Action = "Allow"
+
+				return log
+			} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+				log.PolicyName = allowNetworkPolicy
+				log.Severity = allowNetworkPolicySeverity
+
+				if len(allowNetworkTags) > 0 {
+					log.Tags = strings.Join(allowNetworkTags[:], ",")
+				}
+
+				if len(allowNetworkMessage) > 0 {
+					log.Message = allowNetworkMessage
+				}
+
+				log.Type = "HostPolicyMatched"
+				log.Action = "Allow"
+
+				return log
+			} else if log.NamespaceName != "" {
+				log.Type = "HostLog"
+				return log
+			}
+		} else if log.Type == "PolicyMatched" {
+			log.Type = "HostPolicyMatched"
+			return log
+		}
 	}
 
-	if log.NamespaceName == "" && log.Type == "PolicyMatched" {
-		log.Type = "HostPolicyMatched"
-	}
-
-	return log
+	return tp.Log{}
 }
