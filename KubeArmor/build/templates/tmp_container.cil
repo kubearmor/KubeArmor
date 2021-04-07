@@ -1,0 +1,15 @@
+(block tmp_container
+    (blockinherit container)
+
+    (allow process tmpfile (dir (getattr search open)))
+    (allow process tmpfile (file (ioctl read getattr lock open)))
+
+)
+
+(block tmp_rw_container
+    (blockinherit tmp_container)
+
+    (allow process tmpfile (file (ioctl read write getattr lock append open)))
+    (allow process tmpfile (dir (ioctl read write getattr lock append open)))
+
+)
