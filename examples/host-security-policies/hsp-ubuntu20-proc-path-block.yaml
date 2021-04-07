@@ -4,8 +4,8 @@ metadata:
   name: hsp-ubuntu20-proc-path-block
 spec:
   nodeSelector:
-    matchNames:
-      hostName: ubuntu20
+    matchLabels:
+      kubernetes.io/hostname: ubuntu20
   severity: 5
   process:
     matchPaths:

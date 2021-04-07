@@ -93,8 +93,32 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "flags=" + fileOpenFlags
 
-				// // let the audit logger handle this
-				// if msg.ContextSys.Retval == -13 {
+				// if msg.ContextSys.Retval == PERMISSION_DENIED {
+				// 	continue
+				// }
+
+			case SYS_OPENAT:
+				var fd string
+				var fileName string
+				var fileOpenFlags string
+
+				if len(msg.ContextArgs) == 3 {
+					if val, ok := msg.ContextArgs[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+					if val, ok := msg.ContextArgs[1].(string); ok {
+						fileName = val
+					}
+					if val, ok := msg.ContextArgs[2].(string); ok {
+						fileOpenFlags = val
+					}
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "fd=" + fd + " flags=" + fileOpenFlags
+
+				// if msg.ContextSys.Retval == PERMISSION_DENIED {
 				// 	continue
 				// }
 
@@ -143,8 +167,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 					log = execLogMap[log.HostPID]
 					delete(execLogMap, log.HostPID)
 
-					// // let the audit logger handle this
-					// if msg.ContextSys.Retval == -13 {
+					// if msg.ContextSys.Retval == PERMISSION_DENIED {
 					// 	continue
 					// }
 				}
@@ -190,8 +213,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 					delete(execLogMap, log.HostPID)
 
-					// // let the audit logger handle this
-					// if msg.ContextSys.Retval == -13 {
+					// if msg.ContextSys.Retval == PERMISSION_DENIED {
 					// 	continue
 					// }
 				}
@@ -315,7 +337,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			// == //
 
 			if mon.LogFeeder != nil {
-				mon.LogFeeder.PushLog(log, msg.ContextSys.Retval)
+				go mon.LogFeeder.PushLog(log)
 			}
 
 			// == //

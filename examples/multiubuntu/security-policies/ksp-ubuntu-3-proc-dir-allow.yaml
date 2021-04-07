@@ -5,6 +5,7 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 5
+  message: "allow credentials only"
   selector:
     matchLabels:
       container: ubuntu-3

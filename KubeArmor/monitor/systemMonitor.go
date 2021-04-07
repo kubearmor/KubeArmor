@@ -32,8 +32,9 @@ var (
 
 const (
 	// file
-	SYS_OPEN  = 2
-	SYS_CLOSE = 3
+	SYS_OPEN   = 2
+	SYS_OPENAT = 257
+	SYS_CLOSE  = 3
 
 	// network
 	SYS_SOCKET  = 41
@@ -52,6 +53,10 @@ const (
 	SYSPOL_PROC     = 1
 	SYSPOL_FILE     = 2
 	SYSPOL_PROCFILE = 3
+)
+
+const (
+	PERMISSION_DENIED = -13
 )
 
 // ======================= //
@@ -227,7 +232,7 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 	mon.LogFeeder.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
 
 	for _, syscallName := range systemCalls {
 		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
@@ -609,6 +614,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			if ctx.EventID == SYS_OPEN {
 				if len(args) != 2 {
+					continue
+				}
+
+			} else if ctx.EventID == SYS_OPENAT {
+				if len(args) != 3 {
 					continue
 				}
 

@@ -139,6 +139,12 @@ type Log struct {
 	// severity
 	Severity string `json:"severity,omitempty"`
 
+	// tags
+	Tags string `json:"tags,omitempty"`
+
+	// message
+	Message string `json:"message,omitempty"`
+
 	// log
 	Type      string `json:"type"`
 	Source    string `json:"source"`
@@ -153,6 +159,8 @@ type Log struct {
 type MatchPolicy struct {
 	PolicyName string
 	Severity   string
+	Tags       []string
+	Message    string
 	Source     string
 	Operation  string
 	Resource   string

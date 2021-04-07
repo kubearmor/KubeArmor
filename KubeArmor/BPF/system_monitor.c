@@ -42,6 +42,7 @@
 enum {
     // file
     _SYS_OPEN = 2,
+    _SYS_OPENAT = 257,
     _SYS_CLOSE = 3,
 
     // network
@@ -149,69 +150,78 @@ static __always_inline u32 get_task_ppid(struct task_struct *task)
 
 // == Pid NS Management == //
 
-static __always_inline u32 lookup_pid_ns(struct task_struct *task)
-{
-    u32 task_pid_ns = get_task_pid_ns_id(task);
-
-    u32 *pid_ns = pid_ns_map.lookup(&task_pid_ns);
-    if (pid_ns == 0) {
-        return 0;
-    }
-
-    return *pid_ns;
-}
-
 static __always_inline u32 add_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-
-    // host or container
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == 0) {
-        return 0;
-    }
+    u32 one = 1;
 
     // container
 
+    u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns_map.lookup(&pid_ns) != 0) {
         return pid_ns;
     }
 
     if (get_task_ns_pid(task) == 1) {
-        pid_ns_map.update(&pid_ns, &pid_ns);
+        pid_ns_map.update(&pid_ns, &one);
         return pid_ns;
     }
 
-    // in case that containers were running before KubeArmor is deployed
+    // host
 
-    if ((get_task_ns_tgid(task) != bpf_get_current_pid_tgid() >> 32) && (get_task_ns_ppid(task) == get_task_ppid(task))) {
-        pid_ns_map.update(&pid_ns, &pid_ns);
+    pid_ns = bpf_get_current_pid_tgid() >> 32;
+    if (pid_ns_map.lookup(&pid_ns) != 0) {
         return pid_ns;
     }
 
-    return 0;
+    pid_ns_map.update(&pid_ns, &one);
+    return pid_ns;
 }
 
 static __always_inline u32 remove_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-    // host or container
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == 0) {
-        return 0;
-    }
-
     // container
 
-    if ((pid_ns_map.lookup(&pid_ns) != 0) && (get_task_ns_pid(task) == 1)) {
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns_map.lookup(&pid_ns) != 0 && (get_task_ns_pid(task) == 1)) {
+        pid_ns_map.delete(&pid_ns);
+        return pid_ns;
+    }
+
+    // host
+
+    pid_ns = bpf_get_current_pid_tgid() >> 32;
+    if (pid_ns_map.lookup(&pid_ns) != 0) {
         pid_ns_map.delete(&pid_ns);
         return pid_ns;
     }
 
     return 0;
+}
+
+static __always_inline int skip_syscall()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+
+    // container
+
+    u32 task_pid_ns = get_task_pid_ns_id(task);
+    u32 *pid_ns = pid_ns_map.lookup(&task_pid_ns);
+    if (pid_ns != 0) {
+        return 0;
+    }
+
+    // host
+
+    task_pid_ns = bpf_get_current_pid_tgid() >> 32;
+    pid_ns = pid_ns_map.lookup(&task_pid_ns);
+    if (pid_ns != 0) {
+        return 0;
+    }
+
+    return -1;
 }
 
 // == Context Management == //
@@ -221,21 +231,21 @@ static __always_inline int init_context(sys_context_t *context)
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
     context->ts = bpf_ktime_get_ns();
-
     context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-    if (lookup_pid_ns(task)) {
-        context->pid_id = get_task_pid_ns_id(task);
-        context->mnt_id = get_task_mnt_ns_id(task);
-
-        context->ppid = get_task_ns_ppid(task);
-        context->pid = get_task_ns_tgid(task);
-    } else { // host-side
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == 0) { // host-side
         context->pid_id = 0;
         context->mnt_id = 0;
 
         context->ppid = get_task_ppid(task);
         context->pid = bpf_get_current_pid_tgid() >> 32;
+    } else { // container-side
+        context->pid_id = get_task_pid_ns_id(task);
+        context->mnt_id = get_task_mnt_ns_id(task);
+
+        context->ppid = get_task_ns_ppid(task);
+        context->pid = get_task_ns_tgid(task);
     }
 
     context->uid = bpf_get_current_uid_gid();
@@ -461,7 +471,8 @@ int syscall__execve(struct pt_regs *ctx,
 {
     sys_context_t context = {};
 
-    add_pid_ns();
+    if (!add_pid_ns())
+        return 0;
 
     init_context(&context);
 
@@ -488,6 +499,9 @@ int syscall__execve(struct pt_regs *ctx,
 int trace_ret_execve(struct pt_regs *ctx)
 {
     sys_context_t context = {};
+
+    if (skip_syscall())
+        return 0;
 
     init_context(&context);
 
@@ -517,7 +531,8 @@ int syscall__execveat(struct pt_regs *ctx,
 {
     sys_context_t context = {};
 
-    add_pid_ns();
+    if (!add_pid_ns())
+        return 0;
 
     init_context(&context);
 
@@ -547,6 +562,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
+    if (skip_syscall())
+        return 0;
+
     init_context(&context);
 
     context.event_id = _SYS_EXECVEAT;
@@ -569,6 +587,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
 int trace_do_exit(struct pt_regs *ctx, long code)
 {
     sys_context_t context = {};
+
+    if (skip_syscall())
+        return 0;
 
     init_context(&context);
 
@@ -665,6 +686,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     if (load_args(id, &args) != 0)
         return -1;
 
+    if (skip_syscall())
+        return -1;
+
     init_context(&context);
 
     context.event_id = id;
@@ -687,6 +711,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
 int syscall__open(struct pt_regs *ctx)
 {   
+    if (skip_syscall())
+        return 0;
+
     return save_args(_SYS_OPEN, ctx);
 }
 
@@ -695,8 +722,24 @@ int trace_ret_open(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(OPEN_FLAGS_T));  
 }
 
+int syscall__openat(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_OPENAT, ctx);
+}
+
+int trace_ret_openat(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T));
+}
+
 int syscall__close(struct pt_regs *ctx)
 { 
+    if (skip_syscall())
+        return 0;
+
     return save_args(_SYS_CLOSE, ctx);
 }
 
@@ -708,8 +751,11 @@ int trace_ret_close(struct pt_regs *ctx)
 // == Syscall Hooks (Network) == //
 
 int syscall__socket(struct pt_regs *ctx)
-{ 
-    return save_args(_SYS_SOCKET, ctx);   
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_SOCKET, ctx);
 }
 
 int trace_ret_socket(struct pt_regs *ctx)
@@ -718,7 +764,10 @@ int trace_ret_socket(struct pt_regs *ctx)
 }
 
 int syscall__connect(struct pt_regs *ctx)
-{ 
+{
+    if (skip_syscall())
+        return 0;
+
     return save_args(_SYS_CONNECT, ctx);   
 }
 
@@ -728,7 +777,10 @@ int trace_ret_connect(struct pt_regs *ctx)
 }
 
 int syscall__accept(struct pt_regs *ctx)
-{ 
+{
+    if (skip_syscall())
+        return 0;
+
     return save_args(_SYS_ACCEPT, ctx);   
 }
 
@@ -738,7 +790,10 @@ int trace_ret_accept(struct pt_regs *ctx)
 }
 
 int syscall__bind(struct pt_regs *ctx)
-{ 
+{
+    if (skip_syscall())
+        return 0;
+
     return save_args(_SYS_BIND, ctx);   
 }
 
@@ -748,7 +803,10 @@ int trace_ret_bind(struct pt_regs *ctx)
 }
 
 int syscall__listen(struct pt_regs *ctx)
-{ 
+{
+    if (skip_syscall())
+        return 0;
+
     return save_args(_SYS_LISTEN, ctx);   
 }
 

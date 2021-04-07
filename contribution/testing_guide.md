@@ -154,9 +154,7 @@
 
             You can refer to our scenarios in [scenarios](../tests/scenarios).
 
-    2. Test in local
-
-        When you are developing KubeArmor on running Kubernetes, you can choose this option.
+    2. Test in local (when you are developing KubeArmor on running Kubernetes)
 
         Compile KubeArmor.
 
@@ -183,9 +181,7 @@
         (tests) $ ./test-scenarios-local.sh
         ```
 
-    3. Test using MicroK8s
-
-        When you are developing KubeArmor with MicroK8s, you can choose this option.
+    3. Test using MicroK8s (when you are developing KubeArmor using MicroK8s)
 
         Compile KubeArmor.
 
@@ -212,9 +208,7 @@
         (tests) $ ./test-scenarios-with-microk8s.sh
         ```
 
-    4. Test in runtime
-
-        When KubeArmor is already deployed on running Kubernetes, you can choose this option.
+    4. Test in runtime (when KubeArmor is already deployed on running Kubernetes)
 
         Run the auto-testing framework.
 

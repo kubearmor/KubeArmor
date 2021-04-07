@@ -183,6 +183,14 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 				str = str + fmt.Sprintf("Severity: %s\n", res.Severity)
 			}
 
+			if len(res.Tag) > 0 {
+				str = str + fmt.Sprintf("Tags: %s\n", res.Tags)
+			}
+
+			if len(res.Message) > 0 {
+				str = str + fmt.Sprintf("Message: %s\n", res.Message)
+			}
+
 			str = str + fmt.Sprintf("Type: %s\n", res.Type)
 			str = str + fmt.Sprintf("Source: %s\n", res.Source)
 			str = str + fmt.Sprintf("Operation: %s\n", res.Operation)

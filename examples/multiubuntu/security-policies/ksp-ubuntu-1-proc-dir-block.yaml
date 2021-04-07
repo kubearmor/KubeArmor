@@ -5,6 +5,7 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 6
+  message: "block executables in /sbin"
   selector:
     matchLabels:
       container: ubuntu-1

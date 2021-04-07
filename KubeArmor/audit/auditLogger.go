@@ -318,7 +318,7 @@ func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, ope
 	}
 
 	if adt.LogFeeder != nil {
-		adt.LogFeeder.PushLog(log, -13)
+		adt.LogFeeder.PushLog(log)
 	}
 }
 

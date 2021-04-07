@@ -197,7 +197,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 					lgs.Client.Send(&log)
 				} else if lgs.Filter == "policy" && (log.Type == "PolicyMatched" || log.Type == "HostPolicyMatched") {
 					lgs.Client.Send(&log)
-				} else if lgs.Filter == "system" && log.Type == "SystemLog" {
+				} else if lgs.Filter == "system" && (log.Type == "ContainerLog" || log.Type == "HostLog") {
 					lgs.Client.Send(&log)
 				}
 			}
@@ -398,8 +398,8 @@ func (fd *Feeder) PushMessage(level, message string) error {
 }
 
 // PushLog Function
-func (fd *Feeder) PushLog(log tp.Log, retval int64) error {
-	log = fd.UpdateMatchedPolicy(log, retval)
+func (fd *Feeder) PushLog(log tp.Log) error {
+	log = fd.UpdateMatchedPolicy(log)
 
 	if log.UpdatedTime == "" {
 		return nil
@@ -427,6 +427,14 @@ func (fd *Feeder) PushLog(log tp.Log, retval int64) error {
 
 	if len(log.Severity) > 0 {
 		pbLog.Severity = log.Severity
+	}
+
+	if len(log.Tags) > 0 {
+		pbLog.Tags = log.Tags
+	}
+
+	if len(log.Message) > 0 {
+		pbLog.Message = log.Message
 	}
 
 	pbLog.Type = log.Type
