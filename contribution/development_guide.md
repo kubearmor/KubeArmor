@@ -126,7 +126,6 @@
 
         - "Started to serve gRPC-based log feeds"
         - "Started to monitor system events"
-        - "Started to monitor audit logs"
         - "Started to protect a host and containers"
         - "Started to monitor Pod events"
         - "Started to monitor security policies"

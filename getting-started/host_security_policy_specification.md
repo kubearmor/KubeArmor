@@ -1,15 +1,14 @@
-# Security Policy Specification for Containers
+# Security Policy Specification for Nodes (Hosts)
 
 ## Policy Specification
 
-Here is the specification of a security policy.
+Here is the specification of a host security policy.
 
 ```text
 apiVersion: security.accuknox.com/v1
-kind:KubeArmorPolicy
+kind:KubeArmorHostPolicy
 metadata:
   name: [policy name]
-  namespace: [namespace name]
 
 spec:
   severity: [1-10]
@@ -19,7 +18,7 @@ spec:
 
   message: [message]                       # --> optional
 
-  selector:
+  nodeSelector:
     matchLabels:
       [key1]: [value1]
       [keyN]: [valueN]
@@ -70,7 +69,7 @@ spec:
   network:
     matchProtocols:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
-      fromSource:                          # --> optional
+      fromSource:
       - path: [absolute exectuable path]
       - dir: [absolute directory path]
         recursive: [true|false]
@@ -78,7 +77,7 @@ spec:
   capabilities:
     matchCapabilities:
     - capability: [capability name]
-      fromSource:                          # --> optional
+      fromSource:
       - path: [absolute exectuable path]
       - dir: [absolute directory path]
         recursive: [true|false]
@@ -88,7 +87,7 @@ spec:
 
 ## Policy Spec Description
 
-Now, we will briefly explain how to define a security policy.
+Now, we will briefly explain how to define a host security policy.
 
 * Common
 
@@ -96,11 +95,13 @@ Now, we will briefly explain how to define a security policy.
 
   ```text
     apiVersion: security.accuknox.com/v1
-    kind:KubeArmorPolicy
+    kind:KubeArmorHostPolicy
     metadata:
       name: [policy name]
       namespace: [namespace name]
   ```
+
+  Make sure that you need to use KubeArmorHostPolicy, not KubeArmorPolicy.
 
 * Severity
 
@@ -128,20 +129,28 @@ Now, we will briefly explain how to define a security policy.
   message: [message]
   ```
 
-* Selector
+* NodeSelector
 
-  The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify \(a group of\) pods based on labels.
+  The node selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify \(a group of\) nodes based on labels.
 
   ```text
-    selector:
+    nodeSelector:
       matchLabels:
         [key1]: [value1]
         [keyN]: [valueN]
   ```
 
+  If you do not have any custom labels, you can use system labels as well.
+
+  ```text
+      kubernetes.io/arch: [architecture, (e.g., amd64)]
+      kubernetes.io/hostname: [host name, (e.g., ubuntu20)]
+      kubernetes.io/os: [operating system, (e.g., linux)]
+  ```
+
 * Process
 
-  In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, the coverage of regular expressions is highly dependent on AppArmor \([Policy Core Reference](https://gitlab.com/apparmor/apparmor/-/wikis/AppArmor_Core_Policy_Reference)\). Thus, we generally do not recommend using this match.
+  In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, we generally do not recommend using this match.
 
   ```text
     process:
@@ -229,8 +238,8 @@ Now, we will briefly explain how to define a security policy.
   ```text
     network:
       matchProtocols:
-      - protocol: [protocol]               # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
-        fromSource:                        # --> optional
+      - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
+        fromSource:
         - path: [absolute file path]
         - dir: [absolute directory path]
           recursive: [true:false]
@@ -243,8 +252,8 @@ Now, we will briefly explain how to define a security policy.
   ```text
     capabilities:
       matchCapabilities:
-      - capability: [capability name]
-        fromSource:                        # --> optional
+      - capability: [capability name(,)]
+        fromSource:
         - path: [absolute file path]
         - dir: [absolute directory path]
           recursive: [true:false]
@@ -252,8 +261,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Action
 
-  The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
-
+  The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
   
   When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
 
@@ -261,3 +269,4 @@ Now, we will briefly explain how to define a security policy.
     action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
   ```
 
+  WARNNING - In order to use the Allow action, you must include 'fromSource' in each rule. Otherwise, the rules without 'fromSource' will be ignored for the safety of nodes (hosts).
