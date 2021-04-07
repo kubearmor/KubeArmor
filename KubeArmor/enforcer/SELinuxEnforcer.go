@@ -43,6 +43,13 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 
 // DestroySELinuxEnforcer Function
 func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
+	for profileName := range se.SELinuxProfiles {
+		emptyPod := tp.K8sPod{
+			Metadata: map[string]string{},
+		}
+		se.UnregisterSELinuxProfile(emptyPod, profileName)
+	}
+
 	return nil
 }
 
@@ -128,7 +135,7 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 }
 
 // UnregisterSELinuxProfile Function
-func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, containerName, profileName string) bool {
+func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName string) bool {
 	namespace := pod.Metadata["namespaceName"]
 	podName := pod.Metadata["podName"]
 
@@ -140,7 +147,11 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, containerName
 	if _, err := os.Stat(profilePath); err == nil {
 		_, err := ioutil.ReadFile(profilePath)
 		if err != nil {
-			se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
+			if namespace == "" || podName == "" {
+				se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s): %s", profileName, err.Error())
+			} else {
+				se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
+			}
 			return false
 		}
 	} else { // not exist
@@ -156,7 +167,11 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, containerName
 			se.LogFeeder.Printf("Decreased the refCount (%d -> %d) of a SELinux profile (%s)", se.SELinuxProfiles[profileName]+1, se.SELinuxProfiles[profileName], profileName)
 		} else {
 			if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", profileName}); err != nil {
-				se.LogFeeder.Printf("Failed to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
+				if namespace == "" || podName == "" {
+					se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s): %s", profileName, err.Error())
+				} else {
+					se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
+				}
 				return false
 			}
 
@@ -166,13 +181,20 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, containerName
 			}
 
 			delete(se.SELinuxProfiles, profileName)
-			se.LogFeeder.Printf("Unregistered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
+			if namespace == "" || podName == "" {
+				se.LogFeeder.Printf("Unregistered a SELinux profile (%s)", profileName)
+			} else {
+				se.LogFeeder.Printf("Unregistered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
+			}
 		}
 	} else {
-		se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s) for (%s/%s): not exist profile in the enforecer", profileName, namespace, podName)
+		if namespace == "" || podName == "" {
+			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s): not exist profile in the enforecer", profileName)
+		} else {
+			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s) for (%s/%s): not exist profile in the enforecer", profileName, namespace, podName)
+		}
 		return false
 	}
-
 	return true
 }
 
@@ -202,8 +224,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 		oldProfile += (line + "\n")
 	}
 	file.Close()
-
-	se.LogFeeder.Print("[OLD]" + oldProfile)
 
 	mountedPathToHostPath := map[string]string{} // key: container-side path, val: host-side path
 
@@ -314,8 +334,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 
 	newProfile = newProfile + ")\n"
 
-	se.LogFeeder.Print("[NEW]" + newProfile)
-
 	if newProfile != oldProfile {
 		return securityRules, newProfile, true
 	}
@@ -344,9 +362,9 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(conGroup tp.ContainerGroup, seLi
 		}
 
 		if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
-			se.LogFeeder.Printf("Updated %d security rules to %s/%s/%s", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile)
+			se.LogFeeder.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile)
 		} else {
-			se.LogFeeder.Printf("Failed to update %d security rules to %s/%s/%s (%s)", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile, output)
+			se.LogFeeder.Printf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile, output)
 		}
 	}
 }
@@ -362,7 +380,6 @@ func (se *SELinuxEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	}
 
 	for _, selinuxProfile := range selinuxProfiles {
-		se.LogFeeder.Printf("[UpdateSecurityPolicies] %s", selinuxProfile)
 		se.UpdateSELinuxProfile(conGroup, selinuxProfile, conGroup.SecurityPolicies)
 	}
 }
