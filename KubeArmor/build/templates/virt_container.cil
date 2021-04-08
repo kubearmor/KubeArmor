@@ -1,0 +1,16 @@
+(block virt_container
+    (blockinherit container)
+
+    (allow process var_t (dir (getattr search open)))
+    (allow process var_t (lnk_file (read getattr)))
+
+    (allow process var_run_t (dir (getattr search open)))
+    (allow process var_run_t (lnk_file (read getattr)))
+
+    (allow process virt_var_run_t (dir (getattr search open)))
+    (allow process virt_var_run_t (sock_file (write getattr append open)))
+
+    (allow process virtd_t (unix_stream_socket (connectto)))
+
+)
+

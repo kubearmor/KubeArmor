@@ -128,6 +128,10 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
+		// update host-side volume mounted
+		newGroup.HostVolumes = []tp.HostMountedVolume{}
+		newGroup.HostVolumes = append(newGroup.HostVolumes, pod.HostVolumes...)
+
 		// add the container group into the container group list
 		dm.ContainerGroups = append(dm.ContainerGroups, newGroup)
 
@@ -292,7 +296,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				for _, v := range event.Object.Spec.Volumes {
 					if v.HostPath != nil {
 						hostVolume := tp.HostMountedVolume{}
-						hostVolume.UsedByContainer = map[string]bool{}
+						hostVolume.UsedByContainerReadOnly = map[string]bool{}
+						hostVolume.UsedByContainerPath = map[string]string{}
 						hostVolume.VolumeName = v.Name
 						hostVolume.PathName = v.HostPath.Path
 						hostVolume.Type = string(*v.HostPath.Type)
@@ -309,8 +314,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					for _, containerVolume := range container.VolumeMounts {
 						for i, hostVoulme := range pod.HostVolumes {
 							if containerVolume.Name == hostVoulme.VolumeName {
-								if _, ok := pod.HostVolumes[i].UsedByContainer[container.Name]; !ok {
-									pod.HostVolumes[i].UsedByContainer[container.Name] = containerVolume.ReadOnly
+								if _, ok := pod.HostVolumes[i].UsedByContainerReadOnly[container.Name]; !ok {
+									pod.HostVolumes[i].UsedByContainerReadOnly[container.Name] = containerVolume.ReadOnly
+									pod.HostVolumes[i].UsedByContainerPath[container.Name] = containerVolume.MountPath
 								}
 							}
 						}

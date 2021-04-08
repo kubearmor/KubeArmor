@@ -1,0 +1,33 @@
+(block home_container
+	(blockinherit container)
+
+    (allow process process (capability (dac_override )))
+
+	(allow process user_home_dir_t (dir (getattr search open read lock ioctl)))
+	(allow process home_root_t (dir (getattr search open read lock ioctl)))
+    (allow process user_home_t (dir (getattr search open read lock ioctl)))
+
+	(allow process user_home_dir_t (file (getattr ioctl lock open read)))
+	(allow process user_home_t (file (getattr ioctl lock open read)))
+)
+
+
+(block home_rw_container
+    (blockinherit home_container)
+	(allow process user_home_dir_t (dir (open getattr setattr read write link search add_name remove_name reparent lock ioctl)))
+	(allow process home_root_t (dir (open getattr setattr read write link search add_name remove_name reparent lock ioctl)))
+	(allow process user_home_t (dir (open getattr setattr read write link search add_name remove_name reparent lock ioctl)))
+
+	(allow process user_home_t (file (open getattr read write append ioctl lock)))
+	(allow process user_home_dir_t (file (open getattr read write append ioctl lock)))
+)
+
+(block home_manage_container
+    (blockinherit home_rw_container)
+	(allow process user_home_dir_t (dir (create unlink rename rmdir )))
+	(allow process home_root_t (dir (create unlink rename rmdir )))
+	(allow process user_home_t (dir (create unlink rename rmdir )))
+
+	(allow process user_home_t (file (create rename link unlink )))
+	(allow process user_home_dir_t (file (create rename link unlink )))
+)

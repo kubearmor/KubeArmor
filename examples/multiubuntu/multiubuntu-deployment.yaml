@@ -77,6 +77,14 @@ spec:
       containers:
       - name: ubuntu-3-container
         image: 0x010/ubuntu-w-utils:latest
+        volumeMounts:
+        - name: varlogpath
+          mountPath: /host/var/log
+      volumes:
+      - name : varlogpath
+        hostPath:
+          path: /var/log
+          type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment

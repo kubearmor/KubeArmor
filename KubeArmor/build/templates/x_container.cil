@@ -1,0 +1,27 @@
+(block x_container
+    (blockinherit container)
+
+    (allow xserver_t process (shm (getattr read write associate unix_read unix_write lock)))
+
+    (allow process xserver_t (unix_stream_socket (connectto)))
+
+    (allow process device_t (dir (getattr search open)))
+
+    (allow process dri_device_t (chr_file (ioctl read write getattr lock append open map)))
+
+    (allow process xserver_misc_device_t (chr_file (ioctl read write getattr lock append open map)))
+
+    (allow process urandom_device_t (chr_file (open read)))
+
+    (allow process tmpfs_t (dir (getattr search open)))
+
+    (allow process tmp_t (dir (getattr search open)))
+    (allow process tmp_t (lnk_file (read getattr)))
+
+    (allow process xserver_tmp_t (dir (getattr search open)))
+    (allow process xserver_tmp_t (sock_file (write getattr append open)))
+
+    (allow process xserver_exec_t (file (ioctl read getattr lock map execute execute_no_trans open)))
+
+)
+

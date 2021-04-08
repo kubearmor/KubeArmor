@@ -1,0 +1,25 @@
+(block config_container
+    (blockinherit container)
+
+    (allow process configfile (dir (ioctl read getattr lock search open)))
+    (allow process configfile (file (ioctl read getattr lock open)))
+    (allow process configfile (lnk_file (read getattr)))
+
+)
+
+(block config_rw_container
+    (blockinherit config_container)
+
+    (allow process configfile (dir (ioctl read write getattr lock append open)))
+    (allow process configfile (file (ioctl read write getattr lock append open)))
+    (allow process configfile (lnk_file (ioctl read write getattr lock append open)))
+)
+
+(block config_manage_container
+    (blockinherit container)
+
+    (allow process configfile (dir (ioctl read write create getattr setattr lock unlink link rename add_name remove_name reparent search rmdir open)))
+    (allow process configfile (file (ioctl read write create getattr setattr lock append unlink link rename open)))
+    (allow process configfile (lnk_file (ioctl read write create getattr setattr lock append unlink link rename open)))
+
+)
