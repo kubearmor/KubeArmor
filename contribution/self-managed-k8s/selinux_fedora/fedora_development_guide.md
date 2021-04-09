@@ -1,4 +1,4 @@
-# KubeArmor development in Fedora 30 with SELinux Installation
+# KubeArmor development setup in Fedora 30 with SELinux 
 
 * Requirements
 
