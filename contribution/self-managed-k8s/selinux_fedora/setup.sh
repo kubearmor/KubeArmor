@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
+export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../../..
 
 # install build dependencies
 sudo dnf -y update
@@ -28,6 +28,7 @@ cd;
 wget https://dl.google.com/go/go1.15.3.linux-amd64.tar.gz
 tar -xvf go1.15.3.linux-amd64.tar.gz
 sudo mv go /usr/local
+rm go1.15.3.linux-amd64.tar.gz
 echo "export GOPATH=$HOME/go" >> ~/.bashrc
 echo "export GOROOT=/usr/local/go" >> ~/.bashrc
 echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc

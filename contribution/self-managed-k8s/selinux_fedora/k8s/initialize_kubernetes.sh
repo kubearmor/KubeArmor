@@ -41,6 +41,7 @@ else
     sudo chown $USER:$USER $HOME/.kube/config
     export KUBECONFIG=$HOME/.kube/config
     echo "export KUBECONFIG=$HOME/.kube/config" | tee -a ~/.bashrc
+    sudo cp -r $HOME/.kube/ /root/
 fi
 
 if [ ! -z $1 ] && [ "$1" == "weave" ]; then
