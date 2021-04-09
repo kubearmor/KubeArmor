@@ -16,12 +16,13 @@ sudo pip install pyroute2
 sudo dnf install -y clang clang-devel llvm llvm-devel llvm-static ncurses-devel
 
 # install and compile BCC
+cd;
 git clone https://github.com/iovisor/bcc.git
 mkdir bcc/build; cd bcc/build
 cmake ..
 make
 sudo make install
-cd
+cd;
 
 # install go
 wget https://dl.google.com/go/go1.15.3.linux-amd64.tar.gz
