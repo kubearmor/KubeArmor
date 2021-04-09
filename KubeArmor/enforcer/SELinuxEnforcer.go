@@ -38,6 +38,12 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se.SELinuxProfiles = map[string]int{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
+	// install template cil
+	if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + "base_container.cil"}); err != nil {
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) %s", selinuxContextTemplates+"base_container.cil", err.Error())
+		return nil
+	}
+
 	return se
 }
 
@@ -48,6 +54,12 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 			Metadata: map[string]string{},
 		}
 		se.UnregisterSELinuxProfile(emptyPod, profileName)
+	}
+
+	// remove template cil
+	if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", "base_container"}); err != nil {
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) %s", selinuxContextTemplates+"base_container.cil", err.Error())
+		return nil
 	}
 
 	return nil
@@ -83,13 +95,21 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 				contextLine := "	(allow process " + context
 
 				if readOnly {
-					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-					defaultProfile = defaultProfile + contextDirLine + contextFileLine
+					if hostVolume.Type == "Directory" {
+						contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+						defaultProfile = defaultProfile + contextDirLine
+					} else {
+						contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+						defaultProfile = defaultProfile + contextFileLine
+					}
 				} else {
-					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-					defaultProfile = defaultProfile + contextDirLine + contextFileLine
+					if hostVolume.Type == "Directory" {
+						contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+						defaultProfile = defaultProfile + contextDirLine
+					} else {
+						contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+						defaultProfile = defaultProfile + contextFileLine
+					}
 				}
 			}
 		}
