@@ -105,11 +105,11 @@ function should_not_find_any_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [ "$KUBEARMOR" != "" ]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4")
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4")
         if [ $? == 0 ]; then
             sleep 2
 
-            audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4")
+            audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4")
             if [ $? == 0 ]; then
                 echo $audit_log
                 echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -123,11 +123,11 @@ function should_not_find_any_log() {
             echo "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
+        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
         if [ $? == 0 ]; then
             sleep 2
 
-            audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
+            audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
             if [ $? == 0 ]; then
                 echo $audit_log
                 echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -152,11 +152,11 @@ function should_find_passed_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [ "$KUBEARMOR" != "" ]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
         if [ $? != 0 ]; then
             sleep 2
 
-            audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
+            audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
             if [ $? != 0 ]; then
                 audit_log="<No Log>"
                 echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -170,11 +170,11 @@ function should_find_passed_log() {
             echo "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
+        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
         if [ $? != 0 ]; then
             sleep 2
 
-            audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
+            audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
             if [ $? != 0 ]; then
                 audit_log="<No Log>"
                 echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -199,11 +199,11 @@ function should_find_blocked_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [ "$KUBEARMOR" != "" ]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
         if [ $? != 0 ]; then
             sleep 2
 
-            audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
+            audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
             if [ $? != 0 ]; then
                 audit_log="<No Log>"
                 echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -217,11 +217,11 @@ function should_find_blocked_log() {
             echo "[INFO] Found the log from logs"
         fi
     else
-        audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
         if [ $? != 0 ]; then
             sleep 2
 
-            audit_log=$(grep PolicyMatched $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+            audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
             if [ $? != 0 ]; then
                 audit_log="<No Log>"
                 echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -362,6 +362,7 @@ failed_testcases=()
 echo "< KubeArmor Test Report >" > $TEST_LOG
 echo >> $TEST_LOG
 echo "Date:" $(date "+%Y-%m-%d %H:%M:%S %Z") >> $TEST_LOG
+echo "Script: $0" >> $TEST_LOG
 echo >> $TEST_LOG
 echo "== Testcases ==" >> $TEST_LOG
 echo >> $TEST_LOG
@@ -388,7 +389,7 @@ do
     if [ $res_microservice == 0 ]; then
         echo "[INFO] Applied $microservice"
 
-        echo "[INFO] Wait for initialization"
+        echo "[INFO] Wait for initialization (30 secs)"
         sleep 30
         echo "[INFO] Started to run testcases"
 
