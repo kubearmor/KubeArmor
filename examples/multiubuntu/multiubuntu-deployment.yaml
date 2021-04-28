@@ -78,10 +78,10 @@ spec:
       - name: ubuntu-3-container
         image: 0x010/ubuntu-w-utils:latest
         volumeMounts:
-        - name: varlogpath
+        - name: var-log-path
           mountPath: /host/var/log
       volumes:
-      - name : varlogpath
+      - name : var-log-path
         hostPath:
           path: /var/log
           type: Directory
