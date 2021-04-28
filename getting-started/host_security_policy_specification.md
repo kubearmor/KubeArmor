@@ -113,7 +113,7 @@ Now, we will briefly explain how to define a host security policy.
 
 * Tag
 
-  The tag part is optional. You can define multiple tags to categorize security policies.
+  The tag part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
 
   ```text
   tag:

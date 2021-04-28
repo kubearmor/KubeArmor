@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export FEDORA_HOME=`dirname $(realpath "$0")`
+FEDORA_HOME=`dirname $(realpath "$0")`
 
 # before enabling selinux in k8s, you should install docker, k8s first
 sudo sed -i 's/SELINUX=permissive/SELINUX=enforcing/g' /etc/selinux/config
@@ -16,4 +16,3 @@ sudo chmod 666 /var/run/docker.sock
 # change contexts
 sudo chcon -R -t svirt_sandbox_file_t /etc/kubernetes/
 sudo chcon -R -t svirt_sandbox_file_t /var/lib/etcd
-

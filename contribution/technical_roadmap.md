@@ -32,7 +32,7 @@ Here, we briefly share a plan for the next releases \(e.g., including features, 
   * Kubernetes Environments
     * \(extension\) Amazon Elastic Kubernetes Service \(EKS\), Azure Kubernetes Service \(AKS\) 
   * LSM Supports
-    * \(extension\) KRSI \(requiring Linux kernel v5.8 or newer\) 
+    * \(extension\) SELinux 
   * Features
 
     * \(extension\) Produce container-aware logs and write them into:
@@ -66,7 +66,7 @@ Here, we briefly share a plan for the next releases \(e.g., including features, 
   * Container Platforms
     * \(extension\) Podman 
   * LSM Supports
-    * \(extension\) SELinux 
+    * \(extension\) SELinux, KRSI \(requiring Linux kernel v5.8 or newer\) 
   * Features
 
     * Produce container-aware logs and write them into:

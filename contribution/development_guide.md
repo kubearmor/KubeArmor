@@ -8,6 +8,7 @@
      Here is the list of minimum requirements for self-managed Kubernetes.
 
      ```text
+     OS - Ubuntu 18.04
      Kubernetes - v1.19
      Docker - 18.03 or Containerd - 1.3.7
      Linux Kernel - v4.15
@@ -20,16 +21,16 @@
      Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives such as LSMs.  
 
 
-     * \(Optional\) MicroK8s Setup
+    * \(Optional\) MicroK8s Setup
 
-       In order to install MicroK8s, please run the following command.
+      Instead of self-managed Kubernetes, you can set up MicroK8s. For this, please run the following command.
 
        ```text
        $ cd contribution/microk8s
        (microk8s) $ ./install_microk8s.sh
        ```
 
-   * Environmental Setup
+   * Development Setup
 
      In order to install all dependencies, please run the following command.
 
@@ -58,31 +59,31 @@
      (vagrant) $ ./setup.sh
      ```
 
-     * VM Setup using Vagrant
+    * VM Setup using Vagrant
 
-       If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
+      If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
 
-       ```text
-       (vagrant) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
-       ```
+      ```text
+      (vagrant) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
+      ```
 
-       Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
+      Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
 
-       ```text
-       (vagrant) $ vagrant up
-       ```
+      ```text
+      (vagrant) $ vagrant up
+      ```
 
-       If you want to remove the created VM, please run the following command.
+      If you want to remove the created VM, please run the following command.
 
-       ```text
-       (vagrant) $ vagrant destroy
-       ```
+      ```text
+      (vagrant) $ vagrant destroy
+      ```
 
-       You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
+      You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
 
-       ```text
-       (vagrant) $ vagrant ssh
-       ```
+      ```text
+      (vagrant) $ vagrant ssh
+      ```
 
 3.  Environment Check
     * Compilation
@@ -106,14 +107,7 @@
         $ kubectl proxy &
         ```
 
-        Then, apply custom resource definitions (CRDs) to handle KubeArmor's (host) security policies in Kubernetes.
-
-        ```text
-          $ cd KubeArmor/deployments/CRD
-          (CRD) $ kubectl apply -f .
-        ```
-
-        Lastly, run KubeArmor on your environment.
+        Then, run KubeArmor on your environment.
 
         ```text
         $ cd KubeArmor/KubeArmor
