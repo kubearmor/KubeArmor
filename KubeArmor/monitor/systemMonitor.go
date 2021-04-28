@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -119,31 +120,44 @@ type SystemMonitor struct {
 	// host name
 	HostName string
 
+	// host policy
+	EnableHostPolicy bool
+
 	// container id -> cotnainer
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.Mutex
 
-	// container id -> pid
+	// container id -> (host) pid
 	ActivePidMap     *map[string]tp.PidMap
+	ActiveHostPidMap *map[string]tp.PidMap
+
+	// pid map lock
 	ActivePidMapLock **sync.Mutex
-
-	// container id -> host pid
-	ActiveHostPidMap     *map[string]tp.PidMap
-	ActiveHostPidMapLock **sync.Mutex
-
-	// system monitor
-	BpfModule *bcc.Module
 
 	// PidID + MntID -> container id
 	NsMap map[NsKey]string
 
-	// context + args
+	// system monitor (for container)
+	BpfModule *bcc.Module
+
+	// context + args (for container)
 	ContextChan chan ContextCombined
 
-	// process + file
+	// process + file (for container)
 	SyscallChannel     chan []byte
 	SyscallLostChannel chan uint64
 	SyscallPerfMap     *bcc.PerfMap
+
+	// system monitor (for host)
+	HostBpfModule *bcc.Module
+
+	// context + args (for host)
+	HostContextChan chan ContextCombined
+
+	// process + file (for host)
+	HostSyscallChannel     chan []byte
+	HostSyscallLostChannel chan uint64
+	HostSyscallPerfMap     *bcc.PerfMap
 
 	// lists to skip
 	UntrackedNamespaces []string
@@ -156,24 +170,25 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(feeder *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex, activeHostPidMap *map[string]tp.PidMap, activeHostPidMapLock **sync.Mutex) *SystemMonitor {
+func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.LogFeeder = feeder
 
 	mon.HostName = kl.GetHostName()
+	mon.EnableHostPolicy = enableHostPolicy
 
 	mon.Containers = containers
 	mon.ContainersLock = containersLock
 
 	mon.ActivePidMap = activePidMap
+	mon.ActiveHostPidMap = activeHostPidMap
 	mon.ActivePidMapLock = activePidMapLock
 
-	mon.ActiveHostPidMap = activeHostPidMap
-	mon.ActiveHostPidMapLock = activeHostPidMapLock
-
 	mon.NsMap = make(map[NsKey]string)
-	mon.ContextChan = make(chan ContextCombined, 1024)
+
+	mon.ContextChan = make(chan ContextCombined, 4096)
+	mon.HostContextChan = make(chan ContextCombined, 4096)
 
 	mon.UntrackedNamespaces = []string{"kube-system"}
 
@@ -224,7 +239,12 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 
 	mon.LogFeeder.Print("Initializing an eBPF program")
 
-	mon.BpfModule = bcc.NewModule(bpfSource, []string{})
+	mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
+
+	if mon.EnableHostPolicy {
+		mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+	}
+
 	if mon.BpfModule == nil {
 		return errors.New("bpf module is nil")
 	}
@@ -267,12 +287,55 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 	}
 
 	eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
-	mon.SyscallChannel = make(chan []byte, 1000)
+	mon.SyscallChannel = make(chan []byte, 4096)
 	mon.SyscallLostChannel = make(chan uint64)
 
 	mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
 	if err != nil {
 		return fmt.Errorf("error initializing events perf map: %v", err)
+	}
+
+	if mon.EnableHostPolicy {
+		for _, syscallName := range systemCalls {
+			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
+			}
+			err = mon.HostBpfModule.AttachKprobe(sysPrefix+syscallName, kp, -1)
+			if err != nil {
+				return fmt.Errorf("error attaching kprobe %s: %v", syscallName, err)
+			}
+			kp, err = mon.HostBpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallName))
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
+			}
+			err = mon.HostBpfModule.AttachKretprobe(sysPrefix+syscallName, kp, -1)
+			if err != nil {
+				return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
+			}
+		}
+
+		tracepoints := []string{"do_exit"}
+
+		for _, tracepoint := range tracepoints {
+			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", tracepoint, err)
+			}
+			err = mon.HostBpfModule.AttachKprobe(tracepoint, kp, -1)
+			if err != nil {
+				return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
+			}
+		}
+
+		hostEventsTable := bcc.NewTable(mon.HostBpfModule.TableId("sys_events"), mon.HostBpfModule)
+		mon.HostSyscallChannel = make(chan []byte, 4096)
+		mon.HostSyscallLostChannel = make(chan uint64)
+
+		mon.HostSyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(hostEventsTable, mon.HostSyscallChannel, mon.HostSyscallLostChannel, 64)
+		if err != nil {
+			return fmt.Errorf("error initializing events perf map: %v", err)
+		}
 	}
 
 	return nil
@@ -284,12 +347,30 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		mon.SyscallPerfMap.Stop()
 	}
 
+	if mon.EnableHostPolicy {
+		if mon.HostSyscallPerfMap != nil {
+			mon.HostSyscallPerfMap.Stop()
+		}
+	}
+
 	if mon.BpfModule != nil {
 		mon.BpfModule.Close()
 	}
 
+	if mon.EnableHostPolicy {
+		if mon.HostBpfModule != nil {
+			mon.HostBpfModule.Close()
+		}
+	}
+
 	if mon.ContextChan != nil {
 		close(mon.ContextChan)
+	}
+
+	if mon.EnableHostPolicy {
+		if mon.HostContextChan != nil {
+			close(mon.HostContextChan)
+		}
 	}
 
 	return nil
@@ -300,81 +381,81 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 // ============================ //
 
 // LookupContainerID Function
-func (mon *SystemMonitor) LookupContainerID(pidns uint32, mntns uint32, pid uint32) string {
-	// approach 1: look up container id from map
-
+func (mon *SystemMonitor) LookupContainerID(pidns uint32, mntns uint32, pid uint32, newProcess bool) string {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 	if val, ok := mon.NsMap[key]; ok {
 		return val
 	}
 
-	containerID := ""
+	if newProcess { // if new process, look up container id
+		containerID := ""
 
-	// approach 2: look up container id from cgroup
+		// first shot: look up container id from cgroup
 
-	cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
-	if err != nil {
-		return "" // this is nature, just meaning that the PID no longer exists
-	}
+		cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
+		if err != nil {
+			return "" // this is nature, just meaning that the PID no longer exists
+		}
 
-	cgroupScanner := bufio.NewScanner(cgroup)
-	for cgroupScanner.Scan() {
-		line := cgroupScanner.Text()
+		cgroupScanner := bufio.NewScanner(cgroup)
+		for cgroupScanner.Scan() {
+			line := cgroupScanner.Text()
 
-		// k8s
-		parts := kubePattern.FindStringSubmatch(line)
-		if parts != nil {
-			containerID = parts[1]
+			// k8s
+			parts := kubePattern.FindStringSubmatch(line)
+			if parts != nil {
+				containerID = parts[1]
+				break
+			}
+
+			// docker
+			parts = dockerPattern.FindStringSubmatch(line)
+			if parts != nil {
+				containerID = parts[1]
+				break
+			}
+		}
+
+		cgroup.Close()
+
+		// update newly found container id
+		if containerID != "" {
+			mon.NsMap[key] = containerID
+			return containerID
+		}
+
+		// alternative shot: look up container id from cmdline
+
+		cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", pid))
+		if err != nil {
+			return "" // this is nature, just meaning that the PID no longer exists
+		}
+
+		cmdScanner := bufio.NewScanner(cmdline)
+		for cmdScanner.Scan() {
+			line := cmdScanner.Text()
+
+			parts := strings.Split(line, "-id")
+			if len(parts) < 2 {
+				break
+			}
+
+			parts = strings.Split(parts[1], "-addr")
+			if len(parts) < 2 {
+				break
+			}
+
+			containerID = parts[0]
 			break
 		}
 
-		// docker
-		parts = dockerPattern.FindStringSubmatch(line)
-		if parts != nil {
-			containerID = parts[1]
-			break
+		cmdline.Close()
+
+		// update newly found container id
+		if containerID != "" {
+			mon.NsMap[key] = containerID
+			return containerID
 		}
-	}
-
-	cgroup.Close()
-
-	// update newly found container id
-	if containerID != "" {
-		mon.NsMap[key] = containerID
-		return containerID
-	}
-
-	// approach 3: look up container id from cmdline
-
-	cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", pid))
-	if err != nil {
-		return "" // this is nature, just meaning that the PID no longer exists
-	}
-
-	cmdScanner := bufio.NewScanner(cmdline)
-	for cmdScanner.Scan() {
-		line := cmdScanner.Text()
-
-		parts := strings.Split(line, "-id")
-		if len(parts) < 2 {
-			break
-		}
-
-		parts = strings.Split(parts[1], "-addr")
-		if len(parts) < 2 {
-			break
-		}
-
-		containerID = parts[0]
-		break
-	}
-
-	cmdline.Close()
-
-	// update newly found container id
-	if containerID != "" {
-		mon.NsMap[key] = containerID
-		return containerID
 	}
 
 	return ""
@@ -412,45 +493,34 @@ func (mon *SystemMonitor) BuildPidNode(ctx SyscallContext, execPath string, args
 // AddActivePid Function
 func (mon *SystemMonitor) AddActivePid(containerID string, node tp.PidNode) {
 	ActivePidMap := *(mon.ActivePidMap)
-	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 
+	ActivePidMapLock := *(mon.ActivePidMapLock)
 	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	// add pid node to AcvtivePidMaps
 	if pidMap, ok := ActivePidMap[containerID]; ok {
-		if _, ok := pidMap[node.PID]; !ok {
-			pidMap[node.PID] = node
-		}
+		pidMap[node.PID] = node
 	} else {
 		newPidMap := tp.PidMap{node.PID: node}
 		ActivePidMap[containerID] = newPidMap
 	}
 
-	ActivePidMapLock.Unlock()
-
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-	ActiveHostPidMapLock := *(mon.ActiveHostPidMapLock)
-
-	ActiveHostPidMapLock.Lock()
-
 	// add pid node to AcvtivePidMaps
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
-		if _, ok := pidMap[node.HostPID]; !ok {
-			pidMap[node.HostPID] = node
-		}
+		pidMap[node.HostPID] = node
 	} else {
 		newPidMap := tp.PidMap{node.HostPID: node}
 		ActiveHostPidMap[containerID] = newPidMap
 	}
-
-	ActiveHostPidMapLock.Unlock()
 }
 
 // GetExecPath Function
 func (mon *SystemMonitor) GetExecPath(containerID string, pid uint32) string {
 	ActivePidMap := *(mon.ActivePidMap)
-	ActivePidMapLock := *(mon.ActivePidMapLock)
 
+	ActivePidMapLock := *(mon.ActivePidMapLock)
 	ActivePidMapLock.Lock()
 	defer ActivePidMapLock.Unlock()
 
@@ -468,10 +538,10 @@ func (mon *SystemMonitor) GetExecPath(containerID string, pid uint32) string {
 // GetExecPathWithHostPID Function
 func (mon *SystemMonitor) GetExecPathWithHostPID(containerID string, hostPid uint32) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-	ActiveHostPidMapLock := *(mon.ActiveHostPidMapLock)
 
-	ActiveHostPidMapLock.Lock()
-	defer ActiveHostPidMapLock.Unlock()
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[hostPid]; ok {
@@ -487,9 +557,11 @@ func (mon *SystemMonitor) GetExecPathWithHostPID(containerID string, hostPid uin
 // DeleteActivePid Function
 func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
 	ActivePidMap := *(mon.ActivePidMap)
-	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 
+	ActivePidMapLock := *(mon.ActivePidMapLock)
 	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	// delete execve(at) pid
 	if pidMap, ok := ActivePidMap[containerID]; ok {
@@ -501,13 +573,6 @@ func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext
 		}
 	}
 
-	ActivePidMapLock.Unlock()
-
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-	ActiveHostPidMapLock := *(mon.ActiveHostPidMapLock)
-
-	ActiveHostPidMapLock.Lock()
-
 	// delete execve(at) host pid
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
@@ -517,8 +582,6 @@ func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext
 			}
 		}
 	}
-
-	ActiveHostPidMapLock.Unlock()
 }
 
 // CleanUpExitedHostPids Function
@@ -526,9 +589,11 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 	now := time.Now()
 
 	ActivePidMap := *(mon.ActivePidMap)
-	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 
+	ActivePidMapLock := *(mon.ActivePidMapLock)
 	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	for _, pidMap := range ActivePidMap {
 		for pid, pidNode := range pidMap {
@@ -540,13 +605,6 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 		}
 	}
 
-	ActivePidMapLock.Unlock()
-
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-	ActiveHostPidMapLock := *(mon.ActiveHostPidMapLock)
-
-	ActiveHostPidMapLock.Lock()
-
 	for _, pidMap := range ActiveHostPidMap {
 		for pid, pidNode := range pidMap {
 			if pidNode.Exited {
@@ -556,8 +614,6 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 			}
 		}
 	}
-
-	ActiveHostPidMapLock.Unlock()
 }
 
 // ======================= //
@@ -572,6 +628,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 		return
 	}
 
+	Containers := *(mon.Containers)
+	ContainersLock := *(mon.ContainersLock)
+
 	for {
 		select {
 		case <-StopChan:
@@ -585,7 +644,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 			dataBuff := bytes.NewBuffer(dataRaw)
 			ctx, err := readContextFromBuff(dataBuff)
 			if err != nil {
-				mon.LogFeeder.Err(err.Error())
 				continue
 			}
 
@@ -594,13 +652,17 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			Containers := *(mon.Containers)
-			ContainersLock := *(mon.ContainersLock)
+			// get container id
 
 			containerID := ""
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
-				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID)
+				if ctx.EventID == SYS_EXECVE || ctx.EventID == SYS_EXECVEAT {
+					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, true)
+				} else {
+					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, false)
+				}
+
 				if containerID != "" {
 					ContainersLock.Lock()
 					namespace := Containers[containerID].NamespaceName
@@ -612,16 +674,18 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 
+			if containerID == "" {
+				continue
+			}
+
 			if ctx.EventID == SYS_OPEN {
 				if len(args) != 2 {
 					continue
 				}
-
 			} else if ctx.EventID == SYS_OPENAT {
 				if len(args) != 3 {
 					continue
 				}
-
 			} else if ctx.EventID == SYS_EXECVE {
 				if len(args) == 2 {
 					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
@@ -629,7 +693,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				} else if len(args) != 0 {
 					continue
 				}
-
 			} else if ctx.EventID == SYS_EXECVEAT {
 				if len(args) == 4 {
 					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
@@ -637,16 +700,83 @@ func (mon *SystemMonitor) TraceSyscall() {
 				} else if len(args) != 0 {
 					continue
 				}
-
 			} else if ctx.EventID == DO_EXIT {
 				mon.DeleteActivePid(containerID, ctx)
 				continue
 			}
 
-			// push the context to the channel for system logging
+			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
 
 		case _ = <-mon.SyscallLostChannel:
+			continue
+		}
+	}
+}
+
+// TraceHostSyscall Function
+func (mon *SystemMonitor) TraceHostSyscall() {
+	if mon.HostSyscallPerfMap != nil {
+		mon.HostSyscallPerfMap.Start()
+	} else {
+		return
+	}
+
+	for {
+		select {
+		case <-StopChan:
+			return
+
+		case dataRaw, valid := <-mon.HostSyscallChannel:
+			if !valid {
+				continue
+			}
+
+			dataBuff := bytes.NewBuffer(dataRaw)
+			ctx, err := readContextFromBuff(dataBuff)
+			if err != nil {
+				continue
+			}
+
+			args, err := GetArgs(dataBuff, ctx.Argnum)
+			if err != nil {
+				continue
+			}
+
+			if ctx.EventID == SYS_OPEN {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == SYS_OPENAT {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SYS_EXECVE {
+				if len(args) == 2 {
+					hostPID := strconv.FormatUint(uint64(ctx.HostPID), 10)
+					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
+					mon.AddActivePid(hostPID, pidNode)
+				} else if len(args) != 0 {
+					continue
+				}
+			} else if ctx.EventID == SYS_EXECVEAT {
+				if len(args) == 4 {
+					hostPID := strconv.FormatUint(uint64(ctx.HostPID), 10)
+					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
+					mon.AddActivePid(hostPID, pidNode)
+				} else if len(args) != 0 {
+					continue
+				}
+			} else if ctx.EventID == DO_EXIT {
+				hostPID := strconv.FormatUint(uint64(ctx.HostPID), 10)
+				mon.DeleteActivePid(hostPID, ctx)
+				continue
+			}
+
+			// push the context to the channel for logging
+			mon.HostContextChan <- ContextCombined{ContainerID: "", ContextSys: ctx, ContextArgs: args}
+
+		case _ = <-mon.HostSyscallLostChannel:
 			continue
 		}
 	}

@@ -195,7 +195,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 			for _, lgs := range logStructs {
 				if lgs.Filter == "" {
 					lgs.Client.Send(&log)
-				} else if lgs.Filter == "policy" && (log.Type == "PolicyMatched" || log.Type == "HostPolicyMatched") {
+				} else if lgs.Filter == "policy" && (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") {
 					lgs.Client.Send(&log)
 				} else if lgs.Filter == "system" && (log.Type == "ContainerLog" || log.Type == "HostLog") {
 					lgs.Client.Send(&log)
@@ -405,6 +405,18 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 		return nil
 	}
 
+	// standard output / file output
+
+	if fd.output == "stdout" {
+		arr, _ := json.Marshal(log)
+		fmt.Println(string(arr))
+	} else if fd.output != "none" {
+		arr, _ := json.Marshal(log)
+		kl.StrToFile(string(arr), fd.output)
+	}
+
+	// gRPC output
+
 	pbLog := pb.Log{}
 
 	pbLog.UpdatedTime = log.UpdatedTime
@@ -455,14 +467,6 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 	LogLock.Lock()
 	LogQueue = append(LogQueue, pbLog)
 	LogLock.Unlock()
-
-	if fd.output == "stdout" {
-		arr, _ := json.Marshal(log)
-		fmt.Println(string(arr))
-	} else if fd.output != "none" {
-		arr, _ := json.Marshal(log)
-		kl.StrToFile(string(arr), fd.output)
-	}
 
 	return nil
 }

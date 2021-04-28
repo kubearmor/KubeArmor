@@ -155,7 +155,22 @@ static __always_inline u32 add_pid_ns()
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 one = 1;
 
-    // container
+#ifdef MONITOR_HOST
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns != 0) {
+        return 0;
+    }
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    if (pid_ns_map.lookup(&pid) != 0) {
+        return pid;
+    }
+
+    pid_ns_map.update(&pid, &one);
+    return pid;
+
+#else /* MONITOR_CONTAINER */
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns_map.lookup(&pid_ns) != 0) {
@@ -167,86 +182,95 @@ static __always_inline u32 add_pid_ns()
         return pid_ns;
     }
 
-    // host
+    return 0;
 
-    pid_ns = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
-        return pid_ns;
-    }
-
-    pid_ns_map.update(&pid_ns, &one);
-    return pid_ns;
+#endif /* MONITOR_HOST || MONITOR_CONTAINER */
 }
 
 static __always_inline u32 remove_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-    // container
+#ifdef MONITOR_HOST
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns != 0) {
+        return 0;
+    }
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    if (pid_ns_map.lookup(&pid) != 0) {
+        pid_ns_map.delete(&pid);
+        return 0;
+    }
+
+#else /* !MONITOR_HOST */
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns_map.lookup(&pid_ns) != 0 && (get_task_ns_pid(task) == 1)) {
         pid_ns_map.delete(&pid_ns);
-        return pid_ns;
+        return 0;
     }
 
-    // host
-
-    pid_ns = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
-        pid_ns_map.delete(&pid_ns);
-        return pid_ns;
-    }
+#endif /* !MONITOR_HOST */
 
     return 0;
 }
 
-static __always_inline int skip_syscall()
+static __always_inline u32 skip_syscall()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-    // container
+#ifdef MONITOR_HOST
 
-    u32 task_pid_ns = get_task_pid_ns_id(task);
-    u32 *pid_ns = pid_ns_map.lookup(&task_pid_ns);
+    u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns != 0) {
+        return 1;
+    }
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    if (pid_ns_map.lookup(&pid) != 0) {
         return 0;
     }
 
-    // host
+#else /* !MONITOR_HOST */
 
-    task_pid_ns = bpf_get_current_pid_tgid() >> 32;
-    pid_ns = pid_ns_map.lookup(&task_pid_ns);
-    if (pid_ns != 0) {
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns_map.lookup(&pid_ns) != 0) {
         return 0;
-    }
+    };
 
-    return -1;
+#endif /* !MONITOR_HOST */
+
+    return 1;
 }
 
 // == Context Management == //
 
-static __always_inline int init_context(sys_context_t *context)
+static __always_inline u32 init_context(sys_context_t *context)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
     context->ts = bpf_ktime_get_ns();
     context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == 0) { // host-side
-        context->pid_id = 0;
-        context->mnt_id = 0;
+#ifdef MONITOR_HOST
 
-        context->ppid = get_task_ppid(task);
-        context->pid = bpf_get_current_pid_tgid() >> 32;
-    } else { // container-side
-        context->pid_id = get_task_pid_ns_id(task);
-        context->mnt_id = get_task_mnt_ns_id(task);
+    context->pid_id = 0;
+    context->mnt_id = 0;
 
-        context->ppid = get_task_ns_ppid(task);
-        context->pid = get_task_ns_tgid(task);
-    }
+    context->ppid = get_task_ppid(task);
+    context->pid = bpf_get_current_pid_tgid() >> 32;
+
+#else /* !MONITOR_HOST */
+
+    context->pid_id = get_task_pid_ns_id(task);
+    context->mnt_id = get_task_mnt_ns_id(task);
+
+    context->ppid = get_task_ns_ppid(task);
+    context->pid = get_task_ns_tgid(task);
+
+#endif /* !MONITOR_HOST */
 
     context->uid = bpf_get_current_uid_gid();
 
@@ -257,19 +281,22 @@ static __always_inline int init_context(sys_context_t *context)
 
 // == Buffer Management == //
 
-static __always_inline bufs_t* get_buffer(int idx)
+static __always_inline bufs_t* get_buffer()
 {
+    int idx = 0;
     return bufs.lookup(&idx);
 }
 
-static __always_inline void set_buffer_offset(int buf_idx, u32 new_off)
+static __always_inline void set_buffer_offset(u32 off)
 {
-    bufs_offset.update(&buf_idx, &new_off);
+    int idx = 0;
+    bufs_offset.update(&idx, &off);
 }
 
-static __always_inline u32* get_buffer_offset(int buf_idx)
+static __always_inline u32* get_buffer_offset()
 {
-    return bufs_offset.lookup(&buf_idx);
+    int idx = 0;
+    return bufs_offset.lookup(&idx);
 }
 
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
@@ -283,7 +310,7 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    u32 *off = get_buffer_offset(0);
+    u32 *off = get_buffer_offset();
     if (off == NULL) {
         return -1;
     }
@@ -310,7 +337,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
         bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
 
         *off += sz + sizeof(int);
-        set_buffer_offset(0, *off);
+        set_buffer_offset(*off);
 
         return sz + sizeof(int);
     }
@@ -327,7 +354,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    u32 *off = get_buffer_offset(0);
+    u32 *off = get_buffer_offset();
     if (off == NULL) {
         return -1;
     }
@@ -347,7 +374,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
 
     if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
         *off += size;
-        set_buffer_offset(0, *off);
+        set_buffer_offset(*off);
         return size;
     }
 
@@ -396,7 +423,7 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         return 0;
     }
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL) {
         return 0;
     }
@@ -448,16 +475,16 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
 
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
 {
-    u32 *off = get_buffer_offset(0);
-    if (off == NULL)
-        return -1;
-
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return -1;
 
-    int size = *off & (MAX_BUFFER_SIZE-1);
+    u32 *off = get_buffer_offset();
+    if (off == NULL)
+        return -1;
+
     void *data = bufs_p->buf;
+    int size = *off & (MAX_BUFFER_SIZE-1);
 
     return sys_events.perf_submit(ctx, data, size);
 }
@@ -480,9 +507,9 @@ int syscall__execve(struct pt_regs *ctx,
     context.argnum = 2;
     context.retval = 0;
 
-    set_buffer_offset(0, sizeof(sys_context_t));
+    set_buffer_offset(sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
@@ -509,9 +536,9 @@ int trace_ret_execve(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    set_buffer_offset(0, sizeof(sys_context_t));
+    set_buffer_offset(sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
@@ -540,9 +567,9 @@ int syscall__execveat(struct pt_regs *ctx,
     context.argnum = 4;
     context.retval = 0;
 
-    set_buffer_offset(0, sizeof(sys_context_t));
+    set_buffer_offset(sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
@@ -571,9 +598,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    set_buffer_offset(0, sizeof(sys_context_t));
+    set_buffer_offset(sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
@@ -599,9 +626,9 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     remove_pid_ns();
 
-    set_buffer_offset(0, sizeof(sys_context_t));
+    set_buffer_offset(sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
@@ -684,10 +711,10 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     args_t args = {};
 
     if (load_args(id, &args) != 0)
-        return -1;
+        return 0;
 
     if (skip_syscall())
-        return -1;
+        return 0;
 
     init_context(&context);
 
@@ -695,9 +722,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     context.argnum = get_arg_num(types);
     context.retval = PT_REGS_RC(ctx);
 
-    set_buffer_offset(0, sizeof(sys_context_t));
+    set_buffer_offset(sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer(0);
+    bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 

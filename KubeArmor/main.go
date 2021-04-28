@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
+	"log"
 	"os"
 	"path/filepath"
 
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 
@@ -34,9 +34,14 @@ func main() {
 
 	// == //
 
-	portPtr := flag.String("port", "32767", "gRPC port number")
-	outputPtr := flag.String("output", "none", "log file path")
+	// options
+	gRPCPtr := flag.String("gRPC", "32767", "gRPC port number")
+	logPathPtr := flag.String("logPath", "none", "log file path")
+	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
+
+	// profile option
 	pprofPtr := flag.String("pprof", "none", "pprof port number")
+
 	flag.Parse()
 
 	if *pprofPtr != "none" {
@@ -47,7 +52,7 @@ func main() {
 
 	// == //
 
-	core.KubeArmor(*portPtr, *outputPtr)
+	core.KubeArmor(*gRPCPtr, *logPathPtr, *enableHostPolicyPtr)
 
 	// == //
 }
