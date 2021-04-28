@@ -202,11 +202,10 @@ func GetCommandWaitOutputWithErr(cmd string, args []string) error {
 
 // GetHostName Function
 func GetHostName() string {
-	res, err := GetCommandOutputWithErr("cat", []string{"/etc/hostname"})
-	if err != nil {
-		return ""
+	if res, err := os.Hostname(); err == nil {
+		return res
 	}
-	return strings.Replace(res, "\n", "", -1)
+	return ""
 }
 
 // ================= //
@@ -215,6 +214,7 @@ func GetHostName() string {
 
 // StrToFile Function
 func StrToFile(str, destFile string) {
+	// if destFile doesn't exist, create it
 	if _, err := os.Stat(destFile); err != nil {
 		newFile, err := os.Create(destFile)
 		if err != nil {
@@ -224,6 +224,7 @@ func StrToFile(str, destFile string) {
 		newFile.Close()
 	}
 
+	// open the file with the append mode
 	file, err := os.OpenFile(destFile, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		kg.Err(err.Error())
@@ -231,8 +232,10 @@ func StrToFile(str, destFile string) {
 	}
 	defer file.Close()
 
+	// add the newline at the end of the string
 	str = str + "\n"
 
+	// write the string into the file
 	_, err = file.WriteString(str)
 	if err != nil {
 		kg.Err(err.Error())
@@ -262,12 +265,12 @@ func GetIPAddr(ifname string) string {
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, iface := range interfaces {
 			if iface.Name == ifname {
-				addrs, err := iface.Addrs()
-				if err != nil {
-					panic(err)
+				if addrs, err := iface.Addrs(); err == nil {
+					ipaddr := strings.Split(addrs[0].String(), "/")[0]
+					return ipaddr
 				}
-				ipaddr := strings.Split(addrs[0].String(), "/")[0]
-				return ipaddr
+
+				return ""
 			}
 		}
 	}
@@ -328,6 +331,7 @@ func IsK8sEnv() bool {
 func MatchIdentities(identities []string, superIdentities []string) bool {
 	matched := true
 
+	// if nothing in identities, skip it
 	if len(identities) == 0 {
 		return false
 	}
@@ -348,14 +352,22 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 // == SELinux == //
 // ============= //
 
-// Lgetxattr returns a []byte slice containing the value of
-// an extended attribute attr set for path.
+// DoLgetxattr is a wrapper that retries on EINTR
+func DoLgetxattr(path, attr string, dest []byte) (int, error) {
+	for { // TODO: NEED THE TERMINATION CONDITION FOR THE WORST CASE
+		if sz, err := unix.Lgetxattr(path, attr, dest); err != unix.EINTR {
+			return sz, err
+		}
+	}
+}
+
+// Lgetxattr returns a []byte slice containing the value of an extended attribute attr set for path.
 func Lgetxattr(path, attr string) ([]byte, error) {
-	// Start with a 128 length byte array
 	dest := make([]byte, 128)
+
 	sz, errno := DoLgetxattr(path, attr, dest)
 	for errno == unix.ERANGE {
-		// Buffer too small, use zero-sized buffer to get the actual size
+		// if buffer is too small, use zero-sized buffer to get the actual size
 		sz, errno = DoLgetxattr(path, attr, []byte{})
 		if errno != nil {
 			return nil, errno
@@ -369,16 +381,6 @@ func Lgetxattr(path, attr string) ([]byte, error) {
 	}
 
 	return dest[:sz], nil
-}
-
-// DoLgetxattr is a wrapper that retries on EINTR
-func DoLgetxattr(path, attr string, dest []byte) (int, error) {
-	for {
-		sz, err := unix.Lgetxattr(path, attr, dest)
-		if err != unix.EINTR {
-			return sz, err
-		}
-	}
 }
 
 func GetSELinuxType(path string) (string, error) {

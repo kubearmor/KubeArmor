@@ -3,7 +3,6 @@ package audit
 import (
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,77 +20,103 @@ import (
 // ================== //
 
 type AuditLogger struct {
-	// audit log monitoring flag
-	WatchLogs bool
+	// host name
+	HostName string
 
 	// logs
 	LogFeeder *fd.Feeder
-
-	// host name
-	HostName string
 
 	// container id -> cotnainer
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.Mutex
 
-	// container id -> pid
+	// container id -> (host) pid
 	ActivePidMap     *map[string]tp.PidMap
-	ActivePidMapLock **sync.Mutex
+	ActiveHostPidMap *map[string]tp.PidMap
 
-	// container id -> host pid
-	ActiveHostPidMap     *map[string]tp.PidMap
-	ActiveHostPidMapLock **sync.Mutex
+	// pid map lock
+	ActivePidMapLock **sync.Mutex
 
 	// GKE
 	IsCOS bool
 }
 
 // NewAuditLogger Function
-func NewAuditLogger(feeder *fd.Feeder, HomeDir string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex, activeHostPidMap *map[string]tp.PidMap, activeHostPidMapLock **sync.Mutex) *AuditLogger {
+func NewAuditLogger(feeder *fd.Feeder, HomeDir string, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex) *AuditLogger {
 	adt := new(AuditLogger)
 
-	adt.WatchLogs = true
+	adt.HostName = kl.GetHostName()
 
 	adt.LogFeeder = feeder
-
-	adt.HostName = kl.GetHostName()
 
 	adt.Containers = containers
 	adt.ContainersLock = containersLock
 
 	adt.ActivePidMap = activePidMap
-	adt.ActivePidMapLock = activePidMapLock
-
 	adt.ActiveHostPidMap = activeHostPidMap
-	adt.ActiveHostPidMapLock = activeHostPidMapLock
+	adt.ActivePidMapLock = activePidMapLock
 
 	adt.IsCOS = false
 
 	if kl.IsInK8sCluster() {
 		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
 			s := string(b)
-			if strings.Contains(s, "Container-Optimized OS") {
-				// create directories
-				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
-					adt.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
-					return nil
-				}
 
-				for {
-					// create symbolic link
-					if err := exec.Command(HomeDir + "/GKE/create_symbolic_link.sh").Run(); err == nil {
-						break
-					} else {
-						// wait until cos-auditd is ready
-						time.Sleep(time.Second * 1)
+			// create directories
+			if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
+				adt.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+				return nil
+			}
+
+			if strings.Contains(s, "Container-Optimized OS") {
+				adt.IsCOS = true
+
+				// if audit.log is already there, remove it
+				if _, err := os.Stat("/KubeArmor/audit/audit.log"); err == nil {
+					if err := os.Remove("/KubeArmor/audit/audit.log"); err != nil {
+						adt.LogFeeder.Errf("Failed to remove the existing audit log (/KubeArmor/audit/audit.log) (%s)", err.Error())
+						return nil
 					}
 				}
 
-				adt.IsCOS = true
+				for range [300]int{} { // 5m * 60s = 300 secs
+					ok := false
+
+					// take each file from /var/log/audit
+					if files, err := ioutil.ReadDir("/var/log/audit"); err == nil {
+						for _, file := range files {
+							if file.IsDir() {
+								continue
+							}
+
+							fileName := file.Name()
+
+							// cos-audit file looks like buffer.xxxx.log. if the file doesn't like this, skip it
+							if !strings.HasPrefix(fileName, "buffer.") || !strings.HasSuffix(fileName, ".log") {
+								continue
+							}
+
+							// make a symbolic link
+							if err := os.Symlink("/var/log/audit/"+fileName, "/KubeArmor/audit/audit.log"); err != nil {
+								adt.LogFeeder.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+								return nil
+							}
+
+							ok = true
+						}
+					}
+
+					if ok {
+						break
+					}
+
+					// wait until cos-auditd is ready
+					time.Sleep(time.Second * 1)
+				}
 			} else {
-				// create directories
-				if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
-					adt.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+				// check if audit file is there
+				if _, err := os.Stat("/var/log/audit/audit.log"); err != nil {
+					adt.LogFeeder.Errf("Failed to find /var/log/audit/audit.log (%s)", err.Error())
 					return nil
 				}
 
@@ -109,9 +134,6 @@ func NewAuditLogger(feeder *fd.Feeder, HomeDir string, containers *map[string]tp
 
 // DestroyAuditLogger Function
 func (adt *AuditLogger) DestroyAuditLogger() error {
-	// stop monitoring audit logs
-	adt.WatchLogs = false
-
 	return nil
 }
 
@@ -122,9 +144,10 @@ func (adt *AuditLogger) DestroyAuditLogger() error {
 // GetProcessInfoFromHostPid Function
 func (adt *AuditLogger) GetProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.Log {
 	ActiveHostPidMap := *(adt.ActiveHostPidMap)
-	ActiveHostPidMapLock := *(adt.ActiveHostPidMapLock)
 
-	ActiveHostPidMapLock.Lock()
+	ActivePidMapLock := *(adt.ActivePidMapLock)
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	for id, pidMap := range ActiveHostPidMap {
 		for pid, node := range pidMap {
@@ -144,11 +167,7 @@ func (adt *AuditLogger) GetProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.
 		}
 	}
 
-	ActiveHostPidMapLock.Unlock()
-
 	if log.ContainerID == "" {
-		ActiveHostPidMapLock.Lock()
-
 		for id, pidMap := range ActiveHostPidMap {
 			for pid, node := range pidMap {
 				if hostPid == int32(pid) {
@@ -166,8 +185,6 @@ func (adt *AuditLogger) GetProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.
 				break
 			}
 		}
-
-		ActiveHostPidMapLock.Unlock()
 	}
 
 	if log.PID == 0 {
@@ -184,21 +201,16 @@ func (adt *AuditLogger) GetContainerInfoFromContainerID(log tp.Log, profileName 
 	Containers := *(adt.Containers)
 	ContainersLock := *(adt.ContainersLock)
 
-	if log.ContainerID != "" {
-		ContainersLock.Lock()
+	ContainersLock.Lock()
+	defer ContainersLock.Unlock()
 
+	if log.ContainerID != "" {
 		if val, ok := Containers[log.ContainerID]; ok {
 			log.NamespaceName = val.NamespaceName
 			log.PodName = val.ContainerGroupName
 			log.ContainerName = val.ContainerName
 		}
-
-		ContainersLock.Unlock()
-	}
-
-	if log.ContainerID == "" {
-		ContainersLock.Lock()
-
+	} else {
 		for _, container := range Containers {
 			if strings.HasPrefix(profileName, container.AppArmorProfile) {
 				log.NamespaceName = container.NamespaceName
@@ -208,8 +220,6 @@ func (adt *AuditLogger) GetContainerInfoFromContainerID(log tp.Log, profileName 
 				break
 			}
 		}
-
-		ContainersLock.Unlock()
 	}
 
 	return log
@@ -218,8 +228,8 @@ func (adt *AuditLogger) GetContainerInfoFromContainerID(log tp.Log, profileName 
 // GetExecPath Function
 func (adt *AuditLogger) GetExecPath(containerID string, pid uint32) string {
 	ActivePidMap := *(adt.ActivePidMap)
-	ActivePidMapLock := *(adt.ActivePidMapLock)
 
+	ActivePidMapLock := *(adt.ActivePidMapLock)
 	ActivePidMapLock.Lock()
 	defer ActivePidMapLock.Unlock()
 
@@ -263,9 +273,10 @@ func (adt *AuditLogger) UpdateSourceAndResource(log tp.Log, source, resource str
 // GetHostProcessInfoFromHostPid Function
 func (adt *AuditLogger) GetHostProcessInfoFromHostPid(log tp.Log, hostPid int32) tp.Log {
 	ActiveHostPidMap := *(adt.ActiveHostPidMap)
-	ActiveHostPidMapLock := *(adt.ActiveHostPidMapLock)
 
-	ActiveHostPidMapLock.Lock()
+	ActivePidMapLock := *(adt.ActivePidMapLock)
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
 	for _, pidMap := range ActiveHostPidMap {
 		for pid, node := range pidMap {
@@ -278,8 +289,6 @@ func (adt *AuditLogger) GetHostProcessInfoFromHostPid(log tp.Log, hostPid int32)
 			}
 		}
 	}
-
-	ActiveHostPidMapLock.Unlock()
 
 	if log.PID == 0 {
 		log.PPID = -1
@@ -330,106 +339,98 @@ func (adt *AuditLogger) MonitorAuditLogs() {
 		logFile = "/var/log/audit/audit.log"
 	}
 
-	for adt.WatchLogs {
-		// monitor audit logs
-		logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
-		if err != nil {
-			adt.LogFeeder.Err(err.Error())
-			time.Sleep(time.Millisecond * 1)
+	logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
+	if err != nil {
+		adt.LogFeeder.Errf("Failed to read audit logs from %s (%s)", logFile, err.Error())
+		return
+	}
+
+	for log := range logs.Lines {
+		line := log.Text
+
+		if !strings.Contains(line, "AVC") {
+			continue
+		} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
+			continue
+		} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
 			continue
 		}
 
-		for log := range logs.Lines {
-			line := log.Text
+		if adt.IsCOS {
+			cosLine := ""
 
-			if !adt.WatchLogs {
-				break
-			}
-
-			if !strings.Contains(line, "AVC") {
-				continue
-			} else if !strings.Contains(line, "DENIED") && !strings.Contains(line, "AUDIT") {
-				continue
-			} else if !strings.Contains(line, "exec") && !strings.Contains(line, "open") {
-				continue
-			}
-
-			if adt.IsCOS {
-				cosLine := ""
-
-				for _, cosKV := range strings.Split(line, ",") {
-					if strings.Contains(cosKV, "AVC apparmor=") {
-						kv := strings.Split(cosKV, ":")
-						if len(kv) == 2 {
-							cosLine = kv[1]
-							break
-						}
+			for _, cosKV := range strings.Split(line, ",") {
+				if strings.Contains(cosKV, "AVC apparmor=") {
+					kv := strings.Split(cosKV, ":")
+					if len(kv) == 2 {
+						cosLine = kv[1]
+						break
 					}
 				}
-
-				if cosLine == "" {
-					continue
-				}
-
-				line = strings.Replace(cosLine, "\\\"", "\"", -1)
-				line = line[1 : len(line)-1]
 			}
 
-			hostPid := int32(0)
-
-			profileName := ""
-
-			source := ""
-			operation := ""
-			resource := ""
-			action := ""
-
-			requested := ""
-			denied := ""
-
-			words := strings.Split(line, " ")
-
-			for _, word := range words {
-				if strings.HasPrefix(word, "pid=") {
-					value := strings.Split(word, "=")
-					pid, _ := strconv.Atoi(value[1])
-					hostPid = int32(pid)
-				} else if strings.HasPrefix(word, "profile=") {
-					value := strings.Split(word, "=")
-					profileName = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "comm=") {
-					value := strings.Split(word, "=")
-					source = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "operation=") {
-					value := strings.Split(word, "=")
-					operation = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "name=") {
-					value := strings.Split(word, "=")
-					resource = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "apparmor=") {
-					value := strings.Split(word, "=")
-					action = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "requested_mask=") {
-					value := strings.Split(word, "=")
-					requested = strings.Replace(value[1], "\"", "", -1)
-				} else if strings.HasPrefix(word, "denied_mask=") {
-					value := strings.Split(word, "=")
-					denied = strings.Replace(value[1], "\"", "", -1)
-				}
+			if cosLine == "" {
+				continue
 			}
 
-			if operation == "exec" {
-				operation = "Process"
-			} else { // open
-				operation = "File"
-			}
-
-			data := "requested=" + requested
-			if denied != "" {
-				data = data + " denied=" + denied
-			}
-
-			go adt.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
+			line = strings.Replace(cosLine, "\\\"", "\"", -1)
+			line = line[1 : len(line)-1]
 		}
+
+		hostPid := int32(0)
+
+		profileName := ""
+
+		source := ""
+		operation := ""
+		resource := ""
+		action := ""
+
+		requested := ""
+		denied := ""
+
+		words := strings.Split(line, " ")
+
+		for _, word := range words {
+			if strings.HasPrefix(word, "pid=") {
+				value := strings.Split(word, "=")
+				pid, _ := strconv.Atoi(value[1])
+				hostPid = int32(pid)
+			} else if strings.HasPrefix(word, "profile=") {
+				value := strings.Split(word, "=")
+				profileName = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "comm=") {
+				value := strings.Split(word, "=")
+				source = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "operation=") {
+				value := strings.Split(word, "=")
+				operation = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "name=") {
+				value := strings.Split(word, "=")
+				resource = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "apparmor=") {
+				value := strings.Split(word, "=")
+				action = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "requested_mask=") {
+				value := strings.Split(word, "=")
+				requested = strings.Replace(value[1], "\"", "", -1)
+			} else if strings.HasPrefix(word, "denied_mask=") {
+				value := strings.Split(word, "=")
+				denied = strings.Replace(value[1], "\"", "", -1)
+			}
+		}
+
+		if operation == "exec" {
+			operation = "Process"
+		} else { // open
+			operation = "File"
+		}
+
+		data := "requested=" + requested
+		if denied != "" {
+			data = data + " denied=" + denied
+		}
+
+		go adt.GenerateAuditLog(hostPid, profileName, source, operation, resource, action, data)
 	}
 }

@@ -9,7 +9,7 @@ build:
 .PHONY: run
 run: $(CURDIR)/kubearmor
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -output=/tmp/kubearmor.log
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
 
 .PHONY: test
 test:
