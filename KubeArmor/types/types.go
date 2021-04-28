@@ -11,15 +11,6 @@ import (
 // == Docker == //
 // ============ //
 
-// HostMountedVolume Structure
-type HostMountedVolume struct {
-	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
-	UsedByContainerPath     map[string]string // key: container name, val: mounted path
-	VolumeName              string
-	PathName                string
-	Type                    string
-}
-
 // Container Structure
 type Container struct {
 	ContainerID   string `json:"containerID"`
@@ -36,6 +27,15 @@ type Container struct {
 	Labels []string `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
+}
+
+// HostMountedVolume Structure
+type HostMountedVolume struct {
+	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
+	UsedByContainerPath     map[string]string // key: container name, val: mounted path
+	VolumeName              string
+	PathName                string
+	Type                    string
 }
 
 // ContainerGroup Structure
