@@ -490,117 +490,120 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 // WatchSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 	for {
-		if K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
-			if resp := K8s.WatchK8sSecurityPolicies(); resp != nil {
-				defer resp.Body.Close()
-
-				decoder := json.NewDecoder(resp.Body)
-				for {
-					event := tp.K8sKubeArmorPolicyEvent{}
-					if err := decoder.Decode(&event); err == io.EOF {
-						break
-					} else if err != nil {
-						break
-					}
-
-					dm.SecurityPoliciesLock.Lock()
-
-					// create a security policy
-
-					secPolicy := tp.SecurityPolicy{}
-
-					secPolicy.Metadata = map[string]string{}
-					secPolicy.Metadata["namespaceName"] = event.Object.Metadata.Namespace
-					secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
-					secPolicy.Metadata["generation"] = strconv.FormatInt(event.Object.Metadata.Generation, 10)
-
-					if event.Type == "ADDED" || event.Type == "MODIFIED" {
-						exist := false
-						for _, policy := range dm.SecurityPolicies {
-							if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
-								policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] &&
-								policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
-								exist = true
-								break
-							}
-						}
-
-						if exist {
-							dm.SecurityPoliciesLock.Unlock()
-							continue
-						}
-					}
-
-					kl.Clone(event.Object.Spec, &secPolicy.Spec)
-
-					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
-					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
-
-					switch secPolicy.Spec.Action {
-					case "allow":
-						secPolicy.Spec.Action = "Allow"
-					case "block":
-						secPolicy.Spec.Action = "Block"
-					case "audit":
-						secPolicy.Spec.Action = "Audit"
-					case "allowwithaudit":
-						secPolicy.Spec.Action = "AllowWithAudit"
-					case "blockwithaudit":
-						secPolicy.Spec.Action = "BlockWithAudit"
-					}
-
-					// add identities
-
-					secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, "namespaceName="+event.Object.Metadata.Namespace)
-
-					for k, v := range secPolicy.Spec.Selector.MatchNames {
-						if kl.ContainsElement([]string{"containerGroupName", "containerName", "hostName", "imageName"}, k) {
-							secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-						}
-					}
-
-					for k, v := range secPolicy.Spec.Selector.MatchLabels {
-						if !kl.ContainsElement(secPolicy.Spec.Selector.Identities, k+"="+v) {
-							secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-						}
-					}
-
-					// update a security policy into the policy list
-
-					if event.Type == "ADDED" {
-						if !kl.ContainsElement(dm.SecurityPolicies, secPolicy) {
-							dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
-						}
-					} else if event.Type == "DELETED" {
-						for idx, policy := range dm.SecurityPolicies {
-							if reflect.DeepEqual(secPolicy, policy) {
-								dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
-								break
-							}
-						}
-					} else { // MODIFIED
-						targetIdx := -1
-						for idx, policy := range dm.SecurityPolicies {
-							if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-								targetIdx = idx
-								break
-							}
-						}
-						if targetIdx != -1 {
-							dm.SecurityPolicies[targetIdx] = secPolicy
-						}
-					}
-
-					dm.SecurityPoliciesLock.Unlock()
-
-					dm.LogFeeder.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
-
-					// apply security policies to containers
-					dm.UpdateSecurityPolicy(event.Type, secPolicy)
-				}
+		if !K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
+			if !K8s.ApplyCustomResourceDefinitions() {
+				time.Sleep(time.Second * 1)
+				continue
 			}
-		} else {
-			time.Sleep(time.Second * 1)
+		}
+
+		if resp := K8s.WatchK8sSecurityPolicies(); resp != nil {
+			defer resp.Body.Close()
+
+			decoder := json.NewDecoder(resp.Body)
+			for {
+				event := tp.K8sKubeArmorPolicyEvent{}
+				if err := decoder.Decode(&event); err == io.EOF {
+					break
+				} else if err != nil {
+					break
+				}
+
+				dm.SecurityPoliciesLock.Lock()
+
+				// create a security policy
+
+				secPolicy := tp.SecurityPolicy{}
+
+				secPolicy.Metadata = map[string]string{}
+				secPolicy.Metadata["namespaceName"] = event.Object.Metadata.Namespace
+				secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
+				secPolicy.Metadata["generation"] = strconv.FormatInt(event.Object.Metadata.Generation, 10)
+
+				if event.Type == "ADDED" || event.Type == "MODIFIED" {
+					exist := false
+					for _, policy := range dm.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
+							policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] &&
+							policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
+							exist = true
+							break
+						}
+					}
+
+					if exist {
+						dm.SecurityPoliciesLock.Unlock()
+						continue
+					}
+				}
+
+				kl.Clone(event.Object.Spec, &secPolicy.Spec)
+
+				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
+
+				switch secPolicy.Spec.Action {
+				case "allow":
+					secPolicy.Spec.Action = "Allow"
+				case "block":
+					secPolicy.Spec.Action = "Block"
+				case "audit":
+					secPolicy.Spec.Action = "Audit"
+				case "allowwithaudit":
+					secPolicy.Spec.Action = "AllowWithAudit"
+				case "blockwithaudit":
+					secPolicy.Spec.Action = "BlockWithAudit"
+				}
+
+				// add identities
+
+				secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, "namespaceName="+event.Object.Metadata.Namespace)
+
+				for k, v := range secPolicy.Spec.Selector.MatchNames {
+					if kl.ContainsElement([]string{"containerGroupName", "containerName", "hostName", "imageName"}, k) {
+						secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+					}
+				}
+
+				for k, v := range secPolicy.Spec.Selector.MatchLabels {
+					if !kl.ContainsElement(secPolicy.Spec.Selector.Identities, k+"="+v) {
+						secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+					}
+				}
+
+				// update a security policy into the policy list
+
+				if event.Type == "ADDED" {
+					if !kl.ContainsElement(dm.SecurityPolicies, secPolicy) {
+						dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
+					}
+				} else if event.Type == "DELETED" {
+					for idx, policy := range dm.SecurityPolicies {
+						if reflect.DeepEqual(secPolicy, policy) {
+							dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
+							break
+						}
+					}
+				} else { // MODIFIED
+					targetIdx := -1
+					for idx, policy := range dm.SecurityPolicies {
+						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							targetIdx = idx
+							break
+						}
+					}
+					if targetIdx != -1 {
+						dm.SecurityPolicies[targetIdx] = secPolicy
+					}
+				}
+
+				dm.SecurityPoliciesLock.Unlock()
+
+				dm.LogFeeder.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
+
+				// apply security policies to containers
+				dm.UpdateSecurityPolicy(event.Type, secPolicy)
+			}
 		}
 	}
 }
@@ -632,112 +635,115 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy() {
 func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 	for {
 		if K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
-			if resp := K8s.WatchK8sHostSecurityPolicies(); resp != nil {
-				defer resp.Body.Close()
-
-				decoder := json.NewDecoder(resp.Body)
-				for {
-					event := tp.K8sKubeArmorHostPolicyEvent{}
-					if err := decoder.Decode(&event); err == io.EOF {
-						break
-					} else if err != nil {
-						break
-					}
-
-					dm.HostSecurityPoliciesLock.Lock()
-
-					// create a host security policy
-
-					secPolicy := tp.HostSecurityPolicy{}
-
-					secPolicy.Metadata = map[string]string{}
-					secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
-					secPolicy.Metadata["generation"] = strconv.FormatInt(event.Object.Metadata.Generation, 10)
-
-					if event.Type == "ADDED" || event.Type == "MODIFIED" {
-						exist := false
-						for _, policy := range dm.HostSecurityPolicies {
-							if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
-								policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
-								exist = true
-								break
-							}
-						}
-
-						if exist {
-							dm.HostSecurityPoliciesLock.Unlock()
-							continue
-						}
-					}
-
-					kl.Clone(event.Object.Spec, &secPolicy.Spec)
-
-					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
-					kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
-
-					switch secPolicy.Spec.Action {
-					case "allow":
-						secPolicy.Spec.Action = "Allow"
-					case "block":
-						secPolicy.Spec.Action = "Block"
-					case "audit":
-						secPolicy.Spec.Action = "Audit"
-					case "allowwithaudit":
-						secPolicy.Spec.Action = "AllowWithAudit"
-					case "blockwithaudit":
-						secPolicy.Spec.Action = "BlockWithAudit"
-					}
-
-					// add identities
-
-					for k, v := range secPolicy.Spec.NodeSelector.MatchNames {
-						if kl.ContainsElement([]string{"hostName", "architecture", "osType", "osName", "osVersion", "kernelVersion", "runtimePlatform"}, k) {
-							secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
-						}
-					}
-
-					for k, v := range secPolicy.Spec.NodeSelector.MatchLabels {
-						if !kl.ContainsElement(secPolicy.Spec.NodeSelector.Identities, k+"="+v) {
-							secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
-						}
-					}
-
-					// update a security policy into the policy list
-
-					if event.Type == "ADDED" {
-						if !kl.ContainsElement(dm.HostSecurityPolicies, secPolicy) {
-							dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
-						}
-					} else if event.Type == "DELETED" {
-						for idx, policy := range dm.HostSecurityPolicies {
-							if reflect.DeepEqual(secPolicy, policy) {
-								dm.HostSecurityPolicies = append(dm.HostSecurityPolicies[:idx], dm.HostSecurityPolicies[idx+1:]...)
-								break
-							}
-						}
-					} else { // MODIFIED
-						targetIdx := -1
-						for idx, policy := range dm.HostSecurityPolicies {
-							if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-								targetIdx = idx
-								break
-							}
-						}
-						if targetIdx != -1 {
-							dm.HostSecurityPolicies[targetIdx] = secPolicy
-						}
-					}
-
-					dm.HostSecurityPoliciesLock.Unlock()
-
-					dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
-
-					// apply security policies to a host
-					dm.UpdateHostSecurityPolicy()
-				}
+			if !K8s.ApplyCustomResourceDefinitions() {
+				time.Sleep(time.Second * 1)
+				continue
 			}
-		} else {
-			time.Sleep(time.Second * 1)
+		}
+
+		if resp := K8s.WatchK8sHostSecurityPolicies(); resp != nil {
+			defer resp.Body.Close()
+
+			decoder := json.NewDecoder(resp.Body)
+			for {
+				event := tp.K8sKubeArmorHostPolicyEvent{}
+				if err := decoder.Decode(&event); err == io.EOF {
+					break
+				} else if err != nil {
+					break
+				}
+
+				dm.HostSecurityPoliciesLock.Lock()
+
+				// create a host security policy
+
+				secPolicy := tp.HostSecurityPolicy{}
+
+				secPolicy.Metadata = map[string]string{}
+				secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
+				secPolicy.Metadata["generation"] = strconv.FormatInt(event.Object.Metadata.Generation, 10)
+
+				if event.Type == "ADDED" || event.Type == "MODIFIED" {
+					exist := false
+					for _, policy := range dm.HostSecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
+							policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
+							exist = true
+							break
+						}
+					}
+
+					if exist {
+						dm.HostSecurityPoliciesLock.Unlock()
+						continue
+					}
+				}
+
+				kl.Clone(event.Object.Spec, &secPolicy.Spec)
+
+				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
+				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
+
+				switch secPolicy.Spec.Action {
+				case "allow":
+					secPolicy.Spec.Action = "Allow"
+				case "block":
+					secPolicy.Spec.Action = "Block"
+				case "audit":
+					secPolicy.Spec.Action = "Audit"
+				case "allowwithaudit":
+					secPolicy.Spec.Action = "AllowWithAudit"
+				case "blockwithaudit":
+					secPolicy.Spec.Action = "BlockWithAudit"
+				}
+
+				// add identities
+
+				for k, v := range secPolicy.Spec.NodeSelector.MatchNames {
+					if kl.ContainsElement([]string{"hostName", "architecture", "osType", "osName", "osVersion", "kernelVersion", "runtimePlatform"}, k) {
+						secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
+					}
+				}
+
+				for k, v := range secPolicy.Spec.NodeSelector.MatchLabels {
+					if !kl.ContainsElement(secPolicy.Spec.NodeSelector.Identities, k+"="+v) {
+						secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
+					}
+				}
+
+				// update a security policy into the policy list
+
+				if event.Type == "ADDED" {
+					if !kl.ContainsElement(dm.HostSecurityPolicies, secPolicy) {
+						dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
+					}
+				} else if event.Type == "DELETED" {
+					for idx, policy := range dm.HostSecurityPolicies {
+						if reflect.DeepEqual(secPolicy, policy) {
+							dm.HostSecurityPolicies = append(dm.HostSecurityPolicies[:idx], dm.HostSecurityPolicies[idx+1:]...)
+							break
+						}
+					}
+				} else { // MODIFIED
+					targetIdx := -1
+					for idx, policy := range dm.HostSecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							targetIdx = idx
+							break
+						}
+					}
+					if targetIdx != -1 {
+						dm.HostSecurityPolicies[targetIdx] = secPolicy
+					}
+				}
+
+				dm.HostSecurityPoliciesLock.Unlock()
+
+				dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
+
+				// apply security policies to a host
+				dm.UpdateHostSecurityPolicy()
+			}
 		}
 	}
 }
