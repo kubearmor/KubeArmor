@@ -16,7 +16,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder)
+	enforcer := NewAppArmorEnforcer(logFeeder, false)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -52,7 +52,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder)
+	enforcer := NewAppArmorEnforcer(logFeeder, false)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return

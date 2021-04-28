@@ -20,23 +20,52 @@ type AppArmorEnforcer struct {
 	// logs
 	LogFeeder *fd.Feeder
 
-	HostName    string
-	HostProfile string
+	// host name
+	HostName string
 
+	// host security
+	EnableHostPolicy bool
+	HostProfile      string
+
+	// container security
 	AppArmorProfiles     map[string]int
 	AppArmorProfilesLock *sync.Mutex
 }
 
 // NewAppArmorEnforcer Function
-func NewAppArmorEnforcer(feeder *fd.Feeder) *AppArmorEnforcer {
+func NewAppArmorEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
 
 	ae.LogFeeder = feeder
 
 	ae.HostName = kl.GetHostName()
 
+	ae.EnableHostPolicy = enableHostPolicy
+	ae.HostProfile = ""
+
 	ae.AppArmorProfiles = map[string]int{}
 	ae.AppArmorProfilesLock = &sync.Mutex{}
+
+	existingProfiles := []string{}
+
+	if output, err := kl.GetCommandOutputWithErr("aa-status", []string{}); err != nil {
+		ae.LogFeeder.Errf("Failed to get the list of AppArmor profiles (%s)", err.Error())
+		return nil
+	} else {
+		for _, line := range strings.Split(string(output), "\n") {
+			// the line should be something like "   /path (pid) profile"
+			if !strings.HasPrefix(line, "   ") {
+				continue
+			}
+
+			// check if there are KubeArmor's profiles used by containers
+			if words := strings.Split(line, " "); len(words) == 6 {
+				if !kl.ContainsElement(existingProfiles, words[5]) {
+					existingProfiles = append(existingProfiles, words[5])
+				}
+			}
+		}
+	}
 
 	files, err := ioutil.ReadDir("/etc/apparmor.d")
 	if err != nil {
@@ -54,26 +83,34 @@ func NewAppArmorEnforcer(feeder *fd.Feeder) *AppArmorEnforcer {
 		data, err := ioutil.ReadFile("/etc/apparmor.d/" + fileName)
 		if err != nil {
 			ae.LogFeeder.Errf("Failed to read /etc/apparmor.d/%s (%s)", fileName, err.Error())
-			return nil
+			continue
 		}
 
 		str := string(data)
 
 		if strings.Contains(str, "KubeArmor") {
+			if kl.ContainsElement(existingProfiles, fileName) {
+				continue // if the profile is used by a running container, do not remove it
+			}
+
 			if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/etc/apparmor.d/" + fileName}); err != nil {
 				ae.LogFeeder.Errf("Failed to detach /etc/apparmor.d/%s (%s)", fileName, err.Error())
-				return nil
+				continue // still need to check other profiles
 			}
 
 			if err := os.Remove("/etc/apparmor.d/" + fileName); err != nil {
 				ae.LogFeeder.Errf("Failed to remove /etc/apparmor.d/%s (%s)", fileName, err.Error())
-				return nil
+				continue // still need to check other profiles
 			}
+
+			ae.LogFeeder.Printf("Removed an inactive AppArmor profile (%s)", fileName)
 		}
 	}
 
-	if ok := ae.RegisterAppArmorHostProfile(); !ok {
-		return nil
+	if ae.EnableHostPolicy {
+		if ok := ae.RegisterAppArmorHostProfile(); !ok {
+			return nil
+		}
 	}
 
 	return ae
@@ -81,11 +118,9 @@ func NewAppArmorEnforcer(feeder *fd.Feeder) *AppArmorEnforcer {
 
 // DestroyAppArmorEnforcer Function
 func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
-	for profileName := range ae.AppArmorProfiles {
-		ae.UnregisterAppArmorProfile(profileName)
+	if ae.EnableHostPolicy {
+		ae.UnregisterAppArmorHostProfile()
 	}
-
-	ae.UnregisterAppArmorHostProfile()
 
 	return nil
 }
@@ -103,9 +138,8 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
 		"  ## == PRE START == ##\n" +
 		"  #include <abstractions/base>\n" +
-		"  file,\n" +
 		"  umount,\n" +
-		"  signal,\n" +
+		"  file,\n" +
 		"  network,\n" +
 		"  capability,\n" +
 		"  ## == PRE END == ##\n" +
@@ -164,7 +198,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 		}
 	}
 
-	if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
+	if output, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
 		if _, ok := ae.AppArmorProfiles[profileName]; !ok {
 			ae.AppArmorProfiles[profileName] = 1
 			ae.LogFeeder.Printf("Registered an AppArmor profile (%s)", profileName)
@@ -173,7 +207,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 			ae.LogFeeder.Printf("Increased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]-1, ae.AppArmorProfiles[profileName], profileName)
 		}
 	} else {
-		ae.LogFeeder.Printf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
+		ae.LogFeeder.Printf("Failed to register an AppArmor profile (%s, %s, %s)", profileName, output, err.Error())
 		return false
 	}
 
@@ -312,10 +346,10 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 		return false
 	}
 
-	if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/tmp/kubearmor.host"}); err == nil {
+	if output, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/tmp/kubearmor.host"}); err == nil {
 		ae.LogFeeder.Printf("Unegistered an AppArmor host profile in %s", ae.HostName)
 	} else {
-		ae.LogFeeder.Printf("Failed to unregister the AppArmor host profile (%s)", err.Error())
+		ae.LogFeeder.Printf("Failed to unregister the AppArmor host profile (%s, %s)", output, err.Error())
 	}
 
 	if err := ae.RemoveAppArmorHostProfile(); err != nil {
@@ -363,9 +397,7 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	appArmorProfiles := []string{}
 
 	for _, containerName := range conGroup.Containers {
-		if kl.ContainsElement([]string{"docker-default", "unconfined"}, conGroup.AppArmorProfiles[containerName]) {
-			continue
-		} else if conGroup.AppArmorProfiles[containerName] == "" { // unconfined in k8s
+		if kl.ContainsElement([]string{"docker-default", "unconfined", ""}, conGroup.AppArmorProfiles[containerName]) {
 			continue
 		}
 
@@ -418,5 +450,9 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 
 // UpdateHostSecurityPolicies Function
 func (ae *AppArmorEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	if !ae.EnableHostPolicy {
+		return
+	}
+
 	ae.UpdateAppArmorHostProfile(secPolicies)
 }
