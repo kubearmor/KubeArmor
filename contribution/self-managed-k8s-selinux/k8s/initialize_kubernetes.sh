@@ -50,7 +50,7 @@ if [ ! -z $1 ] && [ "$1" == "weave" ]; then
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$kubever"
 elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
     # install a pod network (flannel)
-    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.12.0/Documentation/kube-flannel.yml
+    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
 elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # install a pod network (calico)
     kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
@@ -59,7 +59,7 @@ elif [ ! -z $1 ] && [ "$1" == "cilium" ]; then
     kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml
 else
     # install a pod network (flannel) by default
-    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.12.0/Documentation/kube-flannel.yml
+    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
 fi
 
 if [ ! -z $2 ] && [ "$2" == "master" ]; then

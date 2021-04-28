@@ -40,7 +40,7 @@ type LogClient struct {
 }
 
 // NewClient Function
-func NewClient(server, msgPath, logPath, logType string) *LogClient {
+func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 	lc := &LogClient{}
 
 	lc.server = server
@@ -69,10 +69,10 @@ func NewClient(server, msgPath, logPath, logType string) *LogClient {
 	if logPath != "none" {
 		logIn := pb.RequestMessage{}
 
-		if logType == "all" {
+		if logFilter == "all" {
 			logIn.Filter = ""
 		} else {
-			logIn.Filter = logType
+			logIn.Filter = logFilter
 		}
 
 		logStream, err := lc.client.WatchLogs(context.Background(), &logIn)
@@ -110,7 +110,7 @@ func (lc *LogClient) DoHealthCheck() bool {
 }
 
 // WatchMessages Function
-func (lc *LogClient) WatchMessages(msgPath string, raw bool) error {
+func (lc *LogClient) WatchMessages(msgPath string, jsonFormat bool) error {
 	lc.WgClient.Add(1)
 	defer lc.WgClient.Done()
 
@@ -123,7 +123,7 @@ func (lc *LogClient) WatchMessages(msgPath string, raw bool) error {
 
 		str := ""
 
-		if raw {
+		if jsonFormat {
 			arr, _ := json.Marshal(res)
 			str = fmt.Sprintf("%s\n", string(arr))
 		} else {
@@ -144,7 +144,7 @@ func (lc *LogClient) WatchMessages(msgPath string, raw bool) error {
 }
 
 // WatchLogs Function
-func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
+func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 	lc.WgClient.Add(1)
 	defer lc.WgClient.Done()
 
@@ -157,7 +157,7 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 
 		str := ""
 
-		if raw {
+		if jsonFormat {
 			arr, _ := json.Marshal(res)
 			str = fmt.Sprintf("%s\n", string(arr))
 		} else {
@@ -183,7 +183,7 @@ func (lc *LogClient) WatchLogs(logPath string, raw bool) error {
 				str = str + fmt.Sprintf("Severity: %s\n", res.Severity)
 			}
 
-			if len(res.Tag) > 0 {
+			if len(res.Tags) > 0 {
 				str = str + fmt.Sprintf("Tags: %s\n", res.Tags)
 			}
 

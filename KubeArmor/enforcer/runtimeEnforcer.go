@@ -26,7 +26,7 @@ type RuntimeEnforcer struct {
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
+func NewRuntimeEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *RuntimeEnforcer {
 	re := &RuntimeEnforcer{}
 
 	re.LogFeeder = feeder
@@ -39,6 +39,7 @@ func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
 		re.LogFeeder.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+		return nil
 	}
 
 	re.enableLSM = false
@@ -53,7 +54,7 @@ func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
 	}
 
 	if strings.Contains(re.enforcerType, "apparmor") {
-		re.appArmorEnforcer = NewAppArmorEnforcer(feeder)
+		re.appArmorEnforcer = NewAppArmorEnforcer(feeder, enableHostPolicy)
 		if re.appArmorEnforcer != nil {
 			re.LogFeeder.Print("Initialized AppArmor Enforcer")
 			re.enableLSM = true

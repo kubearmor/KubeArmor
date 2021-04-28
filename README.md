@@ -32,9 +32,9 @@ To avoid this problem, KubeArmor maintains security policies separately, which m
 
 * Produce container-aware audit logs
 
-LSMs do not have any container-related information; thus, they generate audit logs only based on system metadata \(e.g., UID/GID, and process ID\). Therefore, it is hard to figure out what containers cause policy violations.
+LSMs do not have any container-related information; thus, they generate audit logs only based on system metadata \(e.g., User ID, Group ID, and process ID\). Therefore, it is hard to figure out what containers cause policy violations.
 
-To address this problem, KubeArmor uses an eBPF-based container monitor, which keeps track of process life cycles in containers, and converts system metadata to container identities when LSMs generate audit logs for any policy violations from containers.
+To address this problem, KubeArmor uses an eBPF-based system monitor, which keeps track of process life cycles in containers, and converts system metadata to container identities when LSMs generate audit logs for any policy violations from containers.
 
 * Provide easy-to-use semantics for policy definitions
 
@@ -49,8 +49,10 @@ KubeArmor aims to protect containers themselves rather than interactions among c
 Please take a look at the following documents.
 
 1. [Deployment Guide](getting-started/deployment_guide.md)
-2. [Security Policy Specification](getting-started/security_policy_specification.md)
-3. [Security Policy Examples](getting-started/security_policy_examples.md)
+2. [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
+3. [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
+4. [Security Policy Specification for Nodes (Hosts)](getting-started/host_security_policy_specification.md)
+5. [Security Policy Examples for Nodes (Hosts)](getting-started/host_security_policy_examples.md)
 
 If you want to make a contribution, please refer to the following documents too.
 

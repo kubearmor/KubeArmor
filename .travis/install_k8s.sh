@@ -28,7 +28,7 @@ export KUBECONFIG=$HOME/.kube/config
 echo "export KUBECONFIG=$HOME/.kube/config" | tee -a ~/.bashrc
 
 # install flannel
-kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.12.0/Documentation/kube-flannel.yml
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
 
 # disable master isolation
 kubectl taint nodes --all node-role.kubernetes.io/master-

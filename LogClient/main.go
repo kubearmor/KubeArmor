@@ -45,32 +45,32 @@ func main() {
 	// == //
 
 	// get arguments
-	grpcPtr := flag.String("grpc", "localhost:32767", "gRPC server information")
-	msgPtr := flag.String("msg", "none", "Output for messages, {File path | stdout | none}")
-	logPtr := flag.String("log", "stdout", "Output for logs, {File path | stdout | none}")
-	typePtr := flag.String("type", "policy", "Filter for what kinds of logs to receive, {all | policy | system}")
-	rawPtr := flag.Bool("raw", false, "Flag to print logs in a raw format")
+	gRPCPtr := flag.String("gRPC", "localhost:32767", "gRPC server information")
+	msgPathPtr := flag.String("msgPath", "none", "Output location for messages, {path|stdout|none}")
+	logPathPtr := flag.String("logPath", "stdout", "Output location for alerts and logs, {path|stdout|none}")
+	logFilterPtr := flag.String("logFilter", "policy", "Filter for what kinds of alerts and logs to receive, {policy|system|all}")
+	jsonPtr := flag.Bool("json", false, "Flag to print alerts and logs in the JSON format")
 	flag.Parse()
 
-	if *msgPtr == "none" && *logPtr == "none" {
+	if *msgPathPtr == "none" && *logPathPtr == "none" {
 		flag.PrintDefaults()
 		return
 	}
 
-	if *typePtr != "all" && *typePtr != "policy" && *typePtr != "system" {
-		fmt.Errorf("Type should be 'all', 'policy', or 'system'")
+	if *logFilterPtr != "all" && *logFilterPtr != "policy" && *logFilterPtr != "system" {
+		flag.PrintDefaults()
 		return
 	}
 
 	// == //
 
 	// create a client
-	logClient := core.NewClient(*grpcPtr, *msgPtr, *logPtr, *typePtr)
+	logClient := core.NewClient(*gRPCPtr, *msgPathPtr, *logPathPtr, *logFilterPtr)
 	if logClient == nil {
-		fmt.Errorf("Failed to connect to the gRPC server (%s)", *grpcPtr)
+		fmt.Errorf("Failed to connect to the gRPC server (%s)", *gRPCPtr)
 		return
 	}
-	fmt.Printf("Connected to the gRPC server (%s)\n", *grpcPtr)
+	fmt.Printf("Connected to the gRPC server (%s)\n", *gRPCPtr)
 
 	// do healthcheck
 	if ok := logClient.DoHealthCheck(); !ok {
@@ -79,15 +79,15 @@ func main() {
 	}
 	fmt.Println("Checked the liveness of the gRPC server")
 
-	if *msgPtr != "none" {
+	if *msgPathPtr != "none" {
 		// watch messages
-		go logClient.WatchMessages(*msgPtr, *rawPtr)
+		go logClient.WatchMessages(*msgPathPtr, *jsonPtr)
 		fmt.Println("Started to watch messages")
 	}
 
-	if *logPtr != "none" {
+	if *logPathPtr != "none" {
 		// watch logs
-		go logClient.WatchLogs(*logPtr, *rawPtr)
+		go logClient.WatchLogs(*logPathPtr, *jsonPtr)
 		fmt.Println("Started to watch logs")
 	}
 

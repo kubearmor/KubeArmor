@@ -1,20 +1,13 @@
 # Local Test Guide
 
 *  Test in manual
-    1. Apply [custom resource definitions (CRDs)](../deployments/CRD) into Kubernetes
-
-        ```text
-        $ cd KubeArmor/deployments/CRD
-        (CRD) $ kubectl apply -f .
-        ```
-
-    2. Run 'kubectl proxy' in background
+    1. Run 'kubectl proxy' in background
 
         ```text
         $ kubectl proxy &
         ```
 
-    3. Run KubeArmor
+    2. Run KubeArmor
 
         ```text
         $ cd KubeArmor/KubeArmor
@@ -22,13 +15,13 @@
         (KubeArmor) $ make run
         ```
 
-        If you want to change the gRPC port or the location of a log file, run KubeArmor like the below.
+        If you want to change the number of the gRPC port or the location of a log file, run KubeArmor like the below.
 
         ```text
-        (KubeArmor) $ sudo -E ./kubearmor sudo -E ./kubearmor -port=[gRPC port number] -output=[log file path]
+        (KubeArmor) $ sudo -E ./kubearmor -gRPC=[gRPC port number] -logPath=[log file path] (-enableHostPolicy)
         ```
 
-    4. Apply security policies for the testing purpose
+    3. Apply security policies for the testing purpose
 
         ```text
         kubectl apply -f [policy file]
@@ -36,13 +29,13 @@
 
         You can refer to the security policies defined for example microservices in [examples](../examples).
 
-    5. Trigger policy violations to generate logs
+    4. Trigger policy violations to generate logs
 
         ```text
         kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
         ```
 
-    6. Check KubeArmor's alerts and logs
+    5. Check KubeArmor's alerts and logs
         - Log file
 
             ```text
@@ -73,14 +66,14 @@
             Log client options:
 
             ```text
-            -grpc=[ipaddr:port]        gRPC server information (default: localhost:32767)
-            -msg={path|stdout|none}    Output for KubeArmor's messages (default: none)
-            -log={path|stdout|none}    Output for KubeArmor's alerts and logs (default: none)
-            -type={all|policy|system}  Filter for what kinds of logs to receive (default: policy)
-            -raw                       Flag to print messages and logs in a JSON format
+            -gRPC=[ipaddr:port]             gRPC server information (default: localhost:32767)
+            -msgPath={path|stdout|none}     Output location for KubeArmor's messages (default: none)
+            -logPath={path|stdout|none}     Output location for KubeArmor's alerts and logs (default: none)
+            -logFilter={policy|system|all}  Filter for what kinds of alerts and logs to receive (default: policy)
+            -json                           Flag to print messages, alerts, and logs in a JSON format
             ```
 
-            Note that you will see the messages and logs created right after the log client runs, which means that the log client should be ran before any policy violations happen.
+            Note that you will see the messages, alerts, and logs generated right after the log client runs, which means that the log client should be ran before any policy violations happen.
 
 *  Test using the auto-testing framework
 
@@ -136,7 +129,7 @@
             result: [expected result], { passed | failed }
             ---
             operation: [operation], { Process | File | Network }
-            condition: [matching string to get a log (e.g., resource)]
+            condition: [matching string]
             action: [action in a policy]
             ```
 
@@ -154,52 +147,52 @@
 
             You can refer to our scenarios in [scenarios](../tests/scenarios).
 
-    2. Test in local (when you are developing KubeArmor on running Kubernetes)
+    2. Test KubeArmor in a local development environment
+    
+        - In the case that KubeArmor is not running
 
-        Compile KubeArmor.
+            Compile KubeArmor.
 
-        ```text
-        $ cd KubeArmor/KubeArmor
-        (KubeArmor) $ make clean && make
-        ```
+            ```text
+            $ cd KubeArmor/KubeArmor
+            (KubeArmor) $ make clean && make
+            ```
 
-        Make sure that KubeArmor's CRDs are deployed and 'kubectl proxy' is running.
+            Make sure that 'kubectl proxy' is running.
 
-        ```text
-        $ cd KubeArmor/deployments/CRD
-        (CRD) $ kubectl apply -f .
-        ```
+            ```text
+            $ kubectl proxy &
+            ```
 
-        ```text
-        $ kubectl proxy &
-        ```
+            Run the auto-testing framework (the framework will automatically run KubeArmor).
 
-        Run the auto-testing framework.
+            ```text
+            $ cd KubeArmor/tests
+            (tests) $ ./test-scenarios-local.sh
+            ```
 
-        ```text
-        $ cd KubeArmor/tests
-        (tests) $ ./test-scenarios-local.sh
-        ```
+            Check the test report
 
-    3. Test using MicroK8s (when you are developing KubeArmor using MicroK8s)
+            ```text
+            $ cat /tmp/kubearmor.test
+            ```
 
-        Compile KubeArmor.
+        - In the case that KubeArmor is running
 
-        ```text
-        $ cd KubeArmor/KubeArmor
-        (KubeArmor) $ make clean && make
-        ```
+            Run the auto-testing framework (you need to make sure that KubeArmor is running again).
 
-        Make sure that KubeArmor's CRDs are deployed and 'kubectl proxy' is running.
+            ```text
+            $ cd KubeArmor/tests
+            (tests) $ ./test-scenarios-in-runtime.sh
+            ```
 
-        ```text
-        $ cd KubeArmor/deployments/CRD
-        (CRD) $ kubectl apply -f .
-        ```
+            Check the test report
 
-        ```text
-        $ kubectl proxy &
-        ```
+            ```text
+            $ cat /tmp/kubearmor.test
+            ```
+
+    4. Test the containerized KubeArmor image using MicroK8s
 
         Run the auto-testing framework.
 
@@ -208,11 +201,23 @@
         (tests) $ ./test-scenarios-with-microk8s.sh
         ```
 
-    4. Test in runtime (when KubeArmor is already deployed on running Kubernetes)
+        Check the test report
 
-        Run the auto-testing framework.
+        ```text
+        $ cat /tmp/kubearmor.test
+        ```
+
+    5. Test the containerized KubeArmor image on running Kubernetes
+
+        Run the auto-testing framework (you need to make sure that KubeArmor is running).
 
         ```text
         $ cd KubeArmor/tests
         (tests) $ ./test-scenarios-in-runtime.sh
+        ```
+
+        Check the test report
+
+        ```text
+        $ cat /tmp/kubearmor.test
         ```

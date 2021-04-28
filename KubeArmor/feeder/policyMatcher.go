@@ -909,7 +909,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
-							log.Type = "PolicyMatched"
+							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
 
 							break
@@ -925,7 +925,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
-							log.Type = "PolicyMatched"
+							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
 
 							break
@@ -947,7 +947,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
-							log.Type = "PolicyMatched"
+							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
 
 							break
@@ -963,7 +963,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
-							log.Type = "PolicyMatched"
+							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
 
 							break
@@ -1000,7 +1000,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Message = allowProcMessage
 				}
 
-				log.Type = "PolicyMatched"
+				log.Type = "MatchedPolicy"
 				log.Action = "Allow"
 
 				return log
@@ -1016,7 +1016,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Message = allowFileMessage
 				}
 
-				log.Type = "PolicyMatched"
+				log.Type = "MatchedPolicy"
 				log.Action = "Allow"
 
 				return log
@@ -1032,7 +1032,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Message = allowNetworkMessage
 				}
 
-				log.Type = "PolicyMatched"
+				log.Type = "MatchedPolicy"
 				log.Action = "Allow"
 
 				return log
@@ -1040,7 +1040,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				log.Type = "ContainerLog"
 				return log
 			}
-		} else if log.Type == "PolicyMatched" {
+		} else if log.Type == "MatchedPolicy" {
 			return log
 		}
 	} else { // host
@@ -1057,7 +1057,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Message = allowProcMessage
 				}
 
-				log.Type = "HostPolicyMatched"
+				log.Type = "MatchedHostPolicy"
 				log.Action = "Allow"
 
 				return log
@@ -1073,7 +1073,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Message = allowFileMessage
 				}
 
-				log.Type = "HostPolicyMatched"
+				log.Type = "MatchedHostPolicy"
 				log.Action = "Allow"
 
 				return log
@@ -1089,7 +1089,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Message = allowNetworkMessage
 				}
 
-				log.Type = "HostPolicyMatched"
+				log.Type = "MatchedHostPolicy"
 				log.Action = "Allow"
 
 				return log
@@ -1097,8 +1097,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				log.Type = "HostLog"
 				return log
 			}
-		} else if log.Type == "PolicyMatched" {
-			log.Type = "HostPolicyMatched"
+		} else if log.Type == "MatchedPolicy" {
+			log.Type = "MatchedHostPolicy"
 			return log
 		}
 	}

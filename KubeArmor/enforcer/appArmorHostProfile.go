@@ -1148,7 +1148,7 @@ func GenerateHostProfileBody(secPolicies []tp.HostSecurityPolicy) (int, string) 
 	// preparation - fromSource
 
 	for _, secPolicy := range secPolicies {
-		if secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
+		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "AllowWithAudit" {
 			// process
 			allowedHostProcessesFromSource(secPolicy, fromSources)
 

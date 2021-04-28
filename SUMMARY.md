@@ -16,6 +16,7 @@
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
 * [Kubernetes Installation](contribution/k8s_installation_guide.md)
+* [Kubernetes Installation for Fedora OS](contribution/k8s_installation_guide_fedora.md)
 * [Testing Guide](contribution/testing_guide.md)
 * [Troubleshooting Guide](contribution/trouble_shooting_guide.md)
 * [Technical Roadmap](contribution/technical_roadmap.md)
@@ -23,7 +24,6 @@
 ## Reference
 
 * [Supported Capability List](reference/supported_capability_list.md)
-* [Supported Operation List](reference/supported_operation_list.md)
 
 ## Examples
 

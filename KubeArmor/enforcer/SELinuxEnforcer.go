@@ -39,8 +39,8 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
 	// install template cil
-	if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + "base_container.cil"}); err != nil {
-		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) %s", selinuxContextTemplates+"base_container.cil", err.Error())
+	if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + "base_container.cil"}); err != nil {
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) (%s, %s)", selinuxContextTemplates+"base_container.cil", output, err.Error())
 		return nil
 	}
 
@@ -50,15 +50,13 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 // DestroySELinuxEnforcer Function
 func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 	for profileName := range se.SELinuxProfiles {
-		emptyPod := tp.K8sPod{
-			Metadata: map[string]string{},
-		}
+		emptyPod := tp.K8sPod{Metadata: map[string]string{}}
 		se.UnregisterSELinuxProfile(emptyPod, profileName)
 	}
 
 	// remove template cil
-	if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", "base_container"}); err != nil {
-		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) %s", selinuxContextTemplates+"base_container.cil", err.Error())
+	if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", "base_container"}); err != nil {
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) (%s, %s)", selinuxContextTemplates+"base_container.cil", output, err.Error())
 		return nil
 	}
 
@@ -88,28 +86,29 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 
 	for _, hostVolume := range pod.HostVolumes {
 		if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
-			if context, err := kl.GetSELinuxType(hostVolume.PathName); err != nil {
-				se.LogFeeder.Err(err.Error())
+			context, err := kl.GetSELinuxType(hostVolume.PathName)
+			if err != nil {
+				se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 				return false
-			} else {
-				contextLine := "	(allow process " + context
+			}
 
-				if readOnly {
-					if hostVolume.Type == "Directory" {
-						contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-						defaultProfile = defaultProfile + contextDirLine
-					} else {
-						contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-						defaultProfile = defaultProfile + contextFileLine
-					}
+			contextLine := "	(allow process " + context
+
+			if readOnly {
+				if hostVolume.Type == "Directory" {
+					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+					defaultProfile = defaultProfile + contextDirLine
 				} else {
-					if hostVolume.Type == "Directory" {
-						contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-						defaultProfile = defaultProfile + contextDirLine
-					} else {
-						contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-						defaultProfile = defaultProfile + contextFileLine
-					}
+					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+					defaultProfile = defaultProfile + contextFileLine
+				}
+			} else {
+				if hostVolume.Type == "Directory" {
+					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+					defaultProfile = defaultProfile + contextDirLine
+				} else {
+					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+					defaultProfile = defaultProfile + contextFileLine
 				}
 			}
 		}
@@ -141,14 +140,16 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 	}
 	newFile.Close()
 
-	if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", profilePath}); err == nil {
-		if _, ok := se.SELinuxProfiles[profileName]; !ok {
-			se.SELinuxProfiles[profileName] = 1
-			se.LogFeeder.Printf("Registered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
-		}
-	} else {
-		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
+	output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", profilePath})
+	if err != nil {
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) for (%s/%s) (%s, %s)", profileName, namespace, podName, output, err.Error())
 		return false
+	}
+
+	if _, ok := se.SELinuxProfiles[profileName]; !ok {
+		se.SELinuxProfiles[profileName] = 1
+		se.LogFeeder.Printf("Registered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
+		return true
 	}
 
 	return false
@@ -164,57 +165,57 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName s
 
 	profilePath := selinuxContextTemplates + profileName + ".cil"
 
-	if _, err := os.Stat(profilePath); err == nil {
-		_, err := ioutil.ReadFile(profilePath)
-		if err != nil {
-			if namespace == "" || podName == "" {
-				se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s): %s", profileName, err.Error())
-			} else {
-				se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
-			}
-			return false
-		}
-	} else { // not exist
-		if err != nil {
-			se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
-			return false
-		}
+	if _, err := os.Stat(profilePath); err != nil {
+		se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
+		return false
 	}
 
-	if referenceCount, ok := se.SELinuxProfiles[profileName]; ok {
-		if referenceCount > 1 {
-			se.SELinuxProfiles[profileName]--
-			se.LogFeeder.Printf("Decreased the refCount (%d -> %d) of a SELinux profile (%s)", se.SELinuxProfiles[profileName]+1, se.SELinuxProfiles[profileName], profileName)
-		} else {
-			if _, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", profileName}); err != nil {
-				if namespace == "" || podName == "" {
-					se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s): %s", profileName, err.Error())
-				} else {
-					se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s): %s", profileName, namespace, podName, err.Error())
-				}
-				return false
-			}
-
-			if err := os.Remove(profilePath); err != nil {
-				se.LogFeeder.Err(err.Error())
-				return false
-			}
-
-			delete(se.SELinuxProfiles, profileName)
-			if namespace == "" || podName == "" {
-				se.LogFeeder.Printf("Unregistered a SELinux profile (%s)", profileName)
-			} else {
-				se.LogFeeder.Printf("Unregistered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
-			}
-		}
-	} else {
+	if _, err := ioutil.ReadFile(profilePath); err != nil {
 		if namespace == "" || podName == "" {
-			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s): not exist profile in the enforecer", profileName)
+			se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) (%s)", profileName, err.Error())
 		} else {
-			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s) for (%s/%s): not exist profile in the enforecer", profileName, namespace, podName)
+			se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
 		}
 		return false
 	}
+
+	referenceCount, ok := se.SELinuxProfiles[profileName]
+	if !ok {
+		if namespace == "" || podName == "" {
+			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s) (not exist profile in the enforecer)", profileName)
+		} else {
+			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s) for (%s/%s) (not exist profile in the enforecer)", profileName, namespace, podName)
+		}
+		return false
+	}
+
+	if referenceCount > 1 {
+		se.SELinuxProfiles[profileName]--
+		se.LogFeeder.Printf("Decreased the refCount (%d -> %d) of a SELinux profile (%s)", se.SELinuxProfiles[profileName]+1, se.SELinuxProfiles[profileName], profileName)
+	} else {
+		if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", profileName}); err != nil {
+			if namespace == "" || podName == "" {
+				se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) (%s, %s)", profileName, output, err.Error())
+			} else {
+				se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s) (%s, %s)", profileName, namespace, podName, output, err.Error())
+			}
+			return false
+		}
+
+		if err := os.Remove(profilePath); err != nil {
+			se.LogFeeder.Errf("Failed to remove %s (%s)", profilePath, err.Error())
+			return false
+		}
+
+		delete(se.SELinuxProfiles, profileName)
+
+		if namespace == "" || podName == "" {
+			se.LogFeeder.Printf("Unregistered a SELinux profile (%s)", profileName)
+		} else {
+			se.LogFeeder.Printf("Unregistered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
+		}
+	}
+
 	return true
 }
 
@@ -224,7 +225,6 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName s
 
 // GenerateSELinuxProfile Function
 func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profileName string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
-	// check profile
 	securityRules := 0
 
 	if _, err := os.Stat(selinuxContextTemplates + profileName + ".cil"); os.IsNotExist(err) {
@@ -245,7 +245,8 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 	}
 	file.Close()
 
-	mountedPathToHostPath := map[string]string{} // key: container-side path, val: host-side path
+	// key: container-side path, val: host-side path
+	mountedPathToHostPath := map[string]string{}
 
 	// write default volume
 	newProfile := "(block " + profileName + "\n" +
@@ -254,6 +255,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 		"	(allow process process (capability (dac_override)))\n"
 
 	found := false
+
 	for _, hostVolume := range pod.HostVolumes {
 		for containerName := range hostVolume.UsedByContainerPath {
 			if !strings.Contains(profileName, containerName) {
@@ -266,7 +268,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 				mountedPathToHostPath[hostVolume.UsedByContainerPath[containerName]] = hostVolume.PathName
 
 				if context, err := kl.GetSELinuxType(hostVolume.PathName); err != nil {
-					se.LogFeeder.Err(err.Error())
+					se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 					return 0, "", false
 				} else {
 					contextLine := "	(allow process " + context
@@ -283,68 +285,68 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 				}
 			}
 		}
-	}
 
-	if !found {
-		return 0, "", false
-	}
+		if !found {
+			return 0, "", false
+		}
 
-	// write policy volume
-	for _, policy := range securityPolicies {
-		// file
-		for _, file := range policy.Spec.File.MatchPaths {
-			absolutePath := file.Path
-			readOnly := file.ReadOnly
+		// write policy volume
+		for _, policy := range securityPolicies {
+			// file
+			for _, file := range policy.Spec.File.MatchPaths {
+				absolutePath := file.Path
+				readOnly := file.ReadOnly
 
-			for containerPath, hostPath := range mountedPathToHostPath {
-				if strings.Contains(absolutePath, containerPath) {
-					filePath := strings.Split(absolutePath, containerPath)[1]
-					hostAbsolutePath := hostPath + filePath
+				for containerPath, hostPath := range mountedPathToHostPath {
+					if strings.Contains(absolutePath, containerPath) {
+						filePath := strings.Split(absolutePath, containerPath)[1]
+						hostAbsolutePath := hostPath + filePath
 
-					if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
-						se.LogFeeder.Err(err.Error())
-						break
-					} else {
-						contextLine := "	(allow process " + context
-
-						if readOnly {
-							contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-							newProfile = newProfile + contextFileLine
-							securityRules++
+						if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+							se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
+							break
 						} else {
-							contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-							newProfile = newProfile + contextFileLine
-							securityRules++
+							contextLine := "	(allow process " + context
+
+							if readOnly {
+								contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+								newProfile = newProfile + contextFileLine
+								securityRules++
+							} else {
+								contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+								newProfile = newProfile + contextFileLine
+								securityRules++
+							}
 						}
 					}
 				}
 			}
-		}
 
-		// dir
-		for _, dir := range policy.Spec.File.MatchDirectories {
-			absolutePath := dir.Directory
-			readOnly := dir.ReadOnly
+			// directory
+			for _, dir := range policy.Spec.File.MatchDirectories {
+				absolutePath := dir.Directory
+				readOnly := dir.ReadOnly
 
-			for containerPath, hostPath := range mountedPathToHostPath {
-				if strings.Contains(absolutePath, containerPath) {
-					filePath := strings.Split(absolutePath, containerPath)[1]
-					hostAbsolutePath := hostPath + filePath
+				for containerPath, hostPath := range mountedPathToHostPath {
+					if strings.Contains(absolutePath, containerPath) {
+						filePath := strings.Split(absolutePath, containerPath)[1]
+						hostAbsolutePath := hostPath + filePath
 
-					if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
-						se.LogFeeder.Err(err.Error())
-						break
-					} else {
-						contextLine := "	(allow process " + context
-
-						if readOnly {
-							contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-							newProfile = newProfile + contextDirLine
-							securityRules++
+						if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+							se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
+							break
 						} else {
-							contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-							newProfile = newProfile + contextDirLine
-							securityRules++
+							contextLine := "	(allow process " + context
+
+							if readOnly {
+								contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+								newProfile = newProfile + contextDirLine
+								securityRules++
+							} else {
+								contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+								newProfile = newProfile + contextDirLine
+								securityRules++
+							}
 						}
 					}
 				}

@@ -1454,7 +1454,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	// preparation - fromSource
 
 	for _, secPolicy := range securityPolicies {
-		if secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "AllowWithAudit" {
+		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "AllowWithAudit" {
 			// process
 			allowedProcessesFromSource(secPolicy, fromSources)
 
