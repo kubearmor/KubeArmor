@@ -8,7 +8,7 @@ import (
 
 func TestAppArmorEnforcer(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("32767", "none", false)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -16,7 +16,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder, false)
+	enforcer := NewAppArmorEnforcer(logFeeder, false, false)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -44,7 +44,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 func TestAppArmorProfile(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("32767", "none", false)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -52,7 +52,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder, false)
+	enforcer := NewAppArmorEnforcer(logFeeder, false, false)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -77,6 +77,42 @@ func TestAppArmorProfile(t *testing.T) {
 	}
 
 	t.Log("[PASS] Unregister AppArmorProfile")
+
+	// Destroy AppArmor Enforcer
+
+	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
+		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
+		return
+	}
+
+	t.Log("[PASS] Destroyed AppArmor Enforcer")
+
+	// destroy Feeder
+	if err := logFeeder.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy Feeder")
+		return
+	}
+
+	t.Log("[PASS] Destroyed Feeder")
+}
+
+func TestHostAppArmorProfile(t *testing.T) {
+	// Create Feeder
+	logFeeder := fd.NewFeeder("32767", "none", false)
+	if logFeeder == nil {
+		t.Log("[FAIL] Failed to create Feeder")
+		return
+	}
+
+	// Create AppArmor Enforcer
+
+	enforcer := NewAppArmorEnforcer(logFeeder, false, true)
+	if enforcer == nil {
+		t.Log("[FAIL] Failed to create AppArmor Enforcer")
+		return
+	}
+
+	t.Log("[PASS] Created AppArmor Enforcer")
 
 	// Destroy AppArmor Enforcer
 
