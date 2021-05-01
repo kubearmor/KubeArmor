@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -15,17 +14,19 @@ func TestSystemMonitor(t *testing.T) {
 
 	// containers
 	Containers := map[string]tp.Container{}
-	ContainersLock := &sync.Mutex{}
+	ContainersLock := new(sync.RWMutex)
 
 	// container id -> (host) pid
 	ActivePidMap := map[string]tp.PidMap{}
 	ActiveHostPidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := new(sync.RWMutex)
 
-	// pid map lock
-	ActivePidMapLock := &sync.Mutex{}
+	// host pid
+	ActiveHostMap := map[uint32]tp.PidMap{}
+	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("32767", "none", false)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -33,7 +34,8 @@ func TestSystemMonitor(t *testing.T) {
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(logFeeder, true, &Containers, &ContainersLock, &ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock)
+	systemMonitor := NewSystemMonitor(logFeeder, false, true, &Containers, &ContainersLock,
+		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
@@ -63,17 +65,19 @@ func TestTraceSyscall(t *testing.T) {
 
 	// containers
 	Containers := map[string]tp.Container{}
-	ContainersLock := &sync.Mutex{}
+	ContainersLock := new(sync.RWMutex)
 
 	// container id -> (host) pid
 	ActivePidMap := map[string]tp.PidMap{}
 	ActiveHostPidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := new(sync.RWMutex)
 
-	// pid map lock
-	ActivePidMapLock := &sync.Mutex{}
+	// host pid
+	ActiveHostMap := map[uint32]tp.PidMap{}
+	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("32767", "none", false)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -81,7 +85,8 @@ func TestTraceSyscall(t *testing.T) {
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(logFeeder, false, &Containers, &ContainersLock, &ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock)
+	systemMonitor := NewSystemMonitor(logFeeder, false, false, &Containers, &ContainersLock,
+		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
@@ -89,20 +94,14 @@ func TestTraceSyscall(t *testing.T) {
 
 	t.Log("[PASS] Created SystemMonitor")
 
-	// Get the current directory
-
-	dir := os.Getenv("PWD")
-
-	t.Logf("[PASS] Got the current directory (%s)", dir)
-
 	// Initialize BPF
 
-	if err := systemMonitor.InitBPF(dir + "/.."); err != nil {
+	if err := systemMonitor.InitBPF(); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
 
-	t.Logf("[PASS] Initialized BPF (Dir: %s/..)", dir)
+	t.Logf("[PASS] Initialized BPF (for container only)")
 
 	// wait for a while
 
@@ -140,17 +139,19 @@ func TestTraceSyscallWithHost(t *testing.T) {
 
 	// containers
 	Containers := map[string]tp.Container{}
-	ContainersLock := &sync.Mutex{}
+	ContainersLock := new(sync.RWMutex)
 
 	// container id -> (host) pid
 	ActivePidMap := map[string]tp.PidMap{}
 	ActiveHostPidMap := map[string]tp.PidMap{}
+	ActivePidMapLock := new(sync.RWMutex)
 
-	// pid map lock
-	ActivePidMapLock := &sync.Mutex{}
+	// host pid
+	ActiveHostMap := map[uint32]tp.PidMap{}
+	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("32767", "none", false)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -158,7 +159,8 @@ func TestTraceSyscallWithHost(t *testing.T) {
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(logFeeder, true, &Containers, &ContainersLock, &ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock)
+	systemMonitor := NewSystemMonitor(logFeeder, false, true, &Containers, &ContainersLock,
+		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
@@ -166,20 +168,14 @@ func TestTraceSyscallWithHost(t *testing.T) {
 
 	t.Log("[PASS] Created SystemMonitor")
 
-	// Get the current directory
-
-	dir := os.Getenv("PWD")
-
-	t.Logf("[PASS] Got the current directory (%s)", dir)
-
 	// Initialize BPF
 
-	if err := systemMonitor.InitBPF(dir + "/.."); err != nil {
+	if err := systemMonitor.InitBPF(); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
 
-	t.Logf("[PASS] Initialized BPF (Dir: %s/..)", dir)
+	t.Logf("[PASS] Initialized BPF (for container and host)")
 
 	// wait for a while
 
