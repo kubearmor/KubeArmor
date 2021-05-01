@@ -238,11 +238,14 @@ type Feeder struct {
 
 	// namespace name + container group name / host name -> corresponding security policies
 	SecurityPolicies     map[string]tp.MatchPolicies
-	SecurityPoliciesLock *sync.Mutex
+	SecurityPoliciesLock *sync.RWMutex
+
+	// options
+	EnableSystemLog bool
 }
 
 // NewFeeder Function
-func NewFeeder(port, output string) *Feeder {
+func NewFeeder(port, output string, enableSystemLog bool) *Feeder {
 	fd := &Feeder{}
 
 	fd.port = fmt.Sprintf(":%s", port)
@@ -297,7 +300,10 @@ func NewFeeder(port, output string) *Feeder {
 
 	// initialize security policies
 	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
-	fd.SecurityPoliciesLock = &sync.Mutex{}
+	fd.SecurityPoliciesLock = new(sync.RWMutex)
+
+	// options
+	fd.EnableSystemLog = enableSystemLog
 
 	return fd
 }

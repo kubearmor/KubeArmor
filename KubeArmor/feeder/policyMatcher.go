@@ -805,7 +805,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	allowNetworkMessage := ""
 
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
-		fd.SecurityPoliciesLock.Lock()
+		fd.SecurityPoliciesLock.RLock()
 
 		key := log.HostName
 
@@ -973,131 +973,169 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 		}
 
-		fd.SecurityPoliciesLock.Unlock()
+		fd.SecurityPoliciesLock.RUnlock()
 	}
 
-	// use 'AllowWithAudit' to get the logs for allowed operations
-	if log.Action == "Allow" && log.Result == "Passed" {
-		return tp.Log{}
-	}
+	if log.ContainerID != "" { // container
+		if log.Type == "" {
+			if log.Result != "Passed" {
+				if log.Operation == "Process" && allowProcPolicy != "" {
+					log.PolicyName = allowProcPolicy
+					log.Severity = allowProcPolicySeverity
 
-	// // use 'BlockWithAudit' to get the logs for blocked operations
-	// if log.Action == "Block" && log.Result != "Passed" {
-	// 	return tp.Log{}
-	// }
+					if len(allowProcTags) > 0 {
+						log.Tags = strings.Join(allowProcTags[:], ",")
+					}
 
-	if log.NamespaceName != "" { // container
-		if log.Type == "" && log.Result != "Passed" {
-			if log.Operation == "Process" && allowProcPolicy != "" {
-				log.PolicyName = allowProcPolicy
-				log.Severity = allowProcPolicySeverity
+					if len(allowProcMessage) > 0 {
+						log.Message = allowProcMessage
+					}
 
-				if len(allowProcTags) > 0 {
-					log.Tags = strings.Join(allowProcTags[:], ",")
+					log.Type = "MatchedPolicy"
+					log.Action = "Allow"
+
+					return log
+
+				} else if log.Operation == "File" && allowFilePolicy != "" {
+					log.PolicyName = allowFilePolicy
+					log.Severity = allowFilePolicySeverity
+
+					if len(allowFileTags) > 0 {
+						log.Tags = strings.Join(allowFileTags[:], ",")
+					}
+
+					if len(allowFileMessage) > 0 {
+						log.Message = allowFileMessage
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = "Allow"
+
+					return log
+
+				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+					log.PolicyName = allowNetworkPolicy
+					log.Severity = allowNetworkPolicySeverity
+
+					if len(allowNetworkTags) > 0 {
+						log.Tags = strings.Join(allowNetworkTags[:], ",")
+					}
+
+					if len(allowNetworkMessage) > 0 {
+						log.Message = allowNetworkMessage
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = "Allow"
+
+					return log
+
 				}
 
-				if len(allowProcMessage) > 0 {
-					log.Message = allowProcMessage
+				if fd.EnableSystemLog {
+					// Failed operations
+					log.Type = "ContainerLog"
+					return log
+				}
+			} else {
+				if log.Action == "Allow" {
+					// use 'AllowWithAudit' to get the logs for allowed operations
+					return tp.Log{}
 				}
 
-				log.Type = "MatchedPolicy"
-				log.Action = "Allow"
-
-				return log
-			} else if log.Operation == "File" && allowFilePolicy != "" {
-				log.PolicyName = allowFilePolicy
-				log.Severity = allowFilePolicySeverity
-
-				if len(allowFileTags) > 0 {
-					log.Tags = strings.Join(allowFileTags[:], ",")
+				if fd.EnableSystemLog {
+					// Passed operations
+					log.Type = "ContainerLog"
+					return log
 				}
-
-				if len(allowFileMessage) > 0 {
-					log.Message = allowFileMessage
-				}
-
-				log.Type = "MatchedPolicy"
-				log.Action = "Allow"
-
-				return log
-			} else if log.Operation == "Network" && allowNetworkPolicy != "" {
-				log.PolicyName = allowNetworkPolicy
-				log.Severity = allowNetworkPolicySeverity
-
-				if len(allowNetworkTags) > 0 {
-					log.Tags = strings.Join(allowNetworkTags[:], ",")
-				}
-
-				if len(allowNetworkMessage) > 0 {
-					log.Message = allowNetworkMessage
-				}
-
-				log.Type = "MatchedPolicy"
-				log.Action = "Allow"
-
-				return log
-			} else if log.NamespaceName != "" {
-				log.Type = "ContainerLog"
-				return log
 			}
 		} else if log.Type == "MatchedPolicy" {
+			// if log.Action == "Block" {
+			// 	// use 'BlockWithAudit' to get the logs for blocked operations
+			// 	return tp.Log{}
+			// }
+
 			return log
 		}
 	} else { // host
-		if log.Type == "" && log.Result != "Passed" {
-			if log.Operation == "Process" && allowProcPolicy != "" {
-				log.PolicyName = allowProcPolicy
-				log.Severity = allowProcPolicySeverity
+		if log.Type == "" {
+			if log.Result != "Passed" {
+				if log.Operation == "Process" && allowProcPolicy != "" {
+					log.PolicyName = allowProcPolicy
+					log.Severity = allowProcPolicySeverity
 
-				if len(allowProcTags) > 0 {
-					log.Tags = strings.Join(allowProcTags[:], ",")
+					if len(allowProcTags) > 0 {
+						log.Tags = strings.Join(allowProcTags[:], ",")
+					}
+
+					if len(allowProcMessage) > 0 {
+						log.Message = allowProcMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Allow"
+
+					return log
+
+				} else if log.Operation == "File" && allowFilePolicy != "" {
+					log.PolicyName = allowFilePolicy
+					log.Severity = allowFilePolicySeverity
+
+					if len(allowFileTags) > 0 {
+						log.Tags = strings.Join(allowFileTags[:], ",")
+					}
+
+					if len(allowFileMessage) > 0 {
+						log.Message = allowFileMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Allow"
+
+					return log
+
+				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+					log.PolicyName = allowNetworkPolicy
+					log.Severity = allowNetworkPolicySeverity
+
+					if len(allowNetworkTags) > 0 {
+						log.Tags = strings.Join(allowNetworkTags[:], ",")
+					}
+
+					if len(allowNetworkMessage) > 0 {
+						log.Message = allowNetworkMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Allow"
+
+					return log
+
 				}
 
-				if len(allowProcMessage) > 0 {
-					log.Message = allowProcMessage
+				// if fd.EnableSystemLog {
+				// 	// Failed operations
+				// 	log.Type = "HostLog"
+				// 	return log
+				// }
+			} else {
+				if log.Action == "Allow" {
+					// use 'AllowWithAudit' to get the logs for allowed operations
+					return tp.Log{}
 				}
 
-				log.Type = "MatchedHostPolicy"
-				log.Action = "Allow"
-
-				return log
-			} else if log.Operation == "File" && allowFilePolicy != "" {
-				log.PolicyName = allowFilePolicy
-				log.Severity = allowFilePolicySeverity
-
-				if len(allowFileTags) > 0 {
-					log.Tags = strings.Join(allowFileTags[:], ",")
-				}
-
-				if len(allowFileMessage) > 0 {
-					log.Message = allowFileMessage
-				}
-
-				log.Type = "MatchedHostPolicy"
-				log.Action = "Allow"
-
-				return log
-			} else if log.Operation == "Network" && allowNetworkPolicy != "" {
-				log.PolicyName = allowNetworkPolicy
-				log.Severity = allowNetworkPolicySeverity
-
-				if len(allowNetworkTags) > 0 {
-					log.Tags = strings.Join(allowNetworkTags[:], ",")
-				}
-
-				if len(allowNetworkMessage) > 0 {
-					log.Message = allowNetworkMessage
-				}
-
-				log.Type = "MatchedHostPolicy"
-				log.Action = "Allow"
-
-				return log
-			} else if log.NamespaceName != "" {
-				log.Type = "HostLog"
-				return log
+				// if fd.EnableSystemLog {
+				// 	// Passed operations
+				// 	log.Type = "HostLog"
+				// 	return log
+				// }
 			}
 		} else if log.Type == "MatchedPolicy" {
+			// if log.Action == "Block" {
+			// 	// use 'BlockWithAudit' to get the logs for blocked operations
+			// 	return tp.Log{}
+			// }
+
 			log.Type = "MatchedHostPolicy"
 			return log
 		}
