@@ -26,7 +26,7 @@ type RuntimeEnforcer struct {
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *RuntimeEnforcer {
+func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) *RuntimeEnforcer {
 	re := &RuntimeEnforcer{}
 
 	re.LogFeeder = feeder
@@ -54,7 +54,7 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *RuntimeEnforc
 	}
 
 	if strings.Contains(re.enforcerType, "apparmor") {
-		re.appArmorEnforcer = NewAppArmorEnforcer(feeder, enableHostPolicy)
+		re.appArmorEnforcer = NewAppArmorEnforcer(feeder, enableAuditd, enableHostPolicy)
 		if re.appArmorEnforcer != nil {
 			re.LogFeeder.Print("Initialized AppArmor Enforcer")
 			re.enableLSM = true
