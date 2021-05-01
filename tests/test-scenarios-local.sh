@@ -4,11 +4,7 @@ TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 
-ARMOR_OPTIONS=""
-
-if [ ! -z $1 ]; then
-    ARMOR_OPTIONS=$1
-fi
+ARMOR_OPTIONS=$@
 
 ARMOR_MSG=/tmp/kubearmor.msg
 ARMOR_LOG=/tmp/kubearmor.log
@@ -40,7 +36,8 @@ function start_and_wait_for_kubearmor_initialization() {
 
     cd $ARMOR_HOME
 
-    sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTION > $ARMOR_MSG &
+    echo "Options: -logPath=$ARMOR_LOG $ARMOR_OPTIONS"
+    sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
 
     for (( ; ; ))
     do
@@ -105,13 +102,13 @@ function delete_and_wait_for_microserivce_deletion() {
 function should_not_find_any_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 2
+    sleep 3
 
-    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
+    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
     if [ $? == 0 ]; then
         sleep 2
 
-        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4)
+        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -129,7 +126,7 @@ function should_not_find_any_log() {
 function should_find_passed_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 2
+    sleep 3
 
     audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
     if [ $? != 0 ]; then
@@ -153,7 +150,7 @@ function should_find_passed_log() {
 function should_find_blocked_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    sleep 2
+    sleep 3
 
     audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
     if [ $? != 0 ]; then
