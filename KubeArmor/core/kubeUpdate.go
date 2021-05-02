@@ -68,6 +68,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			}
 			delete(dm.ContainerGroups[conGroupIdx].AppArmorProfiles, container.ContainerID)
 		}
+
+		// update NsMap
+		dm.SystemMonitor.DeleteContainerIDFromNsMap(container.ContainerID)
 	}
 
 	// enforce security policies
@@ -651,6 +654,10 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					break
 				} else if err != nil {
 					break
+				}
+
+				if event.Type == "" {
+					continue
 				}
 
 				dm.HostSecurityPoliciesLock.Lock()

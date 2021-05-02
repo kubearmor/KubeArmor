@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -9,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -120,22 +120,22 @@ type SystemMonitor struct {
 	// host name
 	HostName string
 
-	// host policy
+	// options
+	EnableAuditd     bool
 	EnableHostPolicy bool
 
 	// container id -> cotnainer
 	Containers     *map[string]tp.Container
-	ContainersLock **sync.Mutex
+	ContainersLock **sync.RWMutex
 
 	// container id -> (host) pid
 	ActivePidMap     *map[string]tp.PidMap
 	ActiveHostPidMap *map[string]tp.PidMap
-
-	// pid map lock
-	ActivePidMapLock **sync.Mutex
+	ActivePidMapLock **sync.RWMutex
 
 	// PidID + MntID -> container id
-	NsMap map[NsKey]string
+	NsMap     map[NsKey]string
+	NsMapLock *sync.RWMutex
 
 	// system monitor (for container)
 	BpfModule *bcc.Module
@@ -147,6 +147,10 @@ type SystemMonitor struct {
 	SyscallChannel     chan []byte
 	SyscallLostChannel chan uint64
 	SyscallPerfMap     *bcc.PerfMap
+
+	// host pid
+	ActiveHostMap     *map[uint32]tp.PidMap
+	ActiveHostMapLock **sync.RWMutex
 
 	// system monitor (for host)
 	HostBpfModule *bcc.Module
@@ -165,17 +169,25 @@ type SystemMonitor struct {
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
 
+	// ticker to clean up exited pids
+	Ticker *time.Ticker
+
 	// GKE
 	IsCOS bool
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[string]tp.Container, containersLock **sync.Mutex, activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.Mutex) *SystemMonitor {
+func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
+	containers *map[string]tp.Container, containersLock **sync.RWMutex,
+	activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex,
+	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.LogFeeder = feeder
 
 	mon.HostName = kl.GetHostName()
+
+	mon.EnableAuditd = enableAuditd
 	mon.EnableHostPolicy = enableHostPolicy
 
 	mon.Containers = containers
@@ -185,7 +197,11 @@ func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[
 	mon.ActiveHostPidMap = activeHostPidMap
 	mon.ActivePidMapLock = activePidMapLock
 
+	mon.ActiveHostMap = activeHostMap
+	mon.ActiveHostMapLock = activeHostMapLock
+
 	mon.NsMap = make(map[NsKey]string)
+	mon.NsMapLock = new(sync.RWMutex)
 
 	mon.ContextChan = make(chan ContextCombined, 4096)
 	mon.HostContextChan = make(chan ContextCombined, 4096)
@@ -195,13 +211,20 @@ func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
 
+	mon.Ticker = time.NewTicker(time.Second * 1)
+
 	mon.IsCOS = false
 
 	return mon
 }
 
 // InitBPF Function
-func (mon *SystemMonitor) InitBPF(HomeDir string) error {
+func (mon *SystemMonitor) InitBPF() error {
+	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		return err
+	}
+
 	if kl.IsInK8sCluster() {
 		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
 			s := string(b)
@@ -213,7 +236,7 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 				kernelVersion = strings.TrimSuffix(kernelVersion, "\n")
 
 				// check and download kernel headers
-				if err := exec.Command(HomeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
+				if err := exec.Command(homeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
 					mon.LogFeeder.Errf("Failed to download COS kernel headers (%s)", err.Error())
 					return err
 				}
@@ -221,7 +244,7 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", kernelVersion)
 
 				// set a new location for kernel headers
-				os.Setenv("BCC_KERNEL_SOURCE", HomeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
+				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
 
 				// just for safety
 				time.Sleep(time.Second * 1)
@@ -231,7 +254,17 @@ func (mon *SystemMonitor) InitBPF(HomeDir string) error {
 		}
 	}
 
-	content, err := ioutil.ReadFile(HomeDir + "/BPF/system_monitor.c")
+	bpfPath := homeDir + "/BPF/system_monitor.c"
+	if _, err := os.Stat(bpfPath); err != nil {
+		// go test
+
+		bpfPath = os.Getenv("PWD") + "/../BPF/system_monitor.c"
+		if _, err := os.Stat(bpfPath); err != nil {
+			return err
+		}
+	}
+
+	content, err := ioutil.ReadFile(bpfPath)
 	if err != nil {
 		return err
 	}
@@ -373,247 +406,9 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		}
 	}
 
+	mon.Ticker.Stop()
+
 	return nil
-}
-
-// ============================ //
-// == PID-to-ContainerID Map == //
-// ============================ //
-
-// LookupContainerID Function
-func (mon *SystemMonitor) LookupContainerID(pidns uint32, mntns uint32, pid uint32, newProcess bool) string {
-	key := NsKey{PidNS: pidns, MntNS: mntns}
-	if val, ok := mon.NsMap[key]; ok {
-		return val
-	}
-
-	if newProcess { // if new process, look up container id
-		containerID := ""
-
-		// first shot: look up container id from cgroup
-
-		cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid))
-		if err != nil {
-			return "" // this is nature, just meaning that the PID no longer exists
-		}
-
-		cgroupScanner := bufio.NewScanner(cgroup)
-		for cgroupScanner.Scan() {
-			line := cgroupScanner.Text()
-
-			// k8s
-			parts := kubePattern.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// docker
-			parts = dockerPattern.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-		}
-
-		cgroup.Close()
-
-		// update newly found container id
-		if containerID != "" {
-			mon.NsMap[key] = containerID
-			return containerID
-		}
-
-		// alternative shot: look up container id from cmdline
-
-		cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", pid))
-		if err != nil {
-			return "" // this is nature, just meaning that the PID no longer exists
-		}
-
-		cmdScanner := bufio.NewScanner(cmdline)
-		for cmdScanner.Scan() {
-			line := cmdScanner.Text()
-
-			parts := strings.Split(line, "-id")
-			if len(parts) < 2 {
-				break
-			}
-
-			parts = strings.Split(parts[1], "-addr")
-			if len(parts) < 2 {
-				break
-			}
-
-			containerID = parts[0]
-			break
-		}
-
-		cmdline.Close()
-
-		// update newly found container id
-		if containerID != "" {
-			mon.NsMap[key] = containerID
-			return containerID
-		}
-	}
-
-	return ""
-}
-
-// ================== //
-// == Process Tree == //
-// ================== //
-
-// BuildPidNode Function
-func (mon *SystemMonitor) BuildPidNode(ctx SyscallContext, execPath string, args []string) tp.PidNode {
-	node := tp.PidNode{}
-
-	node.HostPID = ctx.HostPID
-	node.PPID = ctx.PPID
-	node.PID = ctx.PID
-	node.UID = ctx.UID
-
-	node.Comm = string(ctx.Comm[:])
-	node.ExecPath = execPath
-
-	for idx, arg := range args {
-		if idx == 0 {
-			continue
-		} else {
-			node.ExecPath = node.ExecPath + " " + arg
-		}
-	}
-
-	node.Exited = false
-
-	return node
-}
-
-// AddActivePid Function
-func (mon *SystemMonitor) AddActivePid(containerID string, node tp.PidNode) {
-	ActivePidMap := *(mon.ActivePidMap)
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
-	// add pid node to AcvtivePidMaps
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		pidMap[node.PID] = node
-	} else {
-		newPidMap := tp.PidMap{node.PID: node}
-		ActivePidMap[containerID] = newPidMap
-	}
-
-	// add pid node to AcvtivePidMaps
-	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
-		pidMap[node.HostPID] = node
-	} else {
-		newPidMap := tp.PidMap{node.HostPID: node}
-		ActiveHostPidMap[containerID] = newPidMap
-	}
-}
-
-// GetExecPath Function
-func (mon *SystemMonitor) GetExecPath(containerID string, pid uint32) string {
-	ActivePidMap := *(mon.ActivePidMap)
-
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		if node, ok := pidMap[pid]; ok {
-			if node.PID == pid {
-				return node.ExecPath
-			}
-		}
-	}
-
-	return ""
-}
-
-// GetExecPathWithHostPID Function
-func (mon *SystemMonitor) GetExecPathWithHostPID(containerID string, hostPid uint32) string {
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
-	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
-		if node, ok := pidMap[hostPid]; ok {
-			if node.HostPID == hostPid {
-				return node.ExecPath
-			}
-		}
-	}
-
-	return ""
-}
-
-// DeleteActivePid Function
-func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
-	ActivePidMap := *(mon.ActivePidMap)
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
-	// delete execve(at) pid
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		if node, ok := pidMap[ctx.PID]; ok {
-			if node.PID == ctx.PID {
-				node.Exited = true
-				node.ExitedTime = time.Now()
-			}
-		}
-	}
-
-	// delete execve(at) host pid
-	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
-		if node, ok := pidMap[ctx.HostPID]; ok {
-			if node.HostPID == ctx.HostPID {
-				node.Exited = true
-				node.ExitedTime = time.Now()
-			}
-		}
-	}
-}
-
-// CleanUpExitedHostPids Function
-func (mon *SystemMonitor) CleanUpExitedHostPids() {
-	now := time.Now()
-
-	ActivePidMap := *(mon.ActivePidMap)
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
-	for _, pidMap := range ActivePidMap {
-		for pid, pidNode := range pidMap {
-			if pidNode.Exited {
-				if now.After(pidNode.ExitedTime.Add(time.Second * 10)) {
-					delete(pidMap, pid)
-				}
-			}
-		}
-	}
-
-	for _, pidMap := range ActiveHostPidMap {
-		for pid, pidNode := range pidMap {
-			if pidNode.Exited {
-				if now.After(pidNode.ExitedTime.Add(time.Second * 10)) {
-					delete(pidMap, pid)
-				}
-			}
-		}
-	}
 }
 
 // ======================= //
@@ -630,6 +425,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
+
+	execLogMap := map[uint32]tp.Log{}
 
 	for {
 		select {
@@ -664,13 +461,13 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 
 				if containerID != "" {
-					ContainersLock.Lock()
+					ContainersLock.RLock()
 					namespace := Containers[containerID].NamespaceName
 					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-						ContainersLock.Unlock()
+						ContainersLock.RUnlock()
 						continue
 					}
-					ContainersLock.Unlock()
+					ContainersLock.RUnlock()
 				}
 			}
 
@@ -687,19 +484,156 @@ func (mon *SystemMonitor) TraceSyscall() {
 					continue
 				}
 			} else if ctx.EventID == SYS_EXECVE {
-				if len(args) == 2 {
+				if len(args) == 2 { // enter
+					// build a pid node
+
 					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
 					mon.AddActivePid(containerID, pidNode)
-				} else if len(args) != 0 {
-					continue
+
+					// generate a log with the base information
+
+					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
+
+					// add arguments
+
+					if val, ok := args[0].(string); ok {
+						log.Resource = val // procExecPath
+					}
+
+					if val, ok := args[1].([]string); ok {
+						for idx, arg := range val { // procArgs
+							if idx == 0 {
+								continue
+							} else {
+								log.Resource = log.Resource + " " + arg
+							}
+						}
+					}
+
+					log.Operation = "Process"
+					log.Data = ""
+
+					// store the log in the map
+
+					execLogMap[ctx.HostPID] = log
+
+				} else if len(args) == 0 { // return
+					// get the stored log
+
+					log := execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+
+					delete(execLogMap, ctx.HostPID)
+
+					// skip pushing the log if Audited is enabled
+
+					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+						continue
+					}
+
+					// get error message
+
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = fmt.Sprintf("%s", message)
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					// push the generated log
+
+					if mon.LogFeeder != nil {
+						go mon.LogFeeder.PushLog(log)
+					}
 				}
+
+				continue
 			} else if ctx.EventID == SYS_EXECVEAT {
-				if len(args) == 4 {
+				if len(args) == 4 { // enter
+					// build a pid node
+
 					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
 					mon.AddActivePid(containerID, pidNode)
-				} else if len(args) != 0 {
-					continue
+
+					// generate a log with the base information
+
+					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
+
+					// add arguments
+
+					fd := ""
+					procExecFlag := ""
+
+					if val, ok := args[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+
+					if val, ok := args[1].(string); ok {
+						log.Resource = val // procExecPath
+					}
+
+					if val, ok := args[2].([]string); ok {
+						for idx, arg := range val { // procArgs
+							if idx == 0 {
+								continue
+							} else {
+								log.Resource = log.Resource + " " + arg
+							}
+						}
+					}
+
+					if val, ok := args[3].(string); ok {
+						procExecFlag = val
+					}
+
+					log.Operation = "Process"
+					log.Data = "fd=" + fd + " flag=" + procExecFlag
+
+					// store the log in the map
+
+					execLogMap[ctx.HostPID] = log
+
+				} else if len(args) == 0 { // return
+					// get the stored log
+
+					log := execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+
+					delete(execLogMap, ctx.HostPID)
+
+					// skip pushing the log if Audited is enabled
+
+					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+						continue
+					}
+
+					// get error message
+
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = fmt.Sprintf("%s", message)
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					// push the generated log
+
+					if mon.LogFeeder != nil {
+						go mon.LogFeeder.PushLog(log)
+					}
 				}
+
+				continue
 			} else if ctx.EventID == DO_EXIT {
 				mon.DeleteActivePid(containerID, ctx)
 				continue
@@ -721,6 +655,8 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 	} else {
 		return
 	}
+
+	execLogMap := map[uint32]tp.Log{}
 
 	for {
 		select {
@@ -752,24 +688,158 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					continue
 				}
 			} else if ctx.EventID == SYS_EXECVE {
-				if len(args) == 2 {
-					hostPID := strconv.FormatUint(uint64(ctx.HostPID), 10)
+				if len(args) == 2 { // enter
+					// build a pid node
+
 					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
-					mon.AddActivePid(hostPID, pidNode)
-				} else if len(args) != 0 {
-					continue
+					mon.AddActiveHostPid(ctx.HostPID, pidNode)
+
+					// generate a log with the base information
+
+					log := mon.BuildHostLogBase(ContextCombined{ContextSys: ctx})
+
+					// add arguments
+
+					if val, ok := args[0].(string); ok {
+						log.Resource = val // procExecPath
+					}
+
+					if val, ok := args[1].([]string); ok {
+						for idx, arg := range val { // procArgs
+							if idx == 0 {
+								continue
+							} else {
+								log.Resource = log.Resource + " " + arg
+							}
+						}
+					}
+
+					log.Operation = "Process"
+					log.Data = ""
+
+					// store the log in the map
+
+					execLogMap[ctx.HostPID] = log
+
+				} else if len(args) == 0 { // return
+					// get the stored log
+
+					log := execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+
+					delete(execLogMap, ctx.HostPID)
+
+					// skip pushing the log if Audited is enabled
+
+					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+						continue
+					}
+
+					// get error message
+
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = fmt.Sprintf("%s", message)
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					// push the generated log
+
+					if mon.LogFeeder != nil {
+						go mon.LogFeeder.PushLog(log)
+					}
 				}
+
+				continue
 			} else if ctx.EventID == SYS_EXECVEAT {
-				if len(args) == 4 {
-					hostPID := strconv.FormatUint(uint64(ctx.HostPID), 10)
+				if len(args) == 4 { // enter
+					// build a pid node
+
 					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
-					mon.AddActivePid(hostPID, pidNode)
-				} else if len(args) != 0 {
-					continue
+					mon.AddActiveHostPid(ctx.HostPID, pidNode)
+
+					// generate a log with the base information
+
+					log := mon.BuildHostLogBase(ContextCombined{ContextSys: ctx})
+
+					// add arguments
+
+					fd := ""
+					procExecFlag := ""
+
+					if val, ok := args[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+
+					if val, ok := args[1].(string); ok {
+						log.Resource = val // procExecPath
+					}
+
+					if val, ok := args[2].([]string); ok {
+						for idx, arg := range val { // procArgs
+							if idx == 0 {
+								continue
+							} else {
+								log.Resource = log.Resource + " " + arg
+							}
+						}
+					}
+
+					if val, ok := args[3].(string); ok {
+						procExecFlag = val
+					}
+
+					log.Operation = "Process"
+					log.Data = "fd=" + fd + " flag=" + procExecFlag
+
+					// store the log in the map
+
+					execLogMap[ctx.HostPID] = log
+
+				} else if len(args) == 0 { // return
+					// get the stored log
+
+					log := execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+
+					delete(execLogMap, ctx.HostPID)
+
+					// skip pushing the log if Audited is enabled
+
+					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+						continue
+					}
+
+					// get error message
+
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = fmt.Sprintf("%s", message)
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					// push the generated log
+
+					if mon.LogFeeder != nil {
+						go mon.LogFeeder.PushLog(log)
+					}
 				}
+
+				continue
 			} else if ctx.EventID == DO_EXIT {
-				hostPID := strconv.FormatUint(uint64(ctx.HostPID), 10)
-				mon.DeleteActivePid(hostPID, ctx)
+				mon.DeleteActiveHostPid(ctx.HostPID)
 				continue
 			}
 

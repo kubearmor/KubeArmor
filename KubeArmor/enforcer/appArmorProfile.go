@@ -12,7 +12,7 @@ import (
 
 // == //
 
-func allowedProcesses(secPolicy tp.SecurityPolicy) []string {
+func allowedProcesses(enableAuditd bool, secPolicy tp.SecurityPolicy) []string {
 	processWhiteList := []string{}
 
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
@@ -22,13 +22,21 @@ func allowedProcesses(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
-				line := fmt.Sprintf("  owner %s ix,\n", path.Path)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s ix,\n", path.Path)
+					processWhiteList = append(processWhiteList, line)
+				}
 			} else { // !path.OwnerOnly
-				// line := fmt.Sprintf("  audit %s ix,\n", path.Path)
-				line := fmt.Sprintf("  %s ix,\n", path.Path)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s ix,\n", path.Path)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s ix,\n", path.Path)
+					processWhiteList = append(processWhiteList, line)
+				}
 			}
 		}
 	}
@@ -40,21 +48,37 @@ func allowedProcesses(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if dir.Recursive && dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
-				line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				}
 			} else if dir.Recursive && !dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
-				line := fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				}
 			} else if !dir.Recursive && dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
-				line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				}
 			} else { // !dir.Recursive && !dir.OwnerOnly
-				// line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
-				line := fmt.Sprintf("  %s* ix,\n", dir.Directory)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s* ix,\n", dir.Directory)
+					processWhiteList = append(processWhiteList, line)
+				}
 			}
 		}
 	}
@@ -62,13 +86,21 @@ func allowedProcesses(secPolicy tp.SecurityPolicy) []string {
 	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 			if pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
+					processWhiteList = append(processWhiteList, line)
+				}
 			} else { // !pat.OwnerOnly
-				// line := fmt.Sprintf("  audit %s* ix,\n", pat.Pattern)
-				line := fmt.Sprintf("  %s* ix,\n", pat.Pattern)
-				processWhiteList = append(processWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s* ix,\n", pat.Pattern)
+					processWhiteList = append(processWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s* ix,\n", pat.Pattern)
+					processWhiteList = append(processWhiteList, line)
+				}
 			}
 		}
 	}
@@ -76,7 +108,7 @@ func allowedProcesses(secPolicy tp.SecurityPolicy) []string {
 	return processWhiteList
 }
 
-func allowedFiles(secPolicy tp.SecurityPolicy) []string {
+func allowedFiles(enableAuditd bool, secPolicy tp.SecurityPolicy) []string {
 	fileWhiteList := []string{}
 
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
@@ -86,21 +118,37 @@ func allowedFiles(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if path.ReadOnly && path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
-				line := fmt.Sprintf("  owner %s r,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s r,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			} else if path.ReadOnly && !path.OwnerOnly {
-				// line := fmt.Sprintf("  audit %s r,\n", path.Path)
-				line := fmt.Sprintf("  %s r,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s r,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s r,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			} else if !path.ReadOnly && path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
-				line := fmt.Sprintf("  owner %s rw,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s rw,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			} else { // !path.ReadOnly && !path.OwnerOnly
-				// line := fmt.Sprintf("  audit %s rw,\n", path.Path)
-				line := fmt.Sprintf("  %s rw,\n", path.Path)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s rw,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s rw,\n", path.Path)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			}
 		}
 	}
@@ -113,43 +161,75 @@ func allowedFiles(secPolicy tp.SecurityPolicy) []string {
 
 			if dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				}
 			} else if dir.ReadOnly && !dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
-					line := fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
-					line := fmt.Sprintf("  %s* r,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  %s* r,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				}
 			} else if !dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				}
 			} else { // !dir.ReadOnly && !dir.OwnerOnly
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
-					line := fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
-					line := fmt.Sprintf("  %s* rw,\n", dir.Directory)
-					fileWhiteList = append(fileWhiteList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					} else {
+						line := fmt.Sprintf("  %s* rw,\n", dir.Directory)
+						fileWhiteList = append(fileWhiteList, line)
+					}
 				}
 			}
 		}
@@ -158,21 +238,37 @@ func allowedFiles(secPolicy tp.SecurityPolicy) []string {
 	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 		for _, pat := range secPolicy.Spec.File.MatchPatterns {
 			if pat.ReadOnly && pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			} else if pat.ReadOnly && !pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
-				line := fmt.Sprintf("  %s r,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s r,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			} else if !pat.ReadOnly && pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			} else { // !pat.ReadOnly && !pat.OwnerOnly
-				// line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
-				line := fmt.Sprintf("  %s rw,\n", pat.Pattern)
-				fileWhiteList = append(fileWhiteList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				} else {
+					line := fmt.Sprintf("  %s rw,\n", pat.Pattern)
+					fileWhiteList = append(fileWhiteList, line)
+				}
 			}
 		}
 	}
@@ -216,7 +312,7 @@ func allowedCapabilities(secPolicy tp.SecurityPolicy) []string {
 
 //
 
-func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
+func auditedProcesses(enableAuditd bool, secPolicy tp.SecurityPolicy) []string {
 	processAuditList := []string{}
 
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
@@ -226,13 +322,21 @@ func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
-				line := fmt.Sprintf("  owner %s ix,\n", path.Path)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s ix,\n", path.Path)
+					processAuditList = append(processAuditList, line)
+				}
 			} else { // !path.OwnerOnly
-				// line := fmt.Sprintf("  audit %s ix,\n", path.Path)
-				line := fmt.Sprintf("  %s ix,\n", path.Path)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s ix,\n", path.Path)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s ix,\n", path.Path)
+					processAuditList = append(processAuditList, line)
+				}
 			}
 		}
 	}
@@ -244,21 +348,37 @@ func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if dir.Recursive && dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
-				line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				}
 			} else if dir.Recursive && !dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
-				line := fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				}
 			} else if !dir.Recursive && dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
-				line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				}
 			} else { // !dir.Recursive && !dir.OwnerOnly
-				// line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
-				line := fmt.Sprintf("  %s* ix,\n", dir.Directory)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s* ix,\n", dir.Directory)
+					processAuditList = append(processAuditList, line)
+				}
 			}
 		}
 	}
@@ -266,13 +386,21 @@ func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
 	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 			if pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
+					processAuditList = append(processAuditList, line)
+				}
 			} else { // !pat.OwnerOnly
-				// line := fmt.Sprintf("  audit %s* ix,\n", pat.Pattern)
-				line := fmt.Sprintf("  %s* ix,\n", pat.Pattern)
-				processAuditList = append(processAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s* ix,\n", pat.Pattern)
+					processAuditList = append(processAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s* ix,\n", pat.Pattern)
+					processAuditList = append(processAuditList, line)
+				}
 			}
 		}
 	}
@@ -280,7 +408,7 @@ func auditedProcesses(secPolicy tp.SecurityPolicy) []string {
 	return processAuditList
 }
 
-func auditedFiles(secPolicy tp.SecurityPolicy) []string {
+func auditedFiles(enableAuditd bool, secPolicy tp.SecurityPolicy) []string {
 	fileAuditList := []string{}
 
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
@@ -290,21 +418,37 @@ func auditedFiles(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if path.ReadOnly && path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
-				line := fmt.Sprintf("  owner %s r,\n", path.Path)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s r,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				}
 			} else if path.ReadOnly && !path.OwnerOnly {
-				// line := fmt.Sprintf("  audit %s r,\n", path.Path)
-				line := fmt.Sprintf("  %s r,\n", path.Path)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s r,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s r,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				}
 			} else if !path.ReadOnly && path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
-				line := fmt.Sprintf("  owner %s rw,\n", path.Path)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s rw,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				}
 			} else { // !path.ReadOnly && !path.OwnerOnly
-				// line := fmt.Sprintf("  audit %s rw,\n", path.Path)
-				line := fmt.Sprintf("  %s rw,\n", path.Path)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s rw,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s rw,\n", path.Path)
+					fileAuditList = append(fileAuditList, line)
+				}
 			}
 		}
 	}
@@ -317,43 +461,75 @@ func auditedFiles(secPolicy tp.SecurityPolicy) []string {
 
 			if dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				}
 			} else if dir.ReadOnly && !dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
-					line := fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
-					line := fmt.Sprintf("  %s* r,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  %s* r,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				}
 			} else if !dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				}
 			} else { // !dir.ReadOnly && !dir.OwnerOnly
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
-					line := fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
-					line := fmt.Sprintf("  %s* rw,\n", dir.Directory)
-					fileAuditList = append(fileAuditList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					} else {
+						line := fmt.Sprintf("  %s* rw,\n", dir.Directory)
+						fileAuditList = append(fileAuditList, line)
+					}
 				}
 			}
 		}
@@ -362,21 +538,37 @@ func auditedFiles(secPolicy tp.SecurityPolicy) []string {
 	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 		for _, pat := range secPolicy.Spec.File.MatchPatterns {
 			if pat.ReadOnly && pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				}
 			} else if pat.ReadOnly && !pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
-				line := fmt.Sprintf("  %s r,\n", pat.Pattern)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s r,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s r,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				}
 			} else if !pat.ReadOnly && pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				}
 			} else { // !pat.ReadOnly && !pat.OwnerOnly
-				// line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
-				line := fmt.Sprintf("  %s rw,\n", pat.Pattern)
-				fileAuditList = append(fileAuditList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit %s rw,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				} else {
+					line := fmt.Sprintf("  %s rw,\n", pat.Pattern)
+					fileAuditList = append(fileAuditList, line)
+				}
 			}
 		}
 	}
@@ -386,7 +578,7 @@ func auditedFiles(secPolicy tp.SecurityPolicy) []string {
 
 //
 
-func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
+func blockedProcesses(enableAuditd bool, secPolicy tp.SecurityPolicy) []string {
 	processBlackList := []string{}
 
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
@@ -396,13 +588,21 @@ func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
-				line := fmt.Sprintf("  owner %s ix,\n", path.Path)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s ix,\n", path.Path)
+					processBlackList = append(processBlackList, line)
+				}
 			} else { // !path.OwnerOnly
-				// line := fmt.Sprintf("  audit deny %s x,\n", path.Path)
-				line := fmt.Sprintf("  deny %s x,\n", path.Path)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s x,\n", path.Path)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s x,\n", path.Path)
+					processBlackList = append(processBlackList, line)
+				}
 			}
 		}
 	}
@@ -414,21 +614,37 @@ func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if dir.Recursive && dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
-				line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				}
 			} else if dir.Recursive && !dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit deny %s{*,**} x,\n", dir.Directory)
-				line := fmt.Sprintf("  deny %s{*,**} x,\n", dir.Directory)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s{*,**} x,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s{*,**} x,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				}
 			} else if !dir.Recursive && dir.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
-				line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				}
 			} else { // !dir.Recursive && !dir.OwnerOnly
-				// line := fmt.Sprintf("  audit deny %s* x,\n", dir.Directory)
-				line := fmt.Sprintf("  deny %s* x,\n", dir.Directory)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s* x,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s* x,\n", dir.Directory)
+					processBlackList = append(processBlackList, line)
+				}
 			}
 		}
 	}
@@ -436,13 +652,21 @@ func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
 	if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 		for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 			if pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s ix,\n", pat.Pattern)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
+					processBlackList = append(processBlackList, line)
+				}
 			} else { // !path.OwnerOnly
-				// line := fmt.Sprintf("  audit deny %s x,\n", pat.Pattern)
-				line := fmt.Sprintf("  deny %s x,\n", pat.Pattern)
-				processBlackList = append(processBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s x,\n", pat.Pattern)
+					processBlackList = append(processBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s x,\n", pat.Pattern)
+					processBlackList = append(processBlackList, line)
+				}
 			}
 		}
 	}
@@ -450,7 +674,7 @@ func blockedProcesses(secPolicy tp.SecurityPolicy) []string {
 	return processBlackList
 }
 
-func blockedFiles(secPolicy tp.SecurityPolicy) []string {
+func blockedFiles(enableAuditd bool, secPolicy tp.SecurityPolicy) []string {
 	fileBlackList := []string{}
 
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
@@ -460,21 +684,37 @@ func blockedFiles(secPolicy tp.SecurityPolicy) []string {
 			}
 
 			if path.ReadOnly && path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
-				line := fmt.Sprintf("  owner %s r,\n", path.Path)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s r,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				}
 			} else if path.ReadOnly && !path.OwnerOnly {
-				// line := fmt.Sprintf("  audit deny %s w,\n", path.Path)
-				line := fmt.Sprintf("  deny %s w,\n", path.Path)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s w,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s w,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				}
 			} else if !path.ReadOnly && path.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
-				line := fmt.Sprintf("  owner %s rw,\n", path.Path)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s rw,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				}
 			} else { // !path.ReadOnly && !path.OwnerOnly
-				// line := fmt.Sprintf("  audit deny %s rw,\n", path.Path)
-				line := fmt.Sprintf("  deny %s rw,\n", path.Path)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s rw,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s rw,\n", path.Path)
+					fileBlackList = append(fileBlackList, line)
+				}
 			}
 		}
 	}
@@ -487,43 +727,75 @@ func blockedFiles(secPolicy tp.SecurityPolicy) []string {
 
 			if dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				}
 			} else if dir.ReadOnly && !dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit deny %s{*,**} w,\n", dir.Directory)
-					line := fmt.Sprintf("  deny %s{*,**} w,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s{*,**} w,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  deny %s{*,**} w,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit deny %s* w,\n", dir.Directory)
-					line := fmt.Sprintf("  deny %s* w,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s* w,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  deny %s* w,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				}
 			} else if !dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				}
 			} else { // !dir.ReadOnly && !dir.OwnerOnly
 				if dir.Recursive {
-					// line := fmt.Sprintf("  audit deny %s{*,**} rw,\n", dir.Directory)
-					line := fmt.Sprintf("  deny %s{*,**} rw,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s{*,**} rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  deny %s{*,**} rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				} else {
-					// line := fmt.Sprintf("  audit deny %s* rw,\n", dir.Directory)
-					line := fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
-					fileBlackList = append(fileBlackList, line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s* rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					} else {
+						line := fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
+						fileBlackList = append(fileBlackList, line)
+					}
 				}
 			}
 		}
@@ -532,21 +804,37 @@ func blockedFiles(secPolicy tp.SecurityPolicy) []string {
 	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 		for _, pat := range secPolicy.Spec.File.MatchPatterns {
 			if pat.ReadOnly && pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s r,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				}
 			} else if pat.ReadOnly && !pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit deny %s w,\n", pat.Pattern)
-				line := fmt.Sprintf("  deny %s w,\n", pat.Pattern)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s w,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s w,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				}
 			} else if !pat.ReadOnly && pat.OwnerOnly {
-				// line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
-				line := fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit owner %s rw,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				}
 			} else { // !pat.ReadOnly && !pat.OwnerOnly
-				// line := fmt.Sprintf("  audit deny %s rw,\n", pat.Pattern)
-				line := fmt.Sprintf("  deny %s rw,\n", pat.Pattern)
-				fileBlackList = append(fileBlackList, line)
+				if enableAuditd {
+					line := fmt.Sprintf("  audit deny %s rw,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				} else {
+					line := fmt.Sprintf("  deny %s rw,\n", pat.Pattern)
+					fileBlackList = append(fileBlackList, line)
+				}
 			}
 		}
 	}
@@ -590,7 +878,7 @@ func blockedCapabilities(secPolicy tp.SecurityPolicy) []string {
 
 // == //
 
-func allowedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func allowedProcessesFromSource(enableAuditd bool, secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -622,16 +910,28 @@ func allowedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 				}
 
 				if path.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
-					line := fmt.Sprintf("  owner %s ix,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s ix,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else { // !path.OwnerOnly
-					// line := fmt.Sprintf("  audit %s ix,\n", path.Path)
-					line := fmt.Sprintf("  %s ix,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s ix,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  %s ix,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				}
 			}
@@ -669,28 +969,52 @@ func allowedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 				}
 
 				if dir.Recursive && dir.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if dir.Recursive && !dir.OwnerOnly {
-					// line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
-					line := fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s{*,**} ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if !dir.Recursive && dir.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else { // !dir.Recursive && !dir.OwnerOnly
-					// line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
-					line := fmt.Sprintf("  %s* ix,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s* ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  %s* ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				}
 			}
@@ -698,7 +1022,7 @@ func allowedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 	}
 }
 
-func allowedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func allowedFilesFromSource(enableAuditd bool, secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.File.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -730,28 +1054,52 @@ func allowedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 				}
 
 				if path.ReadOnly && path.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
-					line := fmt.Sprintf("  owner %s r,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s r,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if path.ReadOnly && !path.OwnerOnly {
-					// line := fmt.Sprintf("  audit %s r,\n", path.Path)
-					line := fmt.Sprintf("  %s r,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s r,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  %s r,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if !path.ReadOnly && path.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
-					line := fmt.Sprintf("  owner %s rw,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else { // !path.ReadOnly && !path.OwnerOnly
-					// line := fmt.Sprintf("  audit %s rw,\n", path.Path)
-					line := fmt.Sprintf("  %s rw,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				}
 			}
@@ -790,58 +1138,106 @@ func allowedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 
 				if dir.ReadOnly && dir.OwnerOnly {
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				} else if dir.ReadOnly && !dir.OwnerOnly {
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
-						line := fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit %s{*,**} r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
-						line := fmt.Sprintf("  %s* r,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit %s* r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  %s* r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				} else if !dir.ReadOnly && dir.OwnerOnly {
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				} else { // !dir.ReadOnly && !dir.OwnerOnly
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
-						line := fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
-						line := fmt.Sprintf("  %s* rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				}
@@ -932,7 +1328,7 @@ func allowedCapabilitiesFromSource(secPolicy tp.SecurityPolicy, fromSources map[
 
 //
 
-func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func blockedProcessesFromSource(enableAuditd bool, secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -964,16 +1360,28 @@ func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 				}
 
 				if path.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
-					line := fmt.Sprintf("  owner %s ix,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s ix,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s ix,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else { // !path.OwnerOnly
-					// line := fmt.Sprintf("  audit deny %s x,\n", path.Path)
-					line := fmt.Sprintf("  deny %s x,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s x,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  deny %s x,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				}
 			}
@@ -1011,28 +1419,52 @@ func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 				}
 
 				if dir.Recursive && dir.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s{*,**} ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if dir.Recursive && !dir.OwnerOnly {
-					// line := fmt.Sprintf("  audit deny %s{*,**} x,\n", dir.Directory)
-					line := fmt.Sprintf("  deny %s{*,**} x,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s{*,**} x,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  deny %s{*,**} x,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if !dir.Recursive && dir.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
-					line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s* ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else { // !dir.Recursive && !dir.OwnerOnly
-					// line := fmt.Sprintf("  audit deny %s* x,\n", dir.Directory)
-					line := fmt.Sprintf("  deny %s* x,\n", dir.Directory)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s* x,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  deny %s* x,\n", dir.Directory)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				}
 			}
@@ -1040,7 +1472,7 @@ func blockedProcessesFromSource(secPolicy tp.SecurityPolicy, fromSources map[str
 	}
 }
 
-func blockedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
+func blockedFilesFromSource(enableAuditd bool, secPolicy tp.SecurityPolicy, fromSources map[string][]string) {
 	if len(secPolicy.Spec.File.MatchPaths) > 0 {
 		for _, path := range secPolicy.Spec.File.MatchPaths {
 			if len(path.FromSource) == 0 {
@@ -1072,28 +1504,52 @@ func blockedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 				}
 
 				if path.ReadOnly && path.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
-					line := fmt.Sprintf("  owner %s r,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s r,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s r,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if path.ReadOnly && !path.OwnerOnly {
-					// line := fmt.Sprintf("  audit deny %s w,\n", path.Path)
-					line := fmt.Sprintf("  deny %s w,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s w,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  deny %s w,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else if !path.ReadOnly && path.OwnerOnly {
-					// line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
-					line := fmt.Sprintf("  owner %s rw,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit owner %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  owner %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				} else { // !path.ReadOnly && !path.OwnerOnly
-					// line := fmt.Sprintf("  audit deny %s rw,\n", path.Path)
-					line := fmt.Sprintf("  deny %s rw,\n", path.Path)
-					if !kl.ContainsElement(fromSources[source], line) {
-						fromSources[source] = append(fromSources[source], line)
+					if enableAuditd {
+						line := fmt.Sprintf("  audit deny %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
+					} else {
+						line := fmt.Sprintf("  deny %s rw,\n", path.Path)
+						if !kl.ContainsElement(fromSources[source], line) {
+							fromSources[source] = append(fromSources[source], line)
+						}
 					}
 				}
 			}
@@ -1132,58 +1588,106 @@ func blockedFilesFromSource(secPolicy tp.SecurityPolicy, fromSources map[string]
 
 				if dir.ReadOnly && dir.OwnerOnly {
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s{*,**} r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s* r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s* r,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				} else if dir.ReadOnly && !dir.OwnerOnly {
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit deny %s{*,**} w,\n", dir.Directory)
-						line := fmt.Sprintf("  deny %s{*,**} w,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit deny %s{*,**} w,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  deny %s{*,**} w,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit deny %s* w,\n", dir.Directory)
-						line := fmt.Sprintf("  deny %s* w,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit deny %s* w,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  deny %s* w,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				} else if !dir.ReadOnly && dir.OwnerOnly {
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
-						line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit owner %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				} else { // !dir.ReadOnly && !dir.OwnerOnly
 					if dir.Recursive {
-						// line := fmt.Sprintf("  audit deny %s{*,**} rw,\n", dir.Directory)
-						line := fmt.Sprintf("  deny %s{*,**} rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit deny %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  deny %s{*,**} rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					} else {
-						// line := fmt.Sprintf("  audit deny %s* rw,\n", dir.Directory)
-						line := fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
-						if !kl.ContainsElement(fromSources[source], line) {
-							fromSources[source] = append(fromSources[source], line)
+						if enableAuditd {
+							line := fmt.Sprintf("  audit deny %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
+						} else {
+							line := fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
+							if !kl.ContainsElement(fromSources[source], line) {
+								fromSources[source] = append(fromSources[source], line)
+							}
 						}
 					}
 				}
@@ -1320,7 +1824,7 @@ func GenerateProfileFoot() string {
 // == //
 
 // GenerateProfileBody Function
-func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securityPolicies []tp.SecurityPolicy) (int, string) {
+func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPost []string, securityPolicies []tp.SecurityPolicy) (int, string) {
 	// preparation
 
 	count := 0
@@ -1348,7 +1852,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			whiteList := []string{}
 
 			// process
-			whiteList = allowedProcesses(secPolicy)
+			whiteList = allowedProcesses(enableAuditd, secPolicy)
 
 			for _, line := range whiteList {
 				if !kl.ContainsElement(processWhiteList, line) {
@@ -1357,7 +1861,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			}
 
 			// file
-			whiteList = allowedFiles(secPolicy)
+			whiteList = allowedFiles(enableAuditd, secPolicy)
 
 			for _, line := range whiteList {
 				if !kl.ContainsElement(fileWhiteList, line) {
@@ -1390,7 +1894,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			auditList := []string{}
 
 			// process
-			auditList = auditedProcesses(secPolicy)
+			auditList = auditedProcesses(enableAuditd, secPolicy)
 
 			for _, line := range auditList {
 				if !kl.ContainsElement(processAuditList, line) {
@@ -1399,7 +1903,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			}
 
 			// file
-			auditList = auditedFiles(secPolicy)
+			auditList = auditedFiles(enableAuditd, secPolicy)
 
 			for _, line := range auditList {
 				if !kl.ContainsElement(fileAuditList, line) {
@@ -1414,7 +1918,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			blackList := []string{}
 
 			// process
-			blackList = blockedProcesses(secPolicy)
+			blackList = blockedProcesses(enableAuditd, secPolicy)
 
 			for _, line := range blackList {
 				if !kl.ContainsElement(processBlackList, line) {
@@ -1423,7 +1927,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 			}
 
 			// file
-			blackList = blockedFiles(secPolicy)
+			blackList = blockedFiles(enableAuditd, secPolicy)
 
 			for _, line := range blackList {
 				if !kl.ContainsElement(fileBlackList, line) {
@@ -1456,10 +1960,10 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	for _, secPolicy := range securityPolicies {
 		if secPolicy.Spec.Action == "Allow" || secPolicy.Spec.Action == "Audit" || secPolicy.Spec.Action == "AllowWithAudit" {
 			// process
-			allowedProcessesFromSource(secPolicy, fromSources)
+			allowedProcessesFromSource(enableAuditd, secPolicy, fromSources)
 
 			// file
-			allowedFilesFromSource(secPolicy, fromSources)
+			allowedFilesFromSource(enableAuditd, secPolicy, fromSources)
 
 			// network
 			allowedNetworksFromSource(secPolicy, fromSources)
@@ -1472,10 +1976,10 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 	for _, secPolicy := range securityPolicies {
 		if secPolicy.Spec.Action == "Block" || secPolicy.Spec.Action == "BlockWithAudit" {
 			// process
-			blockedProcessesFromSource(secPolicy, fromSources)
+			blockedProcessesFromSource(enableAuditd, secPolicy, fromSources)
 
 			// file
-			blockedFilesFromSource(secPolicy, fromSources)
+			blockedFilesFromSource(enableAuditd, secPolicy, fromSources)
 
 			// network
 			blockedNetworksFromSource(secPolicy, fromSources)
@@ -1740,7 +2244,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	// generate a profile body
 
-	count, profileBody := GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost, securityPolicies)
+	count, profileBody := GenerateProfileBody(ae.EnableAuditd, oldContentsPreMid, oldConetntsMidPost, securityPolicies)
 
 	// generate a new profile
 

@@ -13,31 +13,18 @@ import (
 // == Logs == //
 // ========== //
 
-// GetNameFromContainerID Function
-func (mon *SystemMonitor) GetNameFromContainerID(containerID string) (string, string, string) {
-	Containers := *(mon.Containers)
-	ContainersLock := *(mon.ContainersLock)
-
-	ContainersLock.RLock()
-	defer ContainersLock.RUnlock()
-
-	if val, ok := Containers[containerID]; ok {
-		return val.NamespaceName, val.ContainerGroupName, val.ContainerName
-	}
-
-	return "", "", ""
-}
-
-// BuildLogBase Function
-func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
+// BuildHostLogBase Function
+func (mon *SystemMonitor) BuildHostLogBase(msg ContextCombined) tp.Log {
 	log := tp.Log{}
 
 	log.UpdatedTime = kl.GetDateTimeNow()
 
 	log.HostName = mon.HostName
 
-	log.ContainerID = msg.ContainerID
-	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(log.ContainerID)
+	log.NamespaceName = ""
+	log.PodName = ""
+	log.ContainerID = ""
+	log.ContainerName = ""
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
@@ -45,9 +32,9 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.UID = int32(msg.ContextSys.UID)
 
 	if msg.ContextSys.EventID == SYS_EXECVE || msg.ContextSys.EventID == SYS_EXECVEAT {
-		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PPID)
+		log.Source = mon.GetHostExecPath(msg.ContextSys.PPID)
 	} else {
-		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID)
+		log.Source = mon.GetHostExecPath(msg.ContextSys.PID)
 	}
 
 	if log.Source == "" {
@@ -57,21 +44,21 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	return log
 }
 
-// UpdateLogs Function
-func (mon *SystemMonitor) UpdateLogs() {
+// UpdateHostLogs Function
+func (mon *SystemMonitor) UpdateHostLogs() {
 	for {
 		select {
 		case <-StopChan:
 			return
 
-		case msg, valid := <-mon.ContextChan:
+		case msg, valid := <-mon.HostContextChan:
 			if !valid {
 				continue
 			}
 
 			// generate a log
 
-			log := mon.BuildLogBase(msg)
+			log := mon.BuildHostLogBase(msg)
 
 			switch msg.ContextSys.EventID {
 			case SYS_OPEN:

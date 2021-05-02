@@ -37,7 +37,9 @@ func main() {
 	// options
 	gRPCPtr := flag.String("gRPC", "32767", "gRPC port number")
 	logPathPtr := flag.String("logPath", "none", "log file path")
+	enableAuditdPtr := flag.Bool("enableAuditd", false, "enabling Auditd")
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
+	enableSystemLogPtr := flag.Bool("enableSystemLog", false, "enabling system logs")
 
 	// profile option
 	pprofPtr := flag.String("pprof", "none", "pprof port number")
@@ -52,7 +54,7 @@ func main() {
 
 	// == //
 
-	core.KubeArmor(*gRPCPtr, *logPathPtr, *enableHostPolicyPtr)
+	core.KubeArmor(*gRPCPtr, *logPathPtr, *enableAuditdPtr, *enableHostPolicyPtr, *enableSystemLogPtr)
 
 	// == //
 }

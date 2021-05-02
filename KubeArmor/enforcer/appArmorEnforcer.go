@@ -23,28 +23,44 @@ type AppArmorEnforcer struct {
 	// host name
 	HostName string
 
-	// host security
+	// options
+	EnableAuditd     bool
 	EnableHostPolicy bool
-	HostProfile      string
 
-	// container security
+	// host profile
+	HostProfile string
+
+	// profiles for containers
 	AppArmorProfiles     map[string]int
 	AppArmorProfilesLock *sync.Mutex
 }
 
 // NewAppArmorEnforcer Function
-func NewAppArmorEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *AppArmorEnforcer {
+func NewAppArmorEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
 
+	// logs
 	ae.LogFeeder = feeder
 
+	// host name
 	ae.HostName = kl.GetHostName()
 
+	// options
+	ae.EnableAuditd = enableAuditd
 	ae.EnableHostPolicy = enableHostPolicy
+
+	// host profile
 	ae.HostProfile = ""
 
+	// profiles
 	ae.AppArmorProfiles = map[string]int{}
 	ae.AppArmorProfilesLock = &sync.Mutex{}
+
+	files, err := ioutil.ReadDir("/etc/apparmor.d")
+	if err != nil {
+		ae.LogFeeder.Errf("Failed to read /etc/apparmor.d (%s)", err.Error())
+		return nil
+	}
 
 	existingProfiles := []string{}
 
@@ -65,12 +81,6 @@ func NewAppArmorEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *AppArmorEnfo
 				}
 			}
 		}
-	}
-
-	files, err := ioutil.ReadDir("/etc/apparmor.d")
-	if err != nil {
-		ae.LogFeeder.Errf("Failed to read /etc/apparmor.d (%s)", err.Error())
-		return nil
 	}
 
 	for _, file := range files {
