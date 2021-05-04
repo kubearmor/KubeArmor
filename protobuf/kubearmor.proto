@@ -13,44 +13,47 @@ message NonceMessage {
 message Message {
   string UpdatedTime = 1;
 
-  string Source = 2;
-  string SourceIP = 3;
+  string ClusterName = 2;
 
-  string Level = 4;
-  string Message = 5;
+  string HostName = 3;
+  string HostIP = 4;
+
+  string Level = 5;
+  string Message = 6;
 }
 
 // log struct
 message Log {
   string UpdatedTime = 1;
 
-  string HostName = 2;
+  string ClusterName = 2;
+  string HostName = 3;
 
-  string NamespaceName = 3;
-  string PodName = 4;
+  string NamespaceName = 4;
+  string PodName = 5;
 
-  string ContainerID = 5;
-  string ContainerName = 6;
+  string ContainerID = 6;
+  string ContainerName = 7;
 
-  int32 HostPID = 7;
-  int32 PPID = 8;
-  int32 PID = 9;
-  int32 UID = 10;
+  int32 HostPID = 8;
+  int32 PPID = 9;
+  int32 PID = 10;
+  int32 UID = 11;
 
-  string PolicyName = 11;
-  string Severity = 12;
+  string PolicyName = 12;
+  string Severity = 13;
 
-  string Tags = 13;
-  string Message = 14;
+  string Tags = 14;
+  string Message = 15;
 
-  string Type = 15;
-  string Source = 16;
-  string Operation = 17;
-  string Resource = 18;
-  string Data = 19;
+  string Type = 16;
+  string Source = 17;
+  string Operation = 18;
+  string Resource = 19;
+  string Data = 20;
 
-  string Action = 20;
-  string Result = 21;
+  string Action = 21;
+  string Result = 22;
 }
 
 // request message
