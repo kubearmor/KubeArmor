@@ -130,7 +130,7 @@ func (lc *LogClient) WatchMessages(msgPath string, jsonFormat bool) error {
 			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
 			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
 
-			str = fmt.Sprintf("%s  %s  [%s]  %s\n", updatedTime, res.Source, res.Level, res.Message)
+			str = fmt.Sprintf("%s  %s  %s  [%s]  %s\n", updatedTime, res.ClusterName, res.HostName, res.Level, res.Message)
 		}
 
 		if msgPath == "stdout" {
@@ -166,6 +166,7 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 
 			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
 
+			str = str + fmt.Sprintf("Cluster Name: %s", res.ClusterName)
 			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
 
 			if res.NamespaceName != "" {

@@ -232,6 +232,9 @@ type Feeder struct {
 	// wait group
 	WgServer sync.WaitGroup
 
+	// cluster
+	clusterName string
+
 	// host
 	hostName string
 	hostIP   string
@@ -293,6 +296,9 @@ func NewFeeder(port, output string, enableSystemLog bool) *Feeder {
 
 	// set wait group
 	fd.WgServer = sync.WaitGroup{}
+
+	// set cluster info
+	fd.clusterName = ""
 
 	// set host info
 	fd.hostName = kl.GetHostName()
@@ -390,8 +396,10 @@ func (fd *Feeder) PushMessage(level, message string) error {
 
 	pbMsg.UpdatedTime = kl.GetDateTimeNow()
 
-	pbMsg.Source = fd.hostName
-	pbMsg.SourceIP = fd.hostIP
+	pbMsg.ClusterName = fd.clusterName
+
+	pbMsg.HostName = fd.hostName
+	pbMsg.HostIP = fd.hostIP
 
 	pbMsg.Level = level
 	pbMsg.Message = message
@@ -427,6 +435,7 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 	pbLog.UpdatedTime = log.UpdatedTime
 
+	pbLog.ClusterName = fd.clusterName
 	pbLog.HostName = log.HostName
 
 	pbLog.NamespaceName = log.NamespaceName
