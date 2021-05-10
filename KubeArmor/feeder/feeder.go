@@ -218,46 +218,47 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 // Feeder Structure
 type Feeder struct {
 	// port
-	port string
+	Port string
 
 	// output
-	output string
+	Output string
 
 	// gRPC listener
-	listener net.Listener
+	Listener net.Listener
 
 	// log server
-	logServer *grpc.Server
+	LogServer *grpc.Server
 
 	// wait group
 	WgServer sync.WaitGroup
 
 	// cluster
-	clusterName string
+	ClusterName string
 
 	// host
-	hostName string
-	hostIP   string
+	HostName string
+	HostIP   string
 
 	// namespace name + container group name / host name -> corresponding security policies
 	SecurityPolicies     map[string]tp.MatchPolicies
 	SecurityPoliciesLock *sync.RWMutex
-
-	// options
-	EnableSystemLog bool
 }
 
 // NewFeeder Function
-func NewFeeder(port, output string, enableSystemLog bool) *Feeder {
+func NewFeeder(clusterName, port, output string) *Feeder {
 	fd := &Feeder{}
 
-	fd.port = fmt.Sprintf(":%s", port)
-	fd.output = output
+	// set cluster info
+	fd.ClusterName = clusterName
+
+	// gRPC configuration
+	fd.Port = fmt.Sprintf(":%s", port)
+	fd.Output = output
 
 	// output mode
-	if fd.output != "stdout" && fd.output != "none" {
+	if fd.Output != "stdout" && fd.Output != "none" {
 		// get the directory part from the path
-		dirLog := filepath.Dir(fd.output)
+		dirLog := filepath.Dir(fd.Output)
 
 		// create directories
 		if err := os.MkdirAll(dirLog, 0755); err != nil {
@@ -266,24 +267,24 @@ func NewFeeder(port, output string, enableSystemLog bool) *Feeder {
 		}
 
 		// create target file
-		targetFile, err := os.Create(fd.output)
+		targetFile, err := os.Create(fd.Output)
 		if err != nil {
-			kg.Errf("Failed to create a target file (%s, %s)", fd.output, err.Error())
+			kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
 			return nil
 		}
 		targetFile.Close()
 	}
 
 	// listen to gRPC port
-	listener, err := net.Listen("tcp", fd.port)
+	listener, err := net.Listen("tcp", fd.Port)
 	if err != nil {
-		kg.Errf("Failed to listen a port (%s, %s)", port, err.Error())
+		kg.Errf("Failed to listen a port (%s, %s)", fd.Port, err.Error())
 		return nil
 	}
-	fd.listener = listener
+	fd.Listener = listener
 
 	// create a log server
-	fd.logServer = grpc.NewServer()
+	fd.LogServer = grpc.NewServer()
 
 	// register a log service
 	logService := &LogService{
@@ -292,24 +293,18 @@ func NewFeeder(port, output string, enableSystemLog bool) *Feeder {
 		LogStructs: make(map[string]LogStruct),
 		LogLock:    sync.Mutex{},
 	}
-	pb.RegisterLogServiceServer(fd.logServer, logService)
+	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
 	// set wait group
 	fd.WgServer = sync.WaitGroup{}
 
-	// set cluster info
-	fd.clusterName = ""
-
 	// set host info
-	fd.hostName = kl.GetHostName()
-	fd.hostIP = kl.GetExternalIPAddr()
+	fd.HostName = kl.GetHostName()
+	fd.HostIP = kl.GetExternalIPAddr()
 
 	// initialize security policies
 	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
 	fd.SecurityPoliciesLock = new(sync.RWMutex)
-
-	// options
-	fd.EnableSystemLog = enableSystemLog
 
 	return fd
 }
@@ -323,9 +318,9 @@ func (fd *Feeder) DestroyFeeder() error {
 	time.Sleep(time.Second * 1)
 
 	// close listener
-	if fd.listener != nil {
-		fd.listener.Close()
-		fd.listener = nil
+	if fd.Listener != nil {
+		fd.Listener.Close()
+		fd.Listener = nil
 	}
 
 	// wait for other routines
@@ -387,19 +382,22 @@ func (fd *Feeder) ServeLogFeeds() {
 	defer fd.WgServer.Done()
 
 	// feed logs
-	fd.logServer.Serve(fd.listener)
+	fd.LogServer.Serve(fd.Listener)
 }
 
 // PushMessage Function
 func (fd *Feeder) PushMessage(level, message string) error {
 	pbMsg := pb.Message{}
 
-	pbMsg.UpdatedTime = kl.GetDateTimeNow()
+	timestamp, updatedTime := kl.GetDateTimeNow()
 
-	pbMsg.ClusterName = fd.clusterName
+	pbMsg.Timestamp = timestamp
+	pbMsg.UpdatedTime = updatedTime
 
-	pbMsg.HostName = fd.hostName
-	pbMsg.HostIP = fd.hostIP
+	pbMsg.ClusterName = fd.ClusterName
+
+	pbMsg.HostName = fd.HostName
+	pbMsg.HostIP = fd.HostIP
 
 	pbMsg.Level = level
 	pbMsg.Message = message
@@ -419,24 +417,32 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 		return nil
 	}
 
+	// remove visibility flags
+
+	log.ProcessVisibilityEnabled = false
+	log.FileVisibilityEnabled = false
+	log.NetworkVisibilityEnabled = false
+	log.CapabilitiesVisibilityEnabled = false
+
 	// standard output / file output
 
-	if fd.output == "stdout" {
+	if fd.Output == "stdout" {
 		arr, _ := json.Marshal(log)
 		fmt.Println(string(arr))
-	} else if fd.output != "none" {
+	} else if fd.Output != "none" {
 		arr, _ := json.Marshal(log)
-		kl.StrToFile(string(arr), fd.output)
+		kl.StrToFile(string(arr), fd.Output)
 	}
 
 	// gRPC output
 
 	pbLog := pb.Log{}
 
+	pbLog.Timestamp = log.Timestamp
 	pbLog.UpdatedTime = log.UpdatedTime
 
-	pbLog.ClusterName = fd.clusterName
-	pbLog.HostName = log.HostName
+	pbLog.ClusterName = fd.ClusterName
+	pbLog.HostName = fd.HostName
 
 	pbLog.NamespaceName = log.NamespaceName
 	pbLog.PodName = log.PodName
