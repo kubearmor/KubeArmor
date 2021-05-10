@@ -120,10 +120,10 @@
 
         - "Started to serve gRPC-based log feeds"
         - "Started to monitor system events"
-        - "Started to protect a host and containers"
+        - "Started to protect a host and containers" (if -enableHostPolicy is set)
         - "Started to monitor Pod events"
         - "Started to monitor security policies"
-        - "Started to monitor host security policies"
+        - "Started to monitor host security policies" (if -enableHostPolicy is set)
         - "Started to monitor {Docker|Containrd} events"
         - "Detected a Pod (added/...)"
 

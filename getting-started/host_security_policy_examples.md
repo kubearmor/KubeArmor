@@ -14,7 +14,6 @@ Here, we demonstrate how to define host security policies.
       nodeSelector:
         matchLabels:
           kubernetes.io/hostname: ubuntu20
-      severity: 5
       process:
         matchPaths:
         - path: /usr/bin/sleep # try sleep 1
@@ -36,7 +35,6 @@ Here, we demonstrate how to define host security policies.
       nodeSelector:
         matchLabels:
           kubernetes.io/hostname: ubuntu20
-      severity: 5
       file:
         matchPaths:
         - path: /etc/shadow # cat /etc/shadow

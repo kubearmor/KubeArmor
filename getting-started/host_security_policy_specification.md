@@ -11,11 +11,8 @@ metadata:
   name: [policy name]
 
 spec:
-  severity: [1-10]
-
-  tag:                                     # --> optional
-  - [tag]
-
+  severity: [1-10]                         # --> optional (1 by default)
+  tags: ["tag", ...]                       # --> optional
   message: [message]                       # --> optional
 
   nodeSelector:
@@ -82,7 +79,7 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]
 
-  action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
+  action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit] (Block by default)
 ```
 
 ## Policy Spec Description
@@ -111,14 +108,12 @@ Now, we will briefly explain how to define a host security policy.
   severity: [1-10]
   ```
 
-* Tag
+* Tags
 
-  The tag part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
+  The tags part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
 
   ```text
-  tag:
-  - [tag1]
-  - [tagN]
+  tags: ["tag1", ..., "tagN"]
   ```
 
 * Message
