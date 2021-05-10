@@ -11,6 +11,11 @@ run: $(CURDIR)/kubearmor
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
 
+.PHONY: run-per-pod
+run-per-pod: $(CURDIR)/kubearmor
+	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableEnforcerPerPod
+
 .PHONY: test
 test:
 	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .

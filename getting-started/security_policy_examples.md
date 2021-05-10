@@ -12,7 +12,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-group-1-proc-path-block
       namespace: multiubuntu
     spec:
-      severity: 5
       selector:
         matchLabels:
           group: group-1
@@ -35,7 +34,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-1-proc-dir-block
       namespace: multiubuntu
     spec:
-      severity: 1
       selector:
         matchLabels:
           container: ubuntu-1
@@ -58,7 +56,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-2-proc-dir-recursive-block
       namespace: multiubuntu
     spec:
-      severity: 2
       selector:
         matchLabels:
           container: ubuntu-2
@@ -82,7 +79,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-3-proc-dir-allow
       namespace: multiubuntu
     spec:
-      severity: 5
       selector:
         matchLabels:
           container: ubuntu-3
@@ -109,7 +105,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-3-proc-path-owner-allow
       namespace: multiubuntu
     spec:
-      severity: 7
       selector:
         matchLabels:
           container: ubuntu-3
@@ -142,7 +137,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-4-file-path-readonly-allow
       namespace: multiubuntu
     spec:
-      severity: 10
       selector:
         matchLabels:
           container: ubuntu-4
@@ -170,7 +164,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-5-file-dir-recursive-block
       namespace: multiubuntu
     spec:
-      severity: 9
       selector:
         matchLabels:
           container: ubuntu-5
@@ -194,7 +187,6 @@ Here, we demonstrate how to define security policies using our example microserv
         name: ksp-ubuntu-5-net-icmp-block
         namespace: multiubuntu
       spec:
-        severity: 8
         selector:
           matchLabels:
             container: ubuntu-5
@@ -217,7 +209,6 @@ Here, we demonstrate how to define security policies using our example microserv
       name: ksp-ubuntu-1-cap-net-raw-block
       namespace: multiubuntu
     spec:
-      severity: 1
       selector:
         matchLabels:
           container: ubuntu-1

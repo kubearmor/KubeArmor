@@ -13,31 +13,41 @@ import (
 // == Logs == //
 // ========== //
 
-// GetNameFromContainerID Function
-func (mon *SystemMonitor) GetNameFromContainerID(containerID string) (string, string, string) {
+// UpdateContainerInfoByContainerID Function
+func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 
 	ContainersLock.RLock()
 	defer ContainersLock.RUnlock()
 
-	if val, ok := Containers[containerID]; ok {
-		return val.NamespaceName, val.ContainerGroupName, val.ContainerName
+	if val, ok := Containers[log.ContainerID]; ok {
+		// update container info
+		log.NamespaceName = val.NamespaceName
+		log.PodName = val.ContainerGroupName
+		log.ContainerName = val.ContainerName
+
+		// update visibility flags
+		log.ProcessVisibilityEnabled = val.ProcessVisibilityEnabled
+		log.FileVisibilityEnabled = val.FileVisibilityEnabled
+		log.NetworkVisibilityEnabled = val.NetworkVisibilityEnabled
+		log.CapabilitiesVisibilityEnabled = val.CapabilitiesVisibilityEnabled
 	}
 
-	return "", "", ""
+	return log
 }
 
 // BuildLogBase Function
 func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log := tp.Log{}
 
-	log.UpdatedTime = kl.GetDateTimeNow()
+	timestamp, updatedTime := kl.GetDateTimeNow()
 
-	log.HostName = mon.HostName
+	log.Timestamp = timestamp
+	log.UpdatedTime = updatedTime
 
 	log.ContainerID = msg.ContainerID
-	log.NamespaceName, log.PodName, log.ContainerName = mon.GetNameFromContainerID(log.ContainerID)
+	log = mon.UpdateContainerInfoByContainerID(log)
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)

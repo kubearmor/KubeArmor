@@ -8,7 +8,7 @@ import (
 
 func TestAppArmorEnforcer(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none", false)
+	logFeeder := fd.NewFeeder("32767", "none", false, "Default")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -44,7 +44,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 func TestAppArmorProfile(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none", false)
+	logFeeder := fd.NewFeeder("32767", "none", false, "Default")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -98,7 +98,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 func TestHostAppArmorProfile(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none", false)
+	logFeeder := fd.NewFeeder("32767", "none", false, "Default")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return

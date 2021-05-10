@@ -41,6 +41,8 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 	// update container in a container group
 
 	if action == "ADDED" {
+		// add container in container group
+
 		if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
 			dm.ContainerGroups[conGroupIdx].Identities = append(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName)
 		}
@@ -49,7 +51,25 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithContainer(action string, cont
 			dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, container.ContainerID)
 			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 		}
+
+		// update flags
+
+		container.PolicyEnabled = dm.ContainerGroups[conGroupIdx].PolicyEnabled
+
+		container.ProcessVisibilityEnabled = dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled
+		container.FileVisibilityEnabled = dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled
+		container.NetworkVisibilityEnabled = dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled
+		container.CapabilitiesVisibilityEnabled = dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled
+
+		// update container
+
+		dm.ContainersLock.Lock()
+		dm.Containers[container.ContainerID] = container
+		dm.ContainersLock.Unlock()
+
 	} else { // DELETED
+		// remove container from container group
+
 		if kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Identities, "containerName="+container.ContainerName) {
 			for idxL, identity := range dm.ContainerGroups[conGroupIdx].Identities {
 				if identity == "containerName="+container.ContainerName {
@@ -119,8 +139,23 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		newGroup.Containers = []string{}
 		newGroup.AppArmorProfiles = map[string]string{}
 
-		// update security policies with the identities
-		newGroup.SecurityPolicies = dm.GetSecurityPolicies(newGroup.Identities)
+		// update flags
+		if pod.Annotations["kubearmor-policy"] == "enabled" {
+			newGroup.PolicyEnabled = true
+		}
+
+		// parse annotations and set flags
+		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
+			if visibility == "process" {
+				newGroup.ProcessVisibilityEnabled = true
+			} else if visibility == "file" {
+				newGroup.FileVisibilityEnabled = true
+			} else if visibility == "network" {
+				newGroup.NetworkVisibilityEnabled = true
+			} else if visibility == "capabilities" {
+				newGroup.CapabilitiesVisibilityEnabled = true
+			}
+		}
 
 		// update selinux profile names to the container group
 		newGroup.SELinuxProfiles = map[string]string{}
@@ -135,11 +170,16 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		newGroup.HostVolumes = []tp.HostMountedVolume{}
 		newGroup.HostVolumes = append(newGroup.HostVolumes, pod.HostVolumes...)
 
+		// update security policies with the identities
+		newGroup.SecurityPolicies = dm.GetSecurityPolicies(newGroup.Identities)
+
 		// add the container group into the container group list
 		dm.ContainerGroups = append(dm.ContainerGroups, newGroup)
 
-		// update security profiles
-		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
+		if newGroup.PolicyEnabled {
+			// create and register security profiles
+			dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod, true)
+		}
 
 	} else if action == "MODIFIED" {
 		// find the corresponding container group
@@ -179,6 +219,56 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
+		// update flags
+
+		prevPolicyEnabled := dm.ContainerGroups[conGroupIdx].PolicyEnabled
+
+		if pod.Annotations["kubearmor-policy"] == "enabled" {
+			dm.ContainerGroups[conGroupIdx].PolicyEnabled = true
+		} else {
+			dm.ContainerGroups[conGroupIdx].PolicyEnabled = false
+		}
+
+		// parse annotations and set flags
+
+		dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled = false
+		dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled = false
+		dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled = false
+		dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled = false
+
+		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
+			if visibility == "process" {
+				dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled = true
+			} else if visibility == "file" {
+				dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled = true
+			} else if visibility == "network" {
+				dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled = true
+			} else if visibility == "capabilities" {
+				dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled = true
+			}
+		}
+
+		// update containers
+		dm.ContainersLock.Lock()
+		for _, containerID := range dm.ContainerGroups[conGroupIdx].Containers {
+			container := dm.Containers[containerID]
+
+			container.PolicyEnabled = dm.ContainerGroups[conGroupIdx].PolicyEnabled
+
+			container.ProcessVisibilityEnabled = dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled
+
+			dm.Containers[containerID] = container
+		}
+		dm.ContainersLock.Unlock()
+
+		if !prevPolicyEnabled && dm.ContainerGroups[conGroupIdx].PolicyEnabled {
+			// initialize and register security profiles
+			dm.RuntimeEnforcer.UpdateSecurityProfiles("ADDED", pod, true)
+		}
+
 		// get security policies according to the updated identities
 		dm.ContainerGroups[conGroupIdx].SecurityPolicies = dm.GetSecurityPolicies(dm.ContainerGroups[conGroupIdx].Identities)
 
@@ -188,8 +278,28 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		// enforce security policies
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
 	} else { // DELETED
-		// update security profiles
-		dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
+		// find the corresponding container group
+
+		conGroupIdx := -1
+
+		for idx, conGroup := range dm.ContainerGroups {
+			if pod.Metadata["namespaceName"] == conGroup.NamespaceName && pod.Metadata["podName"] == conGroup.ContainerGroupName {
+				conGroupIdx = idx
+				break
+			}
+		}
+
+		if conGroupIdx == -1 {
+			return
+		}
+
+		if dm.ContainerGroups[conGroupIdx].PolicyEnabled {
+			// initialize and unregister security profiles
+			dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod, true)
+		}
+
+		// remove container group
+		dm.ContainerGroups = append(dm.ContainerGroups[:conGroupIdx], dm.ContainerGroups[conGroupIdx+1:]...)
 	}
 }
 
@@ -208,44 +318,66 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					break
 				}
 
-				dm.K8sPodsLock.Lock()
-
 				// create a pod
 
 				pod := tp.K8sPod{}
-				pod.HostVolumes = []tp.HostMountedVolume{}
 
 				pod.Metadata = map[string]string{}
 				pod.Metadata["namespaceName"] = event.Object.ObjectMeta.Namespace
 				pod.Metadata["podName"] = event.Object.ObjectMeta.Name
 				pod.Metadata["generation"] = strconv.FormatInt(event.Object.Generation, 10)
 
+				pod.Annotations = map[string]string{}
+				for k, v := range event.Object.Annotations {
+					pod.Annotations[k] = v
+				}
+
+				if !dm.EnableEnforcerPerPod {
+					if pod.Metadata["namespaceName"] != "kube-system" || pod.Metadata["namespaceName"] != "cilium" {
+						pod.Annotations["kubearmor-policy"] = "enabled"
+					}
+				} else {
+					if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
+						pod.Annotations["kubearmor-policy"] = "disabled"
+					} else if pod.Annotations["kubearmor-policy"] != "enabled" {
+						pod.Annotations["kubearmor-policy"] = "disabled"
+					}
+				}
+
 				if event.Type == "ADDED" || event.Type == "MODIFIED" {
 					exist := false
 
+					dm.K8sPodsLock.Lock()
 					for _, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["podName"] == pod.Metadata["podName"] &&
 							k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] &&
 							k8spod.Metadata["generation"] == pod.Metadata["generation"] {
-							exist = true
-							break
+							if k8spod.Annotations["kubearmor-policy"] == pod.Annotations["kubearmor-policy"] {
+								exist = true
+								break
+							} else if k8spod.Annotations["kubearmor-policy"] == "patched" {
+								exist = true
+								break
+							}
 						}
 					}
+					dm.K8sPodsLock.Unlock()
 
 					if exist {
-						dm.K8sPodsLock.Unlock()
 						continue
 					}
 				}
 
 				// == AppArmor == //
 
-				pod.Annotations = map[string]string{}
+				// enabled + apparmor annotations -> pass
+				// enabled + no apparmor annotations -> patch annotations (enabled + apparmor annotations --> pass)
+				// disabled + apparmor annotations -> initialize profiles only
+				// disabled + no apparmor annotations -> do nothing
+
 				appArmorAnnotations := map[string]string{}
 
-				for k, v := range event.Object.Annotations {
-					pod.Annotations[k] = v
-
+				for k, v := range pod.Annotations {
 					if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
 						if v == "unconfined" {
 							containerName := strings.Split(k, "/")[1]
@@ -257,45 +389,54 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				updateAppArmor := false
+				if pod.Annotations["kubearmor-policy"] == "enabled" {
+					updateAppArmor := false
 
-				for _, container := range event.Object.Spec.Containers {
-					if container.Name == "istio-proxy" {
-						continue
+					for _, container := range event.Object.Spec.Containers {
+						if container.Name == "istio-proxy" {
+							continue
+						}
+
+						if _, ok := appArmorAnnotations[container.Name]; !ok {
+							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + container.Name
+							updateAppArmor = true
+						}
 					}
 
-					if _, ok := appArmorAnnotations[container.Name]; !ok {
-						appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + pod.Metadata["podName"] + "-" + container.Name
-						updateAppArmor = true
-					}
-				}
-
-				if dm.RuntimeEnforcer.GetEnforcerType() == "apparmor" && updateAppArmor {
-					if pod.Metadata["namespaceName"] != "kube-system" && pod.Metadata["namespaceName"] != "cilium" {
-						if event.Type == "ADDED" {
-							if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
-								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
-								if deploymentName != "" {
-									if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
-										dm.LogFeeder.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
-									} else {
-										dm.LogFeeder.Printf("Updated AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+					if dm.RuntimeEnforcer.GetEnforcerType() == "apparmor" && updateAppArmor {
+						if pod.Metadata["namespaceName"] != "kube-system" || pod.Metadata["namespaceName"] != "cilium" {
+							if (event.Type == "ADDED" || event.Type == "MODIFIED") && pod.Annotations["kubearmor-policy"] != "patched" {
+								if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
+									deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
+									if deploymentName != "" {
+										if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
+											dm.LogFeeder.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										} else {
+											dm.LogFeeder.Printf("Patched AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+										}
+										pod.Annotations["kubearmor-policy"] = "patched"
 									}
 								}
 							}
 						}
-
-						dm.K8sPodsLock.Unlock()
-						continue
+					}
+				} else if dm.RuntimeEnforcer.GetEnforcerType() == "apparmor" {
+					if pod.Metadata["namespaceName"] != "kube-system" || pod.Metadata["namespaceName"] != "cilium" {
+						if event.Type == "ADDED" || event.Type == "MODIFIED" {
+							if len(appArmorAnnotations) > 0 {
+								dm.RuntimeEnforcer.UpdateSecurityProfiles("ADDED", pod, false)
+							}
+						} else if event.Type == "DELETED" {
+							if len(appArmorAnnotations) > 0 {
+								dm.RuntimeEnforcer.UpdateSecurityProfiles("DELETED", pod, false)
+							}
+						}
 					}
 				}
 
 				// == SELinux == //
 
-				seLinuxContexts := map[string]string{}
-				updateSELinux := false
-
-				// update host-mounted volumes
+				pod.HostVolumes = []tp.HostMountedVolume{}
 				for _, v := range event.Object.Spec.Volumes {
 					if v.HostPath != nil {
 						hostVolume := tp.HostMountedVolume{}
@@ -308,46 +449,22 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				for _, container := range event.Object.Spec.Containers {
-					if pod.Metadata["namespaceName"] == "kube-system" || pod.Metadata["namespaceName"] == "cilium" {
-						continue
-					}
+				if pod.Annotations["kubearmor-policy"] == "enabled" {
+					seLinuxContexts := map[string]string{}
 
-					// match container volumes to host mounted volume
-					for _, containerVolume := range container.VolumeMounts {
-						for i, hostVoulme := range pod.HostVolumes {
-							if containerVolume.Name == hostVoulme.VolumeName {
-								if _, ok := pod.HostVolumes[i].UsedByContainerReadOnly[container.Name]; !ok {
-									pod.HostVolumes[i].UsedByContainerReadOnly[container.Name] = containerVolume.ReadOnly
-									pod.HostVolumes[i].UsedByContainerPath[container.Name] = containerVolume.MountPath
+					for _, container := range event.Object.Spec.Containers {
+						// match container volumes to host mounted volume
+						for _, containerVolume := range container.VolumeMounts {
+							for i, hostVoulme := range pod.HostVolumes {
+								if containerVolume.Name == hostVoulme.VolumeName {
+									if _, ok := pod.HostVolumes[i].UsedByContainerReadOnly[container.Name]; !ok {
+										pod.HostVolumes[i].UsedByContainerReadOnly[container.Name] = containerVolume.ReadOnly
+										pod.HostVolumes[i].UsedByContainerPath[container.Name] = containerVolume.MountPath
+									}
 								}
 							}
 						}
-					}
 
-					if container.SecurityContext == nil || container.SecurityContext.SELinuxOptions == nil || container.SecurityContext.SELinuxOptions.Type == "" {
-						if _, ok := seLinuxContexts[container.Name]; !ok {
-							deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
-							if deploymentName == "" {
-								continue
-							}
-
-							seLinuxType := "kubearmor-" + pod.Metadata["namespaceName"] + "-" + deploymentName + "-" + container.Name
-							container.SecurityContext = &v1.SecurityContext{
-								SELinuxOptions: &v1.SELinuxOptions{
-									Type: seLinuxType + ".process",
-								},
-							}
-
-							// clear container volume, if not delete volumeMounts, rolling update error
-							container.VolumeMounts = []v1.VolumeMount{}
-
-							b, _ := json.Marshal(container)
-							seLinuxContexts[container.Name] = string(b)
-
-							updateSELinux = true
-						}
-					} else {
 						if container.SecurityContext != nil && container.SecurityContext.SELinuxOptions != nil {
 							if strings.Contains(container.SecurityContext.SELinuxOptions.Type, ".process") {
 								if _, ok := pod.Metadata["selinux-"+container.Name]; !ok {
@@ -357,26 +474,60 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							}
 						}
 					}
-				}
 
-				if dm.RuntimeEnforcer.GetEnforcerType() == "selinux" && updateSELinux {
-					if pod.Metadata["namespaceName"] != "kube-system" && pod.Metadata["namespaceName"] != "cilium" {
-						if event.Type == "ADDED" {
-							if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
+					updateSELinux := false
+
+					for _, container := range event.Object.Spec.Containers {
+						if container.SecurityContext == nil || container.SecurityContext.SELinuxOptions == nil || container.SecurityContext.SELinuxOptions.Type == "" {
+							if _, ok := seLinuxContexts[container.Name]; !ok {
 								deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
-								if deploymentName != "" {
-									if err := K8s.PatchDeploymentWithSELinuxOptions(pod.Metadata["namespaceName"], deploymentName, seLinuxContexts); err != nil {
-										dm.LogFeeder.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
-									} else {
-										dm.LogFeeder.Printf("Updated SELinux security options (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+								if deploymentName == "" {
+									continue
+								}
+
+								seLinuxType := "kubearmor-" + pod.Metadata["namespaceName"] + "-" + deploymentName + "-" + container.Name
+								container.SecurityContext = &v1.SecurityContext{
+									SELinuxOptions: &v1.SELinuxOptions{
+										Type: seLinuxType + ".process",
+									},
+								}
+
+								// clear container volume, if not delete volumeMounts, rolling update error
+								container.VolumeMounts = []v1.VolumeMount{}
+
+								b, _ := json.Marshal(container)
+								seLinuxContexts[container.Name] = string(b)
+
+								// set update flag
+								updateSELinux = true
+							}
+						}
+					}
+
+					// if no selinux annotations but kubearmor-policy is enabled, add selinux annotations
+					if dm.RuntimeEnforcer.GetEnforcerType() == "selinux" && updateSELinux {
+						if pod.Metadata["namespaceName"] != "kube-system" || pod.Metadata["namespaceName"] != "cilium" {
+							if (event.Type == "ADDED" || event.Type == "MODIFIED") && pod.Annotations["kubearmor-policy"] != "patched" {
+								if len(event.Object.ObjectMeta.OwnerReferences) > 0 && event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
+									deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
+									if deploymentName != "" {
+										if err := K8s.PatchDeploymentWithSELinuxOptions(pod.Metadata["namespaceName"], deploymentName, seLinuxContexts); err != nil {
+											dm.LogFeeder.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										} else {
+											dm.LogFeeder.Printf("Patched SELinux security options (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+										}
+										pod.Annotations["kubearmor-policy"] = "patched"
 									}
 								}
 							}
 						}
-
-						dm.K8sPodsLock.Unlock()
-						continue
 					}
+				} else {
+					// kubearmor-policy is disabled
+				}
+
+				if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
+					pod.Annotations["kubearmor-visibility"] = ""
 				}
 
 				// == //
@@ -387,6 +538,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				// update the pod into the pod list
+
+				dm.K8sPodsLock.Lock()
 
 				if event.Type == "ADDED" {
 					if !kl.ContainsElement(dm.K8sPods, pod) {
@@ -414,7 +567,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				dm.K8sPodsLock.Unlock()
 
-				dm.LogFeeder.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
+				if pod.Annotations["kubearmor-policy"] != "patched" {
+					dm.LogFeeder.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
+				}
 
 				// update a container group corresponding to the pod
 				dm.UpdateContainerGroupWithPod(event.Type, pod)
@@ -545,6 +700,10 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
+				if secPolicy.Spec.Severity == 0 {
+					secPolicy.Spec.Severity = 1 // the lowest severity, by default
+				}
+
 				switch secPolicy.Spec.Action {
 				case "allow":
 					secPolicy.Spec.Action = "Allow"
@@ -556,6 +715,8 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					secPolicy.Spec.Action = "AllowWithAudit"
 				case "blockwithaudit":
 					secPolicy.Spec.Action = "BlockWithAudit"
+				default:
+					secPolicy.Spec.Action = "Block" // by default
 				}
 
 				// add identities
@@ -691,6 +852,10 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
+				if secPolicy.Spec.Severity == 0 {
+					secPolicy.Spec.Severity = 1 // the lowest severity, by default
+				}
+
 				switch secPolicy.Spec.Action {
 				case "allow":
 					secPolicy.Spec.Action = "Allow"
@@ -702,6 +867,8 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					secPolicy.Spec.Action = "AllowWithAudit"
 				case "blockwithaudit":
 					secPolicy.Spec.Action = "BlockWithAudit"
+				default:
+					secPolicy.Spec.Action = "Block" // by default
 				}
 
 				// add identities

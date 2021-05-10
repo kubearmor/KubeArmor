@@ -114,11 +114,11 @@ func init() {
 
 // SystemMonitor Structure
 type SystemMonitor struct {
-	// logs
-	LogFeeder *fd.Feeder
-
 	// host name
 	HostName string
+
+	// logs
+	LogFeeder *fd.Feeder
 
 	// options
 	EnableAuditd     bool
@@ -183,9 +183,9 @@ func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
 	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
-	mon.LogFeeder = feeder
-
 	mon.HostName = kl.GetHostName()
+
+	mon.LogFeeder = feeder
 
 	mon.EnableAuditd = enableAuditd
 	mon.EnableHostPolicy = enableHostPolicy

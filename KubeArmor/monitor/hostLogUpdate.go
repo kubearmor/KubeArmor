@@ -17,14 +17,10 @@ import (
 func (mon *SystemMonitor) BuildHostLogBase(msg ContextCombined) tp.Log {
 	log := tp.Log{}
 
-	log.UpdatedTime = kl.GetDateTimeNow()
+	timestamp, updatedTime := kl.GetDateTimeNow()
 
-	log.HostName = mon.HostName
-
-	log.NamespaceName = ""
-	log.PodName = ""
-	log.ContainerID = ""
-	log.ContainerName = ""
+	log.Timestamp = timestamp
+	log.UpdatedTime = updatedTime
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
 	log.PPID = int32(msg.ContextSys.PPID)
