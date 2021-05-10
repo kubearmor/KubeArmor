@@ -153,9 +153,11 @@ func (adt *AuditLogger) DestroyAuditLogger() error {
 func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, operation, resource, action, data string) {
 	log := tp.Log{}
 
-	log.UpdatedTime = kl.GetDateTimeNow()
+	timestamp, updatedTime := kl.GetDateTimeNow()
 
-	log.HostName = adt.HostName
+	log.Timestamp = timestamp
+	log.UpdatedTime = updatedTime
+
 	log.HostPID = hostPid
 	log.Operation = operation
 

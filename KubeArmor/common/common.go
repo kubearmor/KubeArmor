@@ -110,10 +110,10 @@ const (
 )
 
 // GetDateTimeNow Function
-func GetDateTimeNow() string {
+func GetDateTimeNow() (int64, string) {
 	utc := time.Now().UTC()
 	ret := utc.Format(TimeFormUTC)
-	return ret
+	return utc.Unix(), ret
 }
 
 // GetUptimeTimestamp Function

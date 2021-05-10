@@ -116,9 +116,6 @@ func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container,
 	container.ContainerID = res.Container.ID
 	container.ContainerName = res.Container.ID[:12]
 
-	container.HostName = kl.GetHostName()
-	container.HostIP = kl.GetExternalIPAddr()
-
 	containerLabels := res.Container.Labels
 	if _, ok := containerLabels["io.kubernetes.pod.namespace"]; ok { // kubernetes
 		if val, ok := containerLabels["io.kubernetes.pod.namespace"]; ok {
@@ -251,7 +248,6 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 			return
 		}
 
-		// add container to containers map
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
@@ -269,14 +265,13 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string)
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
-		val, ok := dm.Containers[containerID]
-		if !ok {
+		if val, ok := dm.Containers[containerID]; !ok {
 			dm.ContainersLock.Unlock()
 			return
+		} else {
+			container = val
+			delete(dm.Containers, containerID)
 		}
-
-		container = val
-		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
 		if strings.HasPrefix(container.ImageName, "k8s.gcr.io/pause") {
