@@ -54,6 +54,15 @@ type ProcessPathType struct {
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type ProcessDirectoryType struct {
@@ -66,6 +75,15 @@ type ProcessDirectoryType struct {
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type ProcessPatternType struct {
@@ -73,12 +91,30 @@ type ProcessPatternType struct {
 
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type ProcessType struct {
 	MatchPaths       []ProcessPathType      `json:"matchPaths,omitempty"`
 	MatchDirectories []ProcessDirectoryType `json:"matchDirectories,omitempty"`
 	MatchPatterns    []ProcessPatternType   `json:"matchPatterns,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type FilePathType struct {
@@ -91,6 +127,15 @@ type FilePathType struct {
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type FileDirectoryType struct {
@@ -105,6 +150,15 @@ type FileDirectoryType struct {
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type FilePatternType struct {
@@ -114,12 +168,30 @@ type FilePatternType struct {
 	ReadOnly bool `json:"readOnly,omitempty"`
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type FileType struct {
 	MatchPaths       []FilePathType      `json:"matchPaths,omitempty"`
 	MatchDirectories []FileDirectoryType `json:"matchDirectories,omitempty"`
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 // +kubebuilder:validation:Pattern=(icmp|ICMP|tcp|TCP|udp|UDP)$
@@ -130,10 +202,28 @@ type MatchNetworkProtocolType struct {
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type NetworkType struct {
 	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 // +kubebuilder:validation:Pattern=(chown|dac_override|dac_read_search|fowner|fsetid|kill|setgid|setuid|setpcap|linux_immutable|net_bind_service|net_broadcast|net_admin|net_raw|ipc_lock|ipc_owner|sys_module|sys_rawio|sys_chroot|sys_ptrace|sys_pacct|sys_admin|sys_boot|sys_nice|sys_resource|sys_time|sys_tty_config|mknod|lease|audit_write|audit_control|setfcap|mac_override|mac_admin)$
@@ -144,10 +234,28 @@ type MatchCapabilitiesType struct {
 
 	// +kubebuilder:validation:optional
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type CapabilitiesType struct {
 	MatchCapabilities []MatchCapabilitiesType `json:"matchCapabilities,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=cpu;fsize;rss;nofile;nproc
@@ -156,10 +264,28 @@ type ResourceLimitType string
 type ResourceValueType struct {
 	Resource ResourceLimitType `json:"resource"`
 	Value    string            `json:"value"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 type ResourceType struct {
 	MatchResources []ResourceValueType `json:"matchResources,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 // +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
@@ -170,11 +296,6 @@ type KubeArmorPolicySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Severity SeverityType `json:"severity"`
-
-	Tags    []string `json:"tags,omitempty"`
-	Message string   `json:"message,omitempty"`
-
 	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
@@ -183,7 +304,14 @@ type KubeArmorPolicySpec struct {
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Resource     ResourceType     `json:"resource,omitempty"`
 
-	Action ActionType `json:"action"`
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
 }
 
 // KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
