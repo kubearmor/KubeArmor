@@ -257,24 +257,22 @@ func (kh *K8sHandler) GetNodeIdentities() []string {
 // ================ //
 
 // PatchDeploymentWithAppArmorAnnotations Function
-func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, deploymentName string, annotations map[string]string) error {
+func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	count := len(appArmorAnnotations)
 
-	count := len(annotations)
-
-	for k, v := range annotations {
-		kv := `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
+	for k, v := range appArmorAnnotations {
+		spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
 
 		if count > 1 {
-			kv = kv + ","
+			spec = spec + ","
 		}
-		count--
 
-		spec = spec + kv
+		count--
 	}
 
 	spec = spec + `}}}}}`
@@ -293,15 +291,17 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentNam
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"spec":{"containers":[`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
+	count := len(seLinuxContexts)
 
 	for _, v := range seLinuxContexts {
-		spec = spec + v + ","
-	}
+		spec = spec + v
 
-	// delete last ','
-	if last := len(spec) - 1; last >= 0 && spec[last] == ',' {
-		spec = spec[:last]
+		if count > 1 {
+			spec = spec + ","
+		}
+
+		count--
 	}
 
 	spec = spec + `]}}}}`

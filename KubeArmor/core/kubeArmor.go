@@ -31,10 +31,17 @@ func init() {
 
 // KubeArmorDaemon Structure
 type KubeArmorDaemon struct {
+	// cluster
+	ClusterName string
+
+	// gRPC
+	gRPCPort string
+	LogPath  string
+
 	// options
-	EnableAuditd     bool
-	EnableHostPolicy bool
-	EnableSystemLog  bool
+	EnableAuditd         bool
+	EnableHostPolicy     bool
+	EnableEnforcerPerPod bool
 
 	// containers (from docker)
 	Containers     map[string]tp.Container
@@ -82,12 +89,25 @@ type KubeArmorDaemon struct {
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(enableAuditd, enableHostPolicy, enableSystemLog bool) *KubeArmorDaemon {
+func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
+
+	if clusterName == "" {
+		if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
+			dm.ClusterName = val
+		} else {
+			dm.ClusterName = "Default"
+		}
+	} else {
+		dm.ClusterName = clusterName
+	}
+
+	dm.gRPCPort = gRPCPort
+	dm.LogPath = logPath
 
 	dm.EnableAuditd = enableAuditd
 	dm.EnableHostPolicy = enableHostPolicy
-	dm.EnableSystemLog = enableSystemLog
+	dm.EnableEnforcerPerPod = enableEnforcerPerPod
 
 	dm.Containers = map[string]tp.Container{}
 	dm.ContainersLock = new(sync.RWMutex)
@@ -162,8 +182,8 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 // ================ //
 
 // InitLogFeeder Function
-func (dm *KubeArmorDaemon) InitLogFeeder(gRPCPort, logPath string) bool {
-	dm.LogFeeder = fd.NewFeeder(gRPCPort, logPath, dm.EnableSystemLog)
+func (dm *KubeArmorDaemon) InitLogFeeder() bool {
+	dm.LogFeeder = fd.NewFeeder(dm.ClusterName, dm.gRPCPort, dm.LogPath)
 	if dm.LogFeeder == nil {
 		return false
 	}
@@ -299,12 +319,12 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(gRPCPort, logPath string, enableAuditd, enableHostPolicy, enableSystemLog bool) {
+func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) {
 	// create a daemon
-	dm := NewKubeArmorDaemon(enableAuditd, enableHostPolicy, enableSystemLog)
+	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableAuditd, enableHostPolicy, enableEnforcerPerPod)
 
 	// initialize log feeder
-	if !dm.InitLogFeeder(gRPCPort, logPath) {
+	if !dm.InitLogFeeder() {
 		kg.Err("Failed to intialize the log feeder")
 		return
 	}
@@ -352,7 +372,11 @@ func KubeArmor(gRPCPort, logPath string, enableAuditd, enableHostPolicy, enableS
 
 		return
 	}
-	dm.LogFeeder.Print("Started to protect a host and containers")
+	if dm.EnableHostPolicy {
+		dm.LogFeeder.Print("Started to protect a host and containers")
+	} else {
+		dm.LogFeeder.Print("Started to protect containers")
+	}
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
