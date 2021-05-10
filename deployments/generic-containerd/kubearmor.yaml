@@ -61,7 +61,9 @@ spec:
         securityContext:
           privileged: true
         args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
-        # args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableHostPolicy"]
+        env:
+        - name: CLUSTER_NAME
+          value: "Default" # UPDATE THIS DEPENDING ON YOUR ENVIRONMENT
         ports:
         - containerPort: 32767
         volumeMounts:
@@ -97,13 +99,6 @@ spec:
               fi;
           initialDelaySeconds: 60
           periodSeconds: 10
-        # resources:
-        #   limits:
-        #     cpu: "1"
-        #     memory: 500Mi
-        #   requests:
-        #     cpu: 100m
-        #     memory: 200Mi
         terminationMessagePolicy: File
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
