@@ -77,7 +77,7 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) 
 }
 
 // UpdateSecurityProfiles Function
-func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) {
+func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, full bool) {
 	if strings.Contains(re.enforcerType, "apparmor") {
 		appArmorProfiles := []string{}
 
@@ -92,9 +92,9 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) 
 
 		for _, profile := range appArmorProfiles {
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
+				re.appArmorEnforcer.RegisterAppArmorProfile(profile, full)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(profile, full)
 			}
 		}
 	} else if strings.Contains(re.enforcerType, "selinux") {

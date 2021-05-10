@@ -17,11 +17,11 @@ import (
 
 // AppArmorEnforcer Structure
 type AppArmorEnforcer struct {
-	// logs
-	LogFeeder *fd.Feeder
-
 	// host name
 	HostName string
+
+	// logs
+	LogFeeder *fd.Feeder
 
 	// options
 	EnableAuditd     bool
@@ -39,11 +39,11 @@ type AppArmorEnforcer struct {
 func NewAppArmorEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
 
-	// logs
-	ae.LogFeeder = feeder
-
 	// host name
 	ae.HostName = kl.GetHostName()
+
+	// logs
+	ae.LogFeeder = feeder
 
 	// options
 	ae.EnableAuditd = enableAuditd
@@ -140,7 +140,7 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 // ================================= //
 
 // RegisterAppArmorProfile Function
-func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
+func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string, full bool) bool {
 	apparmorDefault := "## == Managed by KubeArmor == ##\n" +
 		"\n" +
 		"#include <tunables/global>\n" +
@@ -184,12 +184,20 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 	if _, err := os.Stat("/etc/apparmor.d/" + profileName); err == nil {
 		content, err := ioutil.ReadFile("/etc/apparmor.d/" + profileName)
 		if err != nil {
-			ae.LogFeeder.Printf("Unabale to register an AppArmor profile (%s, %s)", profileName, err.Error())
+			if full {
+				ae.LogFeeder.Printf("Unable to register an AppArmor profile (%s, %s)", profileName, err.Error())
+			} else {
+				ae.LogFeeder.Printf("Unable to read the existing AppArmor profile (%s, %s)", profileName, err.Error())
+			}
 			return false
 		}
 
 		if !strings.Contains(string(content), "KubeArmor") {
-			ae.LogFeeder.Printf("Unabale to register an AppArmor profile (%s) (out-of-control)", profileName)
+			if full {
+				ae.LogFeeder.Printf("Unable to register an AppArmor profile (%s) (out-of-control)", profileName)
+			} else {
+				ae.LogFeeder.Printf("Unable to control the existing AppArmor profile (%s) (out-of-control)", profileName)
+			}
 			return false
 		}
 	} else {
@@ -209,15 +217,26 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 	}
 
 	if output, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
-		if _, ok := ae.AppArmorProfiles[profileName]; !ok {
-			ae.AppArmorProfiles[profileName] = 1
-			ae.LogFeeder.Printf("Registered an AppArmor profile (%s)", profileName)
+		if full {
+			if _, ok := ae.AppArmorProfiles[profileName]; !ok {
+				ae.AppArmorProfiles[profileName] = 1
+				ae.LogFeeder.Printf("Registered an AppArmor profile (%s)", profileName)
+			} else {
+				ae.AppArmorProfiles[profileName]++
+				ae.LogFeeder.Printf("Increased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]-1, ae.AppArmorProfiles[profileName], profileName)
+			}
 		} else {
-			ae.AppArmorProfiles[profileName]++
-			ae.LogFeeder.Printf("Increased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]-1, ae.AppArmorProfiles[profileName], profileName)
+			if _, ok := ae.AppArmorProfiles[profileName]; ok {
+				delete(ae.AppArmorProfiles, profileName)
+			}
+			ae.LogFeeder.Printf("Initialize an AppArmor profile (%s)", profileName)
 		}
 	} else {
-		ae.LogFeeder.Printf("Failed to register an AppArmor profile (%s, %s, %s)", profileName, output, err.Error())
+		if full {
+			ae.LogFeeder.Printf("Failed to register an AppArmor profile (%s, %s, %s)", profileName, output, err.Error())
+		} else {
+			ae.LogFeeder.Printf("Failed to initialize an AppArmor profile (%s, %s, %s)", profileName, output, err.Error())
+		}
 		return false
 	}
 
@@ -225,44 +244,38 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 }
 
 // UnregisterAppArmorProfile Function
-func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
-	ae.AppArmorProfilesLock.Lock()
-	defer ae.AppArmorProfilesLock.Unlock()
+func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string, full bool) bool {
+	if full {
+		ae.AppArmorProfilesLock.Lock()
+		defer ae.AppArmorProfilesLock.Unlock()
 
-	if _, err := os.Stat("/etc/apparmor.d/" + profileName); err == nil {
-		content, err := ioutil.ReadFile("/etc/apparmor.d/" + profileName)
-		if err != nil {
-			ae.LogFeeder.Printf("Unabale to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
-			return false
+		if _, err := os.Stat("/etc/apparmor.d/" + profileName); err == nil {
+			content, err := ioutil.ReadFile("/etc/apparmor.d/" + profileName)
+			if err != nil {
+				ae.LogFeeder.Printf("Unable to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
+				return false
+			}
+
+			if !strings.Contains(string(content), "KubeArmor") {
+				ae.LogFeeder.Printf("Unabale to unregister an AppArmor profile (%s) (out-of-control)", profileName)
+				return false
+			}
 		}
 
-		if !strings.Contains(string(content), "KubeArmor") {
-			ae.LogFeeder.Printf("Unabale to unregister an AppArmor profile (%s) (out-of-control)", profileName)
-			return false
-		}
-	}
-
-	if referenceCount, ok := ae.AppArmorProfiles[profileName]; ok {
-		if referenceCount > 1 {
-			ae.AppArmorProfiles[profileName]--
-			ae.LogFeeder.Printf("Decreased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]+1, ae.AppArmorProfiles[profileName], profileName)
+		if referenceCount, ok := ae.AppArmorProfiles[profileName]; ok {
+			if referenceCount > 1 {
+				ae.AppArmorProfiles[profileName]--
+				ae.LogFeeder.Printf("Decreased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]+1, ae.AppArmorProfiles[profileName], profileName)
+			} else {
+				delete(ae.AppArmorProfiles, profileName)
+				ae.LogFeeder.Printf("Unregistered an AppArmor profile (%s)", profileName)
+			}
 		} else {
-			if _, err := kl.GetCommandOutputWithErr("apparmor_parser", []string{"-R", "/etc/apparmor.d/" + profileName}); err != nil {
-				ae.LogFeeder.Printf("Failed to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
-				return false
-			}
-
-			if err := os.Remove("/etc/apparmor.d/" + profileName); err != nil {
-				ae.LogFeeder.Err(err.Error())
-				return false
-			}
-
-			delete(ae.AppArmorProfiles, profileName)
-			ae.LogFeeder.Printf("Unregistered an AppArmor profile (%s)", profileName)
+			ae.LogFeeder.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
+			return false
 		}
 	} else {
-		ae.LogFeeder.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
-		return false
+		return ae.RegisterAppArmorProfile(profileName, false)
 	}
 
 	return true
@@ -272,6 +285,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 // == AppArmor Host Profile Management == //
 // ====================================== //
 
+// CreateAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 	apparmorHostDefault := "## == Managed by KubeArmor == ##\n" +
 		"\n" +
@@ -315,6 +329,7 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 	return nil
 }
 
+// RemoveAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) RemoveAppArmorHostProfile() error {
 	if _, err := os.Stat("/tmp/kubearmor.host"); err != nil {
 		return nil
@@ -416,8 +431,14 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 		}
 	}
 
-	for _, appArmorProfile := range appArmorProfiles {
-		ae.UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
+	if conGroup.PolicyEnabled {
+		for _, appArmorProfile := range appArmorProfiles {
+			ae.UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
+		}
+	} else { // PolicyDisabled
+		for _, appArmorProfile := range appArmorProfiles {
+			ae.UpdateAppArmorProfile(conGroup, appArmorProfile, []tp.SecurityPolicy{})
+		}
 	}
 }
 
@@ -460,9 +481,9 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 
 // UpdateHostSecurityPolicies Function
 func (ae *AppArmorEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
-	if !ae.EnableHostPolicy {
-		return
+	if ae.EnableHostPolicy {
+		ae.UpdateAppArmorHostProfile(secPolicies)
+	} else {
+		ae.UpdateAppArmorHostProfile([]tp.HostSecurityPolicy{})
 	}
-
-	ae.UpdateAppArmorHostProfile(secPolicies)
 }
