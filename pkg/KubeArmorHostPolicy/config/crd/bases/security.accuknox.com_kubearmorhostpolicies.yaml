@@ -94,6 +94,9 @@ spec:
                           items:
                             type: string
                           type: array
+                      required:
+                      - capability
+                      - fromSource
                       type: object
                     type: array
                   message:
@@ -106,6 +109,8 @@ spec:
                     items:
                       type: string
                     type: array
+                required:
+                - matchCapabilities
                 type: object
               file:
                 properties:
@@ -300,6 +305,9 @@ spec:
                           items:
                             type: string
                           type: array
+                      required:
+                      - fromSource
+                      - protocol
                       type: object
                     type: array
                   message:
@@ -312,6 +320,8 @@ spec:
                     items:
                       type: string
                     type: array
+                required:
+                - matchProtocols
                 type: object
               nodeSelector:
                 properties:

@@ -198,8 +198,8 @@ type FileType struct {
 type MatchNetworkProtocolStringType string
 
 type MatchNetworkProtocolType struct {
-	Protocol   MatchNetworkProtocolStringType `json:"protocol,omitempty"`
-	FromSource []MatchSourceType              `json:"fromSource,omitempty"`
+	Protocol   MatchNetworkProtocolStringType `json:"protocol"`
+	FromSource []MatchSourceType              `json:"fromSource"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -212,7 +212,7 @@ type MatchNetworkProtocolType struct {
 }
 
 type NetworkType struct {
-	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols,omitempty"`
+	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -228,8 +228,8 @@ type NetworkType struct {
 type MatchCapabilitiesStringType string
 
 type MatchCapabilitiesType struct {
-	Capability MatchCapabilitiesStringType `json:"capability,omitempty"`
-	FromSource []MatchSourceType           `json:"fromSource,omitempty"`
+	Capability MatchCapabilitiesStringType `json:"capability"`
+	FromSource []MatchSourceType           `json:"fromSource"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -242,7 +242,7 @@ type MatchCapabilitiesType struct {
 }
 
 type CapabilitiesType struct {
-	MatchCapabilities []MatchCapabilitiesType `json:"matchCapabilities,omitempty"`
+	MatchCapabilities []MatchCapabilitiesType `json:"matchCapabilities"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

@@ -27,41 +27,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if path.Severity > 0 {
-							match.Severity = strconv.Itoa(path.Severity)
-						} else if secPolicy.Spec.Process.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(path.Tags) > 0 {
-							match.Tags = path.Tags
-						} else if len(secPolicy.Spec.Process.Tags) > 0 {
-							match.Tags = secPolicy.Spec.Process.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(path.Message) > 0 {
-							match.Message = path.Message
-						} else if len(secPolicy.Spec.Process.Message) > 0 {
-							match.Message = secPolicy.Spec.Process.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(path.Severity)
+						match.Tags = path.Tags
+						match.Message = path.Message
 
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = path.Path
 
-						if len(path.Action) > 0 {
-							match.Action = path.Action
-						} else if len(secPolicy.Spec.Process.Action) > 0 {
-							match.Action = secPolicy.Spec.Process.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = path.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -71,41 +45,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -113,41 +61,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -163,41 +85,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if dir.Severity > 0 {
-							match.Severity = strconv.Itoa(dir.Severity)
-						} else if secPolicy.Spec.Process.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(dir.Tags) > 0 {
-							match.Tags = dir.Tags
-						} else if len(secPolicy.Spec.Process.Tags) > 0 {
-							match.Tags = secPolicy.Spec.Process.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(dir.Message) > 0 {
-							match.Message = dir.Message
-						} else if len(secPolicy.Spec.Process.Message) > 0 {
-							match.Message = secPolicy.Spec.Process.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(dir.Severity)
+						match.Tags = dir.Tags
+						match.Message = dir.Message
 
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = dir.Directory
 
-						if len(dir.Action) > 0 {
-							match.Action = dir.Action
-						} else if len(secPolicy.Spec.Process.Action) > 0 {
-							match.Action = secPolicy.Spec.Process.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = dir.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -207,41 +103,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -249,41 +119,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -303,41 +147,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if path.Severity > 0 {
-							match.Severity = strconv.Itoa(path.Severity)
-						} else if secPolicy.Spec.File.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(path.Tags) > 0 {
-							match.Tags = path.Tags
-						} else if len(secPolicy.Spec.File.Tags) > 0 {
-							match.Tags = secPolicy.Spec.File.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(path.Message) > 0 {
-							match.Message = path.Message
-						} else if len(secPolicy.Spec.File.Message) > 0 {
-							match.Message = secPolicy.Spec.File.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(path.Severity)
+						match.Tags = path.Tags
+						match.Message = path.Message
 
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = path.Path
 
-						if len(path.Action) > 0 {
-							match.Action = path.Action
-						} else if len(secPolicy.Spec.File.Action) > 0 {
-							match.Action = secPolicy.Spec.File.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = path.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -347,41 +165,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -389,41 +181,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -439,41 +205,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if dir.Severity > 0 {
-							match.Severity = strconv.Itoa(dir.Severity)
-						} else if secPolicy.Spec.File.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(dir.Tags) > 0 {
-							match.Tags = dir.Tags
-						} else if len(secPolicy.Spec.File.Tags) > 0 {
-							match.Tags = secPolicy.Spec.File.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(dir.Message) > 0 {
-							match.Message = dir.Message
-						} else if len(secPolicy.Spec.File.Message) > 0 {
-							match.Message = secPolicy.Spec.File.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(dir.Severity)
+						match.Tags = dir.Tags
+						match.Message = dir.Message
 
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = dir.Directory
 
-						if len(dir.Action) > 0 {
-							match.Action = dir.Action
-						} else if len(secPolicy.Spec.File.Action) > 0 {
-							match.Action = secPolicy.Spec.File.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = dir.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -483,41 +223,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -525,41 +239,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -579,29 +267,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if proto.Severity > 0 {
-							match.Severity = strconv.Itoa(proto.Severity)
-						} else if secPolicy.Spec.Network.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Network.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(proto.Tags) > 0 {
-							match.Tags = proto.Tags
-						} else if len(secPolicy.Spec.Network.Tags) > 0 {
-							match.Tags = secPolicy.Spec.Network.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(proto.Message) > 0 {
-							match.Message = proto.Message
-						} else if len(secPolicy.Spec.Network.Message) > 0 {
-							match.Message = secPolicy.Spec.Network.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(proto.Severity)
+						match.Tags = proto.Tags
+						match.Message = proto.Message
 
 						match.Source = ""
 						match.Operation = "Network"
@@ -622,13 +290,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 							continue
 						}
 
-						if len(proto.Action) > 0 {
-							match.Action = proto.Action
-						} else if len(secPolicy.Spec.Network.Action) > 0 {
-							match.Action = secPolicy.Spec.Network.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = proto.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -638,29 +300,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if proto.Severity > 0 {
-									match.Severity = strconv.Itoa(proto.Severity)
-								} else if secPolicy.Spec.Network.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Network.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(proto.Tags) > 0 {
-									match.Tags = proto.Tags
-								} else if len(secPolicy.Spec.Network.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Network.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(proto.Message) > 0 {
-									match.Message = proto.Message
-								} else if len(secPolicy.Spec.Network.Message) > 0 {
-									match.Message = secPolicy.Spec.Network.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(proto.Severity)
+								match.Tags = proto.Tags
+								match.Message = proto.Message
 
 								match.Source = src.Path
 								match.Operation = "Network"
@@ -679,13 +321,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 									continue
 								}
 
-								if len(proto.Action) > 0 {
-									match.Action = proto.Action
-								} else if len(secPolicy.Spec.Network.Action) > 0 {
-									match.Action = secPolicy.Spec.Network.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = proto.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -693,29 +329,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if proto.Severity > 0 {
-									match.Severity = strconv.Itoa(proto.Severity)
-								} else if secPolicy.Spec.Network.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Network.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(proto.Tags) > 0 {
-									match.Tags = proto.Tags
-								} else if len(secPolicy.Spec.Network.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Network.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(proto.Message) > 0 {
-									match.Message = proto.Message
-								} else if len(secPolicy.Spec.Network.Message) > 0 {
-									match.Message = secPolicy.Spec.Network.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(proto.Severity)
+								match.Tags = proto.Tags
+								match.Message = proto.Message
 
 								match.Source = src.Directory
 								match.Operation = "Network"
@@ -734,13 +350,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 									continue
 								}
 
-								if len(proto.Action) > 0 {
-									match.Action = proto.Action
-								} else if len(secPolicy.Spec.Network.Action) > 0 {
-									match.Action = secPolicy.Spec.Network.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = proto.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -756,29 +366,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if cap.Severity > 0 {
-							match.Severity = strconv.Itoa(cap.Severity)
-						} else if secPolicy.Spec.Capabilities.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Capabilities.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(cap.Tags) > 0 {
-							match.Tags = cap.Tags
-						} else if len(secPolicy.Spec.Capabilities.Tags) > 0 {
-							match.Tags = secPolicy.Spec.Capabilities.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(cap.Message) > 0 {
-							match.Message = cap.Message
-						} else if len(secPolicy.Spec.Capabilities.Message) > 0 {
-							match.Message = secPolicy.Spec.Capabilities.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(cap.Severity)
+						match.Tags = cap.Tags
+						match.Message = cap.Message
 
 						switch cap.Capability {
 						case "net_raw":
@@ -790,13 +380,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 							continue
 						}
 
-						if len(cap.Action) > 0 {
-							match.Action = cap.Action
-						} else if len(secPolicy.Spec.Capabilities.Action) > 0 {
-							match.Action = secPolicy.Spec.Capabilities.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = cap.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -806,29 +390,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if cap.Severity > 0 {
-									match.Severity = strconv.Itoa(cap.Severity)
-								} else if secPolicy.Spec.Capabilities.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Capabilities.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(cap.Tags) > 0 {
-									match.Tags = cap.Tags
-								} else if len(secPolicy.Spec.Capabilities.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Capabilities.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(cap.Message) > 0 {
-									match.Message = cap.Message
-								} else if len(secPolicy.Spec.Capabilities.Message) > 0 {
-									match.Message = secPolicy.Spec.Capabilities.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(cap.Severity)
+								match.Tags = cap.Tags
+								match.Message = cap.Message
 
 								switch cap.Capability {
 								case "net_raw":
@@ -840,13 +404,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 									continue
 								}
 
-								if len(cap.Action) > 0 {
-									match.Action = cap.Action
-								} else if len(secPolicy.Spec.Capabilities.Action) > 0 {
-									match.Action = secPolicy.Spec.Capabilities.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = cap.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -854,29 +412,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if cap.Severity > 0 {
-									match.Severity = strconv.Itoa(cap.Severity)
-								} else if secPolicy.Spec.Capabilities.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Capabilities.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(cap.Tags) > 0 {
-									match.Tags = cap.Tags
-								} else if len(secPolicy.Spec.Capabilities.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Capabilities.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(cap.Message) > 0 {
-									match.Message = cap.Message
-								} else if len(secPolicy.Spec.Capabilities.Message) > 0 {
-									match.Message = secPolicy.Spec.Capabilities.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(cap.Severity)
+								match.Tags = cap.Tags
+								match.Message = cap.Message
 
 								switch cap.Capability {
 								case "net_raw":
@@ -888,13 +426,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 									continue
 								}
 
-								if len(cap.Action) > 0 {
-									match.Action = cap.Action
-								} else if len(secPolicy.Spec.Capabilities.Action) > 0 {
-									match.Action = secPolicy.Spec.Capabilities.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = cap.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -935,41 +467,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if path.Severity > 0 {
-							match.Severity = strconv.Itoa(path.Severity)
-						} else if secPolicy.Spec.Process.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(path.Tags) > 0 {
-							match.Tags = path.Tags
-						} else if len(secPolicy.Spec.Process.Tags) > 0 {
-							match.Tags = secPolicy.Spec.Process.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(path.Message) > 0 {
-							match.Message = path.Message
-						} else if len(secPolicy.Spec.Process.Message) > 0 {
-							match.Message = secPolicy.Spec.Process.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(path.Severity)
+						match.Tags = path.Tags
+						match.Message = path.Message
 
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = path.Path
 
-						if len(path.Action) > 0 {
-							match.Action = path.Action
-						} else if len(secPolicy.Spec.Process.Action) > 0 {
-							match.Action = secPolicy.Spec.Process.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = path.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -979,41 +485,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -1021,41 +501,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -1071,41 +525,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if dir.Severity > 0 {
-							match.Severity = strconv.Itoa(dir.Severity)
-						} else if secPolicy.Spec.Process.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(dir.Tags) > 0 {
-							match.Tags = dir.Tags
-						} else if len(secPolicy.Spec.Process.Tags) > 0 {
-							match.Tags = secPolicy.Spec.Process.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(dir.Message) > 0 {
-							match.Message = dir.Message
-						} else if len(secPolicy.Spec.Process.Message) > 0 {
-							match.Message = secPolicy.Spec.Process.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(dir.Severity)
+						match.Tags = dir.Tags
+						match.Message = dir.Message
 
 						match.Source = ""
 						match.Operation = "Process"
 						match.Resource = dir.Directory
 
-						if len(dir.Action) > 0 {
-							match.Action = dir.Action
-						} else if len(secPolicy.Spec.Process.Action) > 0 {
-							match.Action = secPolicy.Spec.Process.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = dir.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -1115,41 +543,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Path
 								match.Operation = "Process"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -1157,41 +559,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.Process.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Process.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.Process.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Process.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.Process.Message) > 0 {
-									match.Message = secPolicy.Spec.Process.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Directory
 								match.Operation = "Process"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.Process.Action) > 0 {
-									match.Action = secPolicy.Spec.Process.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -1211,41 +587,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if path.Severity > 0 {
-							match.Severity = strconv.Itoa(path.Severity)
-						} else if secPolicy.Spec.File.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(path.Tags) > 0 {
-							match.Tags = path.Tags
-						} else if len(secPolicy.Spec.File.Tags) > 0 {
-							match.Tags = secPolicy.Spec.File.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(path.Message) > 0 {
-							match.Message = path.Message
-						} else if len(secPolicy.Spec.File.Message) > 0 {
-							match.Message = secPolicy.Spec.File.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(path.Severity)
+						match.Tags = path.Tags
+						match.Message = path.Message
 
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = path.Path
 
-						if len(path.Action) > 0 {
-							match.Action = path.Action
-						} else if len(secPolicy.Spec.File.Action) > 0 {
-							match.Action = secPolicy.Spec.File.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = path.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -1255,41 +605,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -1297,41 +621,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if path.Severity > 0 {
-									match.Severity = strconv.Itoa(path.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(path.Tags) > 0 {
-									match.Tags = path.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(path.Message) > 0 {
-									match.Message = path.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(path.Severity)
+								match.Tags = path.Tags
+								match.Message = path.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
 								match.Resource = path.Path
 
-								if len(path.Action) > 0 {
-									match.Action = path.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = path.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -1347,41 +645,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 						match.PolicyName = secPolicy.Metadata["policyName"]
 
-						if dir.Severity > 0 {
-							match.Severity = strconv.Itoa(dir.Severity)
-						} else if secPolicy.Spec.File.Severity > 0 {
-							match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-						} else {
-							match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-						}
-
-						if len(dir.Tags) > 0 {
-							match.Tags = dir.Tags
-						} else if len(secPolicy.Spec.File.Tags) > 0 {
-							match.Tags = secPolicy.Spec.File.Tags
-						} else {
-							match.Tags = secPolicy.Spec.Tags
-						}
-
-						if len(dir.Message) > 0 {
-							match.Message = dir.Message
-						} else if len(secPolicy.Spec.File.Message) > 0 {
-							match.Message = secPolicy.Spec.File.Message
-						} else {
-							match.Message = secPolicy.Spec.Message
-						}
+						match.Severity = strconv.Itoa(dir.Severity)
+						match.Tags = dir.Tags
+						match.Message = dir.Message
 
 						match.Source = ""
 						match.Operation = "File"
 						match.Resource = dir.Directory
 
-						if len(dir.Action) > 0 {
-							match.Action = dir.Action
-						} else if len(secPolicy.Spec.File.Action) > 0 {
-							match.Action = secPolicy.Spec.File.Action
-						} else {
-							match.Action = secPolicy.Spec.Action
-						}
+						match.Action = dir.Action
 
 						matches.Policies = append(matches.Policies, match)
 					} else {
@@ -1391,41 +663,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Path
 								match.Operation = "File"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -1433,41 +679,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if dir.Severity > 0 {
-									match.Severity = strconv.Itoa(dir.Severity)
-								} else if secPolicy.Spec.File.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.File.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(dir.Tags) > 0 {
-									match.Tags = dir.Tags
-								} else if len(secPolicy.Spec.File.Tags) > 0 {
-									match.Tags = secPolicy.Spec.File.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(dir.Message) > 0 {
-									match.Message = dir.Message
-								} else if len(secPolicy.Spec.File.Message) > 0 {
-									match.Message = secPolicy.Spec.File.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(dir.Severity)
+								match.Tags = dir.Tags
+								match.Message = dir.Message
 
 								match.Source = src.Directory
 								match.Operation = "File"
 								match.Resource = dir.Directory
 
-								if len(dir.Action) > 0 {
-									match.Action = dir.Action
-								} else if len(secPolicy.Spec.File.Action) > 0 {
-									match.Action = secPolicy.Spec.File.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = dir.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -1489,29 +709,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if proto.Severity > 0 {
-									match.Severity = strconv.Itoa(proto.Severity)
-								} else if secPolicy.Spec.Network.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Network.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(proto.Tags) > 0 {
-									match.Tags = proto.Tags
-								} else if len(secPolicy.Spec.Network.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Network.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(proto.Message) > 0 {
-									match.Message = proto.Message
-								} else if len(secPolicy.Spec.Network.Message) > 0 {
-									match.Message = secPolicy.Spec.Network.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(proto.Severity)
+								match.Tags = proto.Tags
+								match.Message = proto.Message
 
 								match.Source = src.Path
 								match.Operation = "Network"
@@ -1530,13 +730,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 									continue
 								}
 
-								if len(proto.Action) > 0 {
-									match.Action = proto.Action
-								} else if len(secPolicy.Spec.Network.Action) > 0 {
-									match.Action = secPolicy.Spec.Network.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = proto.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -1544,29 +738,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if proto.Severity > 0 {
-									match.Severity = strconv.Itoa(proto.Severity)
-								} else if secPolicy.Spec.Network.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Network.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(proto.Tags) > 0 {
-									match.Tags = proto.Tags
-								} else if len(secPolicy.Spec.Network.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Network.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(proto.Message) > 0 {
-									match.Message = proto.Message
-								} else if len(secPolicy.Spec.Network.Message) > 0 {
-									match.Message = secPolicy.Spec.Network.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(proto.Severity)
+								match.Tags = proto.Tags
+								match.Message = proto.Message
 
 								match.Source = src.Directory
 								match.Operation = "Network"
@@ -1585,13 +759,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 									continue
 								}
 
-								if len(proto.Action) > 0 {
-									match.Action = proto.Action
-								} else if len(secPolicy.Spec.Network.Action) > 0 {
-									match.Action = secPolicy.Spec.Network.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = proto.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
@@ -1609,29 +777,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if cap.Severity > 0 {
-									match.Severity = strconv.Itoa(cap.Severity)
-								} else if secPolicy.Spec.Capabilities.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Capabilities.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(cap.Tags) > 0 {
-									match.Tags = cap.Tags
-								} else if len(secPolicy.Spec.Capabilities.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Capabilities.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(cap.Message) > 0 {
-									match.Message = cap.Message
-								} else if len(secPolicy.Spec.Capabilities.Message) > 0 {
-									match.Message = secPolicy.Spec.Capabilities.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(cap.Severity)
+								match.Tags = cap.Tags
+								match.Message = cap.Message
 
 								switch cap.Capability {
 								case "net_raw":
@@ -1643,13 +791,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 									continue
 								}
 
-								if len(cap.Action) > 0 {
-									match.Action = cap.Action
-								} else if len(secPolicy.Spec.Capabilities.Action) > 0 {
-									match.Action = secPolicy.Spec.Capabilities.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = cap.Action
 
 								matches.Policies = append(matches.Policies, match)
 							} else if len(src.Directory) > 0 {
@@ -1657,29 +799,9 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 								match.PolicyName = secPolicy.Metadata["policyName"]
 
-								if cap.Severity > 0 {
-									match.Severity = strconv.Itoa(cap.Severity)
-								} else if secPolicy.Spec.Capabilities.Severity > 0 {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Capabilities.Severity)
-								} else {
-									match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-								}
-
-								if len(cap.Tags) > 0 {
-									match.Tags = cap.Tags
-								} else if len(secPolicy.Spec.Capabilities.Tags) > 0 {
-									match.Tags = secPolicy.Spec.Capabilities.Tags
-								} else {
-									match.Tags = secPolicy.Spec.Tags
-								}
-
-								if len(cap.Message) > 0 {
-									match.Message = cap.Message
-								} else if len(secPolicy.Spec.Capabilities.Message) > 0 {
-									match.Message = secPolicy.Spec.Capabilities.Message
-								} else {
-									match.Message = secPolicy.Spec.Message
-								}
+								match.Severity = strconv.Itoa(cap.Severity)
+								match.Tags = cap.Tags
+								match.Message = cap.Message
 
 								switch cap.Capability {
 								case "net_raw":
@@ -1691,13 +813,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 									continue
 								}
 
-								if len(cap.Action) > 0 {
-									match.Action = cap.Action
-								} else if len(secPolicy.Spec.Capabilities.Action) > 0 {
-									match.Action = secPolicy.Spec.Capabilities.Action
-								} else {
-									match.Action = secPolicy.Spec.Action
-								}
+								match.Action = cap.Action
 
 								matches.Policies = append(matches.Policies, match)
 							}
