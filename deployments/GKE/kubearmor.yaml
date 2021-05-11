@@ -60,7 +60,8 @@ spec:
         imagePullPolicy: Always
         securityContext:
           privileged: true
-        args: ["-port=32767", "-output=/tmp/kubearmor.log"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
+        #args: ["-port=32767", "-output=/tmp/kubearmor.log"]
         ports:
         - containerPort: 32767
         volumeMounts:
