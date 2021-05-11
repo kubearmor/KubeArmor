@@ -42,7 +42,7 @@ image_properties:
 trivy_properties:
    status:
    #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW
-     enabled: "false"
+     enabled: "true"
      level: high
      value: "10"  
    image:
@@ -74,7 +74,7 @@ clair_properties:
 #***********************************************************************************************************************************#
 anchore_properties:
   status:
-    enabled: "false"
+    enabled: "true"
   image:
       name: artifactory.accuknox.com/accuknox/anchore-engine-cli:latest
       docker_run_params:  --entrypoint='' 
@@ -89,6 +89,8 @@ anchore_properties:
 #qualitygate_timeout is the maximum timeout of qualitygate to 10 Min# 
 #***********************************************************************************************************************************#
 sonar_properties:
+  status:
+    enabled: "true"
   quality_gate:
     enabled: "false"
     timeout: "5" 
@@ -151,3 +153,11 @@ publish_config:
       dev: https://artifactory.accuknox.com/repository/helm-dev/
       verify: https://artifactory.accuknox.com/repository/helm-verify/
       prod: https://artifactory.accuknox.com/repository/helm-prod/
+
+deploy_config:
+  project: 'accuknox'
+  gcr_credentials: 'gcr'
+  cd_credentials: "github-token"
+  cd_repo: github.com/accuknox/Argo-CD-Manifests.git
+  cd_user: 'accuknox'
+  cd_email: 'cd@accuknox.com'
