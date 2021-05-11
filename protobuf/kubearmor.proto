@@ -15,7 +15,6 @@ message Message {
   string UpdatedTime = 2;
 
   string ClusterName = 3;
-
   string HostName = 4;
   string HostIP = 5;
 

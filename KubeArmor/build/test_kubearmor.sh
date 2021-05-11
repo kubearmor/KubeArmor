@@ -31,7 +31,7 @@ fi
 cd $ARMOR_HOME/tests
 
 # test scenarios
-./test-scenarios-local.sh -y
+./test-scenarios-local.sh
 
 RESULT=$?
 

@@ -405,14 +405,10 @@ else
     echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
 fi
 
-while true;
-do
-    read -p "Do you want to delete log files (Yn)?" yn
-    case $yn in
-        [Nn]*) break;;
-        *) sudo rm -f $ARMOR_MSG $ARMOR_LOG; break;;
-    esac
-done
+echo "[INFO] Remove temporary logs after 10 seconds"
+sleep 10
+sudo rm -f $ARMOR_MSG $ARMOR_LOG
+echo "[INFO] Removed the temporary logs"
 
 if [ $res_microservice != 0 ]; then
     exit 1

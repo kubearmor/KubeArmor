@@ -93,6 +93,8 @@ spec:
                           items:
                             type: string
                           type: array
+                      required:
+                      - capability
                       type: object
                     type: array
                   message:
@@ -105,6 +107,8 @@ spec:
                     items:
                       type: string
                     type: array
+                required:
+                - matchCapabilities
                 type: object
               file:
                 properties:
@@ -299,6 +303,8 @@ spec:
                           items:
                             type: string
                           type: array
+                      required:
+                      - protocol
                       type: object
                     type: array
                   message:
@@ -311,6 +317,8 @@ spec:
                     items:
                       type: string
                     type: array
+                required:
+                - matchProtocols
                 type: object
               process:
                 properties:
@@ -506,6 +514,8 @@ spec:
                     items:
                       type: string
                     type: array
+                required:
+                - matchResources
                 type: object
               selector:
                 properties:

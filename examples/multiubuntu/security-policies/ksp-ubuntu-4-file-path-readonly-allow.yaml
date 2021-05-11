@@ -5,7 +5,7 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 10
-  message: "a critical file was accssed"
+  message: "a critical file was accessed"
   tags:
   - WARNNING
   selector:

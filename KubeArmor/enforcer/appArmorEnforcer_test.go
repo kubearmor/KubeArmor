@@ -8,7 +8,7 @@ import (
 
 func TestAppArmorEnforcer(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none", false, "Default")
+	logFeeder := fd.NewFeeder("Default", "32767", "none")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -44,7 +44,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 func TestAppArmorProfile(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none", false, "Default")
+	logFeeder := fd.NewFeeder("Default", "32767", "none")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -62,7 +62,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Register AppArmorProfile
 
-	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
+	if ok := enforcer.RegisterAppArmorProfile("test-profile", true); !ok {
 		t.Error("[FAIL] Failed to register AppArmorProfile")
 		return
 	}
@@ -71,7 +71,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Unregister AppArmorProfile
 
-	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
+	if ok := enforcer.UnregisterAppArmorProfile("test-profile", true); !ok {
 		t.Error("[FAIL] Failed to unregister AppArmorProfile")
 		return
 	}
@@ -98,7 +98,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 func TestHostAppArmorProfile(t *testing.T) {
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none", false, "Default")
+	logFeeder := fd.NewFeeder("Default", "32767", "none")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return

@@ -6,7 +6,7 @@ import (
 
 func TestFeeder(t *testing.T) {
 	// create Feeder
-	feeder := NewFeeder("32767", "none", false, "Default")
+	feeder := NewFeeder("Default", "32767", "none")
 	if feeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
