@@ -42,7 +42,7 @@ image_properties:
 trivy_properties:
    status:
    #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW
-     enabled: "true"
+     enabled: "false"
      level: high
      value: "10"  
    image:
@@ -74,7 +74,7 @@ clair_properties:
 #***********************************************************************************************************************************#
 anchore_properties:
   status:
-    enabled: "true"
+    enabled: "false"
   image:
       name: artifactory.accuknox.com/accuknox/anchore-engine-cli:latest
       docker_run_params:  --entrypoint='' 
@@ -90,7 +90,7 @@ anchore_properties:
 #***********************************************************************************************************************************#
 sonar_properties:
   status:
-    enabled: "true"
+    enabled: "false"
   quality_gate:
     enabled: "false"
     timeout: "5" 
