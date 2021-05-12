@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{.Values.kubearmor.name }}
+  namespace: kube-system
+  labels:
+    daemonset: kubearmor
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor
+  template:
+    metadata:
+      labels:
+        container: kubearmor
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+    spec:
+      serviceAccountName: {{.Values.kubearmor.serviceAccountName }}
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      containers:
+      - name: kubearmor
+        image: "{{ .Values.kubearmor.image.repository }}:{{ .Values.kubearmor.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableEnforcerPerPod"]
+        ports:
+        - containerPort: 32767
+        volumeMounts:
+          {{- toYaml .Values.kubearmor.volumeMounts | nindent 12 }}
+        livenessProbe:
+          {{- toYaml .Values.kubearmor.livenessProbe | nindent 12 }}
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      volumes:
+        {{- toYaml .Values.kubearmor.volumes | nindent 12 }}
