@@ -23,6 +23,7 @@ spec:
         container: ubuntu-1
       annotations:
         container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/apparmor-demo-ubuntu-1
+        kubearmor-policy: enabled
     spec:
       containers:
         - name: ubuntu-1-container
@@ -48,6 +49,7 @@ spec:
         container: ubuntu-2
       annotations:
         container.apparmor.security.beta.kubernetes.io/ubuntu-2-container: localhost/apparmor-demo-ubuntu-2
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: ubuntu-2-container
@@ -73,6 +75,7 @@ spec:
         container: ubuntu-3
       annotations:
         container.apparmor.security.beta.kubernetes.io/ubuntu-3-container: localhost/apparmor-demo-ubuntu-3
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: ubuntu-3-container
@@ -106,6 +109,7 @@ spec:
         container: ubuntu-4
       annotations:
         container.apparmor.security.beta.kubernetes.io/ubuntu-4-container: localhost/apparmor-demo-ubuntu-4
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: ubuntu-4-container
@@ -131,6 +135,7 @@ spec:
         container: ubuntu-5
       annotations:
         container.apparmor.security.beta.kubernetes.io/ubuntu-5-container: localhost/apparmor-demo-ubuntu-5
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: ubuntu-5-container

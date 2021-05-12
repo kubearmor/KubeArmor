@@ -1,7 +1,7 @@
 source: ubuntu-5-deployment
-cmd: curl www.accuknox.com
+cmd: ping -c 1 8.8.8.8
 result: passed
 ---
 operation: Network
-condition: curl
-action: Block
+condition: ping
+action: Audit
