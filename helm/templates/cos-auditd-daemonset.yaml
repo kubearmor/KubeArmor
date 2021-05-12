@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{.Values.cosauditd.name }}
+  namespace: kube-system
+  labels:
+    daemonset: kubearmor-cos-auditd
+spec:
+  selector:
+    matchLabels:
+      container: kubearmor-cos-auditd
+  template:
+    metadata:
+      labels:
+        container: kubearmor-cos-auditd
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-os-distribution: cos
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      initContainers:
+      - name: kubearmor-cos-auditd-setup
+        image: ubuntu
+        command: ["chroot", "/host", "systemctl", "start", "cloud-audit-setup"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: host-path
+          mountPath: /host
+        resources:
+          requests:
+            memory: "10Mi"
+            cpu: "10m"
+      containers:
+      - name: kubearmor-cos-auditd
+        image: "{{ .Values.cosauditd.image.repository }}:{{ .Values.cosauditd.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: Always
+        env:
+          {{- toYaml .Values.cosauditd.env | nindent 12 }}
+        volumeMounts:
+          {{- toYaml .Values.cosauditd.volumeMounts | nindent 12 }}
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: node.alpha.kubernetes.io/ismaster
+      - effect: NoExecute
+        operator: Exists
+      volumes:
+      - name: host-path
+        hostPath:
+          path: /
+          type: Directory
+        {{- toYaml .Values.cosauditd.volumes | nindent 12 }}
