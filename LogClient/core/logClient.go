@@ -166,7 +166,7 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 
 			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
 
-			str = str + fmt.Sprintf("Cluster Name: %s", res.ClusterName)
+			str = str + fmt.Sprintf("Cluster Name: %s\n", res.ClusterName)
 			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
 
 			if res.NamespaceName != "" {
