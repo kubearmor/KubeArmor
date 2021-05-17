@@ -52,8 +52,9 @@ esac
 sudo apt-get update
 sudo apt-get -y install gcc libsctp-dev make
 
-wget -q https://dl.google.com/go/go1.15.2.linux-amd64.tar.gz -O /tmp/build/go1.15.2.linux-amd64.tar.gz
-sudo tar -xvf /tmp/build/go1.15.2.linux-amd64.tar.gz -C /usr/local
+# Installing latest golang
+goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3) && wget https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
+sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
 if [ "$(hostname)" == "kubearmor-dev" ]; then
     echo >> /home/vagrant/.bashrc
