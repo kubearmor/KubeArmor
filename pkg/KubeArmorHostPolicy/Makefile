@@ -41,6 +41,7 @@ deploy: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	sed -i 's/scope: Namespaced/scope: Cluster/g' config/crd/bases/security.accuknox.com_kubearmorhostpolicies.yaml
+	cp config/crd/bases/security.accuknox.com_kubearmorhostpolicies.yaml ../../helm/templates/security.accuknox.com_kubearmorhostpolicies.yaml
 
 # Run go fmt against code
 fmt:
