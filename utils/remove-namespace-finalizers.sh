@@ -30,4 +30,4 @@ jq 'del(.spec.finalizers[] | select("kubernetes"))' | \
 curl -k -X PUT --insecure "$API_SERVER/api/v1/namespaces/$TARGET_NAMEPSACE/finalize" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  --data-binary @-
+  --data-binary @- &> /dev/null

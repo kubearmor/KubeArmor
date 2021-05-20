@@ -70,7 +70,7 @@ func main() {
 		fmt.Errorf("Failed to connect to the gRPC server (%s)", *gRPCPtr)
 		return
 	}
-	fmt.Printf("Connected to the gRPC server (%s)\n", *gRPCPtr)
+	fmt.Printf("Created a gRPC client (%s)\n", *gRPCPtr)
 
 	// do healthcheck
 	if ok := logClient.DoHealthCheck(); !ok {
@@ -86,6 +86,10 @@ func main() {
 	}
 
 	if *logPathPtr != "none" {
+		// watch alerts
+		go logClient.WatchAlerts(*logPathPtr, *jsonPtr)
+		fmt.Println("Started to watch alerts")
+
 		// watch logs
 		go logClient.WatchLogs(*logPathPtr, *jsonPtr)
 		fmt.Println("Started to watch logs")

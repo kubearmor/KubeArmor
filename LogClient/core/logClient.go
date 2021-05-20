@@ -32,6 +32,9 @@ type LogClient struct {
 	// messages
 	msgStream pb.LogService_WatchMessagesClient
 
+	// alerts
+	alertStream pb.LogService_WatchAlertsClient
+
 	// logs
 	logStream pb.LogService_WatchLogsClient
 
@@ -67,13 +70,18 @@ func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 	}
 
 	if logPath != "none" {
-		logIn := pb.RequestMessage{}
+		alertIn := pb.RequestMessage{}
+		alertIn.Filter = ""
 
-		if logFilter == "all" {
-			logIn.Filter = ""
-		} else {
-			logIn.Filter = logFilter
+		alertStream, err := lc.client.WatchAlerts(context.Background(), &alertIn)
+		if err != nil {
+			fmt.Errorf("Failed to call WatchAlerts() (%s)", err.Error())
+			return nil
 		}
+		lc.alertStream = alertStream
+
+		logIn := pb.RequestMessage{}
+		logIn.Filter = ""
 
 		logStream, err := lc.client.WatchLogs(context.Background(), &logIn)
 		if err != nil {
@@ -143,13 +151,13 @@ func (lc *LogClient) WatchMessages(msgPath string, jsonFormat bool) error {
 	return nil
 }
 
-// WatchLogs Function
-func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
+// WatchAlerts Function
+func (lc *LogClient) WatchAlerts(logPath string, jsonFormat bool) error {
 	lc.WgClient.Add(1)
 	defer lc.WgClient.Done()
 
 	for {
-		res, err := lc.logStream.Recv()
+		res, err := lc.alertStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive a log (%s)", err.Error())
 			break
@@ -164,7 +172,7 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
 			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
 
-			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
+			str = fmt.Sprintf("== Alert / %s ==\n", updatedTime)
 
 			str = str + fmt.Sprintf("Cluster Name: %s", res.ClusterName)
 			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
@@ -203,6 +211,61 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 
 			if len(res.Action) > 0 {
 				str = str + fmt.Sprintf("Action: %s\n", res.Action)
+			}
+
+			str = str + fmt.Sprintf("Result: %s\n", res.Result)
+		}
+
+		if logPath == "stdout" {
+			fmt.Printf("%s", str)
+		} else {
+			ll.StrToFile(str, logPath)
+		}
+	}
+
+	return nil
+}
+
+// WatchLogs Function
+func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
+	lc.WgClient.Add(1)
+	defer lc.WgClient.Done()
+
+	for {
+		res, err := lc.logStream.Recv()
+		if err != nil {
+			fmt.Errorf("Failed to receive a log (%s)", err.Error())
+			break
+		}
+
+		str := ""
+
+		if jsonFormat {
+			arr, _ := json.Marshal(res)
+			str = fmt.Sprintf("%s\n", string(arr))
+		} else {
+			updatedTime := strings.Replace(res.UpdatedTime, "T", " ", -1)
+			updatedTime = strings.Replace(updatedTime, "Z", "", -1)
+
+			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
+
+			str = str + fmt.Sprintf("Cluster Name: %s", res.ClusterName)
+			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
+
+			if res.NamespaceName != "" {
+				str = str + fmt.Sprintf("Namespace Name: %s\n", res.NamespaceName)
+				str = str + fmt.Sprintf("Pod Name: %s\n", res.PodName)
+				str = str + fmt.Sprintf("Container ID: %s\n", res.ContainerID)
+				str = str + fmt.Sprintf("Container Name: %s\n", res.ContainerName)
+			}
+
+			str = str + fmt.Sprintf("Type: %s\n", res.Type)
+			str = str + fmt.Sprintf("Source: %s\n", res.Source)
+			str = str + fmt.Sprintf("Operation: %s\n", res.Operation)
+			str = str + fmt.Sprintf("Resource: %s\n", res.Resource)
+
+			if len(res.Data) > 0 {
+				str = str + fmt.Sprintf("Data: %s\n", res.Data)
 			}
 
 			str = str + fmt.Sprintf("Result: %s\n", res.Result)

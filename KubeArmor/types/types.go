@@ -133,7 +133,8 @@ type Log struct {
 	UpdatedTime string `json:"updatedTime"`
 
 	// host
-	HostName string `json:"hostName"`
+	ClusterName string `json:"clusterName,omitempty"`
+	HostName    string `json:"hostName"`
 
 	// k8s
 	NamespaceName string `json:"namespaceName,omitempty"`
