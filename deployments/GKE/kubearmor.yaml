@@ -61,9 +61,6 @@ spec:
         securityContext:
           privileged: true
         args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableEnforcerPerPod"]
-        env:
-        - name: CLUSTER_NAME
-          value: "Default" # UPDATE THIS DEPENDING ON YOUR ENVIRONMENT
         ports:
         - containerPort: 32767
         volumeMounts:
