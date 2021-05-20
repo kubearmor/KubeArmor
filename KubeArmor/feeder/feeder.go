@@ -27,25 +27,20 @@ import (
 var Running bool
 
 // MsgQueue for Messages
-var MsgQueue []pb.Message
+var MsgQueue chan pb.Message
 
-// MsgLock for Messages
-var MsgLock sync.Mutex
+// AlertQueue for alerts
+var AlertQueue chan pb.Alert
 
 // LogQueue for Logs
-var LogQueue []pb.Log
-
-// LogLock for Logs
-var LogLock sync.Mutex
+var LogQueue chan pb.Log
 
 func init() {
 	Running = true
 
-	MsgQueue = []pb.Message{}
-	MsgLock = sync.Mutex{}
-
-	LogQueue = []pb.Log{}
-	LogLock = sync.Mutex{}
+	MsgQueue = make(chan pb.Message, 1000)
+	AlertQueue = make(chan pb.Alert, 4000)
+	LogQueue = make(chan pb.Log, 4000)
 }
 
 // ========== //
@@ -55,6 +50,12 @@ func init() {
 // MsgStruct Structure
 type MsgStruct struct {
 	Client pb.LogService_WatchMessagesServer
+	Filter string
+}
+
+// AlertStruct Structure
+type AlertStruct struct {
+	Client pb.LogService_WatchAlertsServer
 	Filter string
 }
 
@@ -68,6 +69,9 @@ type LogStruct struct {
 type LogService struct {
 	MsgStructs map[string]MsgStruct
 	MsgLock    sync.Mutex
+
+	AlertStructs map[string]AlertStruct
+	AlertLock    sync.Mutex
 
 	LogStructs map[string]LogStruct
 	LogLock    sync.Mutex
@@ -121,22 +125,65 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 	defer ls.removeMsgStruct(uid)
 
 	for Running {
-		MsgLock.Lock()
+		msg := <-MsgQueue
 
 		msgStructs := ls.getMsgStructs()
-
-		for len(MsgQueue) != 0 {
-			msg := MsgQueue[0]
-			MsgQueue = MsgQueue[1:]
-
-			for _, mgs := range msgStructs {
-				mgs.Client.Send(&msg)
-			}
+		for _, mgs := range msgStructs {
+			mgs.Client.Send(&msg)
 		}
+	}
 
-		MsgLock.Unlock()
+	return nil
+}
 
-		time.Sleep(time.Millisecond * 1)
+// addAlertStruct Function
+func (ls *LogService) addAlertStruct(uid string, srv pb.LogService_WatchAlertsServer, filter string) {
+	ls.AlertLock.Lock()
+	defer ls.AlertLock.Unlock()
+
+	alertStruct := AlertStruct{}
+	alertStruct.Client = srv
+	alertStruct.Filter = filter
+
+	ls.AlertStructs[uid] = alertStruct
+}
+
+// removeAlertStruct Function
+func (ls *LogService) removeAlertStruct(uid string) {
+	ls.AlertLock.Lock()
+	defer ls.AlertLock.Unlock()
+
+	delete(ls.AlertStructs, uid)
+}
+
+// getAlertStructs Function
+func (ls *LogService) getAlertStructs() []AlertStruct {
+	alertStructs := []AlertStruct{}
+
+	ls.AlertLock.Lock()
+	defer ls.AlertLock.Unlock()
+
+	for _, als := range ls.AlertStructs {
+		alertStructs = append(alertStructs, als)
+	}
+
+	return alertStructs
+}
+
+// WatchAlerts Function
+func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_WatchAlertsServer) error {
+	uid := uuid.Must(uuid.NewRandom()).String()
+
+	ls.addAlertStruct(uid, svr, req.Filter)
+	defer ls.removeAlertStruct(uid)
+
+	for Running {
+		alert := <-AlertQueue
+
+		alertStructs := ls.getAlertStructs()
+		for _, als := range alertStructs {
+			als.Client.Send(&alert)
+		}
 	}
 
 	return nil
@@ -184,28 +231,12 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 	defer ls.removeLogStruct(uid)
 
 	for Running {
-		LogLock.Lock()
+		log := <-LogQueue
 
 		logStructs := ls.getLogStructs()
-
-		for len(LogQueue) != 0 {
-			log := LogQueue[0]
-			LogQueue = LogQueue[1:]
-
-			for _, lgs := range logStructs {
-				if lgs.Filter == "" {
-					lgs.Client.Send(&log)
-				} else if lgs.Filter == "policy" && (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") {
-					lgs.Client.Send(&log)
-				} else if lgs.Filter == "system" && (log.Type == "ContainerLog" || log.Type == "HostLog") {
-					lgs.Client.Send(&log)
-				}
-			}
+		for _, lgs := range logStructs {
+			lgs.Client.Send(&log)
 		}
-
-		LogLock.Unlock()
-
-		time.Sleep(time.Millisecond * 1)
 	}
 
 	return nil
@@ -288,10 +319,12 @@ func NewFeeder(clusterName, port, output string) *Feeder {
 
 	// register a log service
 	logService := &LogService{
-		MsgStructs: make(map[string]MsgStruct),
-		MsgLock:    sync.Mutex{},
-		LogStructs: make(map[string]LogStruct),
-		LogLock:    sync.Mutex{},
+		MsgStructs:   make(map[string]MsgStruct),
+		MsgLock:      sync.Mutex{},
+		AlertStructs: make(map[string]AlertStruct),
+		AlertLock:    sync.Mutex{},
+		LogStructs:   make(map[string]LogStruct),
+		LogLock:      sync.Mutex{},
 	}
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
@@ -402,9 +435,7 @@ func (fd *Feeder) PushMessage(level, message string) error {
 	pbMsg.Level = level
 	pbMsg.Message = message
 
-	MsgLock.Lock()
-	MsgQueue = append(MsgQueue, pbMsg)
-	MsgLock.Unlock()
+	MsgQueue <- pbMsg
 
 	return nil
 }
@@ -426,68 +457,103 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 	// standard output / file output
 
-	if fd.Output == "stdout" {
-		arr, _ := json.Marshal(log)
-		fmt.Println(string(arr))
-	} else if fd.Output != "none" {
-		arr, _ := json.Marshal(log)
-		kl.StrToFile(string(arr), fd.Output)
+	if len(log.PolicyName) > 0 {
+		log.HostName = fd.HostName
+
+		if fd.Output == "stdout" {
+			arr, _ := json.Marshal(log)
+			fmt.Println(string(arr))
+		} else if fd.Output != "none" {
+			arr, _ := json.Marshal(log)
+			kl.StrToFile(string(arr), fd.Output)
+		}
 	}
 
 	// gRPC output
 
-	pbLog := pb.Log{}
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
+		pbAlert := pb.Alert{}
 
-	pbLog.Timestamp = log.Timestamp
-	pbLog.UpdatedTime = log.UpdatedTime
+		pbAlert.Timestamp = log.Timestamp
+		pbAlert.UpdatedTime = log.UpdatedTime
 
-	pbLog.ClusterName = fd.ClusterName
-	pbLog.HostName = fd.HostName
+		pbAlert.ClusterName = fd.ClusterName
+		pbAlert.HostName = fd.HostName
 
-	pbLog.NamespaceName = log.NamespaceName
-	pbLog.PodName = log.PodName
-	pbLog.ContainerID = log.ContainerID
-	pbLog.ContainerName = log.ContainerName
+		pbAlert.NamespaceName = log.NamespaceName
+		pbAlert.PodName = log.PodName
+		pbAlert.ContainerID = log.ContainerID
+		pbAlert.ContainerName = log.ContainerName
 
-	pbLog.HostPID = log.HostPID
-	pbLog.PPID = log.PPID
-	pbLog.PID = log.PID
-	pbLog.UID = log.UID
+		pbAlert.HostPID = log.HostPID
+		pbAlert.PPID = log.PPID
+		pbAlert.PID = log.PID
+		pbAlert.UID = log.UID
 
-	if len(log.PolicyName) > 0 {
-		pbLog.PolicyName = log.PolicyName
+		if len(log.PolicyName) > 0 {
+			pbAlert.PolicyName = log.PolicyName
+		}
+
+		if len(log.Severity) > 0 {
+			pbAlert.Severity = log.Severity
+		}
+
+		if len(log.Tags) > 0 {
+			pbAlert.Tags = log.Tags
+		}
+
+		if len(log.Message) > 0 {
+			pbAlert.Message = log.Message
+		}
+
+		pbAlert.Type = log.Type
+		pbAlert.Source = log.Source
+		pbAlert.Operation = log.Operation
+		pbAlert.Resource = log.Resource
+
+		if len(log.Data) > 0 {
+			pbAlert.Data = log.Data
+		}
+
+		if len(log.Action) > 0 {
+			pbAlert.Action = log.Action
+		}
+
+		pbAlert.Result = log.Result
+
+		AlertQueue <- pbAlert
+	} else { // ContainerLog || HostLog
+		pbLog := pb.Log{}
+
+		pbLog.Timestamp = log.Timestamp
+		pbLog.UpdatedTime = log.UpdatedTime
+
+		pbLog.ClusterName = fd.ClusterName
+		pbLog.HostName = fd.HostName
+
+		pbLog.NamespaceName = log.NamespaceName
+		pbLog.PodName = log.PodName
+		pbLog.ContainerID = log.ContainerID
+		pbLog.ContainerName = log.ContainerName
+
+		pbLog.HostPID = log.HostPID
+		pbLog.PPID = log.PPID
+		pbLog.PID = log.PID
+		pbLog.UID = log.UID
+
+		pbLog.Type = log.Type
+		pbLog.Source = log.Source
+		pbLog.Operation = log.Operation
+		pbLog.Resource = log.Resource
+
+		if len(log.Data) > 0 {
+			pbLog.Data = log.Data
+		}
+
+		pbLog.Result = log.Result
+
+		LogQueue <- pbLog
 	}
-
-	if len(log.Severity) > 0 {
-		pbLog.Severity = log.Severity
-	}
-
-	if len(log.Tags) > 0 {
-		pbLog.Tags = log.Tags
-	}
-
-	if len(log.Message) > 0 {
-		pbLog.Message = log.Message
-	}
-
-	pbLog.Type = log.Type
-	pbLog.Source = log.Source
-	pbLog.Operation = log.Operation
-	pbLog.Resource = log.Resource
-
-	if len(log.Data) > 0 {
-		pbLog.Data = log.Data
-	}
-
-	if len(log.Action) > 0 {
-		pbLog.Action = log.Action
-	}
-
-	pbLog.Result = log.Result
-
-	LogLock.Lock()
-	LogQueue = append(LogQueue, pbLog)
-	LogLock.Unlock()
 
 	return nil
 }
