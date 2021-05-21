@@ -1176,23 +1176,11 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					return log
 
 				}
-
-				// if fd.EnableSystemLog {
-				// 	// Failed operations
-				// 	log.Type = "HostLog"
-				// 	return log
-				// }
 			} else {
 				if log.Action == "Allow" {
 					// use 'AllowWithAudit' to get the logs for allowed operations
 					return tp.Log{}
 				}
-
-				// if fd.EnableSystemLog {
-				// 	// Passed operations
-				// 	log.Type = "HostLog"
-				// 	return log
-				// }
 			}
 		} else if log.Type == "MatchedPolicy" {
 			// if log.Action == "Block" {

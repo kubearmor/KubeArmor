@@ -1,3 +1,8 @@
+general:
+  clusterName: Default
+  containerPlatform: docker # { docker | containerd | microk8s }
+  gkeEnabled: true
+
 kubearmor:
   name: kubearmor
   serviceAccountName: kubearmor
@@ -17,9 +22,6 @@ kubearmor:
     initialDelaySeconds: 60
     periodSeconds: 10
   volumeMounts:
-    - name: docker-sock-path # docker (read-only)
-      mountPath: /var/run/docker.sock
-      readOnly: true
     - name: usr-src-path # BPF (read-only)
       mountPath: /usr/src
       readOnly: true
@@ -32,17 +34,22 @@ kubearmor:
       mountPath: /sys/kernel/debug
     - name: etc-apparmor-d-path # AppArmor (read-write)
       mountPath: /etc/apparmor.d
-    - name: var-log-audit-path # GKE-Auditd (read-only)
-      mountPath: /var/log/audit
-      readOnly: true
     - name: os-release-path # OS (read-only)
       mountPath: /media/root/etc/os-release
       readOnly: true
+  volumeMountsDocker:
+    - name: docker-sock-path # docker (read-only)
+      mountPath: /var/run/docker.sock
+      readOnly: true
+  volumeMountsContainerd:
+    - name: containerd-sock-path # containerd (read-only)
+      mountPath: /var/run/containerd/containerd.sock
+      readOnly: true
+  volumeMountsGKE:
+    - name: var-log-audit-path # GKE-Auditd (read-only)
+      mountPath: /var/log/audit
+      readOnly: true
   volumes:
-    - name: docker-sock-path # docker
-      hostPath:
-        path: /var/run/docker.sock
-        type: Socket
     - name: usr-src-path # BPF
       hostPath:
         path: /usr/src
@@ -63,14 +70,30 @@ kubearmor:
       hostPath:
         path: /etc/apparmor.d
         type: Directory
-    - name: var-log-audit-path # GKE-Auditd
-      hostPath:
-        path: /var/log/audit
-        type: Directory
     - name: os-release-path # OS
       hostPath:
         path: /etc/os-release
         type: File
+  volumesDocker:
+    - name: docker-sock-path # docker
+      hostPath:
+        path: /var/run/docker.sock
+        type: Socket
+  volumesContainerd:
+    - name: containerd-sock-path # containerd
+      hostPath:
+        path: /var/run/containerd/containerd.sock
+        type: Socket
+  volumesMicrok8s:
+    - name: containerd-sock-path # microk8s
+      hostPath:
+        path: /var/snap/microk8s/common/run/containerd.sock
+        type: Socket
+  volumesGKE:
+    - name: var-log-audit-path # GKE-Auditd
+      hostPath:
+        path: /var/log/audit
+        type: Directory
 
 cosauditd:
   name: kubearmor-cos-auditd

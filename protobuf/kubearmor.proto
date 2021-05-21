@@ -22,8 +22,8 @@ message Message {
   string Message = 7;
 }
 
-// log struct
-message Log {
+// alert struct
+message Alert {
   int64 Timestamp = 1;
   string UpdatedTime = 2;
 
@@ -57,6 +57,34 @@ message Log {
   string Result = 23;
 }
 
+// log struct
+message Log {
+  int64 Timestamp = 1;
+  string UpdatedTime = 2;
+
+  string ClusterName = 3;
+  string HostName = 4;
+
+  string NamespaceName = 5;
+  string PodName = 6;
+
+  string ContainerID = 7;
+  string ContainerName = 8;
+
+  int32 HostPID = 9;
+  int32 PPID = 10;
+  int32 PID = 11;
+  int32 UID = 12;
+
+  string Type = 13;
+  string Source = 14;
+  string Operation = 15;
+  string Resource = 16;
+  string Data = 17;
+
+  string Result = 18;
+}
+
 // request message
 message RequestMessage {
   string Filter = 1;
@@ -70,5 +98,6 @@ message ReplyMessage {
 service LogService {
   rpc HealthCheck(NonceMessage) returns (ReplyMessage);
   rpc WatchMessages(RequestMessage) returns (stream Message);
+  rpc WatchAlerts(RequestMessage) returns (stream Alert);
   rpc WatchLogs(RequestMessage) returns (stream Log);
 }
