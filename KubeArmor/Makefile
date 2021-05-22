@@ -31,7 +31,3 @@ clean:
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
 	cd $(CURDIR); find . -name go.sum | xargs -I {} rm -f {}
 	$(CURDIR)/build/clean_source_files.sh
-
-.PHONY: image
-image:
-	cd $(CURDIR)/build; $(MAKE)

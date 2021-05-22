@@ -1,6 +1,9 @@
 # KubeArmor
 go.sum
 kubearmor
+kubearmor-client
+kubearmor-mysql-client
+kubearmor-kafka-client
 
 # Contribution
 .vscode
