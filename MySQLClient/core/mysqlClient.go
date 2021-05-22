@@ -19,6 +19,9 @@ import (
 
 // MySQLClient Structure
 type MySQLClient struct {
+	// flag
+	Running bool
+
 	// server
 	server string
 
@@ -55,6 +58,8 @@ type MySQLClient struct {
 // NewClient Function
 func NewClient(server, dbHost, dbName, dbUser, dbPasswd, dbMsgTable, dbAlertTable, dbLogTable string) *MySQLClient {
 	mc := &MySQLClient{}
+
+	mc.Running = true
 
 	mc.server = server
 
@@ -146,7 +151,7 @@ func (mc *MySQLClient) WatchMessages(msgPath string) error {
 	mc.WgClient.Add(1)
 	defer mc.WgClient.Done()
 
-	for {
+	for mc.Running {
 		res, err := mc.msgStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive a message (%s)", err.Error())
@@ -181,7 +186,7 @@ func (mc *MySQLClient) WatchAlerts(logPath string) error {
 	mc.WgClient.Add(1)
 	defer mc.WgClient.Done()
 
-	for {
+	for mc.Running {
 		res, err := mc.alertStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive an alert (%s)", err.Error())
@@ -223,7 +228,7 @@ func (mc *MySQLClient) WatchLogs(logPath string) error {
 	mc.WgClient.Add(1)
 	defer mc.WgClient.Done()
 
-	for {
+	for mc.Running {
 		res, err := mc.logStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive a log (%s)", err.Error())

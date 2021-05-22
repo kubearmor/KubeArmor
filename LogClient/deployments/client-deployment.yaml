@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubearmor
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor-client
+  namespace: kubearmor
+  labels:
+    app: kubearmor-client
+spec:
+  selector:
+    matchLabels:
+      app: kubearmor-client
+  template:
+    metadata:
+      labels:
+        app: kubearmor-client
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: kubearmor-client
+        image: accuknox/kubearmor-client:latest

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/accuknox/KubeArmor/LogClient/core"
 )
@@ -86,19 +87,26 @@ func main() {
 	}
 
 	if *logPathPtr != "none" {
-		// watch alerts
-		go logClient.WatchAlerts(*logPathPtr, *jsonPtr)
-		fmt.Println("Started to watch alerts")
+		if *logFilterPtr == "all" || *logFilterPtr == "policy" {
+			// watch alerts
+			go logClient.WatchAlerts(*logPathPtr, *jsonPtr)
+			fmt.Println("Started to watch alerts")
+		}
 
-		// watch logs
-		go logClient.WatchLogs(*logPathPtr, *jsonPtr)
-		fmt.Println("Started to watch logs")
+		if *logFilterPtr == "all" || *logFilterPtr == "system" {
+			// watch logs
+			go logClient.WatchLogs(*logPathPtr, *jsonPtr)
+			fmt.Println("Started to watch logs")
+		}
 	}
 
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
 	<-sigChan
 	close(StopChan)
+
+	logClient.Running = false
+	time.Sleep(time.Second * 1)
 
 	// destroy the client
 	if err := logClient.DestroyClient(); err != nil {

@@ -38,9 +38,9 @@ var LogQueue chan pb.Log
 func init() {
 	Running = true
 
-	MsgQueue = make(chan pb.Message, 1000)
-	AlertQueue = make(chan pb.Alert, 4000)
-	LogQueue = make(chan pb.Log, 4000)
+	MsgQueue = make(chan pb.Message, 1024)
+	AlertQueue = make(chan pb.Alert, 4096)
+	LogQueue = make(chan pb.Log, 32768)
 }
 
 // ========== //
@@ -552,7 +552,10 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 		pbLog.Result = log.Result
 
-		LogQueue <- pbLog
+		select {
+		case LogQueue <- pbLog:
+			// non-blocking: possible to loss some of logs
+		}
 	}
 
 	return nil
