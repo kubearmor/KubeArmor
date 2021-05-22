@@ -1,7 +1,14 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubearmor
+
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: mysql
+  namespace: kubearmor
   labels:
     app: mysql
 spec:
@@ -10,11 +17,13 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
+
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mysql
+  namespace: kubearmor
   labels:
     app: mysql
 spec:
@@ -40,5 +49,5 @@ spec:
         - name: MYSQL_PASSWORD
           value: kubearmor-passwd
         ports:
-        - name: mysql
+        - name: mysql-port
           containerPort: 3306

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/accuknox/KubeArmor/MySQLClient/core"
 
@@ -64,6 +65,9 @@ func main() {
 
 	if val, ok := os.LookupEnv("DB_HOST"); ok {
 		dbHost = val
+		fmt.Println("  DB_HOST:     " + dbHost)
+	} else if val, ok := os.LookupEnv("KUBEARMOR_MYSQL_PORT"); ok {
+		dbHost = val[6:]
 		fmt.Println("  DB_HOST:     " + dbHost)
 	} else {
 		fmt.Errorf("Failed to get DB_HOST from env")
@@ -221,6 +225,9 @@ func main() {
 	sigChan := GetOSSigChannel()
 	<-sigChan
 	close(StopChan)
+
+	logClient.Running = false
+	time.Sleep(time.Second * 1)
 
 	// destroy the client
 	if err := logClient.DestroyClient(); err != nil {
