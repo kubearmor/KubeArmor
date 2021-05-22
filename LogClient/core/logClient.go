@@ -20,6 +20,9 @@ import (
 
 // LogClient Structure
 type LogClient struct {
+	// flag
+	Running bool
+
 	// server
 	server string
 
@@ -45,6 +48,8 @@ type LogClient struct {
 // NewClient Function
 func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 	lc := &LogClient{}
+
+	lc.Running = true
 
 	lc.server = server
 
@@ -122,7 +127,7 @@ func (lc *LogClient) WatchMessages(msgPath string, jsonFormat bool) error {
 	lc.WgClient.Add(1)
 	defer lc.WgClient.Done()
 
-	for {
+	for lc.Running {
 		res, err := lc.msgStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive a message (%s)", err.Error())
@@ -156,7 +161,7 @@ func (lc *LogClient) WatchAlerts(logPath string, jsonFormat bool) error {
 	lc.WgClient.Add(1)
 	defer lc.WgClient.Done()
 
-	for {
+	for lc.Running {
 		res, err := lc.alertStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive a log (%s)", err.Error())
@@ -231,7 +236,7 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 	lc.WgClient.Add(1)
 	defer lc.WgClient.Done()
 
-	for {
+	for lc.Running {
 		res, err := lc.logStream.Recv()
 		if err != nil {
 			fmt.Errorf("Failed to receive a log (%s)", err.Error())
@@ -249,7 +254,7 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 
 			str = fmt.Sprintf("== Log / %s ==\n", updatedTime)
 
-			str = str + fmt.Sprintf("Cluster Name: %s", res.ClusterName)
+			str = str + fmt.Sprintf("Cluster Name: %s\n", res.ClusterName)
 			str = str + fmt.Sprintf("Host Name: %s\n", res.HostName)
 
 			if res.NamespaceName != "" {
