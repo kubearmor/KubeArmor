@@ -24,10 +24,32 @@ metadata:
   namespace: kube-system
 spec:
   selector:
-    container: kubearmor
+    container: kubearmor-relay
   ports:
   - port: 32767
     protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-relay
+  namespace: kube-system
+  labels:
+    deployment: kubearmor-relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      container: kubearmor-relay
+  template:
+    metadata:
+      labels:
+        container: kubearmor-relay
+    spec:
+      serviceAccountName: kubearmor
+      containers:
+        - name: kubearmor-relay-server
+          image: accuknox/kubearmor-relay-server:latest
 ---
 apiVersion: apps/v1
 kind: DaemonSet
