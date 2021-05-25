@@ -345,33 +345,35 @@ func (rs *RelayServer) GetFeedsFromNodes() {
 					server := nodeIP + ":" + rs.Port
 
 					if event.Type == "ADDED" {
-						// create a client
-						client := NewClient(server)
-						if client == nil {
-							fmt.Errorf("Failed to connec to the gRPC server (%s)", server)
-							continue
+						if _, ok := rs.ClientList[nodeIP]; !ok {
+							// create a client
+							client := NewClient(server)
+							if client == nil {
+								fmt.Errorf("Failed to connec to the gRPC server (%s)", server)
+								continue
+							}
+
+							// do healthcheck
+							if ok := client.DoHealthCheck(); !ok {
+								fmt.Errorf("Failed to check the liveness of the gRPC server")
+								return
+							}
+							fmt.Println("Checked the liveness of the gRPC server")
+
+							// watch messages
+							go client.WatchMessages()
+							fmt.Println("Started to watch messages from " + server)
+
+							// watch alerts
+							go client.WatchAlerts()
+							fmt.Println("Started to watch alerts from " + server)
+
+							// watch logs
+							go client.WatchLogs()
+							fmt.Println("Started to watch logs from " + server)
+
+							rs.ClientList[nodeIP] = client
 						}
-
-						// do healthcheck
-						if ok := client.DoHealthCheck(); !ok {
-							fmt.Errorf("Failed to check the liveness of the gRPC server")
-							return
-						}
-						fmt.Println("Checked the liveness of the gRPC server")
-
-						// watch messages
-						go client.WatchMessages()
-						fmt.Println("Started to watch messages from " + server)
-
-						// watch alerts
-						go client.WatchAlerts()
-						fmt.Println("Started to watch alerts from " + server)
-
-						// watch logs
-						go client.WatchLogs()
-						fmt.Println("Started to watch logs from " + server)
-
-						rs.ClientList[nodeIP] = client
 
 					} else if event.Type == "DELETED" {
 						if val, ok := rs.ClientList[nodeIP]; !ok {

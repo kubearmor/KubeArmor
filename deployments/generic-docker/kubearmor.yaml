@@ -76,6 +76,7 @@ spec:
       hostPID: true
       hostNetwork: true
       restartPolicy: Always
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: kubearmor
         image: accuknox/kubearmor:latest
