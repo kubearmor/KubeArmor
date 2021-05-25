@@ -41,7 +41,7 @@ function wait_for_kubearmor_initialization() {
         exit 1
     fi
 
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v cos | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
 
     for ARMOR in $KUBEARMOR
     do

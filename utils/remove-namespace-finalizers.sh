@@ -26,8 +26,8 @@ test -n "$API_SERVER" || die "failed to get kubernets api address"
 echo "trying to remove finalizers of namespace '$TARGET_NAMEPSACE'..."
 
 kubectl get namespace "$TARGET_NAMEPSACE" -o json | \
-jq 'del(.spec.finalizers[] | select("kubernetes"))' | \
+jq 'del(.spec.finalizers[] | select(. == "kubernetes"))' | \
 curl -k -X PUT --insecure "$API_SERVER/api/v1/namespaces/$TARGET_NAMEPSACE/finalize" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  --data-binary @- &> /dev/null
+  --data-binary @-
