@@ -4,6 +4,7 @@ kubearmor
 kubearmor-client
 kubearmor-mysql-client
 kubearmor-kafka-client
+kubearmor-relay-server
 
 # Contribution
 .vscode
