@@ -2,8 +2,9 @@
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 
-# copy files to build
 mkdir -p $ARMOR_HOME/build/KubeArmor
+
+# copy files to build
 cp -r $ARMOR_HOME/BPF/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/audit/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/common/ $ARMOR_HOME/build/KubeArmor/
@@ -30,3 +31,7 @@ cp -r $ARMOR_HOME/../protobuf $ARMOR_HOME/build/
 cp -r $ARMOR_HOME/../LogClient $ARMOR_HOME/build/
 cp -r $ARMOR_HOME/../MySQLClient $ARMOR_HOME/build/
 cp -r $ARMOR_HOME/../KafkaClient $ARMOR_HOME/build/
+
+# copy CRDs
+cp $ARMOR_HOME/../pkg/KubeArmorPolicy/config/crd/bases/security.accuknox.com_kubearmorpolicies.yaml KubeArmorPolicy.yaml
+cp $ARMOR_HOME/../pkg/KubeArmorHostPolicy/config/crd/bases/security.accuknox.com_kubearmorhostpolicies.yaml KubeArmorHostPolicy.yaml
