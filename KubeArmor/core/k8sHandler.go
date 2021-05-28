@@ -444,7 +444,11 @@ func (kh *K8sHandler) ApplyCustomResourceDefinitions() bool {
 		return false
 	}
 
-	//
+	if kl.IsInK8sCluster() {
+		if _, err := kl.GetCommandOutputWithErr("kubectl", []string{"apply", "-f", "/KubeArmor/CRD"}); err == nil {
+			return true
+		}
+	}
 
 	return false
 }
@@ -455,7 +459,11 @@ func (kh *K8sHandler) DeleteCustomResourceDefinitions() bool {
 		return false
 	}
 
-	//
+	if kl.IsInK8sCluster() {
+		if _, err := kl.GetCommandOutputWithErr("kubectl", []string{"delete", "-f", "/KubeArmor/CRD"}); err == nil {
+			return true
+		}
+	}
 
 	return false
 }
