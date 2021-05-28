@@ -71,7 +71,7 @@ func NewClient(server, bootstrapServer, topicMsg, topicAlert, topicLog string) *
 	if kc.server != "" {
 		conn, err := grpc.Dial(kc.server, grpc.WithInsecure())
 		if err != nil {
-			fmt.Errorf("Failed to connect to a gRPC server (%s)", err.Error())
+			// fmt.Printf("Failed to connect to a gRPC server (%s)\n", err.Error())
 			return nil
 		}
 		kc.conn = conn
@@ -84,7 +84,7 @@ func NewClient(server, bootstrapServer, topicMsg, topicAlert, topicLog string) *
 
 			msgStream, err := kc.client.WatchMessages(context.Background(), &msgIn)
 			if err != nil {
-				fmt.Errorf("Failed to call WatchMessages() (%s)", err.Error())
+				// fmt.Printf("Failed to call WatchMessages() (%s)\n", err.Error())
 				return nil
 			}
 			kc.msgStream = msgStream
@@ -96,7 +96,7 @@ func NewClient(server, bootstrapServer, topicMsg, topicAlert, topicLog string) *
 
 			alertStream, err := kc.client.WatchAlerts(context.Background(), &alertIn)
 			if err != nil {
-				fmt.Errorf("Failed to call WatchAlerts() (%s)", err.Error())
+				// fmt.Printf("Failed to call WatchAlerts() (%s)\n", err.Error())
 				return nil
 			}
 			kc.alertStream = alertStream
@@ -108,7 +108,7 @@ func NewClient(server, bootstrapServer, topicMsg, topicAlert, topicLog string) *
 
 			logStream, err := kc.client.WatchLogs(context.Background(), &logIn)
 			if err != nil {
-				fmt.Errorf("Failed to call WatchLogs() (%s)", err.Error())
+				// fmt.Printf("Failed to call WatchLogs() (%s)\n", err.Error())
 				return nil
 			}
 			kc.logStream = logStream
@@ -129,7 +129,7 @@ func (kc *KafkaClient) DoHealthCheck() bool {
 	nonce := pb.NonceMessage{Nonce: randNum}
 	res, err := kc.client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
-		fmt.Errorf("Failed to call HealthCheck() (%s)", err.Error())
+		fmt.Printf("Failed to call HealthCheck() (%s)\n", err.Error())
 		return false
 	}
 
@@ -148,7 +148,7 @@ func (kc *KafkaClient) WatchMessages(msgPath string) error {
 
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": kc.bootstrapServer})
 	if err != nil {
-		fmt.Errorf("Failed to create a new producer (%s)", err.Error())
+		fmt.Printf("Failed to create a new producer (%s)\n", err.Error())
 		return err
 	}
 	defer producer.Close()
@@ -156,7 +156,7 @@ func (kc *KafkaClient) WatchMessages(msgPath string) error {
 	for kc.Running {
 		res, err := kc.msgStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a message (%s)", err.Error())
+			fmt.Printf("Failed to receive a message (%s)\n", err.Error())
 			break
 		}
 
@@ -180,7 +180,7 @@ func (kc *KafkaClient) WatchMessages(msgPath string) error {
 		}, nil)
 
 		if msgPath == "stdout" {
-			fmt.Printf("%s\n", str)
+			fmt.Println(str)
 		} else if msgPath != "none" {
 			ll.StrToFile(str+"\n", msgPath)
 		}
@@ -200,7 +200,7 @@ func (kc *KafkaClient) ConsumeMessages() error {
 		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
-		fmt.Errorf("Failed to create a new consumer (%s)", err.Error())
+		fmt.Printf("Failed to create a new consumer (%s)\n", err.Error())
 		return err
 	}
 	defer consumer.Close()
@@ -217,7 +217,7 @@ func (kc *KafkaClient) ConsumeMessages() error {
 		case *kafka.Message:
 			fmt.Printf("%s: %s\n", e.TopicPartition, string(e.Value))
 		case kafka.Error:
-			fmt.Errorf("Failed to consume a message (%v, %v)", e.Code(), e)
+			fmt.Printf("Failed to consume a message (%v, %v)\n", e.Code(), e)
 		}
 	}
 
@@ -231,7 +231,7 @@ func (kc *KafkaClient) WatchAlerts(logPath string) error {
 
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": kc.bootstrapServer})
 	if err != nil {
-		fmt.Errorf("Failed to create a new producer (%s)", err.Error())
+		fmt.Printf("Failed to create a new producer (%s)\n", err.Error())
 		return err
 	}
 	defer producer.Close()
@@ -239,7 +239,7 @@ func (kc *KafkaClient) WatchAlerts(logPath string) error {
 	for kc.Running {
 		res, err := kc.alertStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive an alert (%s)", err.Error())
+			fmt.Printf("Failed to receive an alert (%s)\n", err.Error())
 			break
 		}
 
@@ -283,7 +283,7 @@ func (kc *KafkaClient) ConsumeAlerts() error {
 		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
-		fmt.Errorf("Failed to create a new consumer (%s)", err.Error())
+		fmt.Printf("Failed to create a new consumer (%s)\n", err.Error())
 		return err
 	}
 	defer consumer.Close()
@@ -300,7 +300,7 @@ func (kc *KafkaClient) ConsumeAlerts() error {
 		case *kafka.Message:
 			fmt.Printf("%s: %s\n", e.TopicPartition, string(e.Value))
 		case kafka.Error:
-			fmt.Errorf("Failed to consume an alert (%v, %v)", e.Code(), e)
+			fmt.Printf("Failed to consume an alert (%v, %v)\n", e.Code(), e)
 		}
 	}
 
@@ -314,7 +314,7 @@ func (kc *KafkaClient) WatchLogs(logPath string) error {
 
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": kc.bootstrapServer})
 	if err != nil {
-		fmt.Errorf("Failed to create a new producer (%s)", err.Error())
+		fmt.Printf("Failed to create a new producer (%s)\n", err.Error())
 		return err
 	}
 	defer producer.Close()
@@ -322,7 +322,7 @@ func (kc *KafkaClient) WatchLogs(logPath string) error {
 	for kc.Running {
 		res, err := kc.logStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a log (%s)", err.Error())
+			fmt.Printf("Failed to receive a log (%s)\n", err.Error())
 			break
 		}
 
@@ -366,7 +366,7 @@ func (kc *KafkaClient) ConsumeLogs() error {
 		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
-		fmt.Errorf("Failed to create a new consumer (%s)", err.Error())
+		fmt.Printf("Failed to create a new consumer (%s)\n", err.Error())
 		return err
 	}
 	defer consumer.Close()
@@ -383,7 +383,7 @@ func (kc *KafkaClient) ConsumeLogs() error {
 		case *kafka.Message:
 			fmt.Printf("%s: %s\n", e.TopicPartition, string(e.Value))
 		case kafka.Error:
-			fmt.Errorf("Failed to consume a log (%v, %v)", e.Code(), e)
+			fmt.Printf("Failed to consume a log (%v, %v)\n", e.Code(), e)
 		}
 	}
 

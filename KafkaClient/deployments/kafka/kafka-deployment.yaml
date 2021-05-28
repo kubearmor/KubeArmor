@@ -1,14 +1,7 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: kubearmor
-
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: strimzi-cluster-operator
-  namespace: kubearmor
   labels:
     app: strimzi
 
@@ -263,13 +256,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: strimzi-cluster-operator
-  namespace: kubearmor
   labels:
     app: strimzi
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: kubearmor
 roleRef:
   kind: ClusterRole
   name: strimzi-cluster-operator-namespaced
@@ -322,13 +313,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: strimzi-cluster-operator-entity-operator-delegation
-  namespace: kubearmor
   labels:
     app: strimzi
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: kubearmor
 roleRef:
   kind: ClusterRole
   name: strimzi-entity-operator
@@ -397,13 +386,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: strimzi-cluster-operator-topic-operator-delegation
-  namespace: kubearmor
   labels:
     app: strimzi
 subjects:
   - kind: ServiceAccount
     name: strimzi-cluster-operator
-    namespace: kubearmor
 roleRef:
   kind: ClusterRole
   name: strimzi-topic-operator
@@ -445,7 +432,6 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: strimzi-cluster-operator
-  namespace: kubearmor
   labels:
     app: strimzi
 data:

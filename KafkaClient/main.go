@@ -45,11 +45,29 @@ func GetOSSigChannel() chan os.Signal {
 func main() {
 	// == //
 
-	gRPCPtr := flag.String("gRPC", "localhost:32767", "gRPC server information")
+	gRPCPtr := flag.String("gRPC", "", "gRPC server information")
 	msgPathPtr := flag.String("msgPath", "none", "Output location for messages, {path|stdout|none}")
 	logPathPtr := flag.String("logPath", "none", "Output location for alerts and logs, {path|stdout|none}")
 	consumerPtr := flag.String("consumer", "", "Topic to consume")
 	flag.Parse()
+
+	// == //
+
+	gRPC := ""
+
+	fmt.Println("== KubeArmor information ==")
+
+	if *gRPCPtr != "" {
+		gRPC = *gRPCPtr
+	} else {
+		if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
+			gRPC = val
+		} else {
+			gRPC = "localhost:32767"
+		}
+	}
+
+	fmt.Println("  gRPC server: " + gRPC)
 
 	// == //
 
@@ -61,7 +79,7 @@ func main() {
 		bootstrapServer = val
 		fmt.Println("  KAFKA_BOOTSTRAP_SERVER: " + bootstrapServer)
 	} else {
-		fmt.Errorf("Failed to get KAFKA_BOOTSTRAP_SERVER from env")
+		fmt.Println("Failed to get KAFKA_BOOTSTRAP_SERVER from env")
 		return
 	}
 
@@ -85,13 +103,11 @@ func main() {
 	}
 
 	if topicMsg == "" && topicAlert == "" && topicLog == "" {
-		fmt.Errorf("Failed to get some of TOPIC_MSG, TOPIC_ALERT, and TOPIC_LOG")
+		fmt.Println("Failed to get some of TOPIC_MSG, TOPIC_ALERT, and TOPIC_LOG")
 		return
-	} else if *consumerPtr != "" {
-		if *consumerPtr != topicMsg && *consumerPtr != topicAlert && *consumerPtr != topicLog {
-			fmt.Errorf("Failed to find %s among TOPIC_MSG, TOPIC_ALERT, and TOPIC_LOG", *consumerPtr)
-			return
-		}
+	} else if *consumerPtr != "" && *consumerPtr != topicMsg && *consumerPtr != topicAlert && *consumerPtr != topicLog {
+		fmt.Printf("Failed to find %s among TOPIC_MSG, TOPIC_ALERT, and TOPIC_LOG\n", *consumerPtr)
+		return
 	}
 
 	// == //
@@ -100,7 +116,7 @@ func main() {
 		// create a client
 		logClient := core.NewClient("", bootstrapServer, topicMsg, topicAlert, topicLog)
 		if logClient == nil {
-			fmt.Errorf("Failed to create a Kafka client (%s)", bootstrapServer)
+			fmt.Printf("Failed to create a Kafka client (%s)\n", bootstrapServer)
 			return
 		}
 		fmt.Printf("Created a Kafka client (%s)\n", bootstrapServer)
@@ -130,22 +146,22 @@ func main() {
 
 		// destroy the client
 		if err := logClient.DestroyClient(); err != nil {
-			fmt.Errorf("Failed to destroy the Kafka client (%s)", err.Error())
+			fmt.Printf("Failed to destroy the Kafka client (%s)\n", err.Error())
 			return
 		}
 		fmt.Println("Destroyed the Kafka client")
 	} else { // producer
 		// create a client
-		logClient := core.NewClient(*gRPCPtr, bootstrapServer, topicMsg, topicAlert, topicLog)
+		logClient := core.NewClient(gRPC, bootstrapServer, topicMsg, topicAlert, topicLog)
 		if logClient == nil {
-			fmt.Errorf("Failed to create a gRPC client (%s)", *gRPCPtr)
+			fmt.Printf("Failed to create a gRPC client (%s)\n", gRPC)
 			return
 		}
-		fmt.Printf("Created a gRPC client (%s)\n", *gRPCPtr)
+		fmt.Printf("Created a gRPC client (%s)\n", gRPC)
 
 		// do healthcheck
 		if ok := logClient.DoHealthCheck(); !ok {
-			fmt.Errorf("Failed to check the liveness of the gRPC server")
+			fmt.Println("Failed to check the liveness of the gRPC server")
 			return
 		}
 		fmt.Println("Checked the liveness of the gRPC server")
@@ -175,7 +191,7 @@ func main() {
 
 		// destroy the client
 		if err := logClient.DestroyClient(); err != nil {
-			fmt.Errorf("Failed to destroy the gRPC client (%s)", err.Error())
+			fmt.Printf("Failed to destroy the gRPC client (%s)\n", err.Error())
 			return
 		}
 		fmt.Println("Destroyed the gRPC client")
