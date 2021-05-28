@@ -271,7 +271,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string, full b
 				ae.LogFeeder.Printf("Unregistered an AppArmor profile (%s)", profileName)
 			}
 		} else {
-			ae.LogFeeder.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
+			// ae.LogFeeder.Printf("Failed to unregister an unknown AppArmor profile (%s)", profileName)
 			return false
 		}
 	} else {
