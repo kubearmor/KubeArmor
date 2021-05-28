@@ -1,11 +1,12 @@
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: kubearmor-mysql-client
   namespace: kubearmor
   labels:
     app: kubearmor-mysql-client
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: kubearmor-mysql-client
@@ -14,15 +15,12 @@ spec:
       labels:
         app: kubearmor-mysql-client
     spec:
-      tolerations:
-      - key: node-role.kubernetes.io/master
-        effect: NoSchedule
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: kubearmor-mysql-client
         image: accuknox/kubearmor-mysql-client:latest
         env:
+        - name: KUBEARMOR_SERVICE
+          value: kubearmor.kube-system.svc:32767
         - name: DB_HOST
           value: mysql.kubearmor.svc:3306
         - name: DB_NAME
