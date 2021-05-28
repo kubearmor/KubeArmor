@@ -432,6 +432,8 @@ func (fd *Feeder) PushMessage(level, message string) error {
 	pbMsg.HostName = fd.HostName
 	pbMsg.HostIP = fd.HostIP
 
+	pbMsg.Type = "Message"
+
 	pbMsg.Level = level
 	pbMsg.Message = message
 
