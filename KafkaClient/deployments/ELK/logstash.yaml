@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-configmap
+  namespace: kubearmor
+data:
+  logstash.conf: |
+    input {
+      kafka {
+        bootstrap_servers => "kafka-cluster-kafka-bootstrap.kubearmor.svc:9092"
+        topics => [ "kubearmor-messages", "kubearmor-alerts", "kubearmor-syslogs" ]
+        enable_auto_commit => "true"
+        auto_offset_reset => "latest"
+        consumer_threads => 4
+        codec => "json"
+      }
+    }
+    output {
+      elasticsearch {
+        hosts => "elasticsearch.kubearmor.svc:9200"
+        user => "admin"
+        password => "password"
+        index => "kubearmor"
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: kubearmor
+spec:
+  selector:
+    app: logstash
+  ports:
+  - name: ls-5000
+    port: 5000
+    targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: kubearmor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+      - name: logstash
+        image: docker.elastic.co/logstash/logstash:5.6.0
+        ports:
+        - containerPort: 5000
+        env:
+        - name: PATH_CONFIG
+          value: "/usr/share/logstash/pipeline"
+        - name: HTTP_HOST
+          value: "0.0.0.0"
+        - name: XPACK_MONITORING_ENABLED
+          value: "false"
+        - name: LS_JAVA_OPTS
+          value: -Xmx256m -Xms256m
+        volumeMounts:
+        - name: logstash-pipeline-volume
+          mountPath: /usr/share/logstash/pipeline
+      volumes:
+      - name: logstash-pipeline-volume
+        configMap:
+          name: logstash-configmap
+          items:
+          - key: logstash.conf
+            path: logstash.conf
