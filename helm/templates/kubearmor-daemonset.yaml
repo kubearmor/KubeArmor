@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{.Values.kubearmor.name }}
+  name: kubearmor
   namespace: kube-system
   labels:
     daemonset: kubearmor
