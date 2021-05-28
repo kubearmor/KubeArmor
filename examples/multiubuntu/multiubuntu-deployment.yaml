@@ -113,7 +113,7 @@ spec:
       annotations:
         container.apparmor.security.beta.kubernetes.io/ubuntu-4-container: localhost/apparmor-demo-ubuntu-4
         kubearmor-policy: enabled
-        # kubearmor-visibility: process,file,network
+        kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-4-container
