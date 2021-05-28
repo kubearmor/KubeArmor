@@ -276,7 +276,8 @@ func NewRelayServer(port string) *RelayServer {
 	// listen to gRPC port
 	listener, err := net.Listen("tcp", ":"+rs.Port)
 	if err != nil {
-		fmt.Errorf("Failed to listen a port (%s, %s)", rs.Port, err.Error())
+		fmt.Printf("Failed to listen a port (%s)\n", rs.Port)
+		fmt.Println(err.Error())
 		return nil
 	}
 	rs.Listener = listener
@@ -344,18 +345,57 @@ func (rs *RelayServer) GetFeedsFromNodes() {
 					nodeIP := event.Object.Status.HostIP
 					server := nodeIP + ":" + rs.Port
 
-					if event.Type == "ADDED" {
-						if _, ok := rs.ClientList[nodeIP]; !ok {
+					if event.Type != "DELETED" {
+						if oldClient, ok := rs.ClientList[nodeIP]; !ok {
 							// create a client
 							client := NewClient(server)
 							if client == nil {
-								fmt.Errorf("Failed to connec to the gRPC server (%s)", server)
+								fmt.Printf("Failed to connect to the gRPC server (%s)\n", server)
 								continue
 							}
 
 							// do healthcheck
 							if ok := client.DoHealthCheck(); !ok {
-								fmt.Errorf("Failed to check the liveness of the gRPC server")
+								fmt.Println("Failed to check the liveness of the gRPC server")
+								return
+							}
+							fmt.Println("Checked the liveness of the gRPC server")
+
+							// watch messages
+							go client.WatchMessages()
+							fmt.Println("Started to watch messages from " + server)
+
+							// watch alerts
+							go client.WatchAlerts()
+							fmt.Println("Started to watch alerts from " + server)
+
+							// watch logs
+							go client.WatchLogs()
+							fmt.Println("Started to watch logs from " + server)
+
+							rs.ClientList[nodeIP] = client
+						} else {
+							// do healthcheck
+							if ok := oldClient.DoHealthCheck(); ok {
+								continue
+							}
+
+							if err := oldClient.DestroyClient(); err != nil {
+								fmt.Printf("Failed to destroy the gRPC client (%s)\n", server)
+							}
+
+							fmt.Printf("Try to reconnect to the gRPC server (%s)\n", server)
+
+							// create a client
+							client := NewClient(server)
+							if client == nil {
+								fmt.Printf("Failed to reconnect to the gRPC server (%s)\n", server)
+								continue
+							}
+
+							// do healthcheck
+							if ok := client.DoHealthCheck(); !ok {
+								fmt.Println("Failed to check the liveness of the gRPC server")
 								return
 							}
 							fmt.Println("Checked the liveness of the gRPC server")
@@ -375,11 +415,11 @@ func (rs *RelayServer) GetFeedsFromNodes() {
 							rs.ClientList[nodeIP] = client
 						}
 
-					} else if event.Type == "DELETED" {
+					} else {
 						if val, ok := rs.ClientList[nodeIP]; !ok {
 							// destroy the client
 							if err := val.DestroyClient(); err != nil {
-								fmt.Errorf("Failed to destroy the gRPC client (%s)", server)
+								fmt.Printf("Failed to destroy the gRPC client (%s)\n", server)
 							}
 
 							delete(rs.ClientList, nodeIP)
