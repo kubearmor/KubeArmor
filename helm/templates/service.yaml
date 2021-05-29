@@ -5,7 +5,7 @@ metadata:
   namespace: kube-system
 spec:
   selector:
-    container: kubearmor
+    container: kubearmor-relay
   ports:
   - port: 32767
     protocol: TCP

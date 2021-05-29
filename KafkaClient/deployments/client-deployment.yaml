@@ -2,7 +2,6 @@ apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaUser
 metadata:
   name: kafka-feeder
-  namespace: kubearmor
   labels:
     strimzi.io/cluster: kafka-cluster
 spec:
@@ -39,7 +38,6 @@ apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaTopic
 metadata:
   name: transcript-topic
-  namespace: kubearmor
   labels:
     strimzi.io/cluster: kafka-cluster
 spec:
@@ -51,13 +49,14 @@ spec:
 
 ---
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: kubearmor-kafka-client
   namespace: kubearmor
   labels:
     app: kubearmor-kafka-client
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: kubearmor-kafka-client
@@ -66,20 +65,17 @@ spec:
       labels:
         app: kubearmor-kafka-client
     spec:
-      tolerations:
-      - key: node-role.kubernetes.io/master
-        effect: NoSchedule
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: kubearmor-kafka-client
         image: accuknox/kubearmor-kafka-client:latest
         env:
+        - name: KUBEARMOR_SERVICE
+          value: kubearmor.kube-system.svc:32767
         - name: KAFKA_BOOTSTRAP_SERVER
           value: kafka-cluster-kafka-bootstrap.kubearmor.svc:9092
         - name: TOPIC_MSG
           value: kubearmor-messages
         - name: TOPIC_ALERT
           value: kubearmor-alerts
-        # - name: TOPIC_LOG
-        #   value: kubearmor-syslogs
+        - name: TOPIC_LOG
+          value: kubearmor-syslogs

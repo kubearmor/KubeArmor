@@ -74,7 +74,7 @@ func NewClient(server, dbHost, dbName, dbUser, dbPasswd, dbMsgTable, dbAlertTabl
 
 	conn, err := grpc.Dial(mc.server, grpc.WithInsecure())
 	if err != nil {
-		fmt.Errorf("Failed to connect to a gRPC server (%s)", err.Error())
+		// fmt.Printf("Failed to connect to a gRPC server (%s)\n", err.Error())
 		return nil
 	}
 	mc.conn = conn
@@ -87,7 +87,7 @@ func NewClient(server, dbHost, dbName, dbUser, dbPasswd, dbMsgTable, dbAlertTabl
 
 		msgStream, err := mc.client.WatchMessages(context.Background(), &msgIn)
 		if err != nil {
-			fmt.Errorf("Failed to call WatchMessages() (%s)", err.Error())
+			// fmt.Printf("Failed to call WatchMessages() (%s)\n", err.Error())
 			return nil
 		}
 		mc.msgStream = msgStream
@@ -99,7 +99,7 @@ func NewClient(server, dbHost, dbName, dbUser, dbPasswd, dbMsgTable, dbAlertTabl
 
 		alertStream, err := mc.client.WatchAlerts(context.Background(), &alertIn)
 		if err != nil {
-			fmt.Errorf("Failed to call WatchAlerts() (%s)", err.Error())
+			// fmt.Printf("Failed to call WatchAlerts() (%s)\n", err.Error())
 			return nil
 		}
 		mc.alertStream = alertStream
@@ -111,7 +111,7 @@ func NewClient(server, dbHost, dbName, dbUser, dbPasswd, dbMsgTable, dbAlertTabl
 
 		logStream, err := mc.client.WatchLogs(context.Background(), &logIn)
 		if err != nil {
-			fmt.Errorf("Failed to call WatchLogs() (%s)", err.Error())
+			// fmt.Printf("Failed to call WatchLogs() (%s)\n", err.Error())
 			return nil
 		}
 		mc.logStream = logStream
@@ -131,7 +131,7 @@ func (mc *MySQLClient) DoHealthCheck() bool {
 	nonce := pb.NonceMessage{Nonce: randNum}
 	res, err := mc.client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
-		fmt.Errorf("Failed to call HealthCheck() (%s)", err.Error())
+		fmt.Printf("Failed to call HealthCheck() (%s)\n", err.Error())
 		return false
 	}
 
@@ -154,24 +154,24 @@ func (mc *MySQLClient) WatchMessages(msgPath string) error {
 	for mc.Running {
 		res, err := mc.msgStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a message (%s)", err.Error())
+			fmt.Printf("Failed to receive a message (%s)\n", err.Error())
 			break
 		}
 
 		arr, _ := json.Marshal(res)
-		str := fmt.Sprintf("%s\n", string(arr))
+		str := fmt.Sprintf("%s", string(arr))
 
 		sql := "INSERT INTO " + mc.dbMsgTable +
 			" (timestamp, updatedTime, clusterName, hostName, hostIP, level, message) VALUES (?, ?, ?, ?, ?, ?, ?)"
 
 		if _, err := db.Exec(sql, res.Timestamp, res.UpdatedTime, res.ClusterName, res.HostName, res.HostIP, res.Level, res.Message); err != nil {
-			fmt.Errorf("Failed to insert a message (%s)", str)
+			fmt.Printf("Failed to insert a message (%s)\n", str)
 		}
 
 		if msgPath == "stdout" {
-			fmt.Printf("%s", str)
+			fmt.Println(str)
 		} else if msgPath != "none" {
-			ll.StrToFile(str, msgPath)
+			ll.StrToFile(str+"\n", msgPath)
 		}
 	}
 
@@ -189,7 +189,7 @@ func (mc *MySQLClient) WatchAlerts(logPath string) error {
 	for mc.Running {
 		res, err := mc.alertStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive an alert (%s)", err.Error())
+			fmt.Printf("Failed to receive an alert (%s)\n", err.Error())
 			break
 		}
 
@@ -207,7 +207,7 @@ func (mc *MySQLClient) WatchAlerts(logPath string) error {
 			res.ContainerID, res.ContainerName, res.HostPID, res.PPID, res.PID, res.UID,
 			res.PolicyName, res.Severity, res.Tags, res.Message, res.Type, res.Source,
 			res.Operation, res.Resource, res.Data, res.Action, res.Result); err != nil {
-			fmt.Errorf("Failed to insert an alert (%s)", str)
+			fmt.Printf("Failed to insert an alert (%s)\n", str)
 		}
 
 		if logPath == "stdout" {
@@ -231,7 +231,7 @@ func (mc *MySQLClient) WatchLogs(logPath string) error {
 	for mc.Running {
 		res, err := mc.logStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a log (%s)", err.Error())
+			fmt.Printf("Failed to receive a log (%s)\n", err.Error())
 			break
 		}
 
@@ -247,7 +247,7 @@ func (mc *MySQLClient) WatchLogs(logPath string) error {
 		if _, err := db.Exec(sql, res.Timestamp, res.UpdatedTime, res.ClusterName, res.HostName, res.NamespaceName, res.PodName,
 			res.ContainerID, res.ContainerName, res.HostPID, res.PPID, res.PID, res.UID,
 			res.Type, res.Source, res.Operation, res.Resource, res.Data, res.Result); err != nil {
-			fmt.Errorf("Failed to insert a system log (%s)", str)
+			fmt.Printf("Failed to insert a system log (%s)\n", str)
 		}
 
 		if logPath == "stdout" {

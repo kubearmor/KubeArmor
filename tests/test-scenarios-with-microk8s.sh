@@ -1,7 +1,6 @@
 #!/bin/bash
 
 TEST_HOME=`dirname $(realpath "$0")`
-CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../deployments/microk8s
 
 ARMOR_LOG=/tmp/kubearmor.log
@@ -17,14 +16,6 @@ NC='\033[0m'
 ## == Functions == ##
 
 function start_and_wait_for_kubearmor_initialization() {
-    cd $CRD_HOME
-
-    kubectl apply -f .
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to apply $1${NC}"
-        exit 1
-    fi
-
     cd $ARMOR_HOME
 
     kubectl apply -f .

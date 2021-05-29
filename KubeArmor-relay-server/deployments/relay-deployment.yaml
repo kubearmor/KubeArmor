@@ -31,3 +31,6 @@ spec:
       containers:
         - name: kubearmor-relay-server
           image: accuknox/kubearmor-relay-server:latest
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 32767

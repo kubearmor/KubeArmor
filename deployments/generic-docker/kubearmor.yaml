@@ -48,8 +48,11 @@ spec:
     spec:
       serviceAccountName: kubearmor
       containers:
-        - name: kubearmor-relay-server
-          image: accuknox/kubearmor-relay-server:latest
+      - name: kubearmor-relay-server
+        image: accuknox/kubearmor-relay-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 32767
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -83,7 +86,7 @@ spec:
         imagePullPolicy: Always
         securityContext:
           privileged: true
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableEnforcerPerPod"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
         ports:
         - containerPort: 32767
         volumeMounts:
@@ -102,9 +105,9 @@ spec:
           mountPath: /sys/kernel/debug
         - name: etc-apparmor-d-path # AppArmor (read-write)
           mountPath: /etc/apparmor.d
-        - name: var-log-audit-path # Auditd (read-only)
-          mountPath: /var/log/audit
-          readOnly: true
+        # - name: var-log-audit-path # Auditd (read-only)
+        #   mountPath: /var/log/audit
+        #   readOnly: true
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -147,10 +150,10 @@ spec:
         hostPath:
           path: /etc/apparmor.d
           type: Directory
-      - name: var-log-audit-path # Auditd
-        hostPath:
-          path: /var/log/audit
-          type: Directory
+      # - name: var-log-audit-path # Auditd
+      #   hostPath:
+      #     path: /var/log/audit
+      #     type: Directory
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release

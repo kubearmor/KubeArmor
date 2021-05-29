@@ -1,12 +1,15 @@
 ### Builder
 
-FROM accuknox/kubearmor:base as builder
+FROM golang:1.15.2-alpine3.12 as builder
+
+RUN apk update
+RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-dev librdkafka
 
 WORKDIR /usr/src/KubeArmor
 
 COPY ./KubeArmor ./KubeArmor
-COPY ./GKE ./GKE
 COPY ./protobuf ./protobuf
+COPY ./GKE ./GKE
 
 COPY ./LogClient ./LogClient
 COPY ./MySQLClient ./MySQLClient
@@ -14,12 +17,15 @@ COPY ./KafkaClient ./KafkaClient
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
+COPY ./KubeArmorPolicy.yaml ./CRD/KubeArmorPolicy.yaml
+COPY ./KubeArmorHostPolicy.yaml ./CRD/KubeArmorHostPolicy.yaml
+
 RUN ./patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
 WORKDIR /usr/src/KubeArmor/LogClient
 
-RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-client main.go
+RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-log-client main.go
 
 WORKDIR /usr/src/KubeArmor/MySQLClient
 
@@ -27,8 +33,6 @@ RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-mysql-clie
 
 WORKDIR /usr/src/KubeArmor/KafkaClient
 
-RUN apk update
-RUN apk add librdkafka
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -tags musl -o kubearmor-kafka-client main.go
 
 ### Make executable image
@@ -40,14 +44,17 @@ RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc
 
 RUN apk update
 RUN apk add bash curl procps bcc bcc-dev
-RUN apk add apparmor@edge apparmor-utils@edge
+RUN apk add kubectl@edge apparmor@edge apparmor-utils@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
 
-COPY --from=builder /usr/src/KubeArmor/LogClient/kubearmor-client /KubeArmor/kubearmor-client
-COPY --from=builder /usr/src/KubeArmor/MySQLClient/kubearmor-mysql-client /KubeArmor/kubearmor-mysql-client
-COPY --from=builder /usr/src/KubeArmor/KafkaClient/kubearmor-kafka-client /KubeArmor/kubearmor-kafka-client
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorPolicy.yaml /KubeArmor/CRD/KubeArmorPolicy.yaml
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorHostPolicy.yaml /KubeArmor/CRD/KubeArmorHostPolicy.yaml
+
+COPY --from=builder /usr/src/KubeArmor/LogClient/kubearmor-log-client /kubearmor-log-client
+COPY --from=builder /usr/src/KubeArmor/MySQLClient/kubearmor-mysql-client /kubearmor-mysql-client
+COPY --from=builder /usr/src/KubeArmor/KafkaClient/kubearmor-kafka-client /kubearmor-kafka-client
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]

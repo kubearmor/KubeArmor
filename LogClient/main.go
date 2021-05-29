@@ -46,12 +46,32 @@ func main() {
 	// == //
 
 	// get arguments
-	gRPCPtr := flag.String("gRPC", "localhost:32767", "gRPC server information")
+	gRPCPtr := flag.String("gRPC", "", "gRPC server information")
 	msgPathPtr := flag.String("msgPath", "none", "Output location for messages, {path|stdout|none}")
 	logPathPtr := flag.String("logPath", "stdout", "Output location for alerts and logs, {path|stdout|none}")
 	logFilterPtr := flag.String("logFilter", "policy", "Filter for what kinds of alerts and logs to receive, {policy|system|all}")
 	jsonPtr := flag.Bool("json", false, "Flag to print alerts and logs in the JSON format")
 	flag.Parse()
+
+	// == //
+
+	gRPC := ""
+
+	fmt.Println("== KubeArmor information ==")
+
+	if *gRPCPtr != "" {
+		gRPC = *gRPCPtr
+	} else {
+		if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
+			gRPC = val
+		} else {
+			gRPC = "localhost:32767"
+		}
+	}
+
+	fmt.Println("  gRPC server: " + gRPC)
+
+	// == //
 
 	if *msgPathPtr == "none" && *logPathPtr == "none" {
 		flag.PrintDefaults()
@@ -66,16 +86,16 @@ func main() {
 	// == //
 
 	// create a client
-	logClient := core.NewClient(*gRPCPtr, *msgPathPtr, *logPathPtr, *logFilterPtr)
+	logClient := core.NewClient(gRPC, *msgPathPtr, *logPathPtr, *logFilterPtr)
 	if logClient == nil {
-		fmt.Errorf("Failed to connect to the gRPC server (%s)", *gRPCPtr)
+		fmt.Printf("Failed to connect to the gRPC server (%s)\n", gRPC)
 		return
 	}
-	fmt.Printf("Created a gRPC client (%s)\n", *gRPCPtr)
+	fmt.Printf("Created a gRPC client (%s)\n", gRPC)
 
 	// do healthcheck
 	if ok := logClient.DoHealthCheck(); !ok {
-		fmt.Errorf("Failed to check the liveness of the gRPC server")
+		fmt.Println("Failed to check the liveness of the gRPC server")
 		return
 	}
 	fmt.Println("Checked the liveness of the gRPC server")
@@ -110,7 +130,7 @@ func main() {
 
 	// destroy the client
 	if err := logClient.DestroyClient(); err != nil {
-		fmt.Errorf("Failed to destroy the gRPC client (%s)", err.Error())
+		fmt.Printf("Failed to destroy the gRPC client (%s)\n", err.Error())
 		return
 	}
 	fmt.Println("Destroyed the gRPC client")

@@ -4,7 +4,6 @@ general:
   gkeEnabled: true
 
 kubearmor:
-  name: kubearmor
   serviceAccountName: kubearmor
   image:
     repository: accuknox/kubearmor
@@ -94,6 +93,12 @@ kubearmor:
       hostPath:
         path: /var/log/audit
         type: Directory
+
+kubearmor-relay:
+  image:
+    repository: accuknox/kubearmor-relay
+    pullPolicy: Always
+    tag: latest
 
 cosauditd:
   name: kubearmor-cos-auditd

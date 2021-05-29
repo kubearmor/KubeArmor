@@ -48,8 +48,11 @@ spec:
     spec:
       serviceAccountName: kubearmor
       containers:
-        - name: kubearmor-relay-server
-          image: accuknox/kubearmor-relay-server:latest
+      - name: kubearmor-relay-server
+        image: accuknox/kubearmor-relay-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 32767
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -102,9 +105,9 @@ spec:
           mountPath: /sys/kernel/debug
         - name: etc-apparmor-d-path # AppArmor (read-write)
           mountPath: /etc/apparmor.d
-        - name: var-log-audit-path # GKE-Auditd (read-only)
-          mountPath: /var/log/audit
-          readOnly: true
+        # - name: var-log-audit-path # GKE-Auditd (read-only)
+        #   mountPath: /var/log/audit
+        #   readOnly: true
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -147,85 +150,85 @@ spec:
         hostPath:
           path: /etc/apparmor.d
           type: Directory
-      - name: var-log-audit-path # GKE-Auditd
-        hostPath:
-          path: /var/log/audit
-          type: Directory
+      # - name: var-log-audit-path # GKE-Auditd
+      #   hostPath:
+      #     path: /var/log/audit
+      #     type: Directory
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release
           type: File
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: kubearmor-cos-auditd
-  namespace: kube-system
-  labels:
-    daemonset: kubearmor-cos-auditd
-spec:
-  selector:
-    matchLabels:
-      container: kubearmor-cos-auditd
-  template:
-    metadata:
-      labels:
-        container: kubearmor-cos-auditd
-      annotations:
-        scheduler.alpha.kubernetes.io/critical-pod: ""
-    spec:
-      nodeSelector:
-        cloud.google.com/gke-os-distribution: cos
-      hostPID: true
-      hostNetwork: true
-      restartPolicy: Always
-      initContainers:
-      - name: kubearmor-cos-auditd-setup
-        image: ubuntu
-        command: ["chroot", "/host", "systemctl", "start", "cloud-audit-setup"]
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: host-path
-          mountPath: /host
-        resources:
-          requests:
-            memory: "10Mi"
-            cpu: "10m"
-      containers:
-      - name: kubearmor-cos-auditd
-        image: accuknox/kubearmor-cos-auditd:latest
-        imagePullPolicy: Always
-        env:
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: spec.nodeName
-        volumeMounts:
-        - name: lib-systemd-path
-          mountPath: /host/lib
-          readOnly: true
-        - name: var-log-path
-          mountPath: /var/log
-        terminationMessagePolicy: File
-        terminationMessagePath: /dev/termination-log
-      terminationGracePeriodSeconds: 30
-      tolerations:
-      - effect: NoSchedule
-        key: node.alpha.kubernetes.io/ismaster
-      - effect: NoExecute
-        operator: Exists
-      volumes:
-      - name: host-path
-        hostPath:
-          path: /
-          type: Directory
-      - name: lib-systemd-path
-        hostPath:
-          path: /usr/lib64
-          type: Directory
-      - name: var-log-path
-        hostPath:
-          path: /var/log
-          type: Directory
+# ---
+# apiVersion: apps/v1
+# kind: DaemonSet
+# metadata:
+#   name: kubearmor-cos-auditd
+#   namespace: kube-system
+#   labels:
+#     daemonset: kubearmor-cos-auditd
+# spec:
+#   selector:
+#     matchLabels:
+#       container: kubearmor-cos-auditd
+#   template:
+#     metadata:
+#       labels:
+#         container: kubearmor-cos-auditd
+#       annotations:
+#         scheduler.alpha.kubernetes.io/critical-pod: ""
+#     spec:
+#       nodeSelector:
+#         cloud.google.com/gke-os-distribution: cos
+#       hostPID: true
+#       hostNetwork: true
+#       restartPolicy: Always
+#       initContainers:
+#       - name: kubearmor-cos-auditd-setup
+#         image: ubuntu
+#         command: ["chroot", "/host", "systemctl", "start", "cloud-audit-setup"]
+#         securityContext:
+#           privileged: true
+#         volumeMounts:
+#         - name: host-path
+#           mountPath: /host
+#         resources:
+#           requests:
+#             memory: "10Mi"
+#             cpu: "10m"
+#       containers:
+#       - name: kubearmor-cos-auditd
+#         image: accuknox/kubearmor-cos-auditd:latest
+#         imagePullPolicy: Always
+#         env:
+#         - name: NODE_NAME
+#           valueFrom:
+#             fieldRef:
+#               apiVersion: v1
+#               fieldPath: spec.nodeName
+#         volumeMounts:
+#         - name: lib-systemd-path
+#           mountPath: /host/lib
+#           readOnly: true
+#         - name: var-log-path
+#           mountPath: /var/log
+#         terminationMessagePolicy: File
+#         terminationMessagePath: /dev/termination-log
+#       terminationGracePeriodSeconds: 30
+#       tolerations:
+#       - effect: NoSchedule
+#         key: node.alpha.kubernetes.io/ismaster
+#       - effect: NoExecute
+#         operator: Exists
+#       volumes:
+#       - name: host-path
+#         hostPath:
+#           path: /
+#           type: Directory
+#       - name: lib-systemd-path
+#         hostPath:
+#           path: /usr/lib64
+#           type: Directory
+#       - name: var-log-path
+#         hostPath:
+#           path: /var/log
+#           type: Directory

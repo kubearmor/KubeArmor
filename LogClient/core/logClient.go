@@ -55,7 +55,7 @@ func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 
 	conn, err := grpc.Dial(lc.server, grpc.WithInsecure())
 	if err != nil {
-		fmt.Errorf("Failed to connect to a gRPC server (%s)", err.Error())
+		// fmt.Printf("Failed to connect to a gRPC server (%s)\n", err.Error())
 		return nil
 	}
 	lc.conn = conn
@@ -68,7 +68,7 @@ func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 
 		msgStream, err := lc.client.WatchMessages(context.Background(), &msgIn)
 		if err != nil {
-			fmt.Errorf("Failed to call WatchMessages() (%s)", err.Error())
+			// fmt.Printf("Failed to call WatchMessages() (%s)\n", err.Error())
 			return nil
 		}
 		lc.msgStream = msgStream
@@ -80,7 +80,7 @@ func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 
 		alertStream, err := lc.client.WatchAlerts(context.Background(), &alertIn)
 		if err != nil {
-			fmt.Errorf("Failed to call WatchAlerts() (%s)", err.Error())
+			// fmt.Printf("Failed to call WatchAlerts() (%s)\n", err.Error())
 			return nil
 		}
 		lc.alertStream = alertStream
@@ -90,7 +90,7 @@ func NewClient(server, msgPath, logPath, logFilter string) *LogClient {
 
 		logStream, err := lc.client.WatchLogs(context.Background(), &logIn)
 		if err != nil {
-			fmt.Errorf("Failed to call WatchLogs() (%s)", err.Error())
+			// fmt.Printf("Failed to call WatchLogs() (%s)\n", err.Error())
 			return nil
 		}
 		lc.logStream = logStream
@@ -110,7 +110,7 @@ func (lc *LogClient) DoHealthCheck() bool {
 	nonce := pb.NonceMessage{Nonce: randNum}
 	res, err := lc.client.HealthCheck(context.Background(), &nonce)
 	if err != nil {
-		fmt.Errorf("Failed to call HealthCheck() (%s)", err.Error())
+		fmt.Printf("Failed to call HealthCheck() (%s)\n", err.Error())
 		return false
 	}
 
@@ -130,7 +130,7 @@ func (lc *LogClient) WatchMessages(msgPath string, jsonFormat bool) error {
 	for lc.Running {
 		res, err := lc.msgStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a message (%s)", err.Error())
+			fmt.Printf("Failed to receive a message (%s)\n", err.Error())
 			break
 		}
 
@@ -164,7 +164,7 @@ func (lc *LogClient) WatchAlerts(logPath string, jsonFormat bool) error {
 	for lc.Running {
 		res, err := lc.alertStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a log (%s)", err.Error())
+			fmt.Printf("Failed to receive a log (%s)\n", err.Error())
 			break
 		}
 
@@ -239,7 +239,7 @@ func (lc *LogClient) WatchLogs(logPath string, jsonFormat bool) error {
 	for lc.Running {
 		res, err := lc.logStream.Recv()
 		if err != nil {
-			fmt.Errorf("Failed to receive a log (%s)", err.Error())
+			fmt.Printf("Failed to receive a log (%s)\n", err.Error())
 			break
 		}
 

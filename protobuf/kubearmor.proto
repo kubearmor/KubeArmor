@@ -18,8 +18,10 @@ message Message {
   string HostName = 4;
   string HostIP = 5;
 
-  string Level = 6;
-  string Message = 7;
+  string Type = 6;
+
+  string Level = 7;
+  string Message = 8;
 }
 
 // alert struct

@@ -53,7 +53,7 @@ func main() {
 	// create a client
 	relayServer := core.NewRelayServer(*gRPCPortPtr)
 	if relayServer == nil {
-		fmt.Errorf("Failed to create a relay server (:%s)", *gRPCPortPtr)
+		fmt.Printf("Failed to create a relay server (:%s)\n", *gRPCPortPtr)
 		return
 	}
 	fmt.Printf("Created a relay server (:%s)\n", *gRPCPortPtr)
@@ -73,7 +73,7 @@ func main() {
 
 	// destroy the client
 	if err := relayServer.DestroyRelayServer(); err != nil {
-		fmt.Errorf("Failed to destroy the relay server (%s)", err.Error())
+		fmt.Printf("Failed to destroy the relay server (%s)\n", err.Error())
 		return
 	}
 	fmt.Println("Destroyed the relay server")

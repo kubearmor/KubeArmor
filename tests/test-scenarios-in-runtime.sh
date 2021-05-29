@@ -18,7 +18,6 @@ realpath() {
 }
 
 TEST_HOME=`dirname $(realpath "$0")`
-CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
@@ -33,14 +32,6 @@ NC='\033[0m'
 ## == Functions == ##
 
 function wait_for_kubearmor_initialization() {
-    cd $CRD_HOME
-
-    kubectl apply -f .
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to apply $1${NC}"
-        exit 1
-    fi
-
     KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
 
     for ARMOR in $KUBEARMOR
@@ -107,7 +98,7 @@ function should_not_find_any_log() {
     if [ "$KUBEARMOR" != "" ]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
         if [ $? == 0 ]; then
-            sleep 2
+            sleep 3
 
             audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
             if [ $? == 0 ]; then
@@ -154,7 +145,7 @@ function should_find_passed_log() {
     if [ "$KUBEARMOR" != "" ]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
         if [ $? != 0 ]; then
-            sleep 2
+            sleep 3
 
             audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
             if [ $? != 0 ]; then
@@ -172,7 +163,7 @@ function should_find_passed_log() {
     else # local
         audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
         if [ $? != 0 ]; then
-            sleep 2
+            sleep 3
 
             audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
             if [ $? != 0 ]; then
@@ -201,7 +192,7 @@ function should_find_blocked_log() {
     if [ "$KUBEARMOR" != "" ]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
         if [ $? != 0 ]; then
-            sleep 2
+            sleep 3
 
             audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
             if [ $? != 0 ]; then
@@ -219,7 +210,7 @@ function should_find_blocked_log() {
     else
         audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
         if [ $? != 0 ]; then
-            sleep 2
+            sleep 3
 
             audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
             if [ $? != 0 ]; then

@@ -14,7 +14,7 @@ func (mc *MySQLClient) ConnectMySQL() (db *sql.DB) {
 
 	db, err := sql.Open("mysql", info)
 	for err != nil {
-		fmt.Errorf("Failed to connect to the MySQL server (%s, %s)", info, err.Error())
+		fmt.Printf("Failed to connect to the MySQL server (%s, %s)\n", info, err.Error())
 		time.Sleep(time.Second * 1)
 	}
 	db.SetMaxIdleConns(0)
@@ -41,7 +41,7 @@ func (mc *MySQLClient) CreateTablesIfNotExist() bool {
 			");"
 
 		if _, err := db.Query(query); err != nil {
-			fmt.Errorf("Failed to create %s (%s)", mc.dbMsgTable, err.Error())
+			fmt.Printf("Failed to create %s (%s)\n", mc.dbMsgTable, err.Error())
 			return false
 		}
 	}
@@ -76,7 +76,7 @@ func (mc *MySQLClient) CreateTablesIfNotExist() bool {
 			");"
 
 		if _, err := db.Query(query); err != nil {
-			fmt.Errorf("Failed to create %s (%s)", mc.dbAlertTable, err.Error())
+			fmt.Printf("Failed to create %s (%s)\n", mc.dbAlertTable, err.Error())
 			return false
 		}
 	}
@@ -106,7 +106,7 @@ func (mc *MySQLClient) CreateTablesIfNotExist() bool {
 			");"
 
 		if _, err := db.Query(query); err != nil {
-			fmt.Errorf("Failed to create %s (%s)", mc.dbLogTable, err.Error())
+			fmt.Printf("Failed to create %s (%s)\n", mc.dbLogTable, err.Error())
 			return false
 		}
 	}

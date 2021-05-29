@@ -24,6 +24,7 @@
 ## Reference
 
 * [Supported Capability List](reference/supported_capability_list.md)
+* [Integration with ELK](reference/integration_with_elk.md)
 
 ## Examples
 
