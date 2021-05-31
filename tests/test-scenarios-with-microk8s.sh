@@ -38,7 +38,7 @@ function start_and_wait_for_kubearmor_initialization() {
         sleep 1
     done
 
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v relay | awk '{print $1}')
 
     for (( ; ; ))
     do
@@ -112,7 +112,7 @@ function delete_and_wait_for_microserivce_deletion() {
 }
 
 function should_not_find_any_log() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v relay | awk '{print $1}')
 
     sleep 3
 
@@ -138,7 +138,7 @@ function should_not_find_any_log() {
 }
 
 function should_find_passed_log() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v relay | awk '{print $1}')
 
     sleep 3
 
@@ -164,7 +164,7 @@ function should_find_passed_log() {
 }
 
 function should_find_blocked_log() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v relay | awk '{print $1}')
 
     sleep 3
 
