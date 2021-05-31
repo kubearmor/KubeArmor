@@ -48,12 +48,12 @@ case "$VERSION" in
     echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
 esac
 
-# install golang 1.15.2
+# install golang
 sudo apt-get update
 sudo apt-get -y install gcc libsctp-dev make
 
-# Installing latest golang
-goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3) && wget https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
+goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)
+wget https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
 sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
 if [ "$(hostname)" == "kubearmor-dev" ]; then
