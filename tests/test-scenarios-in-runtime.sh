@@ -89,7 +89,7 @@ function delete_and_wait_for_microserivce_deletion() {
 
 function should_not_find_any_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
 
     sleep 3
 
@@ -136,7 +136,7 @@ function should_not_find_any_log() {
 
 function should_find_passed_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
 
     sleep 3
 
@@ -183,7 +183,7 @@ function should_find_passed_log() {
 
 function should_find_blocked_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
 
     sleep 3
 

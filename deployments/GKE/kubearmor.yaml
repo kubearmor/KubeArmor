@@ -47,6 +47,8 @@ spec:
         container: kubearmor-relay
     spec:
       serviceAccountName: kubearmor
+      nodeSelector:
+        kubernetes.io/os: linux
       containers:
       - name: kubearmor-relay-server
         image: accuknox/kubearmor-relay-server:latest
@@ -73,6 +75,8 @@ spec:
         container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
     spec:
       serviceAccountName: kubearmor
+      nodeSelector:
+        kubernetes.io/os: linux
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
