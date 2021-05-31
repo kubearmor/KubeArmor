@@ -21,7 +21,7 @@ elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # initialize the master node (calico)
     sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 elif [ ! -z $1 ] && [ "$1" == "cilium" ]; then
-    # initialize the master node (calico)
+    # initialize the master node (cilium)
     sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 else
     # initialize the master node (flannel) by default
