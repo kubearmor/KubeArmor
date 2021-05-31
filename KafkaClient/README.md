@@ -9,7 +9,6 @@ If you do not have a pre-installed Kafka system, you can quickly set up the Kafk
 ```
 $ cd KafkaClient/deployments/kafka
 (kafka) $ kubectl create namespace kubearmor
-(kafka) $ kubectl apply -f kafka-crd.yaml
 (kafka) $ kubectl apply -f kafka-deployment.yaml
 (kafka) $ kubectl apply -f kafka-volume.yaml
 ```
