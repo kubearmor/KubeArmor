@@ -2,6 +2,7 @@ apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
   name: kafka-cluster
+  namespace: kubearmor
 spec:
   kafka:
     version: 2.8.0
@@ -21,19 +22,19 @@ spec:
       inter.broker.protocol.version: "2.8"
     storage:
       type: ephemeral
-      #type: jbod
-      #volumes:
-      #- id: 0
-      #  type: persistent-claim
-      #  size: 2Gi
-      #  deleteClaim: true
+      # type: jbod
+      # volumes:
+      # - id: 0
+      #   type: persistent-claim
+      #   size: 10Gi
+      #   deleteClaim: true
   zookeeper:
     replicas: 1
     storage:
       type: ephemeral
-      #type: persistent-claim
-      #size: 1Gi
-      #deleteClaim: true
+      # type: persistent-claim
+      # size: 10Gi
+      # deleteClaim: true
   entityOperator:
     topicOperator: {}
     userOperator: {}

@@ -24,7 +24,9 @@ Using your browser, you can access the Kibana UI.
 http://[the IP address of one of the cluster nodes]:30561
 ```
 
-If you just set up the ELK environment, wait until you see 'kubearmor' in [Management] - [Index Management].
+If you just set up the ELK environment, wait until you see 'kubearmor-YYYYMMDD' in [Management] - [Index Management].
+
+![Index Management](../.gitbook/assets/kibana_index_management.png)
 
 If there is no log in KubeArmor, nothing might be shown in the Index Management. In that case, you can run KubeArmor's test script to generate some messages, alerts, and system logs.
 
@@ -33,9 +35,9 @@ $ cd tests
 (tests) $ ./test-scenarios-in-runtime.sh
 ```
 
-![Index Management](../.gitbook/assets/kibana_index_management.png)
+After you see 'kubearmor' in the Index Management, go to [Management] - [Saved Objects] and import [kibana-export.json](https://github.com/accuknox/KubeArmor/blob/master/KafkaClient/deployments/ELK/kibana-export.json).
 
-After you see 'kubearmor' in the Index Management, check the logs in [Discover].
+If you see the logs in [Discover], all works fine.
 
 ![Discover](../.gitbook/assets/kibana_discover.png)
 

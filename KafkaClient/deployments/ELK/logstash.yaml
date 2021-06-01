@@ -20,7 +20,7 @@ data:
         hosts => "elasticsearch.kubearmor.svc:9200"
         user => "admin"
         password => "password"
-        index => "kubearmor"
+        index => "kubearmor-%{+YYYYMMDD}"
       }
     }
 ---
