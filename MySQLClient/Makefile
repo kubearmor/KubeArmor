@@ -13,6 +13,7 @@ TABLE_LOG=syslogs
 
 .PHONY: build
 build:
+	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); go build -o kubearmor-mysql-client main.go
 
 .PHONY: run

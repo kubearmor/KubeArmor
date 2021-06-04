@@ -2,6 +2,7 @@ CURDIR=$(shell pwd)
 
 .PHONY: build
 build:
+	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); go build -o kubearmor-log-client main.go
 
 .PHONY: run
