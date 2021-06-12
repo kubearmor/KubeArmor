@@ -46,6 +46,8 @@ spec:
                 - AllowWithAudit
                 - BlockWithAudit
                 type: string
+              apparmor:
+                type: string
               capabilities:
                 properties:
                   action:

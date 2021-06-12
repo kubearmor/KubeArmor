@@ -2221,9 +2221,19 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 
 	fromSources := map[string][]string{}
 
+	nativeAppArmorRules := []string{}
+
 	// preparation
 
 	for _, secPolicy := range securityPolicies {
+		if len(secPolicy.Spec.Apparmor) > 0 {
+			scanner := bufio.NewScanner(strings.NewReader(secPolicy.Spec.Apparmor))
+			for scanner.Scan() {
+				line := "  " + strings.TrimSpace(scanner.Text()) + "\n"
+				nativeAppArmorRules = append(nativeAppArmorRules, line)
+			}
+		}
+
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" || path.Action == "AllowWithAudit" {
@@ -2468,6 +2478,17 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 
 	profileBody = "  ## == POLICY START == ##\n" + bodyFromSource + profileBody + "  ## == POLICY END == ##\n"
 
+	// body - native apparmor
+	if len(nativeAppArmorRules) > 0 {
+		profileBody = profileBody + "\n  ## == NATIVE POLICY START == ##\n"
+		for _, nativeRule := range nativeAppArmorRules {
+			profileBody = profileBody + nativeRule
+		}
+		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n"
+	}
+
+	count = count + len(nativeAppArmorRules)
+
 	// foot
 
 	profileFoot := "  ## == POST START == ##\n" + GenerateProfileFoot() + "  ## == POST END == ##\n"
@@ -2540,6 +2561,12 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 			continue
 		} else if strings.Contains(line, "## == POST END == ##") {
 			pos = "FOOT"
+			continue
+		} else if strings.Contains(line, "## == NATIVE POLICY START == ##") {
+			pos = "NATIVE-START"
+			continue
+		} else if strings.Contains(line, "## == NATIVE POLICY END == ##") {
+			pos = "NATIVE-END"
 			continue
 		}
 

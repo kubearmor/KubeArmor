@@ -392,6 +392,8 @@ type SecuritySpec struct {
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Resource     ResourceType     `json:"resource,omitempty"`
 
+	Apparmor string `json:"apparmor,omitempty"`
+
 	Action string `json:"action"`
 }
 
