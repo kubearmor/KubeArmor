@@ -4,6 +4,7 @@ GO_EXEC=$(shell which go)
 .PHONY: build
 build:
 	$(CURDIR)/patch.sh
+	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); go build -o kubearmor main.go
 
 .PHONY: run
@@ -18,12 +19,16 @@ run-per-pod: $(CURDIR)/kubearmor
 
 .PHONY: test
 test:
+	cd $(CURDIR)/feeder; go mod tidy
 	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
 
 .PHONY: testall
 testall:
+	cd $(CURDIR)/feeder; go mod tidy
 	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
+	cd $(CURDIR)/enforcer; go mod tidy
 	cd $(CURDIR)/enforcer; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
+	cd $(CURDIR)/monitor; go mod tidy
 	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
 
 .PHONY: clean
