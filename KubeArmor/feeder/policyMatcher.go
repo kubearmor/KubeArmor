@@ -12,450 +12,306 @@ import (
 // == Security Policies == //
 // ======================= //
 
+func newProcPathMatchPolicy(policyName, source string, path tp.ProcessPathType) tp.MatchPolicy {
+	match := tp.MatchPolicy{
+		PolicyName: policyName,
+		Severity:   strconv.Itoa(path.Severity),
+		Tags:       path.Tags,
+		Message:    path.Message,
+		Source:     source,
+		Operation:  "Process",
+		Resource:   path.Path,
+		Action:     path.Action,
+	}
+
+	return match
+}
+
+func newProcDirMatchPolicy(policyName, source string, dir tp.ProcessDirectoryType) tp.MatchPolicy {
+	match := tp.MatchPolicy{
+		PolicyName: policyName,
+		Severity:   strconv.Itoa(dir.Severity),
+		Tags:       dir.Tags,
+		Message:    dir.Message,
+		Source:     source,
+		Operation:  "Process",
+		Resource:   dir.Directory,
+		Action:     dir.Action,
+	}
+
+	return match
+}
+
+func newFilePathMatchPolicy(policyName, source string, path tp.FilePathType) tp.MatchPolicy {
+	match := tp.MatchPolicy{
+		PolicyName: policyName,
+		Severity:   strconv.Itoa(path.Severity),
+		Tags:       path.Tags,
+		Message:    path.Message,
+		Source:     source,
+		Operation:  "File",
+		Resource:   path.Path,
+		Action:     path.Action,
+	}
+
+	return match
+}
+
+func newFileDirMatchPolicy(policyName, source string, dir tp.FileDirectoryType) tp.MatchPolicy {
+	match := tp.MatchPolicy{
+		PolicyName: policyName,
+		Severity:   strconv.Itoa(dir.Severity),
+		Tags:       dir.Tags,
+		Message:    dir.Message,
+		Source:     source,
+		Operation:  "File",
+		Resource:   dir.Directory,
+		Action:     dir.Action,
+	}
+
+	return match
+}
+
+func newNetProtMatchPolicy(policyName, source, resource string, netProt tp.NetworkProtocolType) tp.MatchPolicy {
+	match := tp.MatchPolicy{
+		PolicyName: policyName,
+		Severity:   strconv.Itoa(netProt.Severity),
+		Tags:       netProt.Tags,
+		Message:    netProt.Message,
+		Source:     source,
+		Operation:  "Network",
+		Resource:   resource,
+		Action:     netProt.Action,
+	}
+
+	return match
+}
+
+func getProtocolFromName(proto string) string {
+	switch strings.ToLower(proto) {
+	case "tcp":
+		return "type=SOCK_STREAM"
+	case "udp":
+		return "type=SOCK_DGRAM"
+	case "icmp":
+		return "type=SOCK_RAW protocol=1"
+	default:
+		return ""
+	}
+}
+
+func newCapMatchPolicy(policyName, source, resource string, cap tp.CapabilitiesCapabilityType) tp.MatchPolicy {
+	match := tp.MatchPolicy{
+		PolicyName: policyName,
+		Severity:   strconv.Itoa(cap.Severity),
+		Tags:       cap.Tags,
+		Message:    cap.Message,
+		Source:     source,
+		Operation:  "Network",
+		Resource:   resource,
+		Action:     cap.Action,
+	}
+
+	return match
+}
+
+func getCapabilityFromName(cap string) string {
+	switch strings.ToLower(cap) {
+	case "net_raw":
+		return "type=SOCK_RAW protocol=1"
+	default:
+		return ""
+	}
+}
+
 // UpdateSecurityPolicies Function
 func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGroup) {
+	name := conGroup.NamespaceName + "_" + conGroup.ContainerGroupName
+
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, conGroup.NamespaceName+"_"+conGroup.ContainerGroupName)
-	} else { // ADDED | MODIFIED
-		matches := tp.MatchPolicies{}
+		delete(fd.SecurityPolicies, name)
+		return
+	}
 
-		for _, secPolicy := range conGroup.SecurityPolicies {
-			if len(secPolicy.Spec.AppArmor) > 0 {
-				match := tp.MatchPolicy{}
+	// ADDED | MODIFIED
+	matches := tp.MatchPolicies{}
 
-				match.PolicyName = secPolicy.Metadata["policyName"]
-				match.Native = true
+	for _, secPolicy := range conGroup.SecurityPolicies {
+		policyName := secPolicy.Metadata["policyName"]
 
+		if len(secPolicy.Spec.AppArmor) > 0 {
+			match := tp.MatchPolicy{}
+
+			match.PolicyName = policyName
+			match.Native = true
+
+			matches.Policies = append(matches.Policies, match)
+			continue
+		}
+
+		for _, path := range secPolicy.Spec.Process.MatchPaths {
+			fromSource := ""
+
+			if len(path.FromSource) == 0 {
+				match := newProcPathMatchPolicy(policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
 
-			if len(secPolicy.Spec.Process.MatchPaths) > 0 {
-				for _, path := range secPolicy.Spec.Process.MatchPaths {
-					if len(path.FromSource) == 0 {
-						match := tp.MatchPolicy{}
-
-						match.PolicyName = secPolicy.Metadata["policyName"]
-
-						match.Severity = strconv.Itoa(path.Severity)
-						match.Tags = path.Tags
-						match.Message = path.Message
-
-						match.Source = ""
-						match.Operation = "Process"
-						match.Resource = path.Path
-
-						match.Action = path.Action
-
-						matches.Policies = append(matches.Policies, match)
-					} else {
-						for _, src := range path.FromSource {
-							if len(src.Path) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(path.Severity)
-								match.Tags = path.Tags
-								match.Message = path.Message
-
-								match.Source = src.Path
-								match.Operation = "Process"
-								match.Resource = path.Path
-
-								match.Action = path.Action
-
-								matches.Policies = append(matches.Policies, match)
-							} else if len(src.Directory) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(path.Severity)
-								match.Tags = path.Tags
-								match.Message = path.Message
-
-								match.Source = src.Directory
-								match.Operation = "Process"
-								match.Resource = path.Path
-
-								match.Action = path.Action
-
-								matches.Policies = append(matches.Policies, match)
-							}
-						}
-					}
+			for _, src := range path.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Directory) > 0 {
+					fromSource = src.Directory
+				} else {
+					continue
 				}
-			}
 
-			if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
-				for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-					if len(dir.FromSource) == 0 {
-						match := tp.MatchPolicy{}
-
-						match.PolicyName = secPolicy.Metadata["policyName"]
-
-						match.Severity = strconv.Itoa(dir.Severity)
-						match.Tags = dir.Tags
-						match.Message = dir.Message
-
-						match.Source = ""
-						match.Operation = "Process"
-						match.Resource = dir.Directory
-
-						match.Action = dir.Action
-
-						matches.Policies = append(matches.Policies, match)
-					} else {
-						for _, src := range dir.FromSource {
-							if len(src.Path) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(dir.Severity)
-								match.Tags = dir.Tags
-								match.Message = dir.Message
-
-								match.Source = src.Path
-								match.Operation = "Process"
-								match.Resource = dir.Directory
-
-								match.Action = dir.Action
-
-								matches.Policies = append(matches.Policies, match)
-							} else if len(src.Directory) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(dir.Severity)
-								match.Tags = dir.Tags
-								match.Message = dir.Message
-
-								match.Source = src.Directory
-								match.Operation = "Process"
-								match.Resource = dir.Directory
-
-								match.Action = dir.Action
-
-								matches.Policies = append(matches.Policies, match)
-							}
-						}
-					}
-				}
-			}
-
-			if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
-				//
-			}
-
-			if len(secPolicy.Spec.File.MatchPaths) > 0 {
-				for _, path := range secPolicy.Spec.File.MatchPaths {
-					if len(path.FromSource) == 0 {
-						match := tp.MatchPolicy{}
-
-						match.PolicyName = secPolicy.Metadata["policyName"]
-
-						match.Severity = strconv.Itoa(path.Severity)
-						match.Tags = path.Tags
-						match.Message = path.Message
-
-						match.Source = ""
-						match.Operation = "File"
-						match.Resource = path.Path
-
-						match.Action = path.Action
-
-						matches.Policies = append(matches.Policies, match)
-					} else {
-						for _, src := range path.FromSource {
-							if len(src.Path) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(path.Severity)
-								match.Tags = path.Tags
-								match.Message = path.Message
-
-								match.Source = src.Path
-								match.Operation = "File"
-								match.Resource = path.Path
-
-								match.Action = path.Action
-
-								matches.Policies = append(matches.Policies, match)
-							} else if len(src.Directory) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(path.Severity)
-								match.Tags = path.Tags
-								match.Message = path.Message
-
-								match.Source = src.Directory
-								match.Operation = "File"
-								match.Resource = path.Path
-
-								match.Action = path.Action
-
-								matches.Policies = append(matches.Policies, match)
-							}
-						}
-					}
-				}
-			}
-
-			if len(secPolicy.Spec.File.MatchDirectories) > 0 {
-				for _, dir := range secPolicy.Spec.File.MatchDirectories {
-					if len(dir.FromSource) == 0 {
-						match := tp.MatchPolicy{}
-
-						match.PolicyName = secPolicy.Metadata["policyName"]
-
-						match.Severity = strconv.Itoa(dir.Severity)
-						match.Tags = dir.Tags
-						match.Message = dir.Message
-
-						match.Source = ""
-						match.Operation = "File"
-						match.Resource = dir.Directory
-
-						match.Action = dir.Action
-
-						matches.Policies = append(matches.Policies, match)
-					} else {
-						for _, src := range dir.FromSource {
-							if len(src.Path) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(dir.Severity)
-								match.Tags = dir.Tags
-								match.Message = dir.Message
-
-								match.Source = src.Path
-								match.Operation = "File"
-								match.Resource = dir.Directory
-
-								match.Action = dir.Action
-
-								matches.Policies = append(matches.Policies, match)
-							} else if len(src.Directory) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(dir.Severity)
-								match.Tags = dir.Tags
-								match.Message = dir.Message
-
-								match.Source = src.Directory
-								match.Operation = "File"
-								match.Resource = dir.Directory
-
-								match.Action = dir.Action
-
-								matches.Policies = append(matches.Policies, match)
-							}
-						}
-					}
-				}
-			}
-
-			if len(secPolicy.Spec.File.MatchPatterns) > 0 {
-				//
-			}
-
-			if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-				for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-					if len(proto.FromSource) == 0 {
-						match := tp.MatchPolicy{}
-
-						match.PolicyName = secPolicy.Metadata["policyName"]
-
-						match.Severity = strconv.Itoa(proto.Severity)
-						match.Tags = proto.Tags
-						match.Message = proto.Message
-
-						match.Source = ""
-						match.Operation = "Network"
-
-						switch proto.Protocol {
-						case "TCP", "tcp":
-							match.Resource = "type=SOCK_STREAM"
-
-							matches.Policies = append(matches.Policies, match)
-						case "UDP", "udp":
-							match.Resource = "type=SOCK_DGRAM"
-
-							matches.Policies = append(matches.Policies, match)
-						case "ICMP", "icmp":
-							match.Resource = "type=SOCK_RAW protocol=1"
-
-						default:
-							continue
-						}
-
-						match.Action = proto.Action
-
-						matches.Policies = append(matches.Policies, match)
-					} else {
-						for _, src := range proto.FromSource {
-							if len(src.Path) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(proto.Severity)
-								match.Tags = proto.Tags
-								match.Message = proto.Message
-
-								match.Source = src.Path
-								match.Operation = "Network"
-
-								switch proto.Protocol {
-								case "TCP", "tcp":
-									match.Resource = "type=SOCK_STREAM"
-
-								case "UDP", "udp":
-									match.Resource = "type=SOCK_DGRAM"
-
-								case "ICMP", "icmp":
-									match.Resource = "type=SOCK_RAW protocol=1"
-
-								default:
-									continue
-								}
-
-								match.Action = proto.Action
-
-								matches.Policies = append(matches.Policies, match)
-							} else if len(src.Directory) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(proto.Severity)
-								match.Tags = proto.Tags
-								match.Message = proto.Message
-
-								match.Source = src.Directory
-								match.Operation = "Network"
-
-								switch proto.Protocol {
-								case "TCP", "tcp":
-									match.Resource = "type=SOCK_STREAM"
-
-								case "UDP", "udp":
-									match.Resource = "type=SOCK_DGRAM"
-
-								case "ICMP", "icmp":
-									match.Resource = "type=SOCK_RAW protocol=1"
-
-								default:
-									continue
-								}
-
-								match.Action = proto.Action
-
-								matches.Policies = append(matches.Policies, match)
-							}
-						}
-					}
-				}
-			}
-
-			if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
-				for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-					if len(cap.FromSource) == 0 {
-						match := tp.MatchPolicy{}
-
-						match.PolicyName = secPolicy.Metadata["policyName"]
-
-						match.Severity = strconv.Itoa(cap.Severity)
-						match.Tags = cap.Tags
-						match.Message = cap.Message
-
-						switch cap.Capability {
-						case "net_raw":
-							match.Source = ""
-							match.Operation = "Network"
-							match.Resource = "type=SOCK_RAW protocol=1"
-
-						default:
-							continue
-						}
-
-						match.Action = cap.Action
-
-						matches.Policies = append(matches.Policies, match)
-					} else {
-						for _, src := range cap.FromSource {
-							if len(src.Path) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(cap.Severity)
-								match.Tags = cap.Tags
-								match.Message = cap.Message
-
-								switch cap.Capability {
-								case "net_raw":
-									match.Source = src.Path
-									match.Operation = "Network"
-									match.Resource = "type=SOCK_RAW protocol=1"
-
-								default:
-									continue
-								}
-
-								match.Action = cap.Action
-
-								matches.Policies = append(matches.Policies, match)
-							} else if len(src.Directory) > 0 {
-								match := tp.MatchPolicy{}
-
-								match.PolicyName = secPolicy.Metadata["policyName"]
-
-								match.Severity = strconv.Itoa(cap.Severity)
-								match.Tags = cap.Tags
-								match.Message = cap.Message
-
-								switch cap.Capability {
-								case "net_raw":
-									match.Source = src.Directory
-									match.Operation = "Network"
-									match.Resource = "type=SOCK_RAW protocol=1"
-
-								default:
-									continue
-								}
-
-								match.Action = cap.Action
-
-								matches.Policies = append(matches.Policies, match)
-							}
-						}
-					}
-				}
-			}
-
-			if len(secPolicy.Spec.Resource.MatchResources) > 0 {
-				//
+				match := newProcPathMatchPolicy(policyName, fromSource, path)
+				matches.Policies = append(matches.Policies, match)
 			}
 		}
 
-		name := conGroup.NamespaceName + "_" + conGroup.ContainerGroupName
+		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
+			fromSource := ""
 
-		fd.SecurityPoliciesLock.Lock()
-		fd.SecurityPolicies[name] = matches
-		fd.SecurityPoliciesLock.Unlock()
+			if len(dir.FromSource) == 0 {
+				match := newProcDirMatchPolicy(policyName, fromSource, dir)
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range dir.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Directory) > 0 {
+					fromSource = src.Directory
+				} else {
+					continue
+				}
+
+				match := newProcDirMatchPolicy(policyName, fromSource, dir)
+				matches.Policies = append(matches.Policies, match)
+			}
+		}
+
+		// for _, patt := range secPolicy.Spec.Process.MatchPatterns {
+		// }
+
+		for _, path := range secPolicy.Spec.File.MatchPaths {
+			fromSource := ""
+
+			if len(path.FromSource) == 0 {
+				match := newFilePathMatchPolicy(policyName, fromSource, path)
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range path.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Directory) > 0 {
+					fromSource = src.Directory
+				} else {
+					continue
+				}
+
+				match := newFilePathMatchPolicy(policyName, fromSource, path)
+				matches.Policies = append(matches.Policies, match)
+			}
+		}
+
+		for _, dir := range secPolicy.Spec.File.MatchDirectories {
+			fromSource := ""
+
+			if len(dir.FromSource) == 0 {
+				match := newFileDirMatchPolicy(policyName, fromSource, dir)
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range dir.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Directory) > 0 {
+					fromSource = src.Directory
+				} else {
+					continue
+				}
+
+				match := newFileDirMatchPolicy(policyName, fromSource, dir)
+				matches.Policies = append(matches.Policies, match)
+			}
+		}
+
+		// for _, patt := range secPolicy.Spec.File.MatchPatterns {
+		// }
+
+		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
+			res := getProtocolFromName(proto.Protocol)
+			if len(res) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			if len(proto.FromSource) == 0 {
+				match := newNetProtMatchPolicy(policyName, fromSource, res, proto)
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range proto.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Directory) > 0 {
+					fromSource = src.Directory
+				} else {
+					continue
+				}
+
+				match := newNetProtMatchPolicy(policyName, fromSource, res, proto)
+				matches.Policies = append(matches.Policies, match)
+			}
+
+		}
+
+		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
+			res := getCapabilityFromName(cap.Capability)
+			if len(res) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			if len(cap.FromSource) == 0 {
+				match := newCapMatchPolicy(policyName, fromSource, res, cap)
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
+			for _, src := range cap.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Directory) > 0 {
+					fromSource = src.Directory
+				} else {
+					continue
+				}
+
+				match := newCapMatchPolicy(policyName, fromSource, res, cap)
+				matches.Policies = append(matches.Policies, match)
+			}
+
+		}
+
+		// for _, res := range secPolicy.Spec.Resource.MatchResources {
+		// }
 	}
+
+	fd.SecurityPoliciesLock.Lock()
+	fd.SecurityPolicies[name] = matches
+	fd.SecurityPoliciesLock.Unlock()
 }
 
 // ============================ //
