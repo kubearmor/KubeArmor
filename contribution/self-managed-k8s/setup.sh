@@ -56,7 +56,7 @@ goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -
 wget https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
 sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
-if [ "$(hostname)" == "kubearmor-dev" ]; then
+if [[ $(hostname) = kubearmor-dev* ]]; then
     echo >> /home/vagrant/.bashrc
     echo "export GOPATH=\$HOME/go" >> /home/vagrant/.bashrc
     echo "export GOROOT=/usr/local/go" >> /home/vagrant/.bashrc
@@ -88,7 +88,7 @@ unzip protoc-3.14.0-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
 
 # apply env
-if [ "$(hostname)" == "kubearmor-dev" ]; then
+if [[ $(hostname) = kubearmor-dev* ]]; then
     export GOPATH=/home/vagrant/go
     export GOROOT=/usr/local/go
     export PATH=$PATH:/usr/local/go/bin:/home/vagrant/go/bin

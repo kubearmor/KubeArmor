@@ -1,18 +1,27 @@
 Vagrant.require_version ">= 2.0.0"
 
+if ENV['NETNEXT'] == "1" then
+	# Using Cilium's Ubuntu Next image https://app.vagrantup.com/cilium/boxes/ubuntu-next
+	VM_IMG = "cilium/ubuntu-next"
+	VM_NAME = "kubearmor-dev-next"
+else
+	VM_IMG = "ubuntu/bionic64"
+	VM_NAME = "kubearmor-dev"
+end
+
 Vagrant.configure("2") do |config|
   config.vm.define "KubeArmor-Dev" do |cfg|
-    cfg.vm.box = "ubuntu/bionic64"
+    cfg.vm.box = VM_IMG
     cfg.vm.provider "virtualbox" do |vb|
-      vb.name = "KubeArmor-Dev"
+      vb.name = VM_NAME
       vb.memory = "4096"
       vb.cpus = 4
       vb.customize ['modifyvm', :id, '--nested-hw-virt', 'on']
     end
   end
 
-  # vagrant@kubearmor-dev
-  config.vm.hostname = "kubearmor-dev"
+  # vagrant@VM_NAME
+  config.vm.hostname = VM_NAME
 
   # sync directories
   kubearmor_home = "../.."

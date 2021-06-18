@@ -29,7 +29,7 @@ else
 fi
 
 # make kubectl work for non-root user
-if [ "$(hostname)" == "kubearmor-dev" ]; then
+if [[ $(hostname) = kubearmor-dev* ]]; then
     mkdir -p /home/vagrant/.kube
     sudo cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
     sudo chown vagrant:vagrant /home/vagrant/.kube/config
