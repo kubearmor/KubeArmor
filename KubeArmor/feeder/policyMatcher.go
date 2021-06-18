@@ -1,6 +1,7 @@
 package feeder
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -195,8 +196,29 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			}
 		}
 
-		// for _, patt := range secPolicy.Spec.Process.MatchPatterns {
-		// }
+		for _, patt := range secPolicy.Spec.Process.MatchPatterns {
+			if len(patt.Pattern) == 0 {
+				continue
+			}
+
+			regexpComp, err := regexp.Compile(patt.Pattern)
+			if err != nil {
+				continue
+			}
+
+			match := tp.MatchPolicy{
+				PolicyName: policyName,
+				Severity:   strconv.Itoa(patt.Severity),
+				Tags:       patt.Tags,
+				Message:    patt.Message,
+				Source:     "",
+				Operation:  "Process",
+				Resource:   patt.Pattern,
+				Regexp:     regexpComp,
+				Action:     patt.Action,
+			}
+			matches.Policies = append(matches.Policies, match)
+		}
 
 		for _, path := range secPolicy.Spec.File.MatchPaths {
 			fromSource := ""
@@ -244,8 +266,29 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			}
 		}
 
-		// for _, patt := range secPolicy.Spec.File.MatchPatterns {
-		// }
+		for _, patt := range secPolicy.Spec.File.MatchPatterns {
+			if len(patt.Pattern) == 0 {
+				continue
+			}
+
+			regexpComp, err := regexp.Compile(patt.Pattern)
+			if err != nil {
+				continue
+			}
+
+			match := tp.MatchPolicy{
+				PolicyName: policyName,
+				Severity:   strconv.Itoa(patt.Severity),
+				Tags:       patt.Tags,
+				Message:    patt.Message,
+				Source:     "",
+				Operation:  "File",
+				Resource:   patt.Pattern,
+				Regexp:     regexpComp,
+				Action:     patt.Action,
+			}
+			matches.Policies = append(matches.Policies, match)
+		}
 
 		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 			res := getProtocolFromName(proto.Protocol)
