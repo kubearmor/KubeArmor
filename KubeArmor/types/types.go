@@ -187,6 +187,7 @@ type MatchPolicy struct {
 	Operation string
 	Resource  string
 
+	Native bool
 	Action string
 }
 
