@@ -20,14 +20,12 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 		matches := tp.MatchPolicies{}
 
 		for _, secPolicy := range conGroup.SecurityPolicies {
-			if len(secPolicy.Spec.Apparmor) > 0 {
+			if len(secPolicy.Spec.AppArmor) > 0 {
 				match := tp.MatchPolicy{}
+
 				match.PolicyName = secPolicy.Metadata["policyName"]
-
-				match.Severity = strconv.Itoa(secPolicy.Spec.Severity)
-				match.Message = secPolicy.Spec.Message
-
 				match.Native = true
+
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -1098,14 +1096,16 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 
 				if mightBeNative {
-					log.PolicyName = "unknown"
-					log.Severity = ""
+					log.PolicyName = "NativePolicy"
+
+					log.Severity = "-"
+					log.Tags = "-"
+					log.Message = "KubeArmor detected a native policy violation"
 
 					log.Type = "MatchedNativePolicy"
-					log.Action = "unknown"
+					log.Action = "Block"
 
 					return log
-
 				}
 
 				// Failed operations

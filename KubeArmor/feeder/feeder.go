@@ -473,7 +473,7 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 	// gRPC output
 
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedNativePolicy" || log.Type == "MatchedHostPolicy" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "MatchedNativePolicy" {
 		pbAlert := pb.Alert{}
 
 		pbAlert.Timestamp = log.Timestamp
