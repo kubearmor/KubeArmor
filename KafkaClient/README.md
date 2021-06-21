@@ -11,6 +11,7 @@ $ cd KafkaClient/deployments/kafka
 (kafka) $ kubectl create namespace kubearmor
 (kafka) $ kubectl apply -f kafka-deployment.yaml
 (kafka) $ kubectl apply -f kafka-volume.yaml
+(kafka) $ kubectl apply -f kafka-user-topic.yaml
 ```
 
 Wait for the completed deployments of Kafka pods. It will take a couple of minutes.
