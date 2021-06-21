@@ -137,23 +137,26 @@ Here, we briefly give you an overview of KubeArmor's directories.
 
   ```text
   KubeArmor/
-    audit       - Audit logger
-    BPF         - eBPF code for system monitor
-    common      - Libraries internally used
-    core        - The main body (start point) of KubeArmor
-    discovery   - Automated security policy discovery (under development)
-    enforcer    - Runtime policy enforcer (enforcing security policies into LSMs)
-    feeder      - gRPC-based feeder (sending audit/system logs to a log server)
-    log         - Message logger (stdout) for KubeArmor
-    monitor     - eBPF-based system monitor (mapping process IDs to container IDs)
-    types       - Type definitions
-  protobuf/     - Protocol buffer
+    audit                - Audit logger (deprecated)
+    BPF                  - eBPF code for system monitor
+    common               - Libraries internally used
+    core                 - The main body (start point) of KubeArmor
+    discovery            - Automated security policy discovery (under development)
+    enforcer             - Runtime policy enforcer (enforcing security policies into LSMs)
+    feeder               - gRPC-based feeder (sending audit/system logs to a log server)
+    log                  - Message logger (stdout) for KubeArmor
+    monitor              - eBPF-based system monitor (mapping process IDs to container IDs)
+    types                - Type definitions
+  KubeArmor-relay-server - Relay server for KubeArmor's distributed log collection
+  protobuf/              - Protocol buffer
   ```
 
 * Source code for KubeArmor's log client
 
   ```text
-  LogClient/    - gRPC-based log client
+  LogClient/    - gRPC-based stdout/file client
+  MySQLClient/  - gRPC-based MySQL client
+  KafkaClient/  - gRPC-based Kafka client
   protobuf/     - Protocol buffer
   ```
 
