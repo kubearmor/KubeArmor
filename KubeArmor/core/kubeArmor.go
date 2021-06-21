@@ -1,6 +1,7 @@
 package core
 
 import (
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
 	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
 	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
 
@@ -93,10 +95,24 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableAuditd, ena
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
-		if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
-			dm.ClusterName = val
-		} else {
-			dm.ClusterName = "Default"
+		metadata := false
+
+		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+			s := string(b)
+			if strings.Contains(s, "Container-Optimized OS") {
+				if clusterStr, err := kl.GetCommandOutputWithErr("curl", []string{"http://metadata/computeMetadata/v1/instance/attributes/cluster-name", "-H", "'Metadata-Flavor: Google'"}); err == nil {
+					dm.ClusterName = clusterStr
+					metadata = true
+				}
+			}
+		}
+
+		if !metadata {
+			if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
+				dm.ClusterName = val
+			} else {
+				dm.ClusterName = "Default"
+			}
 		}
 	} else {
 		dm.ClusterName = clusterName
@@ -405,12 +421,67 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 
 		dm.LogFeeder.Printf("Container Runtime: %s", cr)
 
-		if strings.Contains(cr, "containerd") {
-			// monitor containerd events
-			go dm.MonitorContainerdEvents()
-		} else if strings.Contains(cr, "docker") {
-			// monitor docker events
-			go dm.MonitorDockerEvents()
+		if strings.HasPrefix(cr, "containerd") {
+			sockFile := false
+
+			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
+				if _, err := os.Stat(candidate); err == nil {
+					sockFile = true
+					break
+				}
+			}
+
+			if sockFile {
+				// monitor containerd events
+				go dm.MonitorContainerdEvents()
+			} else {
+				dm.LogFeeder.Errf("Failed to monitor containers (Containerd socket file is not accessible)", cr)
+
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
+
+				return
+			}
+		} else if strings.HasPrefix(cr, "docker") {
+			sockFile := false
+
+			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
+				if _, err := os.Stat(candidate); err == nil {
+					sockFile = true
+					break
+				}
+			}
+
+			if sockFile {
+				// monitor containerd events
+				go dm.MonitorContainerdEvents()
+			} else {
+				for _, candidate := range []string{"/var/run/docker.sock"} {
+					if _, err := os.Stat(candidate); err == nil {
+						sockFile = true
+						break
+					}
+				}
+
+				if sockFile {
+					// monitor docker events
+					go dm.MonitorDockerEvents()
+				} else {
+					dm.LogFeeder.Errf("Failed to monitor containers (Docker socket file is not accessible)", cr)
+
+					// destroy the daemon
+					dm.DestroyKubeArmorDaemon()
+
+					return
+				}
+			}
+		} else {
+			dm.LogFeeder.Errf("Failed to monitor containers (non-supported runtime: %s)", cr)
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
 		}
 	} else {
 		dm.LogFeeder.Err("Failed to initialize the Kubernetes client")

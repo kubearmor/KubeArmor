@@ -1,0 +1,48 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaUser
+metadata:
+  name: kafka-feeder
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: transcript-topic
+          patternType: literal
+        operation: Create
+        host: "*"
+      - resource:
+          type: topic
+          name: transcript-topic
+          patternType: literal
+        operation: Write
+        host: "*"
+      - resource:
+          type: topic
+          name: transcript-topic
+          patternType: literal
+        operation: Read
+        host: "*"
+      - resource:
+          type: topic
+          name: transcript-topic
+          patternType: literal
+        operation: Describe
+        host: "*"
+
+---
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: transcript-topic
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 604800000
+    segment.bytes: 1073741824

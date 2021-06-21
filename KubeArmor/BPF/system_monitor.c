@@ -1,5 +1,10 @@
 //#define KBUILD_MODNAME "kubearmor_system_monitor"
 
+// ========================================================== //
+// KubeArmor utilizes Tracee's system call handling functions //
+// developed by Aqua Security (https://aquasec.com).          //
+// ========================================================== //
+
 #include <linux/version.h>
 
 #include <linux/nsproxy.h>

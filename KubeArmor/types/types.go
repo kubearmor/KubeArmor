@@ -19,10 +19,6 @@ type Container struct {
 	NamespaceName      string `json:"namespaceName"`
 	ContainerGroupName string `json:"containerGroupName"`
 
-	ImageName string `json:"imageName"`
-
-	Labels []string `json:"labels"`
-
 	AppArmorProfile string `json:"apparmorProfile"`
 
 	// == //
@@ -79,6 +75,7 @@ type K8sPod struct {
 	Metadata    map[string]string
 	Annotations map[string]string
 	Labels      map[string]string
+	Containers  map[string]string
 	HostVolumes []HostMountedVolume
 }
 
@@ -392,7 +389,7 @@ type SecuritySpec struct {
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Resource     ResourceType     `json:"resource,omitempty"`
 
-	Apparmor string `json:"apparmor,omitempty"`
+	AppArmor string `json:"apparmor,omitempty"`
 
 	Action string `json:"action"`
 }

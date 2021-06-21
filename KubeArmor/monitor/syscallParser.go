@@ -1,5 +1,10 @@
 package monitor
 
+// ========================================================= //
+// KubeArmor utilizes Tracee's system call parsing functions //
+// developed by Aqua Security (https://aquasec.com).         //
+// ========================================================= //
+
 import (
 	"bytes"
 	"encoding/binary"

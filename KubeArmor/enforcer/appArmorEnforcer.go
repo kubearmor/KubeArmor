@@ -422,7 +422,7 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 	appArmorProfiles := []string{}
 
 	for _, containerName := range conGroup.Containers {
-		if kl.ContainsElement([]string{"docker-default", "unconfined", ""}, conGroup.AppArmorProfiles[containerName]) {
+		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", ""}, conGroup.AppArmorProfiles[containerName]) {
 			continue
 		}
 

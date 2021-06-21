@@ -21,7 +21,7 @@
         (KubeArmor) $ sudo -E ./kubearmor -gRPC=[gRPC port number] -logPath=[log file path] (-enableHostPolicy)
         ```
 
-    3. Apply security policies for the testing purpose
+    3. Apply security policies for testing
 
         ```text
         kubectl apply -f [policy file]
@@ -42,7 +42,7 @@
             $ tail (-f) /tmp/kubearmor.log
             ```
 
-            If you changed the location of a log file, check your file instead of the default file.
+            If you changed the location of a log file, check your file instead of the default file path.
 
             ```text
             $ tail (-f) [your log file path]
@@ -68,7 +68,7 @@
             ```text
             -gRPC=[ipaddr:port]             gRPC server information (default: localhost:32767)
             -msgPath={path|stdout|none}     Output location for KubeArmor's messages (default: none)
-            -logPath={path|stdout|none}     Output location for KubeArmor's alerts and logs (default: none)
+            -logPath={path|stdout|none}     Output location for KubeArmor's alerts and logs (default: stdout)
             -logFilter={policy|system|all}  Filter for what kinds of alerts and logs to receive (default: policy)
             -json                           Flag to print messages, alerts, and logs in a JSON format
             ```
@@ -179,7 +179,7 @@
 
         - In the case that KubeArmor is running
 
-            Run the auto-testing framework (you need to make sure that KubeArmor is running again).
+            Run the auto-testing framework. Please make sure that KubeArmor is in a running state.
 
             ```text
             $ cd KubeArmor/tests
@@ -192,7 +192,7 @@
             $ cat /tmp/kubearmor.test
             ```
 
-    4. Test the containerized KubeArmor image using MicroK8s
+    3. Test the containerized KubeArmor image using MicroK8s
 
         Run the auto-testing framework.
 
@@ -207,9 +207,9 @@
         $ cat /tmp/kubearmor.test
         ```
 
-    5. Test the containerized KubeArmor image on running Kubernetes
+    4. Test the containerized KubeArmor image on running Kubernetes
 
-        Run the auto-testing framework (you need to make sure that KubeArmor is running).
+        Run the auto-testing framework. Please make sure that KubeArmor is in a running state.
 
         ```text
         $ cd KubeArmor/tests
