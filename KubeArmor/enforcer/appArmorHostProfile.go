@@ -1,6 +1,7 @@
 package enforcer
 
 import (
+	"bufio"
 	"fmt"
 	"strings"
 
@@ -1867,9 +1868,19 @@ func GenerateHostProfileBody(enableAuditd bool, securityPolicies []tp.HostSecuri
 
 	fromSources := map[string][]string{}
 
+	nativeAppArmorRules := []string{}
+
 	// preparation
 
 	for _, secPolicy := range securityPolicies {
+		if len(secPolicy.Spec.AppArmor) > 0 {
+			scanner := bufio.NewScanner(strings.NewReader(secPolicy.Spec.AppArmor))
+			for scanner.Scan() {
+				line := "  " + strings.TrimSpace(scanner.Text()) + "\n"
+				nativeAppArmorRules = append(nativeAppArmorRules, line)
+			}
+		}
+
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" || path.Action == "AllowWithAudit" {
@@ -2057,6 +2068,18 @@ func GenerateHostProfileBody(enableAuditd bool, securityPolicies []tp.HostSecuri
 	}
 
 	count = count + len(fileBlackList)
+
+	// body - native apparmor
+
+	if len(nativeAppArmorRules) > 0 {
+		profileBody = profileBody + "\n  ## == NATIVE POLICY START == ##\n"
+		for _, nativeRule := range nativeAppArmorRules {
+			profileBody = profileBody + nativeRule
+		}
+		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n"
+	}
+
+	count = count + len(nativeAppArmorRules)
 
 	// finalization
 

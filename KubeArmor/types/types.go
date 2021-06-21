@@ -427,6 +427,8 @@ type HostSecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
+	AppArmor string `json:"apparmor,omitempty"`
+
 	Action string `json:"action"`
 }
 
