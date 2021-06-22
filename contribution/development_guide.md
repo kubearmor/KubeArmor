@@ -98,17 +98,6 @@
       (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant halt
       (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant destroy
 	  ```
-	The NETNEXT VM image requires reload vagrant plugin to be installed:
-	```text
-	(host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant plugin install vagrant-reload
-	```
-	If you have an old VirtualBox Guest image installed then the synced_folder
-	`KubeArmor` might be owned by root for NETNEXT image. Thus you will have to
-	sudo to make/make run the KubeArmor. Alternatively, you can update the
-	VirtualBox Guest image using:
-	```text
-	(host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant plugin install vagrant-vbguest
-	```
 
 3.  Environment Check
     * Compilation
