@@ -39,7 +39,7 @@ case "$VERSION" in
 esac
 
 # add user to docker
-if [ "$(hostname)" == "kubearmor-dev" ]; then
+if [[ $(hostname) = kubearmor-dev* ]]; then
     sudo usermod -aG docker vagrant
 else
     sudo usermod -aG docker $USER

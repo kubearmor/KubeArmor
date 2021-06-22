@@ -5,8 +5,7 @@
 1. Self-managed Kubernetes
    * Requirements
 
-     Here is the list of minimum requirements for self-managed Kubernetes.
-
+     List of minimum requirements for self-managed Kubernetes.
      ```text
      OS - Ubuntu 18.04
      Kubernetes - v1.19
@@ -56,22 +55,27 @@
 
      ```text
      cd contribution/vagrant
-     (vagrant) $ ./setup.sh
+     (host) $ ./setup.sh
+     ```
+
+     If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
+
+     ```text
+     (host) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
      ```
 
     * VM Setup using Vagrant
-
-      If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
-
-      ```text
-      (vagrant) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
-      ```
 
       Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
 
       ```text
       (vagrant) $ vagrant up
       ```
+
+	  To stop the vagrant VM
+	  ```text
+      (vagrant) $ vagrant halt
+	  ```
 
       If you want to remove the created VM, please run the following command.
 
@@ -84,6 +88,27 @@
       ```text
       (vagrant) $ vagrant ssh
       ```
+
+	* VM Setup using latest Linux kernel (netnext)
+
+	To use the latest linux kernel for dev env you can pass an environment variable `NETNEXT=1` to vagrant.
+      ```text
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant up
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant ssh
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant halt
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant destroy
+	  ```
+	The NETNEXT VM image requires reload vagrant plugin to be installed:
+	```text
+	(host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant plugin install vagrant-reload
+	```
+	If you have an old VirtualBox Guest image installed then the synced_folder
+	`KubeArmor` might be owned by root for NETNEXT image. Thus you will have to
+	sudo to make/make run the KubeArmor. Alternatively, you can update the
+	VirtualBox Guest image using:
+	```text
+	(host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant plugin install vagrant-vbguest
+	```
 
 3.  Environment Check
     * Compilation

@@ -8,3 +8,8 @@ kubearmor-relay-server
 
 # Contribution
 .vscode
+
+# vagrant
+contribution/vagrant/.vagrant
+contribution/vagrant/ubuntu-*-console.log
+
