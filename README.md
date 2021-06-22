@@ -71,6 +71,6 @@ If you want to make a contribution, please refer to the following documents too.
 KubeArmor is licensed under the Apache License, Version 2.0.  
 The eBPF-based container monitor is licensed under the General Public License, Version 2.0.
 
-## Notice
+## Notice/Credits
 
-KubeArmor includes Tracee's system call handling functions developed by Aqua Security (https://aquasec.com).
+* KubeArmor uses [Tracee](https://github.com/aquasecurity/tracee/)'s system call handling functions developed by [Aqua Security](https://aquasec.com).
