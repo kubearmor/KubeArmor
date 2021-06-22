@@ -93,11 +93,22 @@
 
 	To use the latest linux kernel for dev env you can pass an environment variable `NETNEXT=1` to vagrant.
       ```text
-      (vagrant) $ NETNEXT=1 vagrant up
-      (vagrant) $ NETNEXT=1 vagrant ssh
-      (vagrant) $ NETNEXT=1 vagrant halt
-      (vagrant) $ NETNEXT=1 vagrant destroy
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant up
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant ssh
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant halt
+      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant destroy
 	  ```
+	The NETNEXT VM image requires reload vagrant plugin to be installed:
+	```text
+	(host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant plugin install vagrant-reload
+	```
+	If you have an old VirtualBox Guest image installed then the synced_folder
+	`KubeArmor` might be owned by root for NETNEXT image. Thus you will have to
+	sudo to make/make run the KubeArmor. Alternatively, you can update the
+	VirtualBox Guest image using:
+	```text
+	(host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant plugin install vagrant-vbguest
+	```
 
 3.  Environment Check
     * Compilation
