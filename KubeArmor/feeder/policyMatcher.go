@@ -20,6 +20,16 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 		matches := tp.MatchPolicies{}
 
 		for _, secPolicy := range conGroup.SecurityPolicies {
+			if len(secPolicy.Spec.AppArmor) > 0 {
+				match := tp.MatchPolicy{}
+
+				match.PolicyName = secPolicy.Metadata["policyName"]
+				match.Native = true
+
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
 			if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 				for _, path := range secPolicy.Spec.Process.MatchPaths {
 					if len(path.FromSource) == 0 {
@@ -460,6 +470,16 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 		matches := tp.MatchPolicies{}
 
 		for _, secPolicy := range secPolicies {
+			if len(secPolicy.Spec.AppArmor) > 0 {
+				match := tp.MatchPolicy{}
+
+				match.PolicyName = secPolicy.Metadata["policyName"]
+				match.Native = true
+
+				matches.Policies = append(matches.Policies, match)
+				continue
+			}
+
 			if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 				for _, path := range secPolicy.Spec.Process.MatchPaths {
 					if len(path.FromSource) == 0 {
@@ -850,6 +870,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	allowNetworkTags := []string{}
 	allowNetworkMessage := ""
 
+	mightBeNative := false
+
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
@@ -861,6 +883,11 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
+			if secPolicy.Native && log.Result != "Passed" {
+				mightBeNative = true
+				continue
+			}
+
 			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, log.Source) {
 				if secPolicy.Action == "Allow" || secPolicy.Action == "AllowWithAudit" {
 					if secPolicy.Operation == "Process" {
@@ -1078,6 +1105,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 				}
 
+				if mightBeNative {
+					log.PolicyName = "NativePolicy"
+
+					log.Severity = "-"
+					log.Tags = "-"
+					log.Message = "KubeArmor detected a native policy violation"
+
+					log.Type = "MatchedNativePolicy"
+					log.Action = "Block"
+
+					return log
+				}
+
 				// Failed operations
 				if log.ProcessVisibilityEnabled && log.Operation == "Process" {
 					log.Type = "ContainerLog"
@@ -1175,6 +1215,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 					return log
 
+				}
+
+				if mightBeNative {
+					log.PolicyName = "NativePolicy"
+
+					log.Severity = "-"
+					log.Tags = "-"
+					log.Message = "KubeArmor detected a native policy violation"
+
+					log.Type = "MatchedNativePolicy"
+					log.Action = "Block"
+
+					return log
 				}
 			} else {
 				if log.Action == "Allow" {

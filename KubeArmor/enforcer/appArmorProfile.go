@@ -2226,8 +2226,8 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 	// preparation
 
 	for _, secPolicy := range securityPolicies {
-		if len(secPolicy.Spec.Apparmor) > 0 {
-			scanner := bufio.NewScanner(strings.NewReader(secPolicy.Spec.Apparmor))
+		if len(secPolicy.Spec.AppArmor) > 0 {
+			scanner := bufio.NewScanner(strings.NewReader(secPolicy.Spec.AppArmor))
 			for scanner.Scan() {
 				line := "  " + strings.TrimSpace(scanner.Text()) + "\n"
 				nativeAppArmorRules = append(nativeAppArmorRules, line)
@@ -2486,7 +2486,6 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 		}
 		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n"
 	}
-
 	count = count + len(nativeAppArmorRules)
 
 	// foot

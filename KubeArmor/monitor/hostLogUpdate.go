@@ -72,7 +72,7 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "flags=" + fileOpenFlags
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileOpenFlags
 
 				if mon.EnableAuditd && msg.ContextSys.Retval == PERMISSION_DENIED {
 					continue
@@ -97,7 +97,7 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "fd=" + fd + " flags=" + fileOpenFlags
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
 
 				if mon.EnableAuditd && msg.ContextSys.Retval == PERMISSION_DENIED {
 					continue
@@ -113,8 +113,8 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				}
 
 				log.Operation = "File"
-				log.Resource = getSyscallName(int32(msg.ContextSys.EventID))
-				log.Data = "fd=" + fd
+				log.Resource = ""
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			case SYS_SOCKET: // domain, type, proto
 				var sockDomain string
@@ -134,8 +134,8 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				}
 
 				log.Operation = "Network"
-				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
-				log.Data = ""
+				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
 
 			case SYS_CONNECT: // fd, sockaddr
 				var fd string
@@ -151,13 +151,13 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				}
 
 				log.Operation = "Network"
-				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Resource = ""
 
 				for k, v := range sockAddr {
 					log.Resource = log.Resource + " " + k + "=" + v
 				}
 
-				log.Data = "fd=" + fd
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			case SYS_ACCEPT: // fd, sockaddr
 				var fd string
@@ -173,8 +173,8 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				}
 
 				log.Operation = "Network"
-				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
-				log.Data = "fd=" + fd
+				log.Resource = ""
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 				for k, v := range sockAddr {
 					log.Resource = log.Resource + " " + k + "=" + v
@@ -194,13 +194,13 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				}
 
 				log.Operation = "Network"
-				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Resource = ""
 
 				for k, v := range sockAddr {
 					log.Resource = log.Resource + " " + k + "=" + v
 				}
 
-				log.Data = "fd=" + fd
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			case SYS_LISTEN: // fd
 				var fd string
@@ -212,8 +212,8 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				}
 
 				log.Operation = "Network"
-				log.Resource = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
-				log.Data = "fd=" + fd
+				log.Resource = ""
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			default:
 				continue

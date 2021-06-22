@@ -28,7 +28,8 @@ import (
 
 var (
 	dockerPattern = regexp.MustCompile(`\d+:.+:/docker/([0-9a-f]{64})`)
-	kubePattern   = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
+	kubePattern1  = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
+	kubePattern2  = regexp.MustCompile(`\d+:.+:/kubepods[^:]+:[^:]+:([0-9a-f]{64})`)
 )
 
 const (
@@ -48,12 +49,6 @@ const (
 	SYS_EXECVE   = 59
 	SYS_EXECVEAT = 322
 	DO_EXIT      = 351
-)
-
-const (
-	SYSPOL_PROC     = 1
-	SYSPOL_FILE     = 2
-	SYSPOL_PROCFILE = 3
 )
 
 const (
@@ -206,7 +201,7 @@ func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
 	mon.ContextChan = make(chan ContextCombined, 4096)
 	mon.HostContextChan = make(chan ContextCombined, 4096)
 
-	mon.UntrackedNamespaces = []string{"kube-system"}
+	mon.UntrackedNamespaces = []string{"kube-system", "kubearmor"}
 
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
@@ -455,9 +450,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
 				if ctx.EventID == SYS_EXECVE || ctx.EventID == SYS_EXECVEAT {
-					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, true)
+					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, ctx.PID, true)
 				} else {
-					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, false)
+					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, ctx.PID, false)
 				}
 
 				if containerID != "" {
@@ -511,7 +506,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					log.Operation = "Process"
-					log.Data = ""
+					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
 
@@ -592,7 +587,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					log.Operation = "Process"
-					log.Data = "fd=" + fd + " flag=" + procExecFlag
+					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
 
@@ -715,7 +710,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					}
 
 					log.Operation = "Process"
-					log.Data = ""
+					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
 
@@ -796,7 +791,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					}
 
 					log.Operation = "Process"
-					log.Data = "fd=" + fd + " flag=" + procExecFlag
+					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
 

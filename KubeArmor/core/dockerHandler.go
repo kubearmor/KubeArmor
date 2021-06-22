@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -87,8 +86,6 @@ func (dh *DockerHandler) Close() {
 
 // GetContainerInfo Function
 func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, error) {
-	IndependentContainer := "__independent_container__"
-
 	if dh.DockerClient == nil {
 		return tp.Container{}, errors.New("No docker client")
 	}
@@ -105,41 +102,18 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	container.ContainerID = inspect.ID
 	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
 
+	container.NamespaceName = "Unknown"
+	container.ContainerGroupName = "Unknown"
+
 	containerLabels := inspect.Config.Labels
 	if _, ok := containerLabels["io.kubernetes.pod.namespace"]; ok { // kubernetes
 		if val, ok := containerLabels["io.kubernetes.pod.namespace"]; ok {
 			container.NamespaceName = val
-		} else {
-			container.NamespaceName = IndependentContainer
 		}
 		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
 			container.ContainerGroupName = val
-		} else {
-			container.ContainerGroupName = container.ContainerName
 		}
-	} else if _, ok := containerLabels["com.docker.compose.project"]; ok { // docker-compose
-		if val, ok := containerLabels["com.docker.compose.project"]; ok {
-			container.NamespaceName = val
-		} else {
-			container.NamespaceName = IndependentContainer
-		}
-		if val, ok := containerLabels["com.docker.compose.service"]; ok {
-			container.ContainerGroupName = val
-		} else {
-			container.ContainerGroupName = container.ContainerName
-		}
-	} else { // docker
-		container.NamespaceName = IndependentContainer
-		container.ContainerGroupName = container.ContainerName
 	}
-
-	container.ImageName = inspect.Config.Image
-
-	container.Labels = []string{}
-	for k, v := range inspect.Config.Labels {
-		container.Labels = append(container.Labels, k+"="+v)
-	}
-	sort.Strings(container.Labels)
 
 	container.AppArmorProfile = inspect.AppArmorProfile
 
@@ -183,16 +157,6 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		// skip paused containers in k8s
-		if strings.HasPrefix(container.ContainerName, "k8s_POD") {
-			return
-		}
-
-		// skip if a container is a part of the following namespaces
-		if kl.ContainsElement([]string{"kube-system"}, container.NamespaceName) {
-			return
-		}
-
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
@@ -202,11 +166,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.ContainersLock.Unlock()
 
-		if ok := dm.UpdateContainerGroupWithContainer("ADDED", container); !ok {
-			return
-		}
-
-		dm.LogFeeder.Printf("Detected a container (added/%s/%s/%s)", container.NamespaceName, container.ContainerName, container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
 
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
@@ -223,15 +183,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.ContainersLock.Unlock()
 
-		if strings.HasPrefix(container.ContainerName, "k8s_POD") {
-			return
-		}
-
-		if ok := dm.UpdateContainerGroupWithContainer("DELETED", container); !ok {
-			return
-		}
-
-		dm.LogFeeder.Printf("Detected a container (removed/%s/%s/%s)", container.NamespaceName, container.ContainerName, container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (removed/%s)", container.ContainerID[:12])
 	}
 }
 
