@@ -13,76 +13,72 @@ import (
 // == Security Policies == //
 // ======================= //
 
-func newProcPathMatchPolicy(policyName, source string, path tp.ProcessPathType) tp.MatchPolicy {
+func newMatchPolicy(policyName, src string, mp interface{}) tp.MatchPolicy {
 	match := tp.MatchPolicy{
 		PolicyName: policyName,
-		Severity:   strconv.Itoa(path.Severity),
-		Tags:       path.Tags,
-		Message:    path.Message,
-		Source:     source,
-		Operation:  "Process",
-		Resource:   path.Path,
-		Action:     path.Action,
+		Source:     src,
 	}
 
-	return match
-}
+	if ppt, ok := mp.(tp.ProcessPathType); ok {
+		match.Severity = strconv.Itoa(ppt.Severity)
+		match.Tags = ppt.Tags
+		match.Message = ppt.Message
+		match.Operation = "Process"
+		match.Resource = ppt.Path
+		match.Action = ppt.Action
+	} else if pdt, ok := mp.(tp.ProcessDirectoryType); ok {
+		match.Severity = strconv.Itoa(pdt.Severity)
+		match.Tags = pdt.Tags
+		match.Message = pdt.Message
+		match.Operation = "Process"
+		match.Resource = pdt.Directory
+		match.Action = pdt.Action
+	} else if fpt, ok := mp.(tp.FilePathType); ok {
+		match.Severity = strconv.Itoa(fpt.Severity)
+		match.Tags = fpt.Tags
+		match.Message = fpt.Message
+		match.Operation = "File"
+		match.Resource = fpt.Path
+		match.Action = fpt.Action
+	} else if fdt, ok := mp.(tp.FileDirectoryType); ok {
+		match.Severity = strconv.Itoa(fdt.Severity)
+		match.Tags = fdt.Tags
+		match.Message = fdt.Message
+		match.Operation = "File"
+		match.Resource = fdt.Directory
+		match.Action = fdt.Action
+	} else if ppt, ok := mp.(tp.ProcessPatternType); ok {
+		match.Severity = strconv.Itoa(ppt.Severity)
+		match.Tags = ppt.Tags
+		match.Message = ppt.Message
+		match.Operation = "Process"
+		match.Resource = ppt.Pattern
+		match.Action = ppt.Action
+	} else if fpt, ok := mp.(tp.FilePatternType); ok {
+		match.Severity = strconv.Itoa(fpt.Severity)
+		match.Tags = fpt.Tags
+		match.Message = fpt.Message
+		match.Operation = "File"
+		match.Resource = fpt.Pattern
+		match.Action = fpt.Action
+	} else if npt, ok := mp.(tp.NetworkProtocolType); ok {
+		match.Severity = strconv.Itoa(npt.Severity)
+		match.Tags = npt.Tags
+		match.Message = npt.Message
+		match.Operation = "Network"
+		match.Resource = getProtocolFromName(npt.Protocol)
+		match.Action = npt.Action
+	} else if cct, ok := mp.(tp.CapabilitiesCapabilityType); ok {
+		match.Severity = strconv.Itoa(cct.Severity)
+		match.Tags = cct.Tags
+		match.Message = cct.Message
+		op, cap := getOperationAndCapabilityFromName(cct.Capability)
+		match.Operation = op
+		match.Resource = cap
+		match.Action = cct.Action
 
-func newProcDirMatchPolicy(policyName, source string, dir tp.ProcessDirectoryType) tp.MatchPolicy {
-	match := tp.MatchPolicy{
-		PolicyName: policyName,
-		Severity:   strconv.Itoa(dir.Severity),
-		Tags:       dir.Tags,
-		Message:    dir.Message,
-		Source:     source,
-		Operation:  "Process",
-		Resource:   dir.Directory,
-		Action:     dir.Action,
-	}
-
-	return match
-}
-
-func newFilePathMatchPolicy(policyName, source string, path tp.FilePathType) tp.MatchPolicy {
-	match := tp.MatchPolicy{
-		PolicyName: policyName,
-		Severity:   strconv.Itoa(path.Severity),
-		Tags:       path.Tags,
-		Message:    path.Message,
-		Source:     source,
-		Operation:  "File",
-		Resource:   path.Path,
-		Action:     path.Action,
-	}
-
-	return match
-}
-
-func newFileDirMatchPolicy(policyName, source string, dir tp.FileDirectoryType) tp.MatchPolicy {
-	match := tp.MatchPolicy{
-		PolicyName: policyName,
-		Severity:   strconv.Itoa(dir.Severity),
-		Tags:       dir.Tags,
-		Message:    dir.Message,
-		Source:     source,
-		Operation:  "File",
-		Resource:   dir.Directory,
-		Action:     dir.Action,
-	}
-
-	return match
-}
-
-func newNetProtMatchPolicy(policyName, source, resource string, netProt tp.NetworkProtocolType) tp.MatchPolicy {
-	match := tp.MatchPolicy{
-		PolicyName: policyName,
-		Severity:   strconv.Itoa(netProt.Severity),
-		Tags:       netProt.Tags,
-		Message:    netProt.Message,
-		Source:     source,
-		Operation:  "Network",
-		Resource:   resource,
-		Action:     netProt.Action,
+	} else {
+		return tp.MatchPolicy{}
 	}
 
 	return match
@@ -101,28 +97,16 @@ func getProtocolFromName(proto string) string {
 	}
 }
 
-func newCapMatchPolicy(policyName, source, resource string, cap tp.CapabilitiesCapabilityType) tp.MatchPolicy {
-	match := tp.MatchPolicy{
-		PolicyName: policyName,
-		Severity:   strconv.Itoa(cap.Severity),
-		Tags:       cap.Tags,
-		Message:    cap.Message,
-		Source:     source,
-		Operation:  "Network",
-		Resource:   resource,
-		Action:     cap.Action,
-	}
-
-	return match
-}
-
-func getCapabilityFromName(cap string) string {
-	switch strings.ToLower(cap) {
+func getOperationAndCapabilityFromName(capName string) (op, cap string) {
+	switch strings.ToLower(capName) {
 	case "net_raw":
-		return "type=SOCK_RAW protocol=1"
+		op = "Network"
+		cap = "type=SOCK_RAW protocol=1"
 	default:
-		return ""
+		return "", ""
 	}
+
+	return op, cap
 }
 
 // UpdateSecurityPolicies Function
@@ -154,7 +138,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := newProcPathMatchPolicy(policyName, fromSource, path)
+				match := newMatchPolicy(policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -168,7 +152,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := newProcPathMatchPolicy(policyName, fromSource, path)
+				match := newMatchPolicy(policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -177,7 +161,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := newProcDirMatchPolicy(policyName, fromSource, dir)
+				match := newMatchPolicy(policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -191,7 +175,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := newProcDirMatchPolicy(policyName, fromSource, dir)
+				match := newMatchPolicy(policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -206,17 +190,10 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 				continue
 			}
 
-			match := tp.MatchPolicy{
-				PolicyName: policyName,
-				Severity:   strconv.Itoa(patt.Severity),
-				Tags:       patt.Tags,
-				Message:    patt.Message,
-				Source:     "",
-				Operation:  "Process",
-				Resource:   patt.Pattern,
-				Regexp:     regexpComp,
-				Action:     patt.Action,
-			}
+			fromSource := ""
+
+			match := newMatchPolicy(policyName, fromSource, patt)
+			match.Regexp = regexpComp
 			matches.Policies = append(matches.Policies, match)
 		}
 
@@ -224,7 +201,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := newFilePathMatchPolicy(policyName, fromSource, path)
+				match := newMatchPolicy(policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -238,7 +215,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := newFilePathMatchPolicy(policyName, fromSource, path)
+				match := newMatchPolicy(policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -247,7 +224,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := newFileDirMatchPolicy(policyName, fromSource, dir)
+				match := newMatchPolicy(policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -261,7 +238,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := newFileDirMatchPolicy(policyName, fromSource, dir)
+				match := newMatchPolicy(policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -276,30 +253,25 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 				continue
 			}
 
-			match := tp.MatchPolicy{
-				PolicyName: policyName,
-				Severity:   strconv.Itoa(patt.Severity),
-				Tags:       patt.Tags,
-				Message:    patt.Message,
-				Source:     "",
-				Operation:  "File",
-				Resource:   patt.Pattern,
-				Regexp:     regexpComp,
-				Action:     patt.Action,
-			}
+			fromSource := ""
+
+			match := newMatchPolicy(policyName, fromSource, patt)
+			match.Regexp = regexpComp
 			matches.Policies = append(matches.Policies, match)
 		}
 
 		for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-			res := getProtocolFromName(proto.Protocol)
-			if len(res) == 0 {
+			if len(proto.Protocol) == 0 {
 				continue
 			}
 
 			fromSource := ""
 
 			if len(proto.FromSource) == 0 {
-				match := newNetProtMatchPolicy(policyName, fromSource, res, proto)
+				match := newMatchPolicy(policyName, fromSource, proto)
+				if len(match.Resource) == 0 {
+					continue
+				}
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -313,22 +285,27 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := newNetProtMatchPolicy(policyName, fromSource, res, proto)
+				match := newMatchPolicy(policyName, fromSource, proto)
+				if len(match.Resource) == 0 {
+					continue
+				}
 				matches.Policies = append(matches.Policies, match)
 			}
 
 		}
 
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-			res := getCapabilityFromName(cap.Capability)
-			if len(res) == 0 {
+			if len(cap.Capability) == 0 {
 				continue
 			}
 
 			fromSource := ""
 
 			if len(cap.FromSource) == 0 {
-				match := newCapMatchPolicy(policyName, fromSource, res, cap)
+				match := newMatchPolicy(policyName, fromSource, cap)
+				if len(match.Resource) == 0 {
+					continue
+				}
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -342,7 +319,10 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := newCapMatchPolicy(policyName, fromSource, res, cap)
+				match := newMatchPolicy(policyName, fromSource, cap)
+				if len(match.Resource) == 0 {
+					continue
+				}
 				matches.Policies = append(matches.Policies, match)
 			}
 
