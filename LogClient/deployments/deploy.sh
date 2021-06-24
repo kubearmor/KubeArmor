@@ -1,15 +1,13 @@
 #!/bin/bash
 
-NAMESPACE=kubearmor
-
-find . -name *.yaml -exec sed -i "s/namespace: kubearmor/namespace: $NAMESPACE/g" {} \;
-
-KUBEARMOR_NS=$(kubectl get ns | grep $NAMESPACE | wc -l)
-if [ $KUBEARMOR_NS == 0 ]; then
-    kubectl create namespace $NAMESPACE
+if [ -z $1 ]; then
+    echo "Usage: $0 [target namespace]"
+    exit
 fi
+
+NAMESPACE=$1
 
 KUBEARMOR_CLIENT=$(kubectl get pods -n $NAMESPACE | grep log-client | wc -l)
 if [ $KUBEARMOR_CLIENT == 0 ]; then
-    kubectl -n $NAMESPACE apply -f client-deployment.yaml
+    kubectl apply -n $NAMESPACE -f client-deployment.yaml
 fi
