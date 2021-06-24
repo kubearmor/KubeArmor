@@ -15,9 +15,9 @@ spec:
     app: wordpress
   type: NodePort
   ports:
-    - port: 80
-      targetPort: 80
-      nodePort: 30080
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -59,8 +59,8 @@ spec:
   selector:
     app: mysql
   ports:
-    - port: 3306
-      targetPort: 3306
+  - port: 3306
+    targetPort: 3306
 ---
 apiVersion: apps/v1
 kind: Deployment

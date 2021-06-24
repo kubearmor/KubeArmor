@@ -13,11 +13,11 @@ spec:
       container: ubuntu-4
   process:
     matchDirectories:
-      - dir: /bin/ # need some exectuables to test
+    - dir: /bin/ # need some exectuables to test
   file:
     matchDirectories:
-      - dir: /dev/pts/
-        recursive: true
+    - dir: /dev/pts/
+      recursive: true
     matchPaths:
     - path: /dev/tty
       readOnly: false
