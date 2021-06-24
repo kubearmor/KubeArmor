@@ -7,9 +7,8 @@ MySQL client collects the messages, alerts, and system logs from KubeArmor and s
 If you do not have a pre-installed MySQL database, you can quickly set up the MySQL database.
 
 ```
-$ cd MySQLClient/deployments/mysql
-(mysql) $ kubectl create namespace kubearmor
-(mysql) $ kubectl apply -f mysql-deployment.yaml
+$ cd KubeArmor/MySQLClient/deployments/mysql
+.../MySQLClient/deployments/mysql$ kubectl apply -n [target namespace] -f mysql-deployment.yaml
 ```
 
 * Default configuration
@@ -32,9 +31,8 @@ $ cd MySQLClient/deployments/mysql
 If the MySQL database is ready, you can simply deploy the MySQL client for KubeArmor.
 
 ```
-$ cd MySQLClient/deployments
-(deployments) $ kubectl create namespace kubearmor
-(deployments) $ kubectl apply -f client-deployment.yaml
+$ cd KubeArmor/MySQLClient/deployments
+~/KubeArmor/MySQLClient/deployments$ kubectl apply -n [target namespace] -f client-deployment.yaml
 ```
 
 If you changed the MySQL configuration, you should edit 'client-deployment.yaml' too.
