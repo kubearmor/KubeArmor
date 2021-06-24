@@ -11,7 +11,7 @@ end
 Vagrant.configure("2") do |config|
   # Need updated vbguest and reload for latest kernel
   if ENV['NETNEXT'] == "1" then
-	  config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
+    config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
   end
   config.vm.define VM_NAME do |cfg|
     cfg.vm.box = VM_IMG

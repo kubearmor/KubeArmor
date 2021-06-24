@@ -25,8 +25,8 @@
       Instead of self-managed Kubernetes, you can set up MicroK8s. For this, please run the following command.
 
        ```text
-       $ cd contribution/microk8s
-       (microk8s) $ ./install_microk8s.sh
+       $ cd KubeArmor/contribution/microk8s
+       ~/KubeArmor/contribution/microk8s$ ./install_microk8s.sh
        ```
 
    * Development Setup
@@ -34,8 +34,8 @@
      In order to install all dependencies, please run the following command.
 
      ```text
-     $ cd contribution/self-managed-k8s
-     (self-managed-k8s) $ ./setup.sh
+     $ cd KubeArmor/contribution/self-managed-k8s
+     ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
      [setup.sh](https://github.com/accuknox/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
@@ -54,14 +54,14 @@
      If you do not have Vagrant and VirtualBox in your environment, you can easily install them by running the following command.
 
      ```text
-     cd contribution/vagrant
-     (host) $ ./setup.sh
+     cd KubeArmor/contribution/vagrant
+     ~/KubeArmor/contribution/vagrant$ ./setup.sh
      ```
 
      If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
 
      ```text
-     (host) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
+     ~/KubeArmor/contribution/vagrant$ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
      ```
 
     * VM Setup using Vagrant
@@ -69,34 +69,35 @@
       Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
 
       ```text
-      (vagrant) $ vagrant up
+      ~/KubeArmor/contribution/vagrant$ vagrant up
       ```
 
 	  To stop the vagrant VM
 	  ```text
-      (vagrant) $ vagrant halt
+      ~/KubeArmor/contribution/vagrant$ vagrant halt
 	  ```
 
       If you want to remove the created VM, please run the following command.
 
       ```text
-      (vagrant) $ vagrant destroy
+      ~/KubeArmor/contribution/vagrant$ vagrant destroy
       ```
 
       You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
 
       ```text
-      (vagrant) $ vagrant ssh
+      ~/KubeArmor/contribution/vagrant$ vagrant ssh
       ```
 
 	* VM Setup using latest Linux kernel (netnext)
 
 	To use the latest linux kernel for dev env you can pass an environment variable `NETNEXT=1` to vagrant.
       ```text
-      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant up
-      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant ssh
-      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant halt
-      (host) KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant destroy
+      $ cd KubeArmor/contribution/vagrant
+      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant up
+      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant ssh
+      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant halt
+      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant destroy
 	  ```
 
 3.  Environment Check
@@ -106,7 +107,7 @@
 
         ```text
         $ cd KubeArmor/KubeArmor
-        (KubeArmor) $ make
+        ~/KubeArmor/KubeArmor$ make
         ```
 
         ![make](../.gitbook/assets/local_test_make.png)  
@@ -125,7 +126,7 @@
 
         ```text
         $ cd KubeArmor/KubeArmor
-        (KubeArmor) $ make run
+        ~/KubeArmor/KubeArmor$ make run
         ```
 
         ![make](../.gitbook/assets/local_test_make_run.png)  

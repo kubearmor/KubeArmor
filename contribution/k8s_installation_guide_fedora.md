@@ -10,7 +10,7 @@
   
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s-selinux
-    (self-managed-k8s-selinux) $ ./setup.sh
+    ~/KubeArmor/contribution/self-managed-k8s-selinux$ ./setup.sh
   ```
 
   Next, disable the swap partition for Kubernetes installation.
@@ -27,8 +27,8 @@
 
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s-selinux/docker
-    (docker) $ ./install_docker.sh
-    (docker) $ exit
+    ~/KubeArmor/contribution/self-managed-k8s-selinux/docker$ ./install_docker.sh
+    ~/KubeArmor/contribution/self-managed-k8s-selinux/docker$ exit
   ```
 * Kubernetes Installation \(single machine\)
 
@@ -36,14 +36,14 @@
 
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s-selinux/k8s
-    (k8s) $ ./install_kubernetes.sh
-    (k8s) $ ./initialize_kubernetes.sh cilium master
+    ~/KubeArmor/contribution/self-managed-k8s-selinux/k8s$ ./install_kubernetes.sh
+    ~/KubeArmor/contribution/self-managed-k8s-selinux/k8s$ ./initialize_kubernetes.sh cilium master
   ```
 
   You can also use other CNIs instead of Cilium.
 
   ```text
-    (k8s) $ ./initialize_kubernetes.sh [ weave | calico | flannel ] master
+    .../self-managed-k8s-selinux/k8s$ ./initialize_kubernetes.sh [ weave | calico | flannel ] master
   ```
 
   Please make sure that you need to put "master" at the above command end if you only have a single machine.  
@@ -54,6 +54,6 @@
 
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s-selinux
-    (self-managed-k8s-selinux) $ ./enable_selinux.sh
+    ~/KubeArmor/contribution/self-managed-k8s-selinux$ ./enable_selinux.sh
   ```
   Then, please wait a couple of minutes for restarting containers.

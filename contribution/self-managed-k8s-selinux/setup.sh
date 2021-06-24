@@ -5,24 +5,21 @@ export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../../..
 # install build dependencies
 sudo dnf -y update
 sudo dnf install -y bison cmake ethtool flex git iperf libstdc++-static \
-  python-netaddr python-pip gcc gcc-c++ make zlib-devel \
-  elfutils-libelf-devel  python-pip cmake make
-sudo dnf install -y luajit luajit-devel 
-sudo dnf install -y \
-  http://repo.iovisor.org/yum/extra/mageia/cauldron/x86_64/netperf-2.7.0-1.mga6.x86_64.rpm
+                    python-netaddr python-pip gcc gcc-c++ make zlib-devel \
+                    elfutils-libelf-devel  python-pip cmake make \
+                    luajit luajit-devel \
+                    http://repo.iovisor.org/yum/extra/mageia/cauldron/x86_64/netperf-2.7.0-1.mga6.x86_64.rpm
 sudo pip install pyroute2
 
 # install binary clang
 sudo dnf install -y clang clang-devel llvm llvm-devel llvm-static ncurses-devel
 
 # install and compile BCC
-cd;
+cd
 git clone https://github.com/iovisor/bcc.git
 mkdir bcc/build; cd bcc/build
-cmake ..
-make
-sudo make install
-cd;
+cmake .. && make && sudo make install
+cd
 
 # install go
 wget https://dl.google.com/go/go1.15.3.linux-amd64.tar.gz

@@ -62,11 +62,14 @@ install_latest_kernel()
 	if [ "$(hostname)" != "kubearmor-dev-next" ]; then
 		return
 	fi
+
 	echo "Installing latest kernel..."
+
 	TMPDIR=/tmp/build/linux-kernel
 	HDR=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-headers-5.13.0-051300rc3_5.13.0-051300rc3.202105232230_all.deb
 	IMG=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-image-unsigned-5.13.0-051300rc3-generic_5.13.0-051300rc3.202105232230_amd64.deb
 	MOD=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-modules-5.13.0-051300rc3-generic_5.13.0-051300rc3.202105232230_amd64.deb
+
 	mkdir $TMPDIR
 	cd $TMPDIR
 	curl -s -O $HDR -O $IMG -O $MOD
