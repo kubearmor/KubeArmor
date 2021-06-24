@@ -3,7 +3,7 @@
 This is Code of Conduct is based on the [CNCF Code of
 Conduct](https://github.com/cncf/foundation/edit/master/code-of-conduct.md).
 See the referred document for translated versions into different languages. The
-text below is modified with Cilium community specific contact details.
+text below is modified with KubeArmor community specific contact details.
 
 ### Contributor Code of Conduct
 

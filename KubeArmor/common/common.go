@@ -248,7 +248,7 @@ func StrToFile(str, destFile string) {
 
 // GetExternalInterface Function
 func GetExternalInterface() string {
-	route := GetCommandOutputWithoutErr("ip", []string{"route", "get", "8.8.8.8"})
+	route := GetCommandOutputWithoutErr("ip", []string{"route"})
 	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
 
 	for idx, word := range routeData {
