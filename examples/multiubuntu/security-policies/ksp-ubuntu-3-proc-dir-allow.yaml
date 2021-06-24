@@ -14,7 +14,7 @@ spec:
     - dir: /bin/
   file:
     matchDirectories:
-      - dir: /credentials/ # allow accessing the files in this directory; otherwise, deny all
-        recursive: true
+    - dir: /credentials/ # allow accessing the files in this directory; otherwise, deny all
+      recursive: true
   action:
     AllowWithAudit

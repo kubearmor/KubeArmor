@@ -7,9 +7,8 @@ Log client collects the messages, alerts, and system logs from KubeArmor and sto
 You can simply deploy the Log client for KubeArmor.
 
 ```
-$ cd LogClient/deployments
-(deployments) $ kubectl create namespace kubearmor
-(deployments) $ kubectl apply -f client-deployment.yaml
+$ cd KubeArmor/LogClient/deployments
+~/KubeArmor/LogClient/deployments$ kubectl apply -n [target namespace] -f client-deployment.yaml
 ```
 
 ## Arguments

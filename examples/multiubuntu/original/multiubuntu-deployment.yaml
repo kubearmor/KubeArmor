@@ -23,8 +23,8 @@ spec:
         container: ubuntu-1
     spec:
       containers:
-        - name: ubuntu-1-container
-          image: 0x010/ubuntu-w-utils:latest
+      - name: ubuntu-1-container
+        image: 0x010/ubuntu-w-utils:latest
 ---
 apiVersion: apps/v1
 kind: Deployment

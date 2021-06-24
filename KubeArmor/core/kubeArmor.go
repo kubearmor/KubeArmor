@@ -421,28 +421,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 
 		dm.LogFeeder.Printf("Container Runtime: %s", cr)
 
-		if strings.HasPrefix(cr, "containerd") {
-			sockFile := false
-
-			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
-				if _, err := os.Stat(candidate); err == nil {
-					sockFile = true
-					break
-				}
-			}
-
-			if sockFile {
-				// monitor containerd events
-				go dm.MonitorContainerdEvents()
-			} else {
-				dm.LogFeeder.Errf("Failed to monitor containers (Containerd socket file is not accessible)", cr)
-
-				// destroy the daemon
-				dm.DestroyKubeArmorDaemon()
-
-				return
-			}
-		} else if strings.HasPrefix(cr, "docker") {
+		if strings.HasPrefix(cr, "docker") {
 			sockFile := false
 
 			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
@@ -475,13 +454,27 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 					return
 				}
 			}
-		} else {
-			dm.LogFeeder.Errf("Failed to monitor containers (non-supported runtime: %s)", cr)
+		} else { // containerd
+			sockFile := false
 
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
+			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
+				if _, err := os.Stat(candidate); err == nil {
+					sockFile = true
+					break
+				}
+			}
 
-			return
+			if sockFile {
+				// monitor containerd events
+				go dm.MonitorContainerdEvents()
+			} else {
+				dm.LogFeeder.Errf("Failed to monitor containers (Containerd socket file is not accessible)", cr)
+
+				// destroy the daemon
+				dm.DestroyKubeArmorDaemon()
+
+				return
+			}
 		}
 	} else {
 		dm.LogFeeder.Err("Failed to initialize the Kubernetes client")

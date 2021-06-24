@@ -24,7 +24,7 @@ Examples of unacceptable behavior by participants include:
 * Trolling or insulting/derogatory comments
 * Public or private harassment
 * Publishing others' private information, such as physical or electronic addresses,
- without explicit permission
+  without explicit permission
 * Other unethical or unprofessional conduct.
 
 Project maintainers have the right and responsibility to remove, edit, or reject

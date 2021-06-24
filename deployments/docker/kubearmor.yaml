@@ -24,7 +24,7 @@ metadata:
   namespace: kube-system
 spec:
   selector:
-    container: kubearmor-relay
+    kubearmor-app: kubearmor-relay
   ports:
   - port: 32767
     protocol: TCP
@@ -35,16 +35,16 @@ metadata:
   name: kubearmor-relay
   namespace: kube-system
   labels:
-    deployment: kubearmor-relay
+    kubearmor-app: kubearmor-relay
 spec:
   replicas: 1
   selector:
     matchLabels:
-      container: kubearmor-relay
+      kubearmor-app: kubearmor-relay
   template:
     metadata:
       labels:
-        container: kubearmor-relay
+        kubearmor-app: kubearmor-relay
     spec:
       serviceAccountName: kubearmor
       nodeSelector:
@@ -62,15 +62,15 @@ metadata:
   name: kubearmor
   namespace: kube-system
   labels:
-    daemonset: kubearmor
+    kubearmor-app: kubearmor
 spec:
   selector:
     matchLabels:
-      container: kubearmor
+      kubearmor-app: kubearmor
   template:
     metadata:
       labels:
-        container: kubearmor
+        kubearmor-app: kubearmor
       annotations:
         container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
     spec:
@@ -109,9 +109,6 @@ spec:
           mountPath: /sys/kernel/debug
         - name: etc-apparmor-d-path # AppArmor (read-write)
           mountPath: /etc/apparmor.d
-        # - name: var-log-audit-path # Auditd (read-only)
-        #   mountPath: /var/log/audit
-        #   readOnly: true
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -154,10 +151,6 @@ spec:
         hostPath:
           path: /etc/apparmor.d
           type: Directory
-      # - name: var-log-audit-path # Auditd
-      #   hostPath:
-      #     path: /var/log/audit
-      #     type: Directory
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release

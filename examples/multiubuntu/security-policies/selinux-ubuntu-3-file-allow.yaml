@@ -10,6 +10,6 @@ spec:
       container: ubuntu-3
   file:
     matchPaths:
-      - path: /host/var/log/firewalld
+    - path: /host/var/log/firewalld
   action:
     Allow

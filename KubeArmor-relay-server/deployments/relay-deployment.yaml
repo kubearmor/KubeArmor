@@ -5,7 +5,7 @@ metadata:
   namespace: kube-system
 spec:
   selector:
-    container: kubearmor-relay
+    kubearmor-app: kubearmor-relay
   ports:
   - port: 32767
     protocol: TCP
@@ -16,21 +16,21 @@ metadata:
   name: kubearmor-relay
   namespace: kube-system
   labels:
-    deployment: kubearmor-relay
+    kubearmor-app: kubearmor-relay
 spec:
   replicas: 1
   selector:
     matchLabels:
-      container: kubearmor-relay
+      kubearmor-app: kubearmor-relay
   template:
     metadata:
       labels:
-        container: kubearmor-relay
+        kubearmor-app: kubearmor-relay
     spec:
       serviceAccountName: kubearmor
       containers:
-        - name: kubearmor-relay-server
-          image: accuknox/kubearmor-relay-server:latest
-          imagePullPolicy: Always
-          ports:
-          - containerPort: 32767
+      - name: kubearmor-relay-server
+        image: accuknox/kubearmor-relay-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 32767

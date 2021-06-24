@@ -2,18 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubearmor-log-client
-  namespace: kubearmor
   labels:
-    app: kubearmor-log-client
+    kubearmor-app: kubearmor-log-client
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubearmor-log-client
+      kubearmor-app: kubearmor-log-client
   template:
     metadata:
       labels:
-        app: kubearmor-log-client
+        kubearmor-app: kubearmor-log-client
     spec:
       containers:
       - name: kubearmor-log-client

@@ -7,8 +7,8 @@
 To deploy the multiubuntu microservice, please run the following commands.
 
 ```text
-$ cd examples/multiubuntu
-(examples/multiubuntu) $ kubectl apply -f .
+$ cd KubeArmor/examples/multiubuntu
+~/KubeArmor/examples/multiubuntu$ kubectl apply -f .
 ```
 
 ## Use Cases
@@ -20,8 +20,8 @@ To verify KubeArmor's functionalities, we provide sample security policies for t
 * Deploy a security policy
 
 ```text
-$ cd security-policies
-(security-policies) $ kubectl -n multiubuntu apply -f ksp-group-1-proc-path-block.yaml
+$ cd KubeArmor/examples/multiubuntu/security-policies
+.../multiubuntu/security-policies$ kubectl -n multiubuntu apply -f ksp-group-1-proc-path-block.yaml
 ```
 
 * Execute /bin/sleep inside of the ubuntu-1 pod
@@ -44,7 +44,7 @@ $ kubectl -n kube-system exec -it {KubeArmor in the node where ubuntu 1 is locat
 
 ```text
 $ cd security-policies
-(security-policies) $ kubectl -n multiubuntu apply -f ksp-ubuntu-5-file-dir-recursive-block.yaml
+.../multiubuntu/security-policies$ kubectl -n multiubuntu apply -f ksp-ubuntu-5-file-dir-recursive-block.yaml
 ```
 
 * Access /credentials/password inside of the ubuntu-5 pod

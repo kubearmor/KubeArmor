@@ -20,8 +20,8 @@
 
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s/docker
-    (docker) $ ./install_docker.sh
-    (docker) $ exit
+    ~/KubeArmor/contribution/self-managed-k8s/docker$ ./install_docker.sh
+    ~/KubeArmor/contribution/self-managed-k8s/docker$ exit
   ```
 
 * Kubernetes Installation \(single machine\)
@@ -30,14 +30,14 @@
 
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s/k8s
-    (k8s) $ ./install_kubernetes.sh
-    (k8s) $ ./initialize_kubernetes.sh flannel master
+    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./install_kubernetes.sh
+    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh flannel master
   ```
 
   Instead of Flannel, you can use other CNIs too.
 
   ```text
-    (k8s) $ ./initialize_kubernetes.sh [ weave | calico | cilium ] master
+    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ weave | calico | cilium ] master
   ```
 
   Please make sure that you need to put "master" at the above command end if you have only a single machine.  
@@ -51,8 +51,8 @@
 
     ```text
     $ cd KubeArmor/contribution/self-managed-k8s/k8s
-    (k8s) $ ./install_kubernetes.sh
-    (k8s) $ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] (master)
+    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./install_kubernetes.sh
+    .../self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] (master)
     ```
 
     Here, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.  

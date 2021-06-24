@@ -1,45 +1,45 @@
 apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaUser
 metadata:
-  name: kafka-feeder
+  name: kubearmor-kafka-feeder
   labels:
-    strimzi.io/cluster: kafka-cluster
+    strimzi.io/cluster: kubearmor-kafka-cluster
 spec:
   authorization:
     type: simple
     acls:
-      - resource:
-          type: topic
-          name: transcript-topic
-          patternType: literal
-        operation: Create
-        host: "*"
-      - resource:
-          type: topic
-          name: transcript-topic
-          patternType: literal
-        operation: Write
-        host: "*"
-      - resource:
-          type: topic
-          name: transcript-topic
-          patternType: literal
-        operation: Read
-        host: "*"
-      - resource:
-          type: topic
-          name: transcript-topic
-          patternType: literal
-        operation: Describe
-        host: "*"
+    - resource:
+        type: topic
+        name: transcript-topic
+        patternType: literal
+      operation: Create
+      host: "*"
+    - resource:
+        type: topic
+        name: transcript-topic
+        patternType: literal
+      operation: Write
+      host: "*"
+    - resource:
+        type: topic
+        name: transcript-topic
+        patternType: literal
+      operation: Read
+      host: "*"
+    - resource:
+        type: topic
+        name: transcript-topic
+        patternType: literal
+      operation: Describe
+      host: "*"
 
 ---
 apiVersion: kafka.strimzi.io/v1beta1
 kind: KafkaTopic
 metadata:
-  name: transcript-topic
+  name: kubearmor-kafka-transcript-topic
   labels:
-    strimzi.io/cluster: kafka-cluster
+    strimzi.io/cluster: kubearmor-kafka-cluster
 spec:
   partitions: 1
   replicas: 1

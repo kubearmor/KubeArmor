@@ -40,14 +40,14 @@ If you want to make a contribution, please follow the steps below.
 
    ```text
     $ cd KubeArmor
-    (KubeArmor) $ git status
-    (KubeArmor) $ git add [changed file]
+    ~/KubeArmor$ git status
+    ~/KubeArmor$ git add [changed file]
    ```
 
    Then, commit the changes using the "git commit" command.
 
    ```text
-    (KubeArmor) $ git commit -m "Add a new feature by [your name]"
+    ~/KubeArmor$ git commit -m "Add a new feature by [your name]"
    ```
 
    Please make sure that your changes are properly tested on your machine.  
@@ -57,7 +57,7 @@ If you want to make a contribution, please follow the steps below.
    Push your changes using the "git push" command.
 
    ```text
-    (KubeArmor) $ git push
+    ~/KubeArmor$ git push
    ```
 
 6. Create a pull request with your changes

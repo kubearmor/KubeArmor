@@ -6,43 +6,24 @@
   According to your environment, you can choose one of the following.  
 
 
-  * Deploy KubeArmor in self-managed Kubernetes \(with Docker\)
+  * Deploy KubeArmor \(in self-managed Kubernetes and GKE\)
 
     ```text
-      $ cd deployments/generic-docker
-      (generic-docker) $ kubectl apply -f .
+      $ cd KubeArmor/deployments/generic
+      ~/KubeArmor/deployments/generic$ kubectl apply -f .
     ```
 
-  * Deploy KubeArmor in self-managed Kubernetes \(with Containerd\)
+  * Deploy KubeArmor with older Docker
 
     ```text
-      $ cd deployments/generic-containerd
-      (generic-containerd) $ kubectl apply -f .
+      $ cd KubeArmor/deployments/docker
+      ~/KubeArmor/deployments/docker$ kubectl apply -f .
     ```
 
   * Deploy KubeArmor in MicroK8s
 
     ```text
-      $ cd deployments/microk8s
-      (microk8s) $ kubectl apply -f .
-    ```
-
-  * Deploy KubeArmor in GKE
-
-    ```text
-      $ cd deployments/GKE
-      (GKE) $ kubectl apply -f .
-    ```
-
-  * Deploy KubeArmor in EKS
-
-    ```text
-      Coming soon
-    ```
-
-  * Deploy KubeAmor in AKS
-
-    ```text
-      Coming soon
+      $ cd KubeArmor/deployments/microk8s
+      ~/KubeArmor/deployments/microk8s$ kubectl apply -f .
     ```
 

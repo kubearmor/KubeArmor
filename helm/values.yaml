@@ -1,5 +1,6 @@
 general:
   clusterName: Default
+  containerPlatform: containerd # { docker | containerd | microk8s }
   gkeEnabled: true
 
 kubearmor:

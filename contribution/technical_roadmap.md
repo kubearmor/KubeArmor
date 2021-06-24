@@ -39,6 +39,7 @@ Here, we briefly share a plan for the next releases \(e.g., including features, 
 
     ```text
       Database (e.g., MySQL and MongoDB)
+      Other logging systems (e.g., Kafka and Elasticsearch)
     ```
 
     * Automatically generate security policies for given containers against:
@@ -66,14 +67,8 @@ Here, we briefly share a plan for the next releases \(e.g., including features, 
   * Container Platforms
     * \(extension\) Podman 
   * LSM Supports
-    * \(extension\) SELinux, KRSI \(requiring Linux kernel v5.8 or newer\) 
+    * \(extension\) KRSI \(requiring Linux kernel v5.8 or newer\)
   * Features
-
-    * Produce container-aware logs and write them into:
-
-    ```text
-      Other systems (e.g., Kafka and Elasticsearch)
-    ```
 
     * Enforce security policies against inter-container communications at the network level
 
