@@ -13,6 +13,7 @@ import (
 // == Security Policies == //
 // ======================= //
 
+// newMatchPolicy Function
 func newMatchPolicy(policyName, src string, mp interface{}) tp.MatchPolicy {
 	match := tp.MatchPolicy{
 		PolicyName: policyName,
@@ -76,7 +77,6 @@ func newMatchPolicy(policyName, src string, mp interface{}) tp.MatchPolicy {
 		match.Operation = op
 		match.Resource = cap
 		match.Action = cct.Action
-
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -84,6 +84,7 @@ func newMatchPolicy(policyName, src string, mp interface{}) tp.MatchPolicy {
 	return match
 }
 
+// getProtocolFromName Function
 func getProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
@@ -97,6 +98,7 @@ func getProtocolFromName(proto string) string {
 	}
 }
 
+// getOperationAndCapabilityFromName
 func getOperationAndCapabilityFromName(capName string) (op, cap string) {
 	switch strings.ToLower(capName) {
 	case "net_raw":
