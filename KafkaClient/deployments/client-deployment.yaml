@@ -2,18 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubearmor-kafka-client
-  namespace: kubearmor
   labels:
-    app: kubearmor-kafka-client
+    kubearmor-app: kubearmor-kafka-client
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubearmor-kafka-client
+      kubearmor-app: kubearmor-kafka-client
   template:
     metadata:
       labels:
-        app: kubearmor-kafka-client
+        kubearmor-app: kubearmor-kafka-client
     spec:
       containers:
       - name: kubearmor-kafka-client
@@ -22,7 +21,7 @@ spec:
         - name: KUBEARMOR_SERVICE
           value: kubearmor.kube-system.svc:32767
         - name: KAFKA_BOOTSTRAP_SERVER
-          value: kafka-cluster-kafka-bootstrap.kubearmor.svc:9092
+          value: kubearmor-kafka-cluster-kafka-bootstrap.kubearmor.svc:9092
         - name: TOPIC_MSG
           value: kubearmor-messages
         - name: TOPIC_ALERT
