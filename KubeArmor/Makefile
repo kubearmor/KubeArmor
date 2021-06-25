@@ -1,5 +1,8 @@
-CURDIR=$(shell pwd)
-GO_EXEC=$(shell which go)
+CURDIR          := $(shell pwd)
+CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
+GO_EXEC         := $(shell which go)
+LOGNAME         := $(shell logname)
+NETNEXT         := 0
 
 .PHONY: build
 build:
@@ -36,3 +39,25 @@ clean:
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
 	cd $(CURDIR); find . -name go.sum | xargs -I {} rm -f {}
 	$(CURDIR)/build/clean_source_files.sh
+
+.PHONY: vagrant-check
+vagrant-check:
+ifeq ($(LOGNAME), vagrant)
+	$(error rule must be called from outside the vagrant environment)
+endif
+
+.PHONY: vagrant-up
+vagrant-up: vagrant-check
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant up; true
+
+.PHONY: vagrant-reload
+vagrant-reload: vagrant-check
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant reload; true
+
+.PHONY: vagrant-ssh
+vagrant-ssh: vagrant-check
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant ssh; true
+
+.PHONY: vagrant-destroy
+vagrant-destroy: vagrant-check
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant destroy; true
