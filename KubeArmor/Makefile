@@ -3,6 +3,9 @@ CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
 GO_EXEC         := $(shell which go)
 LOGNAME         := $(shell logname)
 NETNEXT         := 0
+DLV_EXEC         = $(GOPATH)/bin/dlv
+DLV_LPORT       := 2345
+KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 .PHONY: build
 build:
@@ -61,3 +64,13 @@ vagrant-ssh: vagrant-check
 .PHONY: vagrant-destroy
 vagrant-destroy: vagrant-check
 	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant destroy; true
+
+$(DLV_EXEC):
+	go get -u github.com/go-delve/delve/cmd/dlv
+
+.PHONY: debug-attach
+debug-attach: $(DLV_EXEC)
+ifeq ($(KUBEARMOR_PID), )
+	$(error kubearmor must be running - execute 'make run' first)
+endif
+	sudo $(DLV_EXEC) attach $(KUBEARMOR_PID) --headless -l=:$(DLV_LPORT) --log --api-version 2 $(CURDIR)
