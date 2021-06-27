@@ -23,7 +23,7 @@ type Container struct {
 
 	// == //
 
-	PolicyEnabled bool `json:"policyEnabled"`
+	PolicyEnabled int `json:"policyEnabled"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
@@ -58,7 +58,7 @@ type ContainerGroup struct {
 
 	// == //
 
-	PolicyEnabled bool `json:"policyEnabled"`
+	PolicyEnabled int `json:"policyEnabled"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
@@ -197,6 +197,12 @@ type MatchPolicies struct {
 // ===================== //
 // == Security Policy == //
 // ===================== //
+
+const (
+	KubeArmorPolicyDisabled = 0
+	KubeArmorPolicyEnabled  = 1
+	KubeArmorPolicyAudited  = 2
+)
 
 // SelectorType Structure
 type SelectorType struct {

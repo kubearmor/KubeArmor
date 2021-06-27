@@ -431,7 +431,7 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
 		}
 	}
 
-	if conGroup.PolicyEnabled {
+	if conGroup.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 		for _, appArmorProfile := range appArmorProfiles {
 			ae.UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
 		}
