@@ -183,7 +183,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.ContainersLock.Unlock()
 
-		dm.LogFeeder.Printf("Detected a container (removed/%s)", container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
 }
 
