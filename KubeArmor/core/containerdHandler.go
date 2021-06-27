@@ -223,7 +223,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		}
 		dm.ContainersLock.Unlock()
 
-		dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
@@ -236,7 +236,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		}
 		dm.ContainersLock.Unlock()
 
-		dm.LogFeeder.Printf("Detected a container (removed/%s)", container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
 }
 
