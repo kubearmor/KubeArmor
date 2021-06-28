@@ -184,8 +184,8 @@ type MatchPolicy struct {
 	Source    string
 	Operation string
 	Resource  string
-	Regexp    *regexp.Regexp
 
+	Regexp *regexp.Regexp
 	Native bool
 
 	Action string
