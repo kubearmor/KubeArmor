@@ -30,6 +30,8 @@ spec:
     metadata:
       labels:
          kubearmor-app: kubearmor-kibana
+      annotations:
+        kubearmor-policy: audited
     spec:
       containers:
       - name: kubearmor-kibana
