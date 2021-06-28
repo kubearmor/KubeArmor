@@ -166,7 +166,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.ContainersLock.Unlock()
 
-		dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
