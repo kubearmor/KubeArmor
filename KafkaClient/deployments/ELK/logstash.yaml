@@ -51,6 +51,8 @@ spec:
     metadata:
       labels:
         kubearmor-app: kubearmor-logstash
+      annotations:
+        kubearmor-policy: audited
     spec:
       containers:
       - name: kubearmor-logstash

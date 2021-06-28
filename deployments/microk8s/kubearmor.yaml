@@ -45,6 +45,8 @@ spec:
     metadata:
       labels:
         kubearmor-app: kubearmor-relay
+      annotations:
+        kubearmor-policy: audited
     spec:
       serviceAccountName: kubearmor
       nodeSelector:

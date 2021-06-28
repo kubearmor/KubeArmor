@@ -69,6 +69,8 @@ spec:
       labels:
         name: kubearmor-kafka-cluster-operator
         strimzi.io/kind: cluster-operator
+      annotations:
+        kubearmor-policy: audited
     spec:
       serviceAccountName: kubearmor-kafka-cluster-operator
       volumes:

@@ -61,6 +61,8 @@ spec:
     metadata:
       labels:
         kubearmor-app: kubearmor-elasticsearch
+      annotations:
+        kubearmor-policy: audited
     spec:
       initContainers:
       - name: init-sysctl

@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -333,6 +334,29 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					} else {
 						pod.Annotations["kubearmor-policy"] = "enabled"
+					}
+				}
+
+				// exception: coredns
+				if val, ok := pod.Labels["k8s-app"]; ok {
+					if val == "kube-dns" {
+						pod.Annotations["kubearmor-policy"] = "audited"
+					}
+				}
+
+				// exception: cilium-operator
+				if val, ok := pod.Labels["io.cilium/app"]; ok {
+					if val == "operator" {
+						pod.Annotations["kubearmor-policy"] = "audited"
+					}
+				}
+
+				// exception: no AppArmor
+				if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
+					if !strings.Contains(string(lsm), "apparmor") {
+						if pod.Annotations["kubearmor-policy"] == "enabled" {
+							pod.Annotations["kubearmor-policy"] = "audited"
+						}
 					}
 				}
 

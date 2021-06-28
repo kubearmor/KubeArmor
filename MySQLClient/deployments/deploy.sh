@@ -1,11 +1,17 @@
 #!/bin/bash
 
-if [ -z $1 ]; then
-    echo "Usage: $0 [target namespace]"
-    exit
+NAMESPACE=kubearmor
+
+if [ ! -z $1 ]; then
+    NAMESPACE=$1
+else
+    echo "Default Namespace: $NAMESPACE"
 fi
 
-NAMESPACE=$1
+kubectl get namespace $NAMESPACE > /dev/null 2>&1
+if [ $? != 0 ]; then
+    kubectl create namespace $NAMESPACE
+fi
 
 KUBEARMOR_MYSQL=$(kubectl get pods -n $NAMESPACE | grep mysql | wc -l)
 if [ $KUBEARMOR_MYSQL == 0 ]; then
