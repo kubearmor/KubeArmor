@@ -332,11 +332,7 @@ func (rs *RelayServer) GetFeedsFromNodes() {
 						break
 					}
 
-					if event.Object.ObjectMeta.Namespace != "kube-system" {
-						continue
-					}
-
-					if val, ok := event.Object.Labels["container"]; !ok {
+					if val, ok := event.Object.Labels["kubearmor-app"]; !ok {
 						continue
 					} else if val != "kubearmor" {
 						continue

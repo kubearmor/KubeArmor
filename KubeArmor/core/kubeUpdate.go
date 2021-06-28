@@ -351,6 +351,13 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				// exception: calico-kube-controllers
+				if val, ok := pod.Labels["k8s-app"]; ok {
+					if val == "calico-kube-controllers" {
+						pod.Annotations["kubearmor-policy"] = "audited"
+					}
+				}
+
 				// exception: no AppArmor
 				if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
 					if !strings.Contains(string(lsm), "apparmor") {
