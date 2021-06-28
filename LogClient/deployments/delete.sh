@@ -1,11 +1,12 @@
 #!/bin/bash
 
-if [ -z $1 ]; then
-    echo "Usage: $0 [target namespace]"
-    exit
-fi
+NAMESPACE=kubearmor
 
-NAMESPACE=$1
+if [ ! -z $1 ]; then
+    NAMESPACE=$1
+else
+    echo "Default Namespace: $NAMESPACE"
+fi
 
 KUBEARMOR_CLIENT=$(kubectl get pods -n $NAMESPACE | grep log-client | wc -l)
 if [ $KUBEARMOR_CLIENT != 0 ]; then
