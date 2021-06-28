@@ -223,7 +223,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string, full boo
 				ae.LogFeeder.Printf("Registered an AppArmor profile (%s)", profileName)
 			} else {
 				ae.AppArmorProfiles[profileName]++
-				ae.LogFeeder.Printf("Increased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]-1, ae.AppArmorProfiles[profileName], profileName)
+				ae.LogFeeder.Printf("Registered an AppArmor profile (%s, refCount: %d)", profileName, ae.AppArmorProfiles[profileName])
 			}
 		} else {
 			if _, ok := ae.AppArmorProfiles[profileName]; ok {
@@ -265,7 +265,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string, full b
 		if referenceCount, ok := ae.AppArmorProfiles[profileName]; ok {
 			if referenceCount > 1 {
 				ae.AppArmorProfiles[profileName]--
-				ae.LogFeeder.Printf("Decreased the refCount (%d -> %d) of an AppArmor profile (%s)", ae.AppArmorProfiles[profileName]+1, ae.AppArmorProfiles[profileName], profileName)
+				ae.LogFeeder.Printf("Unregistered an AppArmor profile (%s, refCount: %d)", profileName, ae.AppArmorProfiles[profileName])
 			} else {
 				delete(ae.AppArmorProfiles, profileName)
 				ae.LogFeeder.Printf("Unregistered an AppArmor profile (%s)", profileName)
