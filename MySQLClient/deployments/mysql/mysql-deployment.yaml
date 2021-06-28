@@ -26,6 +26,8 @@ spec:
     metadata:
       labels:
         kubearmor-app: kubearmor-mysql
+      annotations:
+        kubearmor-policy: audited
     spec:
       containers:
       - name: kubearmor-mysql

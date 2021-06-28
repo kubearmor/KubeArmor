@@ -13,6 +13,8 @@ spec:
     metadata:
       labels:
         kubearmor-app: kubearmor-mysql-client
+      annotations:
+        kubearmor-policy: audited
     spec:
       containers:
       - name: kubearmor-mysql-client
