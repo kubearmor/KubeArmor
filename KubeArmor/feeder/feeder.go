@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -273,6 +275,12 @@ type Feeder struct {
 	// namespace name + container group name / host name -> corresponding security policies
 	SecurityPolicies     map[string]tp.MatchPolicies
 	SecurityPoliciesLock *sync.RWMutex
+
+	// KubeArmorHostPolicyEnabled
+	HostPolicyEnabled int
+
+	// GKE
+	IsGKE bool
 }
 
 // NewFeeder Function
@@ -338,6 +346,19 @@ func NewFeeder(clusterName, port, output string) *Feeder {
 	// initialize security policies
 	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
 	fd.SecurityPoliciesLock = new(sync.RWMutex)
+
+	// set KubeArmorHostPolicyEnabled
+	fd.HostPolicyEnabled = tp.KubeArmorPolicyEnabled
+
+	// check if GKE
+	if kl.IsInK8sCluster() {
+		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+			s := string(b)
+			if strings.Contains(s, "Container-Optimized OS") {
+				fd.IsGKE = true
+			}
+		}
+	}
 
 	return fd
 }
