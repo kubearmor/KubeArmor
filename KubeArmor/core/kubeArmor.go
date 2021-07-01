@@ -443,6 +443,9 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 				}
 
 				if sockFile {
+					// update already deployed containers
+					dm.GetAlreadyDeployedDockerContainers()
+
 					// monitor docker events
 					go dm.MonitorDockerEvents()
 				} else {
