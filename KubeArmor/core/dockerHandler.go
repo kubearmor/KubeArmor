@@ -158,6 +158,8 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				dm.ContainersLock.Lock()
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
 					dm.Containers[container.ContainerID] = container
+				} else if dm.Containers[container.ContainerID].AppArmorProfile == "" && container.AppArmorProfile != "" {
+					dm.Containers[container.ContainerID] = container
 				} else {
 					dm.ContainersLock.Unlock()
 					continue
@@ -165,6 +167,16 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				dm.ContainersLock.Unlock()
 
 				dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
+			}
+		}
+	}
+
+	for _, conGroup := range dm.ContainerGroups {
+		for _, containerID := range conGroup.Containers {
+			if container, ok := dm.Containers[containerID]; ok {
+				if conGroup.AppArmorProfiles[containerID] == "" {
+					conGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
+				}
 			}
 		}
 	}

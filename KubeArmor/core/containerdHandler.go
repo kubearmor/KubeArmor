@@ -217,6 +217,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
+		} else if dm.Containers[containerID].AppArmorProfile == "" && container.AppArmorProfile != "" {
+			dm.Containers[containerID] = container
 		} else {
 			dm.ContainersLock.Unlock()
 			return
@@ -251,6 +253,8 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 
 	dm.LogFeeder.Print("Started to monitor Containerd events")
 
+	getContainersExecutedOnce := false
+
 	for {
 		select {
 		case <-StopChan:
@@ -276,6 +280,20 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 				for containerID, context := range deletedContainers {
 					dm.UpdateContainerdContainer(context, containerID, "destroy")
 				}
+			}
+
+			if !getContainersExecutedOnce {
+				for _, conGroup := range dm.ContainerGroups {
+					for _, containerID := range conGroup.Containers {
+						if container, ok := dm.Containers[containerID]; ok {
+							if conGroup.AppArmorProfiles[containerID] == "" {
+								conGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
+							}
+						}
+					}
+				}
+
+				getContainersExecutedOnce = true
 			}
 		}
 
