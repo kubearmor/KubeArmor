@@ -1,0 +1,11 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: np-group-1-file-dir-recursive-block
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      group: group-1
+  apparmor: |
+    deny /etc/{*,**} rw,

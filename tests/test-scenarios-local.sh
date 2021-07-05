@@ -152,11 +152,16 @@ function should_find_blocked_log() {
 
     sleep 3
 
-    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+    match_type="MatchedPolicy"
+    if [[ $5 -eq 1 ]]; then
+        match_type="MatchedNativePolicy" 
+    fi
+
+    audit_log=$(grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
     if [ $? != 0 ]; then
         sleep 2
 
-        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+        audit_log=$(grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -175,6 +180,12 @@ function run_test_scenario() {
     cd $1
 
     YAML_FILE=$(ls *.yaml)
+    policy_type=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
+    
+    NATIVE=0
+    if [[ $policy_type == "np" ]]; then
+        NATIVE=1
+    fi
 
     echo -e "${GREEN}[INFO] Applying $YAML_FILE into $2${NC}"
     kubectl apply -n $2 -f $YAML_FILE
@@ -218,7 +229,7 @@ function run_test_scenario() {
                 should_not_find_any_log $POD $OP $COND $ACTION
             else
                 echo "[INFO] $ACTION action, but the command should be failed"
-                should_find_blocked_log $POD $OP $COND $ACTION
+                should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
             fi
         elif [ "$ACTION" == "Audit" ] || [ "$ACTION" == "AllowWithAudit" ]; then
             if [ "$RESULT" == "passed" ]; then
@@ -226,7 +237,7 @@ function run_test_scenario() {
                 should_find_passed_log $POD $OP $COND $ACTION
             else
                 echo "[INFO] $ACTION action, but the command should be failed"
-                should_find_blocked_log $POD $OP $COND $ACTION
+                should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
             fi
         elif [ "$ACTION" == "Block" ] || [ "$ACTION" == "BlockWithAudit" ]; then
             if [ "$RESULT" == "passed" ]; then
@@ -234,7 +245,7 @@ function run_test_scenario() {
                 should_not_find_any_log $POD $OP $COND $ACTION
             else
                 echo "[INFO] $ACTION action, and the command should be failed"
-                should_find_blocked_log $POD $OP $COND $ACTION
+                should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
             fi
         fi
 
