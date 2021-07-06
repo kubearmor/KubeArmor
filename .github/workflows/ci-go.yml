@@ -22,7 +22,7 @@ jobs:
         run: |
           cd KubeArmor
           go mod tidy
-          # test -z "$(git status --porcelain)" || (echo "please run 'go mod tidy && go mod vendor', and submit your changes"; exit 1)
+          test -z "$(git status --porcelain)" || (echo "please run 'go mod tidy', and submit your changes";git status;git diff; exit 1)
 
       - name: Build bcc
         run: |
@@ -46,12 +46,14 @@ jobs:
           popd
 
       - name: Build KubeArmor
-        run: cd KubeArmor && make build
+        run: make build
+        working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
 
       - name: Test KubeArmor
-        run: cd KubeArmor && make testall
+        run: make testall
+        working-directory: KubeArmor
 
       - name: Clean modcache
         run: go clean -modcache
