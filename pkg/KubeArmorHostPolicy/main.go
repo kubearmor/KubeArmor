@@ -27,8 +27,8 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	securityv1 "github.com/accuknox/KubeArmor/pkg/KubeArmorHostPolicy/api/v1"
-	"github.com/accuknox/KubeArmor/pkg/KubeArmorHostPolicy/controllers"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/api/v1"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
