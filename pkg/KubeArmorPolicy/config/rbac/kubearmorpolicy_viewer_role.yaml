@@ -5,7 +5,7 @@ metadata:
   name: kubearmorpolicy-viewer-role
 rules:
 - apiGroups:
-  - security.accuknox.com
+  - security.kubearmor.com
   resources:
   - kubearmorpolicies
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - security.accuknox.com
+  - security.kubearmor.com
   resources:
   - kubearmorpolicies/status
   verbs:

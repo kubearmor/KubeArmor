@@ -9,7 +9,7 @@ name: Tagged version release
 jobs:
   build:
     name: Create KubeArmor Release - Tagged
-    if: github.repository == 'accuknox/KubeArmor'
+    if: github.repository == 'kubearmor/KubeArmor'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout KubeArmor code

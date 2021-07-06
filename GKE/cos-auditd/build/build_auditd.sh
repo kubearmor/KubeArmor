@@ -13,19 +13,19 @@ fi
 
 # remove old images
 
-docker images | grep accuknox/kubearmor-cos-auditd | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
+docker images | grep kubearmor/kubearmor-cos-auditd | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
-echo "[INFO] Removed existing accuknox/kubearmor-cos-auditd images"
+echo "[INFO] Removed existing kubearmor/kubearmor-cos-auditd images"
 
 # build a new image
 
-echo "[INFO] Building accuknox/kubearmor-cos-auditd:$VERSION"
-docker build -t accuknox/kubearmor-cos-auditd:$VERSION  .
+echo "[INFO] Building kubearmor/kubearmor-cos-auditd:$VERSION"
+docker build -t kubearmor/kubearmor-cos-auditd:$VERSION  .
 
 if [ $? == 0 ]; then
-    echo "[PASSED] Built accuknox/kubearmor-cos-auditd:$VERSION"
+    echo "[PASSED] Built kubearmor/kubearmor-cos-auditd:$VERSION"
     exit 0
 else
-    echo "[FAILED] Failed to build accuknox/kubearmor-cos-auditd:$VERSION"
+    echo "[FAILED] Failed to build kubearmor/kubearmor-cos-auditd:$VERSION"
     exit 1
 fi

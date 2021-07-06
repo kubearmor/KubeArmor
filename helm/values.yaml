@@ -6,7 +6,7 @@ general:
 kubearmor:
   serviceAccountName: kubearmor
   image:
-    repository: accuknox/kubearmor
+    repository: kubearmor/kubearmor
     pullPolicy: Always
     tag: latest
   livenessProbe:

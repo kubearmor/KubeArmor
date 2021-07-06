@@ -1,4 +1,4 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-wordpress-allow-config
@@ -23,7 +23,7 @@ spec:
   action:
     Allow
 ---
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-wordpress-block-config

@@ -2,7 +2,7 @@ syntax = "proto3";
  
 package feeder;
 
-option go_package="github.com/accuknox/KubeArmor/protobuf";
+option go_package="github.com/kubearmor/KubeArmor/protobuf";
 
 // Health check
 message NonceMessage {

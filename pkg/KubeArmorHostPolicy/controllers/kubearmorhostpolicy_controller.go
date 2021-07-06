@@ -34,8 +34,8 @@ type KubeArmorHostPolicyReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=security.accuknox.com,resources=kubearmorhostpolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=security.accuknox.com,resources=kubearmorhostpolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=security.kubearmor.com,resources=kubearmorhostpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=security.kubearmor.com,resources=kubearmorhostpolicies/status,verbs=get;update;patch
 
 func (r *KubeArmorHostPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

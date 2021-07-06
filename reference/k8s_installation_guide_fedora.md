@@ -43,7 +43,7 @@
   You can also use other CNIs instead of Cilium.
 
   ```text
-    .../self-managed-k8s-selinux/k8s$ ./initialize_kubernetes.sh [ weave | calico | flannel ] master
+    .../self-managed-k8s-selinux/k8s$ ./initialize_kubernetes.sh [ flannel | weave | calico ] master
   ```
 
   Please make sure that you need to put "master" at the above command end if you only have a single machine.  

@@ -31,13 +31,13 @@
   ```text
     $ cd KubeArmor/contribution/self-managed-k8s/k8s
     ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./install_kubernetes.sh
-    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh flannel master
+    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh cilium master
   ```
 
-  Instead of Flannel, you can use other CNIs too.
+  You can also use other CNIs instead of Cilium.
 
   ```text
-    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ weave | calico | cilium ] master
+    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ flannel | weave | calico ] master
   ```
 
   Please make sure that you need to put "master" at the above command end if you have only a single machine.  

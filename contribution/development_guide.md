@@ -14,7 +14,7 @@
      LSM - AppArmor
      ```
 
-     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](k8s_installation_guide_ubuntu.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
+     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/reference/k8s_installation_guide_ubuntu.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
 
   
      Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives such as LSMs.  
@@ -38,7 +38,7 @@
      ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
-     [setup.sh](https://github.com/accuknox/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
+     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
 2. Vagrant Environment
@@ -162,17 +162,7 @@ Here, we briefly give you an overview of KubeArmor's directories.
     log                  - Message logger (stdout) for KubeArmor
     monitor              - eBPF-based system monitor (mapping process IDs to container IDs)
     types                - Type definitions
-  KubeArmor-relay-server - Relay server for KubeArmor's distributed log collection
   protobuf/              - Protocol buffer
-  ```
-
-* Source code for KubeArmor's log client
-
-  ```text
-  LogClient/    - gRPC-based stdout/file client
-  MySQLClient/  - gRPC-based MySQL client
-  KafkaClient/  - gRPC-based Kafka client
-  protobuf/     - Protocol buffer
   ```
 
 * Source code for KubeArmor's custom resource definition \(CRD\)

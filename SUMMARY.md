@@ -7,24 +7,22 @@
 * [Deployment Guide](getting-started/deployment_guide.md)
 * [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
 * [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
-* [Security Policy Specification for Nodes (Hosts)](getting-started/host_security_policy_specification.md)
-* [Security Policy Examples for Nodes (Hosts)](getting-started/host_security_policy_examples.md)
+* [Security Policy Specification for Hosts](getting-started/host_security_policy_specification.md)
+* [Security Policy Examples for Hosts](getting-started/host_security_policy_examples.md)
 * [Consideration in Policy Action](getting-started/consideration_in_policy_action.md)
 
 ## Contribution
 
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
-* [Kubernetes Installation for Ubuntu](contribution/k8s_installation_guide_ubuntu.md)
-* [Kubernetes Installation for Fedora](contribution/k8s_installation_guide_fedora.md)
 * [Testing Guide](contribution/testing_guide.md)
-* [Troubleshooting Guide](contribution/trouble_shooting_guide.md)
 * [Technical Roadmap](contribution/technical_roadmap.md)
 
 ## Reference
 
+* [Kubernetes Installation for Ubuntu](reference/k8s_installation_guide_ubuntu.md)
+* [Kubernetes Installation for Fedora](reference/k8s_installation_guide_fedora.md)
 * [Supported Capability List](reference/supported_capability_list.md)
-* [Integration with ELK](reference/integration_with_elk.md)
 
 ## Examples
 

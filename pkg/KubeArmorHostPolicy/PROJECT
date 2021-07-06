@@ -1,4 +1,4 @@
-domain: accuknox.com
+domain: kubearmor.com
 repo: k8s
 resources:
 - group: security

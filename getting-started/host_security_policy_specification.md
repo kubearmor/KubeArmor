@@ -1,11 +1,11 @@
-# Security Policy Specification for Nodes (Hosts)
+# Security Policy Specification for Hosts
 
 ## Policy Specification
 
 Here is the specification of a host security policy.
 
 ```text
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind:KubeArmorHostPolicy
 metadata:
   name: [policy name]
@@ -91,7 +91,7 @@ Now, we will briefly explain how to define a host security policy.
   A security policy starts with the base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you want to apply the policy.
 
   ```text
-    apiVersion: security.accuknox.com/v1
+    apiVersion: security.kubearmor.com/v1
     kind:KubeArmorHostPolicy
     metadata:
       name: [policy name]

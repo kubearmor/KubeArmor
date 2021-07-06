@@ -51,8 +51,8 @@ Please take a look at the following documents.
 1. [Deployment Guide](getting-started/deployment_guide.md)
 2. [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
 3. [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
-4. [Security Policy Specification for Nodes (Hosts)](getting-started/host_security_policy_specification.md)
-5. [Security Policy Examples for Nodes (Hosts)](getting-started/host_security_policy_examples.md)
+4. [Security Policy Specification for Hosts](getting-started/host_security_policy_specification.md)
+5. [Security Policy Examples for Hosts](getting-started/host_security_policy_examples.md)
 
 If you want to make a contribution, please refer to the following documents too.
 

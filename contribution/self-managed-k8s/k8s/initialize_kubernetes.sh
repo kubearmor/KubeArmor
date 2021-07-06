@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ ! -z $1 ] && [ "$1" == "help" ]; then
-    echo "Usage: $0 [ weave | flannel | calico | cilium ] (master)"
+    echo "Usage: $0 [ flannel | weave | calico | cilium ] (master)"
     exit
 fi
 
@@ -29,12 +29,9 @@ elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
 elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # initialize the master node (calico)
     sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
-elif [ ! -z $1 ] && [ "$1" == "cilium" ]; then
+else
     # initialize the master node (cilium)
     sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
-else
-    # initialize the master node (flannel) by default
-    sudo kubeadm init --pod-network-cidr=10.244.0.0/16 | tee -a ~/k8s_init.log
 fi
 
 # make kubectl work for non-root user
@@ -62,12 +59,9 @@ elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
 elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # install a pod network (calico)
     kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
-elif [ ! -z $1 ] && [ "$1" == "cilium" ]; then
+else
     # install a pod network (cilium)
     kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml
-else
-    # install a pod network (flannel) by default
-    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
 fi
 
 if [ ! -z $2 ] && [ "$2" == "master" ]; then

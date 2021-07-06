@@ -53,7 +53,7 @@ spec:
         kubernetes.io/os: linux
       containers:
       - name: kubearmor-relay-server
-        image: accuknox/kubearmor-relay-server:latest
+        image: kubearmor/kubearmor-relay-server:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 32767
@@ -88,11 +88,11 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: kubearmor
-        image: accuknox/kubearmor:latest
+        image: kubearmor/kubearmor:latest
         imagePullPolicy: Always
         securityContext:
           privileged: true
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableHostPolicy"]
         ports:
         - containerPort: 32767
         volumeMounts:

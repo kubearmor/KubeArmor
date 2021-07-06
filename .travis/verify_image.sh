@@ -4,7 +4,7 @@ ARMOR_HOME=`dirname $(realpath "$0")`/..
 
 # build KubeArmor image
 
-IMAGE_NAME="accuknox/kubearmor:test"
+IMAGE_NAME="kubearmor/kubearmor:test"
 
 $ARMOR_HOME/KubeArmor/build/build_kubearmor.sh test
 if [ $? != 0 ]; then

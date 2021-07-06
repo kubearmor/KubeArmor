@@ -1,4 +1,4 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-2-proc-dir-recursive-block
