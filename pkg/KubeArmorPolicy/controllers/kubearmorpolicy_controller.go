@@ -23,7 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	securityv1 "github.com/accuknox/KubeArmor/pkg/KubeArmorPolicy/api/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
