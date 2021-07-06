@@ -3,6 +3,7 @@ package enforcer
 import (
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -62,22 +63,42 @@ func NewAppArmorEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool)
 		return nil
 	}
 
+	// existingProfiles := []string{}
+
+	// if output, err := kl.GetCommandOutputWithErr("aa-status", []string{}); err != nil {
+	// 	ae.LogFeeder.Errf("Failed to get the list of AppArmor profiles (%s)", err.Error())
+	// 	return nil
+	// } else {
+	// 	for _, line := range strings.Split(string(output), "\n") {
+	// 		// the line should be something like "   /path (pid) profile"
+	// 		if !strings.HasPrefix(line, "   ") {
+	// 			continue
+	// 		}
+
+	// 		// check if there are KubeArmor's profiles used by containers
+	// 		if words := strings.Split(line, " "); len(words) == 6 {
+	// 			if !kl.ContainsElement(existingProfiles, words[5]) {
+	// 				existingProfiles = append(existingProfiles, words[5])
+	// 			}
+	// 		}
+	// 	}
+	// }
+
 	existingProfiles := []string{}
 
-	if output, err := kl.GetCommandOutputWithErr("aa-status", []string{}); err != nil {
-		ae.LogFeeder.Errf("Failed to get the list of AppArmor profiles (%s)", err.Error())
-		return nil
-	} else {
-		for _, line := range strings.Split(string(output), "\n") {
-			// the line should be something like "   /path (pid) profile"
-			if !strings.HasPrefix(line, "   ") {
-				continue
-			}
+	if pids, err := ioutil.ReadDir("/proc"); err == nil {
+		for _, f := range pids {
+			if f.IsDir() {
+				if _, err := strconv.Atoi(f.Name()); err == nil {
+					if content, err := ioutil.ReadFile("/proc/" + f.Name() + "/attr/current"); err == nil {
+						line := strings.Split(string(content), "\n")[0]
+						words := strings.Split(line, " ")
 
-			// check if there are KubeArmor's profiles used by containers
-			if words := strings.Split(line, " "); len(words) == 6 {
-				if !kl.ContainsElement(existingProfiles, words[5]) {
-					existingProfiles = append(existingProfiles, words[5])
+						// check if there are KubeArmor's profiles used by containers
+						if !kl.ContainsElement(existingProfiles, words[0]) {
+							existingProfiles = append(existingProfiles, words[0])
+						}
+					}
 				}
 			}
 		}
