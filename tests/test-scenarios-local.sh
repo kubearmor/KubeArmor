@@ -10,6 +10,12 @@ ARMOR_MSG=/tmp/kubearmor.msg
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
 
+APPARMOR=0
+cat /sys/kernel/security/lsm | grep apparmor > /dev/null 2>&1
+if [ $? == 0 ]; then
+    APPARMOR=1
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -184,6 +190,10 @@ function run_test_scenario() {
     
     NATIVE=0
     if [[ $policy_type == "np" ]]; then
+        # skip a policy with a native profile unless AppArmor is enabled
+        if [ $APPARMOR == 0 ]; then
+            return
+        fi
         NATIVE=1
     fi
 
@@ -212,6 +222,16 @@ function run_test_scenario() {
         OP=$(cat $cmd | grep "^operation" | awk '{print $2}')
         COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
+
+        # replace Block with Audit unless AppArmor is enabled
+        if [ $APPARMOR == 0 ]; then
+            if [ "$ACTION" == "Block" ]; then
+                if [ "$RESULT" == "failed" ]; then
+                    ACTION="Audit"
+                    RESULT="passed"
+                fi
+            fi
+        fi
 
         res_cmd=0
         audit_log=""
