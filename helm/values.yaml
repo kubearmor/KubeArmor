@@ -96,14 +96,14 @@ kubearmor:
 
 kubearmor-relay:
   image:
-    repository: accuknox/kubearmor-relay
+    repository: kubearmor/kubearmor-relay
     pullPolicy: Always
     tag: latest
 
 cosauditd:
   name: kubearmor-cos-auditd
   image:
-    repository: accuknox/kubearmor-cos-auditd
+    repository: kubearmor/kubearmor-cos-auditd
     pullPolicy: Always
     tag: latest
   env:
