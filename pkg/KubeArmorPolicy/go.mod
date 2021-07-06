@@ -1,4 +1,4 @@
-module github.com/accuknox/KubeArmor/pkg/KubeArmorPolicy
+module github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy
 
 go 1.13
 
