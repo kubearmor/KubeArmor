@@ -3,7 +3,7 @@ package audit
 import (
 	"strings"
 
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ================ //

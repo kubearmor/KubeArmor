@@ -11,8 +11,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ================ //

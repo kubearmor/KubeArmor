@@ -9,14 +9,14 @@ import (
 	"syscall"
 	"time"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
-	adt "github.com/accuknox/KubeArmor/KubeArmor/audit"
-	efc "github.com/accuknox/KubeArmor/KubeArmor/enforcer"
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
-	mon "github.com/accuknox/KubeArmor/KubeArmor/monitor"
+	adt "github.com/kubearmor/KubeArmor/KubeArmor/audit"
+	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 )
 
 // ====================== //
@@ -199,7 +199,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 // InitLogFeeder Function
 func (dm *KubeArmorDaemon) InitLogFeeder() bool {
-	dm.LogFeeder = fd.NewFeeder(dm.ClusterName, dm.gRPCPort, dm.LogPath)
+	dm.LogFeeder = fd.NewFeeder(dm.ClusterName, dm.gRPCPort, dm.LogPath, dm.EnableHostPolicy)
 	if dm.LogFeeder == nil {
 		return false
 	}

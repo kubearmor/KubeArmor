@@ -3,7 +3,7 @@ package enforcer
 import (
 	"testing"
 
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 )
 
 func TestAppArmorEnforcer(t *testing.T) {

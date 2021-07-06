@@ -9,8 +9,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/accuknox/KubeArmor/KubeArmor/core"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/core"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 func main() {

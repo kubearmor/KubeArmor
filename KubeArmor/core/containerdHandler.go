@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/containerd/containerd/namespaces"

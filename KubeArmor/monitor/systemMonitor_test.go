@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 func TestSystemMonitor(t *testing.T) {
