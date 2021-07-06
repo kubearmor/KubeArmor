@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
-	pb "github.com/accuknox/KubeArmor/protobuf"
 	"github.com/google/uuid"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
 
@@ -284,7 +284,7 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName, port, output string) *Feeder {
+func NewFeeder(clusterName, port, output string, enableHostPolicy bool) *Feeder {
 	fd := &Feeder{}
 
 	// set cluster info
@@ -348,7 +348,11 @@ func NewFeeder(clusterName, port, output string) *Feeder {
 	fd.SecurityPoliciesLock = new(sync.RWMutex)
 
 	// set KubeArmorHostPolicyEnabled
-	fd.HostPolicyEnabled = tp.KubeArmorPolicyEnabled
+	if enableHostPolicy {
+		fd.HostPolicyEnabled = tp.KubeArmorPolicyEnabled
+	} else {
+		fd.HostPolicyEnabled = tp.KubeArmorPolicyAudited
+	}
 
 	// check if GKE
 	if kl.IsInK8sCluster() {

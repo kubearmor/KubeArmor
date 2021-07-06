@@ -1,31 +1,31 @@
-module github.com/accuknox/KubeArmor/KubeArmor/core
+module github.com/kubearmor/KubeArmor/KubeArmor/core
 
 go 1.15
 
 replace (
-	github.com/accuknox/KubeArmor => ../../
-	github.com/accuknox/KubeArmor/KubeArmor => ../
-	github.com/accuknox/KubeArmor/KubeArmor/audit => ../audit
-	github.com/accuknox/KubeArmor/KubeArmor/common => ../common
-	github.com/accuknox/KubeArmor/KubeArmor/core => ./
-	github.com/accuknox/KubeArmor/KubeArmor/discover => ../discovery
-	github.com/accuknox/KubeArmor/KubeArmor/enforcer => ../enforcer
-	github.com/accuknox/KubeArmor/KubeArmor/feeder => ../feeder
-	github.com/accuknox/KubeArmor/KubeArmor/log => ../log
-	github.com/accuknox/KubeArmor/KubeArmor/monitor => ../monitor
-	github.com/accuknox/KubeArmor/KubeArmor/types => ../types
-	github.com/accuknox/KubeArmor/protobuf => ../../protobuf
+	github.com/kubearmor/KubeArmor => ../../
+	github.com/kubearmor/KubeArmor/KubeArmor => ../
+	github.com/kubearmor/KubeArmor/KubeArmor/audit => ../audit
+	github.com/kubearmor/KubeArmor/KubeArmor/common => ../common
+	github.com/kubearmor/KubeArmor/KubeArmor/core => ./
+	github.com/kubearmor/KubeArmor/KubeArmor/discover => ../discovery
+	github.com/kubearmor/KubeArmor/KubeArmor/enforcer => ../enforcer
+	github.com/kubearmor/KubeArmor/KubeArmor/feeder => ../feeder
+	github.com/kubearmor/KubeArmor/KubeArmor/log => ../log
+	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ../monitor
+	github.com/kubearmor/KubeArmor/KubeArmor/types => ../types
+	github.com/kubearmor/KubeArmor/protobuf => ../../protobuf
 )
 
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
-	github.com/accuknox/KubeArmor/KubeArmor/audit v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/common v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/enforcer v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/feeder v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/monitor v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/types v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/audit v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/common v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/enforcer v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/feeder v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/monitor v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/types v0.0.0-00010101000000-000000000000
 	github.com/containerd/containerd v1.4.3
 	github.com/containerd/ttrpc v1.0.2 // indirect
 	github.com/containerd/typeurl v1.0.1

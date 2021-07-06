@@ -4,21 +4,18 @@ import (
 	"bufio"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ====================== //
 // == SELinux Enforcer == //
 // ====================== //
-
-const (
-	selinuxContextTemplates = "/usr/share/templates/"
-)
 
 // SELinuxEnforcer Structure
 type SELinuxEnforcer struct {
@@ -27,6 +24,8 @@ type SELinuxEnforcer struct {
 
 	SELinuxProfiles     map[string]int
 	SELinuxProfilesLock *sync.Mutex
+
+	SELinuxContextTemplates string
 }
 
 // NewSELinuxEnforcer Function
@@ -38,9 +37,17 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se.SELinuxProfiles = map[string]int{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
+	se.SELinuxContextTemplates = "/KubeArmor/templates/"
+
+	if kl.IsK8sLocal() {
+		if ex, err := os.Executable(); err == nil {
+			se.SELinuxContextTemplates = filepath.Dir(ex) + "/templates/"
+		}
+	}
+
 	// install template cil
-	if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + "base_container.cil"}); err != nil {
-		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) (%s, %s)", selinuxContextTemplates+"base_container.cil", output, err.Error())
+	if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + "base_container.cil"}); err != nil {
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) (%s, %s)", se.SELinuxContextTemplates+"base_container.cil", output, err.Error())
 		return nil
 	}
 
@@ -56,7 +63,7 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 
 	// remove template cil
 	if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-r", "base_container"}); err != nil {
-		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) (%s, %s)", selinuxContextTemplates+"base_container.cil", output, err.Error())
+		se.LogFeeder.Printf("Failed to register a SELinux profile (%s) (%s, %s)", se.SELinuxContextTemplates+"base_container.cil", output, err.Error())
 		return nil
 	}
 
@@ -119,7 +126,7 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
-	profilePath := selinuxContextTemplates + profileName + ".cil"
+	profilePath := se.SELinuxContextTemplates + profileName + ".cil"
 
 	if _, err := os.Stat(profilePath); err == nil {
 		if err := os.Remove(profilePath); err != nil {
@@ -163,7 +170,7 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName s
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
-	profilePath := selinuxContextTemplates + profileName + ".cil"
+	profilePath := se.SELinuxContextTemplates + profileName + ".cil"
 
 	if _, err := os.Stat(profilePath); err != nil {
 		se.LogFeeder.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
@@ -227,11 +234,11 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName s
 func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profileName string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
 	securityRules := 0
 
-	if _, err := os.Stat(selinuxContextTemplates + profileName + ".cil"); os.IsNotExist(err) {
+	if _, err := os.Stat(se.SELinuxContextTemplates + profileName + ".cil"); os.IsNotExist(err) {
 		return 0, err.Error(), false
 	}
 
-	file, err := os.Open(selinuxContextTemplates + profileName + ".cil")
+	file, err := os.Open(se.SELinuxContextTemplates + profileName + ".cil")
 	if err != nil {
 		return 0, err.Error(), false
 	}
@@ -366,7 +373,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 // UpdateSELinuxProfile Function
 func (se *SELinuxEnforcer) UpdateSELinuxProfile(conGroup tp.ContainerGroup, seLinuxProfile string, securityPolicies []tp.SecurityPolicy) {
 	if ruleCount, newProfile, ok := se.GenerateSELinuxProfile(conGroup, seLinuxProfile, securityPolicies); ok {
-		newfile, err := os.Create(selinuxContextTemplates + seLinuxProfile + ".cil")
+		newfile, err := os.Create(se.SELinuxContextTemplates + seLinuxProfile + ".cil")
 		if err != nil {
 			se.LogFeeder.Err(err.Error())
 			return
@@ -383,7 +390,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(conGroup tp.ContainerGroup, seLi
 			return
 		}
 
-		if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", selinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
+		if output, err := kl.GetCommandOutputWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
 			se.LogFeeder.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile)
 		} else {
 			se.LogFeeder.Printf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile, output)

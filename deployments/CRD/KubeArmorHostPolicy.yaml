@@ -1,1 +1,1 @@
-../../pkg/KubeArmorHostPolicy/config/crd/bases/security.accuknox.com_kubearmorhostpolicies.yaml
+../../pkg/KubeArmorHostPolicy/config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml

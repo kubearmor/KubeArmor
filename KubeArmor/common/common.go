@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 
 	"golang.org/x/sys/unix"
 )

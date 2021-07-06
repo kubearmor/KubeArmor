@@ -1,31 +1,31 @@
-module github.com/accuknox/KubeArmor/KubeArmor
+module github.com/kubearmor/KubeArmor/KubeArmor
 
 go 1.15
 
 replace (
-	github.com/accuknox/KubeArmor => ../../
-	github.com/accuknox/KubeArmor/KubeArmor => ../
-	github.com/accuknox/KubeArmor/KubeArmor/audit => ./audit
-	github.com/accuknox/KubeArmor/KubeArmor/common => ./common
-	github.com/accuknox/KubeArmor/KubeArmor/core => ./core
-	github.com/accuknox/KubeArmor/KubeArmor/discover => ./discovery
-	github.com/accuknox/KubeArmor/KubeArmor/enforcer => ./enforcer
-	github.com/accuknox/KubeArmor/KubeArmor/feeder => ./feeder
-	github.com/accuknox/KubeArmor/KubeArmor/log => ./log
-	github.com/accuknox/KubeArmor/KubeArmor/monitor => ./monitor
-	github.com/accuknox/KubeArmor/KubeArmor/types => ./types
-	github.com/accuknox/KubeArmor/protobuf => ../protobuf
+	github.com/kubearmor/KubeArmor => ../../
+	github.com/kubearmor/KubeArmor/KubeArmor => ../
+	github.com/kubearmor/KubeArmor/KubeArmor/audit => ./audit
+	github.com/kubearmor/KubeArmor/KubeArmor/common => ./common
+	github.com/kubearmor/KubeArmor/KubeArmor/core => ./core
+	github.com/kubearmor/KubeArmor/KubeArmor/discover => ./discovery
+	github.com/kubearmor/KubeArmor/KubeArmor/enforcer => ./enforcer
+	github.com/kubearmor/KubeArmor/KubeArmor/feeder => ./feeder
+	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
+	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor
+	github.com/kubearmor/KubeArmor/KubeArmor/types => ./types
+	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 )
 
 require (
-	github.com/accuknox/KubeArmor/KubeArmor/core v0.0.0-00010101000000-000000000000
-	github.com/accuknox/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/iovisor/gobpf v0.2.0 // indirect
+	github.com/kubearmor/KubeArmor/KubeArmor/core v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.7.0 // indirect

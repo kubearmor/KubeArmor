@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // RuntimeEnforcer Structure

@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ==================== //

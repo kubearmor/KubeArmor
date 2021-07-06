@@ -1,11 +1,11 @@
-module github.com/accuknox/KubeArmor/KubeArmor/types
+module github.com/kubearmor/KubeArmor/KubeArmor/types
 
 go 1.15
 
 replace (
-	github.com/accuknox/KubeArmor => ../../
-	github.com/accuknox/KubeArmor/KubeArmor => ../
-	github.com/accuknox/KubeArmor/KubeArmor/types => ./
+	github.com/kubearmor/KubeArmor => ../../
+	github.com/kubearmor/KubeArmor/KubeArmor => ../
+	github.com/kubearmor/KubeArmor/KubeArmor/types => ./
 )
 
 require (

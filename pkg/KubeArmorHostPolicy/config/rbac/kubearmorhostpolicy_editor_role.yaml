@@ -5,7 +5,7 @@ metadata:
   name: kubearmorhostpolicy-editor-role
 rules:
 - apiGroups:
-  - security.accuknox.com
+  - security.kubearmor.com
   resources:
   - kubearmorhostpolicies
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - security.accuknox.com
+  - security.kubearmor.com
   resources:
   - kubearmorhostpolicies/status
   verbs:

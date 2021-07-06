@@ -1,4 +1,4 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
   name: hsp-host-1-proc-path-block

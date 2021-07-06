@@ -7,7 +7,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - security.accuknox.com
+  - security.kubearmor.com
   resources:
   - kubearmorpolicies
   verbs:
@@ -19,7 +19,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - security.accuknox.com
+  - security.kubearmor.com
   resources:
   - kubearmorpolicies/status
   verbs:

@@ -1,8 +1,8 @@
 package enforcer
 
 import (
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // =================== //

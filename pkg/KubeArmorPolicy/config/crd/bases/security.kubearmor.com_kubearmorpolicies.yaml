@@ -6,23 +6,22 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: kubearmorhostpolicies.security.accuknox.com
+  name: kubearmorpolicies.security.kubearmor.com
 spec:
-  group: security.accuknox.com
+  group: security.kubearmor.com
   names:
-    kind: KubeArmorHostPolicy
-    listKind: KubeArmorHostPolicyList
-    plural: kubearmorhostpolicies
+    kind: KubeArmorPolicy
+    listKind: KubeArmorPolicyList
+    plural: kubearmorpolicies
     shortNames:
-    - khp
-    singular: kubearmorhostpolicy
-  scope: Cluster
+    - ksp
+    singular: kubearmorpolicy
+  scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies
-          API
+        description: KubeArmorPolicy is the Schema for the kubearmorpolicies API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -37,7 +36,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: KubeArmorHostPolicySpec defines the desired state of KubeArmorHostPolicy
+            description: KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
             properties:
               action:
                 enum:
@@ -98,7 +97,6 @@ spec:
                           type: array
                       required:
                       - capability
-                      - fromSource
                       type: object
                     type: array
                   message:
@@ -308,7 +306,6 @@ spec:
                             type: string
                           type: array
                       required:
-                      - fromSource
                       - protocol
                       type: object
                     type: array
@@ -324,17 +321,6 @@ spec:
                     type: array
                 required:
                 - matchProtocols
-                type: object
-              nodeSelector:
-                properties:
-                  matchLabels:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  matchNames:
-                    additionalProperties:
-                      type: string
-                    type: object
                 type: object
               process:
                 properties:
@@ -474,6 +460,76 @@ spec:
                       type: string
                     type: array
                 type: object
+              resource:
+                properties:
+                  action:
+                    enum:
+                    - Audit
+                    - Allow
+                    - Block
+                    - AllowWithAudit
+                    - BlockWithAudit
+                    type: string
+                  matchResources:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Audit
+                          - Allow
+                          - Block
+                          - AllowWithAudit
+                          - BlockWithAudit
+                          type: string
+                        message:
+                          type: string
+                        resource:
+                          enum:
+                          - cpu
+                          - fsize
+                          - rss
+                          - nofile
+                          - nproc
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                        value:
+                          type: string
+                      required:
+                      - resource
+                      - value
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchResources
+                type: object
+              selector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  matchNames:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               severity:
                 maximum: 10
                 minimum: 1
@@ -483,10 +539,10 @@ spec:
                   type: string
                 type: array
             required:
-            - nodeSelector
+            - selector
             type: object
           status:
-            description: KubeArmorHostPolicyStatus defines the observed state of KubeArmorHostPolicy
+            description: KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
             type: object
         type: object
     served: true

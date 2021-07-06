@@ -55,14 +55,15 @@
             Compile a log client.
 
             ```text
-            $ cd KubeArmor/LogClient
-            ~/KubeArmor/LogClient$ make
+            $ git clone https://github.com/kubearmor/kubearmor-log-client
+            $ cd kubearmor-log-client
+            ~/kubearmor-log-client$ make
             ```
 
             Run the log client.
 
             ```text
-            ~/KubeArmor/LogClient$ ./kubearmor-log-client (options...)
+            ~/kubearmor-log-client$ ./kubearmor-log-client (options...)
             ```
 
             Log client options:

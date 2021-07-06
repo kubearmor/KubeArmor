@@ -11,10 +11,6 @@ COPY ./KubeArmor ./KubeArmor
 COPY ./protobuf ./protobuf
 COPY ./GKE ./GKE
 
-COPY ./LogClient ./LogClient
-COPY ./MySQLClient ./MySQLClient
-COPY ./KafkaClient ./KafkaClient
-
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
 COPY ./KubeArmorPolicy.yaml ./CRD/KubeArmorPolicy.yaml
@@ -22,18 +18,6 @@ COPY ./KubeArmorHostPolicy.yaml ./CRD/KubeArmorHostPolicy.yaml
 
 RUN ./patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
-
-WORKDIR /usr/src/KubeArmor/LogClient
-
-RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-log-client main.go
-
-WORKDIR /usr/src/KubeArmor/MySQLClient
-
-RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor-mysql-client main.go
-
-WORKDIR /usr/src/KubeArmor/KafkaClient
-
-RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -tags musl -o kubearmor-kafka-client main.go
 
 ### Make executable image
 
@@ -47,14 +31,11 @@ RUN apk add bash curl procps bcc bcc-dev
 RUN apk add kubectl@edge apparmor@edge apparmor-utils@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorPolicy.yaml /KubeArmor/CRD/KubeArmorPolicy.yaml
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorHostPolicy.yaml /KubeArmor/CRD/KubeArmorHostPolicy.yaml
-
-COPY --from=builder /usr/src/KubeArmor/LogClient/kubearmor-log-client /kubearmor-log-client
-COPY --from=builder /usr/src/KubeArmor/MySQLClient/kubearmor-mysql-client /kubearmor-mysql-client
-COPY --from=builder /usr/src/KubeArmor/KafkaClient/kubearmor-kafka-client /kubearmor-kafka-client
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
