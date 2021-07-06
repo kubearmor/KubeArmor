@@ -8,7 +8,7 @@ build:
 .PHONY: run
 run: $(CURDIR)/kubearmor-log-client
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor-message /tmp/kubearmor-log
-	cd $(CURDIR); ./kubearmor-log-client -msg=/tmp/kubearmor-message -log=/tmp/kubearmor-log
+	cd $(CURDIR); ./kubearmor-log-client -msgPath=/tmp/kubearmor-message -logPath=/tmp/kubearmor-log
 
 .PHONY: build-image
 build-image:
