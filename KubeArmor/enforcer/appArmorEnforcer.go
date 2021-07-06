@@ -63,27 +63,6 @@ func NewAppArmorEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool)
 		return nil
 	}
 
-	// existingProfiles := []string{}
-
-	// if output, err := kl.GetCommandOutputWithErr("aa-status", []string{}); err != nil {
-	// 	ae.LogFeeder.Errf("Failed to get the list of AppArmor profiles (%s)", err.Error())
-	// 	return nil
-	// } else {
-	// 	for _, line := range strings.Split(string(output), "\n") {
-	// 		// the line should be something like "   /path (pid) profile"
-	// 		if !strings.HasPrefix(line, "   ") {
-	// 			continue
-	// 		}
-
-	// 		// check if there are KubeArmor's profiles used by containers
-	// 		if words := strings.Split(line, " "); len(words) == 6 {
-	// 			if !kl.ContainsElement(existingProfiles, words[5]) {
-	// 				existingProfiles = append(existingProfiles, words[5])
-	// 			}
-	// 		}
-	// 	}
-	// }
-
 	existingProfiles := []string{}
 
 	if pids, err := ioutil.ReadDir("/proc"); err == nil {
@@ -322,7 +301,9 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		"  network,\n" +
 		"  capability,\n" +
 		"\n" +
-		"  /usr/bin/runc Ux,\n" +
+		"  /usr/bin/runc Ux,\n" + // docker
+		"  /usr/sbin/runc Ux,\n" + // containerd
+		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s
 		"\n" +
 		"  ## == POLICY START == ##\n" +
 		"  ## == POLICY END == ##\n" +

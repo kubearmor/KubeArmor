@@ -1837,7 +1837,9 @@ func GenerateHostProfileHead() string {
 		"  network,\n" +
 		"  capability,\n" +
 		"\n" +
-		"  /usr/bin/runc Ux,\n" +
+		"  /usr/bin/runc Ux,\n" + // docker
+		"  /usr/sbin/runc Ux,\n" + // containerd
+		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s
 		"\n" +
 		"  ## == POLICY START == ##\n"
 
