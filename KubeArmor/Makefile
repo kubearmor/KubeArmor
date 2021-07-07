@@ -53,6 +53,10 @@ endif
 vagrant-up: vagrant-check
 	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant up; true
 
+.PHONY: vagrant-status
+vagrant-status: vagrant-check
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant status; true
+
 .PHONY: vagrant-reload
 vagrant-reload: vagrant-check
 	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant reload; true
@@ -60,6 +64,10 @@ vagrant-reload: vagrant-check
 .PHONY: vagrant-ssh
 vagrant-ssh: vagrant-check
 	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant ssh; true
+
+.PHONY: vagrant-halt
+vagrant-halt: vagrant-check
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant halt; true
 
 .PHONY: vagrant-destroy
 vagrant-destroy: vagrant-check
