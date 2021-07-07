@@ -758,26 +758,24 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					break
 				}
 
-				if len(secPolicy.ResourceType) > 0 {
-					matched := false
+				matched := false
 
-					switch secPolicy.ResourceType {
-					case "Glob":
-						// Match using a globbing syntax very similar to the AppArmor's
-						matched, _ = filepath.Match(secPolicy.Resource, log.Resource)
-					case "Regexp":
-						if secPolicy.Regexp == nil {
-							fd.Debug("Regexp is nil")
-							break
-						}
-						// Match using compiled regular expression
-						matched = secPolicy.Regexp.MatchString(log.Resource)
-					}
-
-					if matched == false {
+				switch secPolicy.ResourceType {
+				case "Glob":
+					// Match using a globbing syntax very similar to the AppArmor's
+					matched, _ = filepath.Match(secPolicy.Resource, log.Resource)
+				case "Regexp":
+					if secPolicy.Regexp == nil {
+						fd.Debug("Regexp is nil")
 						break
 					}
-				} else if strings.HasPrefix(log.Resource, secPolicy.Resource) == false {
+					// Match using compiled regular expression
+					matched = secPolicy.Regexp.MatchString(log.Resource)
+				default: // "Path", "Directory", "Protocol", "Capability" ...
+					matched = strings.HasPrefix(log.Resource, secPolicy.Resource)
+				}
+
+				if !matched {
 					break
 				}
 
