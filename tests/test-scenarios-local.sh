@@ -110,11 +110,11 @@ function should_not_find_any_log() {
 
     sleep 3
 
-    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed | tail -n 1)
     if [ $? == 0 ]; then
         sleep 2
 
-        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed | tail -n 1)
         if [ $? == 0 ]; then
             echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -134,11 +134,11 @@ function should_find_passed_log() {
 
     sleep 3
 
-    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
+    audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed | tail -n 1)
     if [ $? != 0 ]; then
         sleep 2
 
-        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed)
+        audit_log=$(grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed | tail -n 1)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -163,11 +163,11 @@ function should_find_blocked_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+    audit_log=$(grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed | tail -n 1)
     if [ $? != 0 ]; then
         sleep 2
 
-        audit_log=$(grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed)
+        audit_log=$(grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed | tail -n 1)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -206,7 +206,7 @@ function run_test_scenario() {
     fi
     echo "[INFO] Applied $YAML_FILE into $2"
 
-    sleep 2
+    sleep 3
     cmd_count=0
 
     for cmd in $(ls cmd*)
@@ -223,9 +223,16 @@ function run_test_scenario() {
         COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
 
-        # replace Block with Audit unless AppArmor is enabled
+        # if AppArmor is not enabled
         if [ $APPARMOR == 0 ]; then
+            # replace Block with Audit
             if [ "$ACTION" == "Block" ]; then
+                if [ "$RESULT" == "failed" ]; then
+                    ACTION="Audit"
+                    RESULT="passed"
+                fi
+            # replace Allow with "failed" to Audit with "passed"
+            elif [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "failed" ]; then
                     ACTION="Audit"
                     RESULT="passed"
