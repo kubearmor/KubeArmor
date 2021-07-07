@@ -76,6 +76,20 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = pdt.Action
 		}
+	} else if ppt, ok := mp.(tp.ProcessPatternType); ok {
+		match.Severity = strconv.Itoa(ppt.Severity)
+		match.Tags = ppt.Tags
+		match.Message = ppt.Message
+
+		match.Operation = "Process"
+		match.Resource = ppt.Pattern
+		match.ResourceType = "" // to be defined based on the pattern matching syntax
+
+		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
+			match.Action = "Audit (" + ppt.Action + ")"
+		} else {
+			match.Action = ppt.Action
+		}
 	} else if fpt, ok := mp.(tp.FilePathType); ok {
 		match.Severity = strconv.Itoa(fpt.Severity)
 		match.Tags = fpt.Tags
@@ -103,20 +117,6 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 			match.Action = "Audit (" + fdt.Action + ")"
 		} else {
 			match.Action = fdt.Action
-		}
-	} else if ppt, ok := mp.(tp.ProcessPatternType); ok {
-		match.Severity = strconv.Itoa(ppt.Severity)
-		match.Tags = ppt.Tags
-		match.Message = ppt.Message
-
-		match.Operation = "Process"
-		match.Resource = ppt.Pattern
-		match.ResourceType = "" // to be defined based on the pattern matching syntax
-
-		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
-			match.Action = "Audit (" + ppt.Action + ")"
-		} else {
-			match.Action = ppt.Action
 		}
 	} else if fpt, ok := mp.(tp.FilePatternType); ok {
 		match.Severity = strconv.Itoa(fpt.Severity)
@@ -192,7 +192,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			match.Native = true
 
 			matches.Policies = append(matches.Policies, match)
-			continue
 		}
 
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
@@ -253,6 +252,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
 				fd.Debugf("MatchPolicy Regexp compilation error: %s\n", patt.Pattern)
+				continue
 			}
 			match.Regexp = regexpComp
 			// Using 'Glob' despite compiling 'Regexp', since we don't have
@@ -321,6 +321,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
 				fd.Debugf("MatchPolicy Regexp compilation error: %s\n", patt.Pattern)
+				continue
 			}
 			match.Regexp = regexpComp
 			// Using 'Glob' despite compiling 'Regexp', since we don't have
@@ -398,9 +399,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			}
 
 		}
-
-		// for _, res := range secPolicy.Spec.Resource.MatchResources {
-		// }
 	}
 
 	fd.SecurityPoliciesLock.Lock()
@@ -432,7 +430,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			match.Native = true
 
 			matches.Policies = append(matches.Policies, match)
-			continue
 		}
 
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
@@ -486,15 +483,21 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				continue
 			}
 
-			regexpComp, err := regexp.Compile(patt.Pattern)
-			if err != nil {
-				continue
-			}
-
 			fromSource := ""
 
 			match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, patt)
+
+			regexpComp, err := regexp.Compile(patt.Pattern)
+			if err != nil {
+				fd.Debugf("MatchPolicy Regexp compilation error: %s\n", patt.Pattern)
+				continue
+			}
 			match.Regexp = regexpComp
+			// Using 'Glob' despite compiling 'Regexp', since we don't have
+			// a native pattern matching design yet and 'Glob' is more similar
+			// to AppArmor's pattern matching syntax.
+			match.ResourceType = "Glob"
+
 			matches.Policies = append(matches.Policies, match)
 		}
 
@@ -549,15 +552,21 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				continue
 			}
 
-			regexpComp, err := regexp.Compile(patt.Pattern)
-			if err != nil {
-				continue
-			}
-
 			fromSource := ""
 
 			match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, patt)
+
+			regexpComp, err := regexp.Compile(patt.Pattern)
+			if err != nil {
+				fd.Debugf("MatchPolicy Regexp compilation error: %s\n", patt.Pattern)
+				continue
+			}
 			match.Regexp = regexpComp
+			// Using 'Glob' despite compiling 'Regexp', since we don't have
+			// a native pattern matching design yet and 'Glob' is more similar
+			// to AppArmor's pattern matching syntax.
+			match.ResourceType = "Glob"
+
 			matches.Policies = append(matches.Policies, match)
 		}
 
@@ -626,7 +635,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 				matches.Policies = append(matches.Policies, match)
 			}
-
 		}
 	}
 
@@ -754,11 +762,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			switch log.Operation {
 			case "Process", "File":
-				if secPolicy.Operation != log.Operation {
-					break
-				}
-
-				if len(secPolicy.ResourceType) > 0 {
+				if secPolicy.Operation == log.Operation {
 					matched := false
 
 					switch secPolicy.ResourceType {
@@ -766,53 +770,44 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						// Match using a globbing syntax very similar to the AppArmor's
 						matched, _ = filepath.Match(secPolicy.Resource, log.Resource)
 					case "Regexp":
-						if secPolicy.Regexp == nil {
-							fd.Debug("Regexp is nil")
-							break
+						if secPolicy.Regexp != nil {
+							// Match using compiled regular expression
+							matched = secPolicy.Regexp.MatchString(log.Resource)
 						}
-						// Match using compiled regular expression
-						matched = secPolicy.Regexp.MatchString(log.Resource)
 					}
 
-					if matched == false {
-						break
+					if matched || strings.HasPrefix(log.Resource, secPolicy.Resource) {
+						if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							log.Type = "MatchedPolicy"
+							log.Action = secPolicy.Action
+
+						} else if secPolicy.Source == "" {
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							log.Type = "MatchedPolicy"
+							log.Action = secPolicy.Action
+						}
 					}
-				} else if strings.HasPrefix(log.Resource, secPolicy.Resource) == false {
-					break
-				}
-
-				if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
-					log.PolicyName = secPolicy.PolicyName
-					log.Severity = secPolicy.Severity
-
-					if len(secPolicy.Tags) > 0 {
-						log.Tags = strings.Join(secPolicy.Tags[:], ",")
-					}
-
-					if len(secPolicy.Message) > 0 {
-						log.Message = secPolicy.Message
-					}
-
-					log.Type = "MatchedPolicy"
-					log.Action = secPolicy.Action
-
-					break
-				} else if secPolicy.Source == "" {
-					log.PolicyName = secPolicy.PolicyName
-					log.Severity = secPolicy.Severity
-
-					if len(secPolicy.Tags) > 0 {
-						log.Tags = strings.Join(secPolicy.Tags[:], ",")
-					}
-
-					if len(secPolicy.Message) > 0 {
-						log.Message = secPolicy.Message
-					}
-
-					log.Type = "MatchedPolicy"
-					log.Action = secPolicy.Action
-
-					break
 				}
 			case "Network":
 				if secPolicy.Operation == log.Operation {
@@ -832,7 +827,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
 
-							break
 						} else if secPolicy.Source == "" {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
@@ -847,8 +841,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
-
-							break
 						}
 					}
 				}
@@ -860,7 +852,20 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 	if log.ContainerID != "" { // container
 		if log.Type == "" {
-			if log.Result != "Passed" {
+			if mightBeNative && log.Result != "Passed" {
+				log.PolicyName = "NativePolicy"
+
+				log.Severity = "-1"
+				log.Tags = ""
+				log.Message = "KubeArmor detected a native policy violation"
+
+				log.Type = "MatchedNativePolicy"
+				log.Action = "Block"
+
+				return log
+			}
+
+			if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 				if log.Operation == "Process" && allowProcPolicy != "" {
 					log.PolicyName = allowProcPolicy
 					log.Severity = allowProcPolicySeverity
@@ -874,7 +879,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					log.Type = "MatchedPolicy"
-					log.Action = "Allow"
+					log.Action = "Audit (Block)"
 
 					return log
 
@@ -891,7 +896,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					log.Type = "MatchedPolicy"
-					log.Action = "Allow"
+					log.Action = "Audit (Block)"
 
 					return log
 
@@ -908,61 +913,31 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					log.Type = "MatchedPolicy"
-					log.Action = "Allow"
+					log.Action = "Audit (Block)"
 
-					return log
-
-				}
-
-				if mightBeNative {
-					log.PolicyName = "NativePolicy"
-
-					log.Severity = "-"
-					log.Tags = "-"
-					log.Message = "KubeArmor detected a native policy violation"
-
-					log.Type = "MatchedNativePolicy"
-					log.Action = "Block"
-
-					return log
-				}
-
-				// Failed operations
-				if log.ProcessVisibilityEnabled && log.Operation == "Process" {
-					log.Type = "ContainerLog"
-					return log
-				} else if log.FileVisibilityEnabled && log.Operation == "File" {
-					log.Type = "ContainerLog"
-					return log
-				} else if log.NetworkVisibilityEnabled && log.Operation == "Network" {
-					log.Type = "ContainerLog"
-					return log
-				} else if log.CapabilitiesVisibilityEnabled && log.Operation == "Capabilities" {
-					log.Type = "ContainerLog"
-					return log
-				}
-			} else { // Passed
-				if log.Action == "Allow" {
-					// use 'AllowWithAudit' to get the logs for allowed operations
-					return tp.Log{}
-				}
-
-				// Passed operations
-				if log.ProcessVisibilityEnabled && log.Operation == "Process" {
-					log.Type = "ContainerLog"
-					return log
-				} else if log.FileVisibilityEnabled && log.Operation == "File" {
-					log.Type = "ContainerLog"
-					return log
-				} else if log.NetworkVisibilityEnabled && log.Operation == "Network" {
-					log.Type = "ContainerLog"
-					return log
-				} else if log.CapabilitiesVisibilityEnabled && log.Operation == "Capabilities" {
-					log.Type = "ContainerLog"
 					return log
 				}
 			}
+
+			if log.ProcessVisibilityEnabled && log.Operation == "Process" {
+				log.Type = "ContainerLog"
+				return log
+			} else if log.FileVisibilityEnabled && log.Operation == "File" {
+				log.Type = "ContainerLog"
+				return log
+			} else if log.NetworkVisibilityEnabled && log.Operation == "Network" {
+				log.Type = "ContainerLog"
+				return log
+			} else if log.CapabilitiesVisibilityEnabled && log.Operation == "Capabilities" {
+				log.Type = "ContainerLog"
+				return log
+			}
 		} else if log.Type == "MatchedPolicy" {
+			if log.Action == "Allow" && log.Result == "Passed" {
+				// use 'AllowWithAudit' to get the logs for allowed operations
+				return tp.Log{}
+			}
+
 			// if log.Action == "Block" {
 			// 	// use 'BlockWithAudit' to get the logs for blocked operations
 			// 	return tp.Log{}
@@ -972,79 +947,25 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		}
 	} else { // host
 		if log.Type == "" {
-			if log.Result != "Passed" {
-				if log.Operation == "Process" && allowProcPolicy != "" {
-					log.PolicyName = allowProcPolicy
-					log.Severity = allowProcPolicySeverity
+			if mightBeNative && log.Result != "Passed" {
+				log.PolicyName = "NativePolicy"
 
-					if len(allowProcTags) > 0 {
-						log.Tags = strings.Join(allowProcTags[:], ",")
-					}
+				log.Severity = "-1"
+				log.Tags = ""
+				log.Message = "KubeArmor detected a native policy violation"
 
-					if len(allowProcMessage) > 0 {
-						log.Message = allowProcMessage
-					}
+				log.Type = "MatchedNativePolicy"
+				log.Action = "Block"
 
-					log.Type = "MatchedHostPolicy"
-					log.Action = "Allow"
-
-					return log
-
-				} else if log.Operation == "File" && allowFilePolicy != "" {
-					log.PolicyName = allowFilePolicy
-					log.Severity = allowFilePolicySeverity
-
-					if len(allowFileTags) > 0 {
-						log.Tags = strings.Join(allowFileTags[:], ",")
-					}
-
-					if len(allowFileMessage) > 0 {
-						log.Message = allowFileMessage
-					}
-
-					log.Type = "MatchedHostPolicy"
-					log.Action = "Allow"
-
-					return log
-
-				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
-					log.PolicyName = allowNetworkPolicy
-					log.Severity = allowNetworkPolicySeverity
-
-					if len(allowNetworkTags) > 0 {
-						log.Tags = strings.Join(allowNetworkTags[:], ",")
-					}
-
-					if len(allowNetworkMessage) > 0 {
-						log.Message = allowNetworkMessage
-					}
-
-					log.Type = "MatchedHostPolicy"
-					log.Action = "Allow"
-
-					return log
-
-				}
-
-				if mightBeNative {
-					log.PolicyName = "NativePolicy"
-
-					log.Severity = "-"
-					log.Tags = "-"
-					log.Message = "KubeArmor detected a native policy violation"
-
-					log.Type = "MatchedNativePolicy"
-					log.Action = "Block"
-
-					return log
-				}
-			} else {
-				if log.Action == "Allow" {
-					// use 'AllowWithAudit' to get the logs for allowed operations
-					return tp.Log{}
-				}
+				return log
 			}
+
 		} else if log.Type == "MatchedPolicy" {
+			if log.Action == "Allow" && log.Result == "Passed" {
+				// use 'AllowWithAudit' to get the logs for allowed operations
+				return tp.Log{}
+			}
+
 			// if log.Action == "Block" {
 			// 	// use 'BlockWithAudit' to get the logs for blocked operations
 			// 	return tp.Log{}

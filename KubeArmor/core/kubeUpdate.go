@@ -757,7 +757,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 							}
 						}
 					}
-				} else if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
+				}
+
+				if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 					for idx, dir := range secPolicy.Spec.Process.MatchDirectories {
 						if dir.Severity == 0 {
 							if secPolicy.Spec.Process.Severity != 0 {
@@ -791,7 +793,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 							}
 						}
 					}
-				} else if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
+				}
+
+				if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 					for idx, pat := range secPolicy.Spec.Process.MatchPatterns {
 						if pat.Severity == 0 {
 							if secPolicy.Spec.Process.Severity != 0 {
@@ -861,7 +865,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 							}
 						}
 					}
-				} else if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+				}
+
+				if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 					for idx, dir := range secPolicy.Spec.File.MatchDirectories {
 						if dir.Severity == 0 {
 							if secPolicy.Spec.File.Severity != 0 {
@@ -895,7 +901,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 							}
 						}
 					}
-				} else if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+				}
+
+				if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 					for idx, pat := range secPolicy.Spec.File.MatchPatterns {
 						if pat.Severity == 0 {
 							if secPolicy.Spec.File.Severity != 0 {

@@ -226,9 +226,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string, full boo
 				ae.LogFeeder.Printf("Registered an AppArmor profile (%s, refCount: %d)", profileName, ae.AppArmorProfiles[profileName])
 			}
 		} else {
-			if _, ok := ae.AppArmorProfiles[profileName]; ok {
-				delete(ae.AppArmorProfiles, profileName)
-			}
+			delete(ae.AppArmorProfiles, profileName)
 			ae.LogFeeder.Printf("Initialize an AppArmor profile (%s)", profileName)
 		}
 	} else {

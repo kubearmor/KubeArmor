@@ -167,6 +167,8 @@ type Log struct {
 
 	// == //
 
+	PolicyEnabled int `json:"policyEnabled,omitempty"`
+
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled,omitempty"`
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled,omitempty"`
 	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled,omitempty"`
@@ -375,17 +377,6 @@ type CapabilitiesType struct {
 	Action string `json:"action,omitempty"`
 }
 
-// ResourceValueType Structure
-type ResourceValueType struct {
-	Resource string `json:"resource"`
-	Value    string `json:"value"`
-}
-
-// ResourceType Structure
-type ResourceType struct {
-	MatchResources []ResourceValueType `json:"matchResources,omitempty"`
-}
-
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Severity int      `json:"severity"`
@@ -398,7 +389,6 @@ type SecuritySpec struct {
 	File         FileType         `json:"file,omitempty"`
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
-	Resource     ResourceType     `json:"resource,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 

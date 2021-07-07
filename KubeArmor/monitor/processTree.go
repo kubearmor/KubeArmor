@@ -86,7 +86,9 @@ func (mon *SystemMonitor) LookupContainerID(pidns, mntns, hostpid, pid uint32, n
 			}
 
 			containerID = parts[0]
-			break
+			if containerID != "" {
+				break
+			}
 		}
 
 		cmdline.Close()

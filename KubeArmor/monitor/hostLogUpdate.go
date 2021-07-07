@@ -224,7 +224,7 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 			if msg.ContextSys.Retval < 0 {
 				message := getErrorMessage(msg.ContextSys.Retval)
 				if message != "" {
-					log.Result = fmt.Sprintf("%s", message)
+					log.Result = message
 				} else {
 					log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
 				}

@@ -258,36 +258,6 @@ type CapabilitiesType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=cpu;fsize;rss;nofile;nproc
-type ResourceLimitType string
-
-type ResourceValueType struct {
-	Resource ResourceLimitType `json:"resource"`
-	Value    string            `json:"value"`
-
-	// +kubebuilder:validation:optional
-	Severity SeverityType `json:"severity,omitempty"`
-	// +kubebuilder:validation:optional
-	Tags []string `json:"tags,omitempty"`
-	// +kubebuilder:validation:optional
-	Message string `json:"message,omitempty"`
-	// +kubebuilder:validation:optional
-	Action ActionType `json:"action,omitempty"`
-}
-
-type ResourceType struct {
-	MatchResources []ResourceValueType `json:"matchResources"`
-
-	// +kubebuilder:validation:optional
-	Severity SeverityType `json:"severity,omitempty"`
-	// +kubebuilder:validation:optional
-	Tags []string `json:"tags,omitempty"`
-	// +kubebuilder:validation:optional
-	Message string `json:"message,omitempty"`
-	// +kubebuilder:validation:optional
-	Action ActionType `json:"action,omitempty"`
-}
-
 // +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
 type ActionType string
 
@@ -302,7 +272,6 @@ type KubeArmorPolicySpec struct {
 	File         FileType         `json:"file,omitempty"`
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
-	Resource     ResourceType     `json:"resource,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 
