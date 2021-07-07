@@ -181,9 +181,10 @@ type MatchPolicy struct {
 	Tags     []string
 	Message  string
 
-	Source    string
-	Operation string
-	Resource  string
+	Source       string
+	Operation    string
+	Resource     string
+	ResourceType string
 
 	Regexp *regexp.Regexp
 	Native bool

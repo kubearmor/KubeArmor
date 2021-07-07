@@ -1,6 +1,7 @@
 package feeder
 
 import (
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -54,6 +55,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = "Process"
 		match.Resource = ppt.Path
+		match.ResourceType = "Path"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
@@ -67,6 +69,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = "Process"
 		match.Resource = pdt.Directory
+		match.ResourceType = "Directory"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(pdt.Action, "Block") {
 			match.Action = "Audit (" + pdt.Action + ")"
@@ -80,6 +83,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = "File"
 		match.Resource = fpt.Path
+		match.ResourceType = "Path"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
@@ -93,6 +97,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = "File"
 		match.Resource = fdt.Directory
+		match.ResourceType = "Directory"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fdt.Action, "Block") {
 			match.Action = "Audit (" + fdt.Action + ")"
@@ -106,6 +111,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = "Process"
 		match.Resource = ppt.Pattern
+		match.ResourceType = "" // to be defined based on the pattern matching syntax
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
@@ -118,6 +124,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = fpt.Message
 		match.Operation = "File"
 		match.Resource = fpt.Pattern
+		match.ResourceType = "" // to be defined based on the pattern matching syntax
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
@@ -131,6 +138,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = "Network"
 		match.Resource = getProtocolFromName(npt.Protocol)
+		match.ResourceType = "Protocol"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(npt.Action, "Block") {
 			match.Action = "Audit (" + npt.Action + ")"
@@ -148,6 +156,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 
 		match.Operation = op
 		match.Resource = cap
+		match.ResourceType = "Capability"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(cct.Action, "Block") {
 			match.Action = "Audit (" + cct.Action + ")"
@@ -237,15 +246,20 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 				continue
 			}
 
-			regexpComp, err := regexp.Compile(patt.Pattern)
-			if err != nil {
-				continue
-			}
-
 			fromSource := ""
 
 			match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, patt)
+
+			regexpComp, err := regexp.Compile(patt.Pattern)
+			if err != nil {
+				fd.Debugf("MatchPolicy Regexp compilation error: %s\n", patt.Pattern)
+			}
 			match.Regexp = regexpComp
+			// Using 'Glob' despite compiling 'Regexp', since we don't have
+			// a native pattern matching design yet and 'Glob' is more similar
+			// to AppArmor's pattern matching syntax.
+			match.ResourceType = "Glob"
+
 			matches.Policies = append(matches.Policies, match)
 		}
 
@@ -300,15 +314,20 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 				continue
 			}
 
-			regexpComp, err := regexp.Compile(patt.Pattern)
-			if err != nil {
-				continue
-			}
-
 			fromSource := ""
 
 			match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, patt)
+
+			regexpComp, err := regexp.Compile(patt.Pattern)
+			if err != nil {
+				fd.Debugf("MatchPolicy Regexp compilation error: %s\n", patt.Pattern)
+			}
 			match.Regexp = regexpComp
+			// Using 'Glob' despite compiling 'Regexp', since we don't have
+			// a native pattern matching design yet and 'Glob' is more similar
+			// to AppArmor's pattern matching syntax.
+			match.ResourceType = "Glob"
+
 			matches.Policies = append(matches.Policies, match)
 		}
 
@@ -735,42 +754,65 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			switch log.Operation {
 			case "Process", "File":
-				if secPolicy.Operation == log.Operation {
-					if strings.HasPrefix(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
-							log.PolicyName = secPolicy.PolicyName
-							log.Severity = secPolicy.Severity
+				if secPolicy.Operation != log.Operation {
+					break
+				}
 
-							if len(secPolicy.Tags) > 0 {
-								log.Tags = strings.Join(secPolicy.Tags[:], ",")
-							}
+				if len(secPolicy.ResourceType) > 0 {
+					matched := false
 
-							if len(secPolicy.Message) > 0 {
-								log.Message = secPolicy.Message
-							}
-
-							log.Type = "MatchedPolicy"
-							log.Action = secPolicy.Action
-
-							break
-						} else if secPolicy.Source == "" {
-							log.PolicyName = secPolicy.PolicyName
-							log.Severity = secPolicy.Severity
-
-							if len(secPolicy.Tags) > 0 {
-								log.Tags = strings.Join(secPolicy.Tags[:], ",")
-							}
-
-							if len(secPolicy.Message) > 0 {
-								log.Message = secPolicy.Message
-							}
-
-							log.Type = "MatchedPolicy"
-							log.Action = secPolicy.Action
-
+					switch secPolicy.ResourceType {
+					case "Glob":
+						// Match using a globbing syntax very similar to the AppArmor's
+						matched, _ = filepath.Match(secPolicy.Resource, log.Resource)
+					case "Regexp":
+						if secPolicy.Regexp == nil {
+							fd.Debug("Regexp is nil")
 							break
 						}
+						// Match using compiled regular expression
+						matched = secPolicy.Regexp.MatchString(log.Resource)
 					}
+
+					if matched == false {
+						break
+					}
+				} else if strings.HasPrefix(log.Resource, secPolicy.Resource) == false {
+					break
+				}
+
+				if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
+					log.PolicyName = secPolicy.PolicyName
+					log.Severity = secPolicy.Severity
+
+					if len(secPolicy.Tags) > 0 {
+						log.Tags = strings.Join(secPolicy.Tags[:], ",")
+					}
+
+					if len(secPolicy.Message) > 0 {
+						log.Message = secPolicy.Message
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = secPolicy.Action
+
+					break
+				} else if secPolicy.Source == "" {
+					log.PolicyName = secPolicy.PolicyName
+					log.Severity = secPolicy.Severity
+
+					if len(secPolicy.Tags) > 0 {
+						log.Tags = strings.Join(secPolicy.Tags[:], ",")
+					}
+
+					if len(secPolicy.Message) > 0 {
+						log.Message = secPolicy.Message
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = secPolicy.Action
+
+					break
 				}
 			case "Network":
 				if secPolicy.Operation == log.Operation {
