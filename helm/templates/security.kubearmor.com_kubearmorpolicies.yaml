@@ -460,65 +460,6 @@ spec:
                       type: string
                     type: array
                 type: object
-              resource:
-                properties:
-                  action:
-                    enum:
-                    - Audit
-                    - Allow
-                    - Block
-                    - AllowWithAudit
-                    - BlockWithAudit
-                    type: string
-                  matchResources:
-                    items:
-                      properties:
-                        action:
-                          enum:
-                          - Audit
-                          - Allow
-                          - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
-                          type: string
-                        message:
-                          type: string
-                        resource:
-                          enum:
-                          - cpu
-                          - fsize
-                          - rss
-                          - nofile
-                          - nproc
-                          type: string
-                        severity:
-                          maximum: 10
-                          minimum: 1
-                          type: integer
-                        tags:
-                          items:
-                            type: string
-                          type: array
-                        value:
-                          type: string
-                      required:
-                      - resource
-                      - value
-                      type: object
-                    type: array
-                  message:
-                    type: string
-                  severity:
-                    maximum: 10
-                    minimum: 1
-                    type: integer
-                  tags:
-                    items:
-                      type: string
-                    type: array
-                required:
-                - matchResources
-                type: object
               selector:
                 properties:
                   matchLabels:
