@@ -27,6 +27,9 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 		log.PodName = val.ContainerGroupName
 		log.ContainerName = val.ContainerName
 
+		// update policy flag
+		log.PolicyEnabled = val.PolicyEnabled
+
 		// update visibility flags
 		log.ProcessVisibilityEnabled = val.ProcessVisibilityEnabled
 		log.FileVisibilityEnabled = val.FileVisibilityEnabled
@@ -251,7 +254,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			if msg.ContextSys.Retval < 0 {
 				message := getErrorMessage(msg.ContextSys.Retval)
 				if message != "" {
-					log.Result = fmt.Sprintf("%s", message)
+					log.Result = message
 				} else {
 					log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
 				}
