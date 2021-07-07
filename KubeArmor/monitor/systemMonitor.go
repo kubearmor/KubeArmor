@@ -532,7 +532,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
-							log.Result = fmt.Sprintf("%s", message)
+							log.Result = message
 						} else {
 							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
 						}
@@ -613,7 +613,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
-							log.Result = fmt.Sprintf("%s", message)
+							log.Result = message
 						} else {
 							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
 						}
@@ -736,7 +736,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
-							log.Result = fmt.Sprintf("%s", message)
+							log.Result = message
 						} else {
 							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
 						}
@@ -817,7 +817,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
-							log.Result = fmt.Sprintf("%s", message)
+							log.Result = message
 						} else {
 							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
 						}

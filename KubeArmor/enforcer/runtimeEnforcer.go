@@ -194,7 +194,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	}
 
 	if errorLSM != "" {
-		return fmt.Errorf("Failed to destroy RuntimeEnforcer (%s)", errorLSM)
+		return fmt.Errorf("failed to destroy RuntimeEnforcer (%s)", errorLSM)
 	}
 
 	return nil

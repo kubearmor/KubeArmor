@@ -115,24 +115,6 @@ func readStringFromBuff(buff io.Reader) (string, error) {
 	return string(res), nil
 }
 
-// readStringVarFromBuff Function
-func readStringVarFromBuff(buff io.Reader, max int) (string, error) {
-	var err error
-	res := make([]byte, max)
-	char, err := readInt8FromBuff(buff)
-	if err != nil {
-		return "", fmt.Errorf("error reading null terminated string: %v", err)
-	}
-	for char != 0 {
-		res = append(res, byte(char))
-		char, err = readInt8FromBuff(buff)
-		if err != nil {
-			return "", fmt.Errorf("error reading null terminated string: %v", err)
-		}
-	}
-	return string(res), nil
-}
-
 // readUint32IP Function
 func readUint32IP(in uint32) string {
 	ip := make(net.IP, net.IPv4len)

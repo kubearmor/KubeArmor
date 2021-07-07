@@ -44,7 +44,7 @@ func allowedProcessMatchPaths(enableAuditd bool, path tp.ProcessPathType, proces
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -149,7 +149,7 @@ func allowedProcessMatchDirectories(enableAuditd bool, dir tp.ProcessDirectoryTy
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -306,7 +306,7 @@ func allowedFileMatchPaths(enableAuditd bool, path tp.FilePathType, fileWhiteLis
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -491,7 +491,7 @@ func allowedFileMatchDirectories(enableAuditd bool, dir tp.FileDirectoryType, fi
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -683,7 +683,7 @@ func allowedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkWhiteList
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -722,7 +722,7 @@ func allowedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, cap
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -784,7 +784,7 @@ func auditedProcessMatchPaths(enableAuditd bool, path tp.ProcessPathType, proces
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -889,7 +889,7 @@ func auditedProcessMatchDirectories(enableAuditd bool, dir tp.ProcessDirectoryTy
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -1046,7 +1046,7 @@ func auditedFileMatchPaths(enableAuditd bool, path tp.FilePathType, fileAuditLis
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -1231,7 +1231,7 @@ func auditedFileMatchDirectories(enableAuditd bool, dir tp.FileDirectoryType, fi
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -1446,7 +1446,7 @@ func blockedProcessMatchPaths(enableAuditd bool, path tp.ProcessPathType, proces
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -1551,7 +1551,7 @@ func blockedProcessMatchDirectories(enableAuditd bool, dir tp.ProcessDirectoryTy
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -1708,7 +1708,7 @@ func blockedFileMatchPaths(enableAuditd bool, path tp.FilePathType, fileBlackLis
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -1893,7 +1893,7 @@ func blockedFileMatchDirectories(enableAuditd bool, dir tp.FileDirectoryType, fi
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -2085,7 +2085,7 @@ func blockedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkBlackList
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
@@ -2124,7 +2124,7 @@ func blockedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, cap
 			source := ""
 
 			if len(src.Path) > 0 {
-				source = fmt.Sprintf("%s", src.Path)
+				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}

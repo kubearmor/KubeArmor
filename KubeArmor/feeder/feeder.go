@@ -477,6 +477,7 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 	// remove visibility flags
 
+	log.PolicyEnabled = 0
 	log.ProcessVisibilityEnabled = false
 	log.FileVisibilityEnabled = false
 	log.NetworkVisibilityEnabled = false
