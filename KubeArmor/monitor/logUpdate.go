@@ -184,7 +184,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = ""
 
 				for k, v := range sockAddr {
-					log.Resource = log.Resource + " " + k + "=" + v
+					if log.Resource == "" {
+						log.Resource = k + "=" + v
+					} else {
+						log.Resource = log.Resource + " " + k + "=" + v
+					}
 				}
 
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
@@ -207,7 +211,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 				for k, v := range sockAddr {
-					log.Resource = log.Resource + " " + k + "=" + v
+					if log.Resource == "" {
+						log.Resource = k + "=" + v
+					} else {
+						log.Resource = log.Resource + " " + k + "=" + v
+					}
 				}
 
 			case SYS_BIND: // fd, sockaddr
@@ -227,7 +235,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = ""
 
 				for k, v := range sockAddr {
-					log.Resource = log.Resource + " " + k + "=" + v
+					if log.Resource == "" {
+						log.Resource = k + "=" + v
+					} else {
+						log.Resource = log.Resource + " " + k + "=" + v
+					}
 				}
 
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
