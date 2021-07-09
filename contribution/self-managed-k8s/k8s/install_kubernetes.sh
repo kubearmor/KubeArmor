@@ -30,3 +30,9 @@ sudo apt-get install -y apparmor apparmor-utils auditd
 
 # enable auditd
 sudo systemctl enable auditd && sudo systemctl start auditd
+
+# enable ip forwarding
+if [ $(cat /proc/sys/net/ipv4/ip_forward) == 0 ]; then
+    sudo bash -c "echo '1' > /proc/sys/net/ipv4/ip_forward"
+    sudo bash -c "echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf"
+fi

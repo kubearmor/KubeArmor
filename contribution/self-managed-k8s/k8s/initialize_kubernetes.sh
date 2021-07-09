@@ -11,10 +11,6 @@ fi
 # turn off swap
 sudo swapoff -a
 
-# enable ip forwarding
-sudo bash -c "echo '1' > /proc/sys/net/ipv4/ip_forward"
-sudo bash -c "echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf"
-
 # activate br_netfilter
 sudo modprobe br_netfilter
 sudo bash -c "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
