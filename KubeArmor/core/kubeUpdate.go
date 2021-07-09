@@ -589,7 +589,7 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 }
 
 // UpdateSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
+func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy, status string) {
 	dm.ContainerGroupsLock.Lock()
 	defer dm.ContainerGroupsLock.Unlock()
 
@@ -626,7 +626,9 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			dm.LogFeeder.UpdateSecurityPolicies("UPDATED", dm.ContainerGroups[idx])
 
 			// enforce security policies
-			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
+			if status == "OK" {
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
+			}
 		}
 	}
 }
@@ -670,7 +672,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
 							policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] &&
 							policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
-							exist = true
+							//exist = true
 							break
 						}
 					}
@@ -1042,7 +1044,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 				// apply security policies to containers
-				dm.UpdateSecurityPolicy(event.Type, secPolicy)
+				dm.UpdateSecurityPolicy(event.Type, secPolicy, event.Object.Status.PolicyStatus)
 			}
 		}
 	}

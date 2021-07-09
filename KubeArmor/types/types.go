@@ -92,10 +92,15 @@ type K8sKubeArmorPolicyEvent struct {
 	Object K8sKubeArmorPolicy `json:"object"`
 }
 
+type SecurityPolicyStatus struct {
+	PolicyStatus string `json:"status,omitempty"`
+}
+
 // K8sKubeArmorPolicy Structure
 type K8sKubeArmorPolicy struct {
-	Metadata metav1.ObjectMeta `json:"metadata"`
-	Spec     SecuritySpec      `json:"spec"`
+	Metadata metav1.ObjectMeta    `json:"metadata"`
+	Spec     SecuritySpec         `json:"spec"`
+	Status   SecurityPolicyStatus `json:"status,omitempty"`
 }
 
 // K8sKubeArmorPolicies Structure
