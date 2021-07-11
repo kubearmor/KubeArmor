@@ -182,12 +182,8 @@ static __always_inline u32 add_pid_ns()
         return pid_ns;
     }
 
-    if (get_task_ns_pid(task) == 1) {
-        pid_ns_map.update(&pid_ns, &one);
-        return pid_ns;
-    }
-
-    return 0;
+    pid_ns_map.update(&pid_ns, &one);
+    return pid_ns;
 
 #endif /* MONITOR_HOST || MONITOR_CONTAINER */
 }
