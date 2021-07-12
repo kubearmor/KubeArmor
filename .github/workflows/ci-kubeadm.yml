@@ -1,0 +1,100 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Auto-testing Framework / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-18.04]
+    steps:
+      - name: Kernel version
+        run: uname -r
+
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Build bcc
+        run: |
+          set -x
+          sudo apt-get update
+          # Use release 9 of llvm etc. - later versions have an unfixed
+          # bug on Ubuntu:
+          # https://github.com/iovisor/bcc/issues/2915
+          sudo apt-get -y install bison build-essential cmake flex git libelf-dev libfl-dev libedit-dev libllvm9 llvm-9-dev libclang-9-dev python zlib1g-dev
+          pushd /tmp
+          git clone --depth 1 --branch v0.20.0 https://github.com/iovisor/bcc.git
+          mkdir -p bcc/build; cd bcc/build
+          # Symlink /usr/lib/llvm to avoid "Unable to find clang libraries"
+          # The directory appears only to be created when installing the
+          # virtual llvm-dev package.
+          # https://github.com/iovisor/bcc/issues/492
+          sudo ln -s /usr/lib/llvm-9 /usr/local/llvm
+          cmake ..
+          make
+          sudo make install
+          popd
+
+      - name: Build KubeArmor
+        run: make build
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - name: Setup Enviroment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-$(uname -r)
+          # install kubeadm
+          sudo apt-get update
+          sudo apt-get install -y apt-transport-https curl
+          curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+          sudo touch /etc/apt/sources.list.d/kubernetes.list
+          echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+          sudo apt-get update
+          sudo apt-get install -y kubelet kubeadm kubectl
+          sudo apt-mark hold kubelet kubeadm kubectl
+
+          # install apparmor and auditd
+          sudo apt-get install -y apparmor apparmor-utils auditd
+          sudo systemctl start apparmor; sudo systemctl start auditd
+
+          # turn off swap
+          sudo swapoff -a
+
+          # initialize kubernetes
+          sudo kubeadm init --pod-network-cidr=10.244.0.0/16 | tee -a ~/k8s_init.log
+
+          # copy k8s config
+          mkdir -p $HOME/.kube
+          sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+          sudo chown $USER:$USER $HOME/.kube/config
+          export KUBECONFIG=$HOME/.kube/config
+          echo "export KUBECONFIG=$HOME/.kube/config" | tee -a ~/.bashrc
+
+          # install flannel
+          kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
+
+          # disable master isolation
+          kubectl taint nodes --all node-role.kubernetes.io/master-
+
+      - name: Run kubectl proxy
+        run: kubectl proxy &
+
+      - name: Run Tests
+        run: ./tests/test-scenarios-local.sh
+
+      - name: Test Results
+        if: ${{ always() }}
+        run: cat /tmp/kubearmor.test
