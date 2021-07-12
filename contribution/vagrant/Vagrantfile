@@ -8,6 +8,16 @@ else
 	VM_NAME = "kubearmor-dev"
 end
 
+system("
+    if [ #{ARGV[0]} = 'up' ]; then
+		if [ ! -f ~/.ssh/id_rsa ]
+		then
+			echo '~/.ssh/id_rsa keys does not exist.'
+			ssh-keygen -t rsa -f ~/.ssh/id_rsa 
+		fi
+    fi
+")
+
 Vagrant.configure("2") do |config|
   # Need updated vbguest and reload for latest kernel
   if ENV['NETNEXT'] == "1" then
