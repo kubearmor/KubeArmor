@@ -295,6 +295,7 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		"  file,\n" +
 		"  mount,\n" +
 		"  umount,\n" +
+		"  signal,\n" +
 		"  ptrace,\n" +
 		"  network,\n" +
 		"  capability,\n" +
