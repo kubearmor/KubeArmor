@@ -1,44 +1,13 @@
 package monitor
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
-
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ========== //
 // == Logs == //
 // ========== //
-
-// BuildHostLogBase Function
-func (mon *SystemMonitor) BuildHostLogBase(msg ContextCombined) tp.Log {
-	log := tp.Log{}
-
-	timestamp, updatedTime := kl.GetDateTimeNow()
-
-	log.Timestamp = timestamp
-	log.UpdatedTime = updatedTime
-
-	log.HostPID = int32(msg.ContextSys.HostPID)
-	log.PPID = int32(msg.ContextSys.PPID)
-	log.PID = int32(msg.ContextSys.PID)
-	log.UID = int32(msg.ContextSys.UID)
-
-	if msg.ContextSys.EventID == SYS_EXECVE || msg.ContextSys.EventID == SYS_EXECVEAT {
-		log.Source = mon.GetHostExecPath(msg.ContextSys.PPID)
-	} else {
-		log.Source = mon.GetHostExecPath(msg.ContextSys.PID)
-	}
-
-	if log.Source == "" {
-		log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
-	}
-
-	return log
-}
 
 // UpdateHostLogs Function
 func (mon *SystemMonitor) UpdateHostLogs() {
@@ -54,7 +23,7 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 
 			// generate a log
 
-			log := mon.BuildHostLogBase(msg)
+			log := mon.BuildLogBase(msg)
 
 			switch msg.ContextSys.EventID {
 			case SYS_OPEN:
