@@ -424,7 +424,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 		if strings.HasPrefix(cr, "docker") {
 			sockFile := false
 
-			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
+			for _, candidate := range []string{"/var/run/docker.sock"} {
 				if _, err := os.Stat(candidate); err == nil {
 					sockFile = true
 					break
@@ -432,10 +432,13 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 			}
 
 			if sockFile {
-				// monitor containerd events
-				go dm.MonitorContainerdEvents()
+				// update already deployed containers
+				dm.GetAlreadyDeployedDockerContainers()
+
+				// monitor docker events
+				go dm.MonitorDockerEvents()
 			} else {
-				for _, candidate := range []string{"/var/run/docker.sock"} {
+				for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
 					if _, err := os.Stat(candidate); err == nil {
 						sockFile = true
 						break
@@ -443,11 +446,8 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPo
 				}
 
 				if sockFile {
-					// update already deployed containers
-					dm.GetAlreadyDeployedDockerContainers()
-
-					// monitor docker events
-					go dm.MonitorDockerEvents()
+					// monitor containerd events
+					go dm.MonitorContainerdEvents()
 				} else {
 					dm.LogFeeder.Errf("Failed to monitor containers (Docker socket file is not accessible)", cr)
 
