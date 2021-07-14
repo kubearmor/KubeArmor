@@ -179,16 +179,17 @@ static __always_inline u32 add_pid_ns()
 #else /* MONITOR_CONTAINER */
 
     u32 pid_ns = get_task_pid_ns_id(task);
+    
+    // discard host event 
+    if (pid_ns == PROC_PID_INIT_INO) {
+        return 0;
+    }
+
     if (pid_ns_map.lookup(&pid_ns) != 0) {
         return pid_ns;
-    }
-
-    if (get_task_ns_pid(task) == 1) {
-        pid_ns_map.update(&pid_ns, &one);
-        return pid_ns;
-    }
-
-    return 0;
+    } 
+    pid_ns_map.update(&pid_ns, &one);
+    return pid_ns;
 
 #endif /* MONITOR_HOST || MONITOR_CONTAINER */
 }
@@ -213,6 +214,11 @@ static __always_inline u32 remove_pid_ns()
 #else /* !MONITOR_HOST */
 
     u32 pid_ns = get_task_pid_ns_id(task);
+
+    if (pid_ns == PROC_PID_INIT_INO) {
+        return 0;
+    }
+
     if (pid_ns_map.lookup(&pid_ns) != 0 && (get_task_ns_pid(task) == 1)) {
         pid_ns_map.delete(&pid_ns);
         return 0;
