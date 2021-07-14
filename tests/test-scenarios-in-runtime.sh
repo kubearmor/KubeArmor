@@ -37,25 +37,6 @@ realpath() {
     cd $CURR
 }
 
-function wait_for_kubearmor_initialization() {
-    KUBEARMOR=$(kubectl get pods -n kube-system | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
-
-    for ARMOR in $KUBEARMOR
-    do
-        for (( ; ; ))
-        do
-            kubectl -n kube-system logs $ARMOR | grep "Initialized KubeArmor" &> /dev/null
-            if [ $? == 0 ]; then
-                break
-            fi
-
-            sleep 1
-        done
-    done
-
-    sleep 1
-}
-
 function apply_and_wait_for_microservice_creation() {
     cd $TEST_HOME/microservices/$1
 
@@ -95,13 +76,13 @@ function delete_and_wait_for_microserivce_deletion() {
 
 function should_not_find_any_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    if [ "$KUBEARMOR" != "" ]; then
+    if [ "$KUBEARMOR" = "kubearmor"* ]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
         if [ $? == 0 ]; then
             sleep 3
@@ -142,13 +123,13 @@ function should_not_find_any_log() {
 
 function should_find_passed_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    if [ "$KUBEARMOR" != "" ]; then
+    if [ "$KUBEARMOR" = "kubearmor"* ]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep MatchedPolicy $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep Passed")
         if [ $? != 0 ]; then
             sleep 3
@@ -189,7 +170,7 @@ function should_find_passed_log() {
 
 function should_find_blocked_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -o wide | grep $NODE | grep kubearmor | grep -v cos | grep -v relay | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
@@ -200,7 +181,7 @@ function should_find_blocked_log() {
 
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
-    if [ "$KUBEARMOR" != "" ]; then
+    if [ "$KUBEARMOR" = "kubearmor"* ]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- bash -c "grep $match_type $ARMOR_LOG | tail | grep $1 | grep $2 | grep $3 | grep $4 | grep -v Passed")
         if [ $? != 0 ]; then
             sleep 3
@@ -395,10 +376,6 @@ echo "Script: $0" >> $TEST_LOG
 echo >> $TEST_LOG
 echo "== Testcases ==" >> $TEST_LOG
 echo >> $TEST_LOG
-
-echo -e "${ORANGE}[INFO] Checking KubeArmor${NC}"
-wait_for_kubearmor_initialization
-echo "[INFO] Checked KubeArmor"
 
 ## == Test Scenarios == ##
 
