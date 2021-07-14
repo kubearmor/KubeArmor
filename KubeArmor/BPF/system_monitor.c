@@ -10,6 +10,7 @@
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
+#include <linux/proc_ns.h>
 
 #include <linux/un.h>
 #include <net/inet_sock.h>
@@ -163,7 +164,7 @@ static __always_inline u32 add_pid_ns()
 #ifdef MONITOR_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != 0) {
+    if (pid_ns != PROC_PID_INIT_INO) {
         return 0;
     }
 
@@ -199,7 +200,7 @@ static __always_inline u32 remove_pid_ns()
 #ifdef MONITOR_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != 0) {
+    if (pid_ns != PROC_PID_INIT_INO) {
         return 0;
     }
 
@@ -229,7 +230,7 @@ static __always_inline u32 skip_syscall()
 #ifdef MONITOR_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != 0) {
+    if (pid_ns != PROC_PID_INIT_INO) {
         return 1;
     }
 
