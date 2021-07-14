@@ -26,17 +26,17 @@ spec:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]              # --> optional
@@ -47,18 +47,18 @@ spec:
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]               # --> optional

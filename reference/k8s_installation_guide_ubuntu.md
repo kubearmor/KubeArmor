@@ -9,9 +9,9 @@
   You need to disable the swap partition in advance for Kubernetes setup.
 
   ```text
-    $ sudo vi /etc/fstab
-    (comment out the line for swap)
-    $ sudo reboot
+  $ sudo vi /etc/fstab
+  (comment out the line for swap)
+  $ sudo reboot
   ```
 
 * Docker Installation
@@ -19,33 +19,34 @@
   You can simply install Docker through the following command.
 
   ```text
-    $ cd KubeArmor/contribution/self-managed-k8s/docker
-    ~/KubeArmor/contribution/self-managed-k8s/docker$ ./install_docker.sh
-    ~/KubeArmor/contribution/self-managed-k8s/docker$ exit
+  $ cd KubeArmor/contribution/self-managed-k8s/docker
+  ~/KubeArmor/contribution/self-managed-k8s/docker$ ./install_docker.sh
+  ~/KubeArmor/contribution/self-managed-k8s/docker$ exit
   ```
 
 * Kubernetes Installation \(single machine\)
 
-  Now, you are ready to install Kubernetes. Please run the following command.
+  If you use multiple machines to set up a single-node environment, Please run the following commands.
 
-  ```text
+  * Master/Worker Node
+
+    ```text
     $ cd KubeArmor/contribution/self-managed-k8s/k8s
     ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./install_kubernetes.sh
     ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh cilium master
-  ```
+    ```
 
-  You can also use other CNIs instead of Cilium.
+    You can also use other CNIs instead of Cilium.
 
-  ```text
-    ~/KubeArmor/contribution/self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ flannel | weave | calico ] master
-  ```
+    ```text
+    .../self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ flannel | weave | calico ] master
+    ```
 
-  Please make sure that you need to put "master" at the above command end if you have only a single machine.  
+  Please make sure that you need to put "master" at the above command end if you have only a single machine.
 
 * Kubernetes Installation \(multiple machines\)
 
-  If you use multiple machines to set up a multi-node environment, Please run the following commands.  
-
+  If you use multiple machines to set up a multi-node environment, Please run the following commands.
 
   * Master Node
 
@@ -55,7 +56,7 @@
     .../self-managed-k8s/k8s$ ./initialize_kubernetes.sh [ flannel | weave | calico | cilium ] (master)
     ```
 
-    Here, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.  
+    Here, the master node will only serve Kubernetes services since you do not put "master" at the above command end. However, if you also want to use the master node to deploy containers, you can put "master" at the above command end.
 
   * Worker Node
 
