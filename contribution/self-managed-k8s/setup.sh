@@ -84,7 +84,9 @@ if [[ $(hostname) = kubearmor-dev* ]]; then
     echo "export GOROOT=/usr/local/go" >> /home/vagrant/.bashrc
     echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> /home/vagrant/.bashrc
     echo >> /home/vagrant/.bashrc
-	install_latest_kernel # Only for NETNEXT=1
+    mkdir -p /home/vagrant/go
+    chown -R vagrant:vagrant /home/vagrant/go
+    install_latest_kernel # Only for NETNEXT=1
 elif [ -z "$GOPATH" ]; then
     echo >> ~/.bashrc
     echo "export GOPATH=\$HOME/go" >> ~/.bashrc
