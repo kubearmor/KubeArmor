@@ -255,6 +255,7 @@ type Feeder struct {
 
 	// output
 	Output string
+	filter string
 
 	// gRPC listener
 	Listener net.Listener
@@ -284,7 +285,7 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName, port, output string, enableHostPolicy bool) *Feeder {
+func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) *Feeder {
 	fd := &Feeder{}
 
 	// set cluster info
@@ -485,7 +486,31 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 	// standard output / file output
 
-	if len(log.PolicyName) > 0 {
+	if fd.filter == "policy" {
+		if len(log.PolicyName) > 0 {
+			log.HostName = fd.HostName
+
+			if fd.Output == "stdout" {
+				arr, _ := json.Marshal(log)
+				fmt.Println(string(arr))
+			} else if fd.Output != "none" {
+				arr, _ := json.Marshal(log)
+				kl.StrToFile(string(arr), fd.Output)
+			}
+		}
+	} else if fd.filter == "system" {
+		if len(log.PolicyName) == 0 {
+			log.HostName = fd.HostName
+
+			if fd.Output == "stdout" {
+				arr, _ := json.Marshal(log)
+				fmt.Println(string(arr))
+			} else if fd.Output != "none" {
+				arr, _ := json.Marshal(log)
+				kl.StrToFile(string(arr), fd.Output)
+			}
+		}
+	} else { // all
 		log.HostName = fd.HostName
 
 		if fd.Output == "stdout" {

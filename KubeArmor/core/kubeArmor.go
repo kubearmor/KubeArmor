@@ -37,8 +37,9 @@ type KubeArmorDaemon struct {
 	ClusterName string
 
 	// gRPC
-	gRPCPort string
-	LogPath  string
+	gRPCPort  string
+	LogPath   string
+	LogFilter string
 
 	// options
 	EnableAuditd         bool
@@ -91,7 +92,7 @@ type KubeArmorDaemon struct {
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
+func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
@@ -120,6 +121,7 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableAuditd, ena
 
 	dm.gRPCPort = gRPCPort
 	dm.LogPath = logPath
+	dm.LogFilter = logFilter
 
 	dm.EnableAuditd = enableAuditd
 	dm.EnableHostPolicy = enableHostPolicy
@@ -199,7 +201,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 // InitLogFeeder Function
 func (dm *KubeArmorDaemon) InitLogFeeder() bool {
-	dm.LogFeeder = fd.NewFeeder(dm.ClusterName, dm.gRPCPort, dm.LogPath, dm.EnableHostPolicy)
+	dm.LogFeeder = fd.NewFeeder(dm.ClusterName, dm.gRPCPort, dm.LogPath, dm.LogFilter, dm.EnableHostPolicy)
 	if dm.LogFeeder == nil {
 		return false
 	}
@@ -335,9 +337,9 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) {
+func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) {
 	// create a daemon
-	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableAuditd, enableHostPolicy, enableEnforcerPerPod)
+	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableAuditd, enableHostPolicy, enableEnforcerPerPod)
 
 	// initialize log feeder
 	if !dm.InitLogFeeder() {
