@@ -165,7 +165,7 @@ static __always_inline u32 add_pid_ns()
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 one = 1;
 
-#ifdef MONITOR_HOST
+#if defined(MONITOR_HOST)
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns != PROC_PID_INIT_INO) {
@@ -179,6 +179,26 @@ static __always_inline u32 add_pid_ns()
 
     pid_ns_map.update(&pid, &one);
     return pid;
+
+#elif defined(MONITOR_HOST_AND_CONTAINER)
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == PROC_PID_INIT_INO) { // host
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        if (pid_ns_map.lookup(&pid) != 0) {
+            return pid;
+        }
+
+        pid_ns_map.update(&pid, &one);
+        return pid;
+    } else { // container
+        if (pid_ns_map.lookup(&pid_ns) != 0) {
+            return pid_ns;
+        }
+
+        pid_ns_map.update(&pid_ns, &one);
+        return pid_ns;
+    }
 
 #else /* MONITOR_CONTAINER */
 
@@ -203,7 +223,7 @@ static __always_inline u32 remove_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-#ifdef MONITOR_HOST
+#if defined(MONITOR_HOST)
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns != PROC_PID_INIT_INO) {
@@ -214,6 +234,22 @@ static __always_inline u32 remove_pid_ns()
     if (pid_ns_map.lookup(&pid) != 0) {
         pid_ns_map.delete(&pid);
         return 0;
+    }
+
+#elif defined(MONITOR_HOST_AND_CONTAINER)
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == PROC_PID_INIT_INO) { // host
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        if (pid_ns_map.lookup(&pid) != 0) {
+            pid_ns_map.delete(&pid);
+            return 0;
+        }
+    } else { // container
+        if (get_task_ns_pid(task) == 1) {
+            pid_ns_map.delete(&pid_ns);
+            return 0;
+        }
     }
 
 #else /* !MONITOR_HOST */
@@ -237,7 +273,7 @@ static __always_inline u32 skip_syscall()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-#ifdef MONITOR_HOST
+#if defined(MONITOR_HOST)
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns != PROC_PID_INIT_INO) {
@@ -247,6 +283,21 @@ static __always_inline u32 skip_syscall()
     u32 pid = bpf_get_current_pid_tgid() >> 32;
     if (pid_ns_map.lookup(&pid) != 0) {
         return 0;
+    }
+
+#elif defined(MONITOR_HOST_AND_CONTAINER)
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == PROC_PID_INIT_INO) { // host
+        u32 pid = bpf_get_current_pid_tgid() >> 32;
+        if (pid_ns_map.lookup(&pid) != 0) {
+            return 0;
+        }
+    } else { // container
+        u32 pid_ns = get_task_pid_ns_id(task);
+        if (pid_ns_map.lookup(&pid_ns) != 0) {
+            return 0;
+        }
     }
 
 #else /* !MONITOR_HOST */
@@ -272,13 +323,30 @@ static __always_inline u32 init_context(sys_context_t *context)
     context->host_ppid = get_task_ppid(task);
     context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-#ifdef MONITOR_HOST
+#if defined(MONITOR_HOST)
 
     context->pid_id = 0;
     context->mnt_id = 0;
 
     context->ppid = get_task_ppid(task);
     context->pid = bpf_get_current_pid_tgid() >> 32;
+
+#elif defined(MONITOR_HOST_AND_CONTAINER)
+
+    u32 pid = get_task_ns_tgid(task);
+    if (context->host_pid == pid) { // host
+        context->pid_id = 0;
+        context->mnt_id = 0;
+
+        context->ppid = get_task_ppid(task);
+        context->pid = bpf_get_current_pid_tgid() >> 32;
+    } else { // container
+        context->pid_id = get_task_pid_ns_id(task);
+        context->mnt_id = get_task_mnt_ns_id(task);
+
+        context->ppid = get_task_ns_ppid(task);
+        context->pid = pid;
+    }
 
 #else /* !MONITOR_HOST */
 

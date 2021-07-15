@@ -13,6 +13,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 )
 
 // ===================== //
@@ -87,10 +89,8 @@ func readUInt32BigendFromBuff(buff io.Reader) (uint32, error) {
 
 // readByteSliceFromBuff Function
 func readByteSliceFromBuff(buff io.Reader, len int) ([]byte, error) {
-	var err error
-	res := make([]byte, len)
-	err = binary.Read(buff, binary.LittleEndian, &res)
-	if err != nil {
+	res := make([]byte, kl.Min(len, MAX_STRING_LEN))
+	if err := binary.Read(buff, binary.LittleEndian, &res); err != nil {
 		return nil, fmt.Errorf("error reading byte array: %v", err)
 	}
 	return res, nil
