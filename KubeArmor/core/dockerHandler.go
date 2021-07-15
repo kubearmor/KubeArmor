@@ -51,20 +51,21 @@ func NewDockerHandler() *DockerHandler {
 		return nil
 	}
 
-	json.Unmarshal([]byte(versionStr), &docker.Version)
-	apiVersion, _ := strconv.ParseFloat(docker.Version.APIVersion, 64)
+	if err := json.Unmarshal([]byte(versionStr), &docker.Version); err == nil {
+		apiVersion, _ := strconv.ParseFloat(docker.Version.APIVersion, 64)
 
-	if apiVersion >= 1.39 {
-		// downgrade the api version to 1.39
-		os.Setenv("DOCKER_API_VERSION", "1.39")
-	} else {
-		// set the current api version
-		os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion)
+		if apiVersion >= 1.39 {
+			// downgrade the api version to 1.39
+			os.Setenv("DOCKER_API_VERSION", "1.39")
+		} else {
+			// set the current api version
+			os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion)
+		}
 	}
 
 	// create a new client with the above env variable
 
-	DockerClient, err := client.NewEnvClient()
+	DockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil
 	}

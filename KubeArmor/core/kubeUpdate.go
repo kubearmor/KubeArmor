@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -52,7 +53,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		}
 
 		// update container list
-		for k, _ := range pod.Containers {
+		for k := range pod.Containers {
 			if !kl.ContainsElement(newGroup.Containers, k) {
 				newGroup.Containers = append(newGroup.Containers, k)
 			}
@@ -163,7 +164,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		}
 
 		// update container list
-		for k, _ := range pod.Containers {
+		for k := range pod.Containers {
 			if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, k) {
 				dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, k)
 			}
@@ -580,7 +581,9 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 	for _, policy := range dm.SecurityPolicies {
 		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
 			secPolicy := tp.SecurityPolicy{}
-			kl.Clone(policy, &secPolicy)
+			if err := kl.Clone(policy, &secPolicy); err != nil {
+				fmt.Println("Failed to clone a policy")
+			}
 			secPolicies = append(secPolicies, secPolicy)
 		}
 	}
@@ -681,7 +684,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				}
 
-				kl.Clone(event.Object.Spec, &secPolicy.Spec)
+				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
+					fmt.Println("Failed to clone a spec")
+				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
@@ -1123,7 +1128,9 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					}
 				}
 
-				kl.Clone(event.Object.Spec, &secPolicy.Spec)
+				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
+					fmt.Println("Failed to clone a spec")
+				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)

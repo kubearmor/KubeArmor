@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -202,11 +203,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 // InitLogFeeder Function
 func (dm *KubeArmorDaemon) InitLogFeeder() bool {
 	dm.LogFeeder = fd.NewFeeder(dm.ClusterName, dm.gRPCPort, dm.LogPath, dm.LogFilter, dm.EnableHostPolicy)
-	if dm.LogFeeder == nil {
-		return false
-	}
-
-	return true
+	return dm.LogFeeder != nil
 }
 
 // ServeLogFeeds Function
@@ -219,7 +216,9 @@ func (dm *KubeArmorDaemon) ServeLogFeeds() {
 
 // CloseLogFeeder Function
 func (dm *KubeArmorDaemon) CloseLogFeeder() {
-	dm.LogFeeder.DestroyFeeder()
+	if err := dm.LogFeeder.DestroyFeeder(); err != nil {
+		fmt.Println("Failed to destroy the Feeder")
+	}
 }
 
 // ====================== //
@@ -229,16 +228,14 @@ func (dm *KubeArmorDaemon) CloseLogFeeder() {
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.LogFeeder, dm.EnableAuditd, dm.EnableHostPolicy)
-	if dm.RuntimeEnforcer == nil {
-		return false
-	}
-
-	return true
+	return dm.RuntimeEnforcer != nil
 }
 
 // CloseRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() {
-	dm.RuntimeEnforcer.DestroyRuntimeEnforcer()
+	if err := dm.RuntimeEnforcer.DestroyRuntimeEnforcer(); err != nil {
+		fmt.Println("Failed to destory the Enforcer")
+	}
 }
 
 // ==================== //
@@ -282,7 +279,9 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 
 // CloseSystemMonitor Function
 func (dm *KubeArmorDaemon) CloseSystemMonitor() {
-	dm.SystemMonitor.DestroySystemMonitor()
+	if err := dm.SystemMonitor.DestroySystemMonitor(); err != nil {
+		fmt.Println("Failed to destroy the SystemMonitor")
+	}
 }
 
 // ================== //
@@ -293,11 +292,7 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() {
 func (dm *KubeArmorDaemon) InitAuditLogger() bool {
 	dm.AuditLogger = adt.NewAuditLogger(dm.LogFeeder, &dm.Containers, &dm.ContainersLock,
 		&dm.ActivePidMap, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.ActiveHostMap, &dm.ActiveHostMapLock)
-	if dm.AuditLogger == nil {
-		return false
-	}
-
-	return true
+	return dm.AuditLogger != nil
 }
 
 // MonitorAuditLogs Function
@@ -310,7 +305,9 @@ func (dm *KubeArmorDaemon) MonitorAuditLogs() {
 
 // CloseAuditLogger Function
 func (dm *KubeArmorDaemon) CloseAuditLogger() {
-	dm.AuditLogger.DestroyAuditLogger()
+	if err := dm.AuditLogger.DestroyAuditLogger(); err != nil {
+		fmt.Println("Failed to destory the AuditLogger")
+	}
 }
 
 // ==================== //
@@ -322,7 +319,6 @@ func GetOSSigChannel() chan os.Signal {
 	c := make(chan os.Signal, 1)
 
 	signal.Notify(c,
-		syscall.SIGKILL,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
@@ -451,7 +447,7 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, e
 					// monitor docker events
 					go dm.MonitorDockerEvents()
 				} else {
-					dm.LogFeeder.Errf("Failed to monitor containers (Docker socket file is not accessible)", cr)
+					dm.LogFeeder.Err("Failed to monitor containers (Docker socket file is not accessible)")
 
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
@@ -473,7 +469,7 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, e
 				// monitor containerd events
 				go dm.MonitorContainerdEvents()
 			} else {
-				dm.LogFeeder.Errf("Failed to monitor containers (Containerd socket file is not accessible)", cr)
+				dm.LogFeeder.Err("Failed to monitor containers (Containerd socket file is not accessible)")
 
 				// destroy the daemon
 				dm.DestroyKubeArmorDaemon()
