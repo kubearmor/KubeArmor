@@ -53,6 +53,7 @@ const (
 
 const (
 	PERMISSION_DENIED = -13
+	MAX_STRING_LEN    = 4096
 )
 
 // ======================= //
@@ -171,6 +172,9 @@ type SystemMonitor struct {
 
 	// GKE
 	IsCOS bool
+
+	// Kernel
+	KernelVersion string
 }
 
 // NewSystemMonitor Function
@@ -212,6 +216,9 @@ func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
 
 	mon.IsCOS = false
 
+	mon.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
+	mon.KernelVersion = strings.TrimSuffix(mon.KernelVersion, "\n")
+
 	return mon
 }
 
@@ -228,20 +235,16 @@ func (mon *SystemMonitor) InitBPF() error {
 			if strings.Contains(s, "Container-Optimized OS") {
 				mon.LogFeeder.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
-				// get kernel version
-				kernelVersion := kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
-				kernelVersion = strings.TrimSuffix(kernelVersion, "\n")
-
 				// check and download kernel headers
 				if err := exec.Command(homeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
 					mon.LogFeeder.Errf("Failed to download COS kernel headers (%s)", err.Error())
 					return err
 				}
 
-				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", kernelVersion)
+				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
 
 				// set a new location for kernel headers
-				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
+				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion)
 
 				// just for safety
 				time.Sleep(time.Second * 1)
@@ -269,10 +272,16 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	mon.LogFeeder.Print("Initializing an eBPF program")
 
-	mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
-
 	if mon.EnableHostPolicy {
-		mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
+			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST_AND_CONTAINER"})
+		} else { // 5.x
+			mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+		}
+	}
+
+	if mon.BpfModule == nil {
+		mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
 	}
 
 	if mon.BpfModule == nil {
@@ -317,7 +326,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
-	mon.SyscallChannel = make(chan []byte, 4096)
+	mon.SyscallChannel = make(chan []byte, 8192)
 	mon.SyscallLostChannel = make(chan uint64)
 
 	mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
@@ -325,7 +334,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		return fmt.Errorf("error initializing events perf map: %v", err)
 	}
 
-	if mon.EnableHostPolicy {
+	if mon.EnableHostPolicy && !strings.HasPrefix(mon.KernelVersion, "4.") {
 		for _, syscallName := range systemCalls {
 			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
 			if err != nil {
@@ -359,7 +368,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		hostEventsTable := bcc.NewTable(mon.HostBpfModule.TableId("sys_events"), mon.HostBpfModule)
-		mon.HostSyscallChannel = make(chan []byte, 4096)
+		mon.HostSyscallChannel = make(chan []byte, 8192)
 		mon.HostSyscallLostChannel = make(chan uint64)
 
 		mon.HostSyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(hostEventsTable, mon.HostSyscallChannel, mon.HostSyscallLostChannel, 64)
@@ -462,7 +471,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 
-			if containerID == "" {
+			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+				continue
+			}
+
+			// TEMP: skip if No such file or directory (HostLog)
+			if containerID == "" && ctx.Retval == -2 {
 				continue
 			}
 
@@ -668,6 +682,11 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 			args, err := GetArgs(dataBuff, ctx.Argnum)
 			if err != nil {
+				continue
+			}
+
+			// TEMP: skip if No such file or directory (HostLog)
+			if ctx.Retval == -2 {
 				continue
 			}
 
