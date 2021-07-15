@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: ubuntu-1-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -53,7 +53,7 @@ spec:
     spec:
       containers:
       - name: ubuntu-2-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -79,7 +79,7 @@ spec:
     spec:
       containers:
       - name: ubuntu-3-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
         volumeMounts:
         - name: var-log-path
           mountPath: /host/var/log
@@ -113,7 +113,7 @@ spec:
     spec:
       containers:
       - name: ubuntu-4-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -139,4 +139,4 @@ spec:
     spec:
       containers:
       - name: ubuntu-5-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1

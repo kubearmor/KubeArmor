@@ -48,11 +48,14 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 	log.Timestamp = timestamp
 	log.UpdatedTime = updatedTime
-
 	log.ContainerID = msg.ContainerID
-	log = mon.UpdateContainerInfoByContainerID(log)
+
+	if log.ContainerID != "" {
+		log = mon.UpdateContainerInfoByContainerID(log)
+	}
 
 	log.HostPID = int32(msg.ContextSys.HostPID)
+
 	log.PPID = int32(msg.ContextSys.PPID)
 	log.PID = int32(msg.ContextSys.PID)
 	log.UID = int32(msg.ContextSys.UID)

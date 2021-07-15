@@ -55,11 +55,11 @@ Vagrant.configure("2") do |config|
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/docker/install_docker.sh"
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
 
-  # Provision inline
-  config.vm.provision :shell, inline: "chown -R vagrant:vagrant /home/vagrant/go"
-
   # Initialize Kubernetes
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
+
+  # Change permissions
+  config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go"
 
   # Reboot to use new kernel
   if ENV['NETNEXT'] == "1" then

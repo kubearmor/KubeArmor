@@ -76,10 +76,12 @@ type SyscallContext struct {
 	PidID uint32
 	MntID uint32
 
-	HostPID uint32
-	PPID    uint32
-	PID     uint32
-	UID     uint32
+	HostPPID uint32
+	HostPID  uint32
+
+	PPID uint32
+	PID  uint32
+	UID  uint32
 
 	EventID int32
 	Argnum  int32
@@ -444,16 +446,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			// get container id
-
 			containerID := ""
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
-				if ctx.EventID == SYS_EXECVE || ctx.EventID == SYS_EXECVEAT {
-					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, ctx.PID, true)
-				} else {
-					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, ctx.PID, false)
-				}
+				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
 
 				if containerID != "" {
 					ContainersLock.RLock()
@@ -637,6 +633,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
 
+		//nolint
 		case _ = <-mon.SyscallLostChannel:
 			continue
 		}
@@ -691,7 +688,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// generate a log with the base information
 
-					log := mon.BuildHostLogBase(ContextCombined{ContextSys: ctx})
+					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					// add arguments
 
@@ -761,7 +758,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// generate a log with the base information
 
-					log := mon.BuildHostLogBase(ContextCombined{ContextSys: ctx})
+					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					// add arguments
 
@@ -841,7 +838,8 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			// push the context to the channel for logging
 			mon.HostContextChan <- ContextCombined{ContainerID: "", ContextSys: ctx, ContextArgs: args}
 
-		case _ = <-mon.HostSyscallLostChannel:
+		//nolint
+		case _ = <-mon.SyscallLostChannel:
 			continue
 		}
 	}

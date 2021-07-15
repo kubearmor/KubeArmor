@@ -20,7 +20,6 @@ import (
 // ===================== //
 
 const (
-	noneT      uint8 = 0
 	intT       uint8 = 1
 	strT       uint8 = 10
 	strArrT    uint8 = 11
@@ -31,7 +30,6 @@ const (
 	sockTypeT  uint8 = 16
 	capT       uint8 = 17
 	syscallT   uint8 = 18
-	typeMax    uint8 = 255
 )
 
 // ======================= //

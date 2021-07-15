@@ -87,8 +87,8 @@ Here, we demonstrate how to define security policies using our example microserv
         - dir: /bin/
       file:
         matchDirectories:
-          - dir: /credentials/ # some files to test
-            recursive: true
+        - dir: /credentials/ # some files to test
+          recursive: true
       action:
         Allow
     ```

@@ -1,4 +1,6 @@
-//#define KBUILD_MODNAME "kubearmor_system_monitor"
+#ifndef KBUILD_MODNAME
+#define KBUILD_MODNAME "kubearmor_system_monitor"
+#endif
 
 // ========================================================== //
 // KubeArmor utilizes Tracee's system call handling functions //
@@ -70,7 +72,9 @@ typedef struct __attribute__((__packed__)) sys_context {
     u32 pid_id;
     u32 mnt_id;
 
+    u32 host_ppid;
     u32 host_pid;
+
     u32 ppid;
     u32 pid;
     u32 uid;
@@ -179,17 +183,18 @@ static __always_inline u32 add_pid_ns()
 #else /* MONITOR_CONTAINER */
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    
-    // discard host event 
     if (pid_ns == PROC_PID_INIT_INO) {
         return 0;
     }
 
     if (pid_ns_map.lookup(&pid_ns) != 0) {
         return pid_ns;
-    } 
+    }
+
     pid_ns_map.update(&pid_ns, &one);
     return pid_ns;
+
+    return 0;
 
 #endif /* MONITOR_HOST || MONITOR_CONTAINER */
 }
@@ -214,12 +219,11 @@ static __always_inline u32 remove_pid_ns()
 #else /* !MONITOR_HOST */
 
     u32 pid_ns = get_task_pid_ns_id(task);
-
     if (pid_ns == PROC_PID_INIT_INO) {
         return 0;
     }
 
-    if (pid_ns_map.lookup(&pid_ns) != 0 && (get_task_ns_pid(task) == 1)) {
+    if (get_task_ns_pid(task) == 1) {
         pid_ns_map.delete(&pid_ns);
         return 0;
     }
@@ -250,7 +254,7 @@ static __always_inline u32 skip_syscall()
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns_map.lookup(&pid_ns) != 0) {
         return 0;
-    };
+    }
 
 #endif /* !MONITOR_HOST */
 
@@ -264,6 +268,8 @@ static __always_inline u32 init_context(sys_context_t *context)
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
     context->ts = bpf_ktime_get_ns();
+
+    context->host_ppid = get_task_ppid(task);
     context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
 #ifdef MONITOR_HOST
@@ -370,6 +376,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
     if (off == NULL) {
         return -1;
     }
+
     if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
         return 0;
     }
@@ -407,12 +414,10 @@ static __always_inline int save_argv(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr)
 {
-    int i;
-
     save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
 
     #pragma unroll
-    for (i = 0; i < MAX_STR_ARR_ELEM; i++) {
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
         if (save_argv(bufs_p, (void *)&ptr[i]) == 0) {
              goto out;
         }
@@ -429,8 +434,6 @@ out:
 
 static __always_inline int save_args_to_buffer(u64 types, args_t *args)
 {
-    int i;
-
     if (types == 0) {
         return 0;
     }
@@ -441,44 +444,44 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     }
 
     #pragma unroll
-    for (i = 0; i < MAX_ARGS; i++) {
+    for (int i = 0; i < MAX_ARGS; i++) {
         switch (DEC_ARG_TYPE(i, types)) {
-            case NONE_T:
-                break;
-            case INT_T:
-                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), INT_T);
-                break;
-            case OPEN_FLAGS_T:
-                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
-                break;
-            case STR_T:
-                save_str_to_buffer(bufs_p, (void *)args->args[i]);
-                break;
-            case SOCK_DOM_T:
-                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T);
-                break;
-            case SOCK_TYPE_T:
-                save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
-                break;
-            case SOCKADDR_T:
-                if (args->args[i]) {
-                    short family = 0;
-                    bpf_probe_read(&family, sizeof(short), (void*)args->args[i]);
-                    switch (family) {
-                        case AF_UNIX:
-                            save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
-                            break;
-                        case AF_INET:
-                            save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
-                            break;
-                        case AF_INET6:
-                            save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
-                            break;
-                        default:
-                            save_to_buffer(bufs_p, (void*)&family, sizeof(short), SOCKADDR_T);
-                    }
+        case NONE_T:
+            break;
+        case INT_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), INT_T);
+            break;
+        case OPEN_FLAGS_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
+            break;
+        case STR_T:
+            save_str_to_buffer(bufs_p, (void *)args->args[i]);
+            break;
+        case SOCK_DOM_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T);
+            break;
+        case SOCK_TYPE_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
+            break;
+        case SOCKADDR_T:
+            if (args->args[i]) {
+                short family = 0;
+                bpf_probe_read(&family, sizeof(short), (void*)args->args[i]);
+                switch (family) {
+                case AF_UNIX:
+                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
+                    break;
+                case AF_INET:
+                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
+                    break;
+                case AF_INET6:
+                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
+                    break;
+                default:
+                    save_to_buffer(bufs_p, (void*)&family, sizeof(short), SOCKADDR_T);
                 }
-                break;
+            }
+            break;
         }
     }
 
@@ -674,8 +677,8 @@ static __always_inline int save_args(u32 event_id, struct pt_regs *ctx)
     bpf_probe_read(&args.args[5], sizeof(args.args[5]), &ctx2->r9);
 #endif
 
-    u32 tid = bpf_get_current_pid_tgid();
-    u64 id = ((u64)event_id << 32) | tid;
+    u32 tgid = bpf_get_current_pid_tgid();
+    u64 id = ((u64)event_id << 32) | tgid;
 
     args_map.update(&id, &args);
 

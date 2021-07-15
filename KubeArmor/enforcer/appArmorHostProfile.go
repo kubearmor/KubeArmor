@@ -1833,6 +1833,7 @@ func GenerateHostProfileHead() string {
 		"  file,\n" +
 		"  mount,\n" +
 		"  umount,\n" +
+		"  signal,\n" +
 		"  ptrace,\n" +
 		"  network,\n" +
 		"  capability,\n" +

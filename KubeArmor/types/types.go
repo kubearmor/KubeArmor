@@ -449,10 +449,12 @@ type PidNode struct {
 	PidID uint32
 	MntID uint32
 
-	HostPID uint32
-	PPID    uint32
-	PID     uint32
-	UID     uint32
+	HostPPID uint32
+	HostPID  uint32
+
+	PPID uint32
+	PID  uint32
+	UID  uint32
 
 	Comm     string
 	ExecPath string

@@ -21,9 +21,9 @@ import (
 // ============ //
 
 // Clone Function
-func Clone(src, dst interface{}) {
+func Clone(src, dst interface{}) error {
 	arr, _ := json.Marshal(src)
-	json.Unmarshal(arr, dst)
+	return json.Unmarshal(arr, dst)
 }
 
 // ContainsElement Function
@@ -70,11 +70,7 @@ func ObjCommaCanBeExpanded(objptr interface{}) bool {
 	}
 
 	value := field0.Interface().(string)
-	if strings.Split(value, ",")[0] == value {
-		return false
-	}
-
-	return true
+	return strings.Split(value, ",")[0] != value
 }
 
 // ObjCommaExpand Function

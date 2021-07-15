@@ -49,9 +49,6 @@ type ContainerdHandler struct {
 	containerd context.Context
 	docker     context.Context
 
-	// container stream
-	containerStream pb.Containers_ListStreamClient
-
 	// active containers
 	containers map[string]context.Context
 }

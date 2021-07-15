@@ -62,7 +62,6 @@ func initLogger() {
 		panic(err)
 	}
 
-	defer logger.Sync()
 	zapLogger = logger.Sugar()
 }
 
@@ -73,35 +72,29 @@ func initLogger() {
 // Print Function
 func Print(message string) {
 	zapLogger.Info(message)
-	zapLogger.Sync()
 }
 
 // Printf Function
 func Printf(message string, args ...interface{}) {
 	zapLogger.Infof(message, args...)
-	zapLogger.Sync()
 }
 
 // Debug Function
 func Debug(message string) {
 	zapLogger.Debug(message)
-	zapLogger.Sync()
 }
 
 // Debugf Function
 func Debugf(message string, args ...interface{}) {
 	zapLogger.Debugf(message, args...)
-	zapLogger.Sync()
 }
 
 // Err Function
 func Err(message string) {
 	zapLogger.Error(message)
-	zapLogger.Sync()
 }
 
 // Errf Function
 func Errf(message string, args ...interface{}) {
 	zapLogger.Errorf(message, args...)
-	zapLogger.Sync()
 }

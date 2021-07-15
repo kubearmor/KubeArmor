@@ -40,6 +40,17 @@ realpath() {
 function apply_and_wait_for_microservice_creation() {
     cd $TEST_HOME/microservices/$1
 
+    echo -e "${ORANGE}[INFO] Applying $1${NC}"
+
+    RAW=$(kubectl get pods -n $1 | wc -l)
+
+    ALL=`expr $RAW - 1`
+    READY=`kubectl get pods -n $1 | grep Running | wc -l`
+
+    if [ $ALL == $READY ]; then
+        return
+    fi
+
     kubectl apply -f .
     if [ $? != 0 ]; then
         echo -e "${RED}[FAIL] Failed to apply $1${NC}"
@@ -61,17 +72,10 @@ function apply_and_wait_for_microservice_creation() {
         sleep 1
     done
 
-    sleep 1
-}
+    echo "[INFO] Wait for initialization (30 secs)"
+    sleep 30
 
-function delete_and_wait_for_microserivce_deletion() {
-    cd $TEST_HOME/microservices/$1
-
-    kubectl delete -f .
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to delete $1${NC}"
-        res_delete=1
-    fi
+    echo "[INFO] Applied $1"
 }
 
 function should_not_find_any_log() {
@@ -381,51 +385,35 @@ echo >> $TEST_LOG
 
 cd $TEST_HOME
 
+microservice=multiubuntu
 res_microservice=0
 
-for microservice in $(ls microservices)
-do
-    ## == ##
+## == ##
 
-    echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
-    apply_and_wait_for_microservice_creation $microservice
+apply_and_wait_for_microservice_creation $microservice
 
-    ## == ##
+## == ##
 
-    if [ $res_microservice == 0 ]; then
-        echo "[INFO] Applied $microservice"
+if [ $res_microservice == 0 ]; then
+    echo "[INFO] Started to run testcases"
 
-        echo "[INFO] Wait for initialization (30 secs)"
-        sleep 30
-        echo "[INFO] Started to run testcases"
+    cd $TEST_HOME/scenarios
 
-        cd $TEST_HOME/scenarios
+    for testcase in $(ls -d $microservice_*)
+    do
+        res_case=0
 
-        for testcase in $(ls -d $microservice_*)
-        do
-            res_case=0
+        echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
+        run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
-            echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
-            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
-
-            if [ $res_case != 0 ]; then
-                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
-                res_microservice=1
-            else
-                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
-            fi
-        done
-
-        res_delete=0
-
-        echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
-        delete_and_wait_for_microserivce_deletion $microservice
-
-        if [ $res_delete == 0 ]; then
-            echo "[INFO] Deleted $microservice"
+        if [ $res_case != 0 ]; then
+            echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+            res_microservice=1
+        else
+            echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
         fi
-    fi
-done
+    done
+fi
 
 echo "== Summary ==" >> $TEST_LOG
 echo >> $TEST_LOG
