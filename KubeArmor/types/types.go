@@ -24,6 +24,11 @@ type Container struct {
 
 	// == //
 
+	PidNS uint32 `json:"pidns"`
+	MntNS uint32 `json:"mntns"`
+
+	// == //
+
 	PolicyEnabled int `json:"policyEnabled"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`

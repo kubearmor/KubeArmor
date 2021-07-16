@@ -263,8 +263,9 @@ type Feeder struct {
 	Port string
 
 	// output
-	Output string
-	filter string
+	Output  string
+	filter  string
+	LogFile *os.File
 
 	// gRPC listener
 	Listener net.Listener
@@ -322,6 +323,13 @@ func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) 
 			return nil
 		}
 		targetFile.Close()
+
+		// open the file with the append mode
+		fd.LogFile, err = os.OpenFile(fd.Output, os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			kg.Err(err.Error())
+			return nil
+		}
 	}
 
 	// listen to gRPC port
@@ -391,10 +399,36 @@ func (fd *Feeder) DestroyFeeder() error {
 		fd.Listener = nil
 	}
 
+	// close LogFile
+	if fd.LogFile != nil {
+		fd.LogFile.Close()
+		fd.LogFile = nil
+	}
+
 	// wait for other routines
 	fd.WgServer.Wait()
 
 	return nil
+}
+
+// StrToFile Function
+func (fd *Feeder) StrToFile(str string) {
+	if fd.LogFile != nil {
+		// add the newline at the end of the string
+		str = str + "\n"
+
+		// write the string into the file
+		_, err := fd.LogFile.WriteString(str)
+		if err != nil {
+			kg.Err(err.Error())
+		}
+
+		// sync the file
+		err = fd.LogFile.Sync()
+		if err != nil {
+			kg.Err(err.Error())
+		}
+	}
 }
 
 // ============== //
@@ -504,7 +538,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				fmt.Println(string(arr))
 			} else if fd.Output != "none" {
 				arr, _ := json.Marshal(log)
-				kl.StrToFile(string(arr), fd.Output)
+				fd.StrToFile(string(arr))
 			}
 		}
 	} else if fd.filter == "system" {
@@ -516,7 +550,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				fmt.Println(string(arr))
 			} else if fd.Output != "none" {
 				arr, _ := json.Marshal(log)
-				kl.StrToFile(string(arr), fd.Output)
+				fd.StrToFile(string(arr))
 			}
 		}
 	} else { // all
@@ -527,7 +561,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			fmt.Println(string(arr))
 		} else if fd.Output != "none" {
 			arr, _ := json.Marshal(log)
-			kl.StrToFile(string(arr), fd.Output)
+			fd.StrToFile(string(arr))
 		}
 	}
 

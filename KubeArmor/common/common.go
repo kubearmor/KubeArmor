@@ -244,6 +244,12 @@ func StrToFile(str, destFile string) {
 	if err != nil {
 		kg.Err(err.Error())
 	}
+
+	// sync the file
+	err = file.Sync()
+	if err != nil {
+		kg.Err(err.Error())
+	}
 }
 
 // ============= //
