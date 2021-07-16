@@ -777,7 +777,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					if matched || strings.HasPrefix(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source)) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, log.Resource)) {
+						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source)) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, log.Resource)) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 

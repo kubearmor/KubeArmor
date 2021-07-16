@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,12 +24,6 @@ import (
 // ===================== //
 // == Const. Vaiables == //
 // ===================== //
-
-var (
-	dockerPattern = regexp.MustCompile(`\d+:.+:/docker/([0-9a-f]{64})`)
-	kubePattern1  = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
-	kubePattern2  = regexp.MustCompile(`\d+:.+:/kubepods[^:]+:[^:]+:([0-9a-f]{64})`)
-)
 
 const (
 	// file
@@ -475,8 +468,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			// TEMP: skip if No such file or directory (HostLog)
-			if containerID == "" && ctx.Retval == -2 {
+			// TEMP: skip if No such file or directory (ContainerLog)
+			if ctx.Retval == -2 {
 				continue
 			}
 

@@ -1,10 +1,6 @@
 package monitor
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -19,171 +15,26 @@ func (mon *SystemMonitor) LookupContainerID(pidns, mntns, ppid, pid uint32) stri
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 
 	mon.NsMapLock.RLock()
+	defer mon.NsMapLock.RUnlock()
+
 	if val, ok := mon.NsMap[key]; ok {
-		mon.NsMapLock.RUnlock()
 		return val
 	}
-	mon.NsMapLock.RUnlock()
-
-	containerID := "None"
-
-	// == //
-
-	// look up container id from cgroup
-
-	if cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", pid)); err == nil {
-		cgroupScanner := bufio.NewScanner(cgroup)
-		for cgroupScanner.Scan() {
-			line := cgroupScanner.Text()
-
-			// k8s1
-			parts := kubePattern1.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// k8s2
-			parts = kubePattern2.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// docker
-			parts = dockerPattern.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-		}
-
-		cgroup.Close()
-
-		// update newly found container id
-		if containerID != "None" {
-			mon.NsMapLock.Lock()
-			mon.NsMap[key] = containerID
-			mon.NsMapLock.Unlock()
-			return containerID
-		}
-	}
-
-	// look up container id from cmdline
-
-	if cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", pid)); err == nil {
-		cmdScanner := bufio.NewScanner(cmdline)
-		for cmdScanner.Scan() {
-			line := cmdScanner.Text()
-
-			parts := strings.Split(line, "-id")
-			if len(parts) < 2 {
-				break
-			}
-
-			parts = strings.Split(parts[1], "-addr")
-			if len(parts) < 2 {
-				break
-			}
-
-			containerID = parts[0]
-			if containerID != "" {
-				break
-			}
-		}
-
-		cmdline.Close()
-
-		// update newly found container id
-		if containerID != "None" {
-			mon.NsMapLock.Lock()
-			mon.NsMap[key] = containerID
-			mon.NsMapLock.Unlock()
-			return containerID
-		}
-	}
-
-	// == //
-
-	// look up container id from parent's cgroup
-
-	if cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", ppid)); err == nil {
-		cgroupScanner := bufio.NewScanner(cgroup)
-		for cgroupScanner.Scan() {
-			line := cgroupScanner.Text()
-
-			// k8s1
-			parts := kubePattern1.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// k8s2
-			parts = kubePattern2.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// docker
-			parts = dockerPattern.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-		}
-
-		cgroup.Close()
-
-		// update newly found container id
-		if containerID != "None" {
-			mon.NsMapLock.Lock()
-			mon.NsMap[key] = containerID
-			mon.NsMapLock.Unlock()
-			return containerID
-		}
-	}
-
-	// look up container id from parent's cmdline
-
-	if cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", ppid)); err == nil {
-		cmdScanner := bufio.NewScanner(cmdline)
-		for cmdScanner.Scan() {
-			line := cmdScanner.Text()
-
-			parts := strings.Split(line, "-id")
-			if len(parts) < 2 {
-				break
-			}
-
-			parts = strings.Split(parts[1], "-addr")
-			if len(parts) < 2 {
-				break
-			}
-
-			containerID = parts[0]
-			if containerID != "" {
-				break
-			}
-		}
-
-		cmdline.Close()
-
-		// update newly found container id
-		if containerID != "None" {
-			mon.NsMapLock.Lock()
-			mon.NsMap[key] = containerID
-			mon.NsMapLock.Unlock()
-			return containerID
-		}
-	}
-
-	// == //
 
 	return ""
 }
 
+// AddContainerIDToNsMap Function
+func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, pidns, mntns uint32) {
+	key := NsKey{PidNS: pidns, MntNS: mntns}
+
+	mon.NsMapLock.Lock()
+	defer mon.NsMapLock.Unlock()
+
+	mon.NsMap[key] = containerID
+}
+
+// DeleteContainerIDFromNsMap Function
 func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string) {
 	ns := NsKey{}
 

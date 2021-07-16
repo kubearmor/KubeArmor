@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -88,7 +89,7 @@ func (dh *DockerHandler) Close() {
 // GetContainerInfo Function
 func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, error) {
 	if dh.DockerClient == nil {
-		return tp.Container{}, errors.New("No docker client")
+		return tp.Container{}, errors.New("no docker client")
 	}
 
 	inspect, err := dh.DockerClient.ContainerInspect(context.Background(), containerID)
@@ -117,6 +118,22 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	}
 
 	container.AppArmorProfile = inspect.AppArmorProfile
+
+	// == //
+
+	pid := strconv.Itoa(inspect.State.Pid)
+
+	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
+		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
+			fmt.Printf("Failed to get PidNS (%s, %s, %s)\n", containerID, pid, err.Error())
+		}
+	}
+
+	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
+		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
+			fmt.Printf("Failed to get MntNS (%s, %s, %s)\n", containerID, pid, err.Error())
+		}
+	}
 
 	// == //
 
@@ -167,6 +184,9 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				}
 				dm.ContainersLock.Unlock()
 
+				// update NsMap
+				dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
+
 				dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
 			}
 		}
@@ -209,6 +229,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.ContainersLock.Unlock()
 
+		// update NsMap
+		dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+
 		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "stop" || action == "destroy" {
@@ -225,6 +248,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			delete(dm.Containers, containerID)
 		}
 		dm.ContainersLock.Unlock()
+
+		// update NsMap
+		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 
 		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
