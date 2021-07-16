@@ -151,6 +151,10 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 	taskReq := pt.ListPidsRequest{ContainerID: container.ContainerID}
 	if taskRes, err := Containerd.taskClient.ListPids(ctx, &taskReq); err == nil {
+		if len(taskRes.Processes) == 0 {
+			return container, err
+		}
+
 		pid := strconv.Itoa(int(taskRes.Processes[0].Pid))
 
 		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
