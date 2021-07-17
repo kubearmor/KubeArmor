@@ -111,7 +111,9 @@ static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
 }
 
 struct mnt_namespace {
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
     atomic_t count;
+    #endif
     struct ns_common ns;
 };
 
