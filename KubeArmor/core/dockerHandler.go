@@ -176,7 +176,19 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				dm.ContainersLock.Lock()
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
 					dm.Containers[container.ContainerID] = container
+				} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
+					// this entry was updated by kubernetes before docker detects it
+					// thus, we here use NamespaceName, ContainerGroupName, and ContainerName given by kubernetes instead of the ones given by docker
+					container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
+					container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
+					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+					dm.Containers[container.ContainerID] = container
 				} else if dm.Containers[container.ContainerID].AppArmorProfile == "" && container.AppArmorProfile != "" {
+					// this entry was updated by kubernetes before docker detects it
+					// thus, we here use NamespaceName, ContainerGroupName, and ContainerName given by kubernetes instead of the ones given by docker
+					container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
+					container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
+					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
 					dm.Containers[container.ContainerID] = container
 				} else {
 					dm.ContainersLock.Unlock()
