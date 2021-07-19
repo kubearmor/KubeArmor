@@ -59,28 +59,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
-		// update containers
-		dm.ContainersLock.Lock()
-		for _, containerID := range newGroup.Containers {
-			container := dm.Containers[containerID]
-
-			container.NamespaceName = newGroup.NamespaceName
-			container.ContainerGroupName = newGroup.ContainerGroupName
-			container.ContainerName = pod.Containers[containerID]
-
-			container.PolicyEnabled = newGroup.PolicyEnabled
-
-			container.ProcessVisibilityEnabled = newGroup.ProcessVisibilityEnabled
-			container.FileVisibilityEnabled = newGroup.FileVisibilityEnabled
-			container.NetworkVisibilityEnabled = newGroup.NetworkVisibilityEnabled
-			container.CapabilitiesVisibilityEnabled = newGroup.CapabilitiesVisibilityEnabled
-
-			newGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
-
-			dm.Containers[containerID] = container
-		}
-		dm.ContainersLock.Unlock()
-
 		// update flags
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			newGroup.PolicyEnabled = tp.KubeArmorPolicyEnabled
@@ -102,6 +80,28 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 				newGroup.CapabilitiesVisibilityEnabled = true
 			}
 		}
+
+		// update containers
+		dm.ContainersLock.Lock()
+		for _, containerID := range newGroup.Containers {
+			container := dm.Containers[containerID]
+
+			container.NamespaceName = newGroup.NamespaceName
+			container.ContainerGroupName = newGroup.ContainerGroupName
+			container.ContainerName = pod.Containers[containerID]
+
+			container.PolicyEnabled = newGroup.PolicyEnabled
+
+			container.ProcessVisibilityEnabled = newGroup.ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = newGroup.FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = newGroup.NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = newGroup.CapabilitiesVisibilityEnabled
+
+			newGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
+
+			dm.Containers[containerID] = container
+		}
+		dm.ContainersLock.Unlock()
 
 		// update selinux profile names to the container group
 		newGroup.SELinuxProfiles = map[string]string{}
@@ -126,6 +126,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			// create and register security profiles
 			dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod, true)
 		}
+
+		// update security policies
+		dm.LogFeeder.UpdateSecurityPolicies(action, newGroup)
 
 	} else if action == "MODIFIED" {
 		// find the corresponding container group
@@ -170,28 +173,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
-		// update containers
-		dm.ContainersLock.Lock()
-		for _, containerID := range dm.ContainerGroups[conGroupIdx].Containers {
-			container := dm.Containers[containerID]
-
-			container.NamespaceName = dm.ContainerGroups[conGroupIdx].NamespaceName
-			container.ContainerGroupName = dm.ContainerGroups[conGroupIdx].ContainerGroupName
-			container.ContainerName = pod.Containers[containerID]
-
-			container.PolicyEnabled = dm.ContainerGroups[conGroupIdx].PolicyEnabled
-
-			container.ProcessVisibilityEnabled = dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled
-			container.FileVisibilityEnabled = dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled
-			container.NetworkVisibilityEnabled = dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled
-			container.CapabilitiesVisibilityEnabled = dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled
-
-			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[containerID] = container.AppArmorProfile
-
-			dm.Containers[containerID] = container
-		}
-		dm.ContainersLock.Unlock()
-
 		// update flags
 
 		prevPolicyEnabled := dm.ContainerGroups[conGroupIdx].PolicyEnabled
@@ -222,6 +203,28 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 				dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled = true
 			}
 		}
+
+		// update containers
+		dm.ContainersLock.Lock()
+		for _, containerID := range dm.ContainerGroups[conGroupIdx].Containers {
+			container := dm.Containers[containerID]
+
+			container.NamespaceName = dm.ContainerGroups[conGroupIdx].NamespaceName
+			container.ContainerGroupName = dm.ContainerGroups[conGroupIdx].ContainerGroupName
+			container.ContainerName = pod.Containers[containerID]
+
+			container.PolicyEnabled = dm.ContainerGroups[conGroupIdx].PolicyEnabled
+
+			container.ProcessVisibilityEnabled = dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled
+
+			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[containerID] = container.AppArmorProfile
+
+			dm.Containers[containerID] = container
+		}
+		dm.ContainersLock.Unlock()
 
 		if prevPolicyEnabled != tp.KubeArmorPolicyEnabled && dm.ContainerGroups[conGroupIdx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 			// initialize and register security profiles
