@@ -3,7 +3,7 @@
 FROM golang:1.15.2-alpine3.12 as builder
 
 RUN apk update
-RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-dev librdkafka
+RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-dev
 
 WORKDIR /usr/src/KubeArmor
 
@@ -12,6 +12,9 @@ COPY ./protobuf ./protobuf
 COPY ./GKE ./GKE
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
+
+COPY ./pkg/KubeArmorPolicy/config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ./CRD/KubeArmorPolicy.yaml
+COPY ./pkg/KubeArmorHostPolicy/config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ./CRD/KubeArmorHostPolicy.yaml
 
 RUN ./build/patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
@@ -25,11 +28,14 @@ RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc
 
 RUN apk update
 RUN apk add bash curl procps bcc bcc-dev
-RUN apk add apparmor@edge apparmor-utils@edge
+RUN apk add apparmor@edge apparmor-utils@edge policycoreutils@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
+
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorPolicy.yaml /KubeArmor/CRD/KubeArmorPolicy.yaml
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorHostPolicy.yaml /KubeArmor/CRD/KubeArmorHostPolicy.yaml
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]

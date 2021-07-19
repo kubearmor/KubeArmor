@@ -41,6 +41,7 @@ deploy: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../helm/templates/security.kubearmor.com_kubearmorpolicies.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/CRD/KubeArmorPolicy.yaml
 
 # Run go fmt against code
 fmt:

@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # start minikube with a specific image
-minikube start --iso-url https://accuknox.kr/minikube/minikube.iso
+minikube start --iso-url https://accuknox.kr/minikube/minikube.iso --cpus 4 --memory 4096 --cni flannel
 
-# download kernel-headers.tar.lz4
-minikube ssh -- "curl -Lo /tmp/kernel-headers-linux-4.19.94.tar.lz4 https://accuknox.kr/minikube/kernel-headers-linux-4.19.94.tar.lz4"
+# download kernel-headers.tar.gz
+minikube ssh -- curl -Lo /tmp/kernel-headers-linux-4.19.94.tar.gz https://accuknox.kr/minikube/kernel-headers-linux-4.19.94.tar.gz
 
 # install kernel header
-minikube ssh -- "sudo mkdir -p /lib/modules/4.19.94/build"
-minikube ssh -- "lz4 -dc --no-sparse /tmp/kernel-headers-linux-4.19.94.tar.lz4 | sudo tar -C /lib/modules/4.19.94/build -xvf -"
+minikube ssh -- sudo mkdir -p /lib/modules/4.19.94/build
+minikube ssh -- sudo tar xvfz /tmp/kernel-headers-linux-4.19.94.tar.gz -C /lib/modules/4.19.94/build
 
-# remove kernel-headers.tar.lz4
-minikube ssh -- "rm /tmp/kernel-headers-linux-4.19.94.tar.lz4"
+# remove kernel-headers.tar.gz
+minikube ssh -- rm /tmp/kernel-headers-linux-4.19.94.tar.gz

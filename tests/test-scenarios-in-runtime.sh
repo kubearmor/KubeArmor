@@ -11,6 +11,12 @@ if [ $? == 0 ]; then
     APPARMOR=1
 fi
 
+MINIKUBE=$(kubectl get nodes -l kubernetes.io/hostname=minikube 2> /dev/null | wc -l)
+
+if [ $MINIKUBE == 2 ]; then
+    APPARMOR=0
+fi
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
