@@ -363,11 +363,17 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				// exception: no AppArmor
-				if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
-					if !strings.Contains(string(lsm), "apparmor") {
-						if pod.Annotations["kubearmor-policy"] == "enabled" {
-							pod.Annotations["kubearmor-policy"] = "audited"
+				if dm.RuntimeEnforcer.IsEnabled() {
+					if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
+						if !strings.Contains(string(lsm), "apparmor") {
+							if pod.Annotations["kubearmor-policy"] == "enabled" {
+								pod.Annotations["kubearmor-policy"] = "audited"
+							}
 						}
+					}
+				} else { // No LSM
+					if pod.Annotations["kubearmor-policy"] == "enabled" {
+						pod.Annotations["kubearmor-policy"] = "audited"
 					}
 				}
 

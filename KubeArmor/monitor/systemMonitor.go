@@ -468,11 +468,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			// TEMP: skip if No such file or directory (ContainerLog)
-			if ctx.Retval == -2 {
-				continue
-			}
-
 			if ctx.EventID == SYS_OPEN {
 				if len(args) != 2 {
 					continue
@@ -675,11 +670,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 			args, err := GetArgs(dataBuff, ctx.Argnum)
 			if err != nil {
-				continue
-			}
-
-			// TEMP: skip if No such file or directory (HostLog)
-			if ctx.Retval == -2 {
 				continue
 			}
 

@@ -621,6 +621,11 @@ int trace_ret_execve(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
+    // TEMP: skip if No such file or directory
+    if (context.retval == -2) {
+        return 0;
+    }
+
     set_buffer_offset(sizeof(sys_context_t));
 
     bufs_t *bufs_p = get_buffer();
@@ -682,6 +687,11 @@ int trace_ret_execveat(struct pt_regs *ctx)
     context.event_id = _SYS_EXECVEAT;
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
+
+    // TEMP: skip if No such file or directory
+    if (context.retval == -2) {
+        return 0;
+    }
 
     set_buffer_offset(sizeof(sys_context_t));
 
@@ -806,6 +816,11 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     context.event_id = id;
     context.argnum = get_arg_num(types);
     context.retval = PT_REGS_RC(ctx);
+
+    // TEMP: skip if No such file or directory
+    if (context.retval == -2) {
+        return 0;
+    }
 
     set_buffer_offset(sizeof(sys_context_t));
 

@@ -3,6 +3,7 @@ package enforcer
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -30,19 +31,24 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) 
 	re := &RuntimeEnforcer{}
 
 	re.LogFeeder = feeder
+	re.enableLSM = false
 
 	if !kl.IsK8sLocal() {
 		// mount securityfs
 		kl.GetCommandOutputWithoutErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
 	}
 
-	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
-	if err != nil {
-		re.LogFeeder.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
-		return nil
+	lsm := []byte{}
+	lsmPath := "/sys/kernel/security/lsm"
+
+	if _, err := os.Stat(lsmPath); err == nil {
+		lsm, err = ioutil.ReadFile(lsmPath)
+		if err != nil {
+			re.LogFeeder.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+			return re
+		}
 	}
 
-	re.enableLSM = false
 	re.enforcerType = string(lsm)
 
 	if strings.Contains(re.enforcerType, "krsi") {
@@ -67,10 +73,6 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) 
 			re.LogFeeder.Print("Initialized SELinux Enforcer")
 			re.enableLSM = true
 		}
-	}
-
-	if !re.enableLSM {
-		return nil
 	}
 
 	return re
@@ -198,6 +200,11 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	}
 
 	return nil
+}
+
+// IsEnabled Function
+func (re *RuntimeEnforcer) IsEnabled() bool {
+	return re.enableLSM
 }
 
 // GetEnforcerType Function
