@@ -287,7 +287,7 @@ type KubeArmorPolicySpec struct {
 
 // KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
 type KubeArmorPolicyStatus struct {
-	PolicyStatus string `json:"message,omitempty"`
+	PolicyStatus string `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
