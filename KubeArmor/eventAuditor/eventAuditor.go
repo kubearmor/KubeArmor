@@ -36,21 +36,3 @@ func (ea *EventAuditor) UpdateAuditPolicies() { // (action string, auditPolicy y
 	// call "shared map management"
 }
 
-// =========================== //
-// == Entrypoint Management == //
-// =========================== //
-
-// handle kprobes, tracepoints
-// handle entrypoint
-
-// =========================== //
-// == Shared Map Management == //
-// =========================== //
-
-// handle process-spec table
-
-// ========================== //
-// == eBPF Code Generation == //
-// ========================== //
-
-// TBD
