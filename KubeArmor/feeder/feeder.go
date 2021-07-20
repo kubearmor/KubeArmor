@@ -303,9 +303,9 @@ func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) 
 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", port)
-	fd.Output = output
 
-	// logFilter
+	// logging
+	fd.Output = output
 	fd.Filter = filter
 
 	// output mode
@@ -535,6 +535,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	if fd.Filter == "policy" {
 		if len(log.PolicyName) > 0 {
 			log.HostName = fd.HostName
+
 			if fd.Output == "stdout" {
 				arr, _ := json.Marshal(log)
 				fmt.Println(string(arr))
