@@ -27,9 +27,9 @@ spec:
         - /manager
         args:
         - --enable-leader-election
-        image: kubearmor/kubearmor-controller:latest
+        image: kubearmor/kubearmor-policy-manager:latest
         name: manager
-        imagePullPolicy: Never
+        # imagePullPolicy: Never
         resources:
           limits:
             cpu: 100m
