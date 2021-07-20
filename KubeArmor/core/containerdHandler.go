@@ -248,18 +248,26 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.Containers[containerID] = container
 		} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
 			// this entry was updated by kubernetes before docker detects it
-			// thus, we here use NamespaceName, ContainerGroupName, and ContainerName given by kubernetes instead of the ones given by docker
+			// thus, we here use the info given by kubernetes instead of the info given by docker
+
 			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
 			container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
 			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+
+			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
+			container.ProcessVisibilityEnabled = dm.Containers[container.ContainerID].ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = dm.Containers[container.ContainerID].FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
+
 			dm.Containers[container.ContainerID] = container
-		} else if dm.Containers[container.ContainerID].AppArmorProfile == "" && container.AppArmorProfile != "" {
-			// this entry was updated by kubernetes before docker detects it
-			// thus, we here use NamespaceName, ContainerGroupName, and ContainerName given by kubernetes instead of the ones given by docker
-			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
-			container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
-			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
-			dm.Containers[container.ContainerID] = container
+
+			for _, conGroup := range dm.ContainerGroups {
+				if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[container.ContainerID] == "" {
+					conGroup.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+					break
+				}
+			}
 		} else {
 			dm.ContainersLock.Unlock()
 			return false
@@ -301,8 +309,6 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 
 	dm.LogFeeder.Print("Started to monitor Containerd events")
 
-	getContainersExecutedOnce := false
-
 	for {
 		select {
 		case <-StopChan:
@@ -337,20 +343,6 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 				for containerID, context := range deletedContainers {
 					dm.UpdateContainerdContainer(context, containerID, "destroy")
 				}
-			}
-
-			if !getContainersExecutedOnce {
-				for _, conGroup := range dm.ContainerGroups {
-					for _, containerID := range conGroup.Containers {
-						if container, ok := dm.Containers[containerID]; ok {
-							if conGroup.AppArmorProfiles[containerID] == "" {
-								conGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
-							}
-						}
-					}
-				}
-
-				getContainersExecutedOnce = true
 			}
 		}
 

@@ -264,7 +264,7 @@ type Feeder struct {
 
 	// output
 	Output  string
-	filter  string
+	Filter  string
 	LogFile *os.File
 
 	// gRPC listener
@@ -304,6 +304,9 @@ func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", port)
 	fd.Output = output
+
+	// logFilter
+	fd.Filter = filter
 
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
@@ -529,10 +532,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// standard output / file output
 
-	if fd.filter == "policy" {
+	if fd.Filter == "policy" {
 		if len(log.PolicyName) > 0 {
 			log.HostName = fd.HostName
-
 			if fd.Output == "stdout" {
 				arr, _ := json.Marshal(log)
 				fmt.Println(string(arr))
@@ -541,7 +543,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 				fd.StrToFile(string(arr))
 			}
 		}
-	} else if fd.filter == "system" {
+	} else if fd.Filter == "system" {
 		if len(log.PolicyName) == 0 {
 			log.HostName = fd.HostName
 
