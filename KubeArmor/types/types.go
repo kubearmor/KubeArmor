@@ -91,14 +91,15 @@ type K8sPodEvent struct {
 	Object v1.Pod `json:"object"`
 }
 
+// SecurityPolicyStatus Structure
+type SecurityPolicyStatus struct {
+	PolicyStatus string `json:"status,omitempty"`
+}
+
 // K8sKubeArmorPolicyEvent Structure
 type K8sKubeArmorPolicyEvent struct {
 	Type   string             `json:"type"`
 	Object K8sKubeArmorPolicy `json:"object"`
-}
-
-type SecurityPolicyStatus struct {
-	PolicyStatus string `json:"status,omitempty"`
 }
 
 // K8sKubeArmorPolicy Structure
@@ -121,8 +122,9 @@ type K8sKubeArmorHostPolicyEvent struct {
 
 // K8sKubeArmorHostPolicy Structure
 type K8sKubeArmorHostPolicy struct {
-	Metadata metav1.ObjectMeta `json:"metadata"`
-	Spec     HostSecuritySpec  `json:"spec"`
+	Metadata metav1.ObjectMeta    `json:"metadata"`
+	Spec     HostSecuritySpec     `json:"spec"`
+	Status   SecurityPolicyStatus `json:"status,omitempty"`
 }
 
 // K8sKubeArmorPolicies Structure

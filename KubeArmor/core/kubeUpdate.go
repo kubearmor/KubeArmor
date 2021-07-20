@@ -645,8 +645,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			// update security policies
 			dm.LogFeeder.UpdateSecurityPolicies("UPDATED", dm.ContainerGroups[idx])
 
-			// enforce security policies
-			if status == "OK" {
+			if status == "" || status == "OK" {
+				// enforce security policies
 				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
 			}
 		}
@@ -692,7 +692,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] &&
 							policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] &&
 							policy.Metadata["generation"] == secPolicy.Metadata["generation"] {
-							//exist = true
+							exist = true
 							break
 						}
 					}
@@ -1073,7 +1073,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 }
 
 // UpdateHostSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy() {
+func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy(status string) {
 	// get node identities
 	nodeIdentities := K8s.GetNodeIdentities()
 
@@ -1091,8 +1091,10 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy() {
 	// update host security policies
 	dm.LogFeeder.UpdateHostSecurityPolicies("UPDATED", secPolicies)
 
-	// enforce host security policies
-	dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	if status == "" || status == "OK" {
+		// enforce host security policies
+		dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	}
 }
 
 // WatchHostSecurityPolicies Function
@@ -1500,7 +1502,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
 
 				// apply security policies to a host
-				dm.UpdateHostSecurityPolicy()
+				dm.UpdateHostSecurityPolicy(event.Object.Status.PolicyStatus)
 			}
 		}
 	}
