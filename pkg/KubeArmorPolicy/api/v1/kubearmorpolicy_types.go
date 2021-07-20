@@ -287,14 +287,14 @@ type KubeArmorPolicySpec struct {
 
 // KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
 type KubeArmorPolicyStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	PolicyStatus string `json:"message,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
 // KubeArmorPolicy is the Schema for the kubearmorpolicies API
 // +kubebuilder:resource:shortName=ksp
+// +kubebuilder:subresource:status
 type KubeArmorPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

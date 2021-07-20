@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= kubearmor/kubearmor-controller:latest
+IMG ?= kubearmor/kubearmor-policy-manager:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:crdVersions=v1"
 
@@ -41,6 +41,12 @@ deploy: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../helm/templates/security.kubearmor.com_kubearmorpolicies.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/CRD/KubeArmorPolicy.yaml
+
+# Generate deployments
+deployment: manifests
+	cd config/manager && kustomize edit set image controller=${IMG}
+	kustomize build config/default > /tmp/KubeArmorPolicy.yaml
 
 # Run go fmt against code
 fmt:
@@ -56,7 +62,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+docker-build:
 	docker build . -t ${IMG}
 
 # Push the docker image
@@ -81,4 +87,4 @@ CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
 clean:
-	rm -rf bin go.sum
+	rm -rf bin go.sum /tmp/KubeArmorPolicy.yaml
