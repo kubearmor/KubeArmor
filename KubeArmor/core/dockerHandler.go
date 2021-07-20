@@ -211,7 +211,6 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 			}
 		}
 	}
-
 }
 
 // UpdateDockerContainer Function

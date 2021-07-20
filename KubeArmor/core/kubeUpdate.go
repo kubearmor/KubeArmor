@@ -130,6 +130,9 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		// update security policies
 		dm.LogFeeder.UpdateSecurityPolicies(action, newGroup)
 
+		// enforce security policies
+		dm.RuntimeEnforcer.UpdateSecurityPolicies(newGroup)
+
 	} else if action == "MODIFIED" {
 		// find the corresponding container group
 
@@ -239,6 +242,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 
 		// enforce security policies
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
+
 	} else { // DELETED
 		// find the corresponding container group
 
@@ -341,6 +345,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				// == //
+
 				// exception: coredns
 				if val, ok := pod.Labels["k8s-app"]; ok {
 					if val == "kube-dns" {
@@ -362,9 +368,11 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				// exception: no AppArmor
+				// == //
+
 				if dm.RuntimeEnforcer.IsEnabled() {
 					if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
+						// exception: no AppArmor
 						if !strings.Contains(string(lsm), "apparmor") {
 							if pod.Annotations["kubearmor-policy"] == "enabled" {
 								pod.Annotations["kubearmor-policy"] = "audited"
