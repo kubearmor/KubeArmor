@@ -1,10 +1,6 @@
 package monitor
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -15,150 +11,30 @@ import (
 // ============================ //
 
 // LookupContainerID Function
-func (mon *SystemMonitor) LookupContainerID(pidns, mntns, hostpid, pid uint32, newProcess bool) string {
+func (mon *SystemMonitor) LookupContainerID(pidns, mntns, ppid, pid uint32) string {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 
-	if pid == 1 { // init process
-		containerID := "None"
+	mon.NsMapLock.RLock()
+	defer mon.NsMapLock.RUnlock()
 
-		// first shot: look up container id from cgroup
-
-		cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", hostpid))
-		if err != nil {
-			return "" // this is nature, just meaning that the PID no longer exists
-		}
-
-		cgroupScanner := bufio.NewScanner(cgroup)
-		for cgroupScanner.Scan() {
-			line := cgroupScanner.Text()
-
-			// k8s1
-			parts := kubePattern1.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// k8s2
-			parts = kubePattern2.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-
-			// docker
-			parts = dockerPattern.FindStringSubmatch(line)
-			if parts != nil {
-				containerID = parts[1]
-				break
-			}
-		}
-
-		cgroup.Close()
-
-		// update newly found container id
-		if containerID != "None" {
-			mon.NsMapLock.Lock()
-			mon.NsMap[key] = containerID
-			mon.NsMapLock.Unlock()
-			return containerID
-		}
-
-		// alternative shot: look up container id from cmdline
-
-		cmdline, err := os.Open(fmt.Sprintf("/proc/%d/cmdline", hostpid))
-		if err != nil {
-			return "" // this is nature, just meaning that the PID no longer exists
-		}
-
-		cmdScanner := bufio.NewScanner(cmdline)
-		for cmdScanner.Scan() {
-			line := cmdScanner.Text()
-
-			parts := strings.Split(line, "-id")
-			if len(parts) < 2 {
-				break
-			}
-
-			parts = strings.Split(parts[1], "-addr")
-			if len(parts) < 2 {
-				break
-			}
-
-			containerID = parts[0]
-			if containerID != "" {
-				break
-			}
-		}
-
-		cmdline.Close()
-
-		// update newly found container id
-		if containerID != "None" {
-			mon.NsMapLock.Lock()
-			mon.NsMap[key] = containerID
-			mon.NsMapLock.Unlock()
-			return containerID
-		}
-	} else { // other processes
-		mon.NsMapLock.RLock()
-		if val, ok := mon.NsMap[key]; ok {
-			mon.NsMapLock.RUnlock()
-			return val
-		}
-		mon.NsMapLock.RUnlock()
-
-		if newProcess { // if new process, look up container id
-			containerID := "None"
-
-			// first shot: look up container id from cgroup
-
-			cgroup, err := os.Open(fmt.Sprintf("/proc/%d/cgroup", hostpid))
-			if err != nil {
-				return "" // this is nature, just meaning that the PID no longer exists
-			}
-
-			cgroupScanner := bufio.NewScanner(cgroup)
-			for cgroupScanner.Scan() {
-				line := cgroupScanner.Text()
-
-				// k8s1
-				parts := kubePattern1.FindStringSubmatch(line)
-				if parts != nil {
-					containerID = parts[1]
-					break
-				}
-
-				// k8s2
-				parts = kubePattern2.FindStringSubmatch(line)
-				if parts != nil {
-					containerID = parts[1]
-					break
-				}
-
-				// docker
-				parts = dockerPattern.FindStringSubmatch(line)
-				if parts != nil {
-					containerID = parts[1]
-					break
-				}
-			}
-
-			cgroup.Close()
-
-			// update newly found container id
-			if containerID != "None" {
-				mon.NsMapLock.Lock()
-				mon.NsMap[key] = containerID
-				mon.NsMapLock.Unlock()
-				return containerID
-			}
-		}
+	if val, ok := mon.NsMap[key]; ok {
+		return val
 	}
 
 	return ""
 }
 
+// AddContainerIDToNsMap Function
+func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, pidns, mntns uint32) {
+	key := NsKey{PidNS: pidns, MntNS: mntns}
+
+	mon.NsMapLock.Lock()
+	defer mon.NsMapLock.Unlock()
+
+	mon.NsMap[key] = containerID
+}
+
+// DeleteContainerIDFromNsMap Function
 func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string) {
 	ns := NsKey{}
 
@@ -185,7 +61,9 @@ func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string) {
 func (mon *SystemMonitor) BuildPidNode(ctx SyscallContext, execPath string, args []string) tp.PidNode {
 	node := tp.PidNode{}
 
+	node.HostPPID = ctx.HostPPID
 	node.HostPID = ctx.HostPID
+
 	node.PPID = ctx.PPID
 	node.PID = ctx.PID
 	node.UID = ctx.UID

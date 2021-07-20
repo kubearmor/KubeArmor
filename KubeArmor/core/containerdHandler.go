@@ -2,13 +2,16 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
 
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
+	pt "github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/typeurl"
 	"google.golang.org/grpc"
@@ -42,15 +45,15 @@ type ContainerdHandler struct {
 	// connection
 	conn *grpc.ClientConn
 
-	// client
+	// container client
 	client pb.ContainersClient
+
+	// task client
+	taskClient pt.TasksClient
 
 	// context
 	containerd context.Context
 	docker     context.Context
-
-	// container stream
-	containerStream pb.Containers_ListStreamClient
 
 	// active containers
 	containers map[string]context.Context
@@ -79,7 +82,12 @@ func NewContainerdHandler() *ContainerdHandler {
 	}
 
 	ch.conn = conn
+
+	// container client
 	ch.client = pb.NewContainersClient(ch.conn)
+
+	// task client
+	ch.taskClient = pt.NewTasksClient(ch.conn)
 
 	// docker namespace
 	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
@@ -141,6 +149,31 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 	// == //
 
+	taskReq := pt.ListPidsRequest{ContainerID: container.ContainerID}
+	if taskRes, err := Containerd.taskClient.ListPids(ctx, &taskReq); err == nil {
+		if len(taskRes.Processes) == 0 {
+			return container, err
+		}
+
+		pid := strconv.Itoa(int(taskRes.Processes[0].Pid))
+
+		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
+			if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
+				fmt.Printf("Failed to get PidNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			}
+		}
+
+		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
+			if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
+				fmt.Printf("Failed to get MntNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			}
+		}
+	} else {
+		return container, err
+	}
+
+	// == //
+
 	return container, nil
 }
 
@@ -198,48 +231,71 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers map[strin
 }
 
 // UpdateContainerdContainer Function
-func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID, action string) {
-	container := tp.Container{}
-
+func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID, action string) bool {
 	if action == "start" {
-		var err error
-
 		// get container information from containerd client
-		container, err = Containerd.GetContainerInfo(ctx, containerID)
+		container, err := Containerd.GetContainerInfo(ctx, containerID)
 		if err != nil {
-			return
+			return false
 		}
 
 		if container.ContainerID == "" {
-			return
+			return false
 		}
 
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
-		} else if dm.Containers[containerID].AppArmorProfile == "" && container.AppArmorProfile != "" {
-			dm.Containers[containerID] = container
+		} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
+			// this entry was updated by kubernetes before docker detects it
+			// thus, we here use the info given by kubernetes instead of the info given by docker
+
+			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
+			container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
+			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+
+			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
+			container.ProcessVisibilityEnabled = dm.Containers[container.ContainerID].ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = dm.Containers[container.ContainerID].FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
+
+			dm.Containers[container.ContainerID] = container
+
+			for _, conGroup := range dm.ContainerGroups {
+				if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[container.ContainerID] == "" {
+					conGroup.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+					break
+				}
+			}
 		} else {
 			dm.ContainersLock.Unlock()
-			return
+			return false
 		}
 		dm.ContainersLock.Unlock()
+
+		// update NsMap
+		dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 
 		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
-		if val, ok := dm.Containers[containerID]; !ok {
+		if _, ok := dm.Containers[containerID]; !ok {
 			dm.ContainersLock.Unlock()
-			return
+			return false
 		} else {
-			container = val
 			delete(dm.Containers, containerID)
 		}
 		dm.ContainersLock.Unlock()
 
+		// update NsMap
+		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+
 		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
+
+	return true
 }
 
 // MonitorContainerdEvents Function
@@ -252,8 +308,6 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 	}
 
 	dm.LogFeeder.Print("Started to monitor Containerd events")
-
-	getContainersExecutedOnce := false
 
 	for {
 		select {
@@ -268,35 +322,30 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 				continue
 			}
 
+			invalidContainers := []string{}
+
 			newContainers := Containerd.GetNewContainerdContainers(containers)
+			deletedContainers := Containerd.GetDeletedContainerdContainers(containers)
+
 			if len(newContainers) > 0 {
 				for containerID, context := range newContainers {
-					dm.UpdateContainerdContainer(context, containerID, "start")
+					if !dm.UpdateContainerdContainer(context, containerID, "start") {
+						invalidContainers = append(invalidContainers, containerID)
+					}
 				}
 			}
 
-			deletedContainers := Containerd.GetDeletedContainerdContainers(containers)
+			for _, invalidContainerID := range invalidContainers {
+				delete(Containerd.containers, invalidContainerID)
+			}
+
 			if len(deletedContainers) > 0 {
 				for containerID, context := range deletedContainers {
 					dm.UpdateContainerdContainer(context, containerID, "destroy")
 				}
 			}
-
-			if !getContainersExecutedOnce {
-				for _, conGroup := range dm.ContainerGroups {
-					for _, containerID := range conGroup.Containers {
-						if container, ok := dm.Containers[containerID]; ok {
-							if conGroup.AppArmorProfiles[containerID] == "" {
-								conGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
-							}
-						}
-					}
-				}
-
-				getContainersExecutedOnce = true
-			}
 		}
 
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 50)
 	}
 }

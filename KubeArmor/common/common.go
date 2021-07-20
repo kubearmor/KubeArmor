@@ -21,9 +21,9 @@ import (
 // ============ //
 
 // Clone Function
-func Clone(src, dst interface{}) {
+func Clone(src, dst interface{}) error {
 	arr, _ := json.Marshal(src)
-	json.Unmarshal(arr, dst)
+	return json.Unmarshal(arr, dst)
 }
 
 // ContainsElement Function
@@ -70,11 +70,7 @@ func ObjCommaCanBeExpanded(objptr interface{}) bool {
 	}
 
 	value := field0.Interface().(string)
-	if strings.Split(value, ",")[0] == value {
-		return false
-	}
-
-	return true
+	return strings.Split(value, ",")[0] != value
 }
 
 // ObjCommaExpand Function
@@ -98,6 +94,14 @@ func ObjCommaExpandFirstDupOthers(objptr interface{}) {
 
 		reflect.ValueOf(objptr).Elem().Set(new)
 	}
+}
+
+// Min Function
+func Min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // ========== //
@@ -237,6 +241,12 @@ func StrToFile(str, destFile string) {
 
 	// write the string into the file
 	_, err = file.WriteString(str)
+	if err != nil {
+		kg.Err(err.Error())
+	}
+
+	// sync the file
+	err = file.Sync()
 	if err != nil {
 		kg.Err(err.Error())
 	}

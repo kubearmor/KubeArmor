@@ -70,13 +70,13 @@ type LogStruct struct {
 // LogService Structure
 type LogService struct {
 	MsgStructs map[string]MsgStruct
-	MsgLock    sync.Mutex
+	MsgLock    *sync.Mutex
 
 	AlertStructs map[string]AlertStruct
-	AlertLock    sync.Mutex
+	AlertLock    *sync.Mutex
 
 	LogStructs map[string]LogStruct
-	LogLock    sync.Mutex
+	LogLock    *sync.Mutex
 }
 
 // HealthCheck Function
@@ -127,11 +127,14 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 	defer ls.removeMsgStruct(uid)
 
 	for Running {
+		//nolint
 		msg := <-MsgQueue
 
 		msgStructs := ls.getMsgStructs()
 		for _, mgs := range msgStructs {
-			mgs.Client.Send(&msg)
+			if err := mgs.Client.Send(&msg); err != nil {
+				fmt.Println("Failed to send a message")
+			}
 		}
 	}
 
@@ -180,11 +183,14 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 	defer ls.removeAlertStruct(uid)
 
 	for Running {
+		//nolint
 		alert := <-AlertQueue
 
 		alertStructs := ls.getAlertStructs()
 		for _, als := range alertStructs {
-			als.Client.Send(&alert)
+			if err := als.Client.Send(&alert); err != nil {
+				fmt.Println("Failed to send an alert")
+			}
 		}
 	}
 
@@ -233,11 +239,14 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 	defer ls.removeLogStruct(uid)
 
 	for Running {
+		//nolint
 		log := <-LogQueue
 
 		logStructs := ls.getLogStructs()
 		for _, lgs := range logStructs {
-			lgs.Client.Send(&log)
+			if err := lgs.Client.Send(&log); err != nil {
+				fmt.Println("Failed to send a log")
+			}
 		}
 	}
 
@@ -254,7 +263,9 @@ type Feeder struct {
 	Port string
 
 	// output
-	Output string
+	Output  string
+	Filter  string
+	LogFile *os.File
 
 	// gRPC listener
 	Listener net.Listener
@@ -284,7 +295,7 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName, port, output string, enableHostPolicy bool) *Feeder {
+func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) *Feeder {
 	fd := &Feeder{}
 
 	// set cluster info
@@ -292,7 +303,10 @@ func NewFeeder(clusterName, port, output string, enableHostPolicy bool) *Feeder 
 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", port)
+
+	// logging
 	fd.Output = output
+	fd.Filter = filter
 
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
@@ -312,6 +326,13 @@ func NewFeeder(clusterName, port, output string, enableHostPolicy bool) *Feeder 
 			return nil
 		}
 		targetFile.Close()
+
+		// open the file with the append mode
+		fd.LogFile, err = os.OpenFile(fd.Output, os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			kg.Err(err.Error())
+			return nil
+		}
 	}
 
 	// listen to gRPC port
@@ -328,11 +349,11 @@ func NewFeeder(clusterName, port, output string, enableHostPolicy bool) *Feeder 
 	// register a log service
 	logService := &LogService{
 		MsgStructs:   make(map[string]MsgStruct),
-		MsgLock:      sync.Mutex{},
+		MsgLock:      &sync.Mutex{},
 		AlertStructs: make(map[string]AlertStruct),
-		AlertLock:    sync.Mutex{},
+		AlertLock:    &sync.Mutex{},
 		LogStructs:   make(map[string]LogStruct),
-		LogLock:      sync.Mutex{},
+		LogLock:      &sync.Mutex{},
 	}
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
@@ -381,10 +402,36 @@ func (fd *Feeder) DestroyFeeder() error {
 		fd.Listener = nil
 	}
 
+	// close LogFile
+	if fd.LogFile != nil {
+		fd.LogFile.Close()
+		fd.LogFile = nil
+	}
+
 	// wait for other routines
 	fd.WgServer.Wait()
 
 	return nil
+}
+
+// StrToFile Function
+func (fd *Feeder) StrToFile(str string) {
+	if fd.LogFile != nil {
+		// add the newline at the end of the string
+		str = str + "\n"
+
+		// write the string into the file
+		_, err := fd.LogFile.WriteString(str)
+		if err != nil {
+			kg.Err(err.Error())
+		}
+
+		// sync the file
+		err = fd.LogFile.Sync()
+		if err != nil {
+			kg.Err(err.Error())
+		}
+	}
 }
 
 // ============== //
@@ -440,11 +487,13 @@ func (fd *Feeder) ServeLogFeeds() {
 	defer fd.WgServer.Done()
 
 	// feed logs
-	fd.LogServer.Serve(fd.Listener)
+	if err := fd.LogServer.Serve(fd.Listener); err != nil {
+		kg.Print("Terminated the gRPC service")
+	}
 }
 
 // PushMessage Function
-func (fd *Feeder) PushMessage(level, message string) error {
+func (fd *Feeder) PushMessage(level, message string) {
 	pbMsg := pb.Message{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
@@ -463,16 +512,14 @@ func (fd *Feeder) PushMessage(level, message string) error {
 	pbMsg.Message = message
 
 	MsgQueue <- pbMsg
-
-	return nil
 }
 
 // PushLog Function
-func (fd *Feeder) PushLog(log tp.Log) error {
+func (fd *Feeder) PushLog(log tp.Log) {
 	log = fd.UpdateMatchedPolicy(log)
 
 	if log.UpdatedTime == "" {
-		return nil
+		return
 	}
 
 	// remove visibility flags
@@ -485,7 +532,31 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 	// standard output / file output
 
-	if len(log.PolicyName) > 0 {
+	if fd.Filter == "policy" {
+		if len(log.PolicyName) > 0 {
+			log.HostName = fd.HostName
+
+			if fd.Output == "stdout" {
+				arr, _ := json.Marshal(log)
+				fmt.Println(string(arr))
+			} else if fd.Output != "none" {
+				arr, _ := json.Marshal(log)
+				fd.StrToFile(string(arr))
+			}
+		}
+	} else if fd.Filter == "system" {
+		if len(log.PolicyName) == 0 {
+			log.HostName = fd.HostName
+
+			if fd.Output == "stdout" {
+				arr, _ := json.Marshal(log)
+				fmt.Println(string(arr))
+			} else if fd.Output != "none" {
+				arr, _ := json.Marshal(log)
+				fd.StrToFile(string(arr))
+			}
+		}
+	} else { // all
 		log.HostName = fd.HostName
 
 		if fd.Output == "stdout" {
@@ -493,7 +564,7 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 			fmt.Println(string(arr))
 		} else if fd.Output != "none" {
 			arr, _ := json.Marshal(log)
-			kl.StrToFile(string(arr), fd.Output)
+			fd.StrToFile(string(arr))
 		}
 	}
 
@@ -580,11 +651,6 @@ func (fd *Feeder) PushLog(log tp.Log) error {
 
 		pbLog.Result = log.Result
 
-		select {
-		case LogQueue <- pbLog:
-			// non-blocking: possible to loss some of logs
-		}
+		LogQueue <- pbLog
 	}
-
-	return nil
 }

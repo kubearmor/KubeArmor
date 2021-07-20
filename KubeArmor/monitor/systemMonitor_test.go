@@ -26,7 +26,7 @@ func TestSystemMonitor(t *testing.T) {
 	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", true)
+	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -77,7 +77,7 @@ func TestTraceSyscall(t *testing.T) {
 	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", true)
+	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -151,7 +151,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", true)
+	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return

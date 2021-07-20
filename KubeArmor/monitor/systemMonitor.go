@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,12 +24,6 @@ import (
 // ===================== //
 // == Const. Vaiables == //
 // ===================== //
-
-var (
-	dockerPattern = regexp.MustCompile(`\d+:.+:/docker/([0-9a-f]{64})`)
-	kubePattern1  = regexp.MustCompile(`\d+:.+:/kubepods/[^/]+/pod[^/]+/([0-9a-f]{64})`)
-	kubePattern2  = regexp.MustCompile(`\d+:.+:/kubepods[^:]+:[^:]+:([0-9a-f]{64})`)
-)
 
 const (
 	// file
@@ -53,6 +46,7 @@ const (
 
 const (
 	PERMISSION_DENIED = -13
+	MAX_STRING_LEN    = 4096
 )
 
 // ======================= //
@@ -76,10 +70,12 @@ type SyscallContext struct {
 	PidID uint32
 	MntID uint32
 
-	HostPID uint32
-	PPID    uint32
-	PID     uint32
-	UID     uint32
+	HostPPID uint32
+	HostPID  uint32
+
+	PPID uint32
+	PID  uint32
+	UID  uint32
 
 	EventID int32
 	Argnum  int32
@@ -169,6 +165,9 @@ type SystemMonitor struct {
 
 	// GKE
 	IsCOS bool
+
+	// Kernel
+	KernelVersion string
 }
 
 // NewSystemMonitor Function
@@ -210,6 +209,9 @@ func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
 
 	mon.IsCOS = false
 
+	mon.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
+	mon.KernelVersion = strings.TrimSuffix(mon.KernelVersion, "\n")
+
 	return mon
 }
 
@@ -226,20 +228,16 @@ func (mon *SystemMonitor) InitBPF() error {
 			if strings.Contains(s, "Container-Optimized OS") {
 				mon.LogFeeder.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
-				// get kernel version
-				kernelVersion := kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
-				kernelVersion = strings.TrimSuffix(kernelVersion, "\n")
-
 				// check and download kernel headers
 				if err := exec.Command(homeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
 					mon.LogFeeder.Errf("Failed to download COS kernel headers (%s)", err.Error())
 					return err
 				}
 
-				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", kernelVersion)
+				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
 
 				// set a new location for kernel headers
-				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+kernelVersion)
+				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion)
 
 				// just for safety
 				time.Sleep(time.Second * 1)
@@ -267,10 +265,16 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	mon.LogFeeder.Print("Initializing an eBPF program")
 
-	mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
-
 	if mon.EnableHostPolicy {
-		mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
+			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST_AND_CONTAINER"})
+		} else { // 5.x
+			mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+		}
+	}
+
+	if mon.BpfModule == nil {
+		mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
 	}
 
 	if mon.BpfModule == nil {
@@ -315,7 +319,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
-	mon.SyscallChannel = make(chan []byte, 4096)
+	mon.SyscallChannel = make(chan []byte, 8192)
 	mon.SyscallLostChannel = make(chan uint64)
 
 	mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
@@ -323,7 +327,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		return fmt.Errorf("error initializing events perf map: %v", err)
 	}
 
-	if mon.EnableHostPolicy {
+	if mon.EnableHostPolicy && !strings.HasPrefix(mon.KernelVersion, "4.") {
 		for _, syscallName := range systemCalls {
 			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
 			if err != nil {
@@ -357,7 +361,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		hostEventsTable := bcc.NewTable(mon.HostBpfModule.TableId("sys_events"), mon.HostBpfModule)
-		mon.HostSyscallChannel = make(chan []byte, 4096)
+		mon.HostSyscallChannel = make(chan []byte, 8192)
 		mon.HostSyscallLostChannel = make(chan uint64)
 
 		mon.HostSyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(hostEventsTable, mon.HostSyscallChannel, mon.HostSyscallLostChannel, 64)
@@ -444,16 +448,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			// get container id
-
 			containerID := ""
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
-				if ctx.EventID == SYS_EXECVE || ctx.EventID == SYS_EXECVEAT {
-					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, ctx.PID, true)
-				} else {
-					containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPID, ctx.PID, false)
-				}
+				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
 
 				if containerID != "" {
 					ContainersLock.RLock()
@@ -466,7 +464,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 
-			if containerID == "" {
+			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
 				continue
 			}
 
@@ -637,6 +635,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
 
+		//nolint
 		case _ = <-mon.SyscallLostChannel:
 			continue
 		}
@@ -691,7 +690,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// generate a log with the base information
 
-					log := mon.BuildHostLogBase(ContextCombined{ContextSys: ctx})
+					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					// add arguments
 
@@ -761,7 +760,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// generate a log with the base information
 
-					log := mon.BuildHostLogBase(ContextCombined{ContextSys: ctx})
+					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					// add arguments
 
@@ -841,7 +840,8 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			// push the context to the channel for logging
 			mon.HostContextChan <- ContextCombined{ContainerID: "", ContextSys: ctx, ContextArgs: args}
 
-		case _ = <-mon.HostSyscallLostChannel:
+		//nolint
+		case _ = <-mon.SyscallLostChannel:
 			continue
 		}
 	}

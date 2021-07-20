@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -52,9 +53,31 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		}
 
 		// update container list
-		for k, _ := range pod.Containers {
+		for k := range pod.Containers {
 			if !kl.ContainsElement(newGroup.Containers, k) {
 				newGroup.Containers = append(newGroup.Containers, k)
+			}
+		}
+
+		// update flags
+		if pod.Annotations["kubearmor-policy"] == "enabled" {
+			newGroup.PolicyEnabled = tp.KubeArmorPolicyEnabled
+		} else if pod.Annotations["kubearmor-policy"] == "audited" {
+			newGroup.PolicyEnabled = tp.KubeArmorPolicyAudited
+		} else {
+			newGroup.PolicyEnabled = tp.KubeArmorPolicyDisabled
+		}
+
+		// parse annotations and set flags
+		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
+			if visibility == "process" {
+				newGroup.ProcessVisibilityEnabled = true
+			} else if visibility == "file" {
+				newGroup.FileVisibilityEnabled = true
+			} else if visibility == "network" {
+				newGroup.NetworkVisibilityEnabled = true
+			} else if visibility == "capabilities" {
+				newGroup.CapabilitiesVisibilityEnabled = true
 			}
 		}
 
@@ -80,28 +103,6 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		}
 		dm.ContainersLock.Unlock()
 
-		// update flags
-		if pod.Annotations["kubearmor-policy"] == "enabled" {
-			newGroup.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" {
-			newGroup.PolicyEnabled = tp.KubeArmorPolicyAudited
-		} else {
-			newGroup.PolicyEnabled = tp.KubeArmorPolicyDisabled
-		}
-
-		// parse annotations and set flags
-		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-			if visibility == "process" {
-				newGroup.ProcessVisibilityEnabled = true
-			} else if visibility == "file" {
-				newGroup.FileVisibilityEnabled = true
-			} else if visibility == "network" {
-				newGroup.NetworkVisibilityEnabled = true
-			} else if visibility == "capabilities" {
-				newGroup.CapabilitiesVisibilityEnabled = true
-			}
-		}
-
 		// update selinux profile names to the container group
 		newGroup.SELinuxProfiles = map[string]string{}
 		for k, v := range pod.Metadata {
@@ -125,6 +126,12 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			// create and register security profiles
 			dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod, true)
 		}
+
+		// update security policies
+		dm.LogFeeder.UpdateSecurityPolicies(action, newGroup)
+
+		// enforce security policies
+		dm.RuntimeEnforcer.UpdateSecurityPolicies(newGroup)
 
 	} else if action == "MODIFIED" {
 		// find the corresponding container group
@@ -163,33 +170,11 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		}
 
 		// update container list
-		for k, _ := range pod.Containers {
+		for k := range pod.Containers {
 			if !kl.ContainsElement(dm.ContainerGroups[conGroupIdx].Containers, k) {
 				dm.ContainerGroups[conGroupIdx].Containers = append(dm.ContainerGroups[conGroupIdx].Containers, k)
 			}
 		}
-
-		// update containers
-		dm.ContainersLock.Lock()
-		for _, containerID := range dm.ContainerGroups[conGroupIdx].Containers {
-			container := dm.Containers[containerID]
-
-			container.NamespaceName = dm.ContainerGroups[conGroupIdx].NamespaceName
-			container.ContainerGroupName = dm.ContainerGroups[conGroupIdx].ContainerGroupName
-			container.ContainerName = pod.Containers[containerID]
-
-			container.PolicyEnabled = dm.ContainerGroups[conGroupIdx].PolicyEnabled
-
-			container.ProcessVisibilityEnabled = dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled
-			container.FileVisibilityEnabled = dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled
-			container.NetworkVisibilityEnabled = dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled
-			container.CapabilitiesVisibilityEnabled = dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled
-
-			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[containerID] = container.AppArmorProfile
-
-			dm.Containers[containerID] = container
-		}
-		dm.ContainersLock.Unlock()
 
 		// update flags
 
@@ -222,6 +207,28 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
+		// update containers
+		dm.ContainersLock.Lock()
+		for _, containerID := range dm.ContainerGroups[conGroupIdx].Containers {
+			container := dm.Containers[containerID]
+
+			container.NamespaceName = dm.ContainerGroups[conGroupIdx].NamespaceName
+			container.ContainerGroupName = dm.ContainerGroups[conGroupIdx].ContainerGroupName
+			container.ContainerName = pod.Containers[containerID]
+
+			container.PolicyEnabled = dm.ContainerGroups[conGroupIdx].PolicyEnabled
+
+			container.ProcessVisibilityEnabled = dm.ContainerGroups[conGroupIdx].ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = dm.ContainerGroups[conGroupIdx].FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = dm.ContainerGroups[conGroupIdx].NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = dm.ContainerGroups[conGroupIdx].CapabilitiesVisibilityEnabled
+
+			dm.ContainerGroups[conGroupIdx].AppArmorProfiles[containerID] = container.AppArmorProfile
+
+			dm.Containers[containerID] = container
+		}
+		dm.ContainersLock.Unlock()
+
 		if prevPolicyEnabled != tp.KubeArmorPolicyEnabled && dm.ContainerGroups[conGroupIdx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 			// initialize and register security profiles
 			dm.RuntimeEnforcer.UpdateSecurityProfiles("ADDED", pod, true)
@@ -235,6 +242,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 
 		// enforce security policies
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[conGroupIdx])
+
 	} else { // DELETED
 		// find the corresponding container group
 
@@ -337,6 +345,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				// == //
+
 				// exception: coredns
 				if val, ok := pod.Labels["k8s-app"]; ok {
 					if val == "kube-dns" {
@@ -358,12 +368,20 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				// exception: no AppArmor
-				if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
-					if !strings.Contains(string(lsm), "apparmor") {
-						if pod.Annotations["kubearmor-policy"] == "enabled" {
-							pod.Annotations["kubearmor-policy"] = "audited"
+				// == //
+
+				if dm.RuntimeEnforcer.IsEnabled() {
+					if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
+						// exception: no AppArmor
+						if !strings.Contains(string(lsm), "apparmor") {
+							if pod.Annotations["kubearmor-policy"] == "enabled" {
+								pod.Annotations["kubearmor-policy"] = "audited"
+							}
 						}
+					}
+				} else { // No LSM
+					if pod.Annotations["kubearmor-policy"] == "enabled" {
+						pod.Annotations["kubearmor-policy"] = "audited"
 					}
 				}
 
@@ -580,7 +598,9 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 	for _, policy := range dm.SecurityPolicies {
 		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
 			secPolicy := tp.SecurityPolicy{}
-			kl.Clone(policy, &secPolicy)
+			if err := kl.Clone(policy, &secPolicy); err != nil {
+				fmt.Println("Failed to clone a policy")
+			}
 			secPolicies = append(secPolicies, secPolicy)
 		}
 	}
@@ -589,7 +609,7 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 }
 
 // UpdateSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
+func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy, status string) {
 	dm.ContainerGroupsLock.Lock()
 	defer dm.ContainerGroupsLock.Unlock()
 
@@ -625,8 +645,10 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			// update security policies
 			dm.LogFeeder.UpdateSecurityPolicies("UPDATED", dm.ContainerGroups[idx])
 
-			// enforce security policies
-			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
+			if status == "" || status == "OK" {
+				// enforce security policies
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.ContainerGroups[idx])
+			}
 		}
 	}
 }
@@ -681,7 +703,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				}
 
-				kl.Clone(event.Object.Spec, &secPolicy.Spec)
+				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
+					fmt.Println("Failed to clone a spec")
+				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
@@ -1042,14 +1066,14 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 				// apply security policies to containers
-				dm.UpdateSecurityPolicy(event.Type, secPolicy)
+				dm.UpdateSecurityPolicy(event.Type, secPolicy, event.Object.Status.PolicyStatus)
 			}
 		}
 	}
 }
 
 // UpdateHostSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy() {
+func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy(status string) {
 	// get node identities
 	nodeIdentities := K8s.GetNodeIdentities()
 
@@ -1067,8 +1091,10 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy() {
 	// update host security policies
 	dm.LogFeeder.UpdateHostSecurityPolicies("UPDATED", secPolicies)
 
-	// enforce host security policies
-	dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	if status == "" || status == "OK" {
+		// enforce host security policies
+		dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	}
 }
 
 // WatchHostSecurityPolicies Function
@@ -1123,7 +1149,9 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					}
 				}
 
-				kl.Clone(event.Object.Spec, &secPolicy.Spec)
+				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
+					fmt.Println("Failed to clone a spec")
+				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
@@ -1474,8 +1502,16 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
 
 				// apply security policies to a host
-				dm.UpdateHostSecurityPolicy()
+				dm.UpdateHostSecurityPolicy(event.Object.Status.PolicyStatus)
 			}
 		}
 	}
 }
+
+// ================================= //
+// == Macro / Audit Policy Update == //
+// ================================= //
+
+// add maps for macros and audit policies in KubeArmorDaemon structure
+// add watcher functions for KubeArmorMacro and KubeArmorAuditPolicy
+// similar to SecurityPolicies, update event auditor with given macros and audit policies

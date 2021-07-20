@@ -300,6 +300,7 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		"  capability,\n" +
 		"\n" +
 		"  /usr/bin/runc Ux,\n" + // docker
+		"  /usr/bin/docker-runc Ux, \n" + // docker
 		"  /usr/sbin/runc Ux,\n" + // containerd
 		"  /snap/microk8s/2262/bin/runc Ux,\n" + // microk8s
 		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s

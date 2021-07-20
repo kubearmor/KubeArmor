@@ -777,22 +777,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					if matched || strings.HasPrefix(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
-							log.PolicyName = secPolicy.PolicyName
-							log.Severity = secPolicy.Severity
-
-							if len(secPolicy.Tags) > 0 {
-								log.Tags = strings.Join(secPolicy.Tags[:], ",")
-							}
-
-							if len(secPolicy.Message) > 0 {
-								log.Message = secPolicy.Message
-							}
-
-							log.Type = "MatchedPolicy"
-							log.Action = secPolicy.Action
-
-						} else if secPolicy.Source == "" {
+						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source)) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, log.Resource)) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 
@@ -812,22 +797,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			case "Network":
 				if secPolicy.Operation == log.Operation {
 					if strings.Contains(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source) {
-							log.PolicyName = secPolicy.PolicyName
-							log.Severity = secPolicy.Severity
-
-							if len(secPolicy.Tags) > 0 {
-								log.Tags = strings.Join(secPolicy.Tags[:], ",")
-							}
-
-							if len(secPolicy.Message) > 0 {
-								log.Message = secPolicy.Message
-							}
-
-							log.Type = "MatchedPolicy"
-							log.Action = secPolicy.Action
-
-						} else if secPolicy.Source == "" {
+						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source)) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 

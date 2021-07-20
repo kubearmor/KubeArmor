@@ -179,7 +179,7 @@ func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, ope
 	}
 
 	if adt.LogFeeder != nil {
-		adt.LogFeeder.PushLog(log)
+		go adt.LogFeeder.PushLog(log)
 	}
 }
 
