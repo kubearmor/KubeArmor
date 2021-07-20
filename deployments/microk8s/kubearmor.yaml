@@ -640,7 +640,7 @@ spec:
           status:
             description: KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
             properties:
-              message:
+              status:
                 type: string
             type: object
         type: object
@@ -1202,7 +1202,7 @@ spec:
           status:
             description: KubeArmorHostPolicyStatus defines the observed state of KubeArmorHostPolicy
             properties:
-              message:
+              status:
                 type: string
             type: object
         type: object
