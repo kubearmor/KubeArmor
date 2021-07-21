@@ -37,6 +37,11 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se.SELinuxProfiles = map[string]int{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
+	if _, err := os.Stat("/usr/sbin/semanage"); err != nil {
+		se.LogFeeder.Errf("Failed to find /usr/sbin/semanage (%s)", err.Error())
+		return nil
+	}
+
 	se.SELinuxContextTemplates = "/KubeArmor/templates/"
 
 	if kl.IsK8sLocal() {
