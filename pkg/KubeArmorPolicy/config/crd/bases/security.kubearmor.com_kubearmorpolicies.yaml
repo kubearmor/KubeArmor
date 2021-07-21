@@ -471,6 +471,60 @@ spec:
                       type: string
                     type: object
                 type: object
+              selinux:
+                properties:
+                  action:
+                    enum:
+                    - Audit
+                    - Allow
+                    - Block
+                    - AllowWithAudit
+                    - BlockWithAudit
+                    type: string
+                  matchMountedVolumes:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Audit
+                          - Allow
+                          - Block
+                          - AllowWithAudit
+                          - BlockWithAudit
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        message:
+                          type: string
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchMountedVolumes
+                type: object
               severity:
                 maximum: 10
                 minimum: 1

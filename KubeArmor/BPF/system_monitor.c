@@ -7,6 +7,11 @@
 // developed by Aqua Security (https://aquasec.com).          //
 // ========================================================== //
 
+#ifdef asm_inline
+#undef asm_inline
+#define asm_inline asm
+#endif
+
 #include <linux/version.h>
 
 #include <linux/nsproxy.h>

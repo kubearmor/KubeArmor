@@ -37,6 +37,11 @@ func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
 	se.SELinuxProfiles = map[string]int{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
+	if _, err := os.Stat("/usr/sbin/semanage"); err != nil {
+		se.LogFeeder.Errf("Failed to find /usr/sbin/semanage (%s)", err.Error())
+		return nil
+	}
+
 	se.SELinuxContextTemplates = "/KubeArmor/templates/"
 
 	if kl.IsK8sLocal() {
@@ -120,14 +125,12 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 			}
 		}
 	}
-
 	defaultProfile = defaultProfile + ")\n"
 
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
 	profilePath := se.SELinuxContextTemplates + profileName + ".cil"
-
 	if _, err := os.Stat(profilePath); err == nil {
 		if err := os.Remove(profilePath); err != nil {
 			se.LogFeeder.Err(err.Error())
@@ -140,7 +143,6 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 		se.LogFeeder.Err(err.Error())
 		return false
 	}
-
 	if _, err := newFile.WriteString(defaultProfile); err != nil {
 		se.LogFeeder.Err(err.Error())
 		return false
@@ -187,6 +189,7 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName s
 	}
 
 	referenceCount, ok := se.SELinuxProfiles[profileName]
+
 	if !ok {
 		if namespace == "" || podName == "" {
 			se.LogFeeder.Printf("Failed to unregister an unknown SELinux profile (%s) (not exist profile in the enforecer)", profileName)
@@ -299,60 +302,62 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 
 		// write policy volume
 		for _, policy := range securityPolicies {
-			// file
-			for _, file := range policy.Spec.File.MatchPaths {
-				absolutePath := file.Path
-				readOnly := file.ReadOnly
+			for _, vol := range policy.Spec.SELinux.MatchMountedVolumes {
+				// file
+				if len(vol.Path) > 0 {
+					absolutePath := vol.Path
+					readOnly := vol.ReadOnly
 
-				for containerPath, hostPath := range mountedPathToHostPath {
-					if strings.Contains(absolutePath, containerPath) {
-						filePath := strings.Split(absolutePath, containerPath)[1]
-						hostAbsolutePath := hostPath + filePath
+					for containerPath, hostPath := range mountedPathToHostPath {
+						if strings.Contains(absolutePath, containerPath) {
+							filePath := strings.Split(absolutePath, containerPath)[1]
+							hostAbsolutePath := hostPath + filePath
 
-						if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
-							se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
-							break
-						} else {
-							contextLine := "	(allow process " + context
-
-							if readOnly {
-								contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-								newProfile = newProfile + contextFileLine
-								securityRules++
+							if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+								se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
+								break
 							} else {
-								contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-								newProfile = newProfile + contextFileLine
-								securityRules++
+								contextLine := "	(allow process " + context
+
+								if readOnly {
+									contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+									newProfile = newProfile + contextFileLine
+									securityRules++
+								} else {
+									contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+									newProfile = newProfile + contextFileLine
+									securityRules++
+								}
 							}
 						}
 					}
 				}
-			}
 
-			// directory
-			for _, dir := range policy.Spec.File.MatchDirectories {
-				absolutePath := dir.Directory
-				readOnly := dir.ReadOnly
+				// directory
+				if len(vol.Directory) > 0 {
+					absolutePath := vol.Directory
+					readOnly := vol.ReadOnly
 
-				for containerPath, hostPath := range mountedPathToHostPath {
-					if strings.Contains(absolutePath, containerPath) {
-						filePath := strings.Split(absolutePath, containerPath)[1]
-						hostAbsolutePath := hostPath + filePath
+					for containerPath, hostPath := range mountedPathToHostPath {
+						if strings.Contains(absolutePath, containerPath) {
+							filePath := strings.Split(absolutePath, containerPath)[1]
+							hostAbsolutePath := hostPath + filePath
 
-						if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
-							se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
-							break
-						} else {
-							contextLine := "	(allow process " + context
-
-							if readOnly {
-								contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-								newProfile = newProfile + contextDirLine
-								securityRules++
+							if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+								se.LogFeeder.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
+								break
 							} else {
-								contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-								newProfile = newProfile + contextDirLine
-								securityRules++
+								contextLine := "	(allow process " + context
+
+								if readOnly {
+									contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+									newProfile = newProfile + contextDirLine
+									securityRules++
+								} else {
+									contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+									newProfile = newProfile + contextDirLine
+									securityRules++
+								}
 							}
 						}
 					}

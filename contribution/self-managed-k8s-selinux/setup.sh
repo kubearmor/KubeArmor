@@ -7,7 +7,7 @@ sudo dnf -y update
 sudo dnf install -y bison cmake ethtool flex git iperf libstdc++-static \
                     python-netaddr python-pip gcc gcc-c++ make zlib-devel \
                     elfutils-libelf-devel  python-pip cmake make \
-                    luajit luajit-devel \
+                    luajit luajit-devel kernel-devel \
                     http://repo.iovisor.org/yum/extra/mageia/cauldron/x86_64/netperf-2.7.0-1.mga6.x86_64.rpm
 sudo pip install pyroute2
 

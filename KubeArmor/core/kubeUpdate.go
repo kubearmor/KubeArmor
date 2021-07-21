@@ -1035,6 +1035,42 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				}
 
+				if len(secPolicy.Spec.SELinux.MatchMountedVolumes) > 0 {
+					for idx, se := range secPolicy.Spec.SELinux.MatchMountedVolumes {
+						if se.Severity == 0 {
+							if secPolicy.Spec.SELinux.Severity != 0 {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Severity = secPolicy.Spec.SELinux.Severity
+							} else {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Severity = secPolicy.Spec.Severity
+							}
+						}
+
+						if len(se.Tags) == 0 {
+							if len(secPolicy.Spec.SELinux.Tags) > 0 {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Tags = secPolicy.Spec.SELinux.Tags
+							} else {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Tags = secPolicy.Spec.Tags
+							}
+						}
+
+						if len(se.Message) == 0 {
+							if len(secPolicy.Spec.SELinux.Message) > 0 {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Message = secPolicy.Spec.SELinux.Message
+							} else {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Message = secPolicy.Spec.Message
+							}
+						}
+
+						if len(se.Action) == 0 {
+							if len(secPolicy.Spec.SELinux.Action) > 0 {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Action = secPolicy.Spec.SELinux.Action
+							} else {
+								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Action = secPolicy.Spec.Action
+							}
+						}
+					}
+				}
+
 				// update a security policy into the policy list
 
 				if event.Type == "ADDED" {

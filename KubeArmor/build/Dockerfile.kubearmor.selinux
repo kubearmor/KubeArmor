@@ -1,9 +1,18 @@
 ### Builder
 
-FROM golang:1.15.2-alpine3.12 as builder
+FROM centos:7 as builder
 
-RUN apk update
-RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-dev
+RUN yum -y install git curl wget gcc bcc bcc-devel
+
+RUN wget https://dl.google.com/go/go1.15.3.linux-amd64.tar.gz
+RUN tar xvfz go1.15.3.linux-amd64.tar.gz
+RUN mv go /usr/local/
+
+RUN mkdir -p /go && chmod -R 777 /go
+
+ENV GOPATH=/go
+ENV GOROOT=/usr/local/go
+ENV PATH=/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 WORKDIR /usr/src/KubeArmor
 
@@ -13,22 +22,24 @@ COPY ./GKE ./GKE
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
-COPY ./pkg/KubeArmorPolicy/config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ./CRD/KubeArmorPolicy.yaml
-COPY ./pkg/KubeArmorHostPolicy/config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ./CRD/KubeArmorHostPolicy.yaml
+COPY ./KubeArmorPolicy.yaml ./CRD/KubeArmorPolicy.yaml
+COPY ./KubeArmorHostPolicy.yaml ./CRD/KubeArmorHostPolicy.yaml
 
-RUN ./build/patch.sh
+RUN ./patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
 ### Make executable image
 
-FROM alpine:3.12
+FROM centos:7
 
-RUN apk update
-RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
+RUN yum install -y bash curl bcc bcc-devel
+RUN yum install -y policycoreutils policycoreutils-python setools setools-console setroubleshoot
 
-RUN apk update
-RUN apk add bash curl procps bcc bcc-dev
-RUN apk add apparmor@edge apparmor-utils@edge
+WORKDIR /usr/bin
+
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+WORKDIR /
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
