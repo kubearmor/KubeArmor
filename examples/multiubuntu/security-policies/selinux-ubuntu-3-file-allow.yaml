@@ -8,8 +8,8 @@ spec:
   selector:
     matchLabels:
       container: ubuntu-3
-  file:
-    matchPaths:
+  selinux:
+    matchMountedVolumes:
     - path: /host/var/log/firewalld
   action:
     Allow
