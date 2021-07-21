@@ -258,6 +258,37 @@ type CapabilitiesType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
+type MatchMountedVolumeType struct {
+	// +kubebuilder:validation:Optional
+	Path MatchPathType `json:"path,omitempty"`
+	// +kubebuilder:validation:Optional
+	Directory MatchDirectoryType `json:"dir,omitempty"`
+	// +kubebuilder:validation:Optional
+	ReadOnly bool `json:"readOnly,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
+type SELinuxType struct {
+	MatchMountedVolumes []MatchMountedVolumeType `json:"matchMountedVolumes"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
 // +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
 type ActionType string
 
@@ -273,7 +304,8 @@ type KubeArmorPolicySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor string      `json:"apparmor,omitempty"`
+	SELinux  SELinuxType `json:"selinux,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

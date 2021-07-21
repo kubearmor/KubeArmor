@@ -389,6 +389,30 @@ type CapabilitiesType struct {
 	Action string `json:"action,omitempty"`
 }
 
+// MatchMountedVolumeType Structure
+type MatchMountedVolumeType struct {
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+
+	Path      string `json:"path,omitempty"`
+	Directory string `json:"dir,omitempty"`
+	ReadOnly  bool   `json:"readOnly,omitempty"`
+
+	Action string `json:"action,omitempty"`
+}
+
+// SELinuxType Structure
+type SELinuxType struct {
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+
+	MatchMountedVolumes []MatchMountedVolumeType `json:"matchMountedVolumes,omitempty"`
+
+	Action string `json:"action,omitempty"`
+}
+
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Severity int      `json:"severity"`
@@ -402,7 +426,8 @@ type SecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor string      `json:"apparmor,omitempty"`
+	SELinux  SELinuxType `json:"selinux,omitempty"`
 
 	Action string `json:"action"`
 }
