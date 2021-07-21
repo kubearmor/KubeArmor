@@ -92,7 +92,7 @@ spec:
         imagePullPolicy: Always
         securityContext:
           privileged: true
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableEnforcerPerPod"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
         ports:
         - containerPort: 32767
         volumeMounts:
@@ -109,8 +109,6 @@ spec:
           mountPath: /sys/fs/bpf
         - name: sys-kernel-debug-path # BPF (read-write)
           mountPath: /sys/kernel/debug
-        - name: etc-apparmor-d-path # AppArmor (read-write)
-          mountPath: /etc/apparmor.d
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -148,10 +146,6 @@ spec:
       - name: sys-kernel-debug-path # BPF
         hostPath:
           path: /sys/kernel/debug
-          type: Directory
-      - name: etc-apparmor-d-path # AppArmor
-        hostPath:
-          path: /etc/apparmor.d
           type: Directory
       - name: os-release-path # OS
         hostPath:
