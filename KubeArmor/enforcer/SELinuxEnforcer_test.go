@@ -11,16 +11,17 @@ import (
 
 func TestSELinuxEnforcer(t *testing.T) {
 	// Check SELinux
-	if _, err := os.Stat("/sys/kernel/security/lsm"); err == nil {
-		lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
-		if err != nil {
-			t.Log("Failed to read /sys/kernel/security/lsm")
-			return
-		}
-		if !strings.Contains(string(lsm), "selinux") {
-			t.Log("SELinux is not enabled")
-			return
-		}
+	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
+		t.Log("Failed to access /sys/kernel/security/lsm")
+	}
+	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	if err != nil {
+		t.Log("Failed to read /sys/kernel/security/lsm")
+		return
+	}
+	if !strings.Contains(string(lsm), "selinux") {
+		t.Log("SELinux is not enabled")
+		return
 	}
 
 	// Create Feeder

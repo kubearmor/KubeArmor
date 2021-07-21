@@ -11,16 +11,17 @@ import (
 
 func TestAppArmorEnforcer(t *testing.T) {
 	// Check AppArmor
-	if _, err := os.Stat("/sys/kernel/security/lsm"); err == nil {
-		lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
-		if err != nil {
-			t.Log("Failed to read /sys/kernel/security/lsm")
-			return
-		}
-		if !strings.Contains(string(lsm), "apparmor") {
-			t.Log("AppArmor is not enabled")
-			return
-		}
+	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
+		t.Log("Failed to access /sys/kernel/security/lsm")
+	}
+	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	if err != nil {
+		t.Log("Failed to read /sys/kernel/security/lsm")
+		return
+	}
+	if !strings.Contains(string(lsm), "apparmor") {
+		t.Log("AppArmor is not enabled")
+		return
 	}
 
 	// Create Feeder
@@ -60,16 +61,17 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 func TestAppArmorProfile(t *testing.T) {
 	// Check AppArmor
-	if _, err := os.Stat("/sys/kernel/security/lsm"); err == nil {
-		lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
-		if err != nil {
-			t.Log("Failed to read /sys/kernel/security/lsm")
-			return
-		}
-		if !strings.Contains(string(lsm), "apparmor") {
-			t.Log("AppArmor is not enabled")
-			return
-		}
+	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
+		t.Log("Failed to access /sys/kernel/security/lsm")
+	}
+	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	if err != nil {
+		t.Log("Failed to read /sys/kernel/security/lsm")
+		return
+	}
+	if !strings.Contains(string(lsm), "apparmor") {
+		t.Log("AppArmor is not enabled")
+		return
 	}
 
 	// Create Feeder
@@ -127,16 +129,17 @@ func TestAppArmorProfile(t *testing.T) {
 
 func TestHostAppArmorProfile(t *testing.T) {
 	// Check AppArmor
-	if _, err := os.Stat("/sys/kernel/security/lsm"); err == nil {
-		lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
-		if err != nil {
-			t.Log("Failed to read /sys/kernel/security/lsm")
-			return
-		}
-		if !strings.Contains(string(lsm), "apparmor") {
-			t.Log("AppArmor is not enabled")
-			return
-		}
+	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
+		t.Log("Failed to access /sys/kernel/security/lsm")
+	}
+	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	if err != nil {
+		t.Log("Failed to read /sys/kernel/security/lsm")
+		return
+	}
+	if !strings.Contains(string(lsm), "apparmor") {
+		t.Log("AppArmor is not enabled")
+		return
 	}
 
 	// Create Feeder
