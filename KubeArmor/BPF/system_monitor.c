@@ -1,3 +1,8 @@
+/*
+ * Copyright 2021 Authors of KubeArmor
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #ifndef KBUILD_MODNAME
 #define KBUILD_MODNAME "kubearmor_system_monitor"
 #endif

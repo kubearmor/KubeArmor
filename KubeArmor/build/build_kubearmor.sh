@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 cd $ARMOR_HOME/build

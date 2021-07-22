@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 
 for VERSION in $(gsutil ls gs://cos-tools/ | grep -v scripts | awk -F'/' '{print $4}')
 do
