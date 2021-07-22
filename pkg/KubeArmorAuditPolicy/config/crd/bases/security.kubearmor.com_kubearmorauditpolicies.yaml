@@ -1,0 +1,119 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: kubearmorauditpolicies.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorAuditPolicy
+    listKind: KubeArmorAuditPolicyList
+    plural: kubearmorauditpolicies
+    singular: kubearmorauditpolicy
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorAuditPolicy is the Schema for the kubearmorauditpolicies
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorAuditPolicySpec defines the desired state of KubeArmorAuditPolicy
+            properties:
+              message:
+                type: string
+              rules:
+                items:
+                  properties:
+                    events:
+                      items:
+                        properties:
+                          dir:
+                            pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                            type: string
+                          ipv4addr:
+                            type: string
+                          ipv6addr:
+                            type: string
+                          kprobe:
+                            type: string
+                          mode:
+                            type: string
+                          path:
+                            description: file related arguments
+                            pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                            type: string
+                          port:
+                            maximum: 65535
+                            minimum: 1
+                            type: integer
+                          protocol:
+                            description: socket related arguments
+                            pattern: (ip|IP|tcp|TCP|udp|UDP|icmp|ICMP|raw|RAW)
+                            type: string
+                          rate:
+                            pattern: ([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)
+                            type: string
+                          syscall:
+                            type: string
+                        type: object
+                      type: array
+                    message:
+                      type: string
+                    process:
+                      type: string
+                    severity:
+                      maximum: 10
+                      minimum: 1
+                      type: integer
+                    tags:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - events
+                  type: object
+                type: array
+              severity:
+                maximum: 10
+                minimum: 1
+                type: integer
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - rules
+            type: object
+          status:
+            description: KubeArmorAuditPolicyStatus defines the observed state of
+              KubeArmorAuditPolicy
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

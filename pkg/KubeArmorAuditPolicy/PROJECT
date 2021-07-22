@@ -1,0 +1,16 @@
+domain: kubearmor.com
+layout:
+- go.kubebuilder.io/v3
+projectName: kubearmorauditpolicy
+repo: github.com/kubearmor/KubeArmor/pkg/KubeArmorAuditPolicy
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorAuditPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorAuditPolicy/api/v1
+  version: v1
+version: "3"

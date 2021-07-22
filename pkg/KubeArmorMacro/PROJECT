@@ -1,0 +1,17 @@
+domain: kubearmor.com
+layout:
+- go.kubebuilder.io/v3
+projectName: kubearmormacro
+repo: github.com/kubearmor/KubeArmor/pkg/KubeArmorMacro
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorMacro
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorMacro/api/v1
+  plural: kubearmormacros
+  version: v1
+version: "3"

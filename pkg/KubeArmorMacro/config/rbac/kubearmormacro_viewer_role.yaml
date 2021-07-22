@@ -1,0 +1,20 @@
+# permissions for end users to view kubearmormacros.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmormacro-viewer-role
+rules:
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmormacros
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmormacros/status
+  verbs:
+  - get
