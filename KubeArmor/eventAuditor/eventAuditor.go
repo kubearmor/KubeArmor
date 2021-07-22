@@ -1,12 +1,14 @@
 package eventAuditor
 
+import fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+
 // =================== //
 // == Event Auditor == //
 // =================== //
 
 // EventAuditor Structure
 type EventAuditor struct {
-	//
+	LogFeeder *fd.Feeder
 }
 
 // NewEventAuditor Function
@@ -35,4 +37,3 @@ func (ea *EventAuditor) UpdateAuditPolicies() { // (action string, auditPolicy y
 	// call "entrypoint management"
 	// call "shared map management"
 }
-
