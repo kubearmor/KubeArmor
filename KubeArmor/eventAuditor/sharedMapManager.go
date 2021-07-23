@@ -15,6 +15,7 @@ import (
 var sharedMapNames = [...]string{"ka_ea_proc_spec_map"}
 var sharedMaps map[string]*lbpf.BPFMap
 
+// pinMap Function
 func pinMap(m *lbpf.BPFMap, mapName string) (err error) {
 	pinPath := "/sys/fs/bpf/" + mapName
 
@@ -30,6 +31,7 @@ func pinMap(m *lbpf.BPFMap, mapName string) (err error) {
 	return nil
 }
 
+// InitSharedMaps Function
 func (ea *EventAuditor) InitSharedMaps() (err error) {
 	if len(sharedMaps) > 0 {
 		return errors.New("sharedMaps is already initialized")
