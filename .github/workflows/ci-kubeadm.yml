@@ -46,9 +46,8 @@ jobs:
           sudo make install
           popd
 
-      - name: Build KubeArmor
-        run: make build
-        working-directory: KubeArmor
+      - name: Go Test KubeArmor
+        run: ./tests/go-test-kubearmor-local.sh
         env:
           GOPATH: /home/runner/go
 
@@ -92,7 +91,7 @@ jobs:
       - name: Run kubectl proxy
         run: kubectl proxy &
 
-      - name: Run Tests
+      - name: Run Auto Testing Framework
         run: ./tests/test-scenarios-local.sh
 
       - name: Test Results
