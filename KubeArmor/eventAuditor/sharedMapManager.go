@@ -2,6 +2,7 @@ package eventAuditor
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -12,7 +13,7 @@ import (
 // == Shared Map Management == //
 // =========================== //
 
-var sharedMapNames = [...]string{"ka_ea_proc_spec_map"}
+var sharedMapsNames = [...]string{"ka_ea_proc_spec_map"}
 var sharedMaps map[string]*lbpf.BPFMap
 
 // pinMap Function
@@ -37,7 +38,7 @@ func (ea *EventAuditor) InitSharedMaps() (err error) {
 		return errors.New("sharedMaps is already initialized")
 	}
 
-	for _, mapName := range sharedMapNames {
+	for _, mapName := range sharedMapsNames {
 		var mapObjFilePath string
 		var bpfMod *lbpf.Module
 		var bpfMap *lbpf.BPFMap
@@ -73,6 +74,14 @@ func (ea *EventAuditor) InitSharedMaps() (err error) {
 		}
 
 		sharedMaps[mapName] = bpfMap
+	}
+
+	sharedMapsNamesLen := len(sharedMapsNames)
+	sharedMapsLen := len(sharedMaps)
+
+	if sharedMapsLen < sharedMapsNamesLen {
+		return fmt.Errorf("Only %d of %d maps correctly initialized ",
+			sharedMapsLen, sharedMapsNamesLen)
 	}
 
 	return nil
