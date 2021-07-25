@@ -96,12 +96,9 @@ func (ea *EventAuditor) InitSharedMaps() error {
 		}
 	}
 
-	sharedMapsNamesLen := len(sharedMapsNames)
-	sharedModsLen := len(sharedMods)
-
-	if sharedModsLen < sharedMapsNamesLen {
+	if len(sharedMods) < len(sharedMapsNames) {
 		return fmt.Errorf("Only %d of %d maps correctly initialized",
-			sharedModsLen, sharedMapsNamesLen)
+			len(sharedMods), len(sharedMapsNames))
 	}
 
 	return nil
