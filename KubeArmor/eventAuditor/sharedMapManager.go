@@ -19,7 +19,7 @@ type eventAuditorEBPFModule struct {
 	eaMap *lbpf.BPFMap
 }
 
-var sharedMods map[string]*eventAuditorEBPFModule
+var sharedMods = map[string]*eventAuditorEBPFModule{}
 var sharedMapsNames = [...]string{"ka_ea_proc_spec_map"}
 var pinBasePath = "/sys/fs/bpf/"
 
@@ -113,7 +113,7 @@ func (ea *EventAuditor) StopSharedMaps() error {
 		return errors.New("There are no sharedMods to stop")
 	}
 
-	var notStopped int
+	var errOnStopping = map[string]int{}
 	var err error
 
 	for _, mapName := range sharedMapsNames {
@@ -121,13 +121,14 @@ func (ea *EventAuditor) StopSharedMaps() error {
 		var found bool
 
 		if bpfMod, found = sharedMods[mapName]; !found {
-			notStopped++
+			errOnStopping[mapName]++
 			ea.LogFeeder.Printf("Map %s is not initialized to be stopped", mapName)
 			continue
 		}
 
 		err = unpinMap(bpfMod.eaMap, mapName)
 		if err != nil {
+			errOnStopping[mapName]++
 			ea.LogFeeder.Print(err.Error())
 		}
 
@@ -136,8 +137,8 @@ func (ea *EventAuditor) StopSharedMaps() error {
 		delete(sharedMods, mapName)
 	}
 
-	if notStopped > 0 {
-		return fmt.Errorf("%d map(s) not correctly stopped", notStopped)
+	if len(errOnStopping) > 0 {
+		return fmt.Errorf("%d map(s) not correctly stopped", len(errOnStopping))
 	}
 
 	return nil
