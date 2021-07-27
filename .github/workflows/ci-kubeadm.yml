@@ -18,6 +18,9 @@ jobs:
       - name: Kernel version
         run: uname -r
 
+      - name: Check Docker Version
+        run: docker --version
+
       - uses: actions/checkout@v2
 
       - name: Set up Go
