@@ -387,8 +387,15 @@ do
             run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
             if [ $res_case != 0 ]; then
-                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
-                res_microservice=1
+                            echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost event"
+                            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
+
+                            if [ $res_case != 0 ]; then
+                                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                                res_microservice=1
+                            else
+                                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                            fi
             else
                 echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
             fi
