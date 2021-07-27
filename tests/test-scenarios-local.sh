@@ -387,6 +387,8 @@ do
             run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
             if [ $res_case != 0 ]; then
+                            res_case=0
+
                             echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost event"
                             run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
