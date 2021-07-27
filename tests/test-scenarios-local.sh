@@ -112,7 +112,7 @@ function should_not_find_any_log() {
 
     audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
     if [ $? == 0 ]; then
-        sleep 5
+        sleep 10
 
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
@@ -136,7 +136,7 @@ function should_find_passed_log() {
 
     audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
     if [ $? != 0 ]; then
-        sleep 5
+        sleep 10
 
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
@@ -160,7 +160,7 @@ function should_find_blocked_log() {
 
     match_type="MatchedPolicy"
     if [[ $5 -eq 1 ]]; then
-        match_10ype="MatchedNativePolicy" 
+        match_type="MatchedNativePolicy" 
     fi
 
     audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
