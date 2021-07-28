@@ -18,7 +18,6 @@ replace (
 )
 
 require (
-	github.com/aquasecurity/tracee/libbpfgo v0.0.0-20210518164823-94530727cde4
 	github.com/containerd/containerd v1.5.2 // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -26,7 +25,6 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iovisor/gobpf v0.2.0 // indirect
 	github.com/kubearmor/KubeArmor/KubeArmor/core v0.0.0-00010101000000-000000000000
-	github.com/kubearmor/KubeArmor/KubeArmor/feeder v0.0.0-00010101000000-000000000000
 	github.com/kubearmor/KubeArmor/KubeArmor/log v0.0.0-00010101000000-000000000000
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect

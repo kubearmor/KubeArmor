@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	lbpf "github.com/aquasecurity/tracee/libbpfgo"
+	lbpf "github.com/aquasecurity/libbpfgo"
 )
 
 // =========================== //
