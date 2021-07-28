@@ -908,6 +908,14 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return log
 			}
 		} else if log.Type == "MatchedPolicy" {
+			if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+				if log.Action == "Allow" {
+					log.Action = "Audit (Allow)"
+				} else if log.Action == "Block" {
+					log.Action = "Audit (Block)"
+				}
+			}
+
 			if log.Action == "Allow" && log.Result == "Passed" {
 				// use 'AllowWithAudit' to get the logs for allowed operations
 				return tp.Log{}
