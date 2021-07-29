@@ -1,4 +1,4 @@
-# Local Test Guide
+# Testing Guide
 
 *  Test in manual
     1. Run 'kubectl proxy' in background
@@ -133,7 +133,7 @@
             ---
             operation: [operation], { Process | File | Network }
             condition: [matching string]
-            action: [action in a policy]
+            action: [action in a policy] { Allow | Audit | Block }
             ```
 
             This is an example of a scenario.
