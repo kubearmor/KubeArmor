@@ -58,6 +58,8 @@ function apply_and_wait_for_microservice_creation() {
         return
     fi
 
+    sleep 1
+
     for (( ; ; ))
     do
         RAW=$(kubectl get pods -n $1 | wc -l)
@@ -89,7 +91,7 @@ function should_not_find_any_log() {
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
-            sleep 3
+            sleep 10
 
             audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
             if [ $? == 0 ]; then
@@ -107,7 +109,7 @@ function should_not_find_any_log() {
     else # local
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
-            sleep 2
+            sleep 10
 
             audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
             if [ $? == 0 ]; then
@@ -136,7 +138,7 @@ function should_find_passed_log() {
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
-            sleep 3
+            sleep 10
 
             audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
             if [ $? != 0 ]; then
@@ -154,7 +156,7 @@ function should_find_passed_log() {
     else # local
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
-            sleep 3
+            sleep 10
 
             audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
             if [ $? != 0 ]; then
@@ -183,7 +185,7 @@ function should_find_blocked_log() {
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? != 0 ]; then
-            sleep 3
+            sleep 10
 
             audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
             if [ $? != 0 ]; then
@@ -201,7 +203,7 @@ function should_find_blocked_log() {
     else # local
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? != 0 ]; then
-            sleep 3
+            sleep 10
 
             audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
             if [ $? != 0 ]; then
@@ -402,8 +404,17 @@ if [ $res_microservice == 0 ]; then
         run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
         if [ $res_case != 0 ]; then
-            echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
-            res_microservice=1
+            res_case=0
+
+            echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost events"
+            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
+
+            if [ $res_case != 0 ]; then
+                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                res_microservice=1
+            else
+                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+            fi
         else
             echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
         fi
