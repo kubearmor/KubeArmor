@@ -3,7 +3,6 @@ package eventAuditor
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	lbpf "github.com/aquasecurity/libbpfgo"
@@ -13,46 +12,24 @@ import (
 // == Shared Map Management == //
 // =========================== //
 
-// eventAuditorEBPFModule Structure
-type eventAuditorEBPFModule struct {
-	eaMod *lbpf.Module
-	eaMap *lbpf.BPFMap
-}
-
-var sharedMods = map[string]*eventAuditorEBPFModule{}
+var sharedMaps = map[string]*lbpf.BPFMap{}
 var sharedMapsNames = [...]string{"ka_ea_proc_spec_map"}
 var pinBasePath = "/sys/fs/bpf/"
 
 // pinMap Function
-func pinMap(m *lbpf.BPFMap, mapName string) error {
-	pinPath := pinBasePath + mapName
-
-	_, err := os.Stat(pinPath)
-	if errors.Is(err, os.ErrNotExist) {
-		// not pinned
-		err = m.Pin(pinPath)
-	}
-
-	return err
+func pinMap(m *lbpf.BPFMap) error {
+	return m.Pin(pinBasePath + m.GetName())
 }
 
 // unpinMap Function
-func unpinMap(m *lbpf.BPFMap, mapName string) error {
-	pinPath := pinBasePath + mapName
-
-	_, err := os.Stat(pinPath)
-	if err != nil {
-		// pinned
-		err = m.Unpin(pinPath)
-	}
-
-	return err
+func unpinMap(m *lbpf.BPFMap) error {
+	return m.Unpin(pinBasePath + m.GetName())
 }
 
 // InitSharedMaps Function
 func (ea *EventAuditor) InitSharedMaps() error {
-	if len(sharedMods) > 0 {
-		return errors.New("sharedMods is already initialized")
+	if len(sharedMaps) > 0 {
+		return errors.New("sharedMaps is already initialized")
 	}
 
 	for _, mapName := range sharedMapsNames {
@@ -85,20 +62,17 @@ func (ea *EventAuditor) InitSharedMaps() error {
 			bpfMod.Close()
 		}
 
-		err = pinMap(bpfMap, mapName)
+		err = pinMap(bpfMap)
 		if err != nil {
 			ea.LogFeeder.Printf(err.Error())
 		}
 
-		sharedMods[mapName] = &eventAuditorEBPFModule{
-			eaMod: bpfMod,
-			eaMap: bpfMap,
-		}
+		sharedMaps[mapName] = bpfMap
 	}
 
-	if len(sharedMods) < len(sharedMapsNames) {
+	if len(sharedMaps) < len(sharedMapsNames) {
 		return fmt.Errorf("Only %d of %d maps correctly initialized",
-			len(sharedMods), len(sharedMapsNames))
+			len(sharedMaps), len(sharedMapsNames))
 	}
 
 	return nil
@@ -106,32 +80,32 @@ func (ea *EventAuditor) InitSharedMaps() error {
 
 // StopSharedMaps Function
 func (ea *EventAuditor) StopSharedMaps() error {
-	if len(sharedMods) == 0 {
-		return errors.New("There are no sharedMods to stop")
+	if len(sharedMaps) == 0 {
+		return errors.New("There are no sharedMaps to stop")
 	}
 
 	var errOnStopping = map[string]int{}
 	var err error
 
 	for _, mapName := range sharedMapsNames {
-		var bpfMod *eventAuditorEBPFModule
+		var bpfMap *lbpf.BPFMap
 		var found bool
 
-		if bpfMod, found = sharedMods[mapName]; !found {
+		if bpfMap, found = sharedMaps[mapName]; !found {
 			errOnStopping[mapName]++
 			ea.LogFeeder.Printf("Map %s is not initialized to be stopped", mapName)
 			continue
 		}
 
-		err = unpinMap(bpfMod.eaMap, mapName)
+		err = unpinMap(bpfMap)
 		if err != nil {
 			errOnStopping[mapName]++
 			ea.LogFeeder.Print(err.Error())
 		}
 
-		bpfMod.eaMod.Close()
+		bpfMap.GetModule().Close()
 
-		delete(sharedMods, mapName)
+		delete(sharedMaps, mapName)
 	}
 
 	if len(errOnStopping) > 0 {
