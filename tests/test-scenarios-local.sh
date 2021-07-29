@@ -112,7 +112,7 @@ function should_not_find_any_log() {
 
     audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
     if [ $? == 0 ]; then
-        sleep 2
+        sleep 10
 
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
@@ -136,7 +136,7 @@ function should_find_passed_log() {
 
     audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
     if [ $? != 0 ]; then
-        sleep 2
+        sleep 10
 
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
@@ -387,8 +387,17 @@ do
             run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
             if [ $res_case != 0 ]; then
-                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
-                res_microservice=1
+                            res_case=0
+
+                            echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost event"
+                            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
+
+                            if [ $res_case != 0 ]; then
+                                echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                                res_microservice=1
+                            else
+                                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                            fi
             else
                 echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
             fi
