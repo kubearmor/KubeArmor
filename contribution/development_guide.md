@@ -14,11 +14,17 @@
      LSM - AppArmor
      ```
 
-     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/reference/k8s_installation_guide_ubuntu.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
+     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/reference/k8s_installation_guide_ubuntu.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please raise an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
 
-  
-     Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives such as LSMs.  
+     - CAUTION - Minikube
+        ```
+        KubeArmor does not support the policy enforcement on Minikube because MiniKube supports no LSM, which means that you will only get the alerts against given policy violations.
+        ```
 
+     - CAUTION - Docker Desktops
+        ```
+        KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives (including LSMs).  
+        ```
 
     * \(Optional\) MicroK8s Setup
 
@@ -38,9 +44,10 @@
      ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
-     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
+     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), Protobuf \(3.14.0\), and the other dependencies.
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
+
 2. Vagrant Environment
    * Requirements
 
@@ -48,7 +55,7 @@
 
      ```text
      Vagrant - v2.2.9
-     VirtualBox - v6.0
+     VirtualBox - v6.1
      ```
 
      If you do not have Vagrant and VirtualBox in your environment, you can easily install them by running the following command.
@@ -58,47 +65,33 @@
      ~/KubeArmor/contribution/vagrant$ ./setup.sh
      ```
 
-     If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
-
-     ```text
-     ~/KubeArmor/contribution/vagrant$ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
-     ```
-
     * VM Setup using Vagrant
 
       Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
 
       ```text
-      ~/KubeArmor/contribution/vagrant$ vagrant up
+      ~/KubeArmor/KubeArmor$ make vagrant-up
       ```
 
-	  To stop the vagrant VM
-	  ```text
-      ~/KubeArmor/contribution/vagrant$ vagrant halt
-	  ```
-
-      If you want to remove the created VM, please run the following command.
+	    To destroy the vagrant VM
 
       ```text
-      ~/KubeArmor/contribution/vagrant$ vagrant destroy
+      ~/KubeArmor/KubeArmor$ make vagrant-destroy
       ```
 
       You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
 
       ```text
-      ~/KubeArmor/contribution/vagrant$ vagrant ssh
+      ~/KubeArmor/KubeArmor$ make vagrant-ssh
       ```
 
-	* VM Setup using latest Linux kernel (netnext)
+    * VM Setup using the latest Linux kernel (v5.13)
 
-	To use the latest linux kernel for dev env you can pass an environment variable `NETNEXT=1` to vagrant.
-      ```text
-      $ cd KubeArmor/contribution/vagrant
-      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant up
-      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant ssh
-      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant halt
-      ~/KubeArmor/contribution/vagrant$ NETNEXT=1 vagrant destroy
-	  ```
+      To use the latest linux kernel for dev env you can change an environment variable `NETNEXT=0` to `NETNEXT=1` in Makefile.
+        ```text
+        $ cd KubeArmor/KubeArmor
+        ~/KubeArmor/KubeArmor$ vi Makefile
+      ```
 
 3.  Environment Check
     * Compilation
@@ -120,6 +113,12 @@
 
         ```text
         $ kubectl proxy &
+
+                or
+
+        $ tmux
+        (tmux)$ kubectl proxy
+        (tmux)$ CTRL B + D
         ```
 
         Then, run KubeArmor on your environment.
@@ -130,19 +129,6 @@
         ```
 
         ![make](../.gitbook/assets/local_test_make_run.png)  
-
-        When you run KubeArmor like the above screen, there are the lines you should see.
-
-        - "Started to serve gRPC-based log feeds"
-        - "Started to monitor system events"
-        - "Started to protect a host and containers" (if -enableHostPolicy is set)
-        - "Started to monitor Pod events"
-        - "Started to monitor security policies"
-        - "Started to monitor host security policies" (if -enableHostPolicy is set)
-        - "Started to monitor {Docker|Containrd} events"
-        - "Detected a Pod (added/...)"
-
-        If you see those messages, you are ready to implement something in KubeArmor. You can refer to [Testing Guide](testing_guide.md) to check if your update works with the existing code of KubeArmor properly.
 
 ## Code Directories
 
