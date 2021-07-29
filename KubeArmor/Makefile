@@ -16,6 +16,12 @@ build:
 	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); go build -o kubearmor main.go
 
+.PHONY: build-test
+build-test:
+	$(CURDIR)/patch.sh
+	cd $(CURDIR); go mod tidy
+	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
+
 .PHONY: run
 run: $(CURDIR)/kubearmor
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
@@ -39,11 +45,11 @@ test:
 .PHONY: testall
 testall:
 	cd $(CURDIR)/feeder; go mod tidy
-	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
+	cd $(CURDIR)/feeder; go clean -testcache .; go test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/enforcer; go mod tidy
-	cd $(CURDIR)/enforcer; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
+	cd $(CURDIR)/enforcer; go clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/monitor; go mod tidy
-	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v .
+	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 
 .PHONY: clean
 clean:

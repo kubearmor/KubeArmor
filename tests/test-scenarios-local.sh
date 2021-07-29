@@ -8,6 +8,7 @@ CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 
 ARMOR_OPTIONS=$@
+SKIP_NATIVE_POLICY=1
 
 ARMOR_MSG=/tmp/kubearmor.msg
 ARMOR_LOG=/tmp/kubearmor.log
@@ -46,7 +47,7 @@ function start_and_wait_for_kubearmor_initialization() {
     cd $ARMOR_HOME
 
     echo "Options: -logPath=$ARMOR_LOG $ARMOR_OPTIONS"
-    sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
+    sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
 
     for (( ; ; ))
     do
@@ -197,6 +198,9 @@ function run_test_scenario() {
     if [[ $policy_type == "np" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
+            return
+        fi
+        if [ $SKIP_NATIVE_POLICY == 1 ]; then
             return
         fi
         NATIVE=1
