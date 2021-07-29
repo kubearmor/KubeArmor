@@ -14,11 +14,6 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v2
 
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
-        with:
-          args: KubeArmor/...
-
       - name: Run GolangCI Lint
         if: ${{ always() }}
         uses: golangci/golangci-lint-action@v2
@@ -33,4 +28,10 @@ jobs:
       - name: Check gofmt
         if: ${{ always() }}
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
+
+      - name: Run Gosec Security Scanner
+        run: |
+          go get -u github.com/securego/gosec/v2/cmd/gosec
+          gosec ./...
+        working-directory: KubeArmor
 
