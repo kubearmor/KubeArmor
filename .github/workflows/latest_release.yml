@@ -8,7 +8,7 @@ name: Latest version release
 
 jobs:
   build:
-    name: Create KubeArmor Release - Latest
+    name: Create KubeArmor Release - 18.04
     if: github.repository == 'kubearmor/KubeArmor'
     runs-on: ubuntu-18.04
     steps:

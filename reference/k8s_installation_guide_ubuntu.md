@@ -63,4 +63,3 @@
     ```text
     $ sudo kubeadm ... (the command that you get from the master node)
     ```
-

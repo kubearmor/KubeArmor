@@ -264,4 +264,4 @@ Now, we will briefly explain how to define a host security policy.
     action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
   ```
 
-  WARNNING - In order to use the Allow action, you must include 'fromSource' in each rule. Otherwise, the rules without 'fromSource' will be ignored for the safety of nodes (hosts).
+  WARNNING - In order to use the Allow action, you must include 'fromSource' in each rule. Otherwise, the rules without 'fromSource' will be ignored for the safety of hosts.
