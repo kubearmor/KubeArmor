@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: go workflows
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+        
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: KubeArmor/...
+
+      - name: Lint
+        if: ${{ always() }}
+        uses: golangci/golangci-lint-action@v2
+        with:
+          working-directory: KubeArmor
