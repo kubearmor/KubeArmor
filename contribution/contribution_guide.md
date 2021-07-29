@@ -8,11 +8,9 @@ If you want to make a contribution, please follow the steps below.
 
    ![fork button](../.gitbook/assets/fork_button.png)  
 
-
    Then, click your ID on the pop-up screen.
 
    ![fork screen](../.gitbook/assets/fork_screen.png)  
-
 
    This will create a copy of KubeArmor in your account.
 
@@ -66,22 +64,16 @@ If you want to make a contribution, please follow the steps below.
 
    ![commit ahead](../.gitbook/assets/commit_ahead.png)  
 
-
    Then, click "Pull request" button.
 
    ![after pull request](../.gitbook/assets/after_pull_request.png)  
-
 
    After checking your changes, click 'Create pull request'.
 
    ![open pull request](../.gitbook/assets/open_pull_request.png)  
 
-
    A pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: \#\(issue number\)".  
-
 
    Finally, click the "Create pull request" button.
 
-  
    The changes would be merged post a review by the respective module owners. Once the changes are merged, you will get a notification, and the corresponding issue will be closed.
-
