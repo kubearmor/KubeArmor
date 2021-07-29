@@ -43,7 +43,7 @@ function start_and_wait_for_kubearmor_initialization() {
     cd $ARMOR_HOME
 
     echo "Options: -logPath=$ARMOR_LOG $ARMOR_OPTIONS"
-    sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
+    sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
 
     for (( ; ; ))
     do

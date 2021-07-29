@@ -54,6 +54,12 @@ jobs:
         env:
           GOPATH: /home/runner/go
 
+      - name: Build KubeArmor Test Binary
+        run: make build-test
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
       - name: Setup Enviroment
         run: |
           # install kernel-headers
@@ -102,3 +108,18 @@ jobs:
       - name: Test Results
         if: ${{ always() }}
         run: cat /tmp/kubearmor.test
+
+      - name: Code Coverage
+        if: ${{ always() }}
+        run: |
+          go get github.com/modocache/gover
+          gover    
+          go tool cover -func=gover.coverprofile
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - uses: codecov/codecov-action@v2
+        if: ${{ always() }}
+        with:
+          files: ./KubeArmor/gover.coverprofile
