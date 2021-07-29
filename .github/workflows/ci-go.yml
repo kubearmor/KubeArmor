@@ -7,31 +7,43 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  go-lint:
     runs-on: ubuntu-latest
-    name: go workflows
     steps:
       - name: Checkout Source
         uses: actions/checkout@v2
 
       - name: Run GolangCI Lint
-        if: ${{ always() }}
         uses: golangci/golangci-lint-action@v2
         with:
           working-directory: KubeArmor
 
+  go-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
       - uses: actions/setup-go@v2
-        if: ${{ always() }}
         with:
           go-version: v1.16
 
       - name: Check gofmt
-        if: ${{ always() }}
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
+        working-directory: KubeArmor
+
+  gosec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.16
 
       - name: Run Gosec Security Scanner
         run: |
           go get -u github.com/securego/gosec/v2/cmd/gosec
           gosec ./...
         working-directory: KubeArmor
-
