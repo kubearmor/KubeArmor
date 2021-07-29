@@ -152,7 +152,7 @@ spec:
       - name: etc-apparmor-d-path # AppArmor
         hostPath:
           path: /etc/apparmor.d
-          type: Directory
+          type: DirectoryOrCreate
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release

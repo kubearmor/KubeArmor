@@ -825,7 +825,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			if mightBeNative && log.Result != "Passed" {
 				log.PolicyName = "NativePolicy"
 
-				log.Severity = "-1"
+				log.Severity = "1"
 				log.Tags = ""
 				log.Message = "KubeArmor detected a native policy violation"
 

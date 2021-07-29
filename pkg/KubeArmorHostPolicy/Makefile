@@ -88,4 +88,4 @@ CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
 clean:
-	rm -rf bin go.sum /tmp/KubeArmorHostPolicy.yaml
+	rm -rf bin go.sum cover.out /tmp/KubeArmorHostPolicy.yaml
