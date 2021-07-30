@@ -67,6 +67,14 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
+	// Audit policies
+	AuditPolicies     []tp.KubeArmorAuditPolicy
+	AuditPoliciesLock *sync.RWMutex
+
+	// Macros
+	KubeArmorMacrosMap  tp.KubeArmorMacros
+	KubeArmorMacrosLock *sync.RWMutex
+
 	// container id -> (host) pid
 	ActivePidMap     map[string]tp.PidMap
 	ActiveHostPidMap map[string]tp.PidMap
@@ -142,6 +150,12 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 
 	dm.HostSecurityPolicies = []tp.HostSecurityPolicy{}
 	dm.HostSecurityPoliciesLock = new(sync.RWMutex)
+
+	dm.AuditPolicies = []tp.KubeArmorAuditPolicy{}
+	dm.AuditPoliciesLock = new(sync.RWMutex)
+
+	dm.KubeArmorMacrosMap = tp.KubeArmorMacros{}
+	dm.KubeArmorMacrosLock = new(sync.RWMutex)
 
 	dm.ActivePidMap = map[string]tp.PidMap{}
 	dm.ActiveHostPidMap = map[string]tp.PidMap{}
@@ -409,6 +423,14 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, e
 			go dm.WatchHostSecurityPolicies()
 			dm.LogFeeder.Print("Started to monitor host security policies")
 		}
+
+		// watch audit policies
+		go dm.WatchAuditPolicies()
+		dm.LogFeeder.Print("Started to monitor audit policies")
+
+		// watch macros
+		go dm.WatchKubeArmorMacro()
+		dm.LogFeeder.Print("Started to monitor kubearmor macros")
 
 		// get current CRI
 		cr := K8s.GetContainerRuntime()

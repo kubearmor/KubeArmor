@@ -537,3 +537,73 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 
 	return nil
 }
+
+// WatchK8sAuditPolicies Function
+func (kh *K8sHandler) WatchK8sAuditPolicies() *http.Response {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	if kl.IsInK8sCluster() {
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorauditpolicies/?watch=true"
+
+		req, err := http.NewRequest("GET", URL, nil)
+		if err != nil {
+			return nil
+		}
+
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+
+		resp, err := kh.WatchClient.Do(req)
+		if err != nil {
+			return nil
+		}
+
+		return resp
+	}
+
+	// kube-proxy (local)
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorauditpolicies/?watch=true"
+
+	if resp, err := http.Get(URL); err == nil {
+		return resp
+	}
+
+	return nil
+}
+
+// WatchK8sKubearmorMacro Function
+func (kh *K8sHandler) WatchK8sKubearmorMacro() *http.Response {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	if kl.IsInK8sCluster() {
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmormacros/?watch=true"
+
+		req, err := http.NewRequest("GET", URL, nil)
+		if err != nil {
+			return nil
+		}
+
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+
+		resp, err := kh.WatchClient.Do(req)
+		if err != nil {
+			return nil
+		}
+
+		return resp
+	}
+
+	// kube-proxy (local)
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmormacros/?watch=true"
+
+	if resp, err := http.Get(URL); err == nil {
+		return resp
+	}
+
+	return nil
+}
