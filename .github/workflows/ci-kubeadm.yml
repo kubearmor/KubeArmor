@@ -105,6 +105,16 @@ jobs:
       - name: Run Auto Testing Framework
         run: ./tests/test-scenarios-local.sh
 
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor.test
+            /tmp/kubearmor.log
+            /tmp/kubearmor.msg
+
       - name: Test Results
         if: ${{ always() }}
         run: cat /tmp/kubearmor.test

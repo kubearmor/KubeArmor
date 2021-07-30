@@ -44,7 +44,14 @@ function start_and_wait_for_kubearmor_initialization() {
     cd $ARMOR_HOME
 
     echo "Options: -logPath=$ARMOR_LOG $ARMOR_OPTIONS"
-    sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
+    if [ "$GITHUB_ACTIONS" = true ]
+    then
+        echo "Github Actions - Environment"
+        make clean;make build-test
+        sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
+    else
+        sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
+    fi
 
     for (( ; ; ))
     do
@@ -458,10 +465,16 @@ else
     echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
 fi
 
-echo "[INFO] Remove temporary logs after 10 seconds"
-sleep 10
-sudo rm -f $ARMOR_MSG $ARMOR_LOG
-echo "[INFO] Removed the temporary logs"
+if [ "$GITHUB_ACTIONS" = true ]
+then
+    echo "[INFO] Github Actions - Environment"
+    echo "[INFO] Not removing logs"
+else
+    echo "[INFO] Remove temporary logs after 10 seconds"
+    sleep 10
+    sudo rm -f $ARMOR_MSG $ARMOR_LOG
+    echo "[INFO] Removed the temporary logs"
+fi
 
 if [ $res_microservice != 0 ]; then
     exit 1
