@@ -6,7 +6,7 @@ metadata:
 spec:
   # global messsage, severity and tags
   message: "simple audit rules"
-  severity: 4
+  severity: "4"
   tags:
     - network
     - file
@@ -14,7 +14,7 @@ spec:
   rules:
     - process: SHELLS
       message: "suspicious shell activity"
-      severity: 5
+      severity: "5"
       events:
         - syscall: BIND-CONNECT-ACCEPT
           ipv4addr: NON-EXTERNAL-IPV4
@@ -27,13 +27,13 @@ spec:
           mode: O_RDWR_APPEND
 
     - message: "outbound probes detected (for any process)"
-      severity: 5
+      severity: "5"
       events:
         - kprobe: tcp_rst
           rate: 10p1s
 
     - message: "inbound probes detected"
-      severity: 5
+      severity: "5"
       events:
         - kprobe: tcp_rst_send
           rate: 10p1s

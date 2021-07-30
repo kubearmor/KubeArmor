@@ -20,28 +20,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:validation:Minimum:=1
-// +kubebuilder:validation:Maximum:=10
-type SeverityType int
-
-// +kubebuilder:validation:Pattern=([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)
-type RateLimitType string
-
-type ProcessType string
+// +kubebuilder:validation:Pattern=^([1-9]|10)$
+type SeverityType string
 
 type EventType struct {
 	Syscall string `json:"syscall,omitempty"`
 	Kprobe  string `json:"kprobe,omitempty"`
 
-	// +kubebuilder:validation:Optional
-	Rate RateLimitType `json:"rate,omitempty"`
+	// +kubebuilder:validation:Pattern=^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
+	Rate string `json:"rate,omitempty"`
 
 	// socket related arguments
-	// +kubebuilder:validation:Pattern=(ip|IP|tcp|TCP|udp|UDP|icmp|ICMP|raw|RAW)
+	// +kubebuilder:validation:Enum=ip;tcp;udp;raw;IP;TCP;UDP;RAW
 	Protocol string `json:"protocol,omitempty"`
-	// +kubebuilder:validation:Minimum:=1
-	// +kubebuilder:validation:Maximum:=65535
-	Port int `json:"port,omitempty"`
+	// +kubebuilder:validation:Optional
+	Port string `json:"port,omitempty"`
 	// +kubebuilder:validation:Optional
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	// +kubebuilder:validation:Optional
@@ -56,9 +49,9 @@ type EventType struct {
 	Directory string `json:"dir,omitempty"`
 }
 
-type AuditorRuleType struct {
+type AuditRuleType struct {
 	// +kubebuilder:validation:Default="*"
-	Process ProcessType `json:"process,omitempty"`
+	Process string `json:"process,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -79,13 +72,12 @@ type KubeArmorAuditPolicySpec struct {
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`
 
-	AuditorRules []AuditorRuleType `json:"rules"`
+	AuditRules []AuditRuleType `json:"rules"`
 }
 
 // KubeArmorAuditPolicyStatus defines the observed state of KubeArmorAuditPolicy
 type KubeArmorAuditPolicyStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	AuditPolicyStatus string `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

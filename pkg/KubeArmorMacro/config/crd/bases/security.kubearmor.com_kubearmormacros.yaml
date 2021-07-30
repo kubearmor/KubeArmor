@@ -53,6 +53,9 @@ spec:
             type: object
           status:
             description: KubeArmorMacroStatus defines the observed state of KubeArmorMacro
+            properties:
+              status:
+                type: string
             type: object
         type: object
     served: true
