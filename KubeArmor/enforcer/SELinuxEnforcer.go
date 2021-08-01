@@ -305,7 +305,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 
 		// write policy volume
 		for _, policy := range securityPolicies {
-			for _, vol := range policy.Spec.SELinux.MatchMountedVolumes {
+			for _, vol := range policy.Spec.SELinux.MatchVolumeMounts {
 				// file
 				if len(vol.Path) > 0 {
 					absolutePath := vol.Path
