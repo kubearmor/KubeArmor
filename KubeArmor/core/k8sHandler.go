@@ -441,36 +441,6 @@ func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) bool {
 	return false
 }
 
-// ApplyCustomResourceDefinitions Function
-func (kh *K8sHandler) ApplyCustomResourceDefinitions() bool {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return false
-	}
-
-	if kl.IsInK8sCluster() {
-		if _, err := kl.GetCommandOutputWithErr("kubectl", []string{"apply", "-f", "/KubeArmor/CRD"}); err == nil {
-			return true
-		}
-	}
-
-	return false
-}
-
-// DeleteCustomResourceDefinition Function
-func (kh *K8sHandler) DeleteCustomResourceDefinitions() bool {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return false
-	}
-
-	if kl.IsInK8sCluster() {
-		if _, err := kl.GetCommandOutputWithErr("kubectl", []string{"delete", "-f", "/KubeArmor/CRD"}); err == nil {
-			return true
-		}
-	}
-
-	return false
-}
-
 // WatchK8sSecurityPolicies Function
 func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	if !kl.IsK8sEnv() { // not Kubernetes
