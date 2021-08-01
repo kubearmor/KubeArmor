@@ -9,7 +9,7 @@ spec:
     matchLabels:
       container: ubuntu-3
   selinux:
-    matchMountedVolumes:
+    matchVolumeMounts:
     - path: /host/var/log/firewalld
   action:
     Allow
