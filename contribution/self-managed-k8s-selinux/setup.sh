@@ -2,8 +2,7 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
-export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../../..
+export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
 
 # install build dependencies
 sudo dnf -y update
