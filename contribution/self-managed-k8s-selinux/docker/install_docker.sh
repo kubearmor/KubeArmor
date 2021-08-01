@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 
 # setup the repo
 sudo dnf -y install dnf-plugins-core

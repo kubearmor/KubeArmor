@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 
 # start minikube with a specific image
 minikube start --iso-url https://accuknox.kr/minikube/minikube.iso --cpus 4 --memory 4096 --cni flannel

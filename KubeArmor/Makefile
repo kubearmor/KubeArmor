@@ -1,3 +1,6 @@
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 CURDIR          := $(shell pwd)
 CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
 GO_EXEC         := $(shell which go)

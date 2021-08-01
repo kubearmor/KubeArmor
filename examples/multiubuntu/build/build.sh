@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 
 # remove old images
 docker images | grep ubuntu-w-utils | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null

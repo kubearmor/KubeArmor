@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 
 TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
