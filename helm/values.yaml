@@ -1,6 +1,6 @@
 general:
   clusterName: Default
-  containerPlatform: containerd # { docker | containerd | microk8s }
+  containerPlatform: containerd # { docker | containerd }
   gkeEnabled: true
 
 kubearmor:
@@ -44,10 +44,6 @@ kubearmor:
     - name: containerd-sock-path # containerd (read-only)
       mountPath: /var/run/containerd/containerd.sock
       readOnly: true
-  volumeMountsGKE:
-    - name: var-log-audit-path # GKE-Auditd (read-only)
-      mountPath: /var/log/audit
-      readOnly: true
   volumes:
     - name: usr-src-path # BPF
       hostPath:
@@ -83,47 +79,9 @@ kubearmor:
       hostPath:
         path: /var/run/containerd/containerd.sock
         type: Socket
-  volumesMicrok8s:
-    - name: containerd-sock-path # microk8s
-      hostPath:
-        path: /var/snap/microk8s/common/run/containerd.sock
-        type: Socket
-  volumesGKE:
-    - name: var-log-audit-path # GKE-Auditd
-      hostPath:
-        path: /var/log/audit
-        type: Directory
 
 kubearmor-relay:
   image:
     repository: kubearmor/kubearmor-relay
     pullPolicy: Always
     tag: latest
-
-cosauditd:
-  name: kubearmor-cos-auditd
-  image:
-    repository: kubearmor/kubearmor-cos-auditd
-    pullPolicy: Always
-    tag: latest
-  env:
-    - name: NODE_NAME
-      valueFrom:
-        fieldRef:
-          apiVersion: v1
-          fieldPath: spec.nodeName
-  volumeMounts:
-    - name: lib-systemd-path
-      mountPath: /host/lib
-      readOnly: true
-    - name: var-log-path
-      mountPath: /var/log
-  volumes:
-    - name: lib-systemd-path
-      hostPath:
-        path: /usr/lib64
-        type: Directory
-    - name: var-log-path
-      hostPath:
-        path: /var/log
-        type: Directory

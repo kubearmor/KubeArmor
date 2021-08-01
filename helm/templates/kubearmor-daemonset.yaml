@@ -39,11 +39,8 @@ spec:
           {{- toYaml .Values.kubearmor.volumeMounts | nindent 12 }}
           {{- if eq .Values.general.containerPlatform "docker" }}
             {{- toYaml .Values.kubearmor.volumeMountsDocker | nindent 12 }}
-          {{- else }}
+          {{- else }} # containerd
             {{- toYaml .Values.kubearmor.volumeMountsContainerd | nindent 12 }}
-          {{- end }}
-          {{- if .Values.general.gkeEnabled }}
-            {{- toYaml .Values.kubearmor.volumeMountsGKE | nindent 12 }}
           {{- end }}
         livenessProbe:
           {{- toYaml .Values.kubearmor.livenessProbe | nindent 12 }}
@@ -54,11 +51,6 @@ spec:
         {{- toYaml .Values.kubearmor.volumes | nindent 12 }}
         {{- if eq .Values.general.containerPlatform "docker" }}
           {{- toYaml .Values.kubearmor.volumesDocker | nindent 12 }}
-        {{- else if eq .Values.general.containerPlatform "microk8s" }}
-          {{- toYaml .Values.kubearmor.volumesMicroK8s | nindent 12 }}
-        {{- else }}
+        {{- else }} # containerd
           {{- toYaml .Values.kubearmor.volumesContainerd | nindent 12 }}
-        {{- end }}
-        {{- if .Values.general.gkeEnabled }}
-          {{- toYaml .Values.kubearmor.volumesGKE | nindent 12 }}
         {{- end }}
