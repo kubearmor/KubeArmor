@@ -245,7 +245,7 @@ type CapabilitiesType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
-type MatchMountedVolumeType struct {
+type MatchVolumeMountType struct {
 	// +kubebuilder:validation:Optional
 	Path MatchPathType `json:"path,omitempty"`
 	// +kubebuilder:validation:Optional
@@ -264,7 +264,7 @@ type MatchMountedVolumeType struct {
 }
 
 type SELinuxType struct {
-	MatchMountedVolumes []MatchMountedVolumeType `json:"matchMountedVolumes"`
+	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -276,7 +276,7 @@ type SELinuxType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
+// +kubebuilder:validation:Enum=Allow;Audit;Block
 type ActionType string
 
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
