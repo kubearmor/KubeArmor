@@ -23,17 +23,17 @@ build-test:
 	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
 
 .PHONY: run
-run: $(CURDIR)/kubearmor
+run: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
 
 .PHONY: run-per-pod
-run-per-pod: $(CURDIR)/kubearmor
+run-per-pod: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableEnforcerPerPod
 
 .PHONY: run-with-host
-run-with-host: $(CURDIR)/kubearmor
+run-with-host: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableHostPolicy
 
@@ -54,7 +54,7 @@ testall:
 .PHONY: clean
 clean:
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
-	#cd $(CURDIR); find . -name go.sum | xargs -I {} rm -f {}
+	cd $(CURDIR); find . -name .coverprofile | xargs -I {} rm {}
 	$(CURDIR)/build/clean_source_files.sh
 
 .PHONY: vagrant-check
