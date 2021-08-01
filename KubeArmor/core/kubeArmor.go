@@ -457,7 +457,7 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, e
 		} else { // containerd
 			sockFile := false
 
-			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
+			for _, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock"} {
 				if _, err := os.Stat(candidate); err == nil {
 					sockFile = true
 					break
