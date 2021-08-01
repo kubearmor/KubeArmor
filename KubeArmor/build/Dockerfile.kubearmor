@@ -16,9 +16,6 @@ COPY ./GKE ./GKE
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
-COPY ./KubeArmorPolicy.yaml ./CRD/KubeArmorPolicy.yaml
-COPY ./KubeArmorHostPolicy.yaml ./CRD/KubeArmorHostPolicy.yaml
-
 RUN ./patch.sh
 RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
@@ -37,8 +34,5 @@ COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
-
-COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorPolicy.yaml /KubeArmor/CRD/KubeArmorPolicy.yaml
-COPY --from=builder /usr/src/KubeArmor/KubeArmor/CRD/KubeArmorHostPolicy.yaml /KubeArmor/CRD/KubeArmorHostPolicy.yaml
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
