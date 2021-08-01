@@ -2,7 +2,6 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 if [ ! -z $1 ] && [ "$1" == "help" ]; then
     echo "Usage: $0 [ flannel | weave | calico | cilium ] (master)"
     exit

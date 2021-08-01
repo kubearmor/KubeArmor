@@ -2,7 +2,6 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 FEDORA_HOME=`dirname $(realpath "$0")`
 
 # before enabling selinux in k8s, you should install docker, k8s first

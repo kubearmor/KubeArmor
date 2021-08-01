@@ -2,7 +2,6 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 KBA_HOME=`dirname $(realpath "$0")`/..
 cd $KBA_HOME
 

@@ -2,7 +2,6 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 AUDITD_PATH=`dirname $(realpath "$0")`
 cd $AUDITD_PATH
 
