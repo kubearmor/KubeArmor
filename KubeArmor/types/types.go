@@ -40,8 +40,8 @@ type Container struct {
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
-// HostMountedVolume Structure
-type HostMountedVolume struct {
+// HostVolumeMount Structure
+type HostVolumeMount struct {
 	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
 	UsedByContainerPath     map[string]string // key: container name, val: mounted path
 	VolumeName              string
@@ -57,8 +57,8 @@ type ContainerGroup struct {
 	Labels     []string `json:"labels"`
 	Identities []string `json:"identities"`
 
-	Containers  []string            `json:"containers"`
-	HostVolumes []HostMountedVolume `json:"hostVolumes"`
+	Containers  []string          `json:"containers"`
+	HostVolumes []HostVolumeMount `json:"hostVolumes"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
@@ -85,7 +85,7 @@ type K8sPod struct {
 	Annotations map[string]string
 	Labels      map[string]string
 	Containers  map[string]string
-	HostVolumes []HostMountedVolume
+	HostVolumes []HostVolumeMount
 }
 
 // K8sPodEvent Structure
@@ -392,8 +392,8 @@ type CapabilitiesType struct {
 	Action string `json:"action,omitempty"`
 }
 
-// MatchMountedVolumeType Structure
-type MatchMountedVolumeType struct {
+// MatchVolumeMountType Structure
+type MatchVolumeMountType struct {
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
@@ -411,7 +411,7 @@ type SELinuxType struct {
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
 
-	MatchMountedVolumes []MatchMountedVolumeType `json:"matchMountedVolumes,omitempty"`
+	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts,omitempty"`
 
 	Action string `json:"action,omitempty"`
 }

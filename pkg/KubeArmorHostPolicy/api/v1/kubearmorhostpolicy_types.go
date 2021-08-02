@@ -241,7 +241,7 @@ type CapabilitiesType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
+// +kubebuilder:validation:Enum=Allow;Audit;Block
 type ActionType string
 
 // KubeArmorHostPolicySpec defines the desired state of KubeArmorHostPolicy

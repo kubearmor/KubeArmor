@@ -16,7 +16,7 @@ linux_immutable
 net_bind_service
 net_broadcast
 net_admin
-net_raw (support)
+net_raw (supported)
 ipc_lock
 ipc_owner
 sys_module

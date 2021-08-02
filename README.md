@@ -6,13 +6,13 @@
 
 [![Build Status](https://travis-ci.com/accuknox/KubeArmor.svg?branch=master)](https://travis-ci.com/accuknox/KubeArmor)
 
-KubeArmor is a container-aware runtime security enforcement system that restricts the behavior \(such as process execution, file access, networking operation, and resource utilization\) of containers at the system level.
+KubeArmor is a container-aware runtime security enforcement system that restricts the behavior \(such as process execution, file access, and networking operation\) of containers at the system level.
 
 KubeArmor operates with [Linux security modules \(LSMs\)](https://en.wikipedia.org/wiki/Linux_Security_Modules), meaning that it can work on top of any Linux platforms \(such as Alpine, Ubuntu, and Container-optimized OS from Google\) if Linux security modules \(e.g., [AppArmor](https://en.wikipedia.org/wiki/AppArmor), [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux), or [KRSI](https://lwn.net/Articles/808048/)\) are enabled in the Linux Kernel. KubeArmor will use the appropriate LSMs to enforce the required policies.
 
-KubeArmor is designed for Kubernetes environments; thus, operators only need to define security policies and apply them to Kubernetes. Then, KubeArmor will automatically detect the changes in security policies from Kubernetes and enforce them to the corresponding containers without any human intervention.
+KubeArmor is designed for Kubernetes environments; thus, operators only need to define security policies and apply them to Kubernetes. Then, KubeArmor will automatically detect the changes in security policies from Kubernetes and enforce them to the corresponding containers.
 
-If there are any violations against security policies, KubeArmor immediately generates audit logs with container identities. If operators have any logging systems, it automatically sends audit logs to their systems as well.
+If there are any violations against security policies, KubeArmor immediately generates alerts with container identities. If operators have any logging systems, it automatically sends the alerts to their systems as well.
 
 ![KubeArmor High Level Design](.gitbook/assets/kubearmor_overview.png)
 
@@ -22,7 +22,7 @@ If there are any violations against security policies, KubeArmor immediately gen
 
 Traditional container security solutions \(e.g., Cilium\) mostly protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\).
 
-For this, KubeArmor provides the ability to filter process executions, file accesses, resource utilization, and even network operations inside containers at the system level.
+For this, KubeArmor provides the ability to filter process executions, file accesses, and even network operations inside containers at the system level.
 
 * Enforce security policies to containers in runtime
 
@@ -30,11 +30,11 @@ In general, security policies \(e.g., Seccomp and AppArmor profiles\) are static
 
 To avoid this problem, KubeArmor maintains security policies separately, which means that security policies are no longer tightly coupled with containers. Then, KubeArmor directly applies the security policies into Linux security modules \(LSMs\) for each container according to the labels of given containers and security policies.
 
-* Produce container-aware audit logs
+* Produce container-aware alerts and system logs
 
-LSMs do not have any container-related information; thus, they generate audit logs only based on system metadata \(e.g., User ID, Group ID, and process ID\). Therefore, it is hard to figure out what containers cause policy violations.
+LSMs do not have any container-related information; thus, they generate alerts and system logs only based on system metadata \(e.g., User ID, Group ID, and process ID\). Therefore, it is hard to figure out what containers cause policy violations.
 
-To address this problem, KubeArmor uses an eBPF-based system monitor, which keeps track of process life cycles in containers, and converts system metadata to container identities when LSMs generate audit logs for any policy violations from containers.
+To address this problem, KubeArmor uses an eBPF-based system monitor, which keeps track of process life cycles in containers, and converts system metadata to container identities when LSMs generate alerts and system logs for any policy violations from containers.
 
 * Provide easy-to-use semantics for policy definitions
 

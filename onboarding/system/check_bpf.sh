@@ -2,7 +2,6 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 echo "[INFO] Check BPF capabilities"
 
 grep 'CONFIG_BPF=y' /boot/config-$(uname -r) &> /dev/null

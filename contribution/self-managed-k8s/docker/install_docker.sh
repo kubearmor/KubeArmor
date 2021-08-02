@@ -2,11 +2,10 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 . /etc/os-release
 
 if [ "$NAME" != "Ubuntu" ]; then
-    echo "Support Ubuntu 16.xx, 18.xx, 20.xx"
+    echo "Support Ubuntu 18.xx, 20.xx"
     exit
 fi
 
@@ -29,17 +28,17 @@ sudo apt-cache policy docker-ce
 
 # install Docker (the oldest version among the versions that Ubuntu supports)
 case "$VERSION" in
-"16."*)
-    sudo apt-get install -y docker-ce=17.12.1~ce-0~ubuntu;;
 "18."*)
     sudo apt-get install -y docker-ce=18.03.1~ce~3-0~ubuntu;;
 "20.04"*)
     sudo apt-get install -y docker-ce=5:19.03.9~3-0~ubuntu-focal;;
-"20.10"*)
-    sudo apt-get install -y docker-ce=5:20.10.0~3-0~ubuntu-groovy;;
 *)
-    echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
+    sudo apt-get install -y docker-ce;;
 esac
+
+# start Docker
+sudo systemctl start docker
+sleep 1
 
 # add user to docker
 if [[ $(hostname) = kubearmor-dev* ]]; then

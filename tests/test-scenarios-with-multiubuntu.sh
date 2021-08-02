@@ -2,6 +2,22 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
+realpath() {
+    CURR=$PWD
+
+    cd "$(dirname "$0")"
+    LINK=$(readlink "$(basename "$0")")
+
+    while [ "$LINK" ]; do
+        cd "$(dirname "$LINK")"
+        LINK=$(readlink "$(basename "$1")")
+    done
+
+    REALPATH="$PWD/$(basename "$1")"
+    echo "$REALPATH"
+
+    cd $CURR
+}
 
 TEST_HOME=`dirname $(realpath "$0")`
 
@@ -22,23 +38,6 @@ MAGENTA='\033[0;35m'
 NC='\033[0m'
 
 ## == Functions == ##
-
-realpath() {
-    CURR=$PWD
-
-    cd "$(dirname "$0")"
-    LINK=$(readlink "$(basename "$0")")
-
-    while [ "$LINK" ]; do
-        cd "$(dirname "$LINK")"
-        LINK=$(readlink "$(basename "$1")")
-    done
-
-    REALPATH="$PWD/$(basename "$1")"
-    echo "$REALPATH"
-
-    cd $CURR
-}
 
 function apply_and_wait_for_microservice_creation() {
     cd $TEST_HOME/microservices/$1

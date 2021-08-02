@@ -116,7 +116,7 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 		}
 
 		// update host-side volume mounted
-		newGroup.HostVolumes = []tp.HostMountedVolume{}
+		newGroup.HostVolumes = []tp.HostVolumeMount{}
 		newGroup.HostVolumes = append(newGroup.HostVolumes, pod.HostVolumes...)
 
 		// update security policies with the identities
@@ -460,13 +460,13 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// == SELinux == //
 
 				if pod.Annotations["kubearmor-policy"] == "enabled" {
-					pod.HostVolumes = []tp.HostMountedVolume{}
+					pod.HostVolumes = []tp.HostVolumeMount{}
 					seLinuxContexts := map[string]string{}
 					updateSELinux := false
 
 					for _, v := range event.Object.Spec.Volumes {
 						if v.HostPath != nil {
-							hostVolume := tp.HostMountedVolume{}
+							hostVolume := tp.HostVolumeMount{}
 
 							hostVolume.UsedByContainerReadOnly = map[string]bool{}
 							hostVolume.UsedByContainerPath = map[string]string{}
@@ -660,10 +660,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 	for {
 		if !K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
-			if !K8s.ApplyCustomResourceDefinitions() {
-				time.Sleep(time.Second * 1)
-				continue
-			}
+			time.Sleep(time.Second * 1)
+			continue
 		}
 
 		if resp := K8s.WatchK8sSecurityPolicies(); resp != nil {
@@ -720,14 +718,10 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				switch secPolicy.Spec.Action {
 				case "allow":
 					secPolicy.Spec.Action = "Allow"
-				case "block":
-					secPolicy.Spec.Action = "Block"
 				case "audit":
 					secPolicy.Spec.Action = "Audit"
-				case "allowwithaudit":
-					secPolicy.Spec.Action = "AllowWithAudit"
-				case "blockwithaudit":
-					secPolicy.Spec.Action = "BlockWithAudit"
+				case "block":
+					secPolicy.Spec.Action = "Block"
 				case "":
 					secPolicy.Spec.Action = "Block" // by default
 				}
@@ -1038,37 +1032,37 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				}
 
-				if len(secPolicy.Spec.SELinux.MatchMountedVolumes) > 0 {
-					for idx, se := range secPolicy.Spec.SELinux.MatchMountedVolumes {
+				if len(secPolicy.Spec.SELinux.MatchVolumeMounts) > 0 {
+					for idx, se := range secPolicy.Spec.SELinux.MatchVolumeMounts {
 						if se.Severity == 0 {
 							if secPolicy.Spec.SELinux.Severity != 0 {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Severity = secPolicy.Spec.SELinux.Severity
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Severity = secPolicy.Spec.SELinux.Severity
 							} else {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Severity = secPolicy.Spec.Severity
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Severity = secPolicy.Spec.Severity
 							}
 						}
 
 						if len(se.Tags) == 0 {
 							if len(secPolicy.Spec.SELinux.Tags) > 0 {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Tags = secPolicy.Spec.SELinux.Tags
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Tags = secPolicy.Spec.SELinux.Tags
 							} else {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Tags = secPolicy.Spec.Tags
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Tags = secPolicy.Spec.Tags
 							}
 						}
 
 						if len(se.Message) == 0 {
 							if len(secPolicy.Spec.SELinux.Message) > 0 {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Message = secPolicy.Spec.SELinux.Message
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Message = secPolicy.Spec.SELinux.Message
 							} else {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Message = secPolicy.Spec.Message
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Message = secPolicy.Spec.Message
 							}
 						}
 
 						if len(se.Action) == 0 {
 							if len(secPolicy.Spec.SELinux.Action) > 0 {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Action = secPolicy.Spec.SELinux.Action
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Action = secPolicy.Spec.SELinux.Action
 							} else {
-								secPolicy.Spec.SELinux.MatchMountedVolumes[idx].Action = secPolicy.Spec.Action
+								secPolicy.Spec.SELinux.MatchVolumeMounts[idx].Action = secPolicy.Spec.Action
 							}
 						}
 					}
@@ -1139,11 +1133,9 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy(status string) {
 // WatchHostSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 	for {
-		if K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
-			if !K8s.ApplyCustomResourceDefinitions() {
-				time.Sleep(time.Second * 1)
-				continue
-			}
+		if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+			time.Sleep(time.Second * 1)
+			continue
 		}
 
 		if resp := K8s.WatchK8sHostSecurityPolicies(); resp != nil {
@@ -1202,14 +1194,10 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				switch secPolicy.Spec.Action {
 				case "allow":
 					secPolicy.Spec.Action = "Allow"
-				case "block":
-					secPolicy.Spec.Action = "Block"
 				case "audit":
 					secPolicy.Spec.Action = "Audit"
-				case "allowwithaudit":
-					secPolicy.Spec.Action = "AllowWithAudit"
-				case "blockwithaudit":
-					secPolicy.Spec.Action = "BlockWithAudit"
+				case "block":
+					secPolicy.Spec.Action = "Block"
 				case "":
 					secPolicy.Spec.Action = "Block" // by default
 				}

@@ -2,11 +2,10 @@
 # Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
 
-
 . /etc/os-release
 
 if [ "$NAME" != "Ubuntu" ]; then
-    echo "Support Ubuntu 16.xx, 18.xx, 20.xx"
+    echo "Support Ubuntu 18.xx, 20.xx"
     exit
 fi
 
@@ -22,39 +21,13 @@ git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
 # install bcc
 mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
 
-case "$VERSION" in
-"16."*)
-    # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-3.7 libllvm3.7 llvm-3.7-dev libclang-3.7-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                            arping netperf iperf3;
-	cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/usr/lib/llvm-3.7 && make -j$(nproc) && sudo make install;;
-"18."*)
-    # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-6.0 libllvm6.0 llvm-6.0-dev libclang-6.0-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                            arping netperf iperf3;
-	cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/usr/lib/llvm-6.0 && make -j$(nproc) && sudo make install;;
-"20.04"*)
-    # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-7 libllvm7 llvm-7-dev libclang-7-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                            arping netperf iperf3;
-	cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/usr/lib/llvm-7 && make -j$(nproc) && sudo make install;;
-"20.10"*)
-    # install dependencies for bcc
-    sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                            clang-8 libllvm8 llvm-8-dev libclang-8-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                            arping netperf iperf3;
-	cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install;;
-*)
-    echo "Support Ubuntu 16.xx, 18.xx, 20.xx"; exit;;
-esac
+# install dependencies for bcc
+sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
+                        clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
+                        arping netperf iperf3
+cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
 
 # install golang
-sudo apt-get update
-sudo apt-get -y install gcc libsctp-dev make
-
 echo "Installing golang binaries..."
 goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)
 wget --quiet https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
