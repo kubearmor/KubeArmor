@@ -32,7 +32,7 @@ jobs:
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
         working-directory: KubeArmor
 
-  gosec:
+  go-sec:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
