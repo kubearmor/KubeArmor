@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - name: Run Revive Action by pulling pre-built image
+        uses: morphy2k/revive-action@v2
+        with:
+          path: "./KubeArmor/..."
+
+  go-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.16
+
+      - name: Check gofmt
+        run: gofmt -s -d $(find . -type f -name '*.go' -print)
+        working-directory: KubeArmor
+
+  gosec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.16
+
+      - name: Run Gosec Security Scanner
+        run: |
+          go get -u github.com/securego/gosec/v2/cmd/gosec
+          gosec ./...
+        working-directory: KubeArmor
