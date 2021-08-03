@@ -100,24 +100,10 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
-		metadata := false
-
-		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
-			s := string(b)
-			if strings.Contains(s, "Container-Optimized OS") {
-				if clusterStr, err := kl.GetCommandOutputWithErr("curl", []string{"http://metadata/computeMetadata/v1/instance/attributes/cluster-name", "-H", "'Metadata-Flavor: Google'"}); err == nil {
-					dm.ClusterName = clusterStr
-					metadata = true
-				}
-			}
-		}
-
-		if !metadata {
-			if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
-				dm.ClusterName = val
-			} else {
-				dm.ClusterName = "Default"
-			}
+		if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
+			dm.ClusterName = val
+		} else {
+			dm.ClusterName = "Default"
 		}
 	} else {
 		dm.ClusterName = clusterName
