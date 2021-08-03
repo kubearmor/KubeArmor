@@ -1,4 +1,4 @@
-name: ci
+name: ci-go
 
 on:
   push:
@@ -47,3 +47,12 @@ jobs:
           go get -u github.com/securego/gosec/v2/cmd/gosec
           gosec ./...
         working-directory: KubeArmor
+
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check License Header
+        uses: apache/skywalking-eyes@9bd5feb86b5817aa6072b008f9866a2c3bbc8587
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
