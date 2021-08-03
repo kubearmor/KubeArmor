@@ -17,6 +17,7 @@ import (
 	"golang.org/x/net/context"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -60,10 +61,14 @@ func NewDockerHandler() *DockerHandler {
 
 		if apiVersion >= 1.39 {
 			// downgrade the api version to 1.39
-			os.Setenv("DOCKER_API_VERSION", "1.39")
+			if err := os.Setenv("DOCKER_API_VERSION", "1.39"); err != nil {
+				kg.Err(err.Error())
+			}
 		} else {
 			// set the current api version
-			os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion)
+			if err := os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion); err != nil {
+				kg.Err(err.Error())
+			}
 		}
 	}
 
@@ -81,7 +86,9 @@ func NewDockerHandler() *DockerHandler {
 // Close Function
 func (dh *DockerHandler) Close() {
 	if dh.DockerClient != nil {
-		dh.DockerClient.Close()
+		if err := dh.DockerClient.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 	}
 }
 

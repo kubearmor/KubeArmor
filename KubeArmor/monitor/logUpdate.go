@@ -282,8 +282,8 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 			// push the generated log
 
-			if mon.LogFeeder != nil {
-				go mon.LogFeeder.PushLog(log)
+			if mon.Logger != nil {
+				go mon.Logger.PushLog(log)
 			}
 		}
 	}

@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -68,12 +69,14 @@ func NewK8sHandler() *K8sHandler {
 
 	kh.HTTPClient = &http.Client{
 		Timeout: time.Second * 5,
+		// #nosec
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 
 	kh.WatchClient = &http.Client{
+		// #nosec
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
@@ -140,6 +143,7 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 	kubeConfig := &rest.Config{
 		Host:        "https://" + kh.K8sHost + ":" + kh.K8sPort,
 		BearerToken: kh.K8sToken,
+		// #nosec
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure: true,
 		},
@@ -193,7 +197,10 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 		return nil, err
 	}
 
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		kg.Err(err.Error())
+	}
+
 	return resBody, nil
 }
 
@@ -390,6 +397,7 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
 
+	// #nosec
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}
@@ -469,6 +477,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
 
+	// #nosec
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}
@@ -504,6 +513,7 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorhostpolicies?watch=true"
 
+	// #nosec
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}

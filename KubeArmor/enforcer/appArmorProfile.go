@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -2520,7 +2521,7 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
 	// check apparmor profile
 
-	if _, err := os.Stat("/etc/apparmor.d/" + appArmorProfile); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + appArmorProfile)); os.IsNotExist(err) {
 		return 0, err.Error(), false
 	}
 
@@ -2533,7 +2534,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	oldConetntsMidPost := []string{}
 	oldContentsFoot := []string{}
 
-	file, err := os.Open("/etc/apparmor.d/" + appArmorProfile)
+	file, err := os.Open(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 	if err != nil {
 		return 0, err.Error(), false
 	}
@@ -2589,7 +2590,9 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 		}
 	}
 
-	file.Close()
+	if err := file.Close(); err != nil {
+		ae.Logger.Err(err.Error())
+	}
 
 	// generate a profile body
 

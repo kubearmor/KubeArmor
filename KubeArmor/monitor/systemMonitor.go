@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -112,7 +111,7 @@ type SystemMonitor struct {
 	HostName string
 
 	// logs
-	LogFeeder *fd.Feeder
+	Logger *fd.Feeder
 
 	// options
 	EnableAuditd     bool
@@ -182,7 +181,7 @@ func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
 
 	mon.HostName = kl.GetHostName()
 
-	mon.LogFeeder = feeder
+	mon.Logger = feeder
 
 	mon.EnableAuditd = enableAuditd
 	mon.EnableHostPolicy = enableHostPolicy
@@ -226,21 +225,23 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	if kl.IsInK8sCluster() {
-		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
 			s := string(b)
 			if strings.Contains(s, "Container-Optimized OS") {
-				mon.LogFeeder.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
+				mon.Logger.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
 				// check and download kernel headers
-				if err := exec.Command(homeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
-					mon.LogFeeder.Errf("Failed to download COS kernel headers (%s)", err.Error())
+				if err := kl.RunCommandAndWaitWithErr(homeDir+"/GKE/download_cos_kernel_headers.sh", []string{}); err != nil {
+					mon.Logger.Errf("Failed to download COS kernel headers (%s)", err.Error())
 					return err
 				}
 
-				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
+				mon.Logger.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
 
 				// set a new location for kernel headers
-				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion)
+				if err := os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion); err != nil {
+					mon.Logger.Err(err.Error())
+				}
 
 				// just for safety
 				time.Sleep(time.Second * 1)
@@ -251,22 +252,22 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	bpfPath := homeDir + "/BPF/system_monitor.c"
-	if _, err := os.Stat(bpfPath); err != nil {
+	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 		// go test
 
 		bpfPath = os.Getenv("PWD") + "/../BPF/system_monitor.c"
-		if _, err := os.Stat(bpfPath); err != nil {
+		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 			return err
 		}
 	}
 
-	content, err := ioutil.ReadFile(bpfPath)
+	content, err := ioutil.ReadFile(filepath.Clean(bpfPath))
 	if err != nil {
 		return err
 	}
 	bpfSource := string(content)
 
-	mon.LogFeeder.Print("Initializing an eBPF program")
+	mon.Logger.Print("Initializing an eBPF program")
 
 	if mon.EnableHostPolicy {
 		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
@@ -284,7 +285,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		return errors.New("bpf module is nil")
 	}
 
-	mon.LogFeeder.Print("Initialized the eBPF program")
+	mon.Logger.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
@@ -543,8 +544,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
@@ -624,8 +625,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
@@ -748,8 +749,8 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
@@ -829,8 +830,8 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 

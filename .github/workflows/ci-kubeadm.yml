@@ -1,4 +1,4 @@
-name: ci
+name: ci-kubeadm
 
 on:
   push:

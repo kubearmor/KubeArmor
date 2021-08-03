@@ -51,6 +51,30 @@ testall:
 	cd $(CURDIR)/monitor; go mod tidy
 	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 
+.PHONY: golint
+golint:
+ifeq (, $(shell which golangci-lint))
+	@{ \
+	set -e ;\
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1 ;\
+	}
+endif
+	cd $(CURDIR); golangci-lint run
+
+.PHONY: gosec
+gosec:
+ifeq (, $(shell which gosec))
+	@{ \
+	set -e ;\
+	GOSEC_TMP_DIR=$$(mktemp -d) ;\
+	cd $$GOSEC_TMP_DIR ;\
+	go mod init tmp ;\
+	go get -u github.com/securego/gosec/v2/cmd/gosec ;\
+	rm -rf $$GOSEC_TMP_DIR ;\
+	}
+endif
+	cd $(CURDIR); gosec ./...
+
 .PHONY: clean
 clean:
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
