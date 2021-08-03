@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -38,13 +39,15 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) 
 
 	if !kl.IsK8sLocal() {
 		// mount securityfs
-		kl.GetCommandOutputWithoutErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
+		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+			re.LogFeeder.Err(err.Error())
+		}
 	}
 
 	lsm := []byte{}
 	lsmPath := "/sys/kernel/security/lsm"
 
-	if _, err := os.Stat(lsmPath); err == nil {
+	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
 		lsm, err = ioutil.ReadFile(lsmPath)
 		if err != nil {
 			re.LogFeeder.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())

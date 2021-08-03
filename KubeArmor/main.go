@@ -5,12 +5,8 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 	"path/filepath"
-
-	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -48,16 +44,7 @@ func main() {
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
 	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
 
-	// profile option
-	pprofPtr := flag.String("pprof", "none", "pprof port number")
-
 	flag.Parse()
-
-	if *pprofPtr != "none" {
-		go func() {
-			log.Println(http.ListenAndServe("0.0.0.0:"+*pprofPtr, nil))
-		}()
-	}
 
 	// == //
 

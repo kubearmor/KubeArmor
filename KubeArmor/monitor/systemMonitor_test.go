@@ -29,15 +29,15 @@ func TestSystemMonitor(t *testing.T) {
 	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if logFeeder == nil {
+	Logger := fd.NewFeeder("Default", "32767", "none", "policy", true)
+	if Logger == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
 	}
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(logFeeder, false, true, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(Logger, false, true, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -55,7 +55,7 @@ func TestSystemMonitor(t *testing.T) {
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
+	if err := Logger.DestroyFeeder(); err != nil {
 		t.Log("[FAIL] Failed to destroy Feeder")
 		return
 	}
@@ -80,15 +80,15 @@ func TestTraceSyscall(t *testing.T) {
 	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if logFeeder == nil {
+	Logger := fd.NewFeeder("Default", "32767", "none", "policy", true)
+	if Logger == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
 	}
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(logFeeder, false, false, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(Logger, false, false, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -129,7 +129,7 @@ func TestTraceSyscall(t *testing.T) {
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
+	if err := Logger.DestroyFeeder(); err != nil {
 		t.Log("[FAIL] Failed to destroy Feeder")
 		return
 	}
@@ -154,15 +154,15 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	ActiveHostMapLock := new(sync.RWMutex)
 
 	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if logFeeder == nil {
+	Logger := fd.NewFeeder("Default", "32767", "none", "policy", true)
+	if Logger == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
 	}
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(logFeeder, false, true, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(Logger, false, true, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -209,7 +209,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
+	if err := Logger.DestroyFeeder(); err != nil {
 		t.Log("[FAIL] Failed to destroy Feeder")
 		return
 	}

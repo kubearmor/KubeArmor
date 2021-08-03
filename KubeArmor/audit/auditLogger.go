@@ -27,7 +27,7 @@ type AuditLogger struct {
 	HostName string
 
 	// logs
-	LogFeeder *fd.Feeder
+	Logger *fd.Feeder
 
 	// container id -> cotnainer
 	Containers     *map[string]tp.Container
@@ -55,7 +55,7 @@ func NewAuditLogger(feeder *fd.Feeder,
 
 	adt.HostName = kl.GetHostName()
 
-	adt.LogFeeder = feeder
+	adt.Logger = feeder
 
 	adt.Containers = containers
 	adt.ContainersLock = containersLock
@@ -74,8 +74,8 @@ func NewAuditLogger(feeder *fd.Feeder,
 			s := string(b)
 
 			// create directories
-			if err := os.MkdirAll("/KubeArmor/audit", 0755); err != nil {
-				adt.LogFeeder.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
+			if err := os.MkdirAll("/KubeArmor/audit", 0750); err != nil {
+				adt.Logger.Errf("Failed to create a target directory (/KubeArmor/audit, %s)", err.Error())
 				return nil
 			}
 
@@ -85,7 +85,7 @@ func NewAuditLogger(feeder *fd.Feeder,
 				// if audit.log is already there, remove it
 				if _, err := os.Stat("/KubeArmor/audit/audit.log"); err == nil {
 					if err := os.Remove("/KubeArmor/audit/audit.log"); err != nil {
-						adt.LogFeeder.Errf("Failed to remove the existing audit log (/KubeArmor/audit/audit.log) (%s)", err.Error())
+						adt.Logger.Errf("Failed to remove the existing audit log (/KubeArmor/audit/audit.log) (%s)", err.Error())
 						return nil
 					}
 				}
@@ -109,7 +109,7 @@ func NewAuditLogger(feeder *fd.Feeder,
 
 							// make a symbolic link
 							if err := os.Symlink("/var/log/audit/"+fileName, "/KubeArmor/audit/audit.log"); err != nil {
-								adt.LogFeeder.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+								adt.Logger.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
 								return nil
 							}
 
@@ -127,13 +127,13 @@ func NewAuditLogger(feeder *fd.Feeder,
 			} else {
 				// check if audit file is there
 				if _, err := os.Stat("/var/log/audit/audit.log"); err != nil {
-					adt.LogFeeder.Errf("Failed to find /var/log/audit/audit.log (%s)", err.Error())
+					adt.Logger.Errf("Failed to find /var/log/audit/audit.log (%s)", err.Error())
 					return nil
 				}
 
 				// make a symbolic link
 				if err := os.Symlink("/var/log/audit/audit.log", "/KubeArmor/audit/audit.log"); err != nil {
-					adt.LogFeeder.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
+					adt.Logger.Errf("Failed to make a symbolic link for audit.log (%s)", err.Error())
 					return nil
 				}
 			}
@@ -181,8 +181,8 @@ func (adt *AuditLogger) GenerateAuditLog(hostPid int32, profileName, source, ope
 		log.Result = "Permission denied"
 	}
 
-	if adt.LogFeeder != nil {
-		go adt.LogFeeder.PushLog(log)
+	if adt.Logger != nil {
+		go adt.Logger.PushLog(log)
 	}
 }
 
@@ -196,7 +196,7 @@ func (adt *AuditLogger) MonitorAuditLogs() {
 
 	logs, err := tail.TailFile(logFile, tail.Config{Follow: true})
 	if err != nil {
-		adt.LogFeeder.Errf("Failed to read audit logs from %s (%s)", logFile, err.Error())
+		adt.Logger.Errf("Failed to read audit logs from %s (%s)", logFile, err.Error())
 		return
 	}
 
@@ -249,7 +249,10 @@ func (adt *AuditLogger) MonitorAuditLogs() {
 		for _, word := range words {
 			if strings.HasPrefix(word, "pid=") {
 				value := strings.Split(word, "=")
-				pid, _ := strconv.Atoi(value[1])
+				pid, err := strconv.ParseInt(value[1], 10, 32)
+				if err != nil {
+					pid = 0
+				}
 				hostPid = int32(pid)
 			} else if strings.HasPrefix(word, "profile=") {
 				value := strings.Split(word, "=")

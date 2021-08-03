@@ -7,10 +7,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
@@ -69,7 +71,7 @@ func NewContainerdHandler() *ContainerdHandler {
 	sockFile := "unix://"
 
 	for _, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock"} {
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err := os.Stat(filepath.Clean(candidate)); err == nil {
 			sockFile = sockFile + candidate
 			break
 		}
@@ -106,7 +108,9 @@ func NewContainerdHandler() *ContainerdHandler {
 // Close Function
 func (ch *ContainerdHandler) Close() {
 	if ch.conn != nil {
-		ch.conn.Close()
+		if err := ch.conn.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 	}
 }
 

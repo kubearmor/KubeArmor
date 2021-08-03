@@ -317,21 +317,23 @@ func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) 
 		dirLog := filepath.Dir(fd.Output)
 
 		// create directories
-		if err := os.MkdirAll(dirLog, 0755); err != nil {
+		if err := os.MkdirAll(filepath.Clean(dirLog), 0750); err != nil {
 			kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
 			return nil
 		}
 
 		// create target file
-		targetFile, err := os.Create(fd.Output)
+		targetFile, err := os.Create(filepath.Clean(fd.Output))
 		if err != nil {
 			kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
 			return nil
 		}
-		targetFile.Close()
+		if err := targetFile.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 
 		// open the file with the append mode
-		fd.LogFile, err = os.OpenFile(fd.Output, os.O_WRONLY|os.O_APPEND, 0644)
+		fd.LogFile, err = os.OpenFile(filepath.Clean(fd.Output), os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			kg.Err(err.Error())
 			return nil
@@ -380,7 +382,7 @@ func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) 
 
 	// check if GKE
 	if kl.IsInK8sCluster() {
-		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
 			s := string(b)
 			if strings.Contains(s, "Container-Optimized OS") {
 				fd.IsGKE = true
@@ -401,13 +403,17 @@ func (fd *Feeder) DestroyFeeder() error {
 
 	// close listener
 	if fd.Listener != nil {
-		fd.Listener.Close()
+		if err := fd.Listener.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 		fd.Listener = nil
 	}
 
 	// close LogFile
 	if fd.LogFile != nil {
-		fd.LogFile.Close()
+		if err := fd.LogFile.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 		fd.LogFile = nil
 	}
 

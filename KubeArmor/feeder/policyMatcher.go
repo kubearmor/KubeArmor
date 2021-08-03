@@ -686,7 +686,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 
 			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, log.Source) {
-				if secPolicy.Action == "Allow" || secPolicy.Action == "AllowWithAudit" {
+				if secPolicy.Action == "Allow" {
 					if secPolicy.Operation == "Process" {
 						if allowProcPolicy == "" {
 							allowProcPolicy = secPolicy.PolicyName
@@ -920,14 +920,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 
 			if log.Action == "Allow" && log.Result == "Passed" {
-				// use 'AllowWithAudit' to get the logs for allowed operations
 				return tp.Log{}
 			}
-
-			// if log.Action == "Block" {
-			// 	// use 'BlockWithAudit' to get the logs for blocked operations
-			// 	return tp.Log{}
-			// }
 
 			return log
 		}
@@ -953,14 +947,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		} else if log.Type == "MatchedPolicy" {
 			if log.Action == "Allow" && log.Result == "Passed" {
-				// use 'AllowWithAudit' to get the logs for allowed operations
 				return tp.Log{}
 			}
-
-			// if log.Action == "Block" {
-			// 	// use 'BlockWithAudit' to get the logs for blocked operations
-			// 	return tp.Log{}
-			// }
 
 			log.Type = "MatchedHostPolicy"
 			return log
