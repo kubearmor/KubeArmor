@@ -25,6 +25,20 @@
 
     3. Apply security policies for testing
 
+        Beforehand, check if the KubeArmorPolicy or KubeArmorHostPolicy CRD is already applied.
+
+        ```text
+        $ kubectl explain KubeArmorPolicy
+        ```
+
+        If it's still not applied, do so.
+
+        ```text
+        $ kubectl apply -f ~/KubeArmor/pkg/KubeArmorPolicy/config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml
+        ```
+
+        Now you can apply specific policies.
+
         ```text
         $ kubectl apply -f [policy file]
         ```
