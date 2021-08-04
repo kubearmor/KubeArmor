@@ -385,7 +385,14 @@ function run_test_scenario() {
     NATIVE=0
     HOST_POLICY=0
     NATIVE_HOST=0
-    if [[ $policy_type == "np" ]]; then
+
+    if [[ $policy_type == "ksp" ]]; then
+        if [ $SKIP_CONTAINER_POLICY == 1 ]; then
+            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            skipped_testcases+=("$3")
+            return
+        fi
+    elif [[ $policy_type == "np" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
             echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
@@ -398,18 +405,14 @@ function run_test_scenario() {
             return
         fi
         NATIVE=1
-    fi
-
-    if [[ $policy_type == "hsp" ]]; then
+    elif [[ $policy_type == "hsp" ]]; then
         if [ $SKIP_HOST_POLICY == 1 ]; then
             echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
             skipped_testcases+=("$3")
             return
         fi
         HOST_POLICY=1
-    fi
-
-    if [[ $policy_type == "nhsp" ]]; then
+    elif [[ $policy_type == "nhsp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
             echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
@@ -422,6 +425,10 @@ function run_test_scenario() {
             return
         fi
         NATIVE_HOST=1
+    else
+        echo -e "${MAGENTA}[SKIP] Skipped unknown testcase $3${NC}"
+        skipped_testcases+=("$3")
+        return
     fi
 
     echo -e "${GREEN}[INFO] Applying $YAML_FILE into $2${NC}"
@@ -609,6 +616,7 @@ total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -l
 passed_testcases=()
 failed_testcases=()
 skipped_testcases=()
+reran_testcases=()
 
 echo "< KubeArmor Test Report >" > $TEST_LOG
 echo >> $TEST_LOG
@@ -654,6 +662,8 @@ do
                 res_case=0
 
                 echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost events"
+                total_testcases=$(expr $total_testcases + 1)
+                reran_testcases+=("$testcase")
                 run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
                 if [ $res_case != 0 ]; then
@@ -690,7 +700,9 @@ echo "[INFO] Started to run host testcases"
 
 cd $TEST_HOME/host_scenarios
 
-for testcase in $(ls -d "$HOST_NAME"_*)
+host_testcases=$(ls -d "$HOST_NAME"_*)
+if [ $? -eq 0 ]; then 
+for testcase in $host_testcases
 do
     res_case=0
 
@@ -702,6 +714,7 @@ do
 
         echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost events"
         total_testcases=$(expr $total_testcases + 1)
+        reran_testcases+=("$testcase")
         run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
 
         if [ $res_case != 0 ]; then
@@ -715,6 +728,9 @@ do
     fi
 done
 echo "[INFO] Finished Host Scenarios"
+else
+echo -e "${RED}[INFO] No testcases found for current host${NC}"
+fi
 
 echo "== Summary ==" >> $TEST_LOG
 echo >> $TEST_LOG
@@ -742,6 +758,15 @@ if [ "${#skipped_testcases[@]}" != "0" ]; then
     for (( i=0; i<${#skipped_testcases[@]}; i++ ));
     do
         echo "${skipped_testcases[$i]}" >> $TEST_LOG;
+    done
+fi
+echo >> $TEST_LOG
+echo "Reran testcases: ${#reran_testcases[@]}/$total_testcases" >> $TEST_LOG
+if [ "${#reran_testcases[@]}" != "0" ]; then
+    echo >> $TEST_LOG
+    for (( i=0; i<${#reran_testcases[@]}; i++ ));
+    do
+        echo "${reran_testcases[$i]}" >> $TEST_LOG;
     done
 fi
 echo >> $TEST_LOG
