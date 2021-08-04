@@ -1,3 +1,20 @@
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
+#
+# This Makefile was inspired by three libbpf related Makefiles:
+#
+# libbpf-bootstrap
+# https://github.com/libbpf/libbpf-bootstrap/blob/a4169a2108fe1ab812e33471e0fcab214fde73a9/examples/c/Makefile
+#
+# libbpfgo
+# https://github.com/aquasecurity/libbpfgo/blob/a68363581fcf8cb11039cec6f9d34338ef4393a9/Makefile
+#
+# linux kernel
+# https://github.com/torvalds/linux/blob/d5ad8ec3cfb56a017de6a784835666475b4be349/tools/testing/selftests/bpf/Makefile
+#
+
+
 ifeq ($(V), 1)
 	Q =	
 else
