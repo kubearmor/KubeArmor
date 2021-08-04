@@ -87,10 +87,16 @@
 
     * VM Setup using the latest Linux kernel (v5.13)
 
-      To use the latest linux kernel for dev env you can change an environment variable `NETNEXT=0` to `NETNEXT=1` in Makefile.
-        ```text
-        $ cd KubeArmor/KubeArmor
-        ~/KubeArmor/KubeArmor$ vi Makefile
+      To use the latest linux kernel for dev env you can run `make` with the `NETNEXT` flag set to `1` for the respective make option.
+
+      ```text
+      ~/KubeArmor/KubeArmor$ make vagrant-up NETNEXT=1
+      ```
+
+       You can also make the setting static by changing `NETNEXT=0` to `NETNEXT=1` in the Makefile.
+
+      ```text
+      ~/KubeArmor/KubeArmor$ vi Makefile
       ```
 
 3.  Environment Check
