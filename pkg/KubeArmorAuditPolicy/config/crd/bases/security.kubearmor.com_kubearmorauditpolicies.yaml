@@ -46,7 +46,7 @@ spec:
                       items:
                         properties:
                           dir:
-                            pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                            pattern: ^/([A-z0-9-.]+/)*([A-z0-9-.]+)+/$
                             type: string
                           ipv4addr:
                             type: string
@@ -61,15 +61,21 @@ spec:
                             pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                             type: string
                           port:
-                            maximum: 65535
-                            minimum: 1
-                            type: integer
+                            type: string
                           protocol:
                             description: socket related arguments
-                            pattern: (ip|IP|tcp|TCP|udp|UDP|icmp|ICMP|raw|RAW)
+                            enum:
+                            - ip
+                            - tcp
+                            - udp
+                            - raw
+                            - IP
+                            - TCP
+                            - UDP
+                            - RAW
                             type: string
                           rate:
-                            pattern: ([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)
+                            pattern: ^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
                             type: string
                           syscall:
                             type: string
@@ -80,9 +86,8 @@ spec:
                     process:
                       type: string
                     severity:
-                      maximum: 10
-                      minimum: 1
-                      type: integer
+                      pattern: ^([1-9]|10)$
+                      type: string
                     tags:
                       items:
                         type: string
@@ -92,9 +97,8 @@ spec:
                   type: object
                 type: array
               severity:
-                maximum: 10
-                minimum: 1
-                type: integer
+                pattern: ^([1-9]|10)$
+                type: string
               tags:
                 items:
                   type: string
@@ -105,6 +109,9 @@ spec:
           status:
             description: KubeArmorAuditPolicyStatus defines the observed state of
               KubeArmorAuditPolicy
+            properties:
+              status:
+                type: string
             type: object
         type: object
     served: true

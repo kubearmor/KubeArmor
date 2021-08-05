@@ -1100,7 +1100,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy(status string) {
 // WatchHostSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 	for {
-		if K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+		if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
 			if !K8s.ApplyCustomResourceDefinitions() {
 				time.Sleep(time.Second * 1)
 				continue
@@ -1512,6 +1512,235 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 // == Macro / Audit Policy Update == //
 // ================================= //
 
-// add maps for macros and audit policies in KubeArmorDaemon structure
-// add watcher functions for KubeArmorMacro and KubeArmorAuditPolicy
-// similar to SecurityPolicies, update event auditor with given macros and audit policies
+func waitCustomResourceDefinition(name string) {
+	for !K8s.CheckCustomResourceDefinition(name) {
+		time.Sleep(time.Second * 1)
+		continue
+	}
+}
+
+func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
+	for {
+		event := tp.K8sKubeArmorAuditPolicyEvent{}
+		if err := decoder.Decode(&event); err == io.EOF {
+			break
+		} else if err != nil {
+			break
+		} else if event.Type == "" {
+			continue
+		}
+
+		dm.AuditPoliciesLock.Lock()
+		name := event.Object.Metadata.Name
+		generation := strconv.FormatInt(event.Object.Metadata.Generation, 10)
+		namespace := event.Object.Metadata.Namespace
+
+		// already exists, skip
+		if event.Type == "ADDED" || event.Type == "MODIFIED" {
+			for _, policy := range dm.AuditPolicies {
+				if policy.Metadata["name"] == name &&
+					policy.Metadata["namespace"] == namespace &&
+					policy.Metadata["generation"] == generation {
+
+					dm.AuditPoliciesLock.Unlock()
+					continue
+				}
+			}
+		}
+
+		// simple validation: events must define kprobe or syscall
+		isValidEvent := true
+		for _, rule := range event.Object.Spec.AuditRules {
+			for _, evt := range rule.Events {
+				if evt.Kprobe == "" && evt.Syscall == "" {
+					isValidEvent = false
+					break
+				}
+			}
+		}
+
+		if !isValidEvent {
+			if event.Type != "DELETED" {
+				dm.LogFeeder.Printf("Invalid Audit Policy (ignored/%s): " +
+					"missing {kprobe,syscall} definition.", name)
+			}
+
+			dm.AuditPoliciesLock.Unlock()
+			continue
+		}
+
+		policy := tp.KubeArmorAuditPolicy{}
+		policy.Metadata = make(map[string]string)
+		policy.Metadata["name"] = name
+		policy.Metadata["namespace"] = namespace
+		policy.Metadata["generation"] = generation
+
+		if err := kl.Clone(event.Object.Spec, &policy.RawSpec); err != nil {
+			dm.LogFeeder.Printf("Failed to clone spec for Audit Policy (%s/%s)." +
+				" This event will be lost", strings.ToLower(event.Type), name)
+
+			dm.AuditPoliciesLock.Unlock()
+			continue
+		}
+
+		// add/delete/modify
+		if event.Type == "ADDED" {
+			sameExists := false
+			for _, p := range dm.AuditPolicies {
+				if reflect.DeepEqual(p.RawSpec, policy.RawSpec) {
+					sameExists = true
+					break
+				}
+			}
+
+			if !sameExists {
+				dm.AuditPolicies = append(dm.AuditPolicies, policy)
+			}
+
+		} else if event.Type == "DELETED" {
+			for i, p := range dm.AuditPolicies {
+				if reflect.DeepEqual(p.RawSpec, policy.RawSpec) {
+					dm.AuditPolicies = append(dm.AuditPolicies[:i], dm.AuditPolicies[i+1:]...)
+					break
+				}
+			}
+
+		} else if event.Type == "MODIFIED" {
+			for i := 0; i < len(dm.AuditPolicies); i++ {
+				if dm.AuditPolicies[i].Metadata["name"] == name &&
+					dm.AuditPolicies[i].Metadata["namespace"] == namespace &&
+					dm.AuditPolicies[i].Metadata["generation"] == generation {
+					dm.AuditPolicies[i] = policy
+				}
+			}
+		}
+
+		dm.AuditPoliciesLock.Unlock()
+		dm.LogFeeder.Printf("Detected an Audit Policy (%s/%s)",
+			strings.ToLower(event.Type), name)
+
+		dm.UpdateAuditPolicy(event.Type, policy, event.Object.Status.AuditPolicyStatus)
+	}
+}
+
+func (dm *KubeArmorDaemon) decodeKubeArmorMacro(decoder *json.Decoder) {
+	for {
+		event := tp.K8sKubeArmorMacroEvent{}
+		if err := decoder.Decode(&event); err == io.EOF {
+			break
+		} else if err != nil {
+			break
+		} else if event.Type == "" {
+			continue
+		}
+
+		dm.KubeArmorMacrosLock.Lock()
+		name := event.Object.Metadata.Name
+		generation := strconv.FormatInt(event.Object.Metadata.Generation, 10)
+		namespace := event.Object.Metadata.Namespace
+		nameKey := "name=" + name
+
+		// already exists, skip
+		if event.Type == "ADDED" || event.Type == "MODIFIED" {
+			if ns, ok := dm.KubeArmorMacrosMap[namespace]; ok {
+				if macros, ok := ns[nameKey]; ok {
+					if macros["__yaml_gen__"] == generation {
+						dm.KubeArmorMacrosLock.Unlock()
+						continue
+					}
+				}
+			}
+		}
+
+		// add/delete/modify
+		if event.Type == "ADDED"  {
+			if _, ok := dm.KubeArmorMacrosMap[namespace]; !ok {
+				dm.KubeArmorMacrosMap[namespace] = make(tp.KubeArmorMacrosNamespace)
+			}
+
+			dm.KubeArmorMacrosMap[namespace][nameKey] = make(tp.KubeArmorMacrosKeyValue)
+			dm.KubeArmorMacrosMap[namespace][nameKey]["__yaml_gen__"] = generation
+
+			for _, macro := range event.Object.Spec.Macros {
+				dm.KubeArmorMacrosMap[namespace][nameKey][macro.Name] = macro.Value
+			}
+
+		} else if event.Type == "DELETED" {
+			delete(dm.KubeArmorMacrosMap[namespace], nameKey)
+			if len(dm.KubeArmorMacrosMap[namespace]) == 0 {
+				delete(dm.KubeArmorMacrosMap, namespace)
+			}
+
+		} else if event.Type == "MODIFIED" {
+			dm.KubeArmorMacrosMap[namespace][nameKey]["__yaml_gen__"] = generation
+
+			for _, macro := range event.Object.Spec.Macros {
+				dm.KubeArmorMacrosMap[namespace][nameKey][macro.Name] = macro.Value
+			}
+		}
+
+		dm.KubeArmorMacrosLock.Unlock()
+		dm.LogFeeder.Printf("Detected a Macro (%s/%s)", strings.ToLower(event.Type), name)
+
+		dm.UpdateAuditPolicy("UPDATEALL", tp.KubeArmorAuditPolicy{},
+			event.Object.Status.MacroStatus)
+	}
+}
+
+func (dm *KubeArmorDaemon) auditPolicyRebuild(auditPolicy *tp.KubeArmorAuditPolicy) {
+
+}
+
+// UpdateAuditPolicy Function
+func (dm *KubeArmorDaemon) UpdateAuditPolicy(action string, auditPolicy tp.KubeArmorAuditPolicy, status string) {
+	dm.AuditPoliciesLock.Lock()
+	dm.KubeArmorMacrosLock.Lock()
+
+	findPolicy := func (policy *tp.KubeArmorAuditPolicy) int {
+		for i, p := range dm.AuditPolicies {
+			if reflect.DeepEqual(p.RawSpec, (*policy).RawSpec) {
+				return i
+			}
+		}
+
+		return -1
+	}
+
+	// rebuild all policies
+	if action == "UPDATEALL" {
+		for i := 0; i < len(dm.AuditPolicies); i++ {
+			dm.auditPolicyRebuild(&dm.AuditPolicies[i])
+		}
+
+	// rebuild a specific policy
+	} else if action == "ADDED" || action == "MODIFIED" {
+		if i := findPolicy(&auditPolicy); i != -1 {
+			dm.auditPolicyRebuild(&dm.AuditPolicies[i])
+		}
+	}
+
+	dm.KubeArmorMacrosLock.Unlock()
+	dm.AuditPoliciesLock.Unlock()
+}
+
+// WatchAuditPolicies Function
+func (dm *KubeArmorDaemon) WatchAuditPolicies() {
+	for {
+		waitCustomResourceDefinition("kubearmorauditpolicies")
+		if resp := K8s.WatchK8sAuditPolicies(); resp != nil {
+			dm.decodeAuditPolicy(json.NewDecoder(resp.Body))
+			resp.Body.Close()
+		}
+	}
+}
+
+// WatchKubeArmorMacro Function
+func (dm *KubeArmorDaemon) WatchKubeArmorMacro() {
+	for {
+		waitCustomResourceDefinition("kubearmormacros")
+		if resp := K8s.WatchK8sKubearmorMacro(); resp != nil {
+			dm.decodeKubeArmorMacro(json.NewDecoder(resp.Body))
+			resp.Body.Close()
+		}
+	}
+}
