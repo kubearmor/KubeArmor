@@ -34,7 +34,8 @@
         If it's still not applied, do so.
 
         ```text
-        $ kubectl apply -f ~/KubeArmor/pkg/KubeArmorPolicy/config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml
+        $ kubectl apply -f ~/KubeArmor/deployments/CRD/KubeArmorPolicy.yaml
+        $ kubectl apply -f ~/KubeArmor/deployments/CRD/KubeArmorHostPolicy.yaml
         ```
 
         Now you can apply specific policies.
