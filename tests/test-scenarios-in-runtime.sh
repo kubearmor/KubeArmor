@@ -28,16 +28,13 @@ SKIP_NATIVE_HOST_POLICY=1
 
 case $1 in
     "-testHostPolicy")
-        SKIP_HOST_POLICY=0
         SKIP_CONTAINER_POLICY=1
-        ;;
-    "-testContainerPolicy")
-        SKIP_CONTAINER_POLICY=0
-        SKIP_HOST_POLICY=1
-        ;;
-    "-testAllButNative")
-        SKIP_CONTAINER_POLICY=0
         SKIP_HOST_POLICY=0
+        ;;
+    "-testNativePolicy")
+        SKIP_CONTAINER_POLICY=1
+        SKIP_NATIVE_POLICY=0
+        SKIP_NATIVE_HOST_POLICY=0
         ;;
     "-testAll")
         SKIP_CONTAINER_POLICY=0
@@ -45,7 +42,7 @@ case $1 in
         SKIP_NATIVE_POLICY=0
         SKIP_NATIVE_HOST_POLICY=0
         ;;
-    *)
+    *) # -testContainerPolicy by default
         ;;
 esac
 
