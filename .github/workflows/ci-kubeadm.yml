@@ -66,7 +66,7 @@ jobs:
           sudo touch /etc/apt/sources.list.d/kubernetes.list
           echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
           sudo apt-get update
-          sudo apt-get install -y kubelet kubeadm kubectl
+          sudo apt-get install -y kubelet=1.21.3-00 kubeadm=1.21.3-00 kubectl
           sudo apt-mark hold kubelet kubeadm kubectl
 
           # install apparmor and auditd
