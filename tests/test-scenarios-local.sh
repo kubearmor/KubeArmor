@@ -32,18 +32,14 @@ SKIP_NATIVE_HOST_POLICY=1
 
 case $1 in
     "-testHostPolicy")
-        SKIP_HOST_POLICY=0
         SKIP_CONTAINER_POLICY=1
-        ARMOR_OPTIONS=${@:2}
-        ;;
-    "-testContainerPolicy")
-        SKIP_CONTAINER_POLICY=0
-        SKIP_HOST_POLICY=1
-        ARMOR_OPTIONS=${@:2}
-        ;;
-    "-testAllButNative")
-        SKIP_CONTAINER_POLICY=0
         SKIP_HOST_POLICY=0
+        ARMOR_OPTIONS=${@:2}
+        ;;
+    "-testNativePolicy")
+        SKIP_CONTAINER_POLICY=1
+        SKIP_NATIVE_POLICY=0
+        SKIP_NATIVE_HOST_POLICY=0
         ARMOR_OPTIONS=${@:2}
         ;;
     "-testAll")
@@ -53,7 +49,7 @@ case $1 in
         SKIP_NATIVE_HOST_POLICY=0
         ARMOR_OPTIONS=${@:2}
         ;;
-    *)
+    *) # -testContainerPolicy by default
         ARMOR_OPTIONS=$@
         ;;
 esac
