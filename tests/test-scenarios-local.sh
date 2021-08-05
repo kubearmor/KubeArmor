@@ -493,7 +493,7 @@ function run_test_scenario() {
                     should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
                 fi
             fi
-        fi    
+        fi
 
         if [ $res_cmd == 0 ]; then
             echo "Testcase: $3 (command #$cmd_count)" >> $TEST_LOG
