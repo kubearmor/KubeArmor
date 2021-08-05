@@ -22,7 +22,7 @@ echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/a
 sudo apt-get update
 
 # install Kubernetes
-sudo apt-get install -y kubelet kubeadm
+sudo apt-get install -y kubelet=1.21.3-00 kubeadm=1.21.3-00
 
 # mount bpffs (for cilium)
 echo "bpffs                                     /sys/fs/bpf     bpf     defaults          0       0" | sudo tee -a /etc/fstab
