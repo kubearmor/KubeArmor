@@ -26,6 +26,29 @@ SKIP_NATIVE_POLICY=1
 SKIP_HOST_POLICY=1
 SKIP_NATIVE_HOST_POLICY=1
 
+case $1 in
+    "-testHostPolicy")
+        SKIP_HOST_POLICY=0
+        SKIP_CONTAINER_POLICY=1
+        ;;
+    "-testContainerPolicy")
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=1
+        ;;
+    "-testAllButNative")
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=0
+        ;;
+    "-testAll")
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=0
+        SKIP_NATIVE_POLICY=0
+        SKIP_NATIVE_HOST_POLICY=0
+        ;;
+    *)
+        ;;
+esac
+
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
 
@@ -607,8 +630,9 @@ function run_test_scenario() {
 
 ## == KubeArmor == ##
 
-if [ "$(ps -f --pid $(pidof kubearmor)|cat|grep enableHostPolicy)" != "" ]; then
-    SKIP_HOST_POLICY=0
+if [[ ! "$(ps -f --pid $(pidof kubearmor)|cat|grep enableHostPolicy)" != "" ]]; then
+    SKIP_HOST_POLICY=1
+    SKIP_NATIVE_HOST_POLICY=1
 fi
 
 total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -ld $TEST_HOME/host_scenarios/$(hostname)_* | grep ^d | wc -l))
@@ -627,11 +651,13 @@ echo "== Testcases ==" >> $TEST_LOG
 echo >> $TEST_LOG
 
 ## == Test Scenarios == ##
+
+res_microservice=0
+
+if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
 cd $TEST_HOME
 
 echo -e "${ORANGE}[INFO] Running Container Scenarios${NC}"
-
-res_microservice=0
 
 for microservice in $(ls microservices)
 do
@@ -688,11 +714,14 @@ do
     fi
 done    
 echo "[INFO] Finished Container Scenarios"
-
+else
+    echo -e "${MAGENTA}[SKIP] Skipped Container Scenarios${NC}"
+fi
 
 HOST_NAME="$(hostname)"
 res_host=0
 
+if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
 cd $TEST_HOME
 
 echo -e "${ORANGE}[INFO] Running Host Scenarios${NC}"
@@ -730,6 +759,9 @@ done
 echo "[INFO] Finished Host Scenarios"
 else
 echo -e "${RED}[INFO] No testcases found for current host${NC}"
+fi
+else
+    echo -e "${MAGENTA}[SKIP] Skipped Host Scenarios${NC}"
 fi
 
 echo "== Summary ==" >> $TEST_LOG

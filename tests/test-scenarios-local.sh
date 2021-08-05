@@ -23,11 +23,40 @@ TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 
-ARMOR_OPTIONS=$@
+ARMOR_OPTIONS=()
+
 SKIP_CONTAINER_POLICY=0
 SKIP_NATIVE_POLICY=1
 SKIP_HOST_POLICY=1
 SKIP_NATIVE_HOST_POLICY=1
+
+case $1 in
+    "-testHostPolicy")
+        SKIP_HOST_POLICY=0
+        SKIP_CONTAINER_POLICY=1
+        ARMOR_OPTIONS=${@:2}
+        ;;
+    "-testContainerPolicy")
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=1
+        ARMOR_OPTIONS=${@:2}
+        ;;
+    "-testAllButNative")
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=0
+        ARMOR_OPTIONS=${@:2}
+        ;;
+    "-testAll")
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=0
+        SKIP_NATIVE_POLICY=0
+        SKIP_NATIVE_HOST_POLICY=0
+        ARMOR_OPTIONS=${@:2}
+        ;;
+    *)
+        ARMOR_OPTIONS=$@
+        ;;
+esac
 
 ARMOR_MSG=/tmp/kubearmor.msg
 ARMOR_LOG=/tmp/kubearmor.log
@@ -76,8 +105,9 @@ function start_and_wait_for_kubearmor_initialization() {
         sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
     fi
 
-    if [[ " ${ARMOR_OPTIONS[@]} " =~ "-enableHostPolicy" ]]; then
-        SKIP_HOST_POLICY=0
+    if [[ ! " ${ARMOR_OPTIONS[@]} " =~ "-enableHostPolicy" ]]; then
+        SKIP_HOST_POLICY=1
+        SKIP_NATIVE_HOST_POLICY=1
     fi    
 
     for (( ; ; ))
@@ -559,11 +589,12 @@ start_and_wait_for_kubearmor_initialization
 echo "[INFO] Started KubeArmor"
 
 ## == Test Scenarios == ##
+res_microservice=0
+
+if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
 cd $TEST_HOME
 
 echo -e "${ORANGE}[INFO] Running Container Scenarios${NC}"
-
-res_microservice=0
 
 for microservice in $(ls microservices)
 do
@@ -620,11 +651,14 @@ do
     fi
 done    
 echo "[INFO] Finished Container Scenarios"
-
+else
+    echo -e "${MAGENTA}[SKIP] Skipped Container Scenarios${NC}"
+fi
 
 HOST_NAME="$(hostname)"
 res_host=0
 
+if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
 cd $TEST_HOME
 
 echo -e "${ORANGE}[INFO] Running Host Scenarios${NC}"
@@ -662,6 +696,9 @@ done
 echo "[INFO] Finished Host Scenarios"
 else
 echo -e "${RED}[INFO] No testcases found for current host${NC}"
+fi
+else
+    echo -e "${MAGENTA}[SKIP] Skipped Host Scenarios${NC}"
 fi
 
 echo "== Summary ==" >> $TEST_LOG
