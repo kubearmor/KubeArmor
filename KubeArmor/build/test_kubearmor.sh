@@ -24,9 +24,36 @@ ARMOR_HOME=`dirname $(realpath "$0")`/../..
 # move to KubeArmor
 cd $ARMOR_HOME/KubeArmor
 
+# check go-fmt
+make gofmt
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check go-fmt"
+    exit 1
+fi
+
+# check go-lint
+make golint
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check go-lint"
+    exit 1
+fi
+
+# check golangci-lint
+make golangci-lint
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check golangci-lint"
+    exit 1
+fi
+
+# check go-sec
+make gosec
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check go-sec"
+    exit 1
+fi
+
 # test KubeArmor
 make testall
-
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to test KubeArmor"
     exit 1
@@ -34,7 +61,6 @@ fi
 
 # compile KubeArmor
 make clean && make
-
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to compile KubeArmor"
     exit 1

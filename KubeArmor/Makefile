@@ -51,8 +51,26 @@ testall:
 	cd $(CURDIR)/monitor; go mod tidy
 	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 
+.PHONY: gofmt
+gofmt:
+	cd $(CURDIR); gofmt -s -d $(shell find . -type f -name '*.go' -print)
+
 .PHONY: golint
 golint:
+ifeq (, $(shell which golint))
+	@{ \
+	set -e ;\
+	GOLINT_TMP_DIR=$$(mktemp -d) ;\
+	cd $$GOLINT_TMP_DIR ;\
+	go mod init tmp ;\
+	go get -u golang.org/x/lint/golint ;\
+	rm -rf $$GOLINT_TMP_DIR ;\
+	}
+endif
+	cd $(CURDIR); golint ./...
+
+.PHONY: golangci-lint
+golangci-lint:
 ifeq (, $(shell which golangci-lint))
 	@{ \
 	set -e ;\
