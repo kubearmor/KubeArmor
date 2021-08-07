@@ -9,25 +9,25 @@ import (
 	"os"
 	"path/filepath"
 
-	lbpf "github.com/aquasecurity/libbpfgo"
+	lbpf "github.com/kubearmor/libbpf"
 )
 
 // =========================== //
 // == Shared Map Management == //
 // =========================== //
 
-var sharedMaps = map[string]*lbpf.BPFMap{}
+var sharedMaps = map[string]*lbpf.KABPFMap{}
 var sharedMapsNames = [...]string{"ka_ea_process_spec_map", "ka_ea_process_filter_map"}
 var pinBasePath = "/sys/fs/bpf/"
 
 // pinMap Function
-func pinMap(m *lbpf.BPFMap) error {
-	return m.Pin(pinBasePath + m.GetName())
+func pinMap(m *lbpf.KABPFMap) error {
+	return m.Pin(pinBasePath + m.Name())
 }
 
 // unpinMap Function
-func unpinMap(m *lbpf.BPFMap) error {
-	return m.Unpin(pinBasePath + m.GetName())
+func unpinMap(m *lbpf.KABPFMap) error {
+	return m.Unpin(pinBasePath + m.Name())
 }
 
 // InitSharedMaps Function
@@ -38,8 +38,8 @@ func (ea *EventAuditor) InitSharedMaps() error {
 
 	for _, mapName := range sharedMapsNames {
 		var mapObjFilePath string
-		var bpfMod *lbpf.Module
-		var bpfMap *lbpf.BPFMap
+		var bpfObj *lbpf.KABPFObject
+		var bpfMap *lbpf.KABPFMap
 		var err error
 
 		mapObjFilePath, err = filepath.Abs("./BPF/objs/" + mapName + ".o")
@@ -54,22 +54,22 @@ func (ea *EventAuditor) InitSharedMaps() error {
 			continue
 		}
 
-		bpfMod, err = lbpf.NewModuleFromFile(mapObjFilePath)
+		bpfObj, err = lbpf.OpenObjectFromFile(mapObjFilePath)
 		if err != nil {
 			ea.LogFeeder.Printf(err.Error())
 			continue
 		}
 
-		err = bpfMod.BPFLoadObject()
+		err = bpfObj.Load()
 		if err != nil {
 			ea.LogFeeder.Printf(err.Error())
-			bpfMod.Close()
+			bpfObj.Close()
 		}
 
-		bpfMap, err = bpfMod.GetMap(mapName)
+		bpfMap, err = bpfObj.FindMapByName(mapName)
 		if err != nil {
 			ea.LogFeeder.Printf(err.Error())
-			bpfMod.Close()
+			bpfObj.Close()
 		}
 
 		err = pinMap(bpfMap)
@@ -98,7 +98,7 @@ func (ea *EventAuditor) StopSharedMaps() error {
 	var err error
 
 	for _, mapName := range sharedMapsNames {
-		var bpfMap *lbpf.BPFMap
+		var bpfMap *lbpf.KABPFMap
 		var found bool
 
 		if bpfMap, found = sharedMaps[mapName]; !found {
@@ -113,7 +113,7 @@ func (ea *EventAuditor) StopSharedMaps() error {
 			ea.LogFeeder.Print(err.Error())
 		}
 
-		bpfMap.GetModule().Close()
+		bpfMap.Object().Close()
 
 		delete(sharedMaps, mapName)
 	}
