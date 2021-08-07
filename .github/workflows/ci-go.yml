@@ -7,17 +7,6 @@ on:
     branches: [master]
 
 jobs:
-  go-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
-
-      - name: Run Revive Action by pulling pre-built image
-        uses: morphy2k/revive-action@v2
-        with:
-          path: "./KubeArmor/..."
-
   go-fmt:
     runs-on: ubuntu-latest
     steps:
@@ -30,6 +19,33 @@ jobs:
 
       - name: Check gofmt
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
+        working-directory: KubeArmor
+
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - name: Run Revive Action by pulling pre-built image
+        uses: morphy2k/revive-action@v2
+        with:
+          path: "./KubeArmor/..."
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.16
+
+      - name: Run Golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1
+          golangci-lint run
         working-directory: KubeArmor
 
   go-sec:
@@ -51,7 +67,9 @@ jobs:
   license:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
       - name: Check License Header
         uses: apache/skywalking-eyes@9bd5feb86b5817aa6072b008f9866a2c3bbc8587
         env:
