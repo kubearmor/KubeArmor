@@ -91,20 +91,18 @@ function start_and_wait_for_kubearmor_initialization() {
     cd $ARMOR_HOME
 
     echo "Options: -logPath=$ARMOR_LOG $ARMOR_OPTIONS"
+    if [[ ! " ${ARMOR_OPTIONS[@]} " =~ "-enableHostPolicy" ]]; then
+        SKIP_HOST_POLICY=1
+        SKIP_NATIVE_HOST_POLICY=1
+    fi
 
-    if [ "$GITHUB_ACTIONS" = true ]
-    then
+    if [ "$GITHUB_ACTIONS" = true ]; then
         echo "Github Actions - Environment"
         make clean;make build-test
         sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
     else
         sudo -E ./kubearmor -logPath=$ARMOR_LOG $ARMOR_OPTIONS > $ARMOR_MSG &
     fi
-
-    if [[ ! " ${ARMOR_OPTIONS[@]} " =~ "-enableHostPolicy" ]]; then
-        SKIP_HOST_POLICY=1
-        SKIP_NATIVE_HOST_POLICY=1
-    fi    
 
     for (( ; ; ))
     do
@@ -358,7 +356,7 @@ function run_test_scenario() {
             return
         fi
         HOST_POLICY=1
-    elif [[ $policy_type == "nhsp" ]]; then
+    elif [[ $policy_type == "nhp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
             echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
@@ -560,7 +558,7 @@ total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -l
 passed_testcases=()
 failed_testcases=()
 skipped_testcases=()
-reran_testcases=()
+retried_testcases=()
 
 echo "< KubeArmor Test Report >" > $TEST_LOG
 echo >> $TEST_LOG
@@ -622,7 +620,7 @@ do
 
                 echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost events"
                 total_testcases=$(expr $total_testcases + 1)
-                reran_testcases+=("$testcase")
+                retried_testcases+=("$testcase")
                 run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
                 if [ $res_case != 0 ]; then
@@ -676,7 +674,7 @@ do
 
         echo -e "${ORANGE}[INFO] Testing $testcase${NC} again to check if it failed due to some lost events"
         total_testcases=$(expr $total_testcases + 1)
-        reran_testcases+=("$testcase")
+        retried_testcases+=("$testcase")
         run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
 
         if [ $res_case != 0 ]; then
@@ -726,12 +724,12 @@ if [ "${#skipped_testcases[@]}" != "0" ]; then
     done
 fi
 echo >> $TEST_LOG
-echo "Reran testcases: ${#reran_testcases[@]}/$total_testcases" >> $TEST_LOG
-if [ "${#reran_testcases[@]}" != "0" ]; then
+echo "Retried testcases: ${#retried_testcases[@]}/$total_testcases" >> $TEST_LOG
+if [ "${#retried_testcases[@]}" != "0" ]; then
     echo >> $TEST_LOG
-    for (( i=0; i<${#reran_testcases[@]}; i++ ));
+    for (( i=0; i<${#retried_testcases[@]}; i++ ));
     do
-        echo "${reran_testcases[$i]}" >> $TEST_LOG;
+        echo "${retried_testcases[$i]}" >> $TEST_LOG;
     done
 fi
 echo >> $TEST_LOG
