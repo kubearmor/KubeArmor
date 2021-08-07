@@ -5,7 +5,6 @@ go 1.15
 replace (
 	github.com/kubearmor/KubeArmor => ../../
 	github.com/kubearmor/KubeArmor/KubeArmor => ../
-	github.com/kubearmor/KubeArmor/KubeArmor/audit => ./audit
 	github.com/kubearmor/KubeArmor/KubeArmor/common => ./common
 	github.com/kubearmor/KubeArmor/KubeArmor/core => ./core
 	github.com/kubearmor/KubeArmor/KubeArmor/discover => ./discovery
@@ -26,7 +25,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hpcloud/tail v1.0.0
 	github.com/iovisor/gobpf v0.2.0
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-00010101000000-000000000000
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
