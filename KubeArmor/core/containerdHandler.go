@@ -291,9 +291,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.ContainersLock.Unlock()
 			return false
-		} else {
-			delete(dm.Containers, containerID)
 		}
+		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
 		// update NsMap

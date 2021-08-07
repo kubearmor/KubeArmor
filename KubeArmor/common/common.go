@@ -403,6 +403,7 @@ func Lgetxattr(path, attr string) ([]byte, error) {
 	return dest[:sz], nil
 }
 
+// GetSELinuxType Function
 func GetSELinuxType(path string) (string, error) {
 	xattrNameSelinux := "security.selinux"
 

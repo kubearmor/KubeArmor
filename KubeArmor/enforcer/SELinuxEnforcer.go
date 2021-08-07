@@ -82,6 +82,7 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 // == SELinux Profile Management == //
 // ================================ //
 
+// SELinux Flags
 const (
 	SELinuxDirReadOnly   = "getattr search open read lock ioctl"
 	SELinuxDirReadWrite  = "getattr search open read lock ioctl setattr write link add_name remove_name reparent lock create unlink rename rmdir"
@@ -283,21 +284,22 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 			if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
 				mountedPathToHostPath[hostVolume.UsedByContainerPath[containerName]] = hostVolume.PathName
 
-				if context, err := kl.GetSELinuxType(hostVolume.PathName); err != nil {
+				context, err := kl.GetSELinuxType(hostVolume.PathName)
+				if err != nil {
 					se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 					return 0, "", false
-				} else {
-					contextLine := "	(allow process " + context
+				}
 
-					if readOnly {
-						contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-						contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-						newProfile = newProfile + contextDirLine + contextFileLine
-					} else {
-						contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-						contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-						newProfile = newProfile + contextDirLine + contextFileLine
-					}
+				contextLine := "	(allow process " + context
+
+				if readOnly {
+					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
+					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
+					newProfile = newProfile + contextDirLine + contextFileLine
+				} else {
+					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
+					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
+					newProfile = newProfile + contextDirLine + contextFileLine
 				}
 			}
 		}

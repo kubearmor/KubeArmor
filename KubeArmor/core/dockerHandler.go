@@ -282,13 +282,13 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 3: destroy
 
 		dm.ContainersLock.Lock()
-		if val, ok := dm.Containers[containerID]; !ok {
+		val, ok := dm.Containers[containerID]
+		if !ok {
 			dm.ContainersLock.Unlock()
 			return
-		} else {
-			container = val
-			delete(dm.Containers, containerID)
 		}
+		container = val
+		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
 		// update NsMap
