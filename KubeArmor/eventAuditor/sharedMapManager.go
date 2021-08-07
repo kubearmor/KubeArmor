@@ -6,6 +6,7 @@ package eventAuditor
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	lbpf "github.com/aquasecurity/libbpfgo"
@@ -41,8 +42,14 @@ func (ea *EventAuditor) InitSharedMaps() error {
 		var bpfMap *lbpf.BPFMap
 		var err error
 
-		mapObjFilePath, err = filepath.Abs("./output/" + mapName + ".o")
+		mapObjFilePath, err = filepath.Abs("./BPF/objs/" + mapName + ".o")
 		if err != nil {
+			ea.LogFeeder.Printf(err.Error())
+			continue
+		}
+
+		_, err = os.Stat(mapObjFilePath)
+		if errors.Is(err, os.ErrNotExist) {
 			ea.LogFeeder.Printf(err.Error())
 			continue
 		}
