@@ -17,7 +17,7 @@ import (
 // =========================== //
 
 var sharedMaps = map[string]*lbpf.BPFMap{}
-var sharedMapsNames = [...]string{"ka_ea_proc_spec_map"}
+var sharedMapsNames = [...]string{"ka_ea_process_spec_map", "ka_ea_process_filter_map"}
 var pinBasePath = "/sys/fs/bpf/"
 
 // pinMap Function
