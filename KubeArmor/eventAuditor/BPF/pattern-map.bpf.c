@@ -8,6 +8,6 @@ struct {
 	__type(key, struct pattern_key);
 	__type(value, struct pattern_value);
 	__uint(max_entries, -1U);
-} process_spec_map SEC(".maps");
+} ka_ea_pattern_map SEC(".maps");
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
