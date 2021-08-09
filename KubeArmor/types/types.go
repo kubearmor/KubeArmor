@@ -130,7 +130,7 @@ type K8sKubeArmorHostPolicy struct {
 	Status   SecurityPolicyStatus `json:"status,omitempty"`
 }
 
-// K8sKubeArmorPolicies Structure
+// K8sKubeArmorHostPolicies Structure
 type K8sKubeArmorHostPolicies struct {
 	Items []K8sKubeArmorHostPolicy `json:"items"`
 }
@@ -218,6 +218,7 @@ type MatchPolicies struct {
 // == Security Policy == //
 // ===================== //
 
+// KubeArmorPolicy Flags
 const (
 	KubeArmorPolicyDisabled = 0
 	KubeArmorPolicyEnabled  = 1
@@ -346,7 +347,7 @@ type FileType struct {
 	Action string `json:"action,omitempty"`
 }
 
-// NetworkProtocolType
+// NetworkProtocolType Structure
 type NetworkProtocolType struct {
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -369,7 +370,7 @@ type NetworkType struct {
 	Action string `json:"action,omitempty"`
 }
 
-// CapabilitiesCapabilityType
+// CapabilitiesCapabilityType Structure
 type CapabilitiesCapabilityType struct {
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`

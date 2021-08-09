@@ -14,26 +14,19 @@
      LSM - AppArmor
      ```
 
-     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/reference/k8s_installation_guide_ubuntu.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please raise an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
+     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/README.md). KubeArmor also requires either Docker or Containerd since it internally uses its APIs. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\). Otherwise, KubeArmor will work as Audit-Mode with no container behavior restriction.
 
-     - CAUTION - Minikube
-        ```
-        KubeArmor does not support the policy enforcement on Minikube because MiniKube supports no LSM, which means that you will only get the alerts against given policy violations.
-        ```
+      * Alternative Setup - MicroK8s
 
-     - CAUTION - Docker Desktops
-        ```
-        KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives (including LSMs).  
-        ```
+        You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes. For this, please follow the instructions in [MicroK8s installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/microk8s/README.md).
 
-    * \(Optional\) MicroK8s Setup
+      * Notice - Minikube
 
-      Instead of self-managed Kubernetes, you can set up MicroK8s. For this, please run the following command.
+        KubeArmor does not support the policy enforcement on Minikube because MiniKube supports no LSM, which means that you will only get the alerts against given policy violations. However, if you want to test KubeArmor, you can follow the instructions in [Minikube installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/minikube/README.md).
 
-       ```text
-       $ cd KubeArmor/contribution/microk8s
-       ~/KubeArmor/contribution/microk8s$ ./install_microk8s.sh
-       ```
+      * Caution - Docker Desktops
+
+        KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives (including LSMs).
 
    * Development Setup
 
@@ -44,7 +37,7 @@
      ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
-     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), Protobuf \(3.14.0\), and the other dependencies.
+     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC, Go, Protobuf, and some other dependencies.
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
 
@@ -67,7 +60,9 @@
 
     * VM Setup using Vagrant
 
-      Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
+      Now, it is time to prepare a VM for development.
+
+      To create a vagrant VM
 
       ```text
       ~/KubeArmor/KubeArmor$ make vagrant-up
@@ -79,7 +74,7 @@
       ~/KubeArmor/KubeArmor$ make vagrant-destroy
       ```
 
-      You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
+      To get into the vagrant VM
 
       ```text
       ~/KubeArmor/KubeArmor$ make vagrant-ssh
@@ -109,8 +104,6 @@
         ~/KubeArmor/KubeArmor$ make
         ```
 
-        ![make](../.gitbook/assets/local_test_make.png)  
-
         If you see any error messages, please let us know the issue with the full error messages through KubeArmor's slack.
 
     * Execution
@@ -134,8 +127,6 @@
         ~/KubeArmor/KubeArmor$ make run
         ```
 
-        ![make](../.gitbook/assets/local_test_make_run.png)  
-
 ## Code Directories
 
 Here, we briefly give you an overview of KubeArmor's directories.
@@ -144,11 +135,9 @@ Here, we briefly give you an overview of KubeArmor's directories.
 
   ```text
   KubeArmor/
-    audit                - Audit logger (deprecated)
     BPF                  - eBPF code for system monitor
     common               - Libraries internally used
     core                 - The main body (start point) of KubeArmor
-    discovery            - Automated security policy discovery (under development)
     enforcer             - Runtime policy enforcer (enforcing security policies into LSMs)
     feeder               - gRPC-based feeder (sending audit/system logs to a log server)
     log                  - Message logger (stdout) for KubeArmor
@@ -176,4 +165,3 @@ Here, we briefly give you an overview of KubeArmor's directories.
   examples/     - Example microservices for testing
   tests/        - Automated test framework for KubeArmor
   ```
-

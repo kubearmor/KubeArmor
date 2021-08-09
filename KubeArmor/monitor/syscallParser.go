@@ -22,6 +22,7 @@ import (
 // == Const. Vaiables == //
 // ===================== //
 
+// Data Types
 const (
 	intT       uint8 = 1
 	strT       uint8 = 10
@@ -98,7 +99,7 @@ func Min(a, b int) int {
 
 // readByteSliceFromBuff Function
 func readByteSliceFromBuff(buff io.Reader, len int) ([]byte, error) {
-	res := make([]byte, Min(len, MAX_STRING_LEN))
+	res := make([]byte, Min(len, MaxStringLen))
 	if err := binary.Read(buff, binary.LittleEndian, &res); err != nil {
 		return nil, fmt.Errorf("error reading byte array: %v", err)
 	}

@@ -1,4 +1,4 @@
-name: ci-kubeadm
+name: ci-test
 
 on:
   push:
@@ -42,7 +42,7 @@ jobs:
           sudo make install
           popd
 
-      - name: Go Test KubeArmor
+      - name: Test KubeArmor
         run: ./tests/go-test-kubearmor-local.sh
         env:
           GOPATH: /home/runner/go
@@ -66,7 +66,7 @@ jobs:
           sudo touch /etc/apt/sources.list.d/kubernetes.list
           echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
           sudo apt-get update
-          sudo apt-get install -y kubelet=1.21.3-00 kubeadm=1.21.3-00 kubectl
+          sudo apt-get install -y kubelet=1.21.3-00 kubeadm=1.21.3-00 kubectl=1.21.3-00
           sudo apt-mark hold kubelet kubeadm kubectl
 
           # install apparmor and auditd
@@ -108,11 +108,11 @@ jobs:
             /tmp/kubearmor.log
             /tmp/kubearmor.msg
 
-      - name: Test Results
+      - name: Check Results
         if: ${{ always() }}
         run: cat /tmp/kubearmor.test
 
-      - name: Code Coverage
+      - name: Measure Code Coverage
         if: ${{ always() }}
         run: |
           go get github.com/modocache/gover

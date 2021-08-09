@@ -1,6 +1,12 @@
 # Deployment Guide
 
-KubeArmor currently supports self-managed Kubernetes and Google Kubernetes Engine \(GKE\).
+KubeArmor currently supports the following.
+
+```text
+Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE)
+```
+
+In order to deploy KubeArmor, please choose one of the below options according to your environment.
 
 * Deploy KubeArmor with newer Docker (19.03) or Containerd on self-managed Kubernetes
 

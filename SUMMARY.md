@@ -20,8 +20,8 @@
 
 ## Reference
 
-* [Kubernetes Installation for Ubuntu](reference/k8s_installation_guide_ubuntu.md)
-* [Kubernetes Installation for Fedora](reference/k8s_installation_guide_fedora.md)
+* [Kubernetes Installation for Ubuntu](contribution/self-managed-k8s/README.md)
+* [Kubernetes Installation for Fedora](contribution/self-managed-k8s-selinux/README.md)
 * [Supported Capability List](reference/supported_capability_list.md)
 
 ## Examples
@@ -29,4 +29,3 @@
 * [Multiubuntu](examples/multiubuntu.md)
 * [Sock-Shop](examples/sock-shop.md)
 * [Wordpress-MySQL](examples/wordpress-mysql.md)
-

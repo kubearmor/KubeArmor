@@ -15,7 +15,6 @@ import (
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
-	adt "github.com/kubearmor/KubeArmor/KubeArmor/audit"
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
@@ -86,15 +85,12 @@ type KubeArmorDaemon struct {
 	// system monitor
 	SystemMonitor *mon.SystemMonitor
 
-	// audit logger
-	AuditLogger *adt.AuditLogger
-
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
+func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
@@ -111,7 +107,6 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.LogPath = logPath
 	dm.LogFilter = logFilter
 
-	dm.EnableAuditd = enableAuditd
 	dm.EnableHostPolicy = enableHostPolicy
 	dm.EnableEnforcerPerPod = enableEnforcerPerPod
 
@@ -140,7 +135,6 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.LogFeeder = nil
 	dm.SystemMonitor = nil
 	dm.RuntimeEnforcer = nil
-	dm.AuditLogger = nil
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -159,14 +153,6 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		// close system monitor
 		dm.CloseSystemMonitor()
 		dm.LogFeeder.Print("Stopped the system monitor")
-	}
-
-	if dm.EnableAuditd {
-		if dm.AuditLogger != nil {
-			// close audit logger
-			dm.CloseAuditLogger()
-			dm.LogFeeder.Print("Stopped the audit logger")
-		}
 	}
 
 	dm.LogFeeder.Print("Terminated the KubeArmor")
@@ -271,32 +257,6 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() {
 	}
 }
 
-// ================== //
-// == Audit Logger == //
-// ================== //
-
-// InitAuditLogger Function
-func (dm *KubeArmorDaemon) InitAuditLogger() bool {
-	dm.AuditLogger = adt.NewAuditLogger(dm.LogFeeder, &dm.Containers, &dm.ContainersLock,
-		&dm.ActivePidMap, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.ActiveHostMap, &dm.ActiveHostMapLock)
-	return dm.AuditLogger != nil
-}
-
-// MonitorAuditLogs Function
-func (dm *KubeArmorDaemon) MonitorAuditLogs() {
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
-
-	go dm.AuditLogger.MonitorAuditLogs()
-}
-
-// CloseAuditLogger Function
-func (dm *KubeArmorDaemon) CloseAuditLogger() {
-	if err := dm.AuditLogger.DestroyAuditLogger(); err != nil {
-		fmt.Println("Failed to destory the AuditLogger")
-	}
-}
-
 // ==================== //
 // == Signal Handler == //
 // ==================== //
@@ -320,9 +280,9 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, enableHostPolicy, enableEnforcerPerPod bool) {
+func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) {
 	// create a daemon
-	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableAuditd, enableHostPolicy, enableEnforcerPerPod)
+	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableHostPolicy, enableEnforcerPerPod)
 
 	// initialize log feeder
 	if !dm.InitLogFeeder() {
@@ -347,22 +307,6 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableAuditd, e
 	// monior system events
 	go dm.MonitorSystemEvents()
 	dm.LogFeeder.Print("Started to monitor system events")
-
-	if dm.EnableAuditd {
-		// initialize audit logger
-		if !dm.InitAuditLogger() {
-			dm.LogFeeder.Err("Failed to initialize the audit logger")
-
-			// destroy the daemon
-			dm.DestroyKubeArmorDaemon()
-
-			return
-		}
-
-		// monitor audit logs
-		go dm.MonitorAuditLogs()
-		dm.LogFeeder.Print("Started to monitor audit logs")
-	}
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {

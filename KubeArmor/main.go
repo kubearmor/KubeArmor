@@ -40,7 +40,6 @@ func main() {
 	logFilterPtr := flag.String("logFilter", "policy", "Filter for what kinds of alerts and logs to receive, {policy|system|all}")
 
 	// options (boolean)
-	enableAuditdPtr := flag.Bool("enableAuditd", false, "enabling Auditd")
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
 	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
 
@@ -48,7 +47,7 @@ func main() {
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableAuditdPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
 
 	// == //
 }

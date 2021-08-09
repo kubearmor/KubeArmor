@@ -29,26 +29,27 @@ import (
 
 const (
 	// file
-	SYS_OPEN   = 2
-	SYS_OPENAT = 257
-	SYS_CLOSE  = 3
+	SysOpen   = 2
+	SysOpenAt = 257
+	SysClose  = 3
 
 	// network
-	SYS_SOCKET  = 41
-	SYS_CONNECT = 42
-	SYS_ACCEPT  = 43
-	SYS_BIND    = 49
-	SYS_LISTEN  = 50
+	SysSocket  = 41
+	SysConnect = 42
+	SysAccept  = 43
+	SysBind    = 49
+	SysListen  = 50
 
 	// process
-	SYS_EXECVE   = 59
-	SYS_EXECVEAT = 322
-	DO_EXIT      = 351
+	SysExecve   = 59
+	SysExecveAt = 322
+	DoExit      = 351
 )
 
+// SystemMonitor Constant Values
 const (
-	PERMISSION_DENIED = -13
-	MAX_STRING_LEN    = 4096
+	PermissionDenied = -13
+	MaxStringLen     = 4096
 )
 
 // ======================= //
@@ -472,15 +473,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			if ctx.EventID == SYS_OPEN {
+			if ctx.EventID == SysOpen {
 				if len(args) != 2 {
 					continue
 				}
-			} else if ctx.EventID == SYS_OPENAT {
+			} else if ctx.EventID == SysOpenAt {
 				if len(args) != 3 {
 					continue
 				}
-			} else if ctx.EventID == SYS_EXECVE {
+			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
 
@@ -525,7 +526,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// skip pushing the log if Audited is enabled
 
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
 						continue
 					}
 
@@ -550,7 +551,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 
 				continue
-			} else if ctx.EventID == SYS_EXECVEAT {
+			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
 
@@ -606,7 +607,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// skip pushing the log if Audited is enabled
 
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
 						continue
 					}
 
@@ -631,7 +632,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 
 				continue
-			} else if ctx.EventID == DO_EXIT {
+			} else if ctx.EventID == DoExit {
 				mon.DeleteActivePid(containerID, ctx)
 				continue
 			}
@@ -677,15 +678,15 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 				continue
 			}
 
-			if ctx.EventID == SYS_OPEN {
+			if ctx.EventID == SysOpen {
 				if len(args) != 2 {
 					continue
 				}
-			} else if ctx.EventID == SYS_OPENAT {
+			} else if ctx.EventID == SysOpenAt {
 				if len(args) != 3 {
 					continue
 				}
-			} else if ctx.EventID == SYS_EXECVE {
+			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
 
@@ -730,7 +731,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// skip pushing the log if Audited is enabled
 
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
 						continue
 					}
 
@@ -755,7 +756,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 				}
 
 				continue
-			} else if ctx.EventID == SYS_EXECVEAT {
+			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
 
@@ -811,7 +812,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// skip pushing the log if Audited is enabled
 
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
+					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
 						continue
 					}
 
@@ -836,7 +837,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 				}
 
 				continue
-			} else if ctx.EventID == DO_EXIT {
+			} else if ctx.EventID == DoExit {
 				mon.DeleteActiveHostPid(ctx.HostPID)
 				continue
 			}
