@@ -15,16 +15,16 @@ sudo swapoff -a
 
 if [ ! -z $1 ] && [ "$1" == "weave" ]; then
     # initialize the master node (weave)
-    sudo kubeadm init | tee -a ~/k8s_init.log
+    sudo kubeadm init --kubernetes-version=v1.21.3 | tee -a ~/k8s_init.log
 elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
     # initialize the master node (flannel)
-    sudo kubeadm init --pod-network-cidr=10.244.0.0/16 | tee -a ~/k8s_init.log
+    sudo kubeadm init --kubernetes-version=v1.21.3 --pod-network-cidr=10.244.0.0/16 | tee -a ~/k8s_init.log
 elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # initialize the master node (calico)
-    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
+    sudo kubeadm init --kubernetes-version=v1.21.3 --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 else
     # initialize the master node (cilium)
-    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
+    sudo kubeadm init --kubernetes-version=v1.21.3 --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 fi
 
 # make kubectl work for non-root user
