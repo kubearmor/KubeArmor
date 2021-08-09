@@ -21,7 +21,7 @@ else
 	Q = @
 endif
 
-OUTPUTDIR = ./output
+INCDIR = ./include
 
 .PHONY: all
 all: libbpf vmlinuxh bpfobj
@@ -34,16 +34,16 @@ CFLAGS = -g -O2 -Werror -Wall -fpie
 
 GIT            = $(shell which git)
 LIBBPFDIR      = $(abspath ./libbpf)
-LIBBPFOBJ      = $(OUTPUTDIR)/libbpf.a
+LIBBPFOBJ      = $(INCDIR)/libbpf.a
 LIBBPFSRCDIR   = $(LIBBPFDIR)/src
 LIBBPFSRCFILES = $(wildcard $(LIBBPFSRCDIR)/*.[ch])
-LIBBPFDESTDIR  = $(abspath $(OUTPUTDIR))
+LIBBPFDESTDIR  = $(abspath $(INCDIR))
 LIBBPFOBJDIR   = $(LIBBPFDESTDIR)/libbpf
 
 .PHONY: libbpf
 libbpf: $(LIBBPFOBJ)
 
-$(LIBBPFOBJ): $(LIBBPFSRCDIR) $(LIBBPFSRCFILES) | $(OUTPUTDIR)
+$(LIBBPFOBJ): $(LIBBPFSRCDIR) $(LIBBPFSRCFILES) | $(INCDIR)
 	$(info INFO: compiling $@)
 	$(Q)CC="$(CC)" CFLAGS="$(CFLAGS)" \
 	$(MAKE) -C $(LIBBPFSRCDIR) \
@@ -65,12 +65,12 @@ endif
 
 BPFTOOL  = $(shell which bpftool)
 BTFFILE  = /sys/kernel/btf/vmlinux
-VMLINUXH = $(OUTPUTDIR)/vmlinux.h
+VMLINUXH = $(INCDIR)/vmlinux.h
 
 .PHONY: vmlinuxh
 vmlinuxh: $(VMLINUXH)
 
-$(VMLINUXH): $(BTFFILE) | $(OUTPUTDIR)
+$(VMLINUXH): $(BTFFILE) | $(INCDIR)
 	$(info INFO: generating $@ from $<)
 	$(Q)$(BPFTOOL) btf dump file $< format c > $@;
 
@@ -83,14 +83,17 @@ endif
 # bpf objects
 
 CLANG      = clang
-CLANGFLAGS = -g -O2 -c -target bpf
-CLANGINC   = $(OUTPUTDIR)
-BPFOBJDIR  = $(OUTPUTDIR)
+CLANGFLAGS = -g -O2 -c -target bpf -MMD -MP
+CLANGINC   = $(INCDIR)
+BPFOBJDIR  = ./objs
 BPFS_C     = $(wildcard *.bpf.c)
 BPFS_O     = $(addprefix $(BPFOBJDIR)/, $(BPFS_C:.c=.o))
+BPFS_D     = $(patsubst %.o,%.d,$(BPFS_O))
 
 .PHONY: bpfobj
 bpfobj: libbpf vmlinuxh $(BPFS_O)
+
+-include $(BPFS_D)
 
 $(BPFOBJDIR)/%.o: %.c | $(BPFOBJDIR)
 	$(info INFO: compiling bpf object $@)
@@ -99,11 +102,11 @@ $(BPFOBJDIR)/%.o: %.c | $(BPFOBJDIR)
 
 # output
 
-$(OUTPUTDIR):
+$(INCDIR) $(BPFOBJDIR):
 	$(Q)mkdir -p $@
 
 
 # cleanup
 
 clean:
-	$(Q)rm -rf $(OUTPUTDIR)
+	$(Q)rm -rf $(INCDIR) $(BPFOBJDIR)
