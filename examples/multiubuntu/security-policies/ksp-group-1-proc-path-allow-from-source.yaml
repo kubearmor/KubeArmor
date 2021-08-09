@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-proc-path-allow-from-source
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "allow the sleep command"
+  selector:
+    matchLabels:
+      group: group-1
+  process:
+    matchPaths:
+    - path: /bin/sleep
+      fromSource:
+        - path: /bin/bash
+  action:
+    Allow
