@@ -27,20 +27,18 @@ import (
 // == Const. Vaiables == //
 // ===================== //
 
+// System Call Numbers
 const (
-	// file
 	SysOpen   = 2
 	SysOpenAt = 257
 	SysClose  = 3
 
-	// network
 	SysSocket  = 41
 	SysConnect = 42
 	SysAccept  = 43
 	SysBind    = 49
 	SysListen  = 50
 
-	// process
 	SysExecve   = 59
 	SysExecveAt = 322
 	DoExit      = 351
