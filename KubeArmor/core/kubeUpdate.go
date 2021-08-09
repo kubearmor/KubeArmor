@@ -1105,8 +1105,8 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 	}
 }
 
-// UpdateHostSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateHostSecurityPolicy(status string) {
+// UpdateHostSecurityPolicies Function
+func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies(status string) {
 	// get node identities
 	nodeIdentities := K8s.GetNodeIdentities()
 
@@ -1529,7 +1529,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
 
 				// apply security policies to a host
-				dm.UpdateHostSecurityPolicy(event.Object.Status.PolicyStatus)
+				dm.UpdateHostSecurityPolicies(event.Object.Status.PolicyStatus)
 			}
 		}
 	}
