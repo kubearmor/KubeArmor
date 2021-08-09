@@ -32,22 +32,6 @@ jobs:
         with:
           path: "./KubeArmor/..."
 
-  golangci-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
-
-      - uses: actions/setup-go@v2
-        with:
-          go-version: v1.16
-
-      - name: Run Golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1
-          golangci-lint run
-        working-directory: KubeArmor
-
   go-sec:
     runs-on: ubuntu-latest
     steps:
