@@ -25,7 +25,6 @@ mkdir -p $ARMOR_HOME/build/KubeArmor
 
 # copy files to build
 cp -r $ARMOR_HOME/BPF/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/audit/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/common/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/core/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/enforcer/ $ARMOR_HOME/build/KubeArmor/
