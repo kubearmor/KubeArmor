@@ -2342,7 +2342,7 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 	for source, lines := range fromSources {
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s r,\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s rix,\n", source)
 
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE START (%s) == ##\n", source)
 
