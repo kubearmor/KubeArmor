@@ -1,0 +1,7 @@
+source: ubuntu-3-deployment
+cmd: cmd: bash -c ls
+result: failed
+---
+operation: Process
+condition: sleep
+action: Block
