@@ -31,7 +31,7 @@ sudo apt-cache policy docker-ce
 # install Docker (the oldest version among the versions that Ubuntu supports)
 case "$VERSION" in
 "18."*)
-    sudo apt-get install -y docker-ce=18.03.1~ce~3-0~ubuntu;;
+    sudo apt-get install -y docker-ce=5:18.09.1~3-0~ubuntu-bionic docker-ce-cli=5:18.09.1~3-0~ubuntu-bionic;;
 "20.04"*)
     sudo apt-get install -y docker-ce=5:19.03.9~3-0~ubuntu-focal;;
 *)
