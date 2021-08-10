@@ -5,7 +5,7 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 5
-  message: "allow the sleep command"
+  message: "allow /bin/bash to execute /bin/sleep"
   selector:
     matchLabels:
       group: group-1
