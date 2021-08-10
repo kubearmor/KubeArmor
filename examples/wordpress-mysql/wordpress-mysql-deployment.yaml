@@ -36,6 +36,7 @@ spec:
       labels:
         app: wordpress
       annotations:
+        kubearmor-policy: enabled
         container.apparmor.security.beta.kubernetes.io/wordpress: localhost/apparmor-wordpress
     spec:
       containers:
@@ -81,6 +82,7 @@ spec:
       labels:
         app: mysql
       annotations:
+        kubearmor-policy: enabled
         container.apparmor.security.beta.kubernetes.io/mysql: localhost/apparmor-mysql
     spec:
       containers:

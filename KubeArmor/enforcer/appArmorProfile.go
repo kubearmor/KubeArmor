@@ -2387,9 +2387,9 @@ func GenerateProfileBody(enableAuditd bool, oldContentsPreMid, oldConetntsMidPos
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n\n", source)
 		bodyFromSource = bodyFromSource + strings.Replace(profileBody, "  ", "    ", -1)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n", source)
 
 		//
 

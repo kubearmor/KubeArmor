@@ -13,8 +13,7 @@ spec:
     - dir: /var/lib/mysql/
       recursive: true
 
-      # cd /var/lib/mysql
-      # touch test
+      # touch /var/lib/mysql/test
 
   action:
     Audit

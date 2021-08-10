@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -430,14 +431,13 @@ func (fd *Feeder) StrToFile(str string) {
 		str = str + "\n"
 
 		// write the string into the file
-		_, err := fd.LogFile.WriteString(str)
-		if err != nil {
+		w := bufio.NewWriter(fd.LogFile)
+		if _, err := w.WriteString(str); err != nil {
 			kg.Err(err.Error())
 		}
 
-		// sync the file
-		err = fd.LogFile.Sync()
-		if err != nil {
+		// flush the file buffer
+		if err := w.Flush(); err != nil {
 			kg.Err(err.Error())
 		}
 	}
