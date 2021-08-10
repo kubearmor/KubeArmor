@@ -1,6 +1,6 @@
 source: ubuntu-1-deployment
-cmd: bash -c ls
-result: failed
+cmd: sleep 1
+result: passed
 ---
 operation: Process
 condition: sleep
