@@ -4,4 +4,4 @@ result: passed
 ---
 operation: Process
 condition: sleep
-action: Block
+action: Allow
