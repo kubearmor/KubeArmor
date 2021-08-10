@@ -672,7 +672,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
-		key := log.HostName
+		key := fd.HostName
 
 		if log.NamespaceName != "" && log.PodName != "" {
 			key = log.NamespaceName + "_" + log.PodName
