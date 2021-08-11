@@ -96,7 +96,7 @@ jobs:
         run: kubectl proxy &
 
       - name: Run Auto Testing Framework
-        run: ./tests/test-scenarios-local.sh -testAll -enableHostPolicy
+        run: ./tests/test-scenarios-local.sh
         timeout-minutes: 15
 
       - name: Archive log artifacts
