@@ -6,10 +6,12 @@ package main
 import (
 	"flag"
 	"os"
+	"strconv"
 	"testing"
 )
 
-var clusterPtr, gRPCPtr, logPathPtr, enableHostPolicyPtr, enableEnforcerPerPodPtr *string
+var clusterPtr, gRPCPtr, logPathPtr *string
+var enableHostPolicyPtr, enableEnforcerPerPodPtr *bool
 
 func init() {
 	// options (string)
@@ -18,8 +20,8 @@ func init() {
 	logPathPtr = flag.String("logPath", "none", "log file path")
 
 	// options (boolean)
-	enableHostPolicyPtr = flag.String("enableHostPolicy", "false", "enabling host policies")
-	enableEnforcerPerPodPtr = flag.String("enableEnforcerPerPod", "false", "enabling the enforcer per pod")
+	enableHostPolicyPtr = flag.Bool("enableHostPolicy", false, "enabling host policies")
+	enableEnforcerPerPodPtr = flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
 }
 
 // TestMain - test to drive external testing coverage
@@ -28,6 +30,6 @@ func TestMain(t *testing.T) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	// Set os args to set flags in main
-	os.Args = []string{"cmd", "-cluster", *clusterPtr, "-gRPC", *gRPCPtr, "-logPath", *logPathPtr, "-enableHostPolicy", *enableHostPolicyPtr, "-enableEnforcerPerPod", *enableEnforcerPerPodPtr}
+	os.Args = []string{"cmd", "-cluster", *clusterPtr, "-gRPC", *gRPCPtr, "-logPath", *logPathPtr, "-enableHostPolicy", strconv.FormatBool(*enableHostPolicyPtr), "-enableEnforcerPerPod", strconv.FormatBool(*enableEnforcerPerPodPtr)}
 	main()
 }

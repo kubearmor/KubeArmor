@@ -9,7 +9,7 @@
      ```text
      OS - Ubuntu 18.04
      Kubernetes - v1.19
-     Docker - 18.03 or Containerd - 1.3.7
+     Docker - 18.09 or Containerd - 1.3.7
      Linux Kernel - v4.15
      LSM - AppArmor
      ```
