@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/kubearmor/KubeArmor/KubeArmor/feeder v0.0.0-00010101000000-000000000000
-	github.com/kubearmor/libbpf v0.0.0-20210807160537-9ea278a9167b
+	github.com/kubearmor/libbpf v0.0.0-20210812132630-835e5a3cb193
 )
 
 replace (
