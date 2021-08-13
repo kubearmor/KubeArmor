@@ -1,10 +1,10 @@
-module github.com/accuknox/KubeArmor/protobuf
+module github.com/kubearmor/KubeArmor/protobuf
 
 go 1.15
 
 replace (
-	github.com/accuknox/KubeArmor => ../
-	github.com/accuknox/KubeArmor/protobuf => ./
+	github.com/kubearmor/KubeArmor => ../
+	github.com/kubearmor/KubeArmor/protobuf => ./
 )
 
 require (
