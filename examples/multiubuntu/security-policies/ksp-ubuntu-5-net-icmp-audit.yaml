@@ -1,15 +1,15 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-group-2-proc-path-audit
+  name: ksp-ubuntu-5-net-icmp-audit
   namespace: multiubuntu
 spec:
-  severity: 4
+  severity: 8
   selector:
     matchLabels:
-      group: group-2
-  process:
-    matchPaths:
-    - path: /bin/sleep # try sleep 1
+      container: ubuntu-5
+  network:
+    matchProtocols:
+    - protocol: icmp # try 'ping 8.8.8.8'
   action:
     Audit

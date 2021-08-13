@@ -1,4 +1,4 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-mysql-audit-dir
@@ -13,8 +13,7 @@ spec:
     - dir: /var/lib/mysql/
       recursive: true
 
-      # cd /var/lib/mysql
-      # touch test
+      # touch /var/lib/mysql/test
 
   action:
     Audit

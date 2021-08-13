@@ -1,13 +1,13 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-wordpress-block-sa
-  namespace: wordpress-mysql
+  name: ksp-ubuntu-2-file-dir-recursive-block
+  namespace: multiubuntu
 spec:
-  severity: 7
+  severity: 8
   selector:
     matchLabels:
-      app: wordpress
+      container: ubuntu-2
   file:
     matchDirectories:
     - dir: /run/secrets/kubernetes.io/serviceaccount/

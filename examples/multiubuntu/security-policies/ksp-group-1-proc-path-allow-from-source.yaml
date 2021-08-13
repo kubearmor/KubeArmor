@@ -1,18 +1,18 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-group-1-proc-path-block
+  name: ksp-group-1-proc-path-allow-from-source
   namespace: multiubuntu
 spec:
   severity: 5
-  message: "block the sleep command"
+  message: "allow /bin/bash to execute /bin/sleep"
   selector:
     matchLabels:
       group: group-1
   process:
     matchPaths:
-    - path: /bin/sleep # try sleep 1 (permission denied)
-      # fromSource:
-      #   path: /bin/bash
+    - path: /bin/sleep
+      fromSource:
+        - path: /bin/bash
   action:
-    Block
+    Allow

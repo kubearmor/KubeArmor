@@ -22,11 +22,12 @@ spec:
         group: group-1
         container: ubuntu-1
       annotations:
-        container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/apparmor-demo-ubuntu-1
+        kubearmor-policy: enabled
+        kubearmor-visibility: process,file,network
     spec:
       containers:
-        - name: ubuntu-1-container
-          image: 0x010/ubuntu-w-utils:latest
+      - name: ubuntu-1-container
+        image: kubearmor/ubuntu-w-utils:0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,11 +48,12 @@ spec:
         group: group-1
         container: ubuntu-2
       annotations:
-        container.apparmor.security.beta.kubernetes.io/ubuntu-2-container: localhost/apparmor-demo-ubuntu-2
+        kubearmor-policy: enabled
+        # kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-2-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -72,11 +74,20 @@ spec:
         group: group-1
         container: ubuntu-3
       annotations:
-        container.apparmor.security.beta.kubernetes.io/ubuntu-3-container: localhost/apparmor-demo-ubuntu-3
+        kubearmor-policy: enabled
+        # kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-3-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
+        volumeMounts:
+        - name: var-log-path
+          mountPath: /host/var/log
+      volumes:
+      - name : var-log-path
+        hostPath:
+          path: /var/log
+          type: Directory
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -97,11 +108,12 @@ spec:
         group: group-2
         container: ubuntu-4
       annotations:
-        container.apparmor.security.beta.kubernetes.io/ubuntu-4-container: localhost/apparmor-demo-ubuntu-4
+        kubearmor-policy: enabled
+        kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-4-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -122,8 +134,9 @@ spec:
         group: group-2
         container: ubuntu-5
       annotations:
-        container.apparmor.security.beta.kubernetes.io/ubuntu-5-container: localhost/apparmor-demo-ubuntu-5
+        kubearmor-policy: enabled
+        # kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-5-container
-        image: 0x010/ubuntu-w-utils:latest
+        image: kubearmor/ubuntu-w-utils:0.1
