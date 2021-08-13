@@ -27,7 +27,7 @@ INCDIR = ./include
 all: libbpf vmlinuxh bpfobj
 
 
-# libbpf
+# C libbpf
 
 CC     = gcc
 CFLAGS = -g -O2 -Werror -Wall -fpie
@@ -100,6 +100,31 @@ $(BPFOBJDIR)/%.o: %.c | $(BPFOBJDIR)
 	$(Q)$(CLANG) $(CLANGFLAGS) -I $(CLANGINC) -o $@ $<
 
 
+# tests
+
+TESTSDIR = $(abspath ../tests)
+TESTS_GO = $(wildcard $(TESTSDIR)/*.go)
+TESTS    = $(TESTS_GO:.go=)
+
+.PHONY: tests
+tests: bpfobj $(TESTS)
+
+$(TESTS): % : %.go | bpfobj
+	$(info INFO: compiling test $@)
+	$(Q)CGO_LDFLAGS=$(LIBBPFOBJ) \
+		go build -o $@ $^
+
+
+# run tests
+
+.PHONY: run-tests
+run-tests: $(TESTS)
+	$(Q)for test in $^; do \
+		echo -e "\nINFO: running test $${test}"; \
+		cd $(TESTSDIR); sudo $${test}; \
+	done
+
+
 # output
 
 $(INCDIR) $(BPFOBJDIR):
@@ -109,4 +134,4 @@ $(INCDIR) $(BPFOBJDIR):
 # cleanup
 
 clean:
-	$(Q)rm -rf $(INCDIR) $(BPFOBJDIR)
+	$(Q)rm -rf $(INCDIR) $(BPFOBJDIR) $(TESTS)
