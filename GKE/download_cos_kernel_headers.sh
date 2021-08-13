@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
 
 cd /KubeArmor/GKE
 
@@ -9,7 +11,7 @@ cd /KubeArmor/GKE
 rm -rf kernel-headers.tgz kernel
 
 # download kernel headers
-wget https://0x010.com/cos/$BUILD_ID/kernel-headers.tgz
+wget https://accuknox.kr/cos/$BUILD_ID/kernel-headers.tgz
 
 # make a directory
 mkdir kernel

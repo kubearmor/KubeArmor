@@ -2,7 +2,7 @@ syntax = "proto3";
  
 package feeder;
 
-// option go_package="github.com/accuknox/KubeArmor/protobuf";
+option go_package="github.com/kubearmor/KubeArmor/protobuf";
 
 // Health check
 message NonceMessage {
@@ -11,86 +11,72 @@ message NonceMessage {
 
 // message struct
 message Message {
-  string UpdatedTime = 1;
+  int64 Timestamp = 1;
+  string UpdatedTime = 2;
 
-  string Source = 2;
-  string SourceIP = 3;
+  string ClusterName = 3;
+  string HostName = 4;
+  string HostIP = 5;
 
-  string Level = 4;
-  string Message = 5;
+  string Type = 6;
+
+  string Level = 7;
+  string Message = 8;
 }
 
-message HostStatType {
-  string HostName = 1;
+// alert struct
+message Alert {
+  int64 Timestamp = 1;
+  string UpdatedTime = 2;
 
-  int32 AllowedCount = 2;
-  int32 AuditedCount = 3;
-  int32 BlockedCount = 4;
-  int32 FailedCount = 5;
-}
+  string ClusterName = 3;
+  string HostName = 4;
 
-message NamespaceStatType {
-  string HostName = 1;
-  string NamespaceName = 2;
+  string NamespaceName = 5;
+  string PodName = 6;
 
-  int32 AllowedCount = 3;
-  int32 AuditedCount = 4;
-  int32 BlockedCount = 5;
-  int32 FailedCount = 6;
-}
+  string ContainerID = 7;
+  string ContainerName = 8;
 
-message PodStatType {
-  string HostName = 1;
-  string NamespaceName = 2;
-  string PodName = 3;
+  int32 HostPID = 9;
+  int32 PPID = 10;
+  int32 PID = 11;
+  int32 UID = 12;
 
-  int32 AllowedCount = 4;
-  int32 AuditedCount = 5;
-  int32 BlockedCount = 6;
-  int32 FailedCount = 7;
-}
+  string PolicyName = 13;
+  string Severity = 14;
 
-message ContainerStatType {
-  string HostName = 1;
-  string NamespaceName = 2;
-  string PodName = 3;
-  string ContainerName = 4;
+  string Tags = 15;
+  string Message = 16;
 
-  int32 AllowedCount = 5;
-  int32 AuditedCount = 6;
-  int32 BlockedCount = 7;
-  int32 FailedCount = 8;
-}
+  string Type = 17;
+  string Source = 18;
+  string Operation = 19;
+  string Resource = 20;
+  string Data = 21;
 
-// Stats struct
-message Stats {
-  string UpdatedTime = 1;
-
-  HostStatType HostStats = 2;
-  repeated NamespaceStatType NamespaceStats = 3;
-  repeated PodStatType PodStats = 4;
-  repeated ContainerStatType ContainerStats = 5;
+  string Action = 22;
+  string Result = 23;
 }
 
 // log struct
 message Log {
-  string UpdatedTime = 1;
+  int64 Timestamp = 1;
+  string UpdatedTime = 2;
 
-  string HostName = 2;
+  string ClusterName = 3;
+  string HostName = 4;
 
-  string NamespaceName = 3;
-  string PodName = 4;
+  string NamespaceName = 5;
+  string PodName = 6;
 
-  string ContainerID = 5;
-  string ContainerName = 6;
+  string ContainerID = 7;
+  string ContainerName = 8;
 
-  int32 HostPID = 7;
-  int32 PPID = 8;
-  int32 PID = 9;
-  int32 UID = 10;
-
-  string PolicyName = 11;
-  string Severity = 12;
+  int32 HostPID = 9;
+  int32 PPID = 10;
+  int32 PID = 11;
+  int32 UID = 12;
 
   string Type = 13;
   string Source = 14;
@@ -98,8 +84,7 @@ message Log {
   string Resource = 16;
   string Data = 17;
 
-  string Action = 18;
-  string Result = 19;
+  string Result = 18;
 }
 
 // request message
@@ -115,6 +100,6 @@ message ReplyMessage {
 service LogService {
   rpc HealthCheck(NonceMessage) returns (ReplyMessage);
   rpc WatchMessages(RequestMessage) returns (stream Message);
-  rpc WatchStatistics(RequestMessage) returns (stream Stats);
+  rpc WatchAlerts(RequestMessage) returns (stream Alert);
   rpc WatchLogs(RequestMessage) returns (stream Log);
 }

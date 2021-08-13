@@ -1,6 +1,9 @@
 # KubeArmor
-go.sum
 kubearmor
 
 # Contribution
 .vscode
+
+# vagrant
+contribution/vagrant/.vagrant
+contribution/vagrant/ubuntu-*-console.log

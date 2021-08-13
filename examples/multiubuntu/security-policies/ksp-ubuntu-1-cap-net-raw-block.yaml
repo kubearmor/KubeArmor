@@ -1,4 +1,4 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-cap-net-raw-block
@@ -10,6 +10,6 @@ spec:
       container: ubuntu-1
   capabilities:
     matchCapabilities:
-    - capability: net_raw # try 'ping 8.8.8.8' (operation not permitted) and 'curl www.accuknox.com' (success)
+    - capability: net_raw # try 'ping 8.8.8.8' (operation not permitted) and 'curl www.kubearmor.com' (success)
   action:
     Block

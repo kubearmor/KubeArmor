@@ -13,17 +13,16 @@
 
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
-* [Kubernetes Installation](contribution/k8s_installation_guide.md)
+* [Testing Guide](contribution/testing_guide.md)
 * [Technical Roadmap](contribution/technical_roadmap.md)
 
 ## Reference
 
+* [Kubernetes Installation](contribution/self-managed-k8s/README.md)
 * [Supported Capability List](reference/supported_capability_list.md)
-* [Supported Operation List](reference/supported_operation_list.md)
 
 ## Examples
 
 * [Multiubuntu](examples/multiubuntu.md)
 * [Sock-Shop](examples/sock-shop.md)
 * [Wordpress-MySQL](examples/wordpress-mysql.md)
-

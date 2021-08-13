@@ -1,7 +1,0 @@
-source: ubuntu-5-deployment
-cmd: ping -c 1 8.8.8.8
-result: failed
----
-operation: Network
-condition: ping
-action: Block

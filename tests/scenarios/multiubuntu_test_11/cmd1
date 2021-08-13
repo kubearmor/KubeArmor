@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: bash -c 'sleep 1'
+result: passed
+---
+operation: Process
+condition: sleep
+action: Allow

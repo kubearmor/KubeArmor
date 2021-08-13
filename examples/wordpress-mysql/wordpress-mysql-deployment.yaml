@@ -15,9 +15,9 @@ spec:
     app: wordpress
   type: NodePort
   ports:
-    - port: 80
-      targetPort: 80
-      nodePort: 30080
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -36,6 +36,7 @@ spec:
       labels:
         app: wordpress
       annotations:
+        kubearmor-policy: enabled
         container.apparmor.security.beta.kubernetes.io/wordpress: localhost/apparmor-wordpress
     spec:
       containers:
@@ -61,8 +62,8 @@ spec:
   selector:
     app: mysql
   ports:
-    - port: 3306
-      targetPort: 3306
+  - port: 3306
+    targetPort: 3306
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -81,6 +82,7 @@ spec:
       labels:
         app: mysql
       annotations:
+        kubearmor-policy: enabled
         container.apparmor.security.beta.kubernetes.io/mysql: localhost/apparmor-mysql
     spec:
       containers:

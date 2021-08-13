@@ -1,14 +1,34 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package enforcer
 
 import (
+	"io/ioutil"
+	"os"
+	"strings"
 	"testing"
 
-	fd "github.com/accuknox/KubeArmor/KubeArmor/feeder"
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 )
 
 func TestAppArmorEnforcer(t *testing.T) {
+	// Check AppArmor
+	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
+		t.Log("Failed to access /sys/kernel/security/lsm")
+	}
+	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	if err != nil {
+		t.Log("Failed to read /sys/kernel/security/lsm")
+		return
+	}
+	if !strings.Contains(string(lsm), "apparmor") {
+		t.Log("AppArmor is not enabled")
+		return
+	}
+
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -43,8 +63,22 @@ func TestAppArmorEnforcer(t *testing.T) {
 }
 
 func TestAppArmorProfile(t *testing.T) {
+	// Check AppArmor
+	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
+		t.Log("Failed to access /sys/kernel/security/lsm")
+	}
+	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	if err != nil {
+		t.Log("Failed to read /sys/kernel/security/lsm")
+		return
+	}
+	if !strings.Contains(string(lsm), "apparmor") {
+		t.Log("AppArmor is not enabled")
+		return
+	}
+
 	// Create Feeder
-	logFeeder := fd.NewFeeder("32767", "none")
+	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy")
 	if logFeeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
@@ -62,7 +96,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Register AppArmorProfile
 
-	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
+	if ok := enforcer.RegisterAppArmorProfile("test-profile", true); !ok {
 		t.Error("[FAIL] Failed to register AppArmorProfile")
 		return
 	}
@@ -71,7 +105,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Unregister AppArmorProfile
 
-	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
+	if ok := enforcer.UnregisterAppArmorProfile("test-profile", true); !ok {
 		t.Error("[FAIL] Failed to unregister AppArmorProfile")
 		return
 	}

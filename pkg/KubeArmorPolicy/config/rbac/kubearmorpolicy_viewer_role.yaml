@@ -1,0 +1,20 @@
+# permissions for end users to view kubearmorpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmorpolicy-viewer-role
+rules:
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmorpolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmorpolicies/status
+  verbs:
+  - get

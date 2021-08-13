@@ -5,42 +5,38 @@
 1. Self-managed Kubernetes
    * Requirements
 
-     Here is the list of minimum requirements for self-managed Kubernetes.
-
+     List of minimum requirements for self-managed Kubernetes.
      ```text
+     OS - Ubuntu 18.04
      Kubernetes - v1.19
-     Docker - 18.03 or Containerd - 1.3.7
+     Docker - 18.09 or Containerd - 1.3.7
      Linux Kernel - v4.15
      LSM - AppArmor
      ```
 
-     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](k8s_installation_guide.md). KubeArmor also requires Docker or Containerd since it internally uses its APIs. If you have other container platforms \(e.g., Podman\), please make an issue in this repository. While we are going to adopt other container platforms in KubeArmor, we may be able to adjust the priorities of our planned tasks on demand. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\).
+     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/README.md). KubeArmor also requires either Docker or Containerd since it internally uses its APIs. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\). Otherwise, KubeArmor will work as Audit-Mode with no container behavior restriction.
 
-  
-     Note that KubeArmor does not work on MiniKube because MiniKube does not support AppArmor. In addition, KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives such as LSMs.  
+      * Alternative Setup - MicroK8s
 
+        You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes. For this, please follow the instructions in [MicroK8s installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/microk8s/README.md).
 
-     * \(Optional\) MicroK8s Setup
+      * Caution - Minikube and Docker Desktops
 
-       In order to install MicroK8s, please run the following command.
+        KubeArmor does not work with Minikube and Docker Desktops because KubeArmor integrates with Linux-kernel native primitives (including LSMs).
 
-       ```text
-       $ cd contribution/microk8s
-       (microk8s) $ ./install_microk8s.sh
-       ```
-
-   * Environmental Setup
+   * Development Setup
 
      In order to install all dependencies, please run the following command.
 
      ```text
-     $ cd contribution/self-managed-k8s
-     (self-managed-k8s) $ ./setup.sh
+     $ cd KubeArmor/contribution/self-managed-k8s
+     ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
-     [setup.sh](https://github.com/accuknox/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC \(latest\), Go \(v1.15.2\), and Protobuf \(3.14.0\).
+     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC, Go, Protobuf, and some other dependencies.
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
+
 2. Vagrant Environment
    * Requirements
 
@@ -48,41 +44,84 @@
 
      ```text
      Vagrant - v2.2.9
-     VirtualBox - v6.0
+     VirtualBox - v6.1
      ```
 
      If you do not have Vagrant and VirtualBox in your environment, you can easily install them by running the following command.
 
      ```text
-     cd contribution/vagrant
-     (vagrant) $ ./setup.sh
+     cd KubeArmor/contribution/vagrant
+     ~/KubeArmor/contribution/vagrant$ ./setup.sh
      ```
 
-     * VM Setup using Vagrant
+    * VM Setup using Vagrant
 
-       If you do not have ssh keys in '~/.ssh' yet, you need to run the following command in advance.
+      Now, it is time to prepare a VM for development.
 
-       ```text
-       (vagrant) $ ssh-keygen -> [Enter] -> [Enter] -> [Enter]
-       ```
+      To create a vagrant VM
 
-       Now, it is time to create a VM for development. You can directly use the vagrant command to create a VM.
+      ```text
+      ~/KubeArmor/KubeArmor$ make vagrant-up
+      ```
 
-       ```text
-       (vagrant) $ vagrant up
-       ```
+	    To destroy the vagrant VM
 
-       If you want to remove the created VM, please run the following command.
+      ```text
+      ~/KubeArmor/KubeArmor$ make vagrant-destroy
+      ```
 
-       ```text
-       (vagrant) $ vagrant destroy
-       ```
+      To get into the vagrant VM
 
-       You are ready to develop the code for KubeArmor. Enjoy your journey with KubeArmor.
+      ```text
+      ~/KubeArmor/KubeArmor$ make vagrant-ssh
+      ```
 
-       ```text
-       (vagrant) $ vagrant ssh
-       ```
+    * VM Setup using the latest Linux kernel (v5.13)
+
+      To use the latest linux kernel for dev env you can run `make` with the `NETNEXT` flag set to `1` for the respective make option.
+
+      ```text
+      ~/KubeArmor/KubeArmor$ make vagrant-up NETNEXT=1
+      ```
+
+       You can also make the setting static by changing `NETNEXT=0` to `NETNEXT=1` in the Makefile.
+
+      ```text
+      ~/KubeArmor/KubeArmor$ vi Makefile
+      ```
+
+3.  Environment Check
+    * Compilation
+
+        Check if KubeArmor can be compiled on your environment without any problems.
+
+        ```text
+        $ cd KubeArmor/KubeArmor
+        ~/KubeArmor/KubeArmor$ make
+        ```
+
+        If you see any error messages, please let us know the issue with the full error messages through KubeArmor's slack.
+
+    * Execution
+
+        In order to directly run KubeArmor in a host (not as a container), you need to run a local proxy in advance.
+
+        ```text
+        $ kubectl proxy &
+
+                or
+
+        $ tmux
+        (tmux)$ kubectl proxy
+        (tmux)$ CTRL B + D
+        ```
+
+        Then, run KubeArmor on your environment.
+
+        ```text
+        $ cd KubeArmor/KubeArmor
+        ~/KubeArmor/KubeArmor$ make run
+        ```
 
 ## Code Directories
 
@@ -92,29 +131,21 @@ Here, we briefly give you an overview of KubeArmor's directories.
 
   ```text
   KubeArmor/
-    common      - Libraries internally used
-    core        - The main body (start point) of KubeArmor
-    discovery   - Automated security policy discovery (under development)
-    enforcer    - Runtime policy enforcer (enforcing security policies into LSMs)
-    feeder      - gRPC-based feeder (sending audit/system logs to a log server)
-    monitor     - eBPF-based container monitor (mapping process IDs to container IDs)
-    BPF         - eBPF code for container monitor
-    log         - Message logger (stdout) for KubeArmor
-    types       - Type definitions
-  protobuf/     - Protocol buffer
-  ```
-
-* Source code for KubeArmor's log client
-
-  ```text
-  LogClient/    - gRPC-based log server
-  protobuf/     - Protocol buffer
+    BPF                  - eBPF code for system monitor
+    common               - Libraries internally used
+    core                 - The main body (start point) of KubeArmor
+    enforcer             - Runtime policy enforcer (enforcing security policies into LSMs)
+    feeder               - gRPC-based feeder (sending audit/system logs to a log server)
+    log                  - Message logger (stdout) for KubeArmor
+    monitor              - eBPF-based system monitor (mapping process IDs to container IDs)
+    types                - Type definitions
+  protobuf/              - Protocol buffer
   ```
 
 * Source code for KubeArmor's custom resource definition \(CRD\)
 
   ```text
-  pkg/k8s/      - CRD Code generated by Kube-Builder
+  pkg/KubeArmorPolicy/      - KubeArmorPolicy CRD generated by Kube-Builder
   ```
 
 * Scripts for GKE
@@ -129,4 +160,3 @@ Here, we briefly give you an overview of KubeArmor's directories.
   examples/     - Example microservices for testing
   tests/        - Automated test framework for KubeArmor
   ```
-

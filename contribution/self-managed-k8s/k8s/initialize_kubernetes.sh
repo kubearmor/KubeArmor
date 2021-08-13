@@ -1,7 +1,9 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
 
 if [ ! -z $1 ] && [ "$1" == "help" ]; then
-    echo "Usage: $0 [ weave | flannel | calico | cilium ] (master)"
+    echo "Usage: $0 [ flannel | weave | calico | cilium ] (master)"
     exit
 fi
 
@@ -10,6 +12,11 @@ fi
 
 # turn off swap
 sudo swapoff -a
+
+# activate br_netfilter
+sudo modprobe br_netfilter
+sudo bash -c "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+sudo bash -c "echo 'net.bridge.bridge-nf-call-iptables=1' >> /etc/sysctl.conf"
 
 if [ ! -z $1 ] && [ "$1" == "weave" ]; then
     # initialize the master node (weave)
@@ -20,19 +27,16 @@ elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
 elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # initialize the master node (calico)
     sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
-elif [ ! -z $1 ] && [ "$1" == "cilium" ]; then
-    # initialize the master node (calico)
-    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 else
-    # initialize the master node (flannel) by default
-    sudo kubeadm init --pod-network-cidr=10.244.0.0/16 | tee -a ~/k8s_init.log
+    # initialize the master node (cilium)
+    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 fi
 
 # make kubectl work for non-root user
-if [ "$(hostname)" == "kubearmor-dev" ]; then
+if [[ $(hostname) = kubearmor-dev* ]]; then
     mkdir -p /home/vagrant/.kube
     sudo cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
-    sudo chown vagrant:vagrant /home/vagrant/.kube/config
+    sudo chown -R vagrant:vagrant /home/vagrant/.kube
     export KUBECONFIG=/home/vagrant/.kube/config
     echo "export KUBECONFIG=/home/vagrant/.kube/config" | tee -a /home/vagrant/.bashrc
 else
@@ -49,16 +53,13 @@ if [ ! -z $1 ] && [ "$1" == "weave" ]; then
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$kubever"
 elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
     # install a pod network (flannel)
-    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.12.0/Documentation/kube-flannel.yml
+    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
 elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     # install a pod network (calico)
     kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
-elif [ ! -z $1 ] && [ "$1" == "cilium" ]; then
-    # install a pod network (cilium)
-    kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.8/install/kubernetes/quick-install.yaml
 else
-    # install a pod network (flannel) by default
-    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.12.0/Documentation/kube-flannel.yml
+    # install a pod network (cilium)
+    kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml
 fi
 
 if [ ! -z $2 ] && [ "$2" == "master" ]; then

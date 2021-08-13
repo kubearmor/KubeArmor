@@ -1,17 +1,22 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package core
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"sort"
+	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
+	pt "github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/typeurl"
 	"google.golang.org/grpc"
@@ -45,17 +50,18 @@ type ContainerdHandler struct {
 	// connection
 	conn *grpc.ClientConn
 
-	// client
+	// container client
 	client pb.ContainersClient
 
-	// context
-	ctx context.Context
+	// task client
+	taskClient pt.TasksClient
 
-	// container stream
-	containerStream pb.Containers_ListStreamClient
+	// context
+	containerd context.Context
+	docker     context.Context
 
 	// active containers
-	containers []string
+	containers map[string]context.Context
 }
 
 // NewContainerdHandler Function
@@ -65,7 +71,7 @@ func NewContainerdHandler() *ContainerdHandler {
 	sockFile := "unix://"
 
 	for _, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock"} {
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err := os.Stat(filepath.Clean(candidate)); err == nil {
 			sockFile = sockFile + candidate
 			break
 		}
@@ -81,9 +87,20 @@ func NewContainerdHandler() *ContainerdHandler {
 	}
 
 	ch.conn = conn
+
+	// container client
 	ch.client = pb.NewContainersClient(ch.conn)
-	ch.ctx = namespaces.WithNamespace(context.Background(), "k8s.io")
-	ch.containers = []string{}
+
+	// task client
+	ch.taskClient = pt.NewTasksClient(ch.conn)
+
+	// docker namespace
+	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
+
+	// containerd namespace
+	ch.containerd = namespaces.WithNamespace(context.Background(), "k8s.io")
+
+	ch.containers = map[string]context.Context{}
 
 	return ch
 }
@@ -91,7 +108,9 @@ func NewContainerdHandler() *ContainerdHandler {
 // Close Function
 func (ch *ContainerdHandler) Close() {
 	if ch.conn != nil {
-		ch.conn.Close()
+		if err := ch.conn.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 	}
 }
 
@@ -100,11 +119,9 @@ func (ch *ContainerdHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function
-func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container, error) {
-	IndependentContainer := "__independent_container__"
-
+func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID string) (tp.Container, error) {
 	req := pb.GetContainerRequest{ID: containerID}
-	res, err := ch.client.Get(ch.ctx, &req)
+	res, err := ch.client.Get(ctx, &req)
 	if err != nil {
 		return tp.Container{}, err
 	}
@@ -116,33 +133,18 @@ func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container,
 	container.ContainerID = res.Container.ID
 	container.ContainerName = res.Container.ID[:12]
 
-	container.HostName = kl.GetHostName()
-	container.HostIP = kl.GetExternalIPAddr()
+	container.NamespaceName = "Unknown"
+	container.ContainerGroupName = "Unknown"
 
 	containerLabels := res.Container.Labels
 	if _, ok := containerLabels["io.kubernetes.pod.namespace"]; ok { // kubernetes
 		if val, ok := containerLabels["io.kubernetes.pod.namespace"]; ok {
 			container.NamespaceName = val
-		} else {
-			container.NamespaceName = IndependentContainer
 		}
 		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
 			container.ContainerGroupName = val
-		} else {
-			container.ContainerGroupName = container.ContainerName
 		}
-	} else { // containerd
-		container.NamespaceName = IndependentContainer
-		container.ContainerGroupName = container.ContainerName
 	}
-
-	container.ImageName = res.Container.Image
-
-	container.Labels = []string{}
-	for k, v := range res.Container.Labels {
-		container.Labels = append(container.Labels, k+"="+v)
-	}
-	sort.Strings(container.Labels)
 
 	iface, err := typeurl.UnmarshalAny(res.Container.Spec)
 	if err != nil {
@@ -154,6 +156,31 @@ func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container,
 
 	// == //
 
+	taskReq := pt.ListPidsRequest{ContainerID: container.ContainerID}
+	if taskRes, err := Containerd.taskClient.ListPids(ctx, &taskReq); err == nil {
+		if len(taskRes.Processes) == 0 {
+			return container, err
+		}
+
+		pid := strconv.Itoa(int(taskRes.Processes[0].Pid))
+
+		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
+			if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
+				fmt.Printf("Failed to get PidNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			}
+		}
+
+		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
+			if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
+				fmt.Printf("Failed to get MntNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			}
+		}
+	} else {
+		return container, err
+	}
+
+	// == //
+
 	return container, nil
 }
 
@@ -162,38 +189,33 @@ func (ch *ContainerdHandler) GetContainerInfo(containerID string) (tp.Container,
 // ======================= //
 
 // GetContainerdContainers Function
-func (ch *ContainerdHandler) GetContainerdContainers() []string {
-	containers := []string{}
+func (ch *ContainerdHandler) GetContainerdContainers() map[string]context.Context {
+	containers := map[string]context.Context{}
 
 	req := pb.ListContainersRequest{}
-	containerList, err := ch.client.List(ch.ctx, &req)
-	if err != nil {
-		return []string{}
+
+	if containerList, err := ch.client.List(ch.docker, &req); err == nil {
+		for _, container := range containerList.Containers {
+			containers[container.ID] = ch.docker
+		}
 	}
 
-	for _, container := range containerList.Containers {
-		containers = append(containers, container.ID)
+	if containerList, err := ch.client.List(ch.containerd, &req); err == nil {
+		for _, container := range containerList.Containers {
+			containers[container.ID] = ch.containerd
+		}
 	}
 
 	return containers
 }
 
 // GetNewContainerdContainers Function
-func (ch *ContainerdHandler) GetNewContainerdContainers(containers []string) []string {
-	newContainers := []string{}
+func (ch *ContainerdHandler) GetNewContainerdContainers(containers map[string]context.Context) map[string]context.Context {
+	newContainers := map[string]context.Context{}
 
-	for _, activeContainerID := range containers {
-		exist := false
-
-		for _, globalContainerID := range ch.containers {
-			if activeContainerID == globalContainerID {
-				exist = true
-				break
-			}
-		}
-
-		if !exist {
-			newContainers = append(newContainers, activeContainerID)
+	for activeContainerID, context := range containers {
+		if _, ok := ch.containers[activeContainerID]; !ok {
+			newContainers[activeContainerID] = context
 		}
 	}
 
@@ -201,21 +223,12 @@ func (ch *ContainerdHandler) GetNewContainerdContainers(containers []string) []s
 }
 
 // GetDeletedContainerdContainers Function
-func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers []string) []string {
-	deletedContainers := []string{}
+func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers map[string]context.Context) map[string]context.Context {
+	deletedContainers := map[string]context.Context{}
 
-	for _, globalContainerID := range ch.containers {
-		exist := false
-
-		for _, activeContainerID := range containers {
-			if globalContainerID == activeContainerID {
-				exist = true
-				break
-			}
-		}
-
-		if !exist {
-			deletedContainers = append(deletedContainers, globalContainerID)
+	for globalContainerID := range ch.containers {
+		if _, ok := containers[globalContainerID]; !ok {
+			delete(ch.containers, globalContainerID)
 		}
 	}
 
@@ -225,70 +238,70 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers []string)
 }
 
 // UpdateContainerdContainer Function
-func (dm *KubeArmorDaemon) UpdateContainerdContainer(containerID, action string) {
-	container := tp.Container{}
-
+func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID, action string) bool {
 	if action == "start" {
-		var err error
-
 		// get container information from containerd client
-		container, err = Containerd.GetContainerInfo(containerID)
+		container, err := Containerd.GetContainerInfo(ctx, containerID)
 		if err != nil {
-			return
+			return false
 		}
 
 		if container.ContainerID == "" {
-			return
+			return false
 		}
 
-		// skip paused containers in k8s
-		if strings.HasPrefix(container.ImageName, "k8s.gcr.io/pause") {
-			return
-		}
-
-		// skip if a container is a part of the following namespaces
-		if kl.ContainsElement([]string{"kube-system"}, container.NamespaceName) {
-			return
-		}
-
-		// add container to containers map
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
+		} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
+			// this entry was updated by kubernetes before docker detects it
+			// thus, we here use the info given by kubernetes instead of the info given by docker
+
+			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
+			container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
+			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+
+			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
+			container.ProcessVisibilityEnabled = dm.Containers[container.ContainerID].ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = dm.Containers[container.ContainerID].FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
+
+			dm.Containers[container.ContainerID] = container
+
+			for _, conGroup := range dm.ContainerGroups {
+				if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[container.ContainerID] == "" {
+					conGroup.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+					break
+				}
+			}
 		} else {
 			dm.ContainersLock.Unlock()
-			return
+			return false
 		}
 		dm.ContainersLock.Unlock()
 
-		if ok := dm.UpdateContainerGroupWithContainer("ADDED", container); !ok {
-			return
-		}
+		// update NsMap
+		dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 
-		dm.LogFeeder.Printf("Detected a container (added/%s/%s)", container.NamespaceName, container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
-		val, ok := dm.Containers[containerID]
-		if !ok {
+		if _, ok := dm.Containers[containerID]; !ok {
 			dm.ContainersLock.Unlock()
-			return
+			return false
 		}
-
-		container = val
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
-		if strings.HasPrefix(container.ImageName, "k8s.gcr.io/pause") {
-			return
-		}
+		// update NsMap
+		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 
-		if ok := dm.UpdateContainerGroupWithContainer("DELETED", container); !ok {
-			return
-		}
-
-		dm.LogFeeder.Printf("Detected a container (removed/%s/%s)", container.NamespaceName, container.ContainerID[:12])
+		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
+
+	return true
 }
 
 // MonitorContainerdEvents Function
@@ -310,21 +323,35 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 		default:
 			containers := Containerd.GetContainerdContainers()
 
+			if len(containers) == len(Containerd.containers) {
+				time.Sleep(time.Millisecond * 10)
+				continue
+			}
+
+			invalidContainers := []string{}
+
 			newContainers := Containerd.GetNewContainerdContainers(containers)
+			deletedContainers := Containerd.GetDeletedContainerdContainers(containers)
+
 			if len(newContainers) > 0 {
-				for _, containerID := range newContainers {
-					dm.UpdateContainerdContainer(containerID, "start")
+				for containerID, context := range newContainers {
+					if !dm.UpdateContainerdContainer(context, containerID, "start") {
+						invalidContainers = append(invalidContainers, containerID)
+					}
 				}
 			}
 
-			deletedContainers := Containerd.GetDeletedContainerdContainers(containers)
+			for _, invalidContainerID := range invalidContainers {
+				delete(Containerd.containers, invalidContainerID)
+			}
+
 			if len(deletedContainers) > 0 {
-				for _, containerID := range deletedContainers {
-					dm.UpdateContainerdContainer(containerID, "destroy")
+				for containerID, context := range deletedContainers {
+					dm.UpdateContainerdContainer(context, containerID, "destroy")
 				}
 			}
 		}
 
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Millisecond * 50)
 	}
 }

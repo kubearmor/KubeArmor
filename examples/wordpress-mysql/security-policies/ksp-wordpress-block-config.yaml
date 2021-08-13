@@ -1,29 +1,4 @@
-apiVersion: security.accuknox.com/v1
-kind: KubeArmorPolicy
-metadata:
-  name: ksp-wordpress-allow-config
-  namespace: wordpress-mysql
-spec:
-  severity: 10
-  selector:
-    matchLabels:
-      app: wordpress
-  file:
-    matchPaths:
-    - path: /var/www/html/wp-config.php
-      fromSource:
-        - path: /usr/sbin/apache2
-
-      # cd /var/www/html
-      # ls -l
-      # ps -ef
-      # cat index.php
-      # cat wp-config.php
- 
-  action:
-    Allow
----
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-wordpress-block-config
@@ -35,6 +10,11 @@ spec:
       app: wordpress
   file:
     matchPaths:
-    - path: /var/www/html/wp-config.php 
+    - path: /var/www/html/wp-config.php
+      ownerOnly: true
+
+      # http://[NodeIP]:30080
+      # cat /var/www/html/wp-config.php
+ 
   action:
     Block

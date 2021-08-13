@@ -1,13 +1,32 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
+realpath() {
+    CURR=$PWD
+
+    cd "$(dirname "$0")"
+    LINK=$(readlink "$(basename "$0")")
+
+    while [ "$LINK" ]; do
+        cd "$(dirname "$LINK")"
+        LINK=$(readlink "$(basename "$1")")
+    done
+
+    REALPATH="$PWD/$(basename "$1")"
+    echo "$REALPATH"
+
+    cd $CURR
+}
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 
-# copy files to build
 mkdir -p $ARMOR_HOME/build/KubeArmor
+
+# copy files to build
 cp -r $ARMOR_HOME/BPF/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/common/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/core/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/discovery/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/enforcer/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/feeder/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/log/ $ARMOR_HOME/build/KubeArmor/

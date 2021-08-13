@@ -1,10 +1,11 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-group-1-proc-path-block
   namespace: multiubuntu
 spec:
   severity: 5
+  message: "block the sleep command"
   selector:
     matchLabels:
       group: group-1
