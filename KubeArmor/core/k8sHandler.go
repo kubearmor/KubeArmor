@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package core
 
 import (
@@ -11,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,8 +23,9 @@ import (
 	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	kl "github.com/accuknox/KubeArmor/KubeArmor/common"
-	tp "github.com/accuknox/KubeArmor/KubeArmor/types"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ================= //
@@ -64,12 +69,14 @@ func NewK8sHandler() *K8sHandler {
 
 	kh.HTTPClient = &http.Client{
 		Timeout: time.Second * 5,
+		// #nosec
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 	}
 
 	kh.WatchClient = &http.Client{
+		// #nosec
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
@@ -136,6 +143,7 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 	kubeConfig := &rest.Config{
 		Host:        "https://" + kh.K8sHost + ":" + kh.K8sPort,
 		BearerToken: kh.K8sToken,
+		// #nosec
 		TLSClientConfig: rest.TLSClientConfig{
 			Insecure: true,
 		},
@@ -189,7 +197,10 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 		return nil, err
 	}
 
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		kg.Err(err.Error())
+	}
+
 	return resBody, nil
 }
 
@@ -215,29 +226,63 @@ func (kh *K8sHandler) GetContainerRuntime() string {
 	return node.Status.NodeInfo.ContainerRuntimeVersion
 }
 
+// GetNodeIdentities Function
+func (kh *K8sHandler) GetNodeIdentities() []string {
+	nodeIdentities := []string{}
+
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nodeIdentities
+	}
+
+	// get a host name
+	hostName := kl.GetHostName()
+
+	// add the host name
+	nodeIdentities = append(nodeIdentities, "hostName="+hostName)
+
+	// get a node from k8s api client
+	node, err := kh.K8sClient.CoreV1().Nodes().Get(context.Background(), hostName, metav1.GetOptions{})
+	if err != nil {
+		return nodeIdentities
+	}
+
+	// add more info
+	nodeIdentities = append(nodeIdentities, "architecture="+node.Status.NodeInfo.Architecture)
+	nodeIdentities = append(nodeIdentities, "osType="+node.Status.NodeInfo.OperatingSystem)
+	nodeIdentities = append(nodeIdentities, "osName="+strings.Split(node.Status.NodeInfo.OSImage, " ")[0])
+	nodeIdentities = append(nodeIdentities, "osVersion="+strings.Split(node.Status.NodeInfo.OSImage, " ")[1])
+	nodeIdentities = append(nodeIdentities, "kernelVersion="+strings.Split(node.Status.NodeInfo.KernelVersion, "-")[0])
+	nodeIdentities = append(nodeIdentities, "runtimePlatform="+strings.Split(node.Status.NodeInfo.ContainerRuntimeVersion, ":")[0])
+
+	// add labels
+	for k, v := range node.ObjectMeta.Labels {
+		nodeIdentities = append(nodeIdentities, k+"="+v)
+	}
+
+	return nodeIdentities
+}
+
 // ================ //
 // == Deployment == //
 // ================ //
 
 // PatchDeploymentWithAppArmorAnnotations Function
-func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, deploymentName string, annotations map[string]string) error {
+func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	count := len(appArmorAnnotations)
 
-	count := len(annotations)
-
-	for k, v := range annotations {
-		kv := `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
+	for k, v := range appArmorAnnotations {
+		spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
 
 		if count > 1 {
-			kv = kv + ","
+			spec = spec + ","
 		}
-		count--
 
-		spec = spec + kv
+		count--
 	}
 
 	spec = spec + `}}}}}`
@@ -323,6 +368,7 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
 
+	// #nosec
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}
@@ -348,7 +394,7 @@ func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) bool {
 		res := metav1.APIGroupList{}
 		if errIn := json.Unmarshal(resBody, &res); errIn == nil {
 			for _, group := range res.Groups {
-				if group.Name == "security.accuknox.com" {
+				if group.Name == "security.kubearmor.com" {
 					exist = true
 					apiGroup = group
 					break
@@ -381,7 +427,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	}
 
 	if kl.IsInK8sCluster() {
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.accuknox.com/v1/kubearmorpolicies?watch=true"
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
 
 		req, err := http.NewRequest("GET", URL, nil)
 		if err != nil {
@@ -400,8 +446,9 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	}
 
 	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.accuknox.com/v1/kubearmorpolicies?watch=true"
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
 
+	// #nosec
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}

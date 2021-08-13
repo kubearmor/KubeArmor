@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -5,15 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"log"
-	"net/http"
-	_ "net/http/pprof"
-
-	"github.com/accuknox/KubeArmor/KubeArmor/core"
-	kg "github.com/accuknox/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/core"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 func main() {
+	// == //
+
 	if os.Geteuid() != 0 {
 		kg.Printf("Need to have root privileges to run %s\n", os.Args[0])
 		return
@@ -32,18 +33,20 @@ func main() {
 
 	// == //
 
-	portPtr := flag.String("port", "32767", "gRPC port number")
-	outputPtr := flag.String("output", "none", "log file path")
-	pprofPtr := flag.String("pprof", "none", "pprof port number")
-	flag.Parse()
+	// options (string)
+	clusterPtr := flag.String("cluster", "", "cluster name")
+	gRPCPtr := flag.String("gRPC", "32767", "gRPC port number")
+	logPathPtr := flag.String("logPath", "none", "log file path, {path|stdout|none}")
+	logFilterPtr := flag.String("logFilter", "policy", "Filter for what kinds of alerts and logs to receive, {policy|system|all}")
 
-	if *pprofPtr != "none" {
-		go func() {
-			log.Println(http.ListenAndServe("0.0.0.0:"+*pprofPtr, nil))
-		}()
-	}
+	// options (boolean)
+	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
+
+	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*portPtr, *outputPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableEnforcerPerPodPtr)
+
+	// == //
 }
