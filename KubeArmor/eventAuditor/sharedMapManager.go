@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	lbpf "github.com/kubearmor/libbpf"
@@ -16,9 +17,16 @@ import (
 // == Shared Map Management == //
 // =========================== //
 
+const BPFObjRelPath = "./BPF/objs/"
+const pinBasePath = "/sys/fs/bpf/"
+
+var bpfObjAbsPath string
 var sharedMaps = map[string]*lbpf.KABPFMap{}
-var sharedMapsNames = [...]string{"ka_ea_pattern_map", "ka_ea_process_spec_map", "ka_ea_process_filter_map"}
-var pinBasePath = "/sys/fs/bpf/"
+var sharedMapsNames = [...]string{
+	KAEAPatternMap,
+	KAEAProcessSpecMap,
+	KAEAProcessFilterMap,
+}
 
 // pinMap Function
 func pinMap(m *lbpf.KABPFMap) error {
@@ -30,10 +38,27 @@ func unpinMap(m *lbpf.KABPFMap) error {
 	return m.Unpin(pinBasePath + m.Name())
 }
 
+// SetBPFObjPath Function
+func (ea *EventAuditor) SetBPFObjPath(path string) {
+	var err error
+
+	bpfObjAbsPath, err = filepath.Abs(path)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err.Error())
+		os.Exit(-1)
+	}
+
+	_, err = os.Stat(bpfObjAbsPath)
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Fprint(os.Stderr, err.Error())
+		os.Exit(-1)
+	}
+}
+
 // InitSharedMaps Function
 func (ea *EventAuditor) InitSharedMaps() error {
 	if len(sharedMaps) > 0 {
-		return errors.New("sharedMaps is already initialized")
+		return errors.New("Shared maps are already initialized")
 	}
 
 	for _, mapName := range sharedMapsNames {
@@ -42,39 +67,35 @@ func (ea *EventAuditor) InitSharedMaps() error {
 		var bpfMap *lbpf.KABPFMap
 		var err error
 
-		mapObjFilePath, err = filepath.Abs("./BPF/objs/" + mapName + ".o")
-		if err != nil {
-			ea.LogFeeder.Printf(err.Error())
-			continue
-		}
+		mapObjFilePath = path.Join(bpfObjAbsPath, mapName+".bpf.o")
 
 		_, err = os.Stat(mapObjFilePath)
 		if errors.Is(err, os.ErrNotExist) {
-			ea.LogFeeder.Printf(err.Error())
+			ea.LogFeeder.Err(err.Error())
 			continue
 		}
 
 		bpfObj, err = lbpf.OpenObjectFromFile(mapObjFilePath)
 		if err != nil {
-			ea.LogFeeder.Printf(err.Error())
+			ea.LogFeeder.Err(err.Error())
 			continue
 		}
 
 		err = bpfObj.Load()
 		if err != nil {
-			ea.LogFeeder.Printf(err.Error())
+			ea.LogFeeder.Err(err.Error())
 			bpfObj.Close()
 		}
 
 		bpfMap, err = bpfObj.FindMapByName(mapName)
 		if err != nil {
-			ea.LogFeeder.Printf(err.Error())
+			ea.LogFeeder.Err(err.Error())
 			bpfObj.Close()
 		}
 
 		err = pinMap(bpfMap)
 		if err != nil {
-			ea.LogFeeder.Printf(err.Error())
+			ea.LogFeeder.Err(err.Error())
 		}
 
 		sharedMaps[mapName] = bpfMap
@@ -91,7 +112,7 @@ func (ea *EventAuditor) InitSharedMaps() error {
 // StopSharedMaps Function
 func (ea *EventAuditor) StopSharedMaps() error {
 	if len(sharedMaps) == 0 {
-		return errors.New("There are no sharedMaps to stop")
+		return errors.New("There are no shared maps to stop")
 	}
 
 	var errOnStopping = map[string]int{}
@@ -103,14 +124,14 @@ func (ea *EventAuditor) StopSharedMaps() error {
 
 		if bpfMap, found = sharedMaps[mapName]; !found {
 			errOnStopping[mapName]++
-			ea.LogFeeder.Printf("Map %s is not initialized to be stopped", mapName)
+			ea.LogFeeder.Errf("Map %s is not initialized to be stopped", mapName)
 			continue
 		}
 
 		err = unpinMap(bpfMap)
 		if err != nil {
 			errOnStopping[mapName]++
-			ea.LogFeeder.Print(err.Error())
+			ea.LogFeeder.Err(err.Error())
 		}
 
 		bpfMap.Object().Close()
@@ -125,4 +146,29 @@ func (ea *EventAuditor) StopSharedMaps() error {
 	return nil
 }
 
-// handle process-spec table
+func (ea *EventAuditor) BPFMapUpdateElement(mapElem lbpf.KABPFMapElement) error {
+	m, found := sharedMaps[mapElem.MapName()]
+	if !found {
+		return fmt.Errorf("%s not found in shared maps", mapElem.MapName())
+	}
+
+	return m.UpdateElement(mapElem)
+}
+
+func (ea *EventAuditor) BPFLookupElement(mapElem lbpf.KABPFMapElement) ([]byte, error) {
+	m, found := sharedMaps[mapElem.MapName()]
+	if !found {
+		return nil, fmt.Errorf("%s not found in shared maps", mapElem.MapName())
+	}
+
+	return m.LookupElement(mapElem)
+}
+
+func (ea *EventAuditor) BPFDeleteElement(mapElem lbpf.KABPFMapElement) error {
+	m, found := sharedMaps[mapElem.MapName()]
+	if !found {
+		return fmt.Errorf("%s not found in shared maps", mapElem.MapName())
+	}
+
+	return m.DeleteElement(mapElem)
+}
