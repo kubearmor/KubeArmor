@@ -1,83 +1,64 @@
 # Technical Roadmap
 
-Here, we briefly share a plan for the next releases \(e.g., including features, specs, and platforms\).
+* KubeArmor v1.0
 
-* Current Release
   * Kubernetes Environments
-    * Self-managed Kubernetes \(using kubeadm\), MicroK8s, Google Kubernetes Engine \(GKE\) 
-  * Container Platforms
-    * Docker, Containerd 
-  * LSM Supports
-    * AppArmor 
-  * Features
+    * Self-managed Kubernetes \(using kubeadm\), MicroK8s
+    * Google Kubernetes Engine \(GKE\)
 
+  * Container Platforms
+    * Docker, Containerd
+
+  * LSM Support
+    * AppArmor
+
+  * Features
     * Monitor container behaviors at the system level
     * Enforce security policies against:
-
-    ```text
-      Process executions  
-      File accesses  
-      Network operations  
+      ```text
+      Process executions
+      File accesses
+      Network operations
       Capabilities permitted
-    ```
-
-    * Produce container-aware audit logs and system logs \(for failed system calls\) and write them into:
-
-    ```text
-      Standard output  
-      Log file  
+      ```
+    * Produce container-aware alerts and system logs and write them into:
+      ```text
+      Standard output
+      Log file
       gRPC
-    ```
-* Next Release
+      ```
+    * Provide gRPC clients
+      ```text
+      kubearmor-log-client (https://github.com/kubearmor/kubearmor-log-client)
+      ```
+
+* KubeArmor Roadmap for future releases
   * Kubernetes Environments
-    * \(extension\) Amazon Elastic Kubernetes Service \(EKS\), Azure Kubernetes Service \(AKS\) 
-  * LSM Supports
-    * \(extension\) KRSI \(requiring Linux kernel v5.8 or newer\) 
-  * Features
+    * Minikube, OpenShift
+    * Amazon Elastic Kubernetes Service \(EKS\), Azure Kubernetes Service \(AKS\)
 
-    * \(extension\) Produce container-aware logs and write them into:
-
-    ```text
-      Database (e.g., MySQL and MongoDB)
-    ```
-
-    * Automatically generate security policies for given containers against:
-
-    ```text
-      Process executions  
-      Files accesses
-    ```
-
-    * Enforce security policies \(using KRSI\) against:
-
-    ```text
-      Process executions  
-      File accesses  
-      Network operations  
-      Capabilities permitted
-    ```
-
-    * Produce telemetry data to monitoring systems
-
-    ```text
-      Prometheus
-    ```
-* Future Releases
   * Container Platforms
-    * \(extension\) Podman 
+    * PodMan
+
   * LSM Supports
-    * \(extension\) SELinux 
+    * SELinux, LSM eBPF (KRSI)
+
   * Features
-
-    * Produce container-aware logs and write them into:
-
-    ```text
-      Other systems (e.g., Kafka and Elasticsearch)
-    ```
-
+    * Provide gRPC clients
+      ```text
+      kubearmor-mysql-client
+      kubearmor-kafka-client
+      ```
+    * Produce telemetry data to monitoring systems
+      ```text
+      Prometheus integration
+      ```
+    * Automatically generate security policies for given containers against:
+      ```text
+      Process executions
+      Files accesses
+      ```
     * Enforce security policies against inter-container communications at the network level
-
-    ```text
+      ```text
       Integration with network security solutions (e.g., Cilium)
-    ```
-
+      ```
