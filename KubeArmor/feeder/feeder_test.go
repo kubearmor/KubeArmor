@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package feeder
 
 import (
@@ -6,7 +9,7 @@ import (
 
 func TestFeeder(t *testing.T) {
 	// create Feeder
-	feeder := NewFeeder("32767", "none")
+	feeder := NewFeeder("Default", "32767", "none", "policy")
 	if feeder == nil {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
