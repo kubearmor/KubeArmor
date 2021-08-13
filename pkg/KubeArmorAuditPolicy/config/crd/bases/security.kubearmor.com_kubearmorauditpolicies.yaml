@@ -52,8 +52,6 @@ spec:
                             type: string
                           ipv6addr:
                             type: string
-                          kprobe:
-                            type: string
                           mode:
                             type: string
                           path:
@@ -61,6 +59,8 @@ spec:
                             pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                             type: string
                           port:
+                            type: string
+                          probe:
                             type: string
                           protocol:
                             description: socket related arguments
@@ -77,8 +77,8 @@ spec:
                           rate:
                             pattern: ^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
                             type: string
-                          syscall:
-                            type: string
+                        required:
+                        - probe
                         type: object
                       type: array
                     message:

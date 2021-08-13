@@ -24,8 +24,7 @@ import (
 type SeverityType string
 
 type EventType struct {
-	Syscall string `json:"syscall,omitempty"`
-	Kprobe  string `json:"kprobe,omitempty"`
+	Probe string `json:"probe"`
 
 	// +kubebuilder:validation:Pattern=^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
 	Rate string `json:"rate,omitempty"`

@@ -67,6 +67,10 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
+	// K8s Audit policies
+	K8sAuditPolicies     []tp.K8sKubeArmorAuditPolicy
+	K8sAuditPoliciesLock *sync.RWMutex
+
 	// Audit policies
 	AuditPolicies     []tp.KubeArmorAuditPolicy
 	AuditPoliciesLock *sync.RWMutex
@@ -150,6 +154,9 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 
 	dm.HostSecurityPolicies = []tp.HostSecurityPolicy{}
 	dm.HostSecurityPoliciesLock = new(sync.RWMutex)
+
+	dm.K8sAuditPolicies = []tp.K8sKubeArmorAuditPolicy{}
+	dm.K8sAuditPoliciesLock = new(sync.RWMutex)
 
 	dm.AuditPolicies = []tp.KubeArmorAuditPolicy{}
 	dm.AuditPoliciesLock = new(sync.RWMutex)

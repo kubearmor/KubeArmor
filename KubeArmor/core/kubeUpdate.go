@@ -1530,96 +1530,67 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 			continue
 		}
 
-		dm.AuditPoliciesLock.Lock()
-		name := event.Object.Metadata.Name
-		generation := strconv.FormatInt(event.Object.Metadata.Generation, 10)
-		namespace := event.Object.Metadata.Namespace
+		dm.K8sAuditPoliciesLock.Lock()
+		checkAlreadyExists := func () bool {
+			if event.Type == "ADDED" || event.Type == "MODIFIED" {
+				for _, policy := range dm.K8sAuditPolicies {
+					if policy.Metadata.Name == event.Object.Metadata.Name &&
+						policy.Metadata.Namespace == event.Object.Metadata.Namespace &&
+						policy.Metadata.Generation == event.Object.Metadata.Generation {
+						return true
+					}
+				}
+			}
+			return false
+		}
 
 		// already exists, skip
-		if event.Type == "ADDED" || event.Type == "MODIFIED" {
-			for _, policy := range dm.AuditPolicies {
-				if policy.Metadata["name"] == name &&
-					policy.Metadata["namespace"] == namespace &&
-					policy.Metadata["generation"] == generation {
-
-					dm.AuditPoliciesLock.Unlock()
-					continue
-				}
-			}
-		}
-
-		// simple validation: events must define kprobe or syscall
-		isValidEvent := true
-		for _, rule := range event.Object.Spec.AuditRules {
-			for _, evt := range rule.Events {
-				if evt.Kprobe == "" && evt.Syscall == "" {
-					isValidEvent = false
-					break
-				}
-			}
-		}
-
-		if !isValidEvent {
-			if event.Type != "DELETED" {
-				dm.LogFeeder.Printf("Invalid Audit Policy (ignored/%s): " +
-					"missing {kprobe,syscall} definition.", name)
-			}
-
-			dm.AuditPoliciesLock.Unlock()
+		if checkAlreadyExists() {
+			dm.K8sAuditPoliciesLock.Unlock()
 			continue
 		}
 
-		policy := tp.KubeArmorAuditPolicy{}
-		policy.Metadata = make(map[string]string)
-		policy.Metadata["name"] = name
-		policy.Metadata["namespace"] = namespace
-		policy.Metadata["generation"] = generation
-
-		if err := kl.Clone(event.Object.Spec, &policy.RawSpec); err != nil {
+		policy := tp.K8sKubeArmorAuditPolicy{}
+		if err := kl.Clone(event.Object, &policy); err != nil {
 			dm.LogFeeder.Printf("Failed to clone spec for Audit Policy (%s/%s)." +
-				" This event will be lost", strings.ToLower(event.Type), name)
+				" This event will be lost", strings.ToLower(event.Type),
+				event.Object.Metadata.Name)
 
-			dm.AuditPoliciesLock.Unlock()
+			dm.K8sAuditPoliciesLock.Unlock()
 			continue
 		}
 
 		// add/delete/modify
 		if event.Type == "ADDED" {
-			sameExists := false
-			for _, p := range dm.AuditPolicies {
-				if reflect.DeepEqual(p.RawSpec, policy.RawSpec) {
-					sameExists = true
-					break
-				}
-			}
-
-			if !sameExists {
-				dm.AuditPolicies = append(dm.AuditPolicies, policy)
-			}
+			dm.K8sAuditPolicies = append(dm.K8sAuditPolicies, policy)
 
 		} else if event.Type == "DELETED" {
-			for i, p := range dm.AuditPolicies {
-				if reflect.DeepEqual(p.RawSpec, policy.RawSpec) {
-					dm.AuditPolicies = append(dm.AuditPolicies[:i], dm.AuditPolicies[i+1:]...)
+			for i, p := range dm.K8sAuditPolicies {
+				if p.Metadata.Name == policy.Metadata.Name &&
+					p.Metadata.Namespace == policy.Metadata.Namespace &&
+					reflect.DeepEqual(p.Spec, policy.Spec) {
+
+					dm.K8sAuditPolicies = append(dm.K8sAuditPolicies[:i],
+						dm.K8sAuditPolicies[i+1:]...)
 					break
 				}
 			}
 
 		} else if event.Type == "MODIFIED" {
-			for i := 0; i < len(dm.AuditPolicies); i++ {
-				if dm.AuditPolicies[i].Metadata["name"] == name &&
-					dm.AuditPolicies[i].Metadata["namespace"] == namespace &&
-					dm.AuditPolicies[i].Metadata["generation"] == generation {
-					dm.AuditPolicies[i] = policy
+			for i := 0; i < len(dm.K8sAuditPolicies); i++ {
+				if dm.K8sAuditPolicies[i].Metadata.Name == policy.Metadata.Name &&
+					dm.K8sAuditPolicies[i].Metadata.Namespace == policy.Metadata.Namespace {
+					dm.K8sAuditPolicies[i] = policy
+					break
 				}
 			}
 		}
 
-		dm.AuditPoliciesLock.Unlock()
+		dm.K8sAuditPoliciesLock.Unlock()
 		dm.LogFeeder.Printf("Detected an Audit Policy (%s/%s)",
-			strings.ToLower(event.Type), name)
+			strings.ToLower(event.Type), event.Object.Metadata.Name)
 
-		dm.UpdateAuditPolicy(event.Type, policy, event.Object.Status.AuditPolicyStatus)
+		dm.UpdateAuditPolicy(policy.Status.AuditPolicyStatus)
 	}
 }
 
@@ -1681,44 +1652,21 @@ func (dm *KubeArmorDaemon) decodeKubeArmorMacro(decoder *json.Decoder) {
 
 		dm.KubeArmorMacrosLock.Unlock()
 		dm.LogFeeder.Printf("Detected a Macro (%s/%s)", strings.ToLower(event.Type), name)
-
-		dm.UpdateAuditPolicy("UPDATEALL", tp.KubeArmorAuditPolicy{},
-			event.Object.Status.MacroStatus)
+		dm.UpdateAuditPolicy(event.Object.Status.MacroStatus)
 	}
-}
-
-func (dm *KubeArmorDaemon) auditPolicyRebuild(auditPolicy *tp.KubeArmorAuditPolicy) {
-
 }
 
 // UpdateAuditPolicy Function
-func (dm *KubeArmorDaemon) UpdateAuditPolicy(action string, auditPolicy tp.KubeArmorAuditPolicy, status string) {
+func (dm *KubeArmorDaemon) UpdateAuditPolicy(status string) {
 	dm.AuditPoliciesLock.Lock()
 	dm.KubeArmorMacrosLock.Lock()
+	dm.K8sAuditPoliciesLock.Lock()
 
-	findPolicy := func (policy *tp.KubeArmorAuditPolicy) int {
-		for i, p := range dm.AuditPolicies {
-			if reflect.DeepEqual(p.RawSpec, (*policy).RawSpec) {
-				return i
-			}
-		}
+	// rebuild the audit policies
+	// TODO: rebuild code will be placed here
+	dm.LogFeeder.Printf("Rebuilding KubeArmor Audit Policies")
 
-		return -1
-	}
-
-	// rebuild all policies
-	if action == "UPDATEALL" {
-		for i := 0; i < len(dm.AuditPolicies); i++ {
-			dm.auditPolicyRebuild(&dm.AuditPolicies[i])
-		}
-
-	// rebuild a specific policy
-	} else if action == "ADDED" || action == "MODIFIED" {
-		if i := findPolicy(&auditPolicy); i != -1 {
-			dm.auditPolicyRebuild(&dm.AuditPolicies[i])
-		}
-	}
-
+	dm.K8sAuditPoliciesLock.Unlock()
 	dm.KubeArmorMacrosLock.Unlock()
 	dm.AuditPoliciesLock.Unlock()
 }
