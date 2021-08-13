@@ -158,8 +158,7 @@ type K8sKubeArmorAuditPolicyEvent struct {
 
 // K8sEventType Structure
 type K8sEventType struct {
-	Syscall string `json:"syscall,omitempty"`
-	Kprobe  string `json:"kprobe,omitempty"`
+	Probe   string `json:"probe"`
 	Rate    string `json:"rate,omitempty"`
 
 	// socket related arguments
@@ -579,15 +578,10 @@ type KubeArmorMacros map[string]KubeArmorMacrosNamespace
 // == Audit Policy == //
 // ================== //
 
-type SeverityType int
-type RateLimitType string
-type AuditProcessType string
-
 // AuditEventType Structure
 type AuditEventType struct {
-	Syscall string        `json:"syscall,omitempty"`
-	Kprobe  string        `json:"kprobe,omitempty"`
-	Rate    RateLimitType `json:"rate,omitempty"`
+	Probe string `json:"probe"`
+	Rate  string `json:"rate,omitempty"`
 
 	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
@@ -603,8 +597,8 @@ type AuditEventType struct {
 
 // KubeArmorAuditRuleType Structure
 type KubeArmorAuditRuleType struct {
-	Process  AuditProcessType `json:"process,omitempty"`
-	Severity SeverityType     `json:"severity,omitempty"`
+	Process  string           `json:"process,omitempty"`
+	Severity int              `json:"severity,omitempty"`
 	Tags     []string         `json:"tags,omitempty"`
 	Message  string           `json:"message,omitempty"`
 	Events   []AuditEventType `json:"events"`
@@ -612,7 +606,7 @@ type KubeArmorAuditRuleType struct {
 
 // KubeArmorAuditPolicySpec Structure
 type KubeArmorAuditPolicySpec struct {
-	Severity   SeverityType             `json:"severity,omitempty"`
+	Severity   int                      `json:"severity,omitempty"`
 	Tags       []string                 `json:"tags,omitempty"`
 	Message    string                   `json:"message,omitempty"`
 	AuditRules []KubeArmorAuditRuleType `json:"rules"`
@@ -627,5 +621,4 @@ type AuditPolicyStatus struct {
 type KubeArmorAuditPolicy struct {
 	Metadata map[string]string        `json:"metadata"`
 	Spec     KubeArmorAuditPolicySpec `json:"spec"`
-	RawSpec  K8sAuditPolicySpec       `json:"rawspec"`
 }

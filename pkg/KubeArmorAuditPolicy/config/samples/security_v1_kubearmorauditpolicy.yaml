@@ -16,24 +16,24 @@ spec:
       message: "suspicious shell activity"
       severity: "5"
       events:
-        - syscall: BIND-CONNECT-ACCEPT
+        - probe: BIND-CONNECT-ACCEPT
           ipv4addr: NON-EXTERNAL-IPV4
           rate: 10p1s
 
     - process: "*"
       events:
-        - syscall: sys_open
+        - probe: sys_open
           path: /etc/shadow
           mode: O_RDWR_APPEND
 
     - message: "outbound probes detected (for any process)"
       severity: "5"
       events:
-        - kprobe: tcp_rst
+        - probe: tcp_rst
           rate: 10p1s
 
     - message: "inbound probes detected"
       severity: "5"
       events:
-        - kprobe: tcp_rst_send
+        - probe: tcp_rst_send
           rate: 10p1s
