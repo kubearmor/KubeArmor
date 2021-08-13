@@ -1,22 +1,47 @@
 Vagrant.require_version ">= 2.0.0"
 
+if ENV['NETNEXT'] == "1" then
+	VM_IMG = "ubuntu/bionic64"
+	VM_NAME = "kubearmor-dev-next"
+else
+	VM_IMG = "ubuntu/bionic64"
+	VM_NAME = "kubearmor-dev"
+end
+
+system("
+    if [ #{ARGV[0]} = 'up' ]; then
+		if [ ! -f ~/.ssh/id_rsa ]
+		then
+			echo '~/.ssh/id_rsa keys does not exist.'
+			ssh-keygen -t rsa -f ~/.ssh/id_rsa 
+		fi
+    fi
+")
+
 Vagrant.configure("2") do |config|
-  config.vm.define "KubeArmor-Dev" do |cfg|
-    cfg.vm.box = "ubuntu/bionic64"
+  # Need updated vbguest and reload for latest kernel
+  if ENV['NETNEXT'] == "1" then
+    config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
+  end
+  config.vm.define VM_NAME do |cfg|
+    cfg.vm.box = VM_IMG
     cfg.vm.provider "virtualbox" do |vb|
-      vb.name = "KubeArmor-Dev"
-      vb.memory = "4096"
+      vb.name = VM_NAME
+      vb.memory = 4096
       vb.cpus = 4
       vb.customize ['modifyvm', :id, '--nested-hw-virt', 'on']
     end
   end
 
-  # vagrant@kubearmor-dev
-  config.vm.hostname = "kubearmor-dev"
+  # vagrant@VM_NAME
+  config.vm.hostname = VM_NAME
+
+  # forward port for debug
+  config.vm.network "forwarded_port", guest: 2345, host: 2345
 
   # sync directories
   kubearmor_home = "../.."
-  config.vm.synced_folder kubearmor_home, "/home/vagrant/KubeArmor"
+  config.vm.synced_folder kubearmor_home, "/home/vagrant/KubeArmor", owner:"vagrant", group:"vagrant"
 
   # copy ssh keys
   config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "/home/vagrant/.ssh/id_rsa.pub"
@@ -32,4 +57,12 @@ Vagrant.configure("2") do |config|
 
   # Initialize Kubernetes
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
+
+  # Reboot to use new kernel
+  if ENV['NETNEXT'] == "1" then
+	  config.vm.provision :reload
+  end
+
+  # Change permissions
+  config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go"
 end
