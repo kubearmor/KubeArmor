@@ -96,8 +96,8 @@ spec:
         ports:
         - containerPort: 32767
         volumeMounts:
-        - name: containerd-sock-path # containerd (read-only)
-          mountPath: /var/run/containerd/containerd.sock
+        - name: docker-sock-path # docker (read-only)
+          mountPath: /var/run/docker.sock
           readOnly: true
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
@@ -129,9 +129,9 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: containerd-sock-path # containerd
+      - name: docker-sock-path # docker
         hostPath:
-          path: /var/snap/microk8s/common/run/containerd.sock
+          path: /var/run/docker.sock
           type: Socket
       - name: usr-src-path # BPF
         hostPath:
@@ -629,3 +629,4 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
+  

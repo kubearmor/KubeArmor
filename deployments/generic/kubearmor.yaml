@@ -131,7 +131,7 @@ spec:
       volumes:
       - name: containerd-sock-path # containerd
         hostPath:
-          path: /var/snap/microk8s/common/run/containerd.sock
+          path: /var/run/containerd/containerd.sock
           type: Socket
       - name: usr-src-path # BPF
         hostPath:
