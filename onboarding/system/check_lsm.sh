@@ -1,6 +1,6 @@
 #!/bin/bash
-
-LSM=0
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
 
 echo "[INFO] Check LSMs"
 
@@ -9,6 +9,8 @@ if [ $? != 0 ]; then
     echo "[FAIL] Failed to access /sys/kernel/security"
     exit 1
 fi
+
+LSM=0
 
 APPARMOR=$(sudo cat /sys/kernel/security/lsm | grep apparmor | wc -l)
 if [ $APPARMOR == 1 ]; then
