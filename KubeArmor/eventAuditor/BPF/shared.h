@@ -1,0 +1,1 @@
+#define PATTERN_MAX_LEN 127

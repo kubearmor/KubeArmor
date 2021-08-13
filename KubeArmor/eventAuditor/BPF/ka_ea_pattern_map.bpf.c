@@ -7,7 +7,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, struct pattern_key);
 	__type(value, struct pattern_value);
-	__uint(max_entries, -1U);
+	__uint(max_entries, 1 << 10);
 } ka_ea_pattern_map SEC(".maps");
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

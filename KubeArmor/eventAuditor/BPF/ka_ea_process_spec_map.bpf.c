@@ -5,9 +5,9 @@
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, struct process_filter_key);
-	__type(value, struct process_filter_value);
-	__uint(max_entries, -1U);
-} ka_ea_process_filter_map SEC(".maps");
+	__type(key, struct process_spec_key);
+	__type(value, struct process_spec_value);
+	__uint(max_entries, 1 << 10);
+} ka_ea_process_spec_map SEC(".maps");
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

@@ -2,8 +2,7 @@
 #define __MAPS_H
 
 #include "vmlinux.h"
-
-#define PATTERN_MAX_LEN 127
+#include "shared.h"
 
 struct pattern_key {
 	char pattern[PATTERN_MAX_LEN];
@@ -20,7 +19,7 @@ struct process_spec_key {
 };
 
 struct process_spec_value {
-	__u32 pattern_id;
+	bool inspect;
 };
 
 struct process_filter_key {
