@@ -4,4 +4,4 @@ result: passed
 ---
 operation: File
 condition: password
-action: AllowWithAudit
+action: Audit
