@@ -1,18 +1,20 @@
-# Security Policy Specification
+# Security Policy Specification for Containers
 
 ## Policy Specification
 
 Here is the specification of a security policy.
 
 ```text
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind:KubeArmorPolicy
 metadata:
   name: [policy name]
   namespace: [namespace name]
 
 spec:
-  severity: [1-10]
+  severity: [1-10]                         # --> optional (1 by default)
+  tags: ["tag", ...]                       # --> optional
+  message: [message]                       # --> optional
 
   selector:
     matchLabels:
@@ -24,17 +26,17 @@ spec:
     - path: [absolute executable path]
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]              # --> optional
@@ -45,18 +47,18 @@ spec:
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       readOnly: [true|false]               # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
-        - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
+      - path: [absolute exectuable path]
+      - dir: [absolute directory path]
+        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]               # --> optional
@@ -78,8 +80,10 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]
 
-  action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
+  action: [Allow|Audit|Block] (Block by default)
 ```
+
+For better understanding, you can check [the KubeArmorPolicy spec diagram](../.gitbook/assets/kubearmorpolicy-spec-diagram.pdf).
 
 ## Policy Spec Description
 
@@ -90,7 +94,7 @@ Now, we will briefly explain how to define a security policy.
   A security policy starts with the base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you want to apply the policy.
 
   ```text
-    apiVersion: security.accuknox.com/v1
+    apiVersion: security.kubearmor.com/v1
     kind:KubeArmorPolicy
     metadata:
       name: [policy name]
@@ -103,6 +107,22 @@ Now, we will briefly explain how to define a security policy.
 
   ```text
   severity: [1-10]
+  ```
+
+* Tags
+
+  The tags part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
+
+  ```text
+  tags: ["tag1", ..., "tagN"]
+  ```
+
+* Message
+
+  The message part is optional. You can add an alert message, and then the message will be presented in alert logs.
+
+  ```text
+  message: [message]
   ```
 
 * Selector
@@ -229,12 +249,8 @@ Now, we will briefly explain how to define a security policy.
 
 * Action
 
-  The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
-
-  
-  When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
+  The action could be Allow, Audit, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
 
   ```text
-    action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
+    action: [Allow|Audit|Block]
   ```
-
