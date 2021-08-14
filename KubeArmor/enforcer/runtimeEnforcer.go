@@ -63,6 +63,10 @@ func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
 		}
 	}
 
+	if !re.enableLSM {
+		return nil
+	}
+
 	return re
 }
 
