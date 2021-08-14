@@ -27,7 +27,7 @@ func main() {
 	var err error
 	var eAuditor ea.EventAuditor
 
-	eAuditor.LogFeeder = fd.NewFeeder("", "1337", "output", "", false)
+	eAuditor.LogFeeder = fd.NewFeeder("", "1337", "stdout", "", false)
 
 	// First set the right path to load the ebpf object files
 	eAuditor.SetBPFObjPath("../" + ea.BPFObjRelPath)
