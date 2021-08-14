@@ -146,6 +146,7 @@ func (ea *EventAuditor) StopSharedMaps() error {
 	return nil
 }
 
+// StopSharedMaps Function
 func (ea *EventAuditor) BPFMapUpdateElement(mapElem lbpf.KABPFMapElement) error {
 	m, found := sharedMaps[mapElem.MapName()]
 	if !found {

@@ -1,5 +1,8 @@
-#ifndef __MAPS_H
-#define __MAPS_H
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef __MAPS_BPF_H
+#define __MAPS_BPF_H
 
 #include "vmlinux.h"
 #include "shared.h"
@@ -32,4 +35,4 @@ struct process_filter_value {
 	bool inspect;
 };
 
-#endif /* __MAPS_H */
+#endif /* __MAPS_BPF_H */
