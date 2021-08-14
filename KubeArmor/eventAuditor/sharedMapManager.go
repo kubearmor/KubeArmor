@@ -146,7 +146,7 @@ func (ea *EventAuditor) StopSharedMaps() error {
 	return nil
 }
 
-// StopSharedMaps Function
+// BPFMapUpdateElement Function
 func (ea *EventAuditor) BPFMapUpdateElement(mapElem lbpf.KABPFMapElement) error {
 	m, found := sharedMaps[mapElem.MapName()]
 	if !found {
@@ -156,7 +156,8 @@ func (ea *EventAuditor) BPFMapUpdateElement(mapElem lbpf.KABPFMapElement) error 
 	return m.UpdateElement(mapElem)
 }
 
-func (ea *EventAuditor) BPFLookupElement(mapElem lbpf.KABPFMapElement) ([]byte, error) {
+// BPFMapLookupElement Function
+func (ea *EventAuditor) BPFMapLookupElement(mapElem lbpf.KABPFMapElement) ([]byte, error) {
 	m, found := sharedMaps[mapElem.MapName()]
 	if !found {
 		return nil, fmt.Errorf("%s not found in shared maps", mapElem.MapName())
@@ -165,7 +166,8 @@ func (ea *EventAuditor) BPFLookupElement(mapElem lbpf.KABPFMapElement) ([]byte, 
 	return m.LookupElement(mapElem)
 }
 
-func (ea *EventAuditor) BPFDeleteElement(mapElem lbpf.KABPFMapElement) error {
+// BPFMapDeleteElement Function
+func (ea *EventAuditor) BPFMapDeleteElement(mapElem lbpf.KABPFMapElement) error {
 	m, found := sharedMaps[mapElem.MapName()]
 	if !found {
 		return fmt.Errorf("%s not found in shared maps", mapElem.MapName())

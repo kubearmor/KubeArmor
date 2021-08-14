@@ -56,7 +56,7 @@ func main() {
 	retPME.SetKey("/bin/*sh")
 
 	// Retrieve an element from the map
-	_, err = eAuditor.BPFLookupElement(&retPME)
+	_, err = eAuditor.BPFMapLookupElement(&retPME)
 	exitIfError(err)
 	if retPME.Value.PatternId != 1337 {
 		exitIfError(errors.New("The retrieved element value is not equal to inserted one"))
@@ -80,6 +80,6 @@ Terminate me with: Ctrl+C
 	<-done
 
 	// Delete a map element
-	err = eAuditor.BPFDeleteElement(&retPME)
+	err = eAuditor.BPFMapDeleteElement(&retPME)
 	exitIfError(err)
 }
