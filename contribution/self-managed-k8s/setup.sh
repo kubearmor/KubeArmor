@@ -26,6 +26,10 @@ sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip
                         clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
                         arping netperf iperf3
 cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
+if [ $? != 0 ]; then
+    echo "Failed to install bcc"
+    exit
+fi
 
 # install golang
 echo "Installing golang binaries..."
