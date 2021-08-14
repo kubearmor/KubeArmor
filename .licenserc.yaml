@@ -13,7 +13,6 @@ header:
     - "**/Makefile"
 
   paths-ignore:
-    - ".travis/*"
     - "protobuf/*"
 
   comment: on-failure

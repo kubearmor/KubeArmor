@@ -69,16 +69,6 @@ ifeq (, $(shell which golint))
 endif
 	cd $(CURDIR); golint ./...
 
-.PHONY: golangci-lint
-golangci-lint:
-ifeq (, $(shell which golangci-lint))
-	@{ \
-	set -e ;\
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1 ;\
-	}
-endif
-	cd $(CURDIR); golangci-lint run
-
 .PHONY: gosec
 gosec:
 ifeq (, $(shell which gosec))
