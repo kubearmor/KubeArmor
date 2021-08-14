@@ -191,7 +191,7 @@ func (dm *KubeArmorDaemon) CloseLogFeeder() {
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.LogFeeder)
-	return dm.RuntimeEnforcer.IsEnabled()
+	return dm.RuntimeEnforcer != nil
 }
 
 // CloseRuntimeEnforcer Function
@@ -290,10 +290,14 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableEnforcerP
 
 	// initialize runtime enforcer
 	if !dm.InitRuntimeEnforcer() {
-		dm.LogFeeder.Print("Disabled the runtime enforcer since No LSM is enabled")
-	} else {
-		dm.LogFeeder.Print("Started to protect containers")
+		dm.LogFeeder.Print("AppArmor is not enabled")
+
+		// destroy the daemon
+		dm.DestroyKubeArmorDaemon()
+
+		return
 	}
+	dm.LogFeeder.Print("Started to protect containers")
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
