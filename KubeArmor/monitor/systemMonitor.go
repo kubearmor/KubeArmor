@@ -113,7 +113,6 @@ type SystemMonitor struct {
 	Logger *fd.Feeder
 
 	// options
-	EnableAuditd     bool
 	EnableHostPolicy bool
 
 	// container id -> cotnainer
@@ -172,8 +171,7 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
-	containers *map[string]tp.Container, containersLock **sync.RWMutex,
+func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[string]tp.Container, containersLock **sync.RWMutex,
 	activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex,
 	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
@@ -182,7 +180,6 @@ func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
 
 	mon.Logger = feeder
 
-	mon.EnableAuditd = enableAuditd
 	mon.EnableHostPolicy = enableHostPolicy
 
 	mon.Containers = containers
@@ -522,12 +519,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					delete(execLogMap, ctx.HostPID)
 
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
-						continue
-					}
-
 					// get error message
 
 					if ctx.Retval < 0 {
@@ -602,12 +593,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					// remove the log from the map
 
 					delete(execLogMap, ctx.HostPID)
-
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
-						continue
-					}
 
 					// get error message
 
@@ -727,12 +712,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					delete(execLogMap, ctx.HostPID)
 
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
-						continue
-					}
-
 					// get error message
 
 					if ctx.Retval < 0 {
@@ -807,12 +786,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					// remove the log from the map
 
 					delete(execLogMap, ctx.HostPID)
-
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PermissionDenied {
-						continue
-					}
 
 					// get error message
 

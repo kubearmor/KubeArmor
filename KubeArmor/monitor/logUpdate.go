@@ -27,7 +27,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 	if val, ok := Containers[log.ContainerID]; ok {
 		// update container info
 		log.NamespaceName = val.NamespaceName
-		log.PodName = val.ContainerGroupName
+		log.PodName = val.EndPointName
 		log.ContainerName = val.ContainerName
 
 		// update policy flag
@@ -110,10 +110,6 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileOpenFlags
 
-				if mon.EnableAuditd && msg.ContextSys.Retval == PermissionDenied {
-					continue
-				}
-
 			case SysOpenAt:
 				var fd string
 				var fileName string
@@ -134,10 +130,6 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Operation = "File"
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
-
-				if mon.EnableAuditd && msg.ContextSys.Retval == PermissionDenied {
-					continue
-				}
 
 			case SysClose:
 				var fd string

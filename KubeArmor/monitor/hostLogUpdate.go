@@ -46,10 +46,6 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileOpenFlags
 
-				if mon.EnableAuditd && msg.ContextSys.Retval == PermissionDenied {
-					continue
-				}
-
 			case SysOpenAt:
 				var fd string
 				var fileName string
@@ -70,10 +66,6 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 				log.Operation = "File"
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
-
-				if mon.EnableAuditd && msg.ContextSys.Retval == PermissionDenied {
-					continue
-				}
 
 			case SysClose:
 				var fd string
