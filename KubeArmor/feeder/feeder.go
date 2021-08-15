@@ -287,7 +287,7 @@ type Feeder struct {
 	HostName string
 	HostIP   string
 
-	// namespace name + container group name / host name -> corresponding security policies
+	// namespace name + endpoint name / host name -> corresponding security policies
 	SecurityPolicies     map[string]tp.MatchPolicies
 	SecurityPoliciesLock *sync.RWMutex
 
@@ -630,7 +630,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Result = log.Result
 
 		AlertQueue <- pbAlert
-	} else { // ContainerLog || HostLog
+	} else { // ContainerLog
 		pbLog := pb.Log{}
 
 		pbLog.Timestamp = log.Timestamp

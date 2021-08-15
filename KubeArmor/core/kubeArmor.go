@@ -43,7 +43,6 @@ type KubeArmorDaemon struct {
 	LogFilter string
 
 	// options
-	EnableAuditd         bool
 	EnableHostPolicy     bool
 	EnableEnforcerPerPod bool
 
@@ -51,9 +50,9 @@ type KubeArmorDaemon struct {
 	Containers     map[string]tp.Container
 	ContainersLock *sync.RWMutex
 
-	// container groups
-	ContainerGroups     []tp.ContainerGroup
-	ContainerGroupsLock *sync.RWMutex
+	// endpoints
+	EndPoints     []tp.EndPoint
+	EndPointsLock *sync.RWMutex
 
 	// K8s pods
 	K8sPods     []tp.K8sPod
@@ -113,8 +112,8 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.Containers = map[string]tp.Container{}
 	dm.ContainersLock = new(sync.RWMutex)
 
-	dm.ContainerGroups = []tp.ContainerGroup{}
-	dm.ContainerGroupsLock = new(sync.RWMutex)
+	dm.EndPoints = []tp.EndPoint{}
+	dm.EndPointsLock = new(sync.RWMutex)
 
 	dm.K8sPods = []tp.K8sPod{}
 	dm.K8sPodsLock = new(sync.RWMutex)
@@ -200,7 +199,7 @@ func (dm *KubeArmorDaemon) CloseLogFeeder() {
 
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.LogFeeder, dm.EnableAuditd, dm.EnableHostPolicy)
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.LogFeeder, dm.EnableHostPolicy)
 	return dm.RuntimeEnforcer.IsEnabled()
 }
 
@@ -217,8 +216,8 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() {
 
 // InitSystemMonitor Function
 func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
-	dm.SystemMonitor = mon.NewSystemMonitor(dm.LogFeeder, dm.EnableAuditd, dm.EnableHostPolicy,
-		&dm.Containers, &dm.ContainersLock, &dm.ActivePidMap, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.ActiveHostMap, &dm.ActiveHostMapLock)
+	dm.SystemMonitor = mon.NewSystemMonitor(dm.LogFeeder, dm.EnableHostPolicy, &dm.Containers, &dm.ContainersLock,
+		&dm.ActivePidMap, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.ActiveHostMap, &dm.ActiveHostMapLock)
 	if dm.SystemMonitor == nil {
 		return false
 	}

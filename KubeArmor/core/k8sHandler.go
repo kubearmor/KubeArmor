@@ -359,9 +359,9 @@ func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, repl
 // ========== //
 
 // GetK8sPod Function
-func (kh *K8sHandler) GetK8sPod(K8sPods []tp.K8sPod, namespaceName, containerGroupName string) tp.K8sPod {
+func (kh *K8sHandler) GetK8sPod(K8sPods []tp.K8sPod, namespaceName, endPointName string) tp.K8sPod {
 	for _, pod := range K8sPods {
-		if pod.Metadata["namespaceName"] == namespaceName && pod.Metadata["podName"] == containerGroupName {
+		if pod.Metadata["namespaceName"] == namespaceName && pod.Metadata["podName"] == endPointName {
 			return pod
 		}
 	}
