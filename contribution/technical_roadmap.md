@@ -13,10 +13,14 @@
     * AppArmor, SELinux*
 
   * Features
-    * (Native Policy) Allow native LSM policies for containers*
+    * (KubeArmorPolicy) Add a new field, "apparmor" in KubeArmorPolicy*
       ```text
       (AppArmor) Apply native AppArmor profiles using KubeArmorPolicy
-      (SELinux) Apply SELinux labels to control the access of VolumeMounts using KubeArmorPolicy
+      ```
+
+    * (KubeArmorPolicy) Add a new field, "selinux -> volumeMounts" in KubeArmorPolicy*
+      ```text
+      (SELinux) Apply SELinux labels and actions to control the access of VolumeMounts using KubeArmorPolicy
       ```
 
     * (KubeArmorHostPolicy) Support security policies for hosts*
@@ -25,8 +29,8 @@
       ```
 
     * (Audit Mode) Provide the audit mode if no LSM is enabled in hosts*
-      ```text
-      Keep auditing the behavior of containers based on given policies while no enforcement is allowed
+      ```textg
+      Keep auditing the behavior of containers based on given policies
       In the audit mode, actions are changed as follows:
       - Allow -> Audit (Allow)
       - Audit -> Audit
@@ -100,11 +104,8 @@
       ```
 
 * KubeArmor Roadmap for future releases
-  * Kubernetes Environments
-    * OpenShift
-
   * Container Platforms
-    * PodMan
+    * OpenShift, PodMan
 
   * LSM Supports
     * LSM eBPF (KRSI)
