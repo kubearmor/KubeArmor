@@ -38,6 +38,10 @@ cd
 git clone https://github.com/iovisor/bcc.git
 mkdir bcc/build; cd bcc/build
 cmake .. && make && sudo make install
+if [ $? != 0 ]; then
+    echo "Failed to install bcc"
+    exit
+fi
 cd
 
 # install go
