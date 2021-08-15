@@ -111,7 +111,7 @@ function delete_and_wait_for_microservice_deletion() {
 
 function should_not_find_any_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
@@ -142,7 +142,7 @@ function should_not_find_any_log() {
 
 function should_find_passed_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
@@ -173,7 +173,7 @@ function should_find_passed_log() {
 
 function should_find_blocked_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
@@ -204,7 +204,7 @@ function should_find_blocked_log() {
 
 function should_not_find_any_host_log() {
     NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
@@ -235,7 +235,7 @@ function should_not_find_any_host_log() {
 
 function should_find_passed_host_log() {
     NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     sleep 3
 
@@ -266,7 +266,7 @@ function should_find_passed_host_log() {
 
 function should_find_blocked_host_log() {
     NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     match_type="MatchedHostPolicy"
     if [[ $4 -eq 1 ]]; then
@@ -556,65 +556,63 @@ echo >> $TEST_LOG
 res_microservice=0
 
 if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
-cd $TEST_HOME
+    echo -e "${ORANGE}[INFO] Running Container Scenarios${NC}"
 
-echo -e "${ORANGE}[INFO] Running Container Scenarios${NC}"
+    for microservice in $(ls $TEST_HOME/microservices)
+    do
+        ## == ##
 
-for microservice in $(ls microservices)
-do
-    ## == ##
+        echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
+        apply_and_wait_for_microservice_creation $microservice
 
-    echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
-    apply_and_wait_for_microservice_creation $microservice
+        ## == ##
 
-    ## == ##
+        if [ $res_microservice == 0 ]; then
+            echo "[INFO] Applied $microservice"
 
-    if [ $res_microservice == 0 ]; then
-        echo "[INFO] Applied $microservice"
+            echo "[INFO] Wait for initialization (30 secs)"
+            sleep 30
+            echo "[INFO] Started to run testcases"
 
-        echo "[INFO] Wait for initialization (30 secs)"
-        sleep 30
-        echo "[INFO] Started to run testcases"
+            cd $TEST_HOME/scenarios
 
-        cd $TEST_HOME/scenarios
-
-        for testcase in $(ls -d "$microservice"_*)
-        do
-            res_case=0
-
-            echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
-            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
-
-            if [ $res_case != 0 ]; then
+            for testcase in $(ls -d "$microservice"_*)
+            do
                 res_case=0
 
-                echo -e "${ORANGE}[INFO] Testing $testcase${NC} again"
-                total_testcases=$(expr $total_testcases + 1)
-                retried_testcases+=("$testcase")
+                echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
                 run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
                 if [ $res_case != 0 ]; then
-                    echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
-                    res_microservice=1
+                    res_case=0
+
+                    echo -e "${ORANGE}[INFO] Re-testing $testcase${NC}"
+                    total_testcases=$(expr $total_testcases + 1)
+                    retried_testcases+=("$testcase")
+                    run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
+
+                    if [ $res_case != 0 ]; then
+                        echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                        res_microservice=1
+                    else
+                        echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                    fi
                 else
                     echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
                 fi
-            else
-                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+            done
+
+            res_delete=0
+
+            echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
+            delete_and_wait_for_microservice_deletion $microservice
+
+            if [ $res_delete == 0 ]; then
+                echo "[INFO] Deleted $microservice"
             fi
-        done
-
-        res_delete=0
-
-        echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
-        delete_and_wait_for_microservice_deletion $microservice
-
-        if [ $res_delete == 0 ]; then
-            echo "[INFO] Deleted $microservice"
         fi
-    fi
-done    
-echo "[INFO] Finished Container Scenarios"
+    done    
+    echo "[INFO] Finished Container Scenarios"
 else
     echo -e "${MAGENTA}[SKIP] Skipped Container Scenarios${NC}"
 fi
@@ -623,44 +621,42 @@ HOST_NAME="$(hostname)"
 res_host=0
 
 if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
-cd $TEST_HOME
+    echo -e "${ORANGE}[INFO] Running Host Scenarios${NC}"
+    echo "[INFO] Started to run host testcases"
 
-echo -e "${ORANGE}[INFO] Running Host Scenarios${NC}"
-echo "[INFO] Started to run host testcases"
+    cd $TEST_HOME/host_scenarios
 
-cd $TEST_HOME/host_scenarios
+    host_testcases=$(ls -d "$HOST_NAME"_*)
+    if [ $? -eq 0 ]; then
+        for testcase in $host_testcases
+        do
+            res_case=0
 
-host_testcases=$(ls -d "$HOST_NAME"_*)
-if [ $? -eq 0 ]; then 
-for testcase in $host_testcases
-do
-    res_case=0
+            echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
+            run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
 
-    echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
-    run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
+            if [ $res_case != 0 ]; then
+                res_case=0
 
-    if [ $res_case != 0 ]; then
-        res_case=0
+                echo -e "${ORANGE}[INFO] Re-testing $testcase${NC}"
+                total_testcases=$(expr $total_testcases + 1)
+                retried_testcases+=("$testcase")
+                run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
 
-        echo -e "${ORANGE}[INFO] Testing $testcase${NC} again"
-        total_testcases=$(expr $total_testcases + 1)
-        retried_testcases+=("$testcase")
-        run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
-
-        if [ $res_case != 0 ]; then
-            echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
-            res_host=1
-        else
-            echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
-        fi
+                if [ $res_case != 0 ]; then
+                    echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                    res_host=1
+                else
+                    echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                fi
+            else
+                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+            fi
+        done
+        echo "[INFO] Finished Host Scenarios"
     else
-        echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+        echo -e "${RED}[INFO] No testcases found for the current host, $HOST_NAME ${NC}"
     fi
-done
-echo "[INFO] Finished Host Scenarios"
-else
-echo -e "${RED}[INFO] No testcases found for current host${NC}"
-fi
 else
     echo -e "${MAGENTA}[SKIP] Skipped Host Scenarios${NC}"
 fi
