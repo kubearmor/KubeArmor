@@ -1,4 +1,9 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package eventAuditor
+
+import fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 
 // =================== //
 // == Event Auditor == //
@@ -6,7 +11,7 @@ package eventAuditor
 
 // EventAuditor Structure
 type EventAuditor struct {
-	//
+	LogFeeder *fd.Feeder
 }
 
 // NewEventAuditor Function
@@ -35,4 +40,3 @@ func (ea *EventAuditor) UpdateAuditPolicies() { // (action string, auditPolicy y
 	// call "entrypoint management"
 	// call "shared map management"
 }
-
