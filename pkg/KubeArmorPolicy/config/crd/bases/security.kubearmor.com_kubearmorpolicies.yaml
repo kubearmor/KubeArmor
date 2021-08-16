@@ -40,11 +40,9 @@ spec:
             properties:
               action:
                 enum:
-                - Audit
                 - Allow
+                - Audit
                 - Block
-                - AllowWithAudit
-                - BlockWithAudit
                 type: string
               apparmor:
                 type: string
@@ -52,22 +50,18 @@ spec:
                 properties:
                   action:
                     enum:
-                    - Audit
                     - Allow
+                    - Audit
                     - Block
-                    - AllowWithAudit
-                    - BlockWithAudit
                     type: string
                   matchCapabilities:
                     items:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         capability:
                           pattern: (chown|dac_override|dac_read_search|fowner|fsetid|kill|setgid|setuid|setpcap|linux_immutable|net_bind_service|net_broadcast|net_admin|net_raw|ipc_lock|ipc_owner|sys_module|sys_rawio|sys_chroot|sys_ptrace|sys_pacct|sys_admin|sys_boot|sys_nice|sys_resource|sys_time|sys_tty_config|mknod|lease|audit_write|audit_control|setfcap|mac_override|mac_admin)$
@@ -116,22 +110,18 @@ spec:
                 properties:
                   action:
                     enum:
-                    - Audit
                     - Allow
+                    - Audit
                     - Block
-                    - AllowWithAudit
-                    - BlockWithAudit
                     type: string
                   matchDirectories:
                     items:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         dir:
                           pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
@@ -174,11 +164,9 @@ spec:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         fromSource:
                           items:
@@ -219,11 +207,9 @@ spec:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         message:
                           type: string
@@ -262,22 +248,18 @@ spec:
                 properties:
                   action:
                     enum:
-                    - Audit
                     - Allow
+                    - Audit
                     - Block
-                    - AllowWithAudit
-                    - BlockWithAudit
                     type: string
                   matchProtocols:
                     items:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         fromSource:
                           items:
@@ -326,22 +308,18 @@ spec:
                 properties:
                   action:
                     enum:
-                    - Audit
                     - Allow
+                    - Audit
                     - Block
-                    - AllowWithAudit
-                    - BlockWithAudit
                     type: string
                   matchDirectories:
                     items:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         dir:
                           pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
@@ -382,11 +360,9 @@ spec:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         fromSource:
                           items:
@@ -425,11 +401,9 @@ spec:
                       properties:
                         action:
                           enum:
-                          - Audit
                           - Allow
+                          - Audit
                           - Block
-                          - AllowWithAudit
-                          - BlockWithAudit
                           type: string
                         message:
                           type: string
@@ -470,6 +444,56 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
+                type: object
+              selinux:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchVolumeMounts:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        message:
+                          type: string
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchVolumeMounts
                 type: object
               severity:
                 maximum: 10

@@ -1,4 +1,4 @@
-name: ci
+name: ci-go
 
 on:
   push:
@@ -7,58 +7,54 @@ on:
     branches: [master]
 
 jobs:
-  build:
-    name: go workflows
+  go-fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Source
+        uses: actions/checkout@v2
 
-      - name: Set up Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v2
         with:
-          go-version: 1.16
+          go-version: v1.16
 
-      - name: Check module vendoring
-        run: |
-          cd KubeArmor
-          go mod tidy
-          test -z "$(git status --porcelain)" || (echo "please run 'go mod tidy', and submit your changes";git status;git diff; exit 1)
-
-      - name: Build bcc
-        run: |
-          set -x
-          sudo apt-get update
-          # Use release 9 of llvm etc. - later versions have an unfixed
-          # bug on Ubuntu:
-          # https://github.com/iovisor/bcc/issues/2915
-          sudo apt-get -y install bison build-essential cmake flex git libelf-dev libfl-dev libedit-dev libllvm9 llvm-9-dev libclang-9-dev python zlib1g-dev
-          pushd /tmp
-          git clone --depth 1 --branch v0.20.0 https://github.com/iovisor/bcc.git
-          mkdir -p bcc/build; cd bcc/build
-          # Symlink /usr/lib/llvm to avoid "Unable to find clang libraries"
-          # The directory appears only to be created when installing the
-          # virtual llvm-dev package.
-          # https://github.com/iovisor/bcc/issues/492
-          sudo ln -s /usr/lib/llvm-9 /usr/local/llvm
-          cmake ..
-          make
-          sudo make install
-          popd
-
-      - name: Build KubeArmor
-        run: make build
+      - name: Check gofmt
+        run: gofmt -s -d $(find . -type f -name '*.go' -print)
         working-directory: KubeArmor
+
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - name: Run Revive Action by pulling pre-built image
+        uses: morphy2k/revive-action@v2
+        with:
+          path: "./KubeArmor/..."
+
+  go-sec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.16
+
+      - name: Run Gosec Security Scanner
+        run: |
+          go get -u github.com/securego/gosec/v2/cmd/gosec
+          gosec ./...
+        working-directory: KubeArmor
+
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - name: Check License Header
+        uses: apache/skywalking-eyes@9bd5feb86b5817aa6072b008f9866a2c3bbc8587
         env:
-          GOPATH: /home/runner/go
-
-      - name: Test KubeArmor
-        run: make testall
-        working-directory: KubeArmor
-
-      - name: Clean modcache
-        run: go clean -modcache
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          working-directory: KubeArmor
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

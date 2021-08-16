@@ -1,3 +1,6 @@
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 # Image URL to use all building/pushing image targets
 IMG ?= kubearmor/kubearmor-host-policy-manager:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -88,4 +91,4 @@ CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
 clean:
-	rm -rf bin go.sum /tmp/KubeArmorHostPolicy.yaml
+	rm -rf bin go.sum cover.out /tmp/KubeArmorHostPolicy.yaml

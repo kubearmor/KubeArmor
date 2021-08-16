@@ -1,13 +1,32 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
 
-export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../../..
+realpath() {
+    CURR=$PWD
+
+    cd "$(dirname "$0")"
+    LINK=$(readlink "$(basename "$0")")
+
+    while [ "$LINK" ]; do
+        cd "$(dirname "$LINK")"
+        LINK=$(readlink "$(basename "$1")")
+    done
+
+    REALPATH="$PWD/$(basename "$1")"
+    echo "$REALPATH"
+
+    cd $CURR
+}
+
+export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
 
 # install build dependencies
 sudo dnf -y update
 sudo dnf install -y bison cmake ethtool flex git iperf libstdc++-static \
                     python-netaddr python-pip gcc gcc-c++ make zlib-devel \
                     elfutils-libelf-devel  python-pip cmake make \
-                    luajit luajit-devel \
+                    luajit luajit-devel kernel-devel \
                     http://repo.iovisor.org/yum/extra/mageia/cauldron/x86_64/netperf-2.7.0-1.mga6.x86_64.rpm
 sudo pip install pyroute2
 
@@ -19,6 +38,10 @@ cd
 git clone https://github.com/iovisor/bcc.git
 mkdir bcc/build; cd bcc/build
 cmake .. && make && sudo make install
+if [ $? != 0 ]; then
+    echo "Failed to install bcc"
+    exit
+fi
 cd
 
 # install go

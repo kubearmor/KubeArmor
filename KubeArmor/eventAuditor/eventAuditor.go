@@ -1,9 +1,14 @@
 // Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
 
-package eventAuditor
+package eventauditor
 
-import fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+import (
+	"sync"
+
+	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+)
 
 // =================== //
 // == Event Auditor == //
@@ -11,15 +16,22 @@ import fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 
 // EventAuditor Structure
 type EventAuditor struct {
-	LogFeeder *fd.Feeder
+	// logs
+	Logger *fd.Feeder
+
+	// audit policies
+	AuditPolicies     *[]tp.KubeArmorAuditPolicy
+	AuditPoliciesLock **sync.RWMutex
 }
 
 // NewEventAuditor Function
-func NewEventAuditor() *EventAuditor { // (auditPolicies map[xxx]yyy, ...)
-	ea := &EventAuditor{}
+func NewEventAuditor(feeder *fd.Feeder, auditPolicies *[]tp.KubeArmorAuditPolicy, auditPoliciesLock **sync.RWMutex) *EventAuditor {
+	ea := new(EventAuditor)
 
-	// structure pointer for audit policies
-	// assume that all macros are already applied to audit policies
+	ea.Logger = feeder
+
+	ea.AuditPolicies = auditPolicies
+	ea.AuditPoliciesLock = auditPoliciesLock
 
 	return ea
 }

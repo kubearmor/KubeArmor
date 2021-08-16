@@ -1,4 +1,4 @@
-# Local Test Guide
+# Testing Guide
 
 *  Test in manual
     1. Run 'kubectl proxy' in background
@@ -24,6 +24,21 @@
         ```
 
     3. Apply security policies for testing
+
+        Beforehand, check if the KubeArmorPolicy or KubeArmorHostPolicy CRD is already applied.
+
+        ```text
+        $ kubectl explain KubeArmorPolicy
+        ```
+
+        If it's still not applied, do so.
+
+        ```text
+        $ kubectl apply -f ~/KubeArmor/deployments/CRD/KubeArmorPolicy.yaml
+        $ kubectl apply -f ~/KubeArmor/deployments/CRD/KubeArmorHostPolicy.yaml
+        ```
+
+        Now you can apply specific policies.
 
         ```text
         $ kubectl apply -f [policy file]
@@ -133,7 +148,7 @@
             ---
             operation: [operation], { Process | File | Network }
             condition: [matching string]
-            action: [action in a policy]
+            action: [action in a policy] { Allow | Audit | Block }
             ```
 
             This is an example of a scenario.

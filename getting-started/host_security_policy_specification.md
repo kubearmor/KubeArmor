@@ -79,8 +79,10 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]
 
-  action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit] (Block by default)
+  action: [Audit|Block] (Block by default)
 ```
+
+For better understanding, you can check [the KubeArmorHostPolicy spec diagram](../.gitbook/assets/kubearmorhostpolicy-spec-diagram.pdf).
 
 ## Policy Spec Description
 
@@ -256,12 +258,14 @@ Now, we will briefly explain how to define a host security policy.
 
 * Action
 
-  The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
-  
-  When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
+  The action could be Audit or Block in general. In order to use the Allow action, you should define 'fromSource'; otherwise, all Allow actions will be ignored by default.
 
   ```text
-    action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
+    action: [Audit|Block]
   ```
 
-  WARNNING - In order to use the Allow action, you must include 'fromSource' in each rule. Otherwise, the rules without 'fromSource' will be ignored for the safety of nodes (hosts).
+  If 'fromSource' is defined, we can use all actions for specific rules.
+
+  ```text
+    action: [Allow|Audit|Block]
+  ```

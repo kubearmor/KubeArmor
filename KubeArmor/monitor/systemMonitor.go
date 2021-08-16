@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package monitor
 
 import (
@@ -7,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,28 +27,27 @@ import (
 // == Const. Vaiables == //
 // ===================== //
 
+// System Call Numbers
 const (
-	// file
-	SYS_OPEN   = 2
-	SYS_OPENAT = 257
-	SYS_CLOSE  = 3
+	SysOpen   = 2
+	SysOpenAt = 257
+	SysClose  = 3
 
-	// network
-	SYS_SOCKET  = 41
-	SYS_CONNECT = 42
-	SYS_ACCEPT  = 43
-	SYS_BIND    = 49
-	SYS_LISTEN  = 50
+	SysSocket  = 41
+	SysConnect = 42
+	SysAccept  = 43
+	SysBind    = 49
+	SysListen  = 50
 
-	// process
-	SYS_EXECVE   = 59
-	SYS_EXECVEAT = 322
-	DO_EXIT      = 351
+	SysExecve   = 59
+	SysExecveAt = 322
+	DoExit      = 351
 )
 
+// SystemMonitor Constant Values
 const (
-	PERMISSION_DENIED = -13
-	MAX_STRING_LEN    = 4096
+	PermissionDenied = -13
+	MaxStringLen     = 4096
 )
 
 // ======================= //
@@ -109,10 +110,9 @@ type SystemMonitor struct {
 	HostName string
 
 	// logs
-	LogFeeder *fd.Feeder
+	Logger *fd.Feeder
 
 	// options
-	EnableAuditd     bool
 	EnableHostPolicy bool
 
 	// container id -> cotnainer
@@ -171,17 +171,15 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool,
-	containers *map[string]tp.Container, containersLock **sync.RWMutex,
+func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[string]tp.Container, containersLock **sync.RWMutex,
 	activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex,
 	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.HostName = kl.GetHostName()
 
-	mon.LogFeeder = feeder
+	mon.Logger = feeder
 
-	mon.EnableAuditd = enableAuditd
 	mon.EnableHostPolicy = enableHostPolicy
 
 	mon.Containers = containers
@@ -223,21 +221,23 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	if kl.IsInK8sCluster() {
-		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
+		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
 			s := string(b)
 			if strings.Contains(s, "Container-Optimized OS") {
-				mon.LogFeeder.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
+				mon.Logger.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
 
 				// check and download kernel headers
-				if err := exec.Command(homeDir + "/GKE/download_cos_kernel_headers.sh").Run(); err != nil {
-					mon.LogFeeder.Errf("Failed to download COS kernel headers (%s)", err.Error())
+				if err := kl.RunCommandAndWaitWithErr(homeDir+"/GKE/download_cos_kernel_headers.sh", []string{}); err != nil {
+					mon.Logger.Errf("Failed to download COS kernel headers (%s)", err.Error())
 					return err
 				}
 
-				mon.LogFeeder.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
+				mon.Logger.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
 
 				// set a new location for kernel headers
-				os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion)
+				if err := os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion); err != nil {
+					mon.Logger.Err(err.Error())
+				}
 
 				// just for safety
 				time.Sleep(time.Second * 1)
@@ -248,22 +248,22 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	bpfPath := homeDir + "/BPF/system_monitor.c"
-	if _, err := os.Stat(bpfPath); err != nil {
+	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 		// go test
 
 		bpfPath = os.Getenv("PWD") + "/../BPF/system_monitor.c"
-		if _, err := os.Stat(bpfPath); err != nil {
+		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 			return err
 		}
 	}
 
-	content, err := ioutil.ReadFile(bpfPath)
+	content, err := ioutil.ReadFile(filepath.Clean(bpfPath))
 	if err != nil {
 		return err
 	}
 	bpfSource := string(content)
 
-	mon.LogFeeder.Print("Initializing an eBPF program")
+	mon.Logger.Print("Initializing an eBPF program")
 
 	if mon.EnableHostPolicy {
 		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
@@ -281,7 +281,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		return errors.New("bpf module is nil")
 	}
 
-	mon.LogFeeder.Print("Initialized the eBPF program")
+	mon.Logger.Print("Initialized the eBPF program")
 
 	sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
@@ -468,15 +468,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			if ctx.EventID == SYS_OPEN {
+			if ctx.EventID == SysOpen {
 				if len(args) != 2 {
 					continue
 				}
-			} else if ctx.EventID == SYS_OPENAT {
+			} else if ctx.EventID == SysOpenAt {
 				if len(args) != 3 {
 					continue
 				}
-			} else if ctx.EventID == SYS_EXECVE {
+			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
 
@@ -519,12 +519,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					delete(execLogMap, ctx.HostPID)
 
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
-						continue
-					}
-
 					// get error message
 
 					if ctx.Retval < 0 {
@@ -540,13 +534,13 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
 				continue
-			} else if ctx.EventID == SYS_EXECVEAT {
+			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
 
@@ -600,12 +594,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					delete(execLogMap, ctx.HostPID)
 
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
-						continue
-					}
-
 					// get error message
 
 					if ctx.Retval < 0 {
@@ -621,13 +609,13 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
 				continue
-			} else if ctx.EventID == DO_EXIT {
+			} else if ctx.EventID == DoExit {
 				mon.DeleteActivePid(containerID, ctx)
 				continue
 			}
@@ -673,15 +661,15 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 				continue
 			}
 
-			if ctx.EventID == SYS_OPEN {
+			if ctx.EventID == SysOpen {
 				if len(args) != 2 {
 					continue
 				}
-			} else if ctx.EventID == SYS_OPENAT {
+			} else if ctx.EventID == SysOpenAt {
 				if len(args) != 3 {
 					continue
 				}
-			} else if ctx.EventID == SYS_EXECVE {
+			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
 
@@ -724,12 +712,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					delete(execLogMap, ctx.HostPID)
 
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
-						continue
-					}
-
 					// get error message
 
 					if ctx.Retval < 0 {
@@ -745,13 +727,13 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
 				continue
-			} else if ctx.EventID == SYS_EXECVEAT {
+			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
 
@@ -805,12 +787,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					delete(execLogMap, ctx.HostPID)
 
-					// skip pushing the log if Audited is enabled
-
-					if mon.EnableAuditd && ctx.Retval == PERMISSION_DENIED {
-						continue
-					}
-
 					// get error message
 
 					if ctx.Retval < 0 {
@@ -826,13 +802,13 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 					// push the generated log
 
-					if mon.LogFeeder != nil {
-						go mon.LogFeeder.PushLog(log)
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
 					}
 				}
 
 				continue
-			} else if ctx.EventID == DO_EXIT {
+			} else if ctx.EventID == DoExit {
 				mon.DeleteActiveHostPid(ctx.HostPID)
 				continue
 			}

@@ -1,18 +1,5 @@
-/*
-Copyright 2020-2021 AccuKnox.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
 
 package v1
 
@@ -258,7 +245,38 @@ type CapabilitiesType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
-// +kubebuilder:validation:Enum=Audit;Allow;Block;AllowWithAudit;BlockWithAudit
+type MatchVolumeMountType struct {
+	// +kubebuilder:validation:Optional
+	Path MatchPathType `json:"path,omitempty"`
+	// +kubebuilder:validation:Optional
+	Directory MatchDirectoryType `json:"dir,omitempty"`
+	// +kubebuilder:validation:Optional
+	ReadOnly bool `json:"readOnly,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
+type SELinuxType struct {
+	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
+// +kubebuilder:validation:Enum=Allow;Audit;Block
 type ActionType string
 
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
@@ -273,7 +291,8 @@ type KubeArmorPolicySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
+	AppArmor string      `json:"apparmor,omitempty"`
+	SELinux  SELinuxType `json:"selinux,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
