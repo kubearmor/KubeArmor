@@ -80,8 +80,10 @@ spec:
       - dir: [absolute directory path]
         recursive: [true|false]
 
-  action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit] (Block by default)
+  action: [Allow|Audit|Block] (Block by default)
 ```
+
+For better understanding, you can check [the KubeArmorPolicy spec diagram](../.gitbook/assets/kubearmorpolicy-spec-diagram.pdf).
 
 ## Policy Spec Description
 
@@ -247,12 +249,8 @@ Now, we will briefly explain how to define a security policy.
 
 * Action
 
-  The action could be Audit, Allow, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
-
-  
-  When we use the Allow action, we do not get any logs for objects and operations allowed to access and conduct. Hence, if we want to get logs for such allowed accesses, we can use the AllowWithAudit action instead of the Allow action.
+  The action could be Allow, Audit, or Block. Security policies would be handled in a blacklist manner or a whitelist manner according to the action. Thus, you need to define the action carefully. You can refer to [Consideration in Policy Action](consideration_in_policy_action.md) for more details. In the case of the Audit action, we can use this action for policy verification before applying a security policy with the Block action.
 
   ```text
-    action: [Audit|Allow|Block|AllowWithAudit|BlockWithAudit]
+    action: [Allow|Audit|Block]
   ```
-

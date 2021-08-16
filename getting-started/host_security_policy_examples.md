@@ -22,7 +22,9 @@ Here, we demonstrate how to define host security policies.
     ```
 
     * Explanation: The purpose of this policy is to block the execution of '/bin/sleep' in a host whose host name is 'ubuntu20'. For this, we define 'kubernetes.io/hostname: ubuntu20' in nodeSelector -&gt; matchLabels and the specific path \('/bin/sleep'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
+
     * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run '/bin/sleep'. You will see that /bin/sleep is blocked. 
+
 * File Access Restriction
   * Audit a critical file access \([hsp-ubuntu20-file-path-audit.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/hsp-ubuntu20-file-path-audit.yaml)\)
 
@@ -43,5 +45,5 @@ Here, we demonstrate how to define host security policies.
     ```
 
     * Explanation: The purpose of this policy is to audit any file accesses to a critical file (i.e., '/etc/shadow'). Since we want to audit one critical file, we use matchPaths to specify the path of '/etc/shadow'.
-    * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run 'sudo cat /etc/shadow'. Then, check the alert logs of KubeArmor.
 
+    * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run 'sudo cat /etc/shadow'. Then, check the alert logs of KubeArmor.
