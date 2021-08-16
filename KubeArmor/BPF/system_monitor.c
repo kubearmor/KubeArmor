@@ -1,3 +1,8 @@
+/*
+ * Copyright 2021 Authors of KubeArmor
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #ifndef KBUILD_MODNAME
 #define KBUILD_MODNAME "kubearmor_system_monitor"
 #endif
@@ -6,6 +11,11 @@
 // KubeArmor utilizes Tracee's system call handling functions //
 // developed by Aqua Security (https://aquasec.com).          //
 // ========================================================== //
+
+#ifdef asm_inline
+#undef asm_inline
+#define asm_inline asm
+#endif
 
 #include <linux/version.h>
 
@@ -837,7 +847,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 }
 
 int syscall__open(struct pt_regs *ctx)
-{   
+{
     if (skip_syscall())
         return 0;
 
@@ -845,7 +855,7 @@ int syscall__open(struct pt_regs *ctx)
 }
 
 int trace_ret_open(struct pt_regs *ctx)
-{  
+{
     return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(OPEN_FLAGS_T));  
 }
 
