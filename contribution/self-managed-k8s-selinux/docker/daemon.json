@@ -1,1 +1,4 @@
-{ "selinux-enabled": true }
+{
+    "exec-opts": ["native.cgroupdriver=systemd"],
+    "selinux-enabled": true
+}

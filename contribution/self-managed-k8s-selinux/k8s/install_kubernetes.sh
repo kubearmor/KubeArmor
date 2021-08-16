@@ -1,4 +1,23 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
+realpath() {
+    CURR=$PWD
+
+    cd "$(dirname "$0")"
+    LINK=$(readlink "$(basename "$0")")
+
+    while [ "$LINK" ]; do
+        cd "$(dirname "$LINK")"
+        LINK=$(readlink "$(basename "$1")")
+    done
+
+    REALPATH="$PWD/$(basename "$1")"
+    echo "$REALPATH"
+
+    cd $CURR
+}
 
 export K8S_HOME=`dirname $(realpath "$0")`
 
@@ -17,5 +36,5 @@ sudo systemctl stop firewalld
 sudo systemctl disable firewalld
 
 # install k8s
-sudo dnf install -y kubelet kubectl kubeadm --disableexcludes=kubernetes
+sudo dnf install -y kubelet-1.21.3-0 kubectl-1.21.3-0 kubeadm-1.21.3-0 --disableexcludes=kubernetes
 sudo systemctl enable kubelet
