@@ -174,8 +174,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 }
 
 // UpdateSecurityPolicies Function
-func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGroup) {
-	name := conGroup.NamespaceName + "_" + conGroup.ContainerGroupName
+func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
+	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
 
 	if action == "DELETED" {
 		delete(fd.SecurityPolicies, name)
@@ -185,7 +185,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 	// ADDED | MODIFIED
 	matches := tp.MatchPolicies{}
 
-	for _, secPolicy := range conGroup.SecurityPolicies {
+	for _, secPolicy := range endPoint.SecurityPolicies {
 		policyName := secPolicy.Metadata["policyName"]
 
 		if len(secPolicy.Spec.AppArmor) > 0 {
@@ -201,7 +201,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -215,7 +215,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -224,7 +224,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -238,7 +238,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -250,7 +250,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -270,7 +270,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -284,7 +284,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -293,7 +293,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -307,7 +307,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -319,7 +319,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -343,7 +343,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(proto.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -360,7 +360,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -377,7 +377,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(cap.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -394,7 +394,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}

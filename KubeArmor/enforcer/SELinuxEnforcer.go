@@ -239,7 +239,7 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName s
 // ================================= //
 
 // GenerateSELinuxProfile Function
-func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profileName string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
+func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileName string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
 	securityRules := 0
 
 	if _, err := os.Stat(filepath.Clean(se.SELinuxContextTemplates + profileName + ".cil")); os.IsNotExist(err) {
@@ -273,7 +273,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 
 	found := false
 
-	for _, hostVolume := range pod.HostVolumes {
+	for _, hostVolume := range endPoint.HostVolumes {
 		for containerName := range hostVolume.UsedByContainerPath {
 			if !strings.Contains(profileName, containerName) {
 				continue
@@ -384,8 +384,8 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(pod tp.ContainerGroup, profile
 }
 
 // UpdateSELinuxProfile Function
-func (se *SELinuxEnforcer) UpdateSELinuxProfile(conGroup tp.ContainerGroup, seLinuxProfile string, securityPolicies []tp.SecurityPolicy) {
-	if ruleCount, newProfile, ok := se.GenerateSELinuxProfile(conGroup, seLinuxProfile, securityPolicies); ok {
+func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxProfile string, securityPolicies []tp.SecurityPolicy) {
+	if ruleCount, newProfile, ok := se.GenerateSELinuxProfile(endPoint, seLinuxProfile, securityPolicies); ok {
 		newfile, err := os.Create(filepath.Clean(se.SELinuxContextTemplates + seLinuxProfile + ".cil"))
 		if err != nil {
 			se.Logger.Err(err.Error())
@@ -408,25 +408,25 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(conGroup tp.ContainerGroup, seLi
 		}
 
 		if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
-			se.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile)
+			se.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile)
 		} else {
-			se.Logger.Printf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, conGroup.NamespaceName, conGroup.ContainerGroupName, seLinuxProfile, err.Error())
+			se.Logger.Printf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile, err.Error())
 		}
 	}
 }
 
 // UpdateSecurityPolicies Function
-func (se *SELinuxEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
+func (se *SELinuxEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	selinuxProfiles := []string{}
 
-	for _, seLinuxProfile := range conGroup.SELinuxProfiles {
+	for _, seLinuxProfile := range endPoint.SELinuxProfiles {
 		if !kl.ContainsElement(selinuxProfiles, seLinuxProfile) {
 			selinuxProfiles = append(selinuxProfiles, seLinuxProfile)
 		}
 	}
 
 	for _, selinuxProfile := range selinuxProfiles {
-		se.UpdateSELinuxProfile(conGroup, selinuxProfile, conGroup.SecurityPolicies)
+		se.UpdateSELinuxProfile(endPoint, selinuxProfile, endPoint.SecurityPolicies)
 	}
 }
 

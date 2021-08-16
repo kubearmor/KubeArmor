@@ -37,7 +37,7 @@ func TestSystemMonitor(t *testing.T) {
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(Logger, false, true, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(Logger, true, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -88,7 +88,7 @@ func TestTraceSyscall(t *testing.T) {
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(Logger, false, false, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(Logger, false, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -162,7 +162,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 
 	// Create System Monitor
 
-	systemMonitor := NewSystemMonitor(Logger, false, true, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(Logger, true, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")

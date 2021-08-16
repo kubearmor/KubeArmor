@@ -38,13 +38,6 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
-# check golangci-lint
-make golangci-lint
-if [ $? != 0 ]; then
-    echo "[FAILED] Failed to check golangci-lint"
-    exit 1
-fi
-
 # check go-sec
 make gosec
 if [ $? != 0 ]; then

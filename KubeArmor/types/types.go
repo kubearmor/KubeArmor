@@ -20,8 +20,8 @@ type Container struct {
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
-	NamespaceName      string `json:"namespaceName"`
-	ContainerGroupName string `json:"containerGroupName"`
+	NamespaceName string `json:"namespaceName"`
+	EndPointName  string `json:"endPointName"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
 
@@ -49,21 +49,20 @@ type HostVolumeMount struct {
 	Type                    string
 }
 
-// ContainerGroup Structure
-type ContainerGroup struct {
-	NamespaceName      string `json:"namespaceName"`
-	ContainerGroupName string `json:"containerGroupName"`
+// EndPoint Structure
+type EndPoint struct {
+	NamespaceName string `json:"namespaceName"`
+	EndPointName  string `json:"endPointName"`
 
 	Labels     []string `json:"labels"`
 	Identities []string `json:"identities"`
 
-	Containers  []string          `json:"containers"`
-	HostVolumes []HostVolumeMount `json:"hostVolumes"`
-
-	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
-
+	Containers       []string          `json:"containers"`
+	HostVolumes      []HostVolumeMount `json:"hostVolumes"`
 	AppArmorProfiles map[string]string `json:"apparmorProfiles"`
 	SELinuxProfiles  map[string]string `json:"selinuxProfiles"`
+
+	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
 	// == //
 

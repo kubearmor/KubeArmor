@@ -29,7 +29,6 @@ type AppArmorEnforcer struct {
 	Logger *fd.Feeder
 
 	// options
-	EnableAuditd     bool
 	EnableHostPolicy bool
 
 	// host profile
@@ -41,7 +40,7 @@ type AppArmorEnforcer struct {
 }
 
 // NewAppArmorEnforcer Function
-func NewAppArmorEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) *AppArmorEnforcer {
+func NewAppArmorEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
 
 	// host name
@@ -51,7 +50,6 @@ func NewAppArmorEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool)
 	ae.Logger = feeder
 
 	// options
-	ae.EnableAuditd = enableAuditd
 	ae.EnableHostPolicy = enableHostPolicy
 
 	// host profile
@@ -297,12 +295,14 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		"#include <tunables/global>\n" +
 		"\n" +
 		"profile kubearmor.host /** flags=(attach_disconnected,mediate_deleted) {\n" +
+		"  ## == PRE START == ##\n" +
 		"  #include <abstractions/base>\n" +
-		"\n" +
-		"  file,\n" +
 		"  mount,\n" +
 		"  umount,\n" +
 		"  ptrace,\n" +
+		"  signal,\n" +
+		"\n" +
+		"  file,\n" +
 		"  network,\n" +
 		"  capability,\n" +
 		"\n" +
@@ -311,6 +311,7 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		"  /usr/sbin/runc Ux,\n" + // containerd
 		"  /snap/microk8s/2262/bin/runc Ux,\n" + // microk8s
 		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s
+		"  ## == PRE END == ##\n" +
 		"\n" +
 		"  ## == POLICY START == ##\n" +
 		"  ## == POLICY END == ##\n" +
@@ -399,7 +400,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 // ================================= //
 
 // UpdateAppArmorProfile Function
-func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
+func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
 	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies); ok {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
@@ -423,34 +424,34 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(conGroup tp.ContainerGroup, ap
 		}
 
 		if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + appArmorProfile}); err == nil {
-			ae.Logger.Printf("Updated %d security rules to %s/%s/%s", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile)
+			ae.Logger.Printf("Updated %d security rules to %s/%s/%s", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile)
 		} else {
-			ae.Logger.Printf("Failed to update %d security rules to %s/%s/%s (%s)", policyCount, conGroup.NamespaceName, conGroup.ContainerGroupName, appArmorProfile, err.Error())
+			ae.Logger.Printf("Failed to update %d security rules to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
 		}
 	}
 }
 
 // UpdateSecurityPolicies Function
-func (ae *AppArmorEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
+func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	appArmorProfiles := []string{}
 
-	for _, containerName := range conGroup.Containers {
-		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", ""}, conGroup.AppArmorProfiles[containerName]) {
+	for _, containerName := range endPoint.Containers {
+		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", ""}, endPoint.AppArmorProfiles[containerName]) {
 			continue
 		}
 
-		if !kl.ContainsElement(appArmorProfiles, conGroup.AppArmorProfiles[containerName]) {
-			appArmorProfiles = append(appArmorProfiles, conGroup.AppArmorProfiles[containerName])
+		if !kl.ContainsElement(appArmorProfiles, endPoint.AppArmorProfiles[containerName]) {
+			appArmorProfiles = append(appArmorProfiles, endPoint.AppArmorProfiles[containerName])
 		}
 	}
 
-	if conGroup.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+	if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 		for _, appArmorProfile := range appArmorProfiles {
-			ae.UpdateAppArmorProfile(conGroup, appArmorProfile, conGroup.SecurityPolicies)
+			ae.UpdateAppArmorProfile(endPoint, appArmorProfile, endPoint.SecurityPolicies)
 		}
 	} else { // PolicyDisabled
 		for _, appArmorProfile := range appArmorProfiles {
-			ae.UpdateAppArmorProfile(conGroup, appArmorProfile, []tp.SecurityPolicy{})
+			ae.UpdateAppArmorProfile(endPoint, appArmorProfile, []tp.SecurityPolicy{})
 		}
 	}
 }
