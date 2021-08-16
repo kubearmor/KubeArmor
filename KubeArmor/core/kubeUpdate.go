@@ -610,7 +610,7 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 }
 
 // UpdateSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy, status string) {
+func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
 	dm.EndPointsLock.Lock()
 	defer dm.EndPointsLock.Unlock()
 
@@ -646,10 +646,8 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			// update security policies
 			dm.LogFeeder.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
-			if status == "" || status == "OK" {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
-			}
+			// enforce security policies
+			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
 		}
 	}
 }
@@ -672,6 +670,10 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					break
 				} else if err != nil {
 					break
+				}
+
+				if event.Object.Status.Status != "" && event.Object.Status.Status != "OK" {
+					continue
 				}
 
 				dm.SecurityPoliciesLock.Lock()
@@ -1097,14 +1099,14 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Security Policy (%s/%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 				// apply security policies to containers
-				dm.UpdateSecurityPolicy(event.Type, secPolicy, event.Object.Status.PolicyStatus)
+				dm.UpdateSecurityPolicy(event.Type, secPolicy)
 			}
 		}
 	}
 }
 
 // UpdateHostSecurityPolicies Function
-func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies(status string) {
+func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 	// get node identities
 	nodeIdentities := K8s.GetNodeIdentities()
 
@@ -1122,10 +1124,8 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies(status string) {
 	// update host security policies
 	dm.LogFeeder.UpdateHostSecurityPolicies("UPDATED", secPolicies)
 
-	if status == "" || status == "OK" {
-		// enforce host security policies
-		dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
-	}
+	// enforce host security policies
+	dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
 }
 
 // WatchHostSecurityPolicies Function
@@ -1148,7 +1148,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					break
 				}
 
-				if event.Type == "" {
+				if event.Object.Status.Status != "" && event.Object.Status.Status != "OK" {
 					continue
 				}
 
@@ -1527,7 +1527,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				dm.LogFeeder.Printf("Detected a Host Security Policy (%s/%s)", strings.ToLower(event.Type), secPolicy.Metadata["policyName"])
 
 				// apply security policies to a host
-				dm.UpdateHostSecurityPolicies(event.Object.Status.PolicyStatus)
+				dm.UpdateHostSecurityPolicies()
 			}
 		}
 	}
@@ -1537,8 +1537,8 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 // == Macro / Audit Policy Update == //
 // ================================= //
 
-// UpdateAuditPolicy Function
-func (dm *KubeArmorDaemon) UpdateAuditPolicy(status string) {
+// UpdateAuditPolicies Function
+func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	dm.AuditPoliciesLock.Lock()
 	dm.KubeArmorMacrosLock.Lock()
 	dm.K8sAuditPoliciesLock.Lock()
@@ -1570,13 +1570,25 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 			continue
 		}
 
+		if event.Object.Status.Status != "" && event.Object.Status.Status != "OK" {
+			continue
+		}
+
+		policy := tp.K8sKubeArmorAuditPolicy{}
+		if err := kl.Clone(event.Object, &policy); err != nil {
+			dm.LogFeeder.Printf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost",
+				strings.ToLower(event.Type), event.Object.Metadata.Name)
+			continue
+		}
+
 		dm.K8sAuditPoliciesLock.Lock()
+
 		checkAlreadyExists := func() bool {
 			if event.Type == "ADDED" || event.Type == "MODIFIED" {
-				for _, policy := range dm.K8sAuditPolicies {
-					if policy.Metadata.Name == event.Object.Metadata.Name &&
-						policy.Metadata.Namespace == event.Object.Metadata.Namespace &&
-						policy.Metadata.Generation == event.Object.Metadata.Generation {
+				for _, k8sPolicy := range dm.K8sAuditPolicies {
+					if k8sPolicy.Metadata.Namespace == policy.Metadata.Namespace &&
+						k8sPolicy.Metadata.Name == policy.Metadata.Name &&
+						k8sPolicy.Metadata.Generation == policy.Metadata.Generation {
 						return true
 					}
 				}
@@ -1586,16 +1598,6 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 
 		// already exists, skip
 		if checkAlreadyExists() {
-			dm.K8sAuditPoliciesLock.Unlock()
-			continue
-		}
-
-		policy := tp.K8sKubeArmorAuditPolicy{}
-		if err := kl.Clone(event.Object, &policy); err != nil {
-			dm.LogFeeder.Printf("Failed to clone spec for Audit Policy (%s/%s)."+
-				" This event will be lost", strings.ToLower(event.Type),
-				event.Object.Metadata.Name)
-
 			dm.K8sAuditPoliciesLock.Unlock()
 			continue
 		}
@@ -1625,10 +1627,10 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 		}
 
 		dm.K8sAuditPoliciesLock.Unlock()
-		dm.LogFeeder.Printf("Detected an Audit Policy (%s/%s)",
-			strings.ToLower(event.Type), event.Object.Metadata.Name)
 
-		dm.UpdateAuditPolicy(policy.Status.AuditPolicyStatus)
+		dm.LogFeeder.Printf("Detected an Audit Policy (%s/%s)", strings.ToLower(event.Type), policy.Metadata.Name)
+
+		dm.UpdateAuditPolicies()
 	}
 }
 
@@ -1653,6 +1655,10 @@ func (dm *KubeArmorDaemon) decodeKubeArmorMacro(decoder *json.Decoder) {
 		} else if err != nil {
 			break
 		} else if event.Type == "" {
+			continue
+		}
+
+		if event.Object.Status.Status != "" && event.Object.Status.Status != "OK" {
 			continue
 		}
 
@@ -1706,7 +1712,7 @@ func (dm *KubeArmorDaemon) decodeKubeArmorMacro(decoder *json.Decoder) {
 
 		dm.LogFeeder.Printf("Detected a Macro (%s/%s)", strings.ToLower(event.Type), name)
 
-		dm.UpdateAuditPolicy(event.Object.Status.MacroStatus)
+		dm.UpdateAuditPolicies()
 	}
 }
 

@@ -93,9 +93,9 @@ type K8sPodEvent struct {
 	Object v1.Pod `json:"object"`
 }
 
-// SecurityPolicyStatus Structure
-type SecurityPolicyStatus struct {
-	PolicyStatus string `json:"status,omitempty"`
+// K8sPolicyStatus Structure
+type K8sPolicyStatus struct {
+	Status string `json:"status,omitempty"`
 }
 
 // K8sKubeArmorPolicyEvent Structure
@@ -106,9 +106,9 @@ type K8sKubeArmorPolicyEvent struct {
 
 // K8sKubeArmorPolicy Structure
 type K8sKubeArmorPolicy struct {
-	Metadata metav1.ObjectMeta    `json:"metadata"`
-	Spec     SecuritySpec         `json:"spec"`
-	Status   SecurityPolicyStatus `json:"status,omitempty"`
+	Metadata metav1.ObjectMeta `json:"metadata"`
+	Spec     SecuritySpec      `json:"spec"`
+	Status   K8sPolicyStatus   `json:"status,omitempty"`
 }
 
 // K8sKubeArmorPolicies Structure
@@ -124,9 +124,9 @@ type K8sKubeArmorHostPolicyEvent struct {
 
 // K8sKubeArmorHostPolicy Structure
 type K8sKubeArmorHostPolicy struct {
-	Metadata metav1.ObjectMeta    `json:"metadata"`
-	Spec     HostSecuritySpec     `json:"spec"`
-	Status   SecurityPolicyStatus `json:"status,omitempty"`
+	Metadata metav1.ObjectMeta `json:"metadata"`
+	Spec     HostSecuritySpec  `json:"spec"`
+	Status   K8sPolicyStatus   `json:"status,omitempty"`
 }
 
 // K8sKubeArmorHostPolicies Structure
@@ -142,9 +142,9 @@ type K8sKubeArmorMacroEvent struct {
 
 // K8sKubeArmorMacro Structure
 type K8sKubeArmorMacro struct {
-	Metadata metav1.ObjectMeta    `json:"metadata"`
-	Spec     KubeArmorMacroSpec   `json:"spec"`
-	Status   KubeArmorMacroStatus `json:"status,omitempty"`
+	Metadata metav1.ObjectMeta  `json:"metadata"`
+	Spec     KubeArmorMacroSpec `json:"spec"`
+	Status   K8sPolicyStatus    `json:"status,omitempty"`
 }
 
 // K8sKubeArmorMacros Structure
@@ -196,7 +196,7 @@ type K8sAuditPolicySpec struct {
 type K8sKubeArmorAuditPolicy struct {
 	Metadata metav1.ObjectMeta  `json:"metadata"`
 	Spec     K8sAuditPolicySpec `json:"spec"`
-	Status   AuditPolicyStatus  `json:"status,omitempty"`
+	Status   K8sPolicyStatus    `json:"status,omitempty"`
 }
 
 // K8sKubeArmorAuditPolicies Structure
@@ -588,11 +588,6 @@ type KubeArmorMacroSpec struct {
 	Macros []MacrosType `json:"macros"`
 }
 
-// KubeArmorMacroStatus Structure
-type KubeArmorMacroStatus struct {
-	MacroStatus string `json:"status,omitempty"`
-}
-
 // KubeArmorMacrosKeyValue Map
 type KubeArmorMacrosKeyValue map[string]string
 
@@ -638,11 +633,6 @@ type KubeArmorAuditPolicySpec struct {
 	Tags       []string                 `json:"tags,omitempty"`
 	Message    string                   `json:"message,omitempty"`
 	AuditRules []KubeArmorAuditRuleType `json:"rules"`
-}
-
-// AuditPolicyStatus Structure
-type AuditPolicyStatus struct {
-	AuditPolicyStatus string `json:"status,omitempty"`
 }
 
 // KubeArmorAuditPolicy Structure
