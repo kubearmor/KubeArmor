@@ -1,13 +1,18 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package core
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
@@ -66,7 +71,7 @@ func NewContainerdHandler() *ContainerdHandler {
 	sockFile := "unix://"
 
 	for _, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock"} {
-		if _, err := os.Stat(candidate); err == nil {
+		if _, err := os.Stat(filepath.Clean(candidate)); err == nil {
 			sockFile = sockFile + candidate
 			break
 		}
@@ -103,7 +108,9 @@ func NewContainerdHandler() *ContainerdHandler {
 // Close Function
 func (ch *ContainerdHandler) Close() {
 	if ch.conn != nil {
-		ch.conn.Close()
+		if err := ch.conn.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 	}
 }
 
@@ -127,7 +134,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	container.ContainerName = res.Container.ID[:12]
 
 	container.NamespaceName = "Unknown"
-	container.ContainerGroupName = "Unknown"
+	container.EndPointName = "Unknown"
 
 	containerLabels := res.Container.Labels
 	if _, ok := containerLabels["io.kubernetes.pod.namespace"]; ok { // kubernetes
@@ -135,7 +142,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 			container.NamespaceName = val
 		}
 		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
-			container.ContainerGroupName = val
+			container.EndPointName = val
 		}
 	}
 
@@ -251,7 +258,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			// thus, we here use the info given by kubernetes instead of the info given by docker
 
 			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
-			container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
+			container.EndPointName = dm.Containers[container.ContainerID].EndPointName
 			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
 
 			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
@@ -262,9 +269,9 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 			dm.Containers[container.ContainerID] = container
 
-			for _, conGroup := range dm.ContainerGroups {
-				if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[container.ContainerID] == "" {
-					conGroup.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+			for _, endPoint := range dm.EndPoints {
+				if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[container.ContainerID] == "" {
+					endPoint.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 					break
 				}
 			}
@@ -284,9 +291,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.ContainersLock.Unlock()
 			return false
-		} else {
-			delete(dm.Containers, containerID)
 		}
+		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
 		// update NsMap

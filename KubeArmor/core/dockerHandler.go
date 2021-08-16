@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package core
 
 import (
@@ -14,6 +17,7 @@ import (
 	"golang.org/x/net/context"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -57,10 +61,14 @@ func NewDockerHandler() *DockerHandler {
 
 		if apiVersion >= 1.39 {
 			// downgrade the api version to 1.39
-			os.Setenv("DOCKER_API_VERSION", "1.39")
+			if err := os.Setenv("DOCKER_API_VERSION", "1.39"); err != nil {
+				kg.Err(err.Error())
+			}
 		} else {
 			// set the current api version
-			os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion)
+			if err := os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion); err != nil {
+				kg.Err(err.Error())
+			}
 		}
 	}
 
@@ -78,7 +86,9 @@ func NewDockerHandler() *DockerHandler {
 // Close Function
 func (dh *DockerHandler) Close() {
 	if dh.DockerClient != nil {
-		dh.DockerClient.Close()
+		if err := dh.DockerClient.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 	}
 }
 
@@ -105,7 +115,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
 
 	container.NamespaceName = "Unknown"
-	container.ContainerGroupName = "Unknown"
+	container.EndPointName = "Unknown"
 
 	containerLabels := inspect.Config.Labels
 	if _, ok := containerLabels["io.kubernetes.pod.namespace"]; ok { // kubernetes
@@ -113,7 +123,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 			container.NamespaceName = val
 		}
 		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
-			container.ContainerGroupName = val
+			container.EndPointName = val
 		}
 	}
 
@@ -181,7 +191,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					// thus, we here use the info given by kubernetes instead of the info given by docker
 
 					container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
-					container.ContainerGroupName = dm.Containers[container.ContainerID].ContainerGroupName
+					container.EndPointName = dm.Containers[container.ContainerID].EndPointName
 					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
 
 					container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
@@ -192,9 +202,9 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 					dm.Containers[container.ContainerID] = container
 
-					for _, conGroup := range dm.ContainerGroups {
-						if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[container.ContainerID] == "" {
-							conGroup.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+					for _, endPoint := range dm.EndPoints {
+						if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[container.ContainerID] == "" {
+							endPoint.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 							break
 						}
 					}
@@ -238,7 +248,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			// thus, we here use the info given by kubernetes instead of the info given by docker
 
 			container.NamespaceName = dm.Containers[containerID].NamespaceName
-			container.ContainerGroupName = dm.Containers[containerID].ContainerGroupName
+			container.EndPointName = dm.Containers[containerID].EndPointName
 			container.ContainerName = dm.Containers[containerID].ContainerName
 
 			container.PolicyEnabled = dm.Containers[containerID].PolicyEnabled
@@ -249,9 +259,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 			dm.Containers[containerID] = container
 
-			for _, conGroup := range dm.ContainerGroups {
-				if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[containerID] == "" {
-					conGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
+			for _, endPoint := range dm.EndPoints {
+				if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[containerID] == "" {
+					endPoint.AppArmorProfiles[containerID] = container.AppArmorProfile
 					break
 				}
 			}
@@ -272,13 +282,13 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 3: destroy
 
 		dm.ContainersLock.Lock()
-		if val, ok := dm.Containers[containerID]; !ok {
+		val, ok := dm.Containers[containerID]
+		if !ok {
 			dm.ContainersLock.Unlock()
 			return
-		} else {
-			container = val
-			delete(dm.Containers, containerID)
 		}
+		container = val
+		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
 		// update NsMap

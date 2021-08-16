@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package feeder
 
 import (
@@ -171,8 +174,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 }
 
 // UpdateSecurityPolicies Function
-func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGroup) {
-	name := conGroup.NamespaceName + "_" + conGroup.ContainerGroupName
+func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
+	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
 
 	if action == "DELETED" {
 		delete(fd.SecurityPolicies, name)
@@ -182,7 +185,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 	// ADDED | MODIFIED
 	matches := tp.MatchPolicies{}
 
-	for _, secPolicy := range conGroup.SecurityPolicies {
+	for _, secPolicy := range endPoint.SecurityPolicies {
 		policyName := secPolicy.Metadata["policyName"]
 
 		if len(secPolicy.Spec.AppArmor) > 0 {
@@ -198,7 +201,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -212,7 +215,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -221,7 +224,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -235,7 +238,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -247,7 +250,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -267,7 +270,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -281,7 +284,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -290,7 +293,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -304,7 +307,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -316,7 +319,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -340,7 +343,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(proto.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -357,7 +360,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -374,7 +377,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 			fromSource := ""
 
 			if len(cap.FromSource) == 0 {
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -391,7 +394,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, conGroup tp.ContainerGro
 					continue
 				}
 
-				match := fd.newMatchPolicy(conGroup.PolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -669,7 +672,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
-		key := log.HostName
+		key := fd.HostName
 
 		if log.NamespaceName != "" && log.PodName != "" {
 			key = log.NamespaceName + "_" + log.PodName
@@ -683,7 +686,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 
 			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, log.Source) {
-				if secPolicy.Action == "Allow" || secPolicy.Action == "AllowWithAudit" {
+				if secPolicy.Action == "Allow" {
 					if secPolicy.Operation == "Process" {
 						if allowProcPolicy == "" {
 							allowProcPolicy = secPolicy.PolicyName
@@ -825,7 +828,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			if mightBeNative && log.Result != "Passed" {
 				log.PolicyName = "NativePolicy"
 
-				log.Severity = "-1"
+				log.Severity = "1"
 				log.Tags = ""
 				log.Message = "KubeArmor detected a native policy violation"
 
@@ -908,15 +911,17 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return log
 			}
 		} else if log.Type == "MatchedPolicy" {
-			if log.Action == "Allow" && log.Result == "Passed" {
-				// use 'AllowWithAudit' to get the logs for allowed operations
-				return tp.Log{}
+			if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+				if log.Action == "Allow" {
+					log.Action = "Audit (Allow)"
+				} else if log.Action == "Block" {
+					log.Action = "Audit (Block)"
+				}
 			}
 
-			// if log.Action == "Block" {
-			// 	// use 'BlockWithAudit' to get the logs for blocked operations
-			// 	return tp.Log{}
-			// }
+			if log.Action == "Allow" && log.Result == "Passed" {
+				return tp.Log{}
+			}
 
 			return log
 		}
@@ -942,14 +947,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		} else if log.Type == "MatchedPolicy" {
 			if log.Action == "Allow" && log.Result == "Passed" {
-				// use 'AllowWithAudit' to get the logs for allowed operations
 				return tp.Log{}
 			}
-
-			// if log.Action == "Block" {
-			// 	// use 'BlockWithAudit' to get the logs for blocked operations
-			// 	return tp.Log{}
-			// }
 
 			log.Type = "MatchedHostPolicy"
 			return log

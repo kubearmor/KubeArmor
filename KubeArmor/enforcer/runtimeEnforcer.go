@@ -1,9 +1,13 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package enforcer
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -21,13 +25,12 @@ type RuntimeEnforcer struct {
 	enforcerType string
 
 	// LSMs
-	krsiEnforcer     *KRSIEnforcer
 	appArmorEnforcer *AppArmorEnforcer
 	seLinuxEnforcer  *SELinuxEnforcer
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) *RuntimeEnforcer {
+func NewRuntimeEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *RuntimeEnforcer {
 	re := &RuntimeEnforcer{}
 
 	re.LogFeeder = feeder
@@ -35,13 +38,15 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) 
 
 	if !kl.IsK8sLocal() {
 		// mount securityfs
-		kl.GetCommandOutputWithoutErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"})
+		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+			re.LogFeeder.Err(err.Error())
+		}
 	}
 
 	lsm := []byte{}
 	lsmPath := "/sys/kernel/security/lsm"
 
-	if _, err := os.Stat(lsmPath); err == nil {
+	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
 		lsm, err = ioutil.ReadFile(lsmPath)
 		if err != nil {
 			re.LogFeeder.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
@@ -51,16 +56,8 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableAuditd, enableHostPolicy bool) 
 
 	re.enforcerType = string(lsm)
 
-	if strings.Contains(re.enforcerType, "krsi") {
-		re.krsiEnforcer = NewKRSIEnforcer(feeder)
-		if re.krsiEnforcer != nil {
-			re.LogFeeder.Print("Initialized KRSI Enforcer")
-			re.enableLSM = true
-		}
-	}
-
 	if strings.Contains(re.enforcerType, "apparmor") {
-		re.appArmorEnforcer = NewAppArmorEnforcer(feeder, enableAuditd, enableHostPolicy)
+		re.appArmorEnforcer = NewAppArmorEnforcer(feeder, enableHostPolicy)
 		if re.appArmorEnforcer != nil {
 			re.LogFeeder.Print("Initialized AppArmor Enforcer")
 			re.enableLSM = true
@@ -114,26 +111,18 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, 
 }
 
 // UpdateSecurityPolicies Function
-func (re *RuntimeEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
-	if strings.Contains(re.enforcerType, "krsi") {
-		re.krsiEnforcer.UpdateSecurityPolicies(conGroup)
-	}
-
+func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	if strings.Contains(re.enforcerType, "apparmor") {
-		re.appArmorEnforcer.UpdateSecurityPolicies(conGroup)
+		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
 	}
 
 	if strings.Contains(re.enforcerType, "selinux") {
-		re.seLinuxEnforcer.UpdateSecurityPolicies(conGroup)
+		re.seLinuxEnforcer.UpdateSecurityPolicies(endPoint)
 	}
 }
 
 // UpdateHostSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
-	if strings.Contains(re.enforcerType, "krsi") {
-		re.krsiEnforcer.UpdateHostSecurityPolicies(secPolicies)
-	}
-
 	if strings.Contains(re.enforcerType, "apparmor") {
 		re.appArmorEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	}
@@ -146,22 +135,6 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 // DestroyRuntimeEnforcer Function
 func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	errorLSM := ""
-
-	if strings.Contains(re.enforcerType, "krsi") {
-		if re.krsiEnforcer != nil {
-			if err := re.krsiEnforcer.DestroyKRSIEnforcer(); err != nil {
-				re.LogFeeder.Err(err.Error())
-
-				if errorLSM == "" {
-					errorLSM = "KRSI"
-				} else {
-					errorLSM = errorLSM + "|KRSI"
-				}
-			} else {
-				re.LogFeeder.Print("Destroyed KRSI Enforcer")
-			}
-		}
-	}
 
 	if strings.Contains(re.enforcerType, "apparmor") {
 		if re.appArmorEnforcer != nil {
@@ -209,10 +182,6 @@ func (re *RuntimeEnforcer) IsEnabled() bool {
 
 // GetEnforcerType Function
 func (re *RuntimeEnforcer) GetEnforcerType() string {
-	if strings.Contains(re.enforcerType, "krsi") {
-		return "krsi"
-	}
-
 	if strings.Contains(re.enforcerType, "apparmor") {
 		return "apparmor"
 	}

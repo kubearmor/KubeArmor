@@ -1,13 +1,12 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
 	"flag"
-	"log"
 	"os"
 	"path/filepath"
-
-	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -41,24 +40,14 @@ func main() {
 	logFilterPtr := flag.String("logFilter", "policy", "Filter for what kinds of alerts and logs to receive, {policy|system|all}")
 
 	// options (boolean)
-	enableAuditdPtr := flag.Bool("enableAuditd", false, "enabling Auditd")
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
 	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
 
-	// profile option
-	pprofPtr := flag.String("pprof", "none", "pprof port number")
-
 	flag.Parse()
-
-	if *pprofPtr != "none" {
-		go func() {
-			log.Println(http.ListenAndServe("0.0.0.0:"+*pprofPtr, nil))
-		}()
-	}
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableAuditdPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
 
 	// == //
 }
