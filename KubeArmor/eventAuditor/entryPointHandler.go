@@ -1,4 +1,4 @@
-package eventAuditor
+package eventauditor
 
 // =========================== //
 // == Entrypoint Management == //
@@ -6,4 +6,3 @@ package eventAuditor
 
 // handle kprobes, tracepoints
 // handle entrypoint
-
