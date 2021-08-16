@@ -1,3 +1,6 @@
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
 # Image URL to use all building/pushing image targets
 IMG ?= kubearmor/kubearmor-macro-manager:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -37,6 +40,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	go mod tidy
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	mv config/crd/bases/security.kubearmor.com_kubearmormacroes.yaml config/crd/bases/security.kubearmor.com_kubearmormacros.yaml
 	sed -i "s/kubearmormacroes/kubearmormacros/" config/crd/bases/security.kubearmor.com_kubearmormacros.yaml
@@ -44,6 +48,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	cp config/crd/bases/security.kubearmor.com_kubearmormacros.yaml ../../deployments/CRD/KubeArmorMacro.yaml
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	go mod tidy
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 fmt: ## Run go fmt against code.
@@ -87,7 +92,6 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
@@ -109,3 +113,6 @@ GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
+
+clean:
+	rm -rf bin go.sum cover.out
