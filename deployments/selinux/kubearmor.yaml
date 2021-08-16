@@ -109,8 +109,6 @@ spec:
           mountPath: /sys/fs/bpf
         - name: sys-kernel-debug-path # BPF (read-write)
           mountPath: /sys/kernel/debug
-        - name: etc-apparmor-d-path # AppArmor (read-write)
-          mountPath: /etc/apparmor.d
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -149,10 +147,6 @@ spec:
         hostPath:
           path: /sys/kernel/debug
           type: Directory
-      - name: etc-apparmor-d-path # AppArmor
-        hostPath:
-          path: /etc/apparmor.d
-          type: DirectoryOrCreate
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release

@@ -96,8 +96,8 @@ spec:
         ports:
         - containerPort: 32767
         volumeMounts:
-        - name: containerd-sock-path # containerd (read-only)
-          mountPath: /var/run/containerd/containerd.sock
+        - name: docker-sock-path # docker (read-only)
+          mountPath: /var/run/docker.sock
           readOnly: true
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
@@ -109,8 +109,6 @@ spec:
           mountPath: /sys/fs/bpf
         - name: sys-kernel-debug-path # BPF (read-write)
           mountPath: /sys/kernel/debug
-        - name: etc-apparmor-d-path # AppArmor (read-write)
-          mountPath: /etc/apparmor.d
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -129,9 +127,9 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: containerd-sock-path # containerd
+      - name: docker-sock-path # docker
         hostPath:
-          path: /var/run/containerd/containerd.sock
+          path: /var/run/docker.sock
           type: Socket
       - name: usr-src-path # BPF
         hostPath:
@@ -149,10 +147,6 @@ spec:
         hostPath:
           path: /sys/kernel/debug
           type: Directory
-      - name: etc-apparmor-d-path # AppArmor
-        hostPath:
-          path: /etc/apparmor.d
-          type: DirectoryOrCreate
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release
