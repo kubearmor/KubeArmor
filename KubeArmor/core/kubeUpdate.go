@@ -573,7 +573,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				if event.Object.Status.PolicyStatus != "" && event.Object.Status.PolicyStatus != "OK" {
 					continue
 				}
-				
+
 				dm.SecurityPoliciesLock.Lock()
 
 				// create a security policy
