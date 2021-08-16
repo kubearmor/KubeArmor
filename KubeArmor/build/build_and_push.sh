@@ -19,8 +19,13 @@ realpath() {
     cd $CURR
 }
 
-ARMOR_HOME=`dirname $(realpath "$0")`/..
+KBA_BUILD=`dirname $(realpath "$0")`
+cd $KBA_BUILD
 
-rm -rf $ARMOR_HOME/build/KubeArmor
-rm -rf $ARMOR_HOME/build/GKE
-rm -rf $ARMOR_HOME/build/protobuf
+if [ -z $1 ]; then
+    echo "$0 [VERSION]"
+    exit
+fi
+
+./build_kubearmor.sh $1
+./push_kubearmor.sh $1

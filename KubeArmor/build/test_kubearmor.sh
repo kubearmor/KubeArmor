@@ -1,13 +1,52 @@
 #!/bin/bash
+# Copyright 2021 Authors of KubeArmor
+# SPDX-License-Identifier: Apache-2.0
+
+realpath() {
+    CURR=$PWD
+
+    cd "$(dirname "$0")"
+    LINK=$(readlink "$(basename "$0")")
+
+    while [ "$LINK" ]; do
+        cd "$(dirname "$LINK")"
+        LINK=$(readlink "$(basename "$1")")
+    done
+
+    REALPATH="$PWD/$(basename "$1")"
+    echo "$REALPATH"
+
+    cd $CURR
+}
 
 ARMOR_HOME=`dirname $(realpath "$0")`/../..
 
 # move to KubeArmor
 cd $ARMOR_HOME/KubeArmor
 
+# check go-fmt
+make gofmt
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check go-fmt"
+    exit 1
+fi
+
+# check go-lint
+make golint
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check go-lint"
+    exit 1
+fi
+
+# check go-sec
+make gosec
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to check go-sec"
+    exit 1
+fi
+
 # test KubeArmor
 make testall
-
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to test KubeArmor"
     exit 1
@@ -15,7 +54,6 @@ fi
 
 # compile KubeArmor
 make clean && make
-
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to compile KubeArmor"
     exit 1

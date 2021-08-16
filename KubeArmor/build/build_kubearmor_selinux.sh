@@ -32,9 +32,9 @@ fi
 
 # remove old images
 
-docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
+docker images | grep kubearmor-selinux | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
-echo "[INFO] Removed existing kubearmor/kubearmor images"
+echo "[INFO] Removed existing kubearmor/kubearmor-selinux images"
 
 # remove old files (just in case)
 
@@ -48,14 +48,14 @@ $ARMOR_HOME/build/copy_source_files.sh
 
 echo "[INFO] Copied new source files"
 
-echo "[INFO] Building kubearmor/kubearmor:$VERSION"
-docker build -t kubearmor/kubearmor:$VERSION  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
+echo "[INFO] Building kubearmor/kubearmor-selinux:$VERSION"
+docker build -t kubearmor/kubearmor-selinux:$VERSION  . -f $ARMOR_HOME/build/Dockerfile.kubearmor.selinux
 
 if [ $? != 0 ]; then
-    echo "[FAILED] Failed to build kubearmor/kubearmor:$VERSION"
+    echo "[FAILED] Failed to build kubearmor/kubearmor-selinux:$VERSION"
     exit 1
 else
-    echo "[PASSED] Built kubearmor/kubearmor:$VERSION"
+    echo "[PASSED] Built kubearmor/kubearmor-selinux:$VERSION"
 fi
 
 # remove old files
