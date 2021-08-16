@@ -1,0 +1,20 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-2-file-dir-recursive-block
+  namespace: multiubuntu
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-2
+  file:
+    matchDirectories:
+    - dir: /run/secrets/kubernetes.io/serviceaccount/
+      recursive: true
+
+      # cat /run/secrets/kubernetes.io/serviceaccount/token
+      # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
+
+  action:
+    Block
