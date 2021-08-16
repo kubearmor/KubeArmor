@@ -1,3 +1,6 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package common
 
 import (
@@ -6,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -96,14 +100,6 @@ func ObjCommaExpandFirstDupOthers(objptr interface{}) {
 	}
 }
 
-// Min Function
-func Min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // ========== //
 // == Time == //
 // ========== //
@@ -127,8 +123,15 @@ func GetUptimeTimestamp() float64 {
 	res := GetCommandOutputWithoutErr("cat", []string{"/proc/uptime"})
 
 	uptimeDiff := strings.Split(res, " ")[0]
-	uptimeDiffSec, _ := strconv.Atoi(strings.Split(uptimeDiff, ".")[0]) // second
-	uptimeDiffMil, _ := strconv.Atoi(strings.Split(uptimeDiff, ".")[1]) // milli sec.
+
+	uptimeDiffSec, err := strconv.ParseInt(strings.Split(uptimeDiff, ".")[0], 10, 64) // second
+	if err != nil {
+		kg.Err(err.Error())
+	}
+	uptimeDiffMil, err := strconv.ParseInt(strings.Split(uptimeDiff, ".")[1], 10, 64) // milli second
+	if err != nil {
+		kg.Err(err.Error())
+	}
 
 	uptime := now.Add(-time.Second * time.Duration(uptimeDiffSec))
 	uptime = uptime.Add(-time.Millisecond * time.Duration(uptimeDiffMil))
@@ -168,6 +171,7 @@ func GetDateTimeFromTimestamp(timestamp float64) string {
 
 // GetCommandOutputWithErr Function
 func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
+	// #nosec
 	res := exec.Command(cmd, args...)
 	out, err := res.Output()
 	if err != nil {
@@ -178,6 +182,7 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 
 // GetCommandOutputWithoutErr Function
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
+	// #nosec
 	res := exec.Command(cmd, args...)
 	out, err := res.Output()
 	if err != nil {
@@ -186,17 +191,16 @@ func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	return string(out)
 }
 
-// GetCommandWaitOutputWithErr Function
-func GetCommandWaitOutputWithErr(cmd string, args []string) error {
+// RunCommandAndWaitWithErr Function
+func RunCommandAndWaitWithErr(cmd string, args []string) error {
+	// #nosec
 	command := exec.Command(cmd, args...)
 	if err := command.Start(); err != nil {
 		return err
 	}
-
 	if err := command.Wait(); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -219,22 +223,28 @@ func GetHostName() string {
 // StrToFile Function
 func StrToFile(str, destFile string) {
 	// if destFile doesn't exist, create it
-	if _, err := os.Stat(destFile); err != nil {
-		newFile, err := os.Create(destFile)
+	if _, err := os.Stat(filepath.Clean(destFile)); err != nil {
+		newFile, err := os.Create(filepath.Clean(destFile))
 		if err != nil {
 			kg.Err(err.Error())
 			return
 		}
-		newFile.Close()
+		if err := newFile.Close(); err != nil {
+			kg.Err(err.Error())
+		}
 	}
 
 	// open the file with the append mode
-	file, err := os.OpenFile(destFile, os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(filepath.Clean(destFile), os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		kg.Err(err.Error())
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			kg.Err(err.Error())
+		}
+	}()
 
 	// add the newline at the end of the string
 	str = str + "\n"
@@ -300,9 +310,8 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
-	// local
 	k8sConfig := os.Getenv("HOME") + "/.kube"
-	if _, err := os.Stat(k8sConfig); err == nil {
+	if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
 		return true
 	}
 
@@ -364,7 +373,8 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 
 // DoLgetxattr is a wrapper that retries on EINTR
 func DoLgetxattr(path, attr string, dest []byte) (int, error) {
-	for { // TODO: NEED THE TERMINATION CONDITION FOR THE WORST CASE
+	for {
+		// TODO: NEED THE TERMINATION CONDITION FOR THE WORST CASE
 		if sz, err := unix.Lgetxattr(path, attr, dest); err != unix.EINTR {
 			return sz, err
 		}
@@ -393,6 +403,7 @@ func Lgetxattr(path, attr string) ([]byte, error) {
 	return dest[:sz], nil
 }
 
+// GetSELinuxType Function
 func GetSELinuxType(path string) (string, error) {
 	xattrNameSelinux := "security.selinux"
 
