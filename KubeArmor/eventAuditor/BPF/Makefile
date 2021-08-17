@@ -102,16 +102,18 @@ $(BPFOBJDIR)/%.o: %.c | $(BPFOBJDIR)
 
 # tests
 
-TESTSDIR = $(abspath ../tests)
-TESTS_GO = $(wildcard $(TESTSDIR)/*.go)
-TESTS    = $(TESTS_GO:.go=)
+TESTSDIR   = $(abspath ../tests)
+TESTS_GO   = $(wildcard $(TESTSDIR)/*.go)
+TESTS      = $(TESTS_GO:.go=)
+CGOLDFLAGS = $(abspath $(LIBBPFOBJ))
+CGOCFLAGS  = $(abspath $(INCDIR))
 
 .PHONY: tests
 tests: bpfobj $(TESTS)
 
 $(TESTS): % : %.go | bpfobj
 	$(info INFO: compiling test $@)
-	$(Q)CGO_LDFLAGS=$(LIBBPFOBJ) \
+	$(Q)CGO_LDFLAGS=$(CGOLDFLAGS) CGO_CFLAGS="-I $(CGOCFLAGS)" \
 		go build -o $@ $^
 
 
