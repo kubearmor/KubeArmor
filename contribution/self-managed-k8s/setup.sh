@@ -31,6 +31,9 @@ if [ $? != 0 ]; then
     exit
 fi
 
+# install dependencies for libbpf
+sudo apt-get -y install clang linux-tools-generic pkg-config
+
 # install golang
 echo "Installing golang binaries..."
 goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)
