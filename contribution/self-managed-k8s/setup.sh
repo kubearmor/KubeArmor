@@ -37,36 +37,13 @@ goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -
 wget --quiet https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
 sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
-install_latest_kernel()
-{
-	if [ "$(hostname)" != "kubearmor-dev-next" ]; then
-		return
-	fi
-
-	echo "Installing latest kernel..."
-
-	TMPDIR=/tmp/build/linux-kernel
-	HDR=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-headers-5.13.0-051300rc3_5.13.0-051300rc3.202105232230_all.deb
-	IMG=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-image-unsigned-5.13.0-051300rc3-generic_5.13.0-051300rc3.202105232230_amd64.deb
-	MOD=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-modules-5.13.0-051300rc3-generic_5.13.0-051300rc3.202105232230_amd64.deb
-
-	mkdir $TMPDIR
-	cd $TMPDIR
-	curl -s -O $HDR -O $IMG -O $MOD
-	dpkg -i *.deb
-	cd -
-	rm -rf $TMPDIR
-}
-
 if [[ $(hostname) = kubearmor-dev* ]]; then
     echo >> /home/vagrant/.bashrc
     echo "export GOPATH=\$HOME/go" >> /home/vagrant/.bashrc
     echo "export GOROOT=/usr/local/go" >> /home/vagrant/.bashrc
     echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> /home/vagrant/.bashrc
     echo >> /home/vagrant/.bashrc
-    mkdir -p /home/vagrant/go
-    chown -R vagrant:vagrant /home/vagrant/go
-    install_latest_kernel # Only for NETNEXT=1
+    mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go
 elif [ -z "$GOPATH" ]; then
     echo >> ~/.bashrc
     echo "export GOPATH=\$HOME/go" >> ~/.bashrc
