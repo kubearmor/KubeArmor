@@ -22,6 +22,7 @@ system("
 ")
 
 Vagrant.configure("2") do |config|
+  config.vagrant.plugins = ["vagrant-vbguest"]
   config.vm.define VM_NAME do |cfg|
     cfg.vm.box = VM_IMG
     cfg.vm.provider "virtualbox" do |vb|
