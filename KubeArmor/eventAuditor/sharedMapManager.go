@@ -71,31 +71,31 @@ func (ea *EventAuditor) InitSharedMaps() error {
 
 		_, err = os.Stat(mapObjFilePath)
 		if errors.Is(err, os.ErrNotExist) {
-			ea.LogFeeder.Err(err.Error())
+			ea.Logger.Err(err.Error())
 			continue
 		}
 
 		bpfObj, err = lbpf.OpenObjectFromFile(mapObjFilePath)
 		if err != nil {
-			ea.LogFeeder.Err(err.Error())
+			ea.Logger.Err(err.Error())
 			continue
 		}
 
 		err = bpfObj.Load()
 		if err != nil {
-			ea.LogFeeder.Err(err.Error())
+			ea.Logger.Err(err.Error())
 			bpfObj.Close()
 		}
 
 		bpfMap, err = bpfObj.FindMapByName(mapName)
 		if err != nil {
-			ea.LogFeeder.Err(err.Error())
+			ea.Logger.Err(err.Error())
 			bpfObj.Close()
 		}
 
 		err = pinMap(bpfMap)
 		if err != nil {
-			ea.LogFeeder.Err(err.Error())
+			ea.Logger.Err(err.Error())
 		}
 
 		sharedMaps[mapName] = bpfMap
@@ -124,14 +124,14 @@ func (ea *EventAuditor) StopSharedMaps() error {
 
 		if bpfMap, found = sharedMaps[mapName]; !found {
 			errOnStopping[mapName]++
-			ea.LogFeeder.Errf("Map %s is not initialized to be stopped", mapName)
+			ea.Logger.Errf("Map %s is not initialized to be stopped", mapName)
 			continue
 		}
 
 		err = unpinMap(bpfMap)
 		if err != nil {
 			errOnStopping[mapName]++
-			ea.LogFeeder.Err(err.Error())
+			ea.Logger.Err(err.Error())
 		}
 
 		bpfMap.Object().Close()
