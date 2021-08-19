@@ -2,10 +2,10 @@ Vagrant.require_version ">= 2.0.0"
 
 if ENV['NETNEXT'] == "1" then
   VM_IMG = "ubuntu/impish64"
-  VM_NAME = "kubearmor-dev-next"
+  VM_NAME = "kubearmor-dev-next-1"
 elsif ENV['NETNEXT'] == "2" then
   VM_IMG = "ubuntu/focal64"
-  VM_NAME = "kubearmor-dev-next"
+  VM_NAME = "kubearmor-dev-next-2"
 else
 	VM_IMG = "ubuntu/bionic64"
 	VM_NAME = "kubearmor-dev"
