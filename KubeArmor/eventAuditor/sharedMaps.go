@@ -15,6 +15,7 @@ import "C"
 // ======= Shared Maps ======= //
 // =========================== //
 
+// KubeArmor Event Auditor Maps
 const (
 	KAEAPatternMap       = "ka_ea_pattern_map"
 	KAEAProcessSpecMap   = "ka_ea_process_spec_map"
@@ -25,7 +26,7 @@ const (
 // ======= Pattern Map ======= //
 // =========================== //
 
-// Maximum Length of Pattern
+// PatternMaxLen constant
 const PatternMaxLen = int(C.PATTERN_MAX_LEN)
 
 // PatternMapElement Structure
@@ -41,36 +42,36 @@ type PatternMapKey struct {
 
 // PatternMapValue Structure
 type PatternMapValue struct {
-	PatternId uint32
+	PatternID uint32
 }
 
-// PatternMapElement SetKey Function
+// SetKey Function (PatternMapElement)
 func (pme *PatternMapElement) SetKey(pattern string) {
 	copy(pme.Key.Pattern[:PatternMaxLen], pattern)
 	pme.Key.Pattern[PatternMaxLen-1] = 0
 }
 
-// PatternMapElement SetValue Function
-func (pme *PatternMapElement) SetValue(value uint32) {
-	pme.Value.PatternId = value
+// SetValue Function (PatternMapElement)
+func (pme *PatternMapElement) SetValue(patternID uint32) {
+	pme.Value.PatternID = patternID
 }
 
-// PatternMapElement SetFoundValue Function (KABPFMapElement)
+// SetFoundValue Function (PatternMapElement)
 func (pme *PatternMapElement) SetFoundValue(value []byte) {
-	pme.Value.PatternId = binary.LittleEndian.Uint32(value)
+	pme.Value.PatternID = binary.LittleEndian.Uint32(value)
 }
 
-// PatternMapElement KeyPointer Function (KABPFMapElement)
+// KeyPointer Function (PatternMapElement)
 func (pme *PatternMapElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&pme.Key)
 }
 
-// PatternMapElement ValuePointer Function (KABPFMapElement)
+// ValuePointer Function (PatternMapElement)
 func (pme *PatternMapElement) ValuePointer() unsafe.Pointer {
 	return unsafe.Pointer(&pme.Value)
 }
 
-// PatternMapElement MapName Function (KABPFMapElement)
+// MapName Function (PatternMapElement)
 func (pme *PatternMapElement) MapName() string {
 	return KAEAPatternMap
 }
@@ -89,7 +90,7 @@ type ProcessSpecElement struct {
 type ProcessSpecKey struct {
 	PidNS     uint32
 	MntNS     uint32
-	PatternId uint32
+	PatternID uint32
 }
 
 // ProcessSpecValue Structure
@@ -97,34 +98,34 @@ type ProcessSpecValue struct {
 	Inspect bool
 }
 
-// ProcessSpecElement SetKey Function
-func (pse *ProcessSpecElement) SetKey(pidNS, mntNS, patternId uint32) {
+// SetKey Function (ProcessSpecElement)
+func (pse *ProcessSpecElement) SetKey(pidNS, mntNS, patternID uint32) {
 	pse.Key.PidNS = pidNS
 	pse.Key.MntNS = mntNS
-	pse.Key.PatternId = patternId
+	pse.Key.PatternID = patternID
 }
 
-// ProcessSpecElement SetValue Function
+// SetValue Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) SetValue(inspect bool) {
 	pse.Value.Inspect = inspect
 }
 
-// ProcessSpecElement SetFoundValue Function (KABPFMapElement)
+// SetFoundValue Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) SetFoundValue(value []byte) {
 	pse.Value.Inspect = binary.LittleEndian.Uint32(value) != 0
 }
 
-// ProcessSpecElement KeyPointer Function (KABPFMapElement)
+// KeyPointer Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&pse.Key)
 }
 
-// ProcessSpecElement ValuePointer Function (KABPFMapElement)
+// ValuePointer Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) ValuePointer() unsafe.Pointer {
 	return unsafe.Pointer(&pse.Value)
 }
 
-// ProcessSpecElement MapName Function (KABPFMapElement)
+// MapName Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) MapName() string {
 	return KAEAProcessSpecMap
 }
@@ -151,34 +152,34 @@ type ProcessFilterValue struct {
 	Inspect bool
 }
 
-// ProcessFilterElement SetKey Function
+// SetKey Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) SetKey(pidNS, mntNS, hostPID uint32) {
 	pfe.Key.PidNS = pidNS
 	pfe.Key.MntNS = mntNS
 	pfe.Key.HostPID = hostPID
 }
 
-// ProcessFilterElement SetValue Function
+// SetValue Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) SetValue(inspect bool) {
 	pfe.Value.Inspect = inspect
 }
 
-// ProcessFilterElement SetFoundValue Function (KABPFMapElement)
+// SetFoundValue Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) SetFoundValue(value []byte) {
 	pfe.Value.Inspect = binary.LittleEndian.Uint32(value) != 0
 }
 
-// ProcessFilterElement KeyPointer Function (KABPFMapElement)
+// KeyPointer Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&pfe.Key)
 }
 
-// ProcessFilterElement ValuePointer Function (KABPFMapElement)
+// ValuePointer Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) ValuePointer() unsafe.Pointer {
 	return unsafe.Pointer(&pfe.Value)
 }
 
-// ProcessFilterElement MapName Function (KABPFMapElement)
+// MapName Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) MapName() string {
 	return KAEAProcessFilterMap
 }
