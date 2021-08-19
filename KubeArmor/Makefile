@@ -10,17 +10,24 @@ DLV_EXEC         = $(GOPATH)/bin/dlv
 DLV_LPORT       := 2345
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
+# libbpf
+EVAUDITORBPFDIR  = $(CURDIR)/eventAuditor/BPF
+CGOCFLAGS        = $(EVAUDITORBPFDIR)/include
+CGOLDFLAGS       = $(EVAUDITORBPFDIR)/include/libbpf.a
+GOENV            = CGO_LDFLAGS=$(CGOLDFLAGS) CGO_CFLAGS="-I $(CGOCFLAGS)"
+
 .PHONY: build
 build:
 	$(CURDIR)/patch.sh
-	cd $(CURDIR); go mod tidy
-	cd $(CURDIR); go build -o kubearmor main.go
+	cd $(CURDIR); make -C $(EVAUDITORBPFDIR)
+	cd $(CURDIR); $(GOENV) go mod tidy
+	cd $(CURDIR); $(GOENV) go build -o kubearmor main.go
 
 .PHONY: build-test
 build-test:
 	$(CURDIR)/patch.sh
-	cd $(CURDIR); go mod tidy
-	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
+	cd $(CURDIR); $(GOENV) go mod tidy
+	cd $(CURDIR); $(GOENV) sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
 
 .PHONY: run
 run: build
@@ -85,6 +92,7 @@ endif
 
 .PHONY: clean
 clean:
+	cd $(CURDIR); make -C $(EVAUDITORBPFDIR) clean
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
 	cd $(CURDIR); find . -name .coverprofile | xargs -I {} rm {}
 	$(CURDIR)/build/clean_source_files.sh
