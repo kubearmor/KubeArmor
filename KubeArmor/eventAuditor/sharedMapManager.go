@@ -17,6 +17,7 @@ import (
 // == Shared Map Management == //
 // =========================== //
 
+// BPFObjRelPath constant
 const BPFObjRelPath = "./BPF/objs/"
 const pinBasePath = "/sys/fs/bpf/"
 
@@ -38,21 +39,61 @@ func unpinMap(m *lbpf.KABPFMap) error {
 	return m.Unpin(pinBasePath + m.Name())
 }
 
+// initSharedMap Function
+func initSharedMap(mapName string) (*lbpf.KABPFMap, error) {
+	var mapObjFilePath string
+	var bpfObj *lbpf.KABPFObject
+	var bpfMap *lbpf.KABPFMap
+	var err error
+
+	mapObjFilePath = path.Join(bpfObjAbsPath, mapName+".bpf.o")
+
+	_, err = os.Stat(mapObjFilePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	bpfObj, err = lbpf.OpenObjectFromFile(mapObjFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bpfObj.Load()
+	if err != nil {
+		bpfObj.Close()
+		return nil, err
+	}
+
+	bpfMap, err = bpfObj.FindMapByName(mapName)
+	if err != nil {
+		bpfObj.Close()
+		return nil, err
+	}
+
+	err = pinMap(bpfMap)
+	if err != nil {
+		bpfObj.Close()
+		return nil, err
+	}
+
+	return bpfMap, nil
+}
+
 // SetBPFObjPath Function
-func (ea *EventAuditor) SetBPFObjPath(path string) {
+func (ea *EventAuditor) SetBPFObjPath(path string) error {
 	var err error
 
 	bpfObjAbsPath, err = filepath.Abs(path)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
-		os.Exit(-1)
+		return err
 	}
 
 	_, err = os.Stat(bpfObjAbsPath)
 	if errors.Is(err, os.ErrNotExist) {
-		fmt.Fprint(os.Stderr, err.Error())
-		os.Exit(-1)
+		return err
 	}
+
+	return nil
 }
 
 // InitSharedMaps Function
@@ -61,49 +102,24 @@ func (ea *EventAuditor) InitSharedMaps() error {
 		return errors.New("Shared maps are already initialized")
 	}
 
+	var errOnInitializing []string
+
 	for _, mapName := range sharedMapsNames {
-		var mapObjFilePath string
-		var bpfObj *lbpf.KABPFObject
 		var bpfMap *lbpf.KABPFMap
 		var err error
 
-		mapObjFilePath = path.Join(bpfObjAbsPath, mapName+".bpf.o")
-
-		_, err = os.Stat(mapObjFilePath)
-		if errors.Is(err, os.ErrNotExist) {
-			ea.Logger.Err(err.Error())
+		bpfMap, err = initSharedMap(mapName)
+		if err != nil {
+			errOnInitializing = append(errOnInitializing, mapName)
 			continue
-		}
-
-		bpfObj, err = lbpf.OpenObjectFromFile(mapObjFilePath)
-		if err != nil {
-			ea.Logger.Err(err.Error())
-			continue
-		}
-
-		err = bpfObj.Load()
-		if err != nil {
-			ea.Logger.Err(err.Error())
-			bpfObj.Close()
-		}
-
-		bpfMap, err = bpfObj.FindMapByName(mapName)
-		if err != nil {
-			ea.Logger.Err(err.Error())
-			bpfObj.Close()
-		}
-
-		err = pinMap(bpfMap)
-		if err != nil {
-			ea.Logger.Err(err.Error())
 		}
 
 		sharedMaps[mapName] = bpfMap
 	}
 
-	if len(sharedMaps) < len(sharedMapsNames) {
-		return fmt.Errorf("Only %d of %d maps correctly initialized",
-			len(sharedMaps), len(sharedMapsNames))
+	if len(errOnInitializing) > 0 {
+		return fmt.Errorf("%d map(s) not correctly initialized: %v",
+			len(errOnInitializing), errOnInitializing)
 	}
 
 	return nil
@@ -115,23 +131,16 @@ func (ea *EventAuditor) StopSharedMaps() error {
 		return errors.New("There are no shared maps to stop")
 	}
 
-	var errOnStopping = map[string]int{}
-	var err error
+	var errOnStopping []string
 
-	for _, mapName := range sharedMapsNames {
-		var bpfMap *lbpf.KABPFMap
-		var found bool
+	for _, bpfMap := range sharedMaps {
+		var err error
 
-		if bpfMap, found = sharedMaps[mapName]; !found {
-			errOnStopping[mapName]++
-			ea.Logger.Errf("Map %s is not initialized to be stopped", mapName)
-			continue
-		}
+		mapName := bpfMap.Name()
 
 		err = unpinMap(bpfMap)
 		if err != nil {
-			errOnStopping[mapName]++
-			ea.Logger.Err(err.Error())
+			errOnStopping = append(errOnStopping, mapName)
 		}
 
 		bpfMap.Object().Close()
@@ -140,7 +149,8 @@ func (ea *EventAuditor) StopSharedMaps() error {
 	}
 
 	if len(errOnStopping) > 0 {
-		return fmt.Errorf("%d map(s) not correctly stopped", len(errOnStopping))
+		return fmt.Errorf("%d map(s) not correctly stopped: %v",
+			len(errOnStopping), errOnStopping)
 	}
 
 	return nil

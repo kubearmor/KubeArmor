@@ -30,11 +30,15 @@ func main() {
 	eAuditor.Logger = fd.NewFeeder("", "1337", "stdout", "", false)
 
 	// First set the right path to load the ebpf object files
-	eAuditor.SetBPFObjPath("../" + ea.BPFObjRelPath)
+	err = eAuditor.SetBPFObjPath("../" + ea.BPFObjRelPath)
+	exitIfError(err)
 
 	// Init the shared maps
 	err = eAuditor.InitSharedMaps()
-	exitIfError(err)
+	if err != nil {
+		eAuditor.StopSharedMaps()
+		exitIfError(err)
+	}
 	defer eAuditor.StopSharedMaps()
 
 	// Manage maps elements (PatternMap in this case)
