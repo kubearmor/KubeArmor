@@ -74,7 +74,7 @@ ifeq (, $(shell which golint))
 	rm -rf $$GOLINT_TMP_DIR ;\
 	}
 endif
-	cd $(CURDIR); golint ./...
+	cd $(CURDIR); $(GOENV) golint ./...
 
 .PHONY: gosec
 gosec:
@@ -88,7 +88,7 @@ ifeq (, $(shell which gosec))
 	rm -rf $$GOSEC_TMP_DIR ;\
 	}
 endif
-	cd $(CURDIR); gosec ./...
+	cd $(CURDIR); $(GOENV) gosec ./...
 
 .PHONY: clean
 clean:

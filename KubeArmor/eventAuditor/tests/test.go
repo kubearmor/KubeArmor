@@ -58,7 +58,7 @@ func main() {
 	// Retrieve an element from the map
 	_, err = eAuditor.BPFMapLookupElement(&retPME)
 	exitIfError(err)
-	if retPME.Value.PatternId != 1337 {
+	if retPME.Value.PatternID != 1337 {
 		exitIfError(errors.New("The retrieved element value is not equal to inserted one"))
 	}
 
