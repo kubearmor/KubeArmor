@@ -3,7 +3,7 @@
 KubeArmor currently supports the following.
 
 ```text
-Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE)
+Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE), EKS (Audit mode only)
 ```
 
 In order to deploy KubeArmor, please choose one of the below options according to your environment.
@@ -28,7 +28,7 @@ In order to deploy KubeArmor, please choose one of the below options according t
   $ cd KubeArmor/deployments/GKE
   ~/KubeArmor/deployments/GKE$ kubectl apply -f .
   ```
-
+  
 * Deploy KubeArmor in MicroK8s
 
   ```text
@@ -49,3 +49,7 @@ In order to deploy KubeArmor, please choose one of the below options according t
   $ cd KubeArmor/deployments/selinux
   ~/KubeArmor/deployments/selinux$ kubectl apply -f .
   ```
+  
+* Deploy on EKS
+[Guide to installing KubeArmor on EKS](eks_guide.md) 
+
