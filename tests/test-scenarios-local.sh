@@ -172,9 +172,7 @@ function apply_and_wait_for_microservice_creation() {
         ALL=`expr $RAW - 1`
         READY=`kubectl get pods -n $1 | grep Running | wc -l`
 
-        if [ $ALL == $READY ]; then
-            break
-        fi
+        [[ $ALL == $READY ]] && break
 
         sleep 1
     done
@@ -559,6 +557,7 @@ start_and_wait_for_kubearmor_initialization
 INFO "Started KubeArmor"
 
 ## == Test Scenarios == ##
+
 res_microservice=0
 
 is_test_ignored()
@@ -601,8 +600,8 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
         if [ $res_microservice == 0 ]; then
             DBG "Applied $microservice"
 
-            DBG "Wait for initialization (10s)"
-            sleep 10
+            DBG "Wait for initialization (20s)"
+            sleep 20
             DBG "Started to run testcases"
 
             cd $TEST_HOME/scenarios
@@ -767,4 +766,5 @@ fi
 if [[ $res_microservice -ne 0 ]] || [[ $res_host -ne 0 ]]; then
     exit 1
 fi
+
 exit 0
