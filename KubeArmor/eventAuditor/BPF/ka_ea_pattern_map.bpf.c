@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 // Copyright 2021 Authors of KubeArmor
-// SPDX-License-Identifier: Apache-2.0
 
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
@@ -13,4 +13,4 @@ struct {
 	__uint(max_entries, 1 << 10);
 } ka_ea_pattern_map SEC(".maps");
 
-char LICENSE[] SEC("license") = "Dual BSD/GPL";
+char LICENSE[] SEC("license") = "GPL";
