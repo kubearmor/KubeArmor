@@ -19,8 +19,6 @@ realpath() {
     cd $CURR
 }
 
-export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
-
 # install build dependencies
 sudo dnf -y update
 sudo dnf install -y bison cmake ethtool flex git iperf libstdc++-static \
@@ -55,6 +53,7 @@ echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
 source ~/.bashrc
 
 # copy cil templates
+KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
 sudo cp -r $KUBEARMOR_HOME/KubeArmor/templates /usr/share/
 
 # download protoc
