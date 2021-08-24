@@ -1,0 +1,3 @@
+#Tests matching following regex will be ignored
+#multiubuntu_test_2.*
+#multiubuntu_test_1.*
