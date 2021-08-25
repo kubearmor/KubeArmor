@@ -7,8 +7,8 @@ elsif ENV['NETNEXT'] == "2" then
   VM_IMG = "ubuntu/focal64"
   VM_NAME = "kubearmor-dev-next"
 else
-	VM_IMG = "ubuntu/bionic64"
-	VM_NAME = "kubearmor-dev"
+  VM_IMG = "ubuntu/bionic64"
+  VM_NAME = "kubearmor-dev"
 end
 
 system("
