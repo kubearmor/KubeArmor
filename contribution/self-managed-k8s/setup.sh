@@ -28,7 +28,7 @@ sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip
 cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
 if [ $? != 0 ]; then
     echo "Failed to install bcc"
-    exit
+    exit 1
 fi
 
 # install golang
@@ -37,36 +37,13 @@ goBinary=$(curl -s https://golang.org/dl/ | grep linux | head -n 1 | cut -d'"' -
 wget --quiet https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
 sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
-install_latest_kernel()
-{
-	if [ "$(hostname)" != "kubearmor-dev-next" ]; then
-		return
-	fi
-
-	echo "Installing latest kernel..."
-
-	TMPDIR=/tmp/build/linux-kernel
-	HDR=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-headers-5.13.0-051300rc3_5.13.0-051300rc3.202105232230_all.deb
-	IMG=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-image-unsigned-5.13.0-051300rc3-generic_5.13.0-051300rc3.202105232230_amd64.deb
-	MOD=https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.13-rc3/amd64/linux-modules-5.13.0-051300rc3-generic_5.13.0-051300rc3.202105232230_amd64.deb
-
-	mkdir $TMPDIR
-	cd $TMPDIR
-	curl -s -O $HDR -O $IMG -O $MOD
-	dpkg -i *.deb
-	cd -
-	rm -rf $TMPDIR
-}
-
 if [[ $(hostname) = kubearmor-dev* ]]; then
     echo >> /home/vagrant/.bashrc
     echo "export GOPATH=\$HOME/go" >> /home/vagrant/.bashrc
     echo "export GOROOT=/usr/local/go" >> /home/vagrant/.bashrc
     echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> /home/vagrant/.bashrc
     echo >> /home/vagrant/.bashrc
-    mkdir -p /home/vagrant/go
-    chown -R vagrant:vagrant /home/vagrant/go
-    install_latest_kernel # Only for NETNEXT=1
+    mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go
 elif [ -z "$GOPATH" ]; then
     echo >> ~/.bashrc
     echo "export GOPATH=\$HOME/go" >> ~/.bashrc
@@ -108,8 +85,8 @@ go get -u google.golang.org/grpc
 go get -u github.com/golang/protobuf/protoc-gen-go
 
 # install kubebuilder
-curl -L https://go.kubebuilder.io/dl/2.3.1/$(go env GOOS)/$(go env GOARCH) | tar -xz -C /tmp/build/
-sudo mv /tmp/build/kubebuilder_2.3.1_$(go env GOOS)_$(go env GOARCH) /usr/local/kubebuilder
+wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_amd64 -O /tmp/build/kubebuilder
+chmod +x /tmp/build/kubebuilder; sudo mv /tmp/build/kubebuilder /usr/local/bin
 
 if [[ $(hostname) = kubearmor-dev* ]]; then
     echo >> /home/vagrant/.bashrc
@@ -122,7 +99,7 @@ fi
 # install kustomize
 cd /tmp/build/
 curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
-sudo mv kustomize /usr/local/kubebuilder/bin
+sudo mv kustomize /usr/local/bin
 
 # remove downloaded files
 cd; sudo rm -rf /tmp/build
