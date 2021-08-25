@@ -235,24 +235,18 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 
 	} else { // DELETED
-		endPointIdx := -1
-
-		// find the corresponding endpoint
 		for idx, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				endPointIdx = idx
+				if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// initialize and unregister security profiles
+					dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod, true)
+				}
+
+				// remove endpoint
+				dm.EndPoints = append(dm.EndPoints[:idx], dm.EndPoints[idx+1:]...)
+
 				break
 			}
-		}
-
-		if endPointIdx != -1 {
-			if dm.EndPoints[endPointIdx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// initialize and unregister security profiles
-				dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod, true)
-			}
-
-			// remove endpoint
-			dm.EndPoints = append(dm.EndPoints[:endPointIdx], dm.EndPoints[endPointIdx+1:]...)
 		}
 	}
 }
@@ -530,15 +524,11 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						dm.K8sPods = append(dm.K8sPods, pod)
 					}
 				} else if event.Type == "MODIFIED" {
-					targetIdx := -1
 					for idx, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
-							targetIdx = idx
+							dm.K8sPods[idx] = pod
 							break
 						}
-					}
-					if targetIdx != -1 {
-						dm.K8sPods[targetIdx] = pod
 					}
 				} else if event.Type == "DELETED" {
 					for idx, k8spod := range dm.K8sPods {
