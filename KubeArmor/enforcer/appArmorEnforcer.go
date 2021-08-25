@@ -376,17 +376,6 @@ func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 
 // UnregisterAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
-	if err := ae.CreateAppArmorHostProfile(); err != nil {
-		ae.Logger.Errf("Failed to create the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
-		return false
-	}
-
-	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", "/etc/apparmor.d/kubearmor.host"}); err == nil {
-		ae.Logger.Printf("Unegistered an AppArmor host profile in %s", ae.HostName)
-	} else {
-		ae.Logger.Printf("Failed to unregister the AppArmor host profile (%s)", err.Error())
-	}
-
 	if err := ae.RemoveAppArmorHostProfile(); err != nil {
 		ae.Logger.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
