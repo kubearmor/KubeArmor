@@ -946,8 +946,20 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 
 		} else if log.Type == "MatchedPolicy" {
+			if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+				if log.Action == "Allow" {
+					log.Action = "Audit (Allow)"
+				} else if log.Action == "Block" {
+					log.Action = "Audit (Block)"
+				}
+			}
+
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
+			}
+
+			if log.Action == "Block" && log.Result == "Passed" {
+				log.Action = "Audit (Block)"
 			}
 
 			log.Type = "MatchedHostPolicy"
