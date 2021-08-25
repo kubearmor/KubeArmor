@@ -15,4 +15,7 @@ sudo dpkg -i vagrant_2.2.9_x86_64.deb
 sudo apt-get -y install nfs-kernel-server
 rm vagrant_2.2.9_x86_64.deb
 
+# install vagrant plugins
+vagrant plugin install vagrant-vbguest
+
 echo "Please reboot the machine"
