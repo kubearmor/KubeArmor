@@ -19,8 +19,6 @@ realpath() {
     cd $CURR
 }
 
-export KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
-
 # install build dependencies
 sudo dnf -y update
 sudo dnf install -y bison cmake ethtool flex git iperf libstdc++-static \
@@ -40,7 +38,7 @@ mkdir bcc/build; cd bcc/build
 cmake .. && make && sudo make install
 if [ $? != 0 ]; then
     echo "Failed to install bcc"
-    exit
+    exit 1
 fi
 cd
 
@@ -55,6 +53,7 @@ echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
 source ~/.bashrc
 
 # copy cil templates
+KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
 sudo cp -r $KUBEARMOR_HOME/KubeArmor/templates /usr/share/
 
 # download protoc
@@ -70,8 +69,8 @@ go get -u google.golang.org/grpc
 go get -u github.com/golang/protobuf/protoc-gen-go
 
 # install kubebuilder
-curl -L https://go.kubebuilder.io/dl/2.3.1/$(go env GOOS)/$(go env GOARCH) | tar -xz -C /tmp/build/
-sudo mv /tmp/build/kubebuilder_2.3.1_$(go env GOOS)_$(go env GOARCH) /usr/local/kubebuilder
+wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_amd64 -O /tmp/build/kubebuilder
+chmod +x /tmp/build/kubebuilder; sudo mv /tmp/build/kubebuilder /usr/local/bin
 
 if [[ $(hostname) = kubearmor-dev* ]]; then
     echo >> /home/vagrant/.bashrc
@@ -84,7 +83,7 @@ fi
 # install kustomize
 cd /tmp/build/
 curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
-sudo mv kustomize /usr/local/kubebuilder/bin
+sudo mv kustomize /usr/local/bin
 
 # remove downloaded files
 cd; sudo rm -rf /tmp/build
