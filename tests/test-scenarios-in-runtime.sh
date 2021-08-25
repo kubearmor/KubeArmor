@@ -68,6 +68,31 @@ BLUE='\033[0;34m'
 MAGENTA='\033[0;35m'
 NC='\033[0m'
 
+INFO()
+{
+    echo -e "${ORANGE}[INFO] $*${NC}"
+}
+
+DBG()
+{
+    echo -e "[DBG] $*"
+}
+
+WARN()
+{
+    echo -e "${MAGENTA}[WARN] $*${NC}"
+}
+
+FAIL()
+{
+    echo -e "${RED}[FAIL] $*${NC}"
+}
+
+PASS()
+{
+    echo -e "${BLUE}[PASS] $*${NC}"
+}
+
 ## == Functions == ##
 
 function apply_and_wait_for_microservice_creation() {
@@ -75,7 +100,7 @@ function apply_and_wait_for_microservice_creation() {
 
     kubectl apply -f .
     if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to apply $1${NC}"
+        FAIL "Failed to apply $1"
         res_microservice=1
         return
     fi
@@ -89,9 +114,7 @@ function apply_and_wait_for_microservice_creation() {
         ALL=`expr $RAW - 1`
         READY=`kubectl get pods -n $1 | grep Running | wc -l`
 
-        if [ $ALL == $READY ]; then
-            break
-        fi
+        [[ $ALL == $READY ]] && break
 
         sleep 1
     done
@@ -104,167 +127,171 @@ function delete_and_wait_for_microservice_deletion() {
 
     kubectl delete -f .
     if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to delete $1${NC}"
+        FAIL "Failed to delete $1"
         res_delete=1
     fi
 }
 
 function should_not_find_any_log() {
-    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    DBG "Finding the corresponding log"
 
     sleep 3
 
-    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
-            echo -e "${RED}[FAIL] Found the log from logs${NC}"
+            FAIL "Found the log from logs"
             res_cmd=1
         else
             audit_log="<No Log>"
-            echo "[INFO] Found no log from logs"
+            DBG "Found no log from logs"
         fi
     else # local
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
-            echo -e "${RED}[FAIL] Found the log from logs${NC}"
+            FAIL "Found the log from logs"
             res_cmd=1
         else
             audit_log="<No Log>"
-            echo "[INFO] Found no log from logs"
+            DBG "Found no log from logs"
         fi
     fi
 }
 
 function should_find_passed_log() {
-    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    DBG "Finding the corresponding log"
 
     sleep 3
 
-    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "[INFO] Found the log from logs"
         fi
     else # local
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "[INFO] Found the log from logs"
         fi
     fi
 }
 
 function should_find_blocked_log() {
-    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    DBG "Finding the corresponding log"
 
     sleep 3
 
-    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "Found the log from logs"
         fi
     else # local
         audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "Found the log from logs"
         fi
     fi
 }
 
 function should_not_find_any_host_log() {
-    NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    DBG "Finding the corresponding log"
 
     sleep 3
 
-    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+    NODE=$(hostname)
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
-            echo -e "${RED}[FAIL] Found the log from logs${NC}"
+            FAIL "Found the log from logs"
             res_cmd=1
         else
             audit_log="<No Log>"
-            echo "[INFO] Found no log from logs"
+            DBG "[INFO] Found no log from logs"
         fi
     else # local
         audit_log=$(grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" $ARMOR_LOG | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
-            echo -e "${RED}[FAIL] Found the log from logs${NC}"
+            FAIL "Found the log from logs"
             res_cmd=1
         else
             audit_log="<No Log>"
-            echo "[INFO] Found no log from logs"
+            DBG "[INFO] Found no log from logs"
         fi    
     fi
 }
 
 function should_find_passed_host_log() {
-    NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    DBG "Finding the corresponding log"
 
     sleep 3
 
-    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
+    NODE=$(hostname)
+    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "[INFO] Found the log from logs"
         fi    
     else # local
         audit_log=$(grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" $ARMOR_LOG | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "[INFO] Found the log from logs"
         fi    
     fi
 }
 
 function should_find_blocked_host_log() {
+    DBG "Finding the corresponding log"
+
+    sleep 3
+
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
@@ -273,15 +300,11 @@ function should_find_blocked_host_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    sleep 3
-
-    echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
-
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" $ARMOR_LOG | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
@@ -291,11 +314,11 @@ function should_find_blocked_host_log() {
         audit_log=$(grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" $ARMOR_LOG | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
-            echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
+            FAIL "Failed to find the log from logs"
             res_cmd=1
         else
             echo $audit_log
-            echo "[INFO] Found the log from logs"
+            DBG "[INFO] Found the log from logs"
         fi    
     fi
 }
@@ -312,26 +335,26 @@ function run_test_scenario() {
 
     if [[ $policy_type == "ksp" ]]; then
         if [ $SKIP_CONTAINER_POLICY == 1 ]; then
-            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
     elif [[ $policy_type == "np" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
-            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
         if [ $SKIP_NATIVE_POLICY == 1 ]; then
-            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
         NATIVE=1
     elif [[ $policy_type == "hsp" ]]; then
         if [ $SKIP_HOST_POLICY == 1 ]; then
-            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
@@ -339,23 +362,23 @@ function run_test_scenario() {
     elif [[ $policy_type == "nhp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
-            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
         if [ $SKIP_NATIVE_HOST_POLICY == 1 ]; then
-            echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
+            WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
         NATIVE_HOST=1
     else
-        echo -e "${MAGENTA}[SKIP] Skipped unknown testcase $3${NC}"
+        WARN "Skipped unknown testcase $3"
         skipped_testcases+=("$3")
         return
     fi
 
-    echo -e "${GREEN}[INFO] Applying $YAML_FILE into $2${NC}"
+    DBG "Applying $YAML_FILE into $2"
     if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
         kubectl apply -f $YAML_FILE
     else
@@ -363,11 +386,11 @@ function run_test_scenario() {
     fi
     
     if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to apply $YAML_FILE into $2${NC}"
+        FAIL "Failed to apply $YAML_FILE into $2"
         res_case=1
         return
     fi
-    echo "[INFO] Applied $YAML_FILE into $2"
+    DBG "Applied $YAML_FILE into $2"
 
     sleep 3
     cmd_count=0
@@ -409,7 +432,7 @@ function run_test_scenario() {
         audit_log=""
         actual_res="passed"
 
-        echo -e "${GREEN}[INFO] Running \"$CMD\"${NC}"
+        DBG "Running \"$CMD\""
         if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
             bash -c "$CMD"
         else
@@ -422,52 +445,52 @@ function run_test_scenario() {
         if [[ $HOST_POLICY -eq 0 ]]; then
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
-                    echo "[INFO] $ACTION action, and the command should be passed"
+                    DBG "$ACTION action, and the command should be passed"
                     should_not_find_any_log $POD $OP $COND $ACTION
                 else
-                    echo "[INFO] $ACTION action, but the command should be failed"
+                    DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
                 fi
             elif [ "$ACTION" == "Audit" ] || [ "$ACTION" == "AllowWithAudit" ]; then
                 if [ "$RESULT" == "passed" ]; then
-                    echo "[INFO] $ACTION action, and the command should be passed"
+                    DBG "$ACTION action, and the command should be passed"
                     should_find_passed_log $POD $OP $COND $ACTION
                 else
-                    echo "[INFO] $ACTION action, but the command should be failed"
+                    DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
                 fi
             elif [ "$ACTION" == "Block" ] || [ "$ACTION" == "BlockWithAudit" ]; then
                 if [ "$RESULT" == "passed" ]; then
-                    echo "[INFO] $ACTION action, but the command should be passed"
+                    DBG "$ACTION action, but the command should be passed"
                     should_not_find_any_log $POD $OP $COND $ACTION
                 else
-                    echo "[INFO] $ACTION action, and the command should be failed"
+                    DBG "$ACTION action, and the command should be failed"
                     should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
                 fi
             fi
         else
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
-                    echo "[INFO] $ACTION action, and the command should be passed"
+                    DBG "$ACTION action, and the command should be passed"
                     should_not_find_any_host_log $OP $COND $ACTION
                 else
-                    echo "[INFO] $ACTION action, but the command should be failed"
+                    DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
                 fi
             elif [ "$ACTION" == "Audit" ] || [ "$ACTION" == "AllowWithAudit" ]; then
                 if [ "$RESULT" == "passed" ]; then
-                    echo "[INFO] $ACTION action, and the command should be passed"
+                    DBG "$ACTION action, and the command should be passed"
                     should_find_passed_host_log $OP $COND $ACTION
                 else
-                    echo "[INFO] $ACTION action, but the command should be failed"
+                    DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
                 fi
             elif [ "$ACTION" == "Block" ] || [ "$ACTION" == "BlockWithAudit" ]; then
                 if [ "$RESULT" == "passed" ]; then
-                    echo "[INFO] $ACTION action, but the command should be passed"
+                    DBG "$ACTION action, but the command should be passed"
                     should_not_find_any_host_log $OP $COND $ACTION
                 else
-                    echo "[INFO] $ACTION action, and the command should be failed"
+                    DBG "$ACTION action, and the command should be failed"
                     should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
                 fi
             fi
@@ -506,25 +529,25 @@ function run_test_scenario() {
     done
 
     if [ $res_case != 0 ]; then
-        echo -e "${RED}[FAIL] Failed $3${NC}"
+        FAIL "Failed $3"
         failed_testcases+=("$3")
     else
-        echo -e "${BLUE}[PASS] Passed $3${NC}"
+        PASS "Passed $3"
         passed_testcases+=("$3")
     fi
 
-    echo -e "${GREEN}[INFO] Deleting $YAML_FILE from $2${NC}"
+    DBG "Deleting $YAML_FILE from $2"
     if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
         kubectl delete -f $YAML_FILE
     else
         kubectl delete -n $2 -f $YAML_FILE
     fi 
     if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to delete $YAML_FILE from $2${NC}"
+        FAIL "Failed to delete $YAML_FILE from $2"
         res_case=1
         return
     fi
-    echo "[INFO] Deleted $YAML_FILE from $2"
+    DBG "Deleted $YAML_FILE from $2"
 
     sleep 1
 }
@@ -555,74 +578,104 @@ echo >> $TEST_LOG
 
 res_microservice=0
 
+is_test_ignored()
+{
+    IGN_FILE=$TEST_HOME/tests.ignore
+    [[ ! -f $IGN_FILE ]] && return 0
+    for line in `grep "^[a-zA-Z].*" $IGN_FILE`; do
+        echo $testcase | grep $line >/dev/null
+        [[ $? -eq 0 ]] && echo "matched ignore pattern [$line]" && return 1
+    done
+    return 0
+}
+
+is_test_allowed()
+{
+    cnt=0
+    ALLOW_FILE=$TEST_HOME/tests.allow
+    [[ ! -f $ALLOW_FILE ]] && return 1
+    for line in `grep "^[a-zA-Z].*" $ALLOW_FILE`; do
+        echo $testcase | grep $line >/dev/null
+        [[ $? -eq 0 ]] && echo "does not match ignore pattern [$line]" && return 1
+        ((cnt++))
+    done
+    [[ $cnt -gt 0 ]] && echo "Testcase does not match any allowed pattern in [$ALLOW_FILE]" && return 0
+    return 1
+}
+
 if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
-    echo -e "${ORANGE}[INFO] Running Container Scenarios${NC}"
+    INFO "Running Container Scenarios"
 
     for microservice in $(ls $TEST_HOME/microservices)
     do
         ## == ##
 
-        echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
+        INFO "Applying $microservice"
         apply_and_wait_for_microservice_creation $microservice
 
         ## == ##
 
         if [ $res_microservice == 0 ]; then
-            echo "[INFO] Applied $microservice"
+            DBG "Applied $microservice"
 
-            echo "[INFO] Wait for initialization (30 secs)"
-            sleep 30
-            echo "[INFO] Started to run testcases"
+            DBG "Wait for initialization (20s)"
+            sleep 20
+            DBG "Started to run testcases"
 
             cd $TEST_HOME/scenarios
 
-            for testcase in $(ls -d "$microservice"_*)
+            for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
             do
+                is_test_ignored
+                [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue
+
+                is_test_allowed
+                [[ $? -eq 0 ]] && WARN "Testcase $testcase disallowed" && continue
+
                 res_case=0
 
-                echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
+                INFO "Testing $testcase"
                 run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
                 if [ $res_case != 0 ]; then
                     res_case=0
 
-                    echo -e "${ORANGE}[INFO] Re-testing $testcase${NC}"
+                    INFO "Re-testing $testcase"
                     total_testcases=$(expr $total_testcases + 1)
                     retried_testcases+=("$testcase")
                     run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
                     if [ $res_case != 0 ]; then
-                        echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                        FAIL "Failed to test $testcase"
                         res_microservice=1
                     else
-                        echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                        PASS "Successfully tested $testcase"
                     fi
                 else
-                    echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                    PASS "Successfully tested $testcase"
                 fi
             done
 
             res_delete=0
 
-            echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
+            INFO "Deleting $microservice"
             delete_and_wait_for_microservice_deletion $microservice
 
             if [ $res_delete == 0 ]; then
-                echo "[INFO] Deleted $microservice"
+                DBG "Deleted $microservice"
             fi
         fi
     done    
-    echo "[INFO] Finished Container Scenarios"
+    DBG "Finished Container Scenarios"
 else
-    echo -e "${MAGENTA}[SKIP] Skipped Container Scenarios${NC}"
+    WARN "Skipped Container Scenarios"
 fi
 
 HOST_NAME="$(hostname)"
 res_host=0
 
 if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
-    echo -e "${ORANGE}[INFO] Running Host Scenarios${NC}"
-    echo "[INFO] Started to run host testcases"
+    INFO "Running Host Scenarios"
 
     cd $TEST_HOME/host_scenarios
 
@@ -632,33 +685,33 @@ if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
         do
             res_case=0
 
-            echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
+            INFO "Testing $testcase"
             run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
 
             if [ $res_case != 0 ]; then
                 res_case=0
 
-                echo -e "${ORANGE}[INFO] Re-testing $testcase${NC}"
+                INFO "Re-testing $testcase"
                 total_testcases=$(expr $total_testcases + 1)
                 retried_testcases+=("$testcase")
                 run_test_scenario $TEST_HOME/host_scenarios/$testcase $HOST_NAME $testcase
 
                 if [ $res_case != 0 ]; then
-                    echo -e "${RED}[FAIL] Failed to test $testcase${NC}"
+                    FAIL "Failed to test $testcase"
                     res_host=1
                 else
-                    echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                    PASS "Successfully tested $testcase"
                 fi
             else
-                echo -e "${BLUE}[PASS] Successfully tested $testcase${NC}"
+                PASS "Successfully tested $testcase"
             fi
         done
-        echo "[INFO] Finished Host Scenarios"
+        DBG "Finished Host Scenarios"
     else
-        echo -e "${RED}[INFO] No testcases found for the current host, $HOST_NAME ${NC}"
+        WARN "No testcases found for the current host, $HOST_NAME"
     fi
 else
-    echo -e "${MAGENTA}[SKIP] Skipped Host Scenarios${NC}"
+    WARN "Skipped Host Scenarios"
 fi
 
 echo "== Summary ==" >> $TEST_LOG
@@ -703,9 +756,9 @@ echo >> $TEST_LOG
 ## == KubeArmor == ##
 
 if [[ $res_microservice -eq 1 ]] || [[ $res_host -eq 1 ]]; then
-    echo -e "${RED}[FAIL] Failed to test KubeArmor${NC}"
+    FAIL "Failed to test KubeArmor"
     exit 1
-else
-    echo -e "${BLUE}[PASS] Successfully tested KubeArmor${NC}"
-    exit 0
 fi
+
+PASS "Successfully tested KubeArmor"
+exit 0
