@@ -13,6 +13,7 @@ header:
     - "**/Makefile"
 
   paths-ignore:
+    - "KubeArmor/BPF/*"
     - "protobuf/*"
 
   comment: on-failure
