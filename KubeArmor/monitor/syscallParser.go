@@ -99,11 +99,15 @@ func Min(a, b int) int {
 
 // readByteSliceFromBuff Function
 func readByteSliceFromBuff(buff io.Reader, len int) ([]byte, error) {
-	res := make([]byte, Min(len, MaxStringLen))
-	if err := binary.Read(buff, binary.LittleEndian, &res); err != nil {
-		return nil, fmt.Errorf("error reading byte array: %v", err)
+	res := []byte{}
+	if len > 0 {
+		res = make([]byte, Min(len, MaxStringLen))
+		if err := binary.Read(buff, binary.LittleEndian, &res); err != nil {
+			return nil, fmt.Errorf("error reading byte array: %v", err)
+		}
+		return res, nil
 	}
-	return res, nil
+	return nil, fmt.Errorf("error reading byte array: invalid len")
 }
 
 // readStringFromBuff Function
