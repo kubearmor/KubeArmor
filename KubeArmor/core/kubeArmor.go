@@ -310,11 +310,11 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() {
 
 // InitEventAuditor Function
 func (dm *KubeArmorDaemon) InitEventAuditor() bool {
-	dm.EventAuditor = edt.NewEventAuditor(dm.LogFeeder, &dm.AuditPolicies, &dm.AuditPoliciesLock)
+	dm.EventAuditor = edt.NewEventAuditor(dm.LogFeeder)
 	return dm.EventAuditor != nil
 }
 
-// CloseRuntimeEnforcer Function
+// CloseEventAuditor Function
 func (dm *KubeArmorDaemon) CloseEventAuditor() {
 	if err := dm.EventAuditor.DestroyEventAuditor(); err != nil {
 		fmt.Println("Failed to destory the EventAuditor")
