@@ -4,10 +4,7 @@
 package eventauditor
 
 import (
-	"sync"
-
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // =================== //
@@ -19,25 +16,35 @@ type EventAuditor struct {
 	// logs
 	Logger *fd.Feeder
 
-	// audit policies
-	AuditPolicies     *[]tp.KubeArmorAuditPolicy
-	AuditPoliciesLock **sync.RWMutex
+	// entrypoints list
 }
 
 // NewEventAuditor Function
-func NewEventAuditor(feeder *fd.Feeder, auditPolicies *[]tp.KubeArmorAuditPolicy, auditPoliciesLock **sync.RWMutex) *EventAuditor {
+func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 	ea := new(EventAuditor)
 
 	ea.Logger = feeder
 
-	ea.AuditPolicies = auditPolicies
-	ea.AuditPoliciesLock = auditPoliciesLock
+	// initialize process maps and functions
+	if !ea.InitializeProcessMaps() {
+		ea.Logger.Err("Failed to initialize process maps")
+	}
 
 	return ea
 }
 
 // DestroyEventAuditor Function
 func (ea *EventAuditor) DestroyEventAuditor() error {
+	// destroy deployed entrypoints
+	if !ea.DestroyEntrypoints() {
+		ea.Logger.Err("Failed to destroy entrypoints")
+	}
+
+	// destroy process maps and functions
+	if !ea.DestroyProcessMaps() {
+		ea.Logger.Err("Failed to destroy process maps")
+	}
+
 	return nil
 }
 
@@ -45,10 +52,10 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 // == Audit Policy Management == //
 // ============================= //
 
-// UpdateAuditPolicies Function
-func (ea *EventAuditor) UpdateAuditPolicies() { // (action string, auditPolicy yyy, ...)
-	// update audit policies
+// func (ea *EventAuditor) GenerateAuditPrograms() {
+// 	//
+// }
 
-	// call "entrypoint management"
-	// call "shared map management"
-}
+// func (ea *EventAuditor) ChainAuditPrograms() {
+// 	//
+// }
