@@ -28,7 +28,7 @@ sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip
 cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
 if [ $? != 0 ]; then
     echo "Failed to install bcc"
-    exit
+    exit 1
 fi
 
 # install golang
