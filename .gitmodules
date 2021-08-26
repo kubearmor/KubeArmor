@@ -1,3 +1,0 @@
-[submodule "KubeArmor/eventAuditor/BPF/libbpf"]
-	path = KubeArmor/eventAuditor/BPF/libbpf
-	url = https://github.com/libbpf/libbpf.git
