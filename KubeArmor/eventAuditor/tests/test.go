@@ -23,15 +23,8 @@ func exitIfError(err error) {
 	}
 }
 
-func main() {
+func testMaps(eAuditor *ea.EventAuditor) {
 	var err error
-	var eAuditor ea.EventAuditor
-
-	eAuditor.Logger = fd.NewFeeder("", "1337", "stdout", "", false)
-
-	// First set the right path to load the ebpf object files
-	err = eAuditor.SetBPFObjPath("../" + ea.BPFObjRelPath)
-	exitIfError(err)
 
 	// Init the shared maps
 	err = eAuditor.InitSharedMaps()
@@ -86,4 +79,23 @@ Terminate me with: Ctrl+C
 	// Delete a map element
 	err = eAuditor.BPFMapDeleteElement(&retPME)
 	exitIfError(err)
+}
+
+func testProgs(eAuditor *ea.EventAuditor) {
+	fmt.Println("")
+	fmt.Println("eBPF Programs")
+}
+
+func main() {
+	var err error
+	var eAuditor ea.EventAuditor
+
+	eAuditor.Logger = fd.NewFeeder("", "1337", "stdout", "", false)
+
+	// First set the right path to load the ebpf object files
+	err = eAuditor.SetBPFObjPath("../../" + ea.BPFObjRelPath)
+	exitIfError(err)
+
+	testMaps(&eAuditor)
+	testProgs(&eAuditor)
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 
 	lbpf "github.com/kubearmor/libbpf"
 )
@@ -17,11 +16,6 @@ import (
 // == Shared Map Management == //
 // =========================== //
 
-// BPFObjRelPath constant
-const BPFObjRelPath = "./BPF/objs/"
-const pinBasePath = "/sys/fs/bpf/"
-
-var bpfObjAbsPath string
 var sharedMaps = map[string]*lbpf.KABPFMap{}
 var sharedMapsNames = [...]string{
 	KAEAPatternMap,
@@ -77,23 +71,6 @@ func initSharedMap(mapName string) (*lbpf.KABPFMap, error) {
 	}
 
 	return bpfMap, nil
-}
-
-// SetBPFObjPath Function
-func (ea *EventAuditor) SetBPFObjPath(path string) error {
-	var err error
-
-	bpfObjAbsPath, err = filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(bpfObjAbsPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-
-	return nil
 }
 
 // InitSharedMaps Function
