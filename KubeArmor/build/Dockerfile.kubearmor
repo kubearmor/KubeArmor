@@ -27,7 +27,7 @@ RUN apk update
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
-RUN apk add bash curl procps bcc bcc-dev
+RUN apk add bash curl procps bcc@edge bcc-dev@edge
 RUN apk add kubectl@edge apparmor@edge apparmor-utils@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
