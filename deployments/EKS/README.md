@@ -45,7 +45,7 @@ eksctl create cluster -f ./eks-config.yaml
 ### Deploying KubeArmor
 Deploy KubeArmor using the following yaml file
 ```
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/deployments/generic/kubearmor.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/deployments/EKS/kubearmor.yaml
 ```
 
 ## (Option 2) Create an EKS cluster using Amazon Linux 2
@@ -83,5 +83,5 @@ eksctl create cluster -f ./eks-config.yaml
 ### Deploying KubeArmor
 Deploy KubeArmor using the following yaml file
 ```
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/deployments/docker/kubearmor.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/deployments/EKS/kubearmor.yaml
 ```
