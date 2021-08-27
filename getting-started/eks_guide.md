@@ -1,7 +1,9 @@
 # Deploy KubeArmor on EKS
 
+## Prerequisite for the deployment
+
 ### Setup AWS credentials on your system
-You can follow the [Getting started with Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html "Getting started with Amazon EKS") Guide 
+Follow the [Getting started with Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html "Getting started with Amazon EKS") guide
 
 ### Install eksctl
 Install eksctl on your local system
@@ -11,11 +13,11 @@ sudo mv /tmp/eksctl /usr/local/bin
 eksctl version
 ```
 
+## (Option 1) Create an EKS cluster using Ubuntu 20.04
 
-## Create an EKS cluster using Ubuntu 20.04
+### Creating a cluster
+KubeArmor needs kernel headers installed on each node, so we create an EKS cluster the following configuration
 
-### Creating the cluster
-KubeArmor needs kernel headers installed on the node in order to run. So we create an EKS cluster the following config:
 ```yaml
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -34,26 +36,26 @@ nodeGroups:
       - "sudo apt install linux-headers-$(uname -r)"
 ```
 
-Create it using eksctl:
+Create it using eksctl
+
 ```
 eksctl create cluster -f ./eks-config.yaml
 ```
 
-
 ### Deploying KubeArmor
-Then we deploy this using the docker yaml
+Deploy KubeArmor using the following yaml file
 ```
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/deployments/generic/kubearmor.yaml
 ```
 
-## Create an EKS cluster using Amazon Linux 2
+## (Option 2) Create an EKS cluster using Amazon Linux 2
 
-### Limitations
-KubeArmor on EKS currently only supports audit mode, you will not be able to enforce rules. But those events would be logged.
+### Limitation
+KubeArmor on RedHat based Linux distributions currently supports the audit mode only, which means that you are not able to enforce security policies while the events related to the policies can be audited.
 
+### Creating a cluster
+KubeArmor needs kernel headers installed on each node, so we create an EKS cluster the following configuration
 
-### Creating the cluster
-KubeArmor needs kernel headers installed on the node in order to run. So we create an EKS cluster the following config:
 ```yaml
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
@@ -73,14 +75,13 @@ nodeGroups:
 ```
 
 Create it using eksctl:
+
 ```
 eksctl create cluster -f ./eks-config.yaml
 ```
 
 ### Deploying KubeArmor
-Then we deploy this using the docker yaml
+Deploy KubeArmor using the following yaml file
 ```
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/deployments/docker/kubearmor.yaml
 ```
-
-
