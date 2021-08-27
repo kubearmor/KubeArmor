@@ -6,6 +6,7 @@ package enforcer
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1322,7 +1323,7 @@ func GenerateProfileFoot() string {
 // == //
 
 // GenerateProfileBody Function
-func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securityPolicies []tp.SecurityPolicy) (int, string) {
+func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	// preparation
 
 	count := 0
@@ -1443,94 +1444,11 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	// head
 
-	profileHead := "  ## == PRE START == ##\n"
-
-	profileHead = profileHead + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList)
-
-	profileHead = profileHead + "  ## == PRE END == ##\n"
+	profileHead := "  ## == PRE START == ##\n" + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
 
 	// body
 
 	profileBody := ""
-
-	// body - from source
-
-	bodyFromSource := ""
-
-	for source, lines := range fromSources {
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s rix,\n", source)
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE START (%s) == ##\n", source)
-
-		bodyFromSource = bodyFromSource + "    #include <abstractions/base>\n"
-		bodyFromSource = bodyFromSource + "    umount,\n"
-
-		file := true
-		network := true
-		capability := true
-
-		for _, line := range lines {
-			if strings.Contains(line, "  network") {
-				network = false
-				continue
-			}
-
-			if strings.Contains(line, "  capability") {
-				capability = false
-				continue
-			}
-
-			if strings.Contains(line, "  audit owner") {
-				continue
-			}
-
-			if strings.Contains(line, "  audit deny") {
-				continue
-			}
-
-			file = false
-		}
-
-		if file && len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
-			bodyFromSource = bodyFromSource + "    file,\n"
-		}
-
-		if network && len(networkWhiteList) == 0 {
-			bodyFromSource = bodyFromSource + "    network,\n"
-		}
-
-		if capability && len(capabilityWhiteList) == 0 {
-			bodyFromSource = bodyFromSource + "    capability,\n"
-		}
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n\n", source)
-
-		bodyFromSource = bodyFromSource + strings.Replace(profileBody, "  ", "    ", -1)
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n", source)
-
-		//
-
-		for _, line := range lines {
-			bodyFromSource = bodyFromSource + "  " + line
-		}
-
-		//
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY END (%s) == ##\n\n", source)
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST START (%s) == ##\n", source)
-
-		bodyFromSource = bodyFromSource + strings.Replace(GenerateProfileFoot(), "  ", "    ", -1)
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST END (%s) == ##\n", source)
-		bodyFromSource = bodyFromSource + "  }\n"
-	}
-
-	for _, source := range fromSources {
-		count = count + len(source)
-	}
 
 	// body - white list
 
@@ -1598,9 +1516,91 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	count = count + len(capabilityBlackList)
 
+	// body - from source
+
+	bodyFromSource := ""
+
+	for source, lines := range fromSources {
+		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s rix,\n", source)
+
+		// head
+
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE START (%s) == ##\n", source)
+
+		bodyFromSource = bodyFromSource + "    #include <abstractions/base>\n"
+		bodyFromSource = bodyFromSource + "    umount,\n"
+
+		file := true
+		network := true
+		capability := true
+
+		for _, line := range lines {
+			if strings.Contains(line, "  network") {
+				network = false
+				continue
+			}
+
+			if strings.Contains(line, "  capability") {
+				capability = false
+				continue
+			}
+
+			if strings.Contains(line, "  owner") {
+				continue
+			}
+
+			if strings.Contains(line, "  deny") {
+				continue
+			}
+
+			file = false
+		}
+
+		if file && len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
+			bodyFromSource = bodyFromSource + "    file,\n"
+		}
+
+		if network && len(networkWhiteList) == 0 {
+			bodyFromSource = bodyFromSource + "    network,\n"
+		}
+
+		if capability && len(capabilityWhiteList) == 0 {
+			bodyFromSource = bodyFromSource + "    capability,\n"
+		}
+
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n\n", source)
+
+		// body
+
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n", source)
+
+		bodyFromSource = bodyFromSource + strings.Replace(profileBody, "  ", "    ", -1)
+
+		for _, line := range lines {
+			bodyFromSource = bodyFromSource + "  " + line
+		}
+
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY END (%s) == ##\n\n", source)
+
+		// foot
+
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST START (%s) == ##\n", source)
+
+		bodyFromSource = bodyFromSource + strings.Replace(GenerateProfileFoot(), "  ", "    ", -1)
+
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST END (%s) == ##\n", source)
+		bodyFromSource = bodyFromSource + "  }\n"
+	}
+
+	for _, source := range fromSources {
+		count = count + len(source)
+	}
+
 	// body - together
 
-	profileBody = "  ## == POLICY START == ##\n" + bodyFromSource + profileBody + "  ## == POLICY END == ##\n"
+	profileBody = "  ## == POLICY START == ##\n" + profileBody + bodyFromSource + "  ## == POLICY END == ##\n\n"
 
 	// body - native apparmor
 
@@ -1609,7 +1609,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 		for _, nativeRule := range nativeAppArmorRules {
 			profileBody = profileBody + nativeRule
 		}
-		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n"
+		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n\n"
 	}
 
 	count = count + len(nativeAppArmorRules)
@@ -1620,21 +1620,7 @@ func GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost []string, securit
 
 	// finalization
 
-	profile := profileHead
-
-	for _, preMid := range oldContentsPreMid {
-		profile = profile + preMid
-	}
-
-	profile = profile + profileBody
-
-	for _, midPost := range oldConetntsMidPost {
-		profile = profile + midPost
-	}
-
-	profile = profile + profileFoot
-
-	return count, profile
+	return count, profileHead + profileBody + profileFoot
 }
 
 // == //
@@ -1649,96 +1635,25 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	// get the old profile
 
-	oldProfile := ""
-
-	oldContentsHead := []string{}
-	oldContentsPreMid := []string{}
-	oldConetntsMidPost := []string{}
-	oldContentsFoot := []string{}
-
-	file, err := os.Open(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
+	profile, err := ioutil.ReadFile(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 	if err != nil {
 		return 0, err.Error(), false
 	}
-
-	fscanner := bufio.NewScanner(file)
-	pos := "HEAD"
-
-	for fscanner.Scan() {
-		line := fscanner.Text()
-
-		oldProfile += (line + "\n")
-
-		if strings.Contains(line, "## == PRE START == ##") {
-			pos = "PRE"
-			continue
-		} else if strings.Contains(line, "## == PRE END == ##") {
-			pos = "PRE-MIDDLE"
-			continue
-		} else if strings.Contains(line, "## == POLICY START == ##") {
-			pos = "POLICY"
-			continue
-		} else if strings.Contains(line, "## == POLICY END == ##") {
-			pos = "MIDDLE-POST"
-			continue
-		} else if strings.Contains(line, "## == POST START == ##") {
-			pos = "POST"
-			continue
-		} else if strings.Contains(line, "## == POST END == ##") {
-			pos = "FOOT"
-			continue
-		} else if strings.Contains(line, "## == NATIVE POLICY START == ##") {
-			pos = "NATIVE-START"
-			continue
-		} else if strings.Contains(line, "## == NATIVE POLICY END == ##") {
-			pos = "NATIVE-END"
-			continue
-		}
-
-		if pos == "HEAD" {
-			oldContentsHead = append(oldContentsHead, line+"\n")
-		} else if pos == "PRE" {
-			//
-		} else if pos == "PRE-MIDDLE" {
-			oldContentsPreMid = append(oldContentsPreMid, line+"\n")
-		} else if pos == "POLICY" {
-			//
-		} else if pos == "MIDDLE-POST" {
-			oldConetntsMidPost = append(oldConetntsMidPost, line+"\n")
-		} else if pos == "POST" {
-			//
-		} else if pos == "FOOT" {
-			oldContentsFoot = append(oldContentsFoot, line+"\n")
-		}
-	}
-
-	if err := file.Close(); err != nil {
-		ae.Logger.Err(err.Error())
-	}
+	oldProfile := string(profile)
 
 	// generate a profile body
 
-	count, profileBody := GenerateProfileBody(oldContentsPreMid, oldConetntsMidPost, securityPolicies)
+	count, newProfileBody := GenerateProfileBody(securityPolicies)
 
-	// generate a new profile
+	newProfile := "## == Managed by KubeArmor == ##\n" +
+		"\n" +
+		"#include <tunables/global>\n" +
+		"\n" +
+		"profile " + appArmorProfile + " flags=(attach_disconnected,mediate_deleted) {\n" +
+		newProfileBody +
+		"}\n"
 
-	newProfile := ""
-
-	// head
-
-	for _, head := range oldContentsHead {
-		newProfile = newProfile + head
-	}
-
-	// body
-
-	newProfile = newProfile + profileBody
-
-	// foot
-
-	for _, foot := range oldContentsFoot {
-		newProfile = newProfile + foot
-	}
+	// check the new profile with the old profile
 
 	if newProfile != oldProfile {
 		return count, newProfile, true

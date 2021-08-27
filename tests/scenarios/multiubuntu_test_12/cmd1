@@ -1,0 +1,7 @@
+source: ubuntu-2-deployment
+cmd: dash -c "sleep 1"
+result: passed
+---
+operation: Process
+condition: sleep
+action: Block

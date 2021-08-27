@@ -1,18 +1,18 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-group-1-proc-path-allow-from-source
+  name: ksp-group-1-proc-path-block-from-source
   namespace: multiubuntu
 spec:
   severity: 5
-  message: "allow /bin/bash to execute /bin/sleep"
+  message: "block /bin/dash executing /bin/ls"
   selector:
     matchLabels:
       group: group-1
   process:
     matchPaths:
-    - path: /bin/sleep
+    - path: /bin/ls
       fromSource:
-        - path: /bin/bash
+      - path: /bin/dash
   action:
-    Allow
+    Block
