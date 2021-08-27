@@ -193,7 +193,7 @@ function should_not_find_any_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -209,7 +209,7 @@ function should_find_passed_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -230,7 +230,7 @@ function should_find_blocked_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -246,7 +246,7 @@ function should_not_find_any_host_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" $ARMOR_LOG | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -262,7 +262,7 @@ function should_find_passed_host_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" $ARMOR_LOG | grep Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -283,7 +283,7 @@ function should_find_blocked_host_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" $ARMOR_LOG | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -405,9 +405,10 @@ function run_test_scenario() {
 
         DBG "Running \"$CMD\""
         if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
-            bash -c "$CMD"
+            bash -c ''"${CMD}"''
         else
-            kubectl exec -n $2 -it $POD -- bash -c "$CMD"
+            echo kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
+            kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
         fi
         if [ $? != 0 ]; then
             actual_res="failed"
