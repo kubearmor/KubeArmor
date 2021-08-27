@@ -406,7 +406,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
-			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, log.Source) {
+			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0]) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 				if secPolicy.Action == "Allow" {
 					if secPolicy.Operation == "Process" {
 						if allowProcPolicy == "" {
@@ -500,8 +500,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						}
 					}
 
-					if matched || strings.HasPrefix(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source)) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, log.Resource)) {
+					if matched || strings.Contains(log.Resource, secPolicy.Resource) {
+						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 
@@ -521,7 +521,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			case "Network":
 				if secPolicy.Operation == log.Operation {
 					if strings.Contains(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, log.Source)) {
+						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 
@@ -547,6 +547,58 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	if log.ContainerID != "" { // container
 		if log.Type == "" {
 			if log.Result != "Passed" {
+				if log.Operation == "Process" && allowProcPolicy != "" {
+					log.PolicyName = allowProcPolicy
+					log.Severity = allowProcPolicySeverity
+
+					if len(allowProcTags) > 0 {
+						log.Tags = strings.Join(allowProcTags[:], ",")
+					}
+
+					if len(allowProcMessage) > 0 {
+						log.Message = allowProcMessage
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = "Allow"
+
+					return log
+
+				} else if log.Operation == "File" && allowFilePolicy != "" {
+					log.PolicyName = allowFilePolicy
+					log.Severity = allowFilePolicySeverity
+
+					if len(allowFileTags) > 0 {
+						log.Tags = strings.Join(allowFileTags[:], ",")
+					}
+
+					if len(allowFileMessage) > 0 {
+						log.Message = allowFileMessage
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = "Allow"
+
+					return log
+
+				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+					log.PolicyName = allowNetworkPolicy
+					log.Severity = allowNetworkPolicySeverity
+
+					if len(allowNetworkTags) > 0 {
+						log.Tags = strings.Join(allowNetworkTags[:], ",")
+					}
+
+					if len(allowNetworkMessage) > 0 {
+						log.Message = allowNetworkMessage
+					}
+
+					log.Type = "MatchedPolicy"
+					log.Action = "Allow"
+
+					return log
+				}
+
 				log.Type = "ContainerLog"
 				return log
 			}
