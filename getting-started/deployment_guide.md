@@ -3,7 +3,7 @@
 KubeArmor currently supports the following.
 
 ```text
-Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE), EKS (Audit mode only)
+Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE), EKS
 ```
 
 In order to deploy KubeArmor, please choose one of the below options according to your environment.
