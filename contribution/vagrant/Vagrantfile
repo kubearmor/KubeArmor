@@ -22,7 +22,6 @@ system("
 ")
 
 Vagrant.configure("2") do |config|
-  config.vagrant.plugins = ["vagrant-vbguest"]
   config.vm.define VM_NAME do |cfg|
     cfg.vm.box = VM_IMG
     cfg.vm.provider "virtualbox" do |vb|
@@ -35,6 +34,9 @@ Vagrant.configure("2") do |config|
 
   # vagrant@VM_NAME
   config.vm.hostname = VM_NAME
+
+  # vagrant plugins
+  config.vagrant.plugins = ["vagrant-vbguest"]
 
   # forward port for debug
   config.vm.network "forwarded_port", guest: 2345, host: 2345
