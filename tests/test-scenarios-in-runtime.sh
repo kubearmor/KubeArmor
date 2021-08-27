@@ -87,7 +87,7 @@ function should_not_find_any_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -97,7 +97,7 @@ function should_not_find_any_log() {
             echo "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -118,7 +118,7 @@ function should_find_passed_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -128,7 +128,7 @@ function should_find_passed_log() {
             echo "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -149,7 +149,7 @@ function should_find_blocked_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -159,7 +159,7 @@ function should_find_blocked_log() {
             echo "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -217,7 +217,7 @@ function run_test_scenario() {
         actual_res="passed"
 
         echo -e "${GREEN}[INFO] Running \"$CMD\"${NC}"
-        kubectl exec -n $2 -it $POD -- bash -c "$CMD"
+        kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
         if [ $? != 0 ]; then
             actual_res="failed"
         fi
@@ -266,7 +266,7 @@ function run_test_scenario() {
             echo "Command: $CMD" >> $TEST_LOG
             echo "Result: $RESULT (expected) / $actual_res (actual)" >> $TEST_LOG
             echo "Output:" >> $TEST_LOG
-            echo ""$(kubectl exec -n $2 -it $POD -- bash -c "$CMD") >> $TEST_LOG
+            echo ""$(kubectl exec -n $2 -it $POD -- bash -c \""$CMD\"") >> $TEST_LOG
             echo "Log:" >> $TEST_LOG
             echo $audit_log >> $TEST_LOG
             echo >> $TEST_LOG
