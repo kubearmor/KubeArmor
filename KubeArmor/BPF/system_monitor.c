@@ -39,7 +39,7 @@
 // == Structures == //
 
 #define MAX_BUFFER_SIZE   32768
-#define MAX_BUF_ELEM_SIZE 8192
+#define MAX_BUF_ELEM_SIZE 10922
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
 
@@ -405,12 +405,15 @@ static __always_inline u32* get_buffer_offset()
 
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr, u32 *off)
 {
-    if (*off > MAX_BUFFER_SIZE - sizeof(sys_context_t)) {
+    if (off == NULL)
+        return -1;
+
+    if (*off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0; // not enough space - return
-    }
-    
-    if (bpf_probe_read(&(bufs_p->buf[*off]), sizeof(sys_context_t), ptr) == 0) {
-        *off += sizeof(sys_context_t); 
+    } 
+
+    if (bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), sizeof(sys_context_t), ptr) == 0) {
+        *off += sizeof(sys_context_t);
         return sizeof(sys_context_t);
     }
 
@@ -429,7 +432,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr, u32 *of
     }
 
     u8 type = STR_T;
-    bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE-1)]), 1, &type);
+    bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1)-1)]), 1, &type);
 
     *off += 1;
 
@@ -437,13 +440,13 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr, u32 *of
         return 0;
     }
 
-    int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
+    int sz = bpf_probe_read_str(&(bufs_p->buf[(*off + sizeof(int)) & ((MAX_BUFFER_SIZE>>1)-1)]), MAX_STRING_SIZE, ptr);
     if (sz > 0) {
         if (*off > MAX_BUFFER_SIZE - sizeof(int)) {
             return 0;
         }
 
-        bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
+        bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), sizeof(int), &sz);
 
         *off += sz + sizeof(int);
         //set_buffer_offset(*off);
@@ -472,7 +475,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), 1, &type) != 0) {
         return 0;
     }
 
@@ -482,7 +485,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), size, ptr) == 0) {
         *off += size;
         //set_buffer_offset(*off);
         return size;
@@ -496,6 +499,9 @@ static __always_inline int save_argv(bufs_t *bufs_p, void *ptr, u32 *off)
     const char *argp = NULL;
     bpf_probe_read(&argp, sizeof(argp), ptr);
 
+    if (off == NULL)
+        return -1;
+
     if (argp) {
         return save_str_to_buffer(bufs_p, (void *)(argp), off);
     }
@@ -506,6 +512,10 @@ static __always_inline int save_argv(bufs_t *bufs_p, void *ptr, u32 *off)
 static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr, u32 *off)
 {
     save_to_buffer(bufs_p, NULL, 0, STR_ARR_T, off);
+
+    if (off == NULL)
+        return -1;
+    
 
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
@@ -533,6 +543,9 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args, u32 *off
     if (bufs_p == NULL) {
         return 0;
     }
+
+    if (off == NULL)
+        return -1;
 
     #pragma unroll
     for (int i = 0; i < MAX_ARGS; i++) {
@@ -579,20 +592,19 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args, u32 *off
     return 0;
 }
 
-static __always_inline int events_perf_submit(struct pt_regs *ctx, u32 *off, u32 *base_off)
+static __always_inline int events_perf_submit(struct pt_regs *ctx, u32 base_off, u32 *off)
 {
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return -1;
 
-    //u32 *off = get_buffer_offset();
-    //if (off == NULL)
-    //    return -1;
+    if (off == NULL)
+        return -1;
 
-    void *data = &(bufs_p->buf[*base_off]);
-    int size = (*off) - (*base_off);
-
-    return sys_events.perf_submit(ctx, data, size);
+    void *data = &bufs_p->buf[(base_off & ((MAX_BUFFER_SIZE>>2) - 1))];
+    u32 size = (*off & (MAX_BUFFER_SIZE - 1)) - (base_off & (MAX_BUFFER_SIZE - 1));
+    bpf_trace_printk("submitted for base_off = %u \n", base_off);
+    return sys_events.perf_submit(ctx, data, size & ((MAX_BUFFER_SIZE>>2) - 1));
 }
 
 // == Syscall Hooks (Process) == //
@@ -621,29 +633,30 @@ int syscall__execve(struct pt_regs *ctx,
     lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
     //set_buffer_offset(sizeof(sys_context_t));
 
-    u32 base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
-    u32 off = base_off;
-    if (base_off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+    u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
+    u32 off = 0;
+    if (base_off >= MAX_BUF_ELEM_SIZE)
+        base_off -= MAX_BUF_ELEM_SIZE;
+    off = base_off;
+    if (base_off > MAX_BUF_ELEM_SIZE) {
         set_buffer_offset(0);
         lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-        base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
+        base_off = 0;
         off = base_off;
     }
     
-
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
     if (off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0;
     }
-    bufs_p->buf[off + (MAX_BUF_ELEM_SIZE - 1)] = 0;
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
     save_str_to_buffer(bufs_p, (void *)filename, &off);
     save_str_arr_to_buffer(bufs_p, __argv, &off);
 
-    events_perf_submit(ctx, &off, &base_off);
+    events_perf_submit(ctx, base_off, &off);
 
     return 0;
 }
@@ -674,12 +687,15 @@ int trace_ret_execve(struct pt_regs *ctx)
     lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
     //set_buffer_offset(sizeof(sys_context_t));
 
-    u32 base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
-    u32 off = base_off;
-    if (base_off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+    u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
+    u32 off = 0;
+    if (base_off >= MAX_BUF_ELEM_SIZE)
+        base_off -= MAX_BUF_ELEM_SIZE;
+    off = base_off;
+    if (base_off > MAX_BUF_ELEM_SIZE) {
         set_buffer_offset(0);
         lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-        base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
+        base_off = 0;
         off = base_off;
     }
 
@@ -689,10 +705,9 @@ int trace_ret_execve(struct pt_regs *ctx)
     if (off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0;
     }
-    bufs_p->buf[off + (MAX_BUF_ELEM_SIZE - 1)] = 0;
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    events_perf_submit(ctx, &off, &base_off);
+    events_perf_submit(ctx, base_off, &off);
 
     return 0;
 }
@@ -725,12 +740,15 @@ int syscall__execveat(struct pt_regs *ctx,
     lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
     //set_buffer_offset(sizeof(sys_context_t));
 
-    u32 base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
-    u32 off = base_off;
-    if (base_off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+    u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
+    u32 off = 0;
+    if (base_off >= MAX_BUF_ELEM_SIZE)
+        base_off -= MAX_BUF_ELEM_SIZE;
+    off = base_off;
+    if (base_off > MAX_BUF_ELEM_SIZE) {
         set_buffer_offset(0);
         lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-        base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
+        base_off = 0;
         off = base_off;
     }
 
@@ -740,7 +758,6 @@ int syscall__execveat(struct pt_regs *ctx,
     if (off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0;
     }
-    bufs_p->buf[off + (MAX_BUF_ELEM_SIZE - 1)] = 0;
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
     save_to_buffer(bufs_p, (void*)&dirfd, sizeof(int), INT_T, &off);
@@ -748,7 +765,7 @@ int syscall__execveat(struct pt_regs *ctx,
     save_str_arr_to_buffer(bufs_p, __argv, &off);
     save_to_buffer(bufs_p, (void*)&flags, sizeof(int), EXEC_FLAGS_T, &off);
 
-    events_perf_submit(ctx, &off, &base_off);
+    events_perf_submit(ctx, base_off, &off);
 
     return 0;
 }
@@ -780,12 +797,15 @@ int trace_ret_execveat(struct pt_regs *ctx)
     lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
     //set_buffer_offset(sizeof(sys_context_t));
 
-    u32 base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
-    u32 off = base_off;
-    if (base_off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+    u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
+    u32 off = 0;
+    if (base_off >= MAX_BUF_ELEM_SIZE)
+        base_off -= MAX_BUF_ELEM_SIZE;
+    off = base_off;
+    if (base_off > MAX_BUF_ELEM_SIZE) {
         set_buffer_offset(0);
         lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-        base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
+        base_off = 0;
         off = base_off;
     }
 
@@ -795,10 +815,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
     if (off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0;
     }
-    bufs_p->buf[off + (MAX_BUF_ELEM_SIZE - 1)] = 0;
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    events_perf_submit(ctx, &off, &base_off);
+    events_perf_submit(ctx, base_off, &off);
 
     return 0;
 }
@@ -827,12 +846,15 @@ int trace_do_exit(struct pt_regs *ctx, long code)
     lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
     //set_buffer_offset(sizeof(sys_context_t));
 
-    u32 base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
-    u32 off = base_off;
-    if (base_off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+    u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
+    u32 off = 0;
+    if (base_off >= MAX_BUF_ELEM_SIZE)
+        base_off -= MAX_BUF_ELEM_SIZE;
+    off = base_off;
+    if (base_off > MAX_BUF_ELEM_SIZE) {
         set_buffer_offset(0);
         lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-        base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
+        base_off = 0;
         off = base_off;
     }
 
@@ -842,10 +864,9 @@ int trace_do_exit(struct pt_regs *ctx, long code)
     if (off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0;
     }
-    bufs_p->buf[off + (MAX_BUF_ELEM_SIZE - 1)] = 0;
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    events_perf_submit(ctx, &off, &base_off);
+    events_perf_submit(ctx, base_off, &off);
 
     return 0;
 }
@@ -947,12 +968,15 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
     //set_buffer_offset(sizeof(sys_context_t));
 
-    u32 base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
-    u32 off = base_off;
-    if (base_off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+    u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
+    u32 off = 0;
+    if (base_off >= MAX_BUF_ELEM_SIZE)
+        base_off -= MAX_BUF_ELEM_SIZE;
+    off = base_off;
+    if (base_off > MAX_BUF_ELEM_SIZE) {
         set_buffer_offset(0);
         lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-        base_off = (*off_global) - MAX_BUF_ELEM_SIZE;
+        base_off = 0;
         off = base_off;
     }
 
@@ -962,11 +986,10 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     if (off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
         return 0;
     }
-    bufs_p->buf[off + (MAX_BUF_ELEM_SIZE - 1)] = 0;
     save_context_to_buffer(bufs_p, (void*)&context, &off);
     save_args_to_buffer(types, &args, &off);
 
-    events_perf_submit(ctx, &off, &base_off);
+    events_perf_submit(ctx, base_off, &off);
 
     return 0;
 }
