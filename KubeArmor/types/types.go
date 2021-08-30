@@ -63,6 +63,7 @@ type EndPoint struct {
 	SELinuxProfiles  map[string]string `json:"selinuxProfiles"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
+	AuditPolicies    []AuditPolicy    `json:"auditPolicies"`
 
 	// == //
 
@@ -93,6 +94,8 @@ type K8sPodEvent struct {
 	Object v1.Pod `json:"object"`
 }
 
+//
+
 // K8sPolicyStatus Structure
 type K8sPolicyStatus struct {
 	Status string `json:"status,omitempty"`
@@ -116,6 +119,8 @@ type K8sKubeArmorPolicies struct {
 	Items []K8sKubeArmorPolicy `json:"items"`
 }
 
+//
+
 // K8sKubeArmorHostPolicyEvent Structure
 type K8sKubeArmorHostPolicyEvent struct {
 	Type   string                 `json:"type"`
@@ -134,18 +139,33 @@ type K8sKubeArmorHostPolicies struct {
 	Items []K8sKubeArmorHostPolicy `json:"items"`
 }
 
+//
+
 // K8sKubeArmorMacroEvent Structure
 type K8sKubeArmorMacroEvent struct {
 	Type   string            `json:"type"`
 	Object K8sKubeArmorMacro `json:"object"`
 }
 
+// KubeArmorMacroType Structure
+type KubeArmorMacroType struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// K8sKubeArmorMacroSpec Structure
+type K8sKubeArmorMacroSpec struct {
+	Macros []KubeArmorMacroType `json:"macros"`
+}
+
 // K8sKubeArmorMacro Structure
 type K8sKubeArmorMacro struct {
-	Metadata metav1.ObjectMeta  `json:"metadata"`
-	Spec     KubeArmorMacroSpec `json:"spec"`
-	Status   K8sPolicyStatus    `json:"status,omitempty"`
+	Metadata metav1.ObjectMeta     `json:"metadata"`
+	Spec     K8sKubeArmorMacroSpec `json:"spec"`
+	Status   K8sPolicyStatus       `json:"status,omitempty"`
 }
+
+//
 
 // K8sKubeArmorAuditPolicyEvent Structure
 type K8sKubeArmorAuditPolicyEvent struct {
@@ -172,19 +192,22 @@ type K8sEventType struct {
 
 // K8sAuditRuleType Structure
 type K8sAuditRuleType struct {
-	Process  string         `json:"process,omitempty"`
-	Severity string         `json:"severity,omitempty"`
-	Tags     []string       `json:"tags,omitempty"`
-	Message  string         `json:"message,omitempty"`
-	Events   []K8sEventType `json:"events"`
+	Process string         `json:"process,omitempty"`
+	Events  []K8sEventType `json:"events"`
+
+	Severity string   `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
 }
 
 // K8sAuditPolicySpec Structure
 type K8sAuditPolicySpec struct {
-	Severity   string             `json:"severity,omitempty"`
-	Tags       []string           `json:"tags,omitempty"`
-	Message    string             `json:"message,omitempty"`
+	Selector   SelectorType       `json:"selector"`
 	AuditRules []K8sAuditRuleType `json:"rules"`
+
+	Severity string   `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
 }
 
 // K8sKubeArmorAuditPolicy Structure
@@ -258,10 +281,6 @@ type Log struct {
 type MatchPolicy struct {
 	PolicyName string
 
-	Severity string
-	Tags     []string
-	Message  string
-
 	Source       string
 	Operation    string
 	Resource     string
@@ -270,7 +289,10 @@ type MatchPolicy struct {
 	Regexp *regexp.Regexp
 	Native bool
 
-	Action string
+	Severity string
+	Tags     []string
+	Message  string
+	Action   string
 }
 
 // MatchPolicies Structure
@@ -291,10 +313,8 @@ const (
 
 // SelectorType Structure
 type SelectorType struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-
-	Identities []string `json:"identities,omitempty"` // set during policy update
+	Identities  []string          `json:"identities,omitempty"` // set during policy update
 }
 
 // MatchSourceType Structure
@@ -306,187 +326,169 @@ type MatchSourceType struct {
 
 // ProcessPathType Structure
 type ProcessPathType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Path       string            `json:"path"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // ProcessDirectoryType Structure
 type ProcessDirectoryType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Directory  string            `json:"dir"`
 	Recursive  bool              `json:"recursive,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // ProcessPatternType Structure
 type ProcessPatternType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Pattern   string `json:"pattern"`
 	OwnerOnly bool   `json:"ownerOnly,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // ProcessType Structure
 type ProcessType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	MatchPaths       []ProcessPathType      `json:"matchPaths,omitempty"`
 	MatchDirectories []ProcessDirectoryType `json:"matchDirectories,omitempty"`
 	MatchPatterns    []ProcessPatternType   `json:"matchPatterns,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // FilePathType Structure
 type FilePathType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Path       string            `json:"path"`
 	ReadOnly   bool              `json:"readOnly,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // FileDirectoryType Structure
 type FileDirectoryType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Directory  string            `json:"dir"`
 	ReadOnly   bool              `json:"readOnly,omitempty"`
 	Recursive  bool              `json:"recursive,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // FilePatternType Structure
 type FilePatternType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Pattern   string `json:"pattern"`
 	ReadOnly  bool   `json:"readOnly,omitempty"`
 	OwnerOnly bool   `json:"ownerOnly,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // FileType Structure
 type FileType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	MatchPaths       []FilePathType      `json:"matchPaths,omitempty"`
 	MatchDirectories []FileDirectoryType `json:"matchDirectories,omitempty"`
 	MatchPatterns    []FilePatternType   `json:"matchPatterns,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // NetworkProtocolType Structure
 type NetworkProtocolType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Protocol   string            `json:"protocol"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // NetworkType Structure
 type NetworkType struct {
+	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
+
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
-
-	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
-
-	Action string `json:"action,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // CapabilitiesCapabilityType Structure
 type CapabilitiesCapabilityType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Capability string            `json:"capability"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // CapabilitiesType Structure
 type CapabilitiesType struct {
+	MatchCapabilities []CapabilitiesCapabilityType `json:"matchCapabilities,omitempty"`
+
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
-
-	MatchCapabilities []CapabilitiesCapabilityType `json:"matchCapabilities,omitempty"`
-
-	Action string `json:"action,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // MatchVolumeMountType Structure
 type MatchVolumeMountType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Path      string `json:"path,omitempty"`
 	Directory string `json:"dir,omitempty"`
 	ReadOnly  bool   `json:"readOnly,omitempty"`
 
-	Action string `json:"action,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // SELinuxType Structure
 type SELinuxType struct {
+	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts,omitempty"`
+
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
-
-	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts,omitempty"`
-
-	Action string `json:"action,omitempty"`
+	Action   string   `json:"action,omitempty"`
 }
 
 // SecuritySpec Structure
 type SecuritySpec struct {
-	Severity int      `json:"severity"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
 	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
@@ -497,7 +499,10 @@ type SecuritySpec struct {
 	AppArmor string      `json:"apparmor,omitempty"`
 	SELinux  SELinuxType `json:"selinux,omitempty"`
 
-	Action string `json:"action"`
+	Severity int      `json:"severity"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
 }
 
 // SecurityPolicy Structure
@@ -510,21 +515,9 @@ type SecurityPolicy struct {
 // == Host Security Policy == //
 // ========================== //
 
-// NodeSelectorType Structure
-type NodeSelectorType struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty"`
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-
-	Identities []string `json:"identities,omitempty"` // set during policy update
-}
-
 // HostSecuritySpec Structure
 type HostSecuritySpec struct {
-	Severity int      `json:"severity"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
-	NodeSelector NodeSelectorType `json:"nodeSelector"`
+	NodeSelector SelectorType `json:"nodeSelector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`
@@ -533,7 +526,10 @@ type HostSecuritySpec struct {
 
 	AppArmor string `json:"apparmor,omitempty"`
 
-	Action string `json:"action"`
+	Severity int      `json:"severity"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
 }
 
 // HostSecurityPolicy Structure
@@ -568,21 +564,6 @@ type PidNode struct {
 	ExitedTime time.Time
 }
 
-// =========== //
-// == Macro == //
-// =========== //
-
-// MacrosType Structure
-type MacrosType struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-// KubeArmorMacroSpec Structure
-type KubeArmorMacroSpec struct {
-	Macros []MacrosType `json:"macros"`
-}
-
 // ================== //
 // == Audit Policy == //
 // ================== //
@@ -592,27 +573,30 @@ type AuditEventType struct {
 	Probe string `json:"probe"`
 	Rate  string `json:"rate,omitempty"`
 
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
+	// file related arguments
+	Path      string `json:"path,omitempty"`
+	Directory string `json:"dir,omitempty"`
+	Mode      int    `json:"mode,omitempty"`
 
 	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
-	Port     int    `json:"port,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
+	Port     int    `json:"port,omitempty"`
 
-	// file related arguments
-	Path      string `json:"path,omitempty"`
-	Mode      int    `json:"mode,omitempty"`
-	Directory string `json:"dir,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
 }
 
-// KubeArmorAuditRuleType Structure
-type KubeArmorAuditPolicy struct {
-	Process  string           `json:"process,omitempty"`
-	Severity int              `json:"severity,omitempty"`
-	Tags     []string         `json:"tags,omitempty"`
-	Message  string           `json:"message,omitempty"`
-	Events   []AuditEventType `json:"events"`
+// AuditPolicy Structure
+type AuditPolicy struct {
+	Selector SelectorType `json:"selector"`
+
+	Process string           `json:"process,omitempty"`
+	Events  []AuditEventType `json:"events"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
 }
