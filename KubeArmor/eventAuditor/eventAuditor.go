@@ -16,6 +16,9 @@ type EventAuditor struct {
 	// logs
 	Logger *fd.Feeder
 
+	// map
+	SharedMapMan *SharedMapManager
+
 	// entrypoints list
 }
 
@@ -31,7 +34,10 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 	}
 
 	// initialize process maps and functions
-	if !ea.InitializeProcessMaps() {
+	ea.SharedMapMan = NewSharedMapManager()
+	ea.SharedMapMan.SetBPFObjPath(BPFObjRelPath)
+
+	if !ea.InitializeProcessMaps(ea.SharedMapMan) {
 		ea.Logger.Err("Failed to initialize process maps")
 	}
 
@@ -45,10 +51,12 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 		ea.Logger.Err("Failed to destroy entrypoints")
 	}
 
-	// destroy process maps and functions
-	if !ea.DestroyProcessMaps() {
+	// destroy process maps
+	if !ea.DestroyProcessMaps(ea.SharedMapMan) {
 		ea.Logger.Err("Failed to destroy process maps")
 	}
+
+	ea.SharedMapMan = nil
 
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-//#include "BPF/shared.h"
+//#include "../BPF/shared.h"
 import "C"
 
 // =========================== //
@@ -17,9 +17,9 @@ import "C"
 
 // KubeArmor Event Auditor Maps
 const (
-	KAEAPatternMap       = "ka_ea_pattern_map"
-	KAEAProcessSpecMap   = "ka_ea_process_spec_map"
-	KAEAProcessFilterMap = "ka_ea_process_filter_map"
+	KAEAPatternMap       KASharedMap = "ka_ea_pattern_map"
+	KAEAProcessSpecMap   KASharedMap = "ka_ea_process_spec_map"
+	KAEAProcessFilterMap KASharedMap = "ka_ea_process_filter_map"
 )
 
 // =========================== //
@@ -73,7 +73,7 @@ func (pme *PatternMapElement) ValuePointer() unsafe.Pointer {
 
 // MapName Function (PatternMapElement)
 func (pme *PatternMapElement) MapName() string {
-	return KAEAPatternMap
+	return string(KAEAPatternMap)
 }
 
 // =========================== //
@@ -127,7 +127,7 @@ func (pse *ProcessSpecElement) ValuePointer() unsafe.Pointer {
 
 // MapName Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) MapName() string {
-	return KAEAProcessSpecMap
+	return string(KAEAProcessSpecMap)
 }
 
 // =========================== //
@@ -181,5 +181,5 @@ func (pfe *ProcessFilterElement) ValuePointer() unsafe.Pointer {
 
 // MapName Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) MapName() string {
-	return KAEAProcessFilterMap
+	return string(KAEAProcessFilterMap)
 }

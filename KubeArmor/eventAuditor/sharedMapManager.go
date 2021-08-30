@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 
 	lbpf "github.com/kubearmor/libbpf"
 )
@@ -16,31 +17,67 @@ import (
 // == Shared Map Management == //
 // =========================== //
 
-var sharedMaps = map[string]*lbpf.KABPFMap{}
-var sharedMapsNames = [...]string{
-	KAEAPatternMap,
-	KAEAProcessSpecMap,
-	KAEAProcessFilterMap,
+// SharedMapManager structure
+type SharedMapManager struct {
+	sharedMaps    map[KASharedMap]*lbpf.KABPFMap
+	bpfObjAbsPath string
 }
 
-// pinMap Function
-func pinMap(m *lbpf.KABPFMap) error {
-	return m.Pin(pinBasePath + m.Name())
+func NewSharedMapManager() *SharedMapManager {
+	return &SharedMapManager{
+		sharedMaps:    map[KASharedMap]*lbpf.KABPFMap{},
+		bpfObjAbsPath: "",
+	}
 }
 
-// unpinMap Function
-func unpinMap(m *lbpf.KABPFMap) error {
-	return m.Unpin(pinBasePath + m.Name())
+// SetBPFObjPath Function
+func (smm *SharedMapManager) SetBPFObjPath(dir string) error {
+	var err error
+
+	smm.bpfObjAbsPath, err = filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stat(smm.bpfObjAbsPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// initSharedMap Function
-func initSharedMap(mapName string) (*lbpf.KABPFMap, error) {
+// PinMap Function
+func (smm *SharedMapManager) PinMap(m *lbpf.KABPFMap) error {
+	return m.Pin(PinBasePath + m.Name())
+}
+
+// GetMap Function
+func (smm *SharedMapManager) GetMap(sharedMap KASharedMap) (*lbpf.KABPFMap, error) {
+	ret, found := smm.sharedMaps[sharedMap]
+
+	if !found {
+		return nil, fmt.Errorf("%v map not initialized", sharedMap)
+	}
+
+	return ret, nil
+}
+
+// InitMap Function
+func (smm *SharedMapManager) InitMap(sharedMap KASharedMap, pin bool) (*lbpf.KABPFMap, error) {
 	var mapObjFilePath string
 	var bpfObj *lbpf.KABPFObject
 	var bpfMap *lbpf.KABPFMap
 	var err error
 
-	mapObjFilePath = path.Join(bpfObjAbsPath, mapName+".bpf.o")
+	bpfMap, err = smm.GetMap(sharedMap)
+	if bpfMap != nil {
+		return nil, fmt.Errorf("%v map already initialized", sharedMap)
+	}
+
+	mapName := string(sharedMap)
+
+	mapObjFilePath = path.Join(smm.bpfObjAbsPath, mapName+".bpf.o")
 
 	_, err = os.Stat(mapObjFilePath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -64,99 +101,63 @@ func initSharedMap(mapName string) (*lbpf.KABPFMap, error) {
 		return nil, err
 	}
 
-	err = pinMap(bpfMap)
-	if err != nil {
-		bpfObj.Close()
-		return nil, err
+	if pin {
+		err = smm.PinMap(bpfMap)
+		if err != nil {
+			bpfObj.Close()
+			return nil, err
+		}
 	}
+
+	smm.sharedMaps[sharedMap] = bpfMap
 
 	return bpfMap, nil
 }
 
-// InitSharedMaps Function
-func (ea *EventAuditor) InitSharedMaps() error {
-	if len(sharedMaps) > 0 {
-		return errors.New("Shared maps are already initialized")
+// Function DestroySharedMap
+func (smm *SharedMapManager) DestroyMap(sharedMap KASharedMap) error {
+	var bpfMap *lbpf.KABPFMap
+	var err error
+
+	bpfMap, err = smm.GetMap(sharedMap)
+	if err != nil {
+		return fmt.Errorf("%v map not initialized", sharedMap)
 	}
 
-	var errOnInitializing []string
-
-	for _, mapName := range sharedMapsNames {
-		var bpfMap *lbpf.KABPFMap
-		var err error
-
-		bpfMap, err = initSharedMap(mapName)
-		if err != nil {
-			errOnInitializing = append(errOnInitializing, mapName)
-			continue
-		}
-
-		sharedMaps[mapName] = bpfMap
+	if bpfMap.IsPinned() {
+		err = bpfMap.Unpin(bpfMap.PinPath())
 	}
+	bpfMap.Object().Close()
 
-	if len(errOnInitializing) > 0 {
-		return fmt.Errorf("%d map(s) not correctly initialized: %v",
-			len(errOnInitializing), errOnInitializing)
-	}
+	delete(smm.sharedMaps, sharedMap)
 
-	return nil
+	return err
 }
 
-// StopSharedMaps Function
-func (ea *EventAuditor) StopSharedMaps() error {
-	if len(sharedMaps) == 0 {
-		return errors.New("There are no shared maps to stop")
-	}
-
-	var errOnStopping []string
-
-	for _, bpfMap := range sharedMaps {
-		var err error
-
-		mapName := bpfMap.Name()
-
-		err = unpinMap(bpfMap)
-		if err != nil {
-			errOnStopping = append(errOnStopping, mapName)
-		}
-
-		bpfMap.Object().Close()
-
-		delete(sharedMaps, mapName)
-	}
-
-	if len(errOnStopping) > 0 {
-		return fmt.Errorf("%d map(s) not correctly stopped: %v",
-			len(errOnStopping), errOnStopping)
-	}
-
-	return nil
-}
-
-// BPFMapUpdateElement Function
-func (ea *EventAuditor) BPFMapUpdateElement(mapElem lbpf.KABPFMapElement) error {
-	m, found := sharedMaps[mapElem.MapName()]
-	if !found {
+// MapUpdateElement Function
+func (smm *SharedMapManager) MapUpdateElement(mapElem lbpf.KABPFMapElement) error {
+	m, err := smm.GetMap(KASharedMap(mapElem.MapName()))
+	if err != nil {
 		return fmt.Errorf("%s not found in shared maps", mapElem.MapName())
 	}
 
 	return m.UpdateElement(mapElem)
 }
 
-// BPFMapLookupElement Function
-func (ea *EventAuditor) BPFMapLookupElement(mapElem lbpf.KABPFMapElement) ([]byte, error) {
-	m, found := sharedMaps[mapElem.MapName()]
-	if !found {
+// MapLookupElement Function
+func (smm *SharedMapManager) MapLookupElement(mapElem lbpf.KABPFMapElement) ([]byte, error) {
+	m, err := smm.GetMap(KASharedMap(mapElem.MapName()))
+	if err != nil {
 		return nil, fmt.Errorf("%s not found in shared maps", mapElem.MapName())
 	}
 
 	return m.LookupElement(mapElem)
 }
 
-// BPFMapDeleteElement Function
-func (ea *EventAuditor) BPFMapDeleteElement(mapElem lbpf.KABPFMapElement) error {
-	m, found := sharedMaps[mapElem.MapName()]
-	if !found {
+// MapDeleteElement Function
+func (smm *SharedMapManager) MapDeleteElement(mapElem lbpf.KABPFMapElement) error {
+	m, err := smm.GetMap(KASharedMap(mapElem.MapName()))
+	if err != nil {
 		return fmt.Errorf("%s not found in shared maps", mapElem.MapName())
 	}
 
