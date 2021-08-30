@@ -15,7 +15,6 @@ import (
 type SeverityType int
 
 type NodeSelectorType struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
