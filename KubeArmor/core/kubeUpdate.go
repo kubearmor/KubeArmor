@@ -1546,7 +1546,7 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 
 		// set severity
 		if rule.Severity != "" {
-			if severity, err := strconv.ParseInt(rule.Severity, 0, 32); err != nil {
+			if severity, err := strconv.ParseInt(rule.Severity, 0, 32); err == nil {
 				auditPolicies[i].Severity = int(severity)
 			} else {
 				message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Severity) to int", rule.Severity, i)
@@ -1645,7 +1645,6 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			}
 		}
 
-		// TODO: need to fix -> update in a loop
 		for i := 0; i < len(k8sAuditPolicySpec.AuditRules); i++ {
 			auditRule := k8sAuditPolicySpec.AuditRules[i]
 
@@ -1701,14 +1700,6 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			// if the same namespace:process exists, merge events
 			if _, ok := dm.AuditPolicies[key]; ok {
 				mapEntry := dm.AuditPolicies[key]
-
-				// TODO: what is the expectation with this logic?
-				// remove globals values for severity, tags and message
-				mapEntry.Severity = 1
-				mapEntry.Tags = []string{}
-				mapEntry.Message = ""
-
-				// merge events
 				mapEntry.Events = append(mapEntry.Events, auditPolicy.Events...)
 				dm.AuditPolicies[key] = mapEntry
 			} else {
@@ -1720,9 +1711,15 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	}
 
 	dm.K8sAuditPoliciesLock.Unlock()
-
 	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
-	dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
+
+	// split AuditPolicies to each EndPoint
+    dm.EndPointsLock.Lock()
+    for i, endPoint := range dm.EndPoints {
+        dm.EndPoints[i].AuditPolicies = dm.GetAuditPolicies(endPoint.Identities)
+    }
+    dm.EndPointsLock.Unlock()
+    dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
 }
 
 func waitCustomResourceDefinition(name string) {
