@@ -41,7 +41,7 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 // DestroyEventAuditor Function
 func (ea *EventAuditor) DestroyEventAuditor() error {
 	// destroy deployed entrypoints
-	if !ea.DestroyEntrypoints() {
+	if !ea.DestoryEntryPoints() {
 		ea.Logger.Err("Failed to destroy entrypoints")
 	}
 
