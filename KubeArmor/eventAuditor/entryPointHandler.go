@@ -1,11 +1,17 @@
 package eventauditor
 
+import (
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"sync"
+)
+
 // =========================== //
 // == Entrypoint Management == //
 // =========================== //
 
 // UpdateEntrypoints Function
-func (ea *EventAuditor) UpdateEntrypoints() { // (auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.Mutex)
+func (ea *EventAuditor) UpdateEntrypoints(auditPolicies *map[string]tp.KubeArmorAuditPolicy,
+	auditPoliciesLock **sync.RWMutex) {
 	// AuditPolicies := *(auditPolicies)
 	// AuditPoliciesLock := *(auditPoliciesLock)
 

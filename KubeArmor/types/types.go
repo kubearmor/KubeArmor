@@ -147,11 +147,6 @@ type K8sKubeArmorMacro struct {
 	Status   K8sPolicyStatus    `json:"status,omitempty"`
 }
 
-// K8sKubeArmorMacros Structure
-type K8sKubeArmorMacros struct {
-	Items []K8sKubeArmorMacro `json:"items"`
-}
-
 // K8sKubeArmorAuditPolicyEvent Structure
 type K8sKubeArmorAuditPolicyEvent struct {
 	Type   string                  `json:"type"`
@@ -177,20 +172,18 @@ type K8sEventType struct {
 
 // K8sAuditRuleType Structure
 type K8sAuditRuleType struct {
-	Severity string   `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
-	Process string         `json:"process,omitempty"`
-	Events  []K8sEventType `json:"events"`
+	Process  string         `json:"process,omitempty"`
+	Severity string         `json:"severity,omitempty"`
+	Tags     []string       `json:"tags,omitempty"`
+	Message  string         `json:"message,omitempty"`
+	Events   []K8sEventType `json:"events"`
 }
 
 // K8sAuditPolicySpec Structure
 type K8sAuditPolicySpec struct {
-	Severity string   `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
+	Severity   string             `json:"severity,omitempty"`
+	Tags       []string           `json:"tags,omitempty"`
+	Message    string             `json:"message,omitempty"`
 	AuditRules []K8sAuditRuleType `json:"rules"`
 }
 
@@ -590,15 +583,6 @@ type KubeArmorMacroSpec struct {
 	Macros []MacrosType `json:"macros"`
 }
 
-// KubeArmorMacrosKeyValue Map
-type KubeArmorMacrosKeyValue map[string]string
-
-// KubeArmorMacrosNamespace Map
-type KubeArmorMacrosNamespace map[string]KubeArmorMacrosKeyValue
-
-// KubeArmorMacros Map
-type KubeArmorMacros map[string]KubeArmorMacrosNamespace
-
 // ================== //
 // == Audit Policy == //
 // ================== //
@@ -608,39 +592,27 @@ type AuditEventType struct {
 	Probe string `json:"probe"`
 	Rate  string `json:"rate,omitempty"`
 
-	// file related arguments
-	Path      string `json:"path,omitempty"`
-	Directory string `json:"dir,omitempty"`
-	Mode      string `json:"mode,omitempty"`
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
 
 	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
+	Port     int    `json:"port,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
-	Port     int    `json:"port,omitempty"`
+
+	// file related arguments
+	Path      string `json:"path,omitempty"`
+	Mode      int    `json:"mode,omitempty"`
+	Directory string `json:"dir,omitempty"`
 }
 
 // KubeArmorAuditRuleType Structure
-type KubeArmorAuditRuleType struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
-	Process string           `json:"process,omitempty"`
-	Events  []AuditEventType `json:"events"`
-}
-
-// KubeArmorAuditPolicySpec Structure
-type KubeArmorAuditPolicySpec struct {
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-
-	AuditRules []KubeArmorAuditRuleType `json:"rules"`
-}
-
-// KubeArmorAuditPolicy Structure
 type KubeArmorAuditPolicy struct {
-	Metadata map[string]string        `json:"metadata"`
-	Spec     KubeArmorAuditPolicySpec `json:"spec"`
+	Process  string           `json:"process,omitempty"`
+	Severity int              `json:"severity,omitempty"`
+	Tags     []string         `json:"tags,omitempty"`
+	Message  string           `json:"message,omitempty"`
+	Events   []AuditEventType `json:"events"`
 }

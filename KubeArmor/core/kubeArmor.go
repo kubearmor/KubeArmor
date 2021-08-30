@@ -74,12 +74,12 @@ type KubeArmorDaemon struct {
 	K8sAuditPoliciesLock *sync.RWMutex
 
 	// Audit policies
-	AuditPolicies     []tp.KubeArmorAuditPolicy
+	AuditPolicies     map[string]tp.KubeArmorAuditPolicy
 	AuditPoliciesLock *sync.RWMutex
 
-	// Macros (namespace -> macro)
-	KubeArmorMacrosMap  tp.KubeArmorMacros
-	KubeArmorMacrosLock *sync.RWMutex
+	// Macros
+	K8sMacros     []tp.K8sKubeArmorMacro
+	K8sMacrosLock *sync.RWMutex
 
 	// container id -> (host) pid
 	ActivePidMap     map[string]tp.PidMap
@@ -159,11 +159,11 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.K8sAuditPolicies = []tp.K8sKubeArmorAuditPolicy{}
 	dm.K8sAuditPoliciesLock = new(sync.RWMutex)
 
-	dm.AuditPolicies = []tp.KubeArmorAuditPolicy{}
+	dm.AuditPolicies = map[string]tp.KubeArmorAuditPolicy{}
 	dm.AuditPoliciesLock = new(sync.RWMutex)
 
-	dm.KubeArmorMacrosMap = tp.KubeArmorMacros{}
-	dm.KubeArmorMacrosLock = new(sync.RWMutex)
+	dm.K8sMacros = []tp.K8sKubeArmorMacro{}
+	dm.K8sMacrosLock = new(sync.RWMutex)
 
 	dm.ActivePidMap = map[string]tp.PidMap{}
 	dm.ActiveHostPidMap = map[string]tp.PidMap{}

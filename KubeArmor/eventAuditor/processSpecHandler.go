@@ -1,5 +1,10 @@
 package eventauditor
 
+import (
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"sync"
+)
+
 // ============================= //
 // == Process Spec Management == //
 // ============================= //
@@ -21,6 +26,7 @@ func (ea *EventAuditor) DestroyProcessMaps() bool {
 }
 
 // UpdateProcessMaps Function
-func (ea *EventAuditor) UpdateProcessMaps() { // (auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.Mutex)
+func (ea *EventAuditor) UpdateProcessMaps(auditPolicies *map[string]tp.KubeArmorAuditPolicy,
+	auditPoliciesLock **sync.RWMutex) {
 	// update process-spec and pattern maps
 }
