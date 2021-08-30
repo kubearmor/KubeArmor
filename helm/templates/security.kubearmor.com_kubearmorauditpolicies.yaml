@@ -55,7 +55,6 @@ spec:
                           mode:
                             type: string
                           path:
-                            description: file related arguments
                             pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                             type: string
                           port:
@@ -63,7 +62,6 @@ spec:
                           probe:
                             type: string
                           protocol:
-                            description: socket related arguments
                             enum:
                             - ip
                             - tcp
@@ -96,6 +94,13 @@ spec:
                   - events
                   type: object
                 type: array
+              selector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               severity:
                 pattern: ^([1-9]|10)$
                 type: string
@@ -105,6 +110,7 @@ spec:
                 type: array
             required:
             - rules
+            - selector
             type: object
           status:
             description: KubeArmorAuditPolicyStatus defines the observed state of
