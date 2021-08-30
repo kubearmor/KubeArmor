@@ -1,17 +1,46 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package eventauditor
 
 import (
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"sync"
+
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // =========================== //
 // == Entrypoint Management == //
 // =========================== //
 
-// UpdateEntrypoints Function
-func (ea *EventAuditor) UpdateEntrypoints(auditPolicies *map[string]tp.KubeArmorAuditPolicy,
-	auditPoliciesLock **sync.RWMutex) {
+// InitializeEntryPoints Function
+func (ea *EventAuditor) InitializeEntryPoints() bool {
+	// if something wrong, return false
+
+	return true
+}
+
+// DestoryEntryPoints Function
+func (ea *EventAuditor) DestoryEntryPoints() bool {
+	// if something wrong, return false
+
+	// destroy entrypoints (from tail to head)
+
+	return true
+}
+
+// AttachEntryPoint Function
+func (ea *EventAuditor) AttachEntryPoint(probe string) {
+	//
+}
+
+// DetachEntryPoint Function
+func (ea *EventAuditor) DetachEntryPoint(probe string) {
+	//
+}
+
+// UpdateEntryPoints Function
+func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.KubeArmorAuditPolicy, auditPoliciesLock **sync.RWMutex) {
 	// AuditPolicies := *(auditPolicies)
 	// AuditPoliciesLock := *(auditPoliciesLock)
 
@@ -31,11 +60,4 @@ func (ea *EventAuditor) UpdateEntrypoints(auditPolicies *map[string]tp.KubeArmor
 	// replace old entrypoints list with new entrypoints list
 
 	// update (attach/detach) entrypoints (ebpf)
-}
-
-// DestroyEntrypoints Function
-func (ea *EventAuditor) DestroyEntrypoints() bool {
-	// destroy entrypoints (from tail to head)
-
-	return true
 }

@@ -1,8 +1,12 @@
+// Copyright 2021 Authors of KubeArmor
+// SPDX-License-Identifier: Apache-2.0
+
 package eventauditor
 
 import (
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"sync"
+
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ============================= //
@@ -26,7 +30,6 @@ func (ea *EventAuditor) DestroyProcessMaps() bool {
 }
 
 // UpdateProcessMaps Function
-func (ea *EventAuditor) UpdateProcessMaps(auditPolicies *map[string]tp.KubeArmorAuditPolicy,
-	auditPoliciesLock **sync.RWMutex) {
+func (ea *EventAuditor) UpdateProcessMaps(auditPolicies *map[string]tp.KubeArmorAuditPolicy, auditPoliciesLock **sync.RWMutex) {
 	// update process-spec and pattern maps
 }
