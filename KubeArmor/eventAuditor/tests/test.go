@@ -26,34 +26,26 @@ func exitIfError(err error) {
 func testMaps(eAuditor *ea.EventAuditor) {
 	var err error
 
-	// Init the shared maps
-	err = eAuditor.InitSharedMaps()
-	if err != nil {
-		eAuditor.StopSharedMaps()
-		exitIfError(err)
-	}
-	defer eAuditor.StopSharedMaps()
-
 	// Manage maps elements (PatternMap in this case)
 	var pattMapElem ea.PatternMapElement
 	pattMapElem.SetKey("/bin/*sh")
 	pattMapElem.SetValue(1337)
 
 	// Update the map with an element
-	err = eAuditor.BPFMapUpdateElement(&pattMapElem)
+	err = eAuditor.SharedMapMan.MapUpdateElement(&pattMapElem)
 	exitIfError(err)
 
 	// Update the map with other element
 	pattMapElem.SetKey("/bin/*do")
 	pattMapElem.SetValue(1949315186)
-	err = eAuditor.BPFMapUpdateElement(&pattMapElem)
+	err = eAuditor.SharedMapMan.MapUpdateElement(&pattMapElem)
 	exitIfError(err)
 
 	var retPME ea.PatternMapElement
 	retPME.SetKey("/bin/*sh")
 
 	// Retrieve an element from the map
-	_, err = eAuditor.BPFMapLookupElement(&retPME)
+	_, err = eAuditor.SharedMapMan.MapLookupElement(&retPME)
 	exitIfError(err)
 	if retPME.Value.PatternID != 1337 {
 		exitIfError(errors.New("The retrieved element value is not equal to inserted one"))
@@ -77,7 +69,7 @@ Terminate me with: Ctrl+C
 	<-done
 
 	// Delete a map element
-	err = eAuditor.BPFMapDeleteElement(&retPME)
+	err = eAuditor.SharedMapMan.MapDeleteElement(&retPME)
 	exitIfError(err)
 }
 
@@ -90,10 +82,11 @@ func main() {
 	var err error
 	var eAuditor ea.EventAuditor
 
-	eAuditor.Logger = fd.NewFeeder("", "1337", "stdout", "", false)
+	logger := fd.NewFeeder("", "1337", "stdout", "", false)
 
-	// First set the right path to load the ebpf object files
-	err = eAuditor.SetBPFObjPath("../../" + ea.BPFObjRelPath)
+	eAuditor = *ea.NewEventAuditor(logger)
+	defer eAuditor.DestroyEventAuditor()
+
 	exitIfError(err)
 
 	testMaps(&eAuditor)

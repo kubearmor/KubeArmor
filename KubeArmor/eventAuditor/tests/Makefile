@@ -26,7 +26,10 @@ TESTS      = $(TESTS_GO:.go=)
 .PHONY: tests
 tests: $(TESTS)
 
-$(TESTS): % : %.go
+$(LIBBPFOBJ):
+	$(Q)make -C $(BPFDIR)/../
+
+$(TESTS): % : %.go |  $(LIBBPFOBJ)
 	$(info INFO: compiling test $@)
 	$(Q)CGO_LDFLAGS=$(CGOLDFLAGS) CGO_CFLAGS="-I $(CGOCFLAGS)" \
 		go build -o $@ $^
