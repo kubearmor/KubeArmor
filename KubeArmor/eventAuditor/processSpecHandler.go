@@ -30,6 +30,12 @@ func (ea *EventAuditor) DestroyProcessMaps() bool {
 }
 
 // UpdateProcessMaps Function
-func (ea *EventAuditor) UpdateProcessMaps(auditPolicies *map[string]tp.KubeArmorAuditPolicy, auditPoliciesLock **sync.RWMutex) {
+func (ea *EventAuditor) UpdateProcessMaps(endPoints *[]tp.EndPoint, endPointsLock **sync.RWMutex) {
 	// update process-spec and pattern maps
+
+	// for _, endPoint := range endPoints {
+	// 	for _, auditPolicy := range endPoint.AuditPolicies {
+	// 		//
+	// 	}
+	// }
 }

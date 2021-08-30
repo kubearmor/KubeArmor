@@ -41,13 +41,14 @@ func main() {
 
 	// options (boolean)
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
+	enableAuditPolicyPtr := flag.Bool("enableAuditPolicy", true, "enabling audit policies")
 	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
 
 	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableAuditPolicyPtr, *enableEnforcerPerPodPtr)
 
 	// == //
 }

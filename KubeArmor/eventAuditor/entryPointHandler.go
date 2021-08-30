@@ -40,7 +40,7 @@ func (ea *EventAuditor) DetachEntryPoint(probe string) {
 }
 
 // UpdateEntryPoints Function
-func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.KubeArmorAuditPolicy, auditPoliciesLock **sync.RWMutex) {
+func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.RWMutex) {
 	// AuditPolicies := *(auditPolicies)
 	// AuditPoliciesLock := *(auditPoliciesLock)
 

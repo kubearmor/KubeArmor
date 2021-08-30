@@ -120,6 +120,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update security policies with the identities
 		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint.Identities)
 
+		// update audit policies with the identities
+		newPoint.AuditPolicies = dm.GetAuditPolicies(newPoint.Identities)
+
 		// add the endpoint into the endpoint list
 		dm.EndPoints = append(dm.EndPoints, newPoint)
 
@@ -1466,8 +1469,13 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 
 	for i := 0; i < len(k8sAuditPolicySpec.AuditRules); i++ {
 		expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Process, macroName, macroValue)
+
 		expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Severity, macroName, macroValue)
 		expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Message, macroName, macroValue)
+
+		for j := 0; j < len(k8sAuditPolicySpec.AuditRules[i].Tags); j++ {
+			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Tags[j], macroName, macroValue)
+		}
 
 		for j := 0; j < len(k8sAuditPolicySpec.AuditRules[i].Events); j++ {
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Probe, macroName, macroValue)
@@ -1485,42 +1493,49 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 	}
 }
 
-func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.KubeArmorAuditPolicy, error) {
-	var err error
-	var defaultSeverity int64
-	var defaultMessage string
-	var defaultTags []string
-	var auditPolicies []tp.KubeArmorAuditPolicy
-	auditPolicies = make([]tp.KubeArmorAuditPolicy, len(k8sAuditPolicySpec.AuditRules))
+func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.AuditPolicy, error) {
+	auditPolicies := make([]tp.AuditPolicy, len(k8sAuditPolicySpec.AuditRules))
 
+	defaultSeverity := int64(1)
 	if k8sAuditPolicySpec.Severity != "" {
-		if defaultSeverity, err = strconv.ParseInt(k8sAuditPolicySpec.Severity, 0, 32); err != nil {
+		if severity, err := strconv.ParseInt(k8sAuditPolicySpec.Severity, 0, 32); err == nil {
+			defaultSeverity = severity
+		} else {
 			message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.Severity) to int", k8sAuditPolicySpec.Severity)
 			return nil, errors.New(message)
 		}
-	} else {
-		defaultSeverity = 1
 	}
 
-	defaultMessage = k8sAuditPolicySpec.Message
-	defaultTags = make([]string, len(k8sAuditPolicySpec.Tags))
+	defaultMessage := k8sAuditPolicySpec.Message
+
+	defaultTags := make([]string, len(k8sAuditPolicySpec.Tags))
 	copy(defaultTags, k8sAuditPolicySpec.Tags)
 
-	for i, rule := range k8sAuditPolicySpec.AuditRules {
-		var severity int64
+	k8sAuditPolicySpec.Selector.Identities = []string{}
+	for k, v := range k8sAuditPolicySpec.Selector.MatchLabels {
+		k8sAuditPolicySpec.Selector.Identities = append(k8sAuditPolicySpec.Selector.Identities, k+"="+v)
+	}
 
+	for i, rule := range k8sAuditPolicySpec.AuditRules {
+		// set identities
+		auditPolicies[i].Selector.Identities = make([]string, len(k8sAuditPolicySpec.Selector.Identities))
+		copy(auditPolicies[i].Selector.Identities, k8sAuditPolicySpec.Selector.Identities)
+
+		// set process
 		if rule.Process != "" {
 			auditPolicies[i].Process = rule.Process
 		} else {
 			auditPolicies[i].Process = "*"
 		}
 
+		// set message
 		if rule.Message != "" {
 			auditPolicies[i].Message = rule.Message
 		} else {
 			auditPolicies[i].Message = defaultMessage
 		}
 
+		// set tags
 		if len(rule.Tags) > 0 {
 			auditPolicies[i].Tags = make([]string, len(rule.Tags))
 			copy(auditPolicies[i].Tags, rule.Tags)
@@ -1529,70 +1544,92 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.KubeA
 			copy(auditPolicies[i].Tags, defaultTags)
 		}
 
+		// set severity
 		if rule.Severity != "" {
-			if severity, err = strconv.ParseInt(rule.Severity, 0, 32); err != nil {
+			if severity, err := strconv.ParseInt(rule.Severity, 0, 32); err != nil {
+				auditPolicies[i].Severity = int(severity)
+			} else {
 				message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Severity) to int", rule.Severity, i)
 				return nil, errors.New(message)
 			}
-			auditPolicies[i].Severity = int(severity)
 		} else {
 			auditPolicies[i].Severity = int(defaultSeverity)
 		}
 
+		// set events
 		auditPolicies[i].Events = make([]tp.AuditEventType, len(rule.Events))
 		for j, ruleEvent := range rule.Events {
-			var number int64
-
 			auditPolicies[i].Events[j].Probe = ruleEvent.Probe
 			auditPolicies[i].Events[j].Rate = ruleEvent.Rate
+
+			auditPolicies[i].Events[j].Path = ruleEvent.Path
+			auditPolicies[i].Events[j].Directory = ruleEvent.Directory
+
+			if ruleEvent.Mode != "" {
+				if number, err := strconv.ParseInt(ruleEvent.Mode, 0, 32); err == nil {
+					auditPolicies[i].Events[j].Mode = int(number)
+				} else {
+					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Mode) to int", ruleEvent.Mode, i, j)
+					return nil, errors.New(message)
+				}
+			}
 
 			auditPolicies[i].Events[j].Protocol = ruleEvent.Protocol
 			auditPolicies[i].Events[j].Ipv4Addr = ruleEvent.Ipv4Addr
 			auditPolicies[i].Events[j].Ipv6Addr = ruleEvent.Ipv6Addr
 
-			auditPolicies[i].Events[j].Path = ruleEvent.Path
-			auditPolicies[i].Events[j].Directory = ruleEvent.Directory
+			if ruleEvent.Port != "" {
+				if number, err := strconv.ParseInt(ruleEvent.Port, 0, 32); err == nil {
+					auditPolicies[i].Events[j].Port = int(number)
+				} else {
+					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Port) to int", ruleEvent.Port, i, j)
+					return nil, errors.New(message)
+				}
+			}
 
 			auditPolicies[i].Events[j].Severity = auditPolicies[i].Severity
 			auditPolicies[i].Events[j].Tags = auditPolicies[i].Tags
 			auditPolicies[i].Events[j].Message = auditPolicies[i].Message
-
-			if ruleEvent.Mode != "" {
-				if number, err = strconv.ParseInt(ruleEvent.Mode, 0, 32); err != nil {
-					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Mode) to int", ruleEvent.Mode, i, j)
-					return nil, errors.New(message)
-				}
-				auditPolicies[i].Events[j].Mode = int(number)
-			}
-
-			if ruleEvent.Port != "" {
-				if number, err = strconv.ParseInt(ruleEvent.Port, 0, 32); err != nil {
-					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Port) to int", ruleEvent.Port, i, j)
-					return nil, errors.New(message)
-				}
-				auditPolicies[i].Events[j].Port = int(number)
-			}
 		}
 	}
 
 	return auditPolicies, nil
 }
 
+// GetAuditPolicies Function
+func (dm *KubeArmorDaemon) GetAuditPolicies(identities []string) []tp.AuditPolicy {
+	dm.AuditPoliciesLock.Lock()
+	defer dm.AuditPoliciesLock.Unlock()
+
+	auditPolicies := []tp.AuditPolicy{}
+
+	for _, policy := range dm.AuditPolicies {
+		if kl.MatchIdentities(policy.Selector.Identities, identities) {
+			auditPolicy := tp.AuditPolicy{}
+			if err := kl.Clone(policy, &auditPolicy); err != nil {
+				fmt.Println("Failed to clone an audit policy")
+			}
+			auditPolicies = append(auditPolicies, auditPolicy)
+		}
+	}
+
+	return auditPolicies
+}
+
 // UpdateAuditPolicies Function
 func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
-	var err error
-	var auditPolicies []tp.KubeArmorAuditPolicy
-	k8sAuditPolicySpec := tp.K8sAuditPolicySpec{}
-
 	// garbage collect old kubearmor policies
 	dm.AuditPoliciesLock.Lock()
-	dm.AuditPolicies = make(map[string]tp.KubeArmorAuditPolicy)
+	dm.AuditPolicies = make(map[string]tp.AuditPolicy)
 	dm.AuditPoliciesLock.Unlock()
 
 	dm.K8sAuditPoliciesLock.Lock()
+
 	for _, k8sPolicy := range dm.K8sAuditPolicies {
+		k8sAuditPolicySpec := tp.K8sAuditPolicySpec{}
+
 		// clone spec
-		if err = kl.Clone(k8sPolicy.Spec, &k8sAuditPolicySpec); err != nil {
+		if err := kl.Clone(k8sPolicy.Spec, &k8sAuditPolicySpec); err != nil {
 			dm.LogFeeder.Printf("Failed to clone spec for k8sPolicy %s", k8sPolicy.Metadata.Name)
 			continue
 		}
@@ -1608,9 +1645,11 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			}
 		}
 
+		// TODO: need to fix -> update in a loop
 		for i := 0; i < len(k8sAuditPolicySpec.AuditRules); i++ {
-			// expand comma separated process name
 			auditRule := k8sAuditPolicySpec.AuditRules[i]
+
+			// expand comma separated process name
 			procNames := strings.Split(auditRule.Process, ",")
 			k8sAuditPolicySpec.AuditRules[i].Process = procNames[0]
 
@@ -1623,12 +1662,14 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 				newAuditRule.Process = name
 				newAuditRule.Events = make([]tp.K8sEventType, len(auditRule.Events))
 				copy(newAuditRule.Events, auditRule.Events)
+
 				k8sAuditPolicySpec.AuditRules = append(k8sAuditPolicySpec.AuditRules, newAuditRule)
 			}
 
 			// expand comma separated probes
 			for j := 0; j < len(k8sAuditPolicySpec.AuditRules[i].Events); j++ {
 				event := k8sAuditPolicySpec.AuditRules[i].Events[j]
+
 				probeNames := strings.Split(event.Probe, ",")
 				k8sAuditPolicySpec.AuditRules[i].Events[j].Probe = probeNames[0]
 
@@ -1644,15 +1685,16 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			}
 		}
 
-		// convert k8sAuditPolicy spec
-		// skip (and alert) invalid conversions
-		if auditPolicies, err = k8sAuditPolicyConvert(k8sAuditPolicySpec); err != nil {
+		// convert k8sAuditPolicy spec, skip (and alert) if invalid conversions
+		auditPolicies, err := k8sAuditPolicyConvert(k8sAuditPolicySpec)
+		if err != nil {
 			dm.LogFeeder.Printf("Failed to convert K8sAuditPolicySpec: %v", err)
 			continue
 		}
 
-		// aggregate audit policies
 		dm.AuditPoliciesLock.Lock()
+
+		// aggregate audit policies
 		for _, auditPolicy := range auditPolicies {
 			key := fmt.Sprintf("%v:%v", k8sPolicy.Metadata.Namespace, auditPolicy.Process)
 
@@ -1660,6 +1702,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			if _, ok := dm.AuditPolicies[key]; ok {
 				mapEntry := dm.AuditPolicies[key]
 
+				// TODO: what is the expectation with this logic?
 				// remove globals values for severity, tags and message
 				mapEntry.Severity = 1
 				mapEntry.Tags = []string{}
@@ -1672,13 +1715,14 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 				dm.AuditPolicies[key] = auditPolicy
 			}
 		}
+
 		dm.AuditPoliciesLock.Unlock()
 	}
 
 	dm.K8sAuditPoliciesLock.Unlock()
 
 	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
-	dm.EventAuditor.UpdateProcessMaps(&dm.AuditPolicies, &dm.AuditPoliciesLock)
+	dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
 }
 
 func waitCustomResourceDefinition(name string) {
@@ -1704,9 +1748,10 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 		}
 
 		k8sPolicy := tp.K8sKubeArmorAuditPolicy{}
+
 		if err := kl.Clone(event.Object, &k8sPolicy); err != nil {
 			dm.LogFeeder.Printf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost",
-				strings.ToLower(event.Type), event.Object.Metadata.Name)
+				strings.ToLower(event.Type), k8sPolicy.Metadata.Name)
 			continue
 		}
 
@@ -1716,29 +1761,26 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 			if !kl.ContainsElement(dm.K8sAuditPolicies, k8sPolicy) {
 				dm.K8sAuditPolicies = append(dm.K8sAuditPolicies, k8sPolicy)
 			}
-
-		} else if event.Type == "DELETED" {
+		} else if event.Type == "MODIFIED" {
 			for i, policy := range dm.K8sAuditPolicies {
-				if policy.Metadata.Namespace == k8sPolicy.Metadata.Namespace &&
-					policy.Metadata.Name == k8sPolicy.Metadata.Name {
-					dm.K8sAuditPolicies = append(dm.K8sAuditPolicies[:i], dm.K8sAuditPolicies[i+1:]...)
+				if policy.Metadata.Namespace == k8sPolicy.Metadata.Namespace && policy.Metadata.Name == k8sPolicy.Metadata.Name {
+					dm.K8sAuditPolicies[i] = k8sPolicy
 					break
 				}
 			}
-
-		} else if event.Type == "MODIFIED" {
-			for i := 0; i < len(dm.K8sAuditPolicies); i++ {
-				if dm.K8sAuditPolicies[i].Metadata.Namespace == k8sPolicy.Metadata.Namespace &&
-					dm.K8sAuditPolicies[i].Metadata.Name == k8sPolicy.Metadata.Name {
-					dm.K8sAuditPolicies[i] = k8sPolicy
+		} else if event.Type == "DELETED" {
+			for i, policy := range dm.K8sAuditPolicies {
+				if policy.Metadata.Namespace == k8sPolicy.Metadata.Namespace && policy.Metadata.Name == k8sPolicy.Metadata.Name {
+					dm.K8sAuditPolicies = append(dm.K8sAuditPolicies[:i], dm.K8sAuditPolicies[i+1:]...)
 					break
 				}
 			}
 		}
 
 		dm.K8sAuditPoliciesLock.Unlock()
-		dm.LogFeeder.Printf("Detected an Audit Policy (%s/%s)", strings.ToLower(event.Type),
-			k8sPolicy.Metadata.Name)
+
+		dm.LogFeeder.Printf("Detected an Audit Policy (%s/%s)", strings.ToLower(event.Type), k8sPolicy.Metadata.Name)
+
 		dm.UpdateAuditPolicies()
 	}
 }
@@ -1771,33 +1813,30 @@ func (dm *KubeArmorDaemon) decodeKubeArmorMacro(decoder *json.Decoder) {
 			continue
 		}
 
-		k8sMacro := tp.K8sKubeArmorMacro{}
-		if err := kl.Clone(event.Object, &k8sMacro); err != nil {
-			dm.LogFeeder.Printf("Failed to clone spec for K8sMacro (%s/%s). This event will be lost",
-				strings.ToLower(event.Type), event.Object.Metadata.Name)
+		macro := tp.K8sKubeArmorMacro{}
+
+		if err := kl.Clone(event.Object, &macro); err != nil {
+			dm.LogFeeder.Printf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost",
+				strings.ToLower(event.Type), macro.Metadata.Name)
 			continue
 		}
 
 		dm.K8sMacrosLock.Lock()
 
 		if event.Type == "ADDED" {
-			if !kl.ContainsElement(dm.K8sMacros, k8sMacro) {
-				dm.K8sMacros = append(dm.K8sMacros, k8sMacro)
+			if !kl.ContainsElement(dm.K8sMacros, macro) {
+				dm.K8sMacros = append(dm.K8sMacros, macro)
 			}
-
 		} else if event.Type == "MODIFIED" {
-			for i, macro := range dm.K8sMacros {
-				if macro.Metadata.Namespace == k8sMacro.Metadata.Namespace &&
-					macro.Metadata.Name == k8sMacro.Metadata.Name {
+			for i, k8sMacro := range dm.K8sMacros {
+				if macro.Metadata.Namespace == k8sMacro.Metadata.Namespace && macro.Metadata.Name == k8sMacro.Metadata.Name {
 					dm.K8sMacros[i] = k8sMacro
 					break
 				}
 			}
-
 		} else if event.Type == "DELETED" {
-			for i, macro := range dm.K8sMacros {
-				if macro.Metadata.Namespace == k8sMacro.Metadata.Namespace &&
-					macro.Metadata.Name == k8sMacro.Metadata.Name {
+			for i, k8sMacro := range dm.K8sMacros {
+				if macro.Metadata.Namespace == k8sMacro.Metadata.Namespace && macro.Metadata.Name == k8sMacro.Metadata.Name {
 					dm.K8sMacros = append(dm.K8sMacros[:i], dm.K8sMacros[i+1:]...)
 					break
 				}

@@ -7,9 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:validation:Pattern=^([1-9]|10)$
-type SeverityType string
-
 type EventType struct {
 	Probe string `json:"probe"`
 
@@ -17,6 +14,7 @@ type EventType struct {
 	Rate string `json:"rate,omitempty"`
 
 	// file related arguments
+
 	// +kubebuilder:validation:Pattern=^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
 	Path string `json:"path,omitempty"`
 	// 	+kubebuilder:validation:Pattern=^/([A-z0-9-.]+/)*([A-z0-9-.]+)+/$
@@ -25,6 +23,7 @@ type EventType struct {
 	Mode string `json:"mode,omitempty"`
 
 	// socket related arguments
+
 	// +kubebuilder:validation:Enum=ip;tcp;udp;raw;IP;TCP;UDP;RAW
 	Protocol string `json:"protocol,omitempty"`
 	// +kubebuilder:validation:Optional
@@ -35,30 +34,38 @@ type EventType struct {
 	Port string `json:"port,omitempty"`
 }
 
-type AuditRuleType struct {
-	// +kubebuilder:validation:Optional
-	Severity SeverityType `json:"severity,omitempty"`
-	// +kubebuilder:validation:Optional
-	Tags []string `json:"tags,omitempty"`
-	// +kubebuilder:validation:Optional
-	Message string `json:"message,omitempty"`
+// +kubebuilder:validation:Pattern=^([1-9]|10)$
+type SeverityType string
 
+type AuditRuleType struct {
 	// +kubebuilder:validation:Default="*"
 	Process string `json:"process,omitempty"`
 
 	Events []EventType `json:"events"`
-}
 
-// KubeArmorAuditPolicySpec defines the desired state of KubeArmorAuditPolicy
-type KubeArmorAuditPolicySpec struct {
 	// +kubebuilder:validation:Optional
 	Severity SeverityType `json:"severity,omitempty"`
 	// +kubebuilder:validation:Optional
 	Tags []string `json:"tags,omitempty"`
 	// +kubebuilder:validation:Optional
 	Message string `json:"message,omitempty"`
+}
 
+type SelectorType struct {
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}
+
+// KubeArmorAuditPolicySpec defines the desired state of KubeArmorAuditPolicy
+type KubeArmorAuditPolicySpec struct {
+	Selector   SelectorType    `json:"selector"`
 	AuditRules []AuditRuleType `json:"rules"`
+
+	// +kubebuilder:validation:Optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:Optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:Optional
+	Message string `json:"message,omitempty"`
 }
 
 // KubeArmorAuditPolicyStatus defines the observed state of KubeArmorAuditPolicy

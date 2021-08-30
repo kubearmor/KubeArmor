@@ -47,6 +47,7 @@ type KubeArmorDaemon struct {
 
 	// options
 	EnableHostPolicy     bool
+	EnableAuditPolicy    bool
 	EnableEnforcerPerPod bool
 
 	// containers (from docker)
@@ -74,7 +75,7 @@ type KubeArmorDaemon struct {
 	K8sAuditPoliciesLock *sync.RWMutex
 
 	// Audit policies
-	AuditPolicies     map[string]tp.KubeArmorAuditPolicy
+	AuditPolicies     map[string]tp.AuditPolicy
 	AuditPoliciesLock *sync.RWMutex
 
 	// Macros
@@ -107,7 +108,7 @@ type KubeArmorDaemon struct {
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
+func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableAuditPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
@@ -139,6 +140,7 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.LogFilter = logFilter
 
 	dm.EnableHostPolicy = enableHostPolicy
+	dm.EnableAuditPolicy = enableAuditPolicy
 	dm.EnableEnforcerPerPod = enableEnforcerPerPod
 
 	dm.Containers = map[string]tp.Container{}
@@ -159,7 +161,7 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.K8sAuditPolicies = []tp.K8sKubeArmorAuditPolicy{}
 	dm.K8sAuditPoliciesLock = new(sync.RWMutex)
 
-	dm.AuditPolicies = map[string]tp.KubeArmorAuditPolicy{}
+	dm.AuditPolicies = map[string]tp.AuditPolicy{}
 	dm.AuditPoliciesLock = new(sync.RWMutex)
 
 	dm.K8sMacros = []tp.K8sKubeArmorMacro{}
@@ -344,9 +346,9 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) {
+func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableAuditPolicy, enableEnforcerPerPod bool) {
 	// create a daemon
-	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableHostPolicy, enableEnforcerPerPod)
+	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableHostPolicy, enableAuditPolicy, enableEnforcerPerPod)
 
 	// initialize log feeder
 	if !dm.InitLogFeeder() {
@@ -384,15 +386,17 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolic
 	}
 
 	// initialize event auditor
-	if !dm.InitEventAuditor() {
-		dm.LogFeeder.Err("Failed to initialize the event auditor")
+	if dm.EnableAuditPolicy {
+		if !dm.InitEventAuditor() {
+			dm.LogFeeder.Err("Failed to initialize the event auditor")
 
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
 
-		return
+			return
+		}
+		dm.LogFeeder.Print("Started to audit system events")
 	}
-	dm.LogFeeder.Print("Started to audit system events")
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
@@ -416,14 +420,16 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolic
 			dm.LogFeeder.Print("Started to monitor host security policies")
 		}
 
-		if dm.EventAuditor != nil {
-			// watch audit policies
-			go dm.WatchAuditPolicies()
-			dm.LogFeeder.Print("Started to monitor audit policies")
+		if dm.EnableAuditPolicy {
+			if dm.EventAuditor != nil {
+				// watch audit policies
+				go dm.WatchAuditPolicies()
+				dm.LogFeeder.Print("Started to monitor audit policies")
 
-			// watch macros
-			go dm.WatchKubeArmorMacro()
-			dm.LogFeeder.Print("Started to monitor kubearmor macros")
+				// watch macros
+				go dm.WatchKubeArmorMacro()
+				dm.LogFeeder.Print("Started to monitor kubearmor macros")
+			}
 		}
 
 		// get current CRI
