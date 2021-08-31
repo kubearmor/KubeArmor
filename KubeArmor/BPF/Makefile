@@ -14,7 +14,6 @@
 # https://github.com/torvalds/linux/blob/d5ad8ec3cfb56a017de6a784835666475b4be349/tools/testing/selftests/bpf/Makefile
 #
 
-
 ifeq ($(V), 1)
 	Q =	
 else
@@ -44,12 +43,10 @@ $(BPFOBJDIR)/%.o: %.c | $(BPFOBJDIR)
 	$(info INFO: compiling bpf object $@)
 	$(Q)$(CLANG) $(CLANGFLAGS) -I $(CLANGINC) -o $@ $<
 
-
 # output
 
 $(BPFOBJDIR):
 	$(Q)mkdir -p $@
-
 
 # cleanup
 

@@ -9,7 +9,6 @@ err_not_found() {
 
 [ -z "$1" ] && { echo "Usage: $(basename $0) INSTALLPATH"; exit 1; }
 
-
 # tooling
 GIT="$(which git)"
 [ -f "$GIT" ] || err_not_found "git"
@@ -20,10 +19,9 @@ CC="$(which gcc)"
 BPFTOOL="$(which bpftool)"
 [ -f "$BPFTOOL" ] || err_not_found "bpftool"
 
-
 # C libbpf
 LIBPPFREP="https://github.com/libbpf/libbpf.git"
-LIBBPFDIR="$(realpath $1/libbpf)"
+LIBBPFDIR="$(realpath ~/libbpf)"
 LIBBPFSRC="$LIBBPFDIR/src"
 LIBBPFINC="$(realpath $1/include)"
 
@@ -41,15 +39,12 @@ CC=$CC CFLAGS=$CFLAGS \
 		INCLUDEDIR= LIBDIR= UAPIDIR= \
 		install
 
-
 # vmlinux header file
 BTFFILE="/sys/kernel/btf/vmlinux"
 [ -f "$BTFFILE" ] || err_not_found $BTFFILE
 
 VMLINUXH="$LIBBPFINC/vmlinux.h"
-
 $BPFTOOL btf dump file $BTFFILE format c > $VMLINUXH
-
 
 # cleaning
 rm -rf $LIBBPFDIR
