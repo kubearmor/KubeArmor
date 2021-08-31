@@ -32,7 +32,7 @@ if [ $? != 0 ]; then
 fi
 
 # install dependencies for libbpf
-sudo apt-get -y install clang linux-tools-generic pkg-config
+sudo apt-get -y install build-essential clang pkg-config zlib1g-dev libelf-dev linux-tools-generic
 
 # install golang
 echo "Installing golang binaries..."

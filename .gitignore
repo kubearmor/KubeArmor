@@ -1,6 +1,10 @@
 # KubeArmor
 kubearmor
 
+# BPF
+KubeArmor/BPF/include/
+KubeArmor/BPF/objs/
+
 # Contribution
 .vscode
 

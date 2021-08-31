@@ -1,7 +1,8 @@
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 CURDIR          := $(shell pwd)
+BUILDDIR        := $(CURDIR)/build
 CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
 GO_EXEC         := $(shell which go)
 LOGNAME         := $(shell logname)
@@ -11,21 +12,40 @@ DLV_LPORT       := 2345
 DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
-# libbpf
-EVAUDITORBPFDIR  = $(CURDIR)/eventAuditor/BPF
-CGOCFLAGS        = $(EVAUDITORBPFDIR)/include
-CGOLDFLAGS       = $(EVAUDITORBPFDIR)/include/libbpf.a
-GOENV            = CGO_LDFLAGS=$(CGOLDFLAGS) CGO_CFLAGS="-I $(CGOCFLAGS)"
+# C libbpf
+BPFDIR     = $(realpath $(CURDIR)/BPF)
+LIBBPFDIR  = $(BPFDIR)/include
+LIBBPFOBJ  = $(LIBBPFDIR)/libbpf.a
+CGOCFLAGS  = $(LIBBPFDIR)
+CGOLDFLAGS = $(LIBBPFOBJ)
+GOENV      = CGO_LDFLAGS=$(CGOLDFLAGS) CGO_CFLAGS="-I $(CGOCFLAGS)"
+
+# Go files
+GOFILES = $(shell find . -type f -name '*.go' -print)
+
+# KubeArmor binary
+KUBEARMOR = kubearmor
 
 .PHONY: build
-build:
+build: libbpf bpf $(KUBEARMOR)
+
+.PHONY: libbpf
+libbpf: $(LIBBPFOBJ)
+
+$(LIBBPFOBJ):
+	$(BUILDDIR)/install_libbpf.sh $(BPFDIR)
+
+.PHONY: bpf
+bpf: libbpf $(KUBEARMOR)
+	make -C $(CURDIR)/BPF
+
+$(KUBEARMOR): $(GOFILES)
 	$(CURDIR)/patch.sh
-	cd $(CURDIR); make -C $(EVAUDITORBPFDIR)
 	cd $(CURDIR); $(GOENV) go mod tidy
 	cd $(CURDIR); $(GOENV) go build -o kubearmor main.go
 
 .PHONY: build-test
-build-test:
+build-test: libbpf
 	$(CURDIR)/patch.sh
 	cd $(CURDIR); $(GOENV) go mod tidy
 	cd $(CURDIR); $(GOENV) sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
@@ -61,7 +81,7 @@ testall:
 
 .PHONY: gofmt
 gofmt:
-	cd $(CURDIR); gofmt -s -d $(shell find . -type f -name '*.go' -print)
+	cd $(CURDIR); gofmt -s -d .
 
 .PHONY: golint
 golint:
@@ -93,7 +113,8 @@ endif
 
 .PHONY: clean
 clean:
-	cd $(CURDIR); make -C $(EVAUDITORBPFDIR) clean
+	make -C $(CURDIR)/BPF clean
+	cd $(CURDIR); rm -rf $(LIBBPFDIR)
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
 	cd $(CURDIR); find . -name .coverprofile | xargs -I {} rm {}
 	$(CURDIR)/build/clean_source_files.sh
