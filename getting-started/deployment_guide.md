@@ -3,23 +3,37 @@
 KubeArmor currently supports the following.
 
 ```text
-Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE)
+Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE), Amazon Elastic Kubernetes Service (EKS)
 ```
 
 In order to deploy KubeArmor, please choose one of the below options according to your environment.
 
-* Deploy KubeArmor with newer Docker (19.03) or Containerd on self-managed Kubernetes
+* Deploy KubeArmor on Self-managed Kubernetes with Docker 19.03 or above, Containerd
 
   ```text
   $ cd KubeArmor/deployments/generic
   ~/KubeArmor/deployments/generic$ kubectl apply -f .
   ```
 
-* Deploy KubeArmor with older Docker (18.03) on self-managed Kubernetes
+* Deploy KubeArmor on Self-managed Kubernetes with Docker 18.09 or above, Minikube
 
   ```text
   $ cd KubeArmor/deployments/docker
   ~/KubeArmor/deployments/docker$ kubectl apply -f .
+  ```
+
+* Deploy KubeArmor on Self-managed Kubernetes with Docker in RedHat-based Linux distributions
+
+  ```text
+  $ cd KubeArmor/deployments/docker
+  ~/KubeArmor/deployments/docker$ kubectl apply -f .
+  ```
+
+* Deploy KubeArmor on MicroK8s
+
+  ```text
+  $ cd KubeArmor/deployments/microk8s
+  ~/KubeArmor/deployments/microk8s$ kubectl apply -f .
   ```
 
 * Deploy KubeArmor on GKE
@@ -28,24 +42,12 @@ In order to deploy KubeArmor, please choose one of the below options according t
   $ cd KubeArmor/deployments/GKE
   ~/KubeArmor/deployments/GKE$ kubectl apply -f .
   ```
+  
+* Deploy KubeArmor on EKS
 
-* Deploy KubeArmor in MicroK8s
-
-  ```text
-  $ cd KubeArmor/deployments/microk8s
-  ~/KubeArmor/deployments/microk8s$ kubectl apply -f .
-  ```
-
-* Deploy KubeArmor in Minikube
+  [KubeArmor Deployment Guide on EKS](../deployments/EKS/README.md)
 
   ```text
-  $ cd KubeArmor/deployments/minikube
-  ~/KubeArmor/deployments/minikube$ kubectl apply -f .
-  ```
-
-* Deploy KubeArmor with Docker on SELinux-enabled self-managed Kubernetes
-
-  ```text
-  $ cd KubeArmor/deployments/selinux
-  ~/KubeArmor/deployments/selinux$ kubectl apply -f .
+  $ cd KubeArmor/deployments/EKS
+  ~/KubeArmor/deployments/EKS$ kubectl apply -f .
   ```
