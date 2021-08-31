@@ -1,0 +1,7 @@
+source: ubuntu20
+cmd: screen -h
+result: failed
+---
+operation: Process
+condition: screen
+action: Block

@@ -1,0 +1,7 @@
+source: kubearmor-dev-next
+cmd: screen -h
+result: failed
+---
+operation: Process
+condition: screen
+action: Block

@@ -1,0 +1,7 @@
+source: ubuntu-2-deployment
+cmd: cat /run/secrets/kubernetes.io/serviceaccount/token
+result: failed
+---
+operation: File
+condition: serviceaccount/token
+action: Block
