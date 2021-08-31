@@ -1186,7 +1186,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostProcessMatchPaths(path, &processBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
+		}
+		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
 					allowedHostProcessMatchDirectories(dir, fromSources)
@@ -1196,7 +1197,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
+		}
+		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Audit" {
 					auditedHostProcessMatchPatterns(pat, &processAuditList)
@@ -1216,7 +1218,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostFileMatchPaths(path, &fileBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+		}
+		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
 					allowedHostFileMatchDirectories(dir, fromSources)
@@ -1226,7 +1229,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+		}
+		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Audit" {
 					auditedHostFileMatchPatterns(pat, &fileAuditList)

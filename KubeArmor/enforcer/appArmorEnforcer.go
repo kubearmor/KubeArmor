@@ -160,7 +160,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string, full boo
 		"  ## == POLICY END == ##\n" +
 		"\n" +
 		"  ## == POST START == ##\n" +
-		"  /lib/x86_64-linux-gnu/{*,**} r,\n" +
+		"  /lib/x86_64-linux-gnu/{*,**} rm,\n" +
 		"\n" +
 		"  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
 		"  deny @{PROC}/sysrq-trigger rwklx,\n" +
