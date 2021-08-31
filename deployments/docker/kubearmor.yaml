@@ -598,10 +598,6 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
-                  matchNames:
-                    additionalProperties:
-                      type: string
-                    type: object
                 type: object
               selinux:
                 properties:
@@ -1054,10 +1050,6 @@ spec:
               nodeSelector:
                 properties:
                   matchLabels:
-                    additionalProperties:
-                      type: string
-                    type: object
-                  matchNames:
                     additionalProperties:
                       type: string
                     type: object
