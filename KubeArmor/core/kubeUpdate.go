@@ -1713,13 +1713,14 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	dm.K8sAuditPoliciesLock.Unlock()
 	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
 
-	// split AuditPolicies to each EndPoint
-    dm.EndPointsLock.Lock()
-    for i, endPoint := range dm.EndPoints {
-        dm.EndPoints[i].AuditPolicies = dm.GetAuditPolicies(endPoint.Identities)
-    }
-    dm.EndPointsLock.Unlock()
-    dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
+	// assign AuditPolicies to the corresponding EndPoints
+	dm.EndPointsLock.Lock()
+	for i, endPoint := range dm.EndPoints {
+		dm.EndPoints[i].AuditPolicies = dm.GetAuditPolicies(endPoint.Identities)
+	}
+	dm.EndPointsLock.Unlock()
+
+	dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
 }
 
 func waitCustomResourceDefinition(name string) {
