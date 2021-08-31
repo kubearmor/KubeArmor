@@ -22,6 +22,10 @@ system("
 ")
 
 Vagrant.configure("2") do |config|
+  if Vagrant.has_plugin?("vagrant-vbguest")
+    config.vbguest.auto_update = false
+  end
+
   config.vm.define VM_NAME do |cfg|
     cfg.vm.box = VM_IMG
     cfg.vm.provider "virtualbox" do |vb|
@@ -52,14 +56,25 @@ Vagrant.configure("2") do |config|
   # copy git config
   config.vm.provision :file, source: "~/.gitconfig", destination: "$HOME/.gitconfig"
 
-  # Provision bash scripts
+  if ENV['NETNEXT'] == "1" then
+    # install the latest kernel
+    config.vm.provision :shell, path: kubearmor_home + "/contribution/vagrant/dist-upgrade.sh"
+
+    # reboot
+    config.vm.provision :reload
+  end
+
+  # provision bash scripts
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/setup.sh"
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/docker/install_docker.sh"
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
 
-  # Initialize Kubernetes
+  # initialize Kubernetes
   config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
 
-  # Change permissions
+  # change permissions
   config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go"
+
+  # avoid "make: warning: Clock skew detected."
+  config.vm.provision :shell, path: kubearmor_home + "/contribution/vagrant/time-update.sh"
 end
