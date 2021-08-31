@@ -11,7 +11,8 @@ spec:
   file:
     matchPaths:
     - path: /var/www/html/wp-config.php
-      ownerOnly: true
+      fromSource:
+      - path: /bin/cat
 
       # http://[NodeIP]:30080
       # cat /var/www/html/wp-config.php

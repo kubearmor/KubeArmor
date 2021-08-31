@@ -5,7 +5,6 @@ package core
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
@@ -112,24 +110,10 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
-		metadata := false
-
-		if b, err := ioutil.ReadFile("/media/root/etc/os-release"); err == nil {
-			s := string(b)
-			if strings.Contains(s, "Container-Optimized OS") {
-				if clusterStr, err := kl.GetCommandOutputWithErr("curl", []string{"http://metadata/computeMetadata/v1/instance/attributes/cluster-name", "-H", "'Metadata-Flavor: Google'"}); err == nil {
-					dm.ClusterName = clusterStr
-					metadata = true
-				}
-			}
-		}
-
-		if !metadata {
-			if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
-				dm.ClusterName = val
-			} else {
-				dm.ClusterName = "Default"
-			}
+		if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
+			dm.ClusterName = val
+		} else {
+			dm.ClusterName = "Default"
 		}
 	} else {
 		dm.ClusterName = clusterName
@@ -476,7 +460,7 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolic
 		} else { // containerd
 			sockFile := false
 
-			for _, candidate := range []string{"/var/run/containerd/containerd.sock"} {
+			for _, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock"} {
 				if _, err := os.Stat(candidate); err == nil {
 					sockFile = true
 					break

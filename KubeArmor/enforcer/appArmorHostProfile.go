@@ -1135,16 +1135,14 @@ func GenerateHostProfileHead() string {
 		"  /snap/microk8s/2262/bin/runc Ux,\n" + // microk8s
 		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s
 		"  ## == PRE END == ##\n" +
-		"\n" +
-		"  ## == POLICY START == ##\n"
+		"\n"
 
 	return profileHead
 }
 
 // GenerateHostProfileFoot Function
 func GenerateHostProfileFoot() string {
-	profileFoot := "  ## == POLICY END == ##\n" +
-		"}\n"
+	profileFoot := "}\n"
 
 	return profileFoot
 }
@@ -1188,7 +1186,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostProcessMatchPaths(path, &processBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
+		}
+		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
 					allowedHostProcessMatchDirectories(dir, fromSources)
@@ -1198,7 +1197,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
+		}
+		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Audit" {
 					auditedHostProcessMatchPatterns(pat, &processAuditList)
@@ -1218,7 +1218,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostFileMatchPaths(path, &fileBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+		}
+		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
 					allowedHostFileMatchDirectories(dir, fromSources)
@@ -1228,7 +1229,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 					blockedHostFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+		}
+		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Audit" {
 					auditedHostFileMatchPatterns(pat, &fileAuditList)
@@ -1263,6 +1265,34 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 
 	profileBody := ""
 
+	// body - audit list
+
+	for _, line := range processAuditList {
+		profileBody = profileBody + line
+	}
+
+	count = count + len(processAuditList)
+
+	for _, line := range fileAuditList {
+		profileBody = profileBody + line
+	}
+
+	count = count + len(fileAuditList)
+
+	// body - black list
+
+	for _, line := range processBlackList {
+		profileBody = profileBody + line
+	}
+
+	count = count + len(processBlackList)
+
+	for _, line := range fileBlackList {
+		profileBody = profileBody + line
+	}
+
+	count = count + len(fileBlackList)
+
 	// body - from source
 
 	bodyFromSource := ""
@@ -1296,11 +1326,11 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 				continue
 			}
 
-			if strings.Contains(line, "  audit owner") {
+			if strings.Contains(line, "  owner") {
 				continue
 			}
 
-			if strings.Contains(line, "  audit deny") {
+			if strings.Contains(line, "  deny") {
 				continue
 			}
 
@@ -1328,17 +1358,15 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n\n", source)
 
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY START (%s) == ##\n", source)
 
-		//
+		bodyFromSource = bodyFromSource + strings.Replace(profileBody, "  ", "    ", -1)
 
 		for _, line := range lines {
 			bodyFromSource = bodyFromSource + "  " + line
 		}
 
-		//
-
-		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY END (%s) == ##\n\n", source)
+		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POLICY END (%s) == ##\n", source)
 		bodyFromSource = bodyFromSource + "  }\n"
 	}
 
@@ -1346,33 +1374,9 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		count = count + len(source)
 	}
 
-	// body - audit list
+	// body - together
 
-	for _, line := range processAuditList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(processAuditList)
-
-	for _, line := range fileAuditList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(fileAuditList)
-
-	// body - black list
-
-	for _, line := range processBlackList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(processBlackList)
-
-	for _, line := range fileBlackList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(fileBlackList)
+	profileBody = "  ## == POLICY START == ##\n" + profileBody + bodyFromSource + "  ## == POLICY END == ##\n\n"
 
 	// body - native apparmor
 
@@ -1381,16 +1385,12 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		for _, nativeRule := range nativeAppArmorRules {
 			profileBody = profileBody + nativeRule
 		}
-		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n"
+		profileBody = profileBody + "  ## == NATIVE POLICY END == ##\n\n"
 	}
 
 	count = count + len(nativeAppArmorRules)
 
-	// finalization
-
-	profile := bodyFromSource + profileBody
-
-	return count, profile
+	return count, profileBody
 }
 
 // GenerateAppArmorHostProfile Function
@@ -1402,19 +1402,9 @@ func (ae *AppArmorEnforcer) GenerateAppArmorHostProfile(secPolicies []tp.HostSec
 
 	// generate a new profile
 
-	newProfile := ""
+	newProfile := GenerateHostProfileHead() + profileBody + GenerateHostProfileFoot()
 
-	// head
-
-	newProfile = newProfile + GenerateHostProfileHead()
-
-	// body
-
-	newProfile = newProfile + profileBody
-
-	// foot
-
-	newProfile = newProfile + GenerateHostProfileFoot()
+	// check the new profile with the old profile
 
 	if ae.HostProfile != newProfile {
 		ae.HostProfile = newProfile

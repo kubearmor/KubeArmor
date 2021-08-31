@@ -28,17 +28,17 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 	ea.Logger = feeder
 
-	// initialize entrypoints
-	if !ea.InitializeEntryPoints() {
-		ea.Logger.Err("Failed to initialize entrypoints")
-	}
-
 	// initialize process maps and functions
 	ea.SharedMapMan = NewSharedMapManager()
 	ea.SharedMapMan.SetBPFObjPath(BPFObjRelPath)
 
 	if !ea.InitializeProcessMaps(ea.SharedMapMan) {
 		ea.Logger.Err("Failed to initialize process maps")
+	}
+
+	// initialize entrypoints
+	if !ea.InitializeEntryPoints() {
+		ea.Logger.Err("Failed to initialize entrypoints")
 	}
 
 	return ea
