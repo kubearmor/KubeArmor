@@ -371,20 +371,20 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				if event.Type == "ADDED" || event.Type == "MODIFIED" {
-					pass := false
+					exist := false
 
 					dm.K8sPodsLock.Lock()
 					for _, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 							if k8spod.Annotations["kubearmor-policy"] == "patched" {
-								pass = true
+								exist = true
 								break
 							}
 						}
 					}
 					dm.K8sPodsLock.Unlock()
 
-					if pass {
+					if exist {
 						continue
 					}
 				}
@@ -595,15 +595,11 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 					dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
 				}
 			} else if action == "MODIFIED" {
-				targetIdx := -1
 				for idxP, policy := range endPoint.SecurityPolicies {
 					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-						targetIdx = idxP
+						dm.EndPoints[idx].SecurityPolicies[idxP] = secPolicy
 						break
 					}
-				}
-				if targetIdx != -1 {
-					dm.EndPoints[idx].SecurityPolicies[targetIdx] = secPolicy
 				}
 			} else if action == "DELETED" {
 				// remove the given policy from the security policy list of this endpoint
