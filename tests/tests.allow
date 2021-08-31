@@ -1,0 +1,7 @@
+# Tests matching following regex will only by tested
+
+# NOTE: This will allow only specific test "multiubuntu_test_1"
+# multiubuntu_test_1$
+
+# NOTE: Following will match "multiubuntu_test_2", "multiubuntu_test_20"
+# multiubuntu_test_2.*
