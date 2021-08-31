@@ -1299,7 +1299,7 @@ func GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capa
 
 // GenerateProfileFoot Function
 func GenerateProfileFoot() string {
-	profileFoot := "  /lib/x86_64-linux-gnu/{*,**} r,\n"
+	profileFoot := "  /lib/x86_64-linux-gnu/{*,**} rm,\n"
 	profileFoot = profileFoot + "\n"
 	profileFoot = profileFoot + "  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n"
 	profileFoot = profileFoot + "  deny @{PROC}/sysrq-trigger rwklx,\n"
@@ -1367,7 +1367,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 					blockedProcessMatchPaths(path, &processBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
+		}
+		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
 					allowedProcessMatchDirectories(dir, &processWhiteList, fromSources)
@@ -1377,7 +1378,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 					blockedProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
+		}
+		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Allow" {
 					allowedProcessMatchPatterns(pat, &processWhiteList)
@@ -1399,7 +1401,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 					blockedFileMatchPaths(path, &fileBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+		}
+		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
 					allowedFileMatchDirectories(dir, &fileWhiteList, fromSources)
@@ -1409,7 +1412,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 					blockedFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
 			}
-		} else if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+		}
+		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Allow" {
 					allowedFileMatchPatterns(pat, &fileWhiteList)
