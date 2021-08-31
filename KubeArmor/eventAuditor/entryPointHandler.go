@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-	bpf "github.com/aquasecurity/tracee/libbpfgo"
+	bpf "github.com/kubearmor/libbpf"
 )
 
 // =========================== //
@@ -42,11 +42,11 @@ func (ea *EventAuditor) DestroyEventMaps(bman *KABPFManager) error {
 // InitializeEntryPoints Function
 func (ea *EventAuditor) InitializeEntryPoints() bool {
 	// if something wrong, return false
-	b, err := bpf.NewModuleFromFile("entrypoint.bpf.o")
+	b, err := bpf.OpenObjectFromFile("entrypoint.bpf.o")
 	must(err)
 	defer b.Close()
 
-	err = b.BPFLoadObject()
+	err = b.Load()
 	must(err)
 
 	return true
@@ -63,7 +63,7 @@ func (ea *EventAuditor) DestroyEntryPoints() bool {
 
 // AttachEntryPoint Function
 func (ea *EventAuditor) AttachEntryPoint(probe string) {
-	prog, err := b.GetProgram(entrypoint)
+	prog, err := b.FindProgramByName(entrypoint)
 	must(err)
 	_, err = prog.AttachKprobe(sys_execve)
 	must(err)
@@ -71,7 +71,7 @@ func (ea *EventAuditor) AttachEntryPoint(probe string) {
 
 // DetachEntryPoint Function
 func (ea *EventAuditor) DetachEntryPoint(probe string) {
-	//
+	// TODO
 }
 
 // UpdateEntryPoints Function
