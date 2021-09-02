@@ -71,28 +71,52 @@ func (ea *EventAuditor) AttachEntryPoint(probe string) {
 
 // DetachEntryPoint Function
 func (ea *EventAuditor) DetachEntryPoint(probe string) {
-	// TODO
+	// TODO Detach function is not implemented yet
+	prog, err := b.FindProgramByName(entrypoint)
+	must(err)
+	_, err = prog.Detach(sys_execve)
+	must(err)
 }
 
-// UpdateEntryPoints Function
-func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.RWMutex) {
-	// AuditPolicies := *(auditPolicies)
-	// AuditPoliciesLock := *(auditPoliciesLock)
+// Contains the list of all entrypoints in the audit policy
+EntrypointList := []string
 
-	// AuditPoliciesLock.Lock()
-	// defer AuditPoliciesLock.Unlock()
+// UpdateEntryPoints Function
+func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy,
+	  auditPoliciesLock **sync.RWMutex) {
+	AuditPolicies := *(auditPolicies)
+	AuditPoliciesLock := *(auditPoliciesLock)
+
+	AuditPoliciesLock.Lock()
+	defer AuditPoliciesLock.Unlock()
+
 
 	// new entrypoints list
-	// for _, policy := range AuditPolicies {
-	//     append probe to new entrypoints list
-	// }
+	for _, policy := range AuditPolicies {
+		for i, event := range Events {
+			NewEntrypointList = append(NewList, Events.Probe[i])
+		}
 
-	// outdated entrypoints
-	// for _, probe := range entrypoints-list {
-	// if probe not in new entrypoints-list, append it to outdated entrypoints
-	// }
+	// outdated entrypoints, it will be in the toBeDetached array
+	for _, entrypoint := range EntrypointList {
+		for _, probe := range EntrypointList {
+			if (probe != EntrypointList)
+			{
+				OldEntrypointList = append(OldEntrypointList, probe)
+			}
+		}
+	}
 
 	// replace old entrypoints list with new entrypoints list
+	EntrypointList := NewEntrypointList
 
 	// update (attach/detach) entrypoints (ebpf)
+	for _, probe := range NewEntrypointList {
+		AttachEntryPoint(probe)
+	}
+
+	for _, probe := range OldEntrypointList {
+		DetachEntryPoint(probe)
+	}
+
 }

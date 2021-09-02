@@ -20,6 +20,12 @@ type EventAuditor struct {
 	BPFManager *KABPFManager
 
 	// entrypoints list
+	var NewEntrypointList []string // entrypoints to be attached
+	var OldEntrypointList []string // entrypoints to be detached
+
+	// lists to separately store probes
+	var kprobes []string
+	var syscalls []string
 }
 
 // NewEventAuditor Function
