@@ -31,10 +31,6 @@
 #error Minimal required kernel version is 4.14
 #endif
 
-#ifndef lock_xadd
-# define lock_xadd(ptr, val)              \
-   ((void)__sync_fetch_and_add(ptr, val))
-#endif
 
 // == Structures == //
 
@@ -632,19 +628,17 @@ int syscall__execve(struct pt_regs *ctx,
         return -1;
     }
 
-    lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-    //set_buffer_offset(sizeof(sys_context_t));
-
     u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
-    u32 off = 0;
-    if (base_off >= MAX_BUF_ELEM_SIZE)
-        base_off -= MAX_BUF_ELEM_SIZE;
-    off = base_off;
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
     if (base_off > (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
-        lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
         base_off = 0;
         off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
     }
     
     bufs_t *bufs_p = get_buffer();
@@ -686,19 +680,17 @@ int trace_ret_execve(struct pt_regs *ctx)
         return -1;
     }
 
-    lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-    //set_buffer_offset(sizeof(sys_context_t));
-
     u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
-    u32 off = 0;
-    if (base_off >= MAX_BUF_ELEM_SIZE)
-        base_off -= MAX_BUF_ELEM_SIZE;
-    off = base_off;
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
     if (base_off > (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
-        lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
         base_off = 0;
         off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
     }
 
     bufs_t *bufs_p = get_buffer();
@@ -739,19 +731,17 @@ int syscall__execveat(struct pt_regs *ctx,
         return -1;
     }
 
-    lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-    //set_buffer_offset(sizeof(sys_context_t));
-
     u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
-    u32 off = 0;
-    if (base_off >= MAX_BUF_ELEM_SIZE)
-        base_off -= MAX_BUF_ELEM_SIZE;
-    off = base_off;
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
     if (base_off > (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
-        lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
         base_off = 0;
         off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
     }
 
     bufs_t *bufs_p = get_buffer();
@@ -796,19 +786,18 @@ int trace_ret_execveat(struct pt_regs *ctx)
         return -1;
     }
 
-    lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-    //set_buffer_offset(sizeof(sys_context_t));
 
     u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
-    u32 off = 0;
-    if (base_off >= MAX_BUF_ELEM_SIZE)
-        base_off -= MAX_BUF_ELEM_SIZE;
-    off = base_off;
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
     if (base_off > (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
-        lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
         base_off = 0;
         off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
     }
 
     bufs_t *bufs_p = get_buffer();
@@ -845,19 +834,18 @@ int trace_do_exit(struct pt_regs *ctx, long code)
         return -1;
     }
 
-    lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-    //set_buffer_offset(sizeof(sys_context_t));
 
     u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
-    u32 off = 0;
-    if (base_off >= MAX_BUF_ELEM_SIZE)
-        base_off -= MAX_BUF_ELEM_SIZE;
-    off = base_off;
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
     if (base_off > (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
-        lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
         base_off = 0;
         off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
     }
 
     bufs_t *bufs_p = get_buffer();
@@ -967,19 +955,17 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         return -1;
     }
 
-    lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
-    //set_buffer_offset(sizeof(sys_context_t));
-
     u32 base_off = (*off_global) & (MAX_BUFFER_SIZE - 1);
-    u32 off = 0;
-    if (base_off >= MAX_BUF_ELEM_SIZE)
-        base_off -= MAX_BUF_ELEM_SIZE;
-    off = base_off;
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
     if (base_off > (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
-        lock_xadd(off_global, MAX_BUF_ELEM_SIZE);
         base_off = 0;
         off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
     }
 
     bufs_t *bufs_p = get_buffer();
