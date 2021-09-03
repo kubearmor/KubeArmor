@@ -28,15 +28,15 @@ run: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
 
-.PHONY: run-per-pod
-run-per-pod: build
+.PHONY: run-host-only
+run-host-only: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableEnforcerPerPod
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy
 
 .PHONY: run-with-host
 run-with-host: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableHostPolicy
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy
 
 .PHONY: test
 test:

@@ -263,12 +263,16 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 
 // Feeder Structure
 type Feeder struct {
+	// cluster + host
+	ClusterName string
+	HostName    string
+	HostIP      string
+
 	// port
 	Port string
 
 	// output
 	Output  string
-	Filter  string
 	LogFile *os.File
 
 	// gRPC listener
@@ -280,37 +284,28 @@ type Feeder struct {
 	// wait group
 	WgServer sync.WaitGroup
 
-	// cluster
-	ClusterName string
-
-	// host
-	HostName string
-	HostIP   string
-
 	// namespace name + endpoint name / host name -> corresponding security policies
 	SecurityPolicies     map[string]tp.MatchPolicies
 	SecurityPoliciesLock *sync.RWMutex
-
-	// KubeArmorHostPolicyEnabled
-	HostPolicyEnabled int
 
 	// GKE
 	IsGKE bool
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) *Feeder {
+func NewFeeder(clusterName string, node tp.Node, port, output string) *Feeder {
 	fd := &Feeder{}
 
 	// set cluster info
 	fd.ClusterName = clusterName
+	fd.HostName = node.NodeName
+	fd.HostIP = node.NodeIP
 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", port)
 
-	// logging
+	// output
 	fd.Output = output
-	fd.Filter = filter
 
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
@@ -366,20 +361,9 @@ func NewFeeder(clusterName, port, output, filter string, enableHostPolicy bool) 
 	// set wait group
 	fd.WgServer = sync.WaitGroup{}
 
-	// set host info
-	fd.HostName = kl.GetHostName()
-	fd.HostIP = kl.GetExternalIPAddr()
-
 	// initialize security policies
 	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
 	fd.SecurityPoliciesLock = new(sync.RWMutex)
-
-	// set KubeArmorHostPolicyEnabled
-	if enableHostPolicy {
-		fd.HostPolicyEnabled = tp.KubeArmorPolicyEnabled
-	} else {
-		fd.HostPolicyEnabled = tp.KubeArmorPolicyAudited
-	}
 
 	// check if GKE
 	if kl.IsInK8sCluster() {
@@ -531,9 +515,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		return
 	}
 
-	// remove visibility flags
+	// remove flags
 
 	log.PolicyEnabled = 0
+
 	log.ProcessVisibilityEnabled = false
 	log.FileVisibilityEnabled = false
 	log.NetworkVisibilityEnabled = false
@@ -541,40 +526,14 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// standard output / file output
 
-	if fd.Filter == "policy" {
-		if len(log.PolicyName) > 0 {
-			log.HostName = fd.HostName
+	log.HostName = fd.HostName
 
-			if fd.Output == "stdout" {
-				arr, _ := json.Marshal(log)
-				fmt.Println(string(arr))
-			} else if fd.Output != "none" {
-				arr, _ := json.Marshal(log)
-				fd.StrToFile(string(arr))
-			}
-		}
-	} else if fd.Filter == "system" {
-		if len(log.PolicyName) == 0 {
-			log.HostName = fd.HostName
-
-			if fd.Output == "stdout" {
-				arr, _ := json.Marshal(log)
-				fmt.Println(string(arr))
-			} else if fd.Output != "none" {
-				arr, _ := json.Marshal(log)
-				fd.StrToFile(string(arr))
-			}
-		}
-	} else { // all
-		log.HostName = fd.HostName
-
-		if fd.Output == "stdout" {
-			arr, _ := json.Marshal(log)
-			fmt.Println(string(arr))
-		} else if fd.Output != "none" {
-			arr, _ := json.Marshal(log)
-			fd.StrToFile(string(arr))
-		}
+	if fd.Output == "stdout" {
+		arr, _ := json.Marshal(log)
+		fmt.Println(string(arr))
+	} else if fd.Output != "none" {
+		arr, _ := json.Marshal(log)
+		fd.StrToFile(string(arr))
 	}
 
 	// gRPC output

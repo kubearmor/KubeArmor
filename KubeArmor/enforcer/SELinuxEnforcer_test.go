@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 func TestSELinuxEnforcer(t *testing.T) {
@@ -27,16 +28,23 @@ func TestSELinuxEnforcer(t *testing.T) {
 		return
 	}
 
-	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", false)
-	if logFeeder == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.NodeIP = "nodeIP"
+	node.EnableKubeArmorPolicy = true
+	node.EnableKubeArmorHostPolicy = true
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create SELinux Enforcer
 
-	enforcer := NewSELinuxEnforcer(logFeeder)
+	enforcer := NewSELinuxEnforcer(logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create SELinux Enforcer")
 		return
@@ -54,10 +62,10 @@ func TestSELinuxEnforcer(t *testing.T) {
 	t.Log("[PASS] Destroyed SELinux Enforcer")
 
 	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }

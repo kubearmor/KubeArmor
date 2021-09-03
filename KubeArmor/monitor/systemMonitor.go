@@ -106,14 +106,16 @@ func init() {
 
 // SystemMonitor Structure
 type SystemMonitor struct {
-	// host name
-	HostName string
+	// host
+	HostName      string
+	KernelVersion string
+
+	// options
+	EnableKubeArmorPolicy     bool
+	EnableKubeArmorHostPolicy bool
 
 	// logs
 	Logger *fd.Feeder
-
-	// options
-	EnableHostPolicy bool
 
 	// container id -> cotnainer
 	Containers     *map[string]tp.Container
@@ -165,22 +167,21 @@ type SystemMonitor struct {
 
 	// GKE
 	IsCOS bool
-
-	// Kernel
-	KernelVersion string
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[string]tp.Container, containersLock **sync.RWMutex,
+func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
 	activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex,
 	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
-	mon.HostName = kl.GetHostName()
+	mon.HostName = node.NodeName
+	mon.KernelVersion = node.KernelVersion
 
-	mon.Logger = feeder
+	mon.EnableKubeArmorPolicy = node.EnableKubeArmorPolicy
+	mon.EnableKubeArmorHostPolicy = node.EnableKubeArmorHostPolicy
 
-	mon.EnableHostPolicy = enableHostPolicy
+	mon.Logger = logger
 
 	mon.Containers = containers
 	mon.ContainersLock = containersLock
@@ -206,9 +207,6 @@ func NewSystemMonitor(feeder *fd.Feeder, enableHostPolicy bool, containers *map[
 	mon.Ticker = time.NewTicker(time.Second * 1)
 
 	mon.IsCOS = false
-
-	mon.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
-	mon.KernelVersion = strings.TrimSuffix(mon.KernelVersion, "\n")
 
 	return mon
 }
@@ -265,20 +263,33 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	mon.Logger.Print("Initializing an eBPF program")
 
-	if mon.EnableHostPolicy {
+	if mon.EnableKubeArmorPolicy && !mon.EnableKubeArmorHostPolicy { // container only
+		mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
+		if mon.BpfModule == nil {
+			return errors.New("bpf module is nil")
+		}
+	} else if !mon.EnableKubeArmorPolicy && mon.EnableKubeArmorHostPolicy { // host only
+		mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+		if mon.HostBpfModule == nil {
+			return errors.New("bpf module is nil")
+		}
+	} else if mon.EnableKubeArmorPolicy && mon.EnableKubeArmorHostPolicy { // container and host
 		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
 			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST_AND_CONTAINER"})
+			if mon.BpfModule == nil {
+				return errors.New("bpf module is nil")
+			}
 		} else { // 5.x
+			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
+			if mon.BpfModule == nil {
+				return errors.New("bpf module is nil")
+			}
+
 			mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
+			if mon.HostBpfModule == nil {
+				return errors.New("bpf module is nil")
+			}
 		}
-	}
-
-	if mon.BpfModule == nil {
-		mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
-	}
-
-	if mon.BpfModule == nil {
-		return errors.New("bpf module is nil")
 	}
 
 	mon.Logger.Print("Initialized the eBPF program")
@@ -286,48 +297,50 @@ func (mon *SystemMonitor) InitBPF() error {
 	sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
 
-	for _, syscallName := range systemCalls {
-		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
-		if err != nil {
-			return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
+	if mon.BpfModule != nil {
+		for _, syscallName := range systemCalls {
+			kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
+			}
+			err = mon.BpfModule.AttachKprobe(sysPrefix+syscallName, kp, -1)
+			if err != nil {
+				return fmt.Errorf("error attaching kprobe %s: %v", syscallName, err)
+			}
+			kp, err = mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallName))
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
+			}
+			err = mon.BpfModule.AttachKretprobe(sysPrefix+syscallName, kp, -1)
+			if err != nil {
+				return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
+			}
 		}
-		err = mon.BpfModule.AttachKprobe(sysPrefix+syscallName, kp, -1)
-		if err != nil {
-			return fmt.Errorf("error attaching kprobe %s: %v", syscallName, err)
+
+		tracepoints := []string{"do_exit"}
+
+		for _, tracepoint := range tracepoints {
+			kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", tracepoint, err)
+			}
+			err = mon.BpfModule.AttachKprobe(tracepoint, kp, -1)
+			if err != nil {
+				return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
+			}
 		}
-		kp, err = mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallName))
+
+		eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
+		mon.SyscallChannel = make(chan []byte, 8192)
+		mon.SyscallLostChannel = make(chan uint64)
+
+		mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
 		if err != nil {
-			return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
-		}
-		err = mon.BpfModule.AttachKretprobe(sysPrefix+syscallName, kp, -1)
-		if err != nil {
-			return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
+			return fmt.Errorf("error initializing events perf map: %v", err)
 		}
 	}
 
-	tracepoints := []string{"do_exit"}
-
-	for _, tracepoint := range tracepoints {
-		kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
-		if err != nil {
-			return fmt.Errorf("error loading kprobe %s: %v", tracepoint, err)
-		}
-		err = mon.BpfModule.AttachKprobe(tracepoint, kp, -1)
-		if err != nil {
-			return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
-		}
-	}
-
-	eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
-	mon.SyscallChannel = make(chan []byte, 8192)
-	mon.SyscallLostChannel = make(chan uint64)
-
-	mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
-	if err != nil {
-		return fmt.Errorf("error initializing events perf map: %v", err)
-	}
-
-	if mon.EnableHostPolicy && !strings.HasPrefix(mon.KernelVersion, "4.") {
+	if mon.HostBpfModule != nil {
 		for _, syscallName := range systemCalls {
 			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
 			if err != nil {
@@ -379,30 +392,24 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		mon.SyscallPerfMap.Stop()
 	}
 
-	if mon.EnableHostPolicy {
-		if mon.HostSyscallPerfMap != nil {
-			mon.HostSyscallPerfMap.Stop()
-		}
-	}
-
 	if mon.BpfModule != nil {
 		mon.BpfModule.Close()
-	}
-
-	if mon.EnableHostPolicy {
-		if mon.HostBpfModule != nil {
-			mon.HostBpfModule.Close()
-		}
 	}
 
 	if mon.ContextChan != nil {
 		close(mon.ContextChan)
 	}
 
-	if mon.EnableHostPolicy {
-		if mon.HostContextChan != nil {
-			close(mon.HostContextChan)
-		}
+	if mon.HostSyscallPerfMap != nil {
+		mon.HostSyscallPerfMap.Stop()
+	}
+
+	if mon.HostBpfModule != nil {
+		mon.HostBpfModule.Close()
+	}
+
+	if mon.HostContextChan != nil {
+		close(mon.HostContextChan)
 	}
 
 	mon.Ticker.Stop()

@@ -17,12 +17,12 @@ import (
 
 // RuntimeEnforcer Structure
 type RuntimeEnforcer struct {
-	// logs
-	LogFeeder *fd.Feeder
+	// logger
+	Logger *fd.Feeder
 
 	// LSM type
-	enableLSM    bool
-	enforcerType string
+	EnableLSM    bool
+	EnforcerType string
 
 	// LSMs
 	appArmorEnforcer *AppArmorEnforcer
@@ -30,16 +30,16 @@ type RuntimeEnforcer struct {
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *RuntimeEnforcer {
+func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	re := &RuntimeEnforcer{}
 
-	re.LogFeeder = feeder
-	re.enableLSM = false
+	re.Logger = logger
+	re.EnableLSM = false
 
 	if !kl.IsK8sLocal() {
 		// mount securityfs
 		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
-			re.LogFeeder.Err(err.Error())
+			re.Logger.Err(err.Error())
 		}
 	}
 
@@ -49,35 +49,48 @@ func NewRuntimeEnforcer(feeder *fd.Feeder, enableHostPolicy bool) *RuntimeEnforc
 	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
 		lsm, err = ioutil.ReadFile(lsmPath)
 		if err != nil {
-			re.LogFeeder.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+			re.Logger.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
 			return re
 		}
 	}
 
-	re.enforcerType = string(lsm)
+	re.EnforcerType = string(lsm)
 
-	if strings.Contains(re.enforcerType, "apparmor") {
-		re.appArmorEnforcer = NewAppArmorEnforcer(feeder, enableHostPolicy)
+	if strings.Contains(re.EnforcerType, "apparmor") {
+		re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
 		if re.appArmorEnforcer != nil {
-			re.LogFeeder.Print("Initialized AppArmor Enforcer")
-			re.enableLSM = true
+			re.Logger.Print("Initialized AppArmor Enforcer")
+			re.EnableLSM = true
 		}
 	}
 
-	if strings.Contains(re.enforcerType, "selinux") {
-		re.seLinuxEnforcer = NewSELinuxEnforcer(feeder)
+	if strings.Contains(re.EnforcerType, "selinux") {
+		re.seLinuxEnforcer = NewSELinuxEnforcer(logger)
 		if re.seLinuxEnforcer != nil {
-			re.LogFeeder.Print("Initialized SELinux Enforcer")
-			re.enableLSM = true
+			re.Logger.Print("Initialized SELinux Enforcer")
+			re.EnableLSM = true
 		}
 	}
 
 	return re
 }
 
+// GetEnforcerType Function
+func (re *RuntimeEnforcer) GetEnforcerType() string {
+	if strings.Contains(re.EnforcerType, "apparmor") {
+		return "apparmor"
+	}
+
+	if strings.Contains(re.EnforcerType, "selinux") {
+		return "selinux"
+	}
+
+	return "None"
+}
+
 // UpdateSecurityProfiles Function
-func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, full bool) {
-	if strings.Contains(re.enforcerType, "apparmor") {
+func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod) {
+	if strings.Contains(re.EnforcerType, "apparmor") {
 		appArmorProfiles := []string{}
 
 		for k, v := range pod.Annotations {
@@ -91,12 +104,12 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, 
 
 		for _, profile := range appArmorProfiles {
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(profile, full)
+				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(profile, full)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
 			}
 		}
-	} else if strings.Contains(re.enforcerType, "selinux") {
+	} else if strings.Contains(re.EnforcerType, "selinux") {
 		for k, selinuxProfile := range pod.Metadata {
 			if strings.HasPrefix(k, "selinux-") { // selinux- + [container_name]
 				containerName := strings.Split(k, "selinux-")[1]
@@ -112,22 +125,22 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, 
 
 // UpdateSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
-	if strings.Contains(re.enforcerType, "apparmor") {
+	if strings.Contains(re.EnforcerType, "apparmor") {
 		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
 	}
 
-	if strings.Contains(re.enforcerType, "selinux") {
+	if strings.Contains(re.EnforcerType, "selinux") {
 		re.seLinuxEnforcer.UpdateSecurityPolicies(endPoint)
 	}
 }
 
 // UpdateHostSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
-	if strings.Contains(re.enforcerType, "apparmor") {
+	if strings.Contains(re.EnforcerType, "apparmor") {
 		re.appArmorEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	}
 
-	if strings.Contains(re.enforcerType, "selinux") {
+	if strings.Contains(re.EnforcerType, "selinux") {
 		re.seLinuxEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	}
 }
@@ -136,10 +149,10 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	errorLSM := ""
 
-	if strings.Contains(re.enforcerType, "apparmor") {
+	if strings.Contains(re.EnforcerType, "apparmor") {
 		if re.appArmorEnforcer != nil {
 			if err := re.appArmorEnforcer.DestroyAppArmorEnforcer(); err != nil {
-				re.LogFeeder.Err(err.Error())
+				re.Logger.Err(err.Error())
 
 				if errorLSM == "" {
 					errorLSM = "AppArmor"
@@ -147,15 +160,15 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 					errorLSM = errorLSM + "|AppArmor"
 				}
 			} else {
-				re.LogFeeder.Print("Destroyed AppArmor Enforcer")
+				re.Logger.Print("Destroyed AppArmor Enforcer")
 			}
 		}
 	}
 
-	if strings.Contains(re.enforcerType, "selinux") {
+	if strings.Contains(re.EnforcerType, "selinux") {
 		if re.seLinuxEnforcer != nil {
 			if err := re.seLinuxEnforcer.DestroySELinuxEnforcer(); err != nil {
-				re.LogFeeder.Err(err.Error())
+				re.Logger.Err(err.Error())
 
 				if errorLSM == "" {
 					errorLSM = "SELinux"
@@ -163,7 +176,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 					errorLSM = errorLSM + "|SELinux"
 				}
 			} else {
-				re.LogFeeder.Print("Destroyed SELinux Enforcer")
+				re.Logger.Print("Destroyed SELinux Enforcer")
 			}
 		}
 	}
@@ -173,22 +186,4 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 	}
 
 	return nil
-}
-
-// IsEnabled Function
-func (re *RuntimeEnforcer) IsEnabled() bool {
-	return re.enableLSM
-}
-
-// GetEnforcerType Function
-func (re *RuntimeEnforcer) GetEnforcerType() string {
-	if strings.Contains(re.enforcerType, "apparmor") {
-		return "apparmor"
-	}
-
-	if strings.Contains(re.enforcerType, "selinux") {
-		return "selinux"
-	}
-
-	return "None"
 }

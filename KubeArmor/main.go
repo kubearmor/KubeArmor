@@ -37,17 +37,16 @@ func main() {
 	clusterPtr := flag.String("cluster", "", "cluster name")
 	gRPCPtr := flag.String("gRPC", "32767", "gRPC port number")
 	logPathPtr := flag.String("logPath", "none", "log file path, {path|stdout|none}")
-	logFilterPtr := flag.String("logFilter", "policy", "Filter for what kinds of alerts and logs to receive, {policy|system|all}")
 
 	// options (boolean)
-	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
-	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
+	enableKubeArmorPolicyPtr := flag.Bool("enableKubeArmorPolicy", true, "enabling KubeArmorPolicy")
+	enableKubeArmorHostPolicyPtr := flag.Bool("enableKubeArmorHostPolicy", false, "enabling KubeArmorHostPolicy")
 
 	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *enableKubeArmorPolicyPtr, *enableKubeArmorHostPolicyPtr)
 
 	// == //
 }
