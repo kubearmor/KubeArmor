@@ -1,7 +1,5 @@
-/*
- * Copyright 2021 Authors of KubeArmor
- * SPDX-License-Identifier: GPL-2.0
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright 2021 Authors of KubeArmor */
 
 #ifndef KBUILD_MODNAME
 #define KBUILD_MODNAME "kubearmor_system_monitor"

@@ -169,8 +169,8 @@ type MatchPolicy struct {
 
 	Source       string
 	Operation    string
-	Resource     string
 	ResourceType string
+	Resource     string
 
 	Regexp *regexp.Regexp
 
@@ -194,10 +194,8 @@ const (
 
 // SelectorType Structure
 type SelectorType struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-
-	Identities []string `json:"identities,omitempty"` // set during policy update
+	Identities  []string          `json:"identities,omitempty"` // set during policy update
 }
 
 // MatchSourceType Structure

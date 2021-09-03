@@ -214,52 +214,6 @@ func GetHostName() string {
 	return ""
 }
 
-// ================= //
-// == File Output == //
-// ================= //
-
-// StrToFile Function
-func StrToFile(str, destFile string) {
-	// if destFile doesn't exist, create it
-	if _, err := os.Stat(filepath.Clean(destFile)); err != nil {
-		newFile, err := os.Create(filepath.Clean(destFile))
-		if err != nil {
-			kg.Err(err.Error())
-			return
-		}
-		if err := newFile.Close(); err != nil {
-			kg.Err(err.Error())
-		}
-	}
-
-	// open the file with the append mode
-	file, err := os.OpenFile(filepath.Clean(destFile), os.O_WRONLY|os.O_APPEND, 0600)
-	if err != nil {
-		kg.Err(err.Error())
-		return
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			kg.Err(err.Error())
-		}
-	}()
-
-	// add the newline at the end of the string
-	str = str + "\n"
-
-	// write the string into the file
-	_, err = file.WriteString(str)
-	if err != nil {
-		kg.Err(err.Error())
-	}
-
-	// sync the file
-	err = file.Sync()
-	if err != nil {
-		kg.Err(err.Error())
-	}
-}
-
 // ============= //
 // == Network == //
 // ============= //

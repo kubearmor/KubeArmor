@@ -21,13 +21,13 @@ RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
 ### Make executable image
 
-FROM alpine:3.12
+FROM alpine:3.14
 
 RUN apk update
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
-RUN apk add bash curl procps bcc bcc-dev
+RUN apk add bash curl procps bcc@edge bcc-dev@edge
 RUN apk add kubectl@edge apparmor@edge apparmor-utils@edge
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
