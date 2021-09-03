@@ -7,9 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // +kubebuilder:validation:Minimum:=1
 // +kubebuilder:validation:Maximum:=10
 type SeverityType int
@@ -245,9 +242,6 @@ type ActionType string
 
 // KubeArmorHostPolicySpec defines the desired state of KubeArmorHostPolicy
 type KubeArmorHostPolicySpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	NodeSelector NodeSelectorType `json:"nodeSelector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
