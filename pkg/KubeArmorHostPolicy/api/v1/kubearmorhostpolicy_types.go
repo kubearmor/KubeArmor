@@ -269,7 +269,7 @@ type KubeArmorHostPolicyStatus struct {
 // +kubebuilder:object:root=true
 
 // KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies API
-// +kubebuilder:resource:shortName=khp
+// +kubebuilder:resource:shortName=hsp
 // +kubebuilder:subresource:status
 type KubeArmorHostPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
