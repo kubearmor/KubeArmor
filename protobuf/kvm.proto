@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package kvm;
+
+option go_package="github.com/kubearmor/KubeArmor/protobuf";
+
+message ResponseStatus {
+    int32 status = 1;
+    string errorMessage = 2;
+}
+
+message RequestPolicyFile {
+    string agentIdentity = 1;
+    string policyLabel = 2;
+    string policyFileName = 3;
+    bytes policyFile = 4;
+}
+
+message agentIdentityInfo {
+    string agentIdentity = 1;
+}
+
+message gRPCIPAndPort {
+    string IP = 1;
+    string port = 2;
+}
+
+message connectionStatus {
+    string agentIdentity = 1;
+    bool connectionStatus = 2;
+}
+
+service NewServiceHandler {
+    rpc sendPolicyFileToAgent (RequestPolicyFile) returns (ResponseStatus);
+    rpc requestPolicyFileFromService (RequestPolicyFile) returns (RequestPolicyFile);
+    rpc updateAgentIdentity (agentIdentityInfo) returns (ResponseStatus);
+    rpc reportPolicyStatusToService (ResponseStatus) returns (ResponseStatus);
+    rpc updateGRPCIpAndPort (gRPCIPAndPort) returns (ResponseStatus);
+    rpc updateReconnectionStatus (connectionStatus) returns (ResponseStatus);
+}
