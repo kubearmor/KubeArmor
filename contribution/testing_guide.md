@@ -11,8 +11,7 @@
 
         ```text
         $ cd KubeArmor/KubeArmor
-        ~/KubeArmor/KubeArmor$ make clean && make
-        ~/KubeArmor/KubeArmor$ make run
+        ~/KubeArmor/KubeArmor$ make clean && make run
         ```
 
         If you want to change the number of the gRPC port or the location of a log file, run KubeArmor like the below.
@@ -20,7 +19,8 @@
         ```text
         ~/KubeArmor/KubeArmor$ sudo -E ./kubearmor -gRPC=[gRPC port number]
                                                    -logPath=[log file path]
-                                                   -enableHostPolicy
+                                                   -enableKubeArmorPolicy
+                                                   -enableKubeArmorHostPolicy
         ```
 
     3. Apply security policies for testing
