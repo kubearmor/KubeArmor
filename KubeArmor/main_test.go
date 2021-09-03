@@ -31,7 +31,8 @@ func TestMain(t *testing.T) {
 
 	// Set os args to set flags in main
 	os.Args = []string{"cmd", "-cluster", *clusterPtr, "-gRPC", *gRPCPtr, "-logPath", *logPathPtr,
-		"-enableKubeArmorPolicy", strconv.FormatBool(*enableKubeArmorPolicyPtr), "-enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)}
+		"-enableKubeArmorPolicy", strconv.FormatBool(*enableKubeArmorPolicyPtr),
+		"-enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)}
 
 	// run KubeArmor
 	main()
