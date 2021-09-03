@@ -63,6 +63,7 @@ wget https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/proto
 # install protoc
 unzip protoc-3.14.0-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
+sudo chmod 755 /usr/local/bin/protoc
 
 # download protoc-gen-go
 go get -u google.golang.org/grpc
