@@ -11,7 +11,7 @@ import (
 )
 
 var clusterPtr, gRPCPtr, logPathPtr *string
-var enableHostPolicyPtr, enableEnforcerPerPodPtr *bool
+var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr *bool
 
 func init() {
 	// options (string)
@@ -20,8 +20,8 @@ func init() {
 	logPathPtr = flag.String("logPath", "none", "log file path")
 
 	// options (boolean)
-	enableHostPolicyPtr = flag.Bool("enableHostPolicy", false, "enabling host policies")
-	enableEnforcerPerPodPtr = flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
+	enableKubeArmorPolicyPtr = flag.Bool("enableKubeArmorPolicy", false, "enabling KubeArmorPolicy")
+	enableKubeArmorHostPolicyPtr = flag.Bool("enableKubeArmorHostPolicy", false, "enabling KubeArmorHostPolicy")
 }
 
 // TestMain - test to drive external testing coverage
@@ -30,6 +30,9 @@ func TestMain(t *testing.T) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 	// Set os args to set flags in main
-	os.Args = []string{"cmd", "-cluster", *clusterPtr, "-gRPC", *gRPCPtr, "-logPath", *logPathPtr, "-enableHostPolicy", strconv.FormatBool(*enableHostPolicyPtr), "-enableEnforcerPerPod", strconv.FormatBool(*enableEnforcerPerPodPtr)}
+	os.Args = []string{"cmd", "-cluster", *clusterPtr, "-gRPC", *gRPCPtr, "-logPath", *logPathPtr,
+		"-enableKubeArmorPolicy", strconv.FormatBool(*enableKubeArmorPolicyPtr), "-enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)}
+
+	// run KubeArmor
 	main()
 }

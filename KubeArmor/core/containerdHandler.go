@@ -239,6 +239,11 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers map[strin
 
 // UpdateContainerdContainer Function
 func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID, action string) bool {
+	// check if Containerd exists
+	if Containerd == nil {
+		return false
+	}
+
 	if action == "start" {
 		// get container information from containerd client
 		container, err := Containerd.GetContainerInfo(ctx, containerID)
@@ -251,8 +256,9 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		}
 
 		dm.ContainersLock.Lock()
-		if _, ok := dm.Containers[containerID]; !ok {
-			dm.Containers[containerID] = container
+
+		if _, ok := dm.Containers[container.ContainerID]; !ok {
+			dm.Containers[container.ContainerID] = container
 		} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
 			// this entry was updated by kubernetes before docker detects it
 			// thus, we here use the info given by kubernetes instead of the info given by docker
@@ -262,43 +268,70 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
 
 			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
+
 			container.ProcessVisibilityEnabled = dm.Containers[container.ContainerID].ProcessVisibilityEnabled
 			container.FileVisibilityEnabled = dm.Containers[container.ContainerID].FileVisibilityEnabled
 			container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
 			container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
 
-			dm.Containers[container.ContainerID] = container
+			dm.ContainersLock.Unlock()
 
+			// == //
+
+			dm.EndPointsLock.Lock()
 			for _, endPoint := range dm.EndPoints {
 				if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[container.ContainerID] == "" {
 					endPoint.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 					break
 				}
 			}
+			dm.EndPointsLock.Unlock()
+
+			// == //
+
+			dm.ContainersLock.Lock()
+
+			dm.Containers[container.ContainerID] = container
 		} else {
 			dm.ContainersLock.Unlock()
 			return false
 		}
+
 		dm.ContainersLock.Unlock()
 
-		// update NsMap
-		dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+		if dm.SystemMonitor != nil {
+			// update NsMap
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+		}
 
-		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
-		if _, ok := dm.Containers[containerID]; !ok {
+		val, ok := dm.Containers[containerID]
+		if !ok {
 			dm.ContainersLock.Unlock()
 			return false
 		}
+		container := val
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
-		// update NsMap
-		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+		dm.EndPointsLock.Lock()
+		for idx, endPoint := range dm.EndPoints {
+			if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[containerID] == "" {
+				delete(dm.EndPoints[idx].AppArmorProfiles, containerID)
+				break
+			}
+		}
+		dm.EndPointsLock.Unlock()
 
-		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
+		if dm.SystemMonitor != nil {
+			// update NsMap
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+		}
+
+		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
 
 	return true
@@ -309,11 +342,12 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
+	// check if Containerd exists
 	if Containerd == nil {
 		return
 	}
 
-	dm.LogFeeder.Print("Started to monitor Containerd events")
+	dm.Logger.Print("Started to monitor Containerd events")
 
 	for {
 		select {
