@@ -42,7 +42,7 @@ case $1 in
         SKIP_NATIVE_POLICY=0
         SKIP_NATIVE_HOST_POLICY=0
         ;;
-    *) # -testContainerPolicy by default
+    *)
         ;;
 esac
 
@@ -56,7 +56,6 @@ if [ $? == 0 ]; then
 fi
 
 MINIKUBE=$(kubectl get nodes -l kubernetes.io/hostname=minikube 2> /dev/null | wc -l)
-
 if [ $MINIKUBE == 2 ]; then
     APPARMOR=0
 fi
@@ -68,14 +67,14 @@ BLUE='\033[0;34m'
 MAGENTA='\033[0;35m'
 NC='\033[0m'
 
-INFO()
-{
-    echo -e "${ORANGE}[INFO] $*${NC}"
-}
-
 DBG()
 {
     echo -e "[DBG] $*"
+}
+
+INFO()
+{
+    echo -e "${ORANGE}[INFO] $*${NC}"
 }
 
 WARN()
@@ -83,14 +82,14 @@ WARN()
     echo -e "${MAGENTA}[WARN] $*${NC}"
 }
 
-FAIL()
-{
-    echo -e "${RED}[FAIL] $*${NC}"
-}
-
 PASS()
 {
     echo -e "${BLUE}[PASS] $*${NC}"
+}
+
+FAIL()
+{
+    echo -e "${RED}[FAIL] $*${NC}"
 }
 
 ## == Functions == ##
@@ -339,7 +338,7 @@ function run_test_scenario() {
             skipped_testcases+=("$3")
             return
         fi
-    elif [[ $policy_type == "np" ]]; then
+    elif [[ $policy_type == "nap" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
             WARN "Skipped $3"
@@ -452,7 +451,7 @@ function run_test_scenario() {
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
                 fi
-            elif [ "$ACTION" == "Audit" ] || [ "$ACTION" == "AllowWithAudit" ]; then
+            elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
                     should_find_passed_log $POD $OP $COND $ACTION
@@ -460,7 +459,7 @@ function run_test_scenario() {
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
                 fi
-            elif [ "$ACTION" == "Block" ] || [ "$ACTION" == "BlockWithAudit" ]; then
+            elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
                     should_not_find_any_log $POD $OP $COND $ACTION
@@ -478,7 +477,7 @@ function run_test_scenario() {
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
                 fi
-            elif [ "$ACTION" == "Audit" ] || [ "$ACTION" == "AllowWithAudit" ]; then
+            elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
                     should_find_passed_host_log $OP $COND $ACTION
@@ -486,7 +485,7 @@ function run_test_scenario() {
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
                 fi
-            elif [ "$ACTION" == "Block" ] || [ "$ACTION" == "BlockWithAudit" ]; then
+            elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
                     should_not_find_any_host_log $OP $COND $ACTION
@@ -555,7 +554,7 @@ function run_test_scenario() {
 
 ## == KubeArmor == ##
 
-if [[ ! "$(ps -f --pid $(pidof kubearmor) 2> /dev/null | cat | grep enableHostPolicy)" != "" ]]; then
+if [[ ! "$(ps -f --pid $(pidof kubearmor) 2> /dev/null | cat | grep enableKubeArmorHostPolicy)" != "" ]]; then
     SKIP_HOST_POLICY=1
     SKIP_NATIVE_HOST_POLICY=1
 fi
