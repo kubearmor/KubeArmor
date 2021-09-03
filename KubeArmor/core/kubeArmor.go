@@ -360,51 +360,37 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 
 	// == //
 
-	// initialize system monitor
-	if !dm.InitSystemMonitor() {
-		dm.Logger.Err("Failed to initialize the system monitor")
-
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
-
-		return
-	}
-	dm.Logger.Print("Initialized the system monitor")
-
 	if dm.EnableKubeArmorPolicy || dm.EnableKubeArmorHostPolicy {
-		// monior system events
-		go dm.MonitorSystemEvents()
-		dm.Logger.Print("Started to monitor system events")
-	} else {
-		dm.Logger.Err("Both EnableKubeArmorPolicy and EnableKubeArmorHostPolicy are not set")
-
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
-
-		return
-	}
-
-	// == //
-
-	// initialize runtime enforcer
-	if !dm.InitRuntimeEnforcer() {
-		dm.Logger.Print("Disabled the runtime enforcer since No LSM is enabled")
-	} else {
-		dm.Logger.Print("Initialized the runtime enforcer")
-
-		if dm.EnableKubeArmorPolicy && !dm.EnableKubeArmorHostPolicy {
-			dm.Logger.Print("Started to protect containers")
-		} else if !dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
-			dm.Logger.Print("Started to protect a host")
-		} else if dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
-			dm.Logger.Print("Started to protect a host and containers")
-		} else {
-			dm.Logger.Err("Both EnableKubeArmorPolicy and EnableKubeArmorHostPolicy are not set")
+		// initialize system monitor
+		if !dm.InitSystemMonitor() {
+			dm.Logger.Err("Failed to initialize the system monitor")
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
 			return
+		}
+		dm.Logger.Print("Initialized the system monitor")
+
+		// monior system events
+		go dm.MonitorSystemEvents()
+		dm.Logger.Print("Started to monitor system events")
+
+		// == //
+
+		// initialize runtime enforcer
+		if !dm.InitRuntimeEnforcer() {
+			dm.Logger.Print("Disabled the runtime enforcer since No LSM is enabled")
+		} else {
+			dm.Logger.Print("Initialized the runtime enforcer")
+
+			if dm.EnableKubeArmorPolicy && !dm.EnableKubeArmorHostPolicy {
+				dm.Logger.Print("Started to protect containers")
+			} else if !dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
+				dm.Logger.Print("Started to protect a host")
+			} else if dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
+				dm.Logger.Print("Started to protect a host and containers")
+			}
 		}
 	}
 
