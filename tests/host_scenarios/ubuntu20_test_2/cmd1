@@ -1,7 +1,0 @@
-source: ubuntu20
-cmd: cat /etc/passwd
-result: passed
----
-operation: File
-condition: passwd
-action: Audit

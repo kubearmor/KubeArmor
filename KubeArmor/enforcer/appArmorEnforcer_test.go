@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 func TestAppArmorEnforcer(t *testing.T) {
@@ -27,16 +28,23 @@ func TestAppArmorEnforcer(t *testing.T) {
 		return
 	}
 
-	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", false)
-	if logFeeder == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.NodeIP = "nodeIP"
+	node.EnableKubeArmorPolicy = true
+	node.EnableKubeArmorHostPolicy = true
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder, false)
+	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -53,13 +61,13 @@ func TestAppArmorEnforcer(t *testing.T) {
 
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
 
-	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	// destroy logger
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }
 
 func TestAppArmorProfile(t *testing.T) {
@@ -77,16 +85,23 @@ func TestAppArmorProfile(t *testing.T) {
 		return
 	}
 
-	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", false)
-	if logFeeder == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.NodeIP = "nodeIP"
+	node.EnableKubeArmorPolicy = true
+	node.EnableKubeArmorHostPolicy = true
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder, false)
+	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -96,7 +111,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Register AppArmorProfile
 
-	if ok := enforcer.RegisterAppArmorProfile("test-profile", true); !ok {
+	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to register AppArmorProfile")
 		return
 	}
@@ -105,7 +120,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Unregister AppArmorProfile
 
-	if ok := enforcer.UnregisterAppArmorProfile("test-profile", true); !ok {
+	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to unregister AppArmorProfile")
 		return
 	}
@@ -121,13 +136,13 @@ func TestAppArmorProfile(t *testing.T) {
 
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
 
-	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	// destroy logger
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }
 
 func TestHostAppArmorProfile(t *testing.T) {
@@ -145,16 +160,23 @@ func TestHostAppArmorProfile(t *testing.T) {
 		return
 	}
 
-	// Create Feeder
-	logFeeder := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if logFeeder == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.NodeIP = "nodeIP"
+	node.EnableKubeArmorPolicy = true
+	node.EnableKubeArmorHostPolicy = true
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create AppArmor Enforcer
 
-	enforcer := NewAppArmorEnforcer(logFeeder, true)
+	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
@@ -171,11 +193,11 @@ func TestHostAppArmorProfile(t *testing.T) {
 
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
 
-	// destroy Feeder
-	if err := logFeeder.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	// destroy logger
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }

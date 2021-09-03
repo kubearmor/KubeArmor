@@ -5,23 +5,30 @@ package feeder
 
 import (
 	"testing"
+
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 func TestFeeder(t *testing.T) {
-	// create Feeder
-	feeder := NewFeeder("Default", "32767", "none", "policy", true)
-	if feeder == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.NodeIP = "nodeIP"
+
+	// create logger
+	logger := NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
-	t.Log("[PASS] Created Feeder")
+	t.Log("[PASS] Created logger")
 
-	// destroy Feeder
-	if err := feeder.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	// destroy logger
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }

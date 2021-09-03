@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,6 @@ import (
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // ================= //
@@ -208,58 +206,40 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 // == Node == //
 // ========== //
 
-// GetContainerRuntime Function
-func (kh *K8sHandler) GetContainerRuntime() string {
+// WatchK8sNodes Function
+func (kh *K8sHandler) WatchK8sNodes() *http.Response {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return ""
+		return nil
 	}
 
-	// get a host name
-	hostName := kl.GetHostName()
+	if kl.IsInK8sCluster() { // kube-apiserver
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/nodes?watch=true"
 
-	// get a node from k8s api client
-	node, err := kh.K8sClient.CoreV1().Nodes().Get(context.Background(), hostName, metav1.GetOptions{})
-	if err != nil {
-		return "Unknown"
+		req, err := http.NewRequest("GET", URL, nil)
+		if err != nil {
+			return nil
+		}
+
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+
+		resp, err := kh.WatchClient.Do(req)
+		if err != nil {
+			return nil
+		}
+
+		return resp
 	}
 
-	return node.Status.NodeInfo.ContainerRuntimeVersion
-}
+	// kube-proxy (local)
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/nodes?watch=true"
 
-// GetNodeIdentities Function
-func (kh *K8sHandler) GetNodeIdentities() []string {
-	nodeIdentities := []string{}
-
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return nodeIdentities
+	// #nosec
+	if resp, err := http.Get(URL); err == nil {
+		return resp
 	}
 
-	// get a host name
-	hostName := kl.GetHostName()
-
-	// add the host name
-	nodeIdentities = append(nodeIdentities, "hostName="+hostName)
-
-	// get a node from k8s api client
-	node, err := kh.K8sClient.CoreV1().Nodes().Get(context.Background(), hostName, metav1.GetOptions{})
-	if err != nil {
-		return nodeIdentities
-	}
-
-	// add more info
-	nodeIdentities = append(nodeIdentities, "architecture="+node.Status.NodeInfo.Architecture)
-	nodeIdentities = append(nodeIdentities, "osType="+node.Status.NodeInfo.OperatingSystem)
-	nodeIdentities = append(nodeIdentities, "osName="+strings.Split(node.Status.NodeInfo.OSImage, " ")[0])
-	nodeIdentities = append(nodeIdentities, "osVersion="+strings.Split(node.Status.NodeInfo.OSImage, " ")[1])
-	nodeIdentities = append(nodeIdentities, "kernelVersion="+strings.Split(node.Status.NodeInfo.KernelVersion, "-")[0])
-	nodeIdentities = append(nodeIdentities, "runtimePlatform="+strings.Split(node.Status.NodeInfo.ContainerRuntimeVersion, ":")[0])
-
-	// add labels
-	for k, v := range node.ObjectMeta.Labels {
-		nodeIdentities = append(nodeIdentities, k+"="+v)
-	}
-
-	return nodeIdentities
+	return nil
 }
 
 // ================ //
@@ -357,17 +337,6 @@ func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, repl
 // ========== //
 // == Pods == //
 // ========== //
-
-// GetK8sPod Function
-func (kh *K8sHandler) GetK8sPod(K8sPods []tp.K8sPod, namespaceName, endPointName string) tp.K8sPod {
-	for _, pod := range K8sPods {
-		if pod.Metadata["namespaceName"] == namespaceName && pod.Metadata["podName"] == endPointName {
-			return pod
-		}
-	}
-
-	return tp.K8sPod{}
-}
 
 // WatchK8sPods Function
 func (kh *K8sHandler) WatchK8sPods() *http.Response {

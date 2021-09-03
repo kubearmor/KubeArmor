@@ -32,10 +32,10 @@ type SELinuxEnforcer struct {
 }
 
 // NewSELinuxEnforcer Function
-func NewSELinuxEnforcer(feeder *fd.Feeder) *SELinuxEnforcer {
+func NewSELinuxEnforcer(logger *fd.Feeder) *SELinuxEnforcer {
 	se := &SELinuxEnforcer{}
 
-	se.Logger = feeder
+	se.Logger = logger
 
 	se.SELinuxProfiles = map[string]int{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
