@@ -170,6 +170,11 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 
 // GetAlreadyDeployedDockerContainers Function
 func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
+	// check if Docker exists
+	if Docker == nil {
+		return
+	}
+
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
 		for _, dcontainer := range containerList {
 			// get container information from docker client
@@ -184,6 +189,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 			if dcontainer.State == "running" {
 				dm.ContainersLock.Lock()
+
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
 					dm.Containers[container.ContainerID] = container
 				} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
@@ -195,29 +201,43 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
 
 					container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
+
 					container.ProcessVisibilityEnabled = dm.Containers[container.ContainerID].ProcessVisibilityEnabled
 					container.FileVisibilityEnabled = dm.Containers[container.ContainerID].FileVisibilityEnabled
 					container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
 					container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
 
-					dm.Containers[container.ContainerID] = container
+					dm.ContainersLock.Unlock()
 
+					// == //
+
+					dm.EndPointsLock.Lock()
 					for _, endPoint := range dm.EndPoints {
 						if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[container.ContainerID] == "" {
 							endPoint.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
 							break
 						}
 					}
+					dm.EndPointsLock.Unlock()
+
+					// == //
+
+					dm.ContainersLock.Lock()
+
+					dm.Containers[container.ContainerID] = container
 				} else {
 					dm.ContainersLock.Unlock()
 					continue
 				}
+
 				dm.ContainersLock.Unlock()
 
-				// update NsMap
-				dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
+				if dm.SystemMonitor != nil {
+					// update NsMap
+					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
+				}
 
-				dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
+				dm.Logger.Printf("Detected a container (added/%s)", container.ContainerID[:12])
 			}
 		}
 	}
@@ -225,6 +245,11 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 // UpdateDockerContainer Function
 func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
+	// check if Docker exists
+	if Docker == nil {
+		return
+	}
+
 	container := tp.Container{}
 
 	if action == "start" {
@@ -241,6 +266,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		dm.ContainersLock.Lock()
+
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
 		} else if dm.Containers[containerID].PidNS == 0 && dm.Containers[containerID].MntNS == 0 {
@@ -252,12 +278,17 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			container.ContainerName = dm.Containers[containerID].ContainerName
 
 			container.PolicyEnabled = dm.Containers[containerID].PolicyEnabled
+
 			container.ProcessVisibilityEnabled = dm.Containers[containerID].ProcessVisibilityEnabled
 			container.FileVisibilityEnabled = dm.Containers[containerID].FileVisibilityEnabled
 			container.NetworkVisibilityEnabled = dm.Containers[containerID].NetworkVisibilityEnabled
 			container.CapabilitiesVisibilityEnabled = dm.Containers[containerID].CapabilitiesVisibilityEnabled
 
-			dm.Containers[containerID] = container
+			dm.ContainersLock.Unlock()
+
+			// == //
+
+			dm.EndPointsLock.Lock()
 
 			for _, endPoint := range dm.EndPoints {
 				if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[containerID] == "" {
@@ -265,16 +296,27 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 					break
 				}
 			}
+
+			dm.EndPointsLock.Unlock()
+
+			// == //
+
+			dm.ContainersLock.Lock()
+
+			dm.Containers[containerID] = container
 		} else {
 			dm.ContainersLock.Unlock()
 			return
 		}
+
 		dm.ContainersLock.Unlock()
 
-		// update NsMap
-		dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+		if dm.SystemMonitor != nil {
+			// update NsMap
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+		}
 
-		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
 
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
@@ -291,10 +333,21 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
-		// update NsMap
-		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+		dm.EndPointsLock.Lock()
+		for idx, endPoint := range dm.EndPoints {
+			if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[containerID] == "" {
+				delete(dm.EndPoints[idx].AppArmorProfiles, containerID)
+				break
+			}
+		}
+		dm.EndPointsLock.Unlock()
 
-		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
+		if dm.SystemMonitor != nil {
+			// update NsMap
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+		}
+
+		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
 }
 
@@ -303,11 +356,12 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
+	// check if Docker exists
 	if Docker == nil {
 		return
 	}
 
-	dm.LogFeeder.Print("Started to monitor Docker events")
+	dm.Logger.Print("Started to monitor Docker events")
 
 	EventChan := Docker.GetEventChannel()
 
