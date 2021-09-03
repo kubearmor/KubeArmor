@@ -141,7 +141,7 @@ Now, we will briefly explain how to define a host security policy.
 
   ```text
       kubernetes.io/arch: [architecture, (e.g., amd64)]
-      kubernetes.io/hostname: [host name, (e.g., ubuntu20)]
+      kubernetes.io/hostname: [host name, (e.g., kubearmor-dev)]
       kubernetes.io/os: [operating system, (e.g., linux)]
   ```
 
