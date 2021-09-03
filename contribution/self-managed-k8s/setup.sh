@@ -68,6 +68,7 @@ wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.14
 # install protoc
 unzip protoc-3.14.0-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
+sudo chmod 755 /usr/local/bin/protoc
 
 # apply env
 if [[ $(hostname) = kubearmor-dev* ]]; then
