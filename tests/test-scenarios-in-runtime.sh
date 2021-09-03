@@ -24,12 +24,6 @@ TEST_HOME=`dirname $(realpath "$0")`
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
 
-APPARMOR=0
-cat /sys/kernel/security/lsm | grep apparmor > /dev/null 2>&1
-if [ $? == 0 ]; then
-    APPARMOR=1
-fi
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -87,7 +81,7 @@ function should_not_find_any_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -97,7 +91,7 @@ function should_not_find_any_log() {
             echo "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             echo -e "${RED}[FAIL] Found the log from logs${NC}"
@@ -118,7 +112,7 @@ function should_find_passed_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -128,7 +122,7 @@ function should_find_passed_log() {
             echo "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -149,7 +143,7 @@ function should_find_blocked_log() {
     echo -e "${GREEN}[INFO] Finding the corresponding log${NC}"
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -159,7 +153,7 @@ function should_find_blocked_log() {
             echo "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             echo -e "${RED}[FAIL] Failed to find the log from logs${NC}"
@@ -176,13 +170,6 @@ function run_test_scenario() {
 
     YAML_FILE=$(ls *.yaml)
     policy_type=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
-
-    # skip a policy with a native profile unless AppArmor is enabled
-    if [ $APPARMOR == 0 ]; then
-        echo -e "${MAGENTA}[SKIP] Skipped $3${NC}"
-        skipped_testcases+=("$3")
-        return
-    fi
 
     echo -e "${GREEN}[INFO] Applying $YAML_FILE into $2${NC}"
     kubectl apply -n $2 -f $YAML_FILE
@@ -201,10 +188,7 @@ function run_test_scenario() {
         cmd_count=$((cmd_count+1))
 
         SOURCE=$(cat $cmd | grep "^source" | awk '{print $2}')
-        POD=""
-        if [[ $HOST_POLICY -eq 0 ]] && [[ $NATIVE_HOST -eq 0 ]]; then
-            POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
-        fi
+        POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
         CMD=$(cat $cmd | grep "^cmd" | cut -d' ' -f2-)
         RESULT=$(cat $cmd | grep "^result" | awk '{print $2}')
 
@@ -228,7 +212,7 @@ function run_test_scenario() {
                 should_not_find_any_log $POD $OP $COND $ACTION
             else
                 echo "[INFO] $ACTION action, but the command should be failed"
-                should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                should_find_blocked_log $POD $OP $COND $ACTION
             fi
         elif [ "$ACTION" == "Audit" ]; then
             if [ "$RESULT" == "passed" ]; then
@@ -236,7 +220,7 @@ function run_test_scenario() {
                 should_find_passed_log $POD $OP $COND $ACTION
             else
                 echo "[INFO] $ACTION action, but the command should be failed"
-                should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                should_find_blocked_log $POD $OP $COND $ACTION
             fi
         elif [ "$ACTION" == "Block" ]; then
             if [ "$RESULT" == "passed" ]; then
@@ -244,7 +228,7 @@ function run_test_scenario() {
                 should_not_find_any_log $POD $OP $COND $ACTION
             else
                 echo "[INFO] $ACTION action, and the command should be failed"
-                should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                should_find_blocked_log $POD $OP $COND $ACTION
             fi
         fi
 
