@@ -1,7 +1,7 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: np-group-1-file-dir-recursive-block
+  name: nap-group-1-file-dir-recursive-block
   namespace: multiubuntu
 spec:
   selector:

@@ -1,7 +1,7 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-ubuntu-3-file-allow
+  name: sep-ubuntu-3-file-allow
   namespace: multiubuntu
 spec:
   severity: 5
