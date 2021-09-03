@@ -47,7 +47,6 @@ const (
 // SystemMonitor Constant Values
 const (
 	PermissionDenied = -13
-	MaxStringLen     = 4096
 )
 
 // ======================= //

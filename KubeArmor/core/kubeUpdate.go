@@ -298,6 +298,22 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				// == //
+
+				if pod.Metadata["namespaceName"] == "kube-system" {
+					// exception: kubernetes app
+					if _, ok := pod.Labels["k8s-app"]; ok {
+						pod.Annotations["kubearmor-policy"] = "audited"
+					}
+
+					// exception: cilium-operator
+					if val, ok := pod.Labels["io.cilium/app"]; ok && val == "operator" {
+						pod.Annotations["kubearmor-policy"] = "audited"
+					}
+				}
+
+				// == //
+
 				if dm.EnableEnforcerPerPod {
 					if _, ok := pod.Annotations["kubearmor-policy"]; ok {
 						if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" {
@@ -313,20 +329,6 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					} else {
 						pod.Annotations["kubearmor-policy"] = "enabled"
-					}
-				}
-
-				// == //
-
-				if pod.Metadata["namespaceName"] == "kube-system" {
-					// exception: kubernetes app
-					if _, ok := pod.Labels["k8s-app"]; ok {
-						pod.Annotations["kubearmor-policy"] = "audited"
-					}
-
-					// exception: cilium-operator
-					if val, ok := pod.Labels["io.cilium/app"]; ok && val == "operator" {
-						pod.Annotations["kubearmor-policy"] = "audited"
 					}
 				}
 

@@ -94,7 +94,7 @@ func TestTraceSyscall(t *testing.T) {
 		return
 	}
 
-	t.Logf("[PASS] Initialized BPF (for container only)")
+	t.Logf("[PASS] Initialized BPF")
 
 	// wait for a while
 
