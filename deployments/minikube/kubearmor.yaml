@@ -748,7 +748,7 @@ spec:
     listKind: KubeArmorHostPolicyList
     plural: kubearmorhostpolicies
     shortNames:
-    - khp
+    - hsp
     singular: kubearmorhostpolicy
   scope: Cluster
   versions:
