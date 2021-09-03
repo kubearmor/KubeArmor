@@ -32,11 +32,6 @@ run-per-pod: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableEnforcerPerPod
 
-.PHONY: run-with-host
-run-with-host: build
-	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableHostPolicy
-
 .PHONY: test
 test:
 	cd $(CURDIR)/feeder; go mod tidy
