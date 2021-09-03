@@ -11,8 +11,7 @@
 
         ```text
         $ cd KubeArmor/KubeArmor
-        ~/KubeArmor/KubeArmor$ make clean && make
-        ~/KubeArmor/KubeArmor$ make run
+        ~/KubeArmor/KubeArmor$ make clean && make run
         ```
 
         If you want to change the number of the gRPC port or the location of a log file, run KubeArmor like the below.
@@ -20,12 +19,14 @@
         ```text
         ~/KubeArmor/KubeArmor$ sudo -E ./kubearmor -gRPC=[gRPC port number]
                                                    -logPath=[log file path]
-                                                   -enableHostPolicy
+                                                   -enableKubeArmorPolicy
+                                                   -enableKubeArmorHostPolicy
+                                                   -enableKubeArmorAuditPolicy
         ```
 
     3. Apply security policies for testing
 
-        Beforehand, check if the KubeArmorPolicy or KubeArmorHostPolicy CRD is already applied.
+        Beforehand, check if the KubeArmorPolicy, KubeArmorHostPolicy, or KubeArmorAuditPolicy CRD is already applied.
 
         ```text
         $ kubectl explain KubeArmorPolicy
@@ -34,8 +35,7 @@
         If it's still not applied, do so.
 
         ```text
-        $ kubectl apply -f ~/KubeArmor/deployments/CRD/KubeArmorPolicy.yaml
-        $ kubectl apply -f ~/KubeArmor/deployments/CRD/KubeArmorHostPolicy.yaml
+        $ kubectl apply -f ~/KubeArmor/deployments/CRD/
         ```
 
         Now you can apply specific policies.
