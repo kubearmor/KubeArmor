@@ -439,7 +439,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -453,7 +453,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -462,7 +462,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -476,7 +476,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -488,7 +488,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -508,7 +508,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -522,7 +522,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -531,7 +531,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -545,7 +545,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -557,7 +557,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -581,7 +581,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(proto.FromSource) == 0 {
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -598,7 +598,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -615,7 +615,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(cap.FromSource) == 0 {
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -632,7 +632,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(fd.HostPolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}

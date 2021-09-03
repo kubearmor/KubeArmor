@@ -54,8 +54,8 @@ type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
 
-	Labels     []string `json:"labels"`
-	Identities []string `json:"identities"`
+	Labels     map[string]string `json:"labels"`
+	Identities []string          `json:"identities"`
 
 	Containers       []string          `json:"containers"`
 	HostVolumes      []HostVolumeMount `json:"hostVolumes"`
@@ -75,9 +75,38 @@ type EndPoint struct {
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
+// Node Structure
+type Node struct {
+	NodeName string `json:"nodeName"`
+	NodeIP   string `json:"nodeIP"`
+
+	Annotations map[string]string `json:"annotations"`
+	Labels      map[string]string `json:"labels"`
+
+	Identities []string `json:"identities"`
+
+	Architecture    string `json:"architecture"`
+	OperatingSystem string `json:"operatingSystem"`
+	OSImage         string `json:"osImage"`
+	KernelVersion   string `json:"kernelVersion"`
+	KubeletVersion  string `json:"kubeletVersion"`
+
+	ContainerRuntimeVersion string `json:"containerRuntimeVersion"`
+
+	EnableKubeArmorPolicy      bool `json:"enableKubeArmorPolicy"`
+	EnableKubeArmorHostPolicy  bool `json:"enableKubeArmorHostPolicy"`
+	EnableKubeArmorAuditPolicy bool `json:"enableKubeArmorAuditPolicy"`
+}
+
 // ================ //
 // == Kubernetes == //
 // ================ //
+
+// K8sNodeEvent Structure
+type K8sNodeEvent struct {
+	Type   string  `json:"type"`
+	Object v1.Node `json:"object"`
+}
 
 // K8sPod Structure
 type K8sPod struct {
@@ -93,8 +122,6 @@ type K8sPodEvent struct {
 	Type   string `json:"type"`
 	Object v1.Pod `json:"object"`
 }
-
-//
 
 // K8sPolicyStatus Structure
 type K8sPolicyStatus struct {
@@ -118,8 +145,6 @@ type K8sKubeArmorPolicy struct {
 type K8sKubeArmorPolicies struct {
 	Items []K8sKubeArmorPolicy `json:"items"`
 }
-
-//
 
 // K8sKubeArmorHostPolicyEvent Structure
 type K8sKubeArmorHostPolicyEvent struct {
@@ -164,8 +189,6 @@ type K8sKubeArmorMacro struct {
 	Spec     K8sKubeArmorMacroSpec `json:"spec"`
 	Status   K8sPolicyStatus       `json:"status,omitempty"`
 }
-
-//
 
 // K8sKubeArmorAuditPolicyEvent Structure
 type K8sKubeArmorAuditPolicyEvent struct {

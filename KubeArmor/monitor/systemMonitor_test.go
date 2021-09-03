@@ -4,11 +4,13 @@
 package monitor
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -28,16 +30,23 @@ func TestSystemMonitor(t *testing.T) {
 	ActiveHostMap := map[uint32]tp.PidMap{}
 	ActiveHostMapLock := new(sync.RWMutex)
 
-	// Create Feeder
-	Logger := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if Logger == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
+	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
+	node.EnableKubeArmorPolicy = true
+	node.EnableKubeArmorHostPolicy = true
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create System Monitor
-
-	systemMonitor := NewSystemMonitor(Logger, true, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(node, logger, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -47,7 +56,6 @@ func TestSystemMonitor(t *testing.T) {
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Destroy System Monitor
-
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
@@ -55,15 +63,15 @@ func TestSystemMonitor(t *testing.T) {
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
-	if err := Logger.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }
 
-func TestTraceSyscall(t *testing.T) {
+func TestTraceSyscallWithPod(t *testing.T) {
 	// Set up Test Data
 
 	// containers
@@ -79,16 +87,23 @@ func TestTraceSyscall(t *testing.T) {
 	ActiveHostMap := map[uint32]tp.PidMap{}
 	ActiveHostMapLock := new(sync.RWMutex)
 
-	// Create Feeder
-	Logger := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if Logger == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
+	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
+	node.EnableKubeArmorPolicy = true
+	node.EnableKubeArmorHostPolicy = false
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create System Monitor
-
-	systemMonitor := NewSystemMonitor(Logger, false, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(node, logger, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -98,43 +113,38 @@ func TestTraceSyscall(t *testing.T) {
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Initialize BPF
-
 	if err := systemMonitor.InitBPF(); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
 
-	t.Logf("[PASS] Initialized BPF (for container only)")
+	t.Logf("[PASS] Initialized BPF (for containers)")
 
 	// wait for a while
-
 	time.Sleep(time.Second * 1)
 
 	// Start to trace syscalls
-
 	go systemMonitor.TraceSyscall()
 
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while
-
 	time.Sleep(time.Second * 1)
 
 	// Destroy System Monitor
-
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
 
 	t.Log("[PASS] Destroyed SystemMonitor")
 
-	// destroy Feeder
-	if err := Logger.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	// destroy logger
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }
 
 func TestTraceSyscallWithHost(t *testing.T) {
@@ -153,16 +163,23 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	ActiveHostMap := map[uint32]tp.PidMap{}
 	ActiveHostMapLock := new(sync.RWMutex)
 
-	// Create Feeder
-	Logger := fd.NewFeeder("Default", "32767", "none", "policy", true)
-	if Logger == nil {
-		t.Log("[FAIL] Failed to create Feeder")
+	// node
+	node := tp.Node{}
+	node.NodeName = "nodeName"
+	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
+	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
+	node.EnableKubeArmorPolicy = false
+	node.EnableKubeArmorHostPolicy = true
+
+	// create logger
+	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	if logger == nil {
+		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 
 	// Create System Monitor
-
-	systemMonitor := NewSystemMonitor(Logger, true, &Containers, &ContainersLock,
+	systemMonitor := NewSystemMonitor(node, logger, &Containers, &ContainersLock,
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
@@ -172,47 +189,36 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Initialize BPF
-
 	if err := systemMonitor.InitBPF(); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
 
-	t.Logf("[PASS] Initialized BPF (for container and host)")
+	t.Logf("[PASS] Initialized BPF (for a host)")
 
 	// wait for a while
-
 	time.Sleep(time.Second * 1)
 
-	// Start to trace syscalls for container
-
-	go systemMonitor.TraceSyscall()
-
-	t.Log("[PASS] Started to trace syscalls")
-
 	// Start to trace syscalls for host
-
 	go systemMonitor.TraceHostSyscall()
 
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while
-
 	time.Sleep(time.Second * 1)
 
 	// Destroy System Monitor
-
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
 
 	t.Log("[PASS] Destroyed SystemMonitor")
 
-	// destroy Feeder
-	if err := Logger.DestroyFeeder(); err != nil {
-		t.Log("[FAIL] Failed to destroy Feeder")
+	// destroy logger
+	if err := logger.DestroyFeeder(); err != nil {
+		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
 
-	t.Log("[PASS] Destroyed Feeder")
+	t.Log("[PASS] Destroyed logger")
 }
