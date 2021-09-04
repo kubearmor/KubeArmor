@@ -631,6 +631,9 @@ int syscall__execve(struct pt_regs *ctx,
 
     if (base_off >= (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
         base_off = 0;
         off = base_off;
         *off_global += MAX_BUF_ELEM_SIZE;
@@ -680,6 +683,9 @@ int trace_ret_execve(struct pt_regs *ctx)
 
     if (base_off >= (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
         base_off = 0;
         off = base_off;
         *off_global += MAX_BUF_ELEM_SIZE;
@@ -729,6 +735,9 @@ int syscall__execveat(struct pt_regs *ctx,
 
     if (base_off >= (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
         base_off = 0;
         off = base_off;
         *off_global += MAX_BUF_ELEM_SIZE;
@@ -782,6 +791,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
 
     if (base_off >= (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
         base_off = 0;
         off = base_off;
         *off_global += MAX_BUF_ELEM_SIZE;
@@ -827,6 +839,9 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     if (base_off >= (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
         base_off = 0;
         off = base_off;
         *off_global += MAX_BUF_ELEM_SIZE;
@@ -944,6 +959,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     if (base_off >= (MAX_BUFFER_SIZE>>2)) {
         set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
         base_off = 0;
         off = base_off;
         *off_global += MAX_BUF_ELEM_SIZE;
