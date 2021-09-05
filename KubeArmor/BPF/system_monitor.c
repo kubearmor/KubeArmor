@@ -31,7 +31,6 @@
 #error Minimal required kernel version is 4.14
 #endif
 
-
 // == Structures == //
 
 #define MAX_BUFFER_SIZE   32768
@@ -418,7 +417,6 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr, u32
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr, u32 *off)
 {
-    //u32 *off = get_buffer_offset();
     if (off == NULL) {
         return -1;
     }
@@ -598,6 +596,7 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx, u32 *base_off
 
     void *data = &bufs_p->buf[(*base_off & ((MAX_BUFFER_SIZE>>2) - 1))];
     u32 size = (*off & (MAX_BUFFER_SIZE - 1)) - (*base_off & ((MAX_BUFFER_SIZE>>2) - 1));
+
     return sys_events.perf_submit(ctx, data, size & (MAX_BUF_ELEM_SIZE - 1));
 }
 
@@ -643,6 +642,7 @@ int syscall__execve(struct pt_regs *ctx,
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
+
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
     save_str_to_buffer(bufs_p, (void *)filename, &off);
@@ -721,8 +721,6 @@ int syscall__execveat(struct pt_regs *ctx,
     context.argnum = 4;
     context.retval = 0;
 
-    //set_buffer_offset(sizeof(sys_context_t));
-
     u32 *off_global = get_buffer_offset();
     if (off_global == NULL) {
         return -1;
@@ -747,6 +745,7 @@ int syscall__execveat(struct pt_regs *ctx,
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
+
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
     save_to_buffer(bufs_p, (void*)&dirfd, sizeof(int), INT_T, &off);
@@ -777,12 +776,10 @@ int trace_ret_execveat(struct pt_regs *ctx)
         return 0;
     }
 
-
     u32 *off_global = get_buffer_offset();
     if (off_global == NULL) {
         return -1;
     }
-
 
     u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
     *off_global += MAX_BUF_ELEM_SIZE;
@@ -825,12 +822,10 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     remove_pid_ns();
 
-
     u32 *off_global = get_buffer_offset();
     if (off_global == NULL) {
         return -1;
     }
-
 
     u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
     *off_global += MAX_BUF_ELEM_SIZE;
@@ -851,6 +846,7 @@ int trace_do_exit(struct pt_regs *ctx, long code)
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
+
     save_context_to_buffer(bufs_p, (void*)&context, &off);
 
     events_perf_submit(ctx, &base_off, &off);
@@ -971,6 +967,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
+
     save_context_to_buffer(bufs_p, (void*)&context, &off);
     save_args_to_buffer(types, &args, &off);
 
