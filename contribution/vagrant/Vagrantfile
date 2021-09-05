@@ -47,7 +47,11 @@ Vagrant.configure("2") do |config|
   config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
 
   # forward port for debug
-  config.vm.network "forwarded_port", guest: 2345, host: ENV['DLV_RPORT']
+  if ENV['DLV_RPORT'] then
+    config.vm.network "forwarded_port", guest: 2345, host: ENV['DLV_RPORT'], auto_correct: true
+  else
+    config.vm.network :forwarded_port, guest: 22, host: 2222, auto_correct: true
+  end
 
   # sync directories
   kubearmor_home = "../.."
@@ -78,7 +82,7 @@ Vagrant.configure("2") do |config|
 
   # Change permissions
   config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go"
-
+  
   # avoid "make: warning: Clock skew detected."
   config.vm.provision :shell, path: kubearmor_home + "/contribution/vagrant/time-update.sh"
 end
