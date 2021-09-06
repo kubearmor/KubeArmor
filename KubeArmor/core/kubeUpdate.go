@@ -52,6 +52,10 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 			}
 		}
 
+		sort.Slice(newGroup.Identities, func(i, j int) bool {
+			return newGroup.Identities[i] < newGroup.Identities[j]
+		})
+
 		// update container list
 		for k := range pod.Containers {
 			if !kl.ContainsElement(newGroup.Containers, k) {
