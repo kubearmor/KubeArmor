@@ -134,6 +134,29 @@ type K8sKubeArmorHostPolicies struct {
 	Items []K8sKubeArmorHostPolicy `json:"items"`
 }
 
+type K8sKubeArmorExternalWorkloadPolicyStatus struct {
+	ID uint64 `json:"id,omitempty"`
+	IP string `json:"ip,omitempty"`
+}
+
+// K8sKubeArmorExternalWorkloadPolicyEvent Structure
+type K8sKubeArmorExternalWorkloadPolicyEvent struct {
+	Type   string                             `json:"type"`
+	Object K8sKubeArmorExternalWorkloadPolicy `json:"object"`
+}
+
+// K8sKubeArmorExternalWorkloadPolicy Structure
+type K8sKubeArmorExternalWorkloadPolicy struct {
+	Metadata metav1.ObjectMeta                        `json:"metadata"`
+	Spec     ExternalWorkloadSecuritySpec             `json:"spec"`
+	Status   K8sKubeArmorExternalWorkloadPolicyStatus `json:"status,omitempty"`
+}
+
+// K8sKubeArmorExternalWorkloadPolicies Structure
+type K8sKubeArmorExternalWorkloadPolicies struct {
+	Items []K8sKubeArmorExternalWorkloadPolicy `json:"items"`
+}
+
 // ============= //
 // == Logging == //
 // ============= //
@@ -475,6 +498,18 @@ type HostSecuritySpec struct {
 type HostSecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     HostSecuritySpec  `json:"spec"`
+}
+
+// ExternalWorkloadSecuritySpec Structure
+type ExternalWorkloadSecuritySpec struct {
+	IPv4AllocCIDR string `json:"ipv4-alloc-cidr,omitempty"`
+	IPv6AllocCIDR string `json:"ipv6-alloc-cidr,omitempty"`
+}
+
+// ExternalWorkloadSecurityPolicy Structure
+type ExternalWorkloadSecurityPolicy struct {
+	Metadata map[string]string            `json:"metadata"`
+	Spec     ExternalWorkloadSecuritySpec `json:"spec"`
 }
 
 // ================== //

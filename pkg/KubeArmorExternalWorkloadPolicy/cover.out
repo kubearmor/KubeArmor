@@ -1,0 +1,7 @@
+mode: set
+github.com/kubearmor/KubeArmor/pkg/KubeArmorExternalWorkloadPolicy/controllers/kubearmorexternalworkloadpolicy_controller.go:28.102,34.63 4 0
+github.com/kubearmor/KubeArmor/pkg/KubeArmorExternalWorkloadPolicy/controllers/kubearmorexternalworkloadpolicy_controller.go:46.2,47.27 2 0
+github.com/kubearmor/KubeArmor/pkg/KubeArmorExternalWorkloadPolicy/controllers/kubearmorexternalworkloadpolicy_controller.go:34.63,36.29 2 0
+github.com/kubearmor/KubeArmor/pkg/KubeArmorExternalWorkloadPolicy/controllers/kubearmorexternalworkloadpolicy_controller.go:39.3,39.28 1 0
+github.com/kubearmor/KubeArmor/pkg/KubeArmorExternalWorkloadPolicy/controllers/kubearmorexternalworkloadpolicy_controller.go:36.29,38.4 1 0
+github.com/kubearmor/KubeArmor/pkg/KubeArmorExternalWorkloadPolicy/controllers/kubearmorexternalworkloadpolicy_controller.go:51.94,55.2 1 0

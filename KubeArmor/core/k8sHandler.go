@@ -92,6 +92,7 @@ func NewK8sHandler() *K8sHandler {
 // InitK8sClient Function
 func (kh *K8sHandler) InitK8sClient() bool {
 	if !kl.IsK8sEnv() { // not Kubernetes
+		fmt.Println("No ENV")
 		return false
 	}
 
@@ -118,12 +119,14 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
+		fmt.Println("MDEBUG: InitLocalAPIClient failed")
 		return false
 	}
 
 	// creates the clientset
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		fmt.Println("MDEBUG: InitLocalAPIClient NewForConfig failed")
 		return false
 	}
 	kh.K8sClient = client
@@ -135,6 +138,7 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 func (kh *K8sHandler) InitInclusterAPIClient() bool {
 	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
+		fmt.Println("MDEBUG: failed")
 		return false
 	}
 	kh.K8sToken = string(read)
@@ -151,6 +155,7 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 
 	client, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
+		fmt.Println("MDEBUG: NewForConfig failed")
 		return false
 	}
 	kh.K8sClient = client
@@ -515,6 +520,44 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 
 	// #nosec
 	if resp, err := http.Get(URL); err == nil {
+		return resp
+	}
+
+	return nil
+}
+
+// WatchK8sExternalWorkloadSecurityPolicies Function
+func (kh *K8sHandler) WatchK8sExternalWorkloadSecurityPolicies() *http.Response {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	if kl.IsInK8sCluster() {
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorexternalworkloadpolicies?watch=true"
+
+		req, err := http.NewRequest("GET", URL, nil)
+		if err != nil {
+			return nil
+		}
+
+		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
+
+		resp, err := kh.WatchClient.Do(req)
+		if err != nil {
+			return nil
+		}
+
+		kg.Print("Configured external workload")
+		return resp
+	}
+
+	// kube-proxy (local)
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorexternalworkloadpolicies?watch=true"
+
+	// #nosec
+	if resp, err := http.Get(URL); err == nil {
+		kg.Print("Configured external workload")
 		return resp
 	}
 

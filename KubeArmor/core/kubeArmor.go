@@ -43,8 +43,9 @@ type KubeArmorDaemon struct {
 	LogFilter string
 
 	// options
-	EnableHostPolicy     bool
-	EnableEnforcerPerPod bool
+	EnableHostPolicy             bool
+	EnableEnforcerPerPod         bool
+	EnableExternalWorkloadPolicy bool
 
 	// containers (from docker)
 	Containers     map[string]tp.Container
@@ -66,6 +67,7 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
+	ExternalWorkloadSecurityPoliciesLock *sync.RWMutex
 	// container id -> (host) pid
 	ActivePidMap     map[string]tp.PidMap
 	ActiveHostPidMap map[string]tp.PidMap
@@ -89,7 +91,7 @@ type KubeArmorDaemon struct {
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
+func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableExternalWorkloadPolicy, enableEnforcerPerPod bool) *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
 	if clusterName == "" {
@@ -107,6 +109,7 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter string, enable
 	dm.LogFilter = logFilter
 
 	dm.EnableHostPolicy = enableHostPolicy
+	dm.EnableExternalWorkloadPolicy = enableExternalWorkloadPolicy
 	dm.EnableEnforcerPerPod = enableEnforcerPerPod
 
 	dm.Containers = map[string]tp.Container{}
@@ -279,9 +282,9 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) {
+func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableExternalWorkloadPolicy, enableEnforcerPerPod bool) {
 	// create a daemon
-	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableHostPolicy, enableEnforcerPerPod)
+	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableHostPolicy, enableExternalWorkloadPolicy, enableEnforcerPerPod)
 
 	// initialize log feeder
 	if !dm.InitLogFeeder() {
@@ -339,6 +342,14 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolic
 			go dm.WatchHostSecurityPolicies()
 			dm.LogFeeder.Print("Started to monitor host security policies")
 		}
+
+		kg.Print("dm.EnableExternalWorkloadPolicy true/false")
+		if dm.EnableExternalWorkloadPolicy {
+			kg.Print("dm.EnableExternalWorkloadPolicy")
+			go dm.WatchExternalWorkloadSecurityPolicies()
+			dm.LogFeeder.Print("Started to monitor external workload security policies")
+		}
+		kg.Print("dm.EnableExternalWorkloadPolicy true/false")
 
 		// get current CRI
 		cr := K8s.GetContainerRuntime()

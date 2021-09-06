@@ -321,9 +321,11 @@ func IsK8sLocal() bool {
 // IsInK8sCluster Function
 func IsInK8sCluster() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
+		fmt.Println("KUBERNETES_PORT OK")
 		return true
 	}
 
+	fmt.Println("KUBERNETES_PORT failed")
 	return false
 }
 

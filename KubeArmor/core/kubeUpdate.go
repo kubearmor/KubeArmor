@@ -1445,3 +1445,47 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 		}
 	}
 }
+
+// WatchExternalWorkloadSecurityPolicies Function
+func (dm *KubeArmorDaemon) WatchExternalWorkloadSecurityPolicies() {
+	for {
+		if !K8s.CheckCustomResourceDefinition("kubearmorexternalworkloadpolicies") {
+			time.Sleep(time.Second * 1)
+			continue
+		}
+
+		if resp := K8s.WatchK8sExternalWorkloadSecurityPolicies(); resp != nil {
+			defer resp.Body.Close()
+
+			decoder := json.NewDecoder(resp.Body)
+			for {
+				event := tp.K8sKubeArmorPolicyEvent{}
+				if err := decoder.Decode(&event); err == io.EOF {
+					break
+				} else if err != nil {
+					break
+				}
+
+				if event.Object.Status.Status != "" && event.Object.Status.Status != "OK" {
+					continue
+				}
+
+				dm.ExternalWorkloadSecurityPoliciesLock.Lock()
+				defer dm.ExternalWorkloadSecurityPoliciesLock.Unlock()
+
+				// create a security policy
+
+				secPolicy := tp.ExternalWorkloadSecurityPolicy{}
+				fmt.Println("External workload policy configured")
+
+				secPolicy.Metadata = map[string]string{}
+				secPolicy.Metadata["namespaceName"] = event.Object.Metadata.Namespace
+				secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
+
+				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
+					fmt.Println("Failed to clone a spec")
+				}
+			}
+		}
+	}
+}

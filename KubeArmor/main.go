@@ -42,12 +42,14 @@ func main() {
 	// options (boolean)
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
 	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
+	enableExternalWorkloadPolicyPtr := flag.Bool("enableExternalWorkloadPolicy", false, "enabling external workload policies")
+	//enableExternalWorkloadPolicyPtr := true
 
 	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableExternalWorkloadPolicyPtr, *enableEnforcerPerPodPtr)
 
 	// == //
 }
