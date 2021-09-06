@@ -47,7 +47,9 @@ Vagrant.configure("2") do |config|
   config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
 
   # forward port for debug
-  config.vm.network "forwarded_port", guest: 2345, host: ENV['DLV_RPORT']
+  if ENV['DLV_RPORT'] then
+    config.vm.network "forwarded_port", guest: 2345, host: ENV['DLV_RPORT'], auto_correct: true
+  end
 
   # sync directories
   kubearmor_home = "../.."
