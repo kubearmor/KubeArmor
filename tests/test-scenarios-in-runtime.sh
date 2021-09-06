@@ -217,7 +217,7 @@ function should_find_blocked_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
