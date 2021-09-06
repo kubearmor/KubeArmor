@@ -1581,7 +1581,7 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 
 	defaultSeverity := int64(1)
 	if k8sAuditPolicySpec.Severity != "" {
-		if severity, err := strconv.ParseInt(k8sAuditPolicySpec.Severity, 0, 32); err == nil {
+		if severity, err := strconv.ParseInt(strings.TrimSpace(k8sAuditPolicySpec.Severity), 0, 32); err == nil {
 			defaultSeverity = severity
 		} else {
 			message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.Severity) to int", k8sAuditPolicySpec.Severity)
@@ -1629,7 +1629,7 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 
 		// set severity
 		if rule.Severity != "" {
-			if severity, err := strconv.ParseInt(rule.Severity, 0, 32); err == nil {
+			if severity, err := strconv.ParseInt(strings.TrimSpace(rule.Severity), 0, 32); err == nil {
 				auditPolicies[i].Severity = int(severity)
 			} else {
 				message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Severity) to int", rule.Severity, i)
@@ -1649,7 +1649,7 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 			auditPolicies[i].Events[j].Directory = ruleEvent.Directory
 
 			if ruleEvent.Mode != "" {
-				if number, err := strconv.ParseInt(ruleEvent.Mode, 0, 32); err == nil {
+				if number, err := strconv.ParseInt(strings.TrimSpace(ruleEvent.Mode), 0, 32); err == nil {
 					auditPolicies[i].Events[j].Mode = int(number)
 				} else {
 					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Mode) to int", ruleEvent.Mode, i, j)
@@ -1662,7 +1662,7 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 			auditPolicies[i].Events[j].Ipv6Addr = ruleEvent.Ipv6Addr
 
 			if ruleEvent.Port != "" {
-				if number, err := strconv.ParseInt(ruleEvent.Port, 0, 32); err == nil {
+				if number, err := strconv.ParseInt(strings.TrimSpace(ruleEvent.Port), 0, 32); err == nil {
 					auditPolicies[i].Events[j].Port = int(number)
 				} else {
 					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Port) to int", ruleEvent.Port, i, j)
