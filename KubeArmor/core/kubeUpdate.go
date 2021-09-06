@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -138,6 +139,10 @@ func (dm *KubeArmorDaemon) UpdateContainerGroupWithPod(action string, pod tp.K8s
 						dm.ContainerGroups[idx].Identities = append(dm.ContainerGroups[idx].Identities, k+"="+v)
 					}
 				}
+
+				sort.Slice(dm.ContainerGroups[idx].Identities, func(i, j int) bool {
+					return dm.ContainerGroups[idx].Identities[i] < dm.ContainerGroups[idx].Identities[j]
+				})
 
 				// update container list
 				for k := range pod.Containers {
@@ -444,10 +449,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				if pod.Annotations["kubearmor-policy"] != "patched" {
 					dm.LogFeeder.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
-				}
 
-				// update a container group corresponding to the pod
-				dm.UpdateContainerGroupWithPod(event.Type, pod)
+					// update a container group corresponding to the pod
+					dm.UpdateContainerGroupWithPod(event.Type, pod)
+				}
 			}
 		} else {
 			time.Sleep(time.Second * 1)
