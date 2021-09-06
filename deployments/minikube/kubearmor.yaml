@@ -80,8 +80,7 @@ spec:
       nodeSelector:
         kubernetes.io/os: linux
       tolerations:
-      - key: node-role.kubernetes.io/master
-        effect: NoSchedule
+      - operator: Exists
       hostPID: true
       hostNetwork: true
       restartPolicy: Always
