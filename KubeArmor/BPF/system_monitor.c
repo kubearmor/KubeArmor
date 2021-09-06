@@ -32,6 +32,7 @@
 // == Structures == //
 
 #define MAX_BUFFER_SIZE   32768
+#define MAX_BUF_ELEM_SIZE 2048
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
 
@@ -395,28 +396,35 @@ static __always_inline u32* get_buffer_offset()
     return bufs_offset.lookup(&idx);
 }
 
-static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
+static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr, u32 *off)
 {
-    if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0) {
+    if (off == NULL)
+        return -1;
+
+    if (*off > MAX_BUFFER_SIZE - MAX_BUF_ELEM_SIZE) {
+        return 0; // not enough space - return
+    } 
+
+    if (bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), sizeof(sys_context_t), ptr) == 0) {
+        *off += sizeof(sys_context_t);
         return sizeof(sys_context_t);
     }
 
     return 0;
 }
 
-static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
+static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr, u32 *off)
 {
-    u32 *off = get_buffer_offset();
     if (off == NULL) {
         return -1;
     }
 
-    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
+    if (*off > (MAX_BUFFER_SIZE>>1) - MAX_STRING_SIZE - sizeof(int)) {
         return 0; // not enough space - return
     }
 
     u8 type = STR_T;
-    bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE-1)]), 1, &type);
+    bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1)-1)]), 1, &type);
 
     *off += 1;
 
@@ -424,24 +432,22 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
         return 0;
     }
 
-    int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
+    int sz = bpf_probe_read_str(&(bufs_p->buf[(*off + sizeof(int)) & ((MAX_BUFFER_SIZE>>1)-1)]), MAX_STRING_SIZE, ptr);
     if (sz > 0) {
         if (*off > MAX_BUFFER_SIZE - sizeof(int)) {
             return 0;
         }
 
-        bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
+        bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), sizeof(int), &sz);
 
         *off += sz + sizeof(int);
-        set_buffer_offset(*off);
-
         return sz + sizeof(int);
     }
 
     return 0;
 }
 
-static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
+static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type, u32 *off)
 {
     // the biggest element that can be saved with this function should be defined here
     #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
@@ -450,67 +456,72 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    u32 *off = get_buffer_offset();
     if (off == NULL) {
         return -1;
     }
 
-    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
+    if (*off > (MAX_BUFFER_SIZE>>1) - MAX_ELEMENT_SIZE) {
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), 1, &type) != 0) {
         return 0;
     }
 
     *off += 1;
 
-    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
+    if (*off > (MAX_BUFFER_SIZE>>1) - MAX_ELEMENT_SIZE) {
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off & ((MAX_BUFFER_SIZE>>1) - 1)]), size, ptr) == 0) {
         *off += size;
-        set_buffer_offset(*off);
         return size;
     }
 
     return 0;
 }
 
-static __always_inline int save_argv(bufs_t *bufs_p, void *ptr)
+static __always_inline int save_argv(bufs_t *bufs_p, void *ptr, u32 *off)
 {
     const char *argp = NULL;
     bpf_probe_read(&argp, sizeof(argp), ptr);
 
+    if (off == NULL)
+        return -1;
+
     if (argp) {
-        return save_str_to_buffer(bufs_p, (void *)(argp));
+        return save_str_to_buffer(bufs_p, (void *)(argp), off);
     }
 
     return 0;
 }
 
-static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr)
+static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr, u32 *off)
 {
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T, off);
+
+    if (off == NULL)
+        return -1;
+    
 
     #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        if (save_argv(bufs_p, (void *)&ptr[i]) == 0) {
+        if (save_argv(bufs_p, (void *)&ptr[i], off) == 0) {
              goto out;
         }
     }
 
     char ellipsis[] = "...";
-    save_str_to_buffer(bufs_p, (void *)ellipsis);
+    save_str_to_buffer(bufs_p, (void *)ellipsis, off);
 
 out:
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T, off);
 
     return 0;
 }
 
-static __always_inline int save_args_to_buffer(u64 types, args_t *args)
+static __always_inline int save_args_to_buffer(u64 types, args_t *args, u32 *off)
 {
     if (types == 0) {
         return 0;
@@ -521,25 +532,28 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         return 0;
     }
 
+    if (off == NULL)
+        return -1;
+
     #pragma unroll
     for (int i = 0; i < MAX_ARGS; i++) {
         switch (DEC_ARG_TYPE(i, types)) {
         case NONE_T:
             break;
         case INT_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), INT_T);
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), INT_T, off);
             break;
         case OPEN_FLAGS_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T, off);
             break;
         case STR_T:
-            save_str_to_buffer(bufs_p, (void *)args->args[i]);
+            save_str_to_buffer(bufs_p, (void *)args->args[i], off);
             break;
         case SOCK_DOM_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T);
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T, off);
             break;
         case SOCK_TYPE_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T, off);
             break;
         case SOCKADDR_T:
             if (args->args[i]) {
@@ -547,16 +561,16 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
                 bpf_probe_read(&family, sizeof(short), (void*)args->args[i]);
                 switch (family) {
                 case AF_UNIX:
-                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T, off);
                     break;
                 case AF_INET:
-                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T, off);
                     break;
                 case AF_INET6:
-                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T, off);
                     break;
                 default:
-                    save_to_buffer(bufs_p, (void*)&family, sizeof(short), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void*)&family, sizeof(short), SOCKADDR_T, off);
                 }
             }
             break;
@@ -566,20 +580,22 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
-static __always_inline int events_perf_submit(struct pt_regs *ctx)
+static __always_inline int events_perf_submit(struct pt_regs *ctx, u32 *base_off, u32 *off)
 {
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return -1;
 
-    u32 *off = get_buffer_offset();
+    if (base_off == NULL)
+        return -1;
+
     if (off == NULL)
         return -1;
 
-    void *data = bufs_p->buf;
-    int size = *off & (MAX_BUFFER_SIZE-1);
+    void *data = &bufs_p->buf[(*base_off & ((MAX_BUFFER_SIZE>>2) - 1))];
+    u32 size = (*off & (MAX_BUFFER_SIZE - 1)) - (*base_off & ((MAX_BUFFER_SIZE>>2) - 1));
 
-    return sys_events.perf_submit(ctx, data, size);
+    return sys_events.perf_submit(ctx, data, size & (MAX_BUF_ELEM_SIZE - 1));
 }
 
 // == Syscall Hooks (Process) == //
@@ -600,18 +616,37 @@ int syscall__execve(struct pt_regs *ctx,
     context.argnum = 2;
     context.retval = 0;
 
-    set_buffer_offset(sizeof(sys_context_t));
+    u32 *off_global = get_buffer_offset();
+    if (off_global == NULL) {
+        return -1;
+    }
 
+    u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
+    if (base_off >= (MAX_BUFFER_SIZE>>2)) {
+        set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
+        base_off = 0;
+        off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
+    }
+    
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    save_str_to_buffer(bufs_p, (void *)filename);
-    save_str_arr_to_buffer(bufs_p, __argv);
+    save_str_to_buffer(bufs_p, (void *)filename, &off);
+    save_str_arr_to_buffer(bufs_p, __argv, &off);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, &base_off, &off);
 
     return 0;
 }
@@ -634,15 +669,34 @@ int trace_ret_execve(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    u32 *off_global = get_buffer_offset();
+    if (off_global == NULL) {
+        return -1;
+    }
+
+    u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
+    if (base_off >= (MAX_BUFFER_SIZE>>2)) {
+        set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
+        base_off = 0;
+        off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
+    }
 
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, &base_off, &off);
 
     return 0;
 }
@@ -665,20 +719,39 @@ int syscall__execveat(struct pt_regs *ctx,
     context.argnum = 4;
     context.retval = 0;
 
-    set_buffer_offset(sizeof(sys_context_t));
+    u32 *off_global = get_buffer_offset();
+    if (off_global == NULL) {
+        return -1;
+    }
+
+    u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
+    if (base_off >= (MAX_BUFFER_SIZE>>2)) {
+        set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
+        base_off = 0;
+        off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
+    }
 
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    save_to_buffer(bufs_p, (void*)&dirfd, sizeof(int), INT_T);
-    save_str_to_buffer(bufs_p, (void *)pathname);
-    save_str_arr_to_buffer(bufs_p, __argv);
-    save_to_buffer(bufs_p, (void*)&flags, sizeof(int), EXEC_FLAGS_T);
+    save_to_buffer(bufs_p, (void*)&dirfd, sizeof(int), INT_T, &off);
+    save_str_to_buffer(bufs_p, (void *)pathname, &off);
+    save_str_arr_to_buffer(bufs_p, __argv, &off);
+    save_to_buffer(bufs_p, (void*)&flags, sizeof(int), EXEC_FLAGS_T, &off);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, &base_off, &off);
 
     return 0;
 }
@@ -701,15 +774,33 @@ int trace_ret_execveat(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    u32 *off_global = get_buffer_offset();
+    if (off_global == NULL) {
+        return -1;
+    }
+
+    u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
+    if (base_off >= (MAX_BUFFER_SIZE>>2)) {
+        set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
+        base_off = 0;
+        off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
+    }
 
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
+    save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    save_context_to_buffer(bufs_p, (void*)&context);
-
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, &base_off, &off);
 
     return 0;
 }
@@ -729,15 +820,34 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     remove_pid_ns();
 
-    set_buffer_offset(sizeof(sys_context_t));
+    u32 *off_global = get_buffer_offset();
+    if (off_global == NULL) {
+        return -1;
+    }
+
+    u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
+    if (base_off >= (MAX_BUFFER_SIZE>>2)) {
+        set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
+        base_off = 0;
+        off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
+    }
 
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void*)&context, &off);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, &base_off, &off);
 
     return 0;
 }
@@ -830,16 +940,36 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+
+    u32 *off_global = get_buffer_offset();
+    if (off_global == NULL) {
+        return -1;
+    }
+
+    u32 base_off = (*off_global) & ((MAX_BUFFER_SIZE) - 1);
+    *off_global += MAX_BUF_ELEM_SIZE;
+    set_buffer_offset(*off_global);
+    u32 off = base_off;
+
+    if (base_off >= (MAX_BUFFER_SIZE>>2)) {
+        set_buffer_offset(0);
+        if (bpf_get_prandom_u32() % 2) {
+            return 0;
+        }
+        base_off = 0;
+        off = base_off;
+        *off_global += MAX_BUF_ELEM_SIZE;
+        set_buffer_offset(*off_global);
+    }
 
     bufs_t *bufs_p = get_buffer();
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
-    save_args_to_buffer(types, &args);
+    save_context_to_buffer(bufs_p, (void*)&context, &off);
+    save_args_to_buffer(types, &args, &off);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, &base_off, &off);
 
     return 0;
 }
