@@ -7,17 +7,16 @@ elsif ENV['NETNEXT'] == "2" then
   VM_IMG = "ubuntu/focal64"
   VM_NAME = "kubearmor-dev-next-2"
 else
-	VM_IMG = "ubuntu/bionic64"
-	VM_NAME = "kubearmor-dev"
+  VM_IMG = "ubuntu/bionic64"
+  VM_NAME = "kubearmor-dev"
 end
 
 system("
     if [ #{ARGV[0]} = 'up' ]; then
-		if [ ! -f ~/.ssh/id_rsa ]
-		then
-			echo '~/.ssh/id_rsa keys does not exist.'
-			ssh-keygen -t rsa -f ~/.ssh/id_rsa 
-		fi
+      if [ ! -f ~/.ssh/id_rsa ]; then
+        echo '~/.ssh/id_rsa keys does not exist.'
+        ssh-keygen -t rsa -f ~/.ssh/id_rsa
+      fi
     fi
 ")
 
@@ -47,7 +46,9 @@ Vagrant.configure("2") do |config|
   config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
 
   # forward port for debug
-  config.vm.network "forwarded_port", guest: 2345, host: ENV['DLV_RPORT']
+  if ENV['DLV_RPORT'] then
+    config.vm.network "forwarded_port", guest: 2345, host: ENV['DLV_RPORT'], auto_correct: true
+  end
 
   # sync directories
   kubearmor_home = "../.."
