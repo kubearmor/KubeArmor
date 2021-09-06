@@ -140,7 +140,7 @@ function should_not_find_any_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -150,7 +150,7 @@ function should_not_find_any_log() {
             DBG "Found no log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -171,7 +171,7 @@ function should_find_passed_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -181,7 +181,7 @@ function should_find_passed_log() {
             DBG "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" $ARMOR_LOG | grep Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -201,8 +201,13 @@ function should_find_blocked_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
+    match_type="MatchedPolicy"
+    if [[ $5 -eq 1 ]]; then
+        match_type="MatchedNativePolicy" 
+    fi
+
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -212,7 +217,7 @@ function should_find_blocked_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -233,7 +238,7 @@ function should_not_find_any_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -243,7 +248,7 @@ function should_not_find_any_host_log() {
             DBG "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" | grep -v Passed)
+        audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -338,7 +343,7 @@ function run_test_scenario() {
             skipped_testcases+=("$3")
             return
         fi
-    elif [[ $policy_type == "nap" ]]; then
+    elif [[ $policy_type == "nsp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
             WARN "Skipped $3"
