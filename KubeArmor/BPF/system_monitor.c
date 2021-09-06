@@ -34,7 +34,7 @@
 // == Structures == //
 
 #define MAX_BUFFER_SIZE   32768
-#define MAX_BUF_ELEM_SIZE 256
+#define MAX_BUF_ELEM_SIZE 2048
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
 
