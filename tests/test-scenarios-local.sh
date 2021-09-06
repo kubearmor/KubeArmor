@@ -193,7 +193,7 @@ function should_not_find_any_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -209,7 +209,7 @@ function should_find_passed_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -230,7 +230,7 @@ function should_find_blocked_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*Policy.*$2.*$3.*$4" | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -246,7 +246,7 @@ function should_not_find_any_host_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*Policy.*$1.*$2.*$3" | grep -v Passed)
+    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -310,7 +310,7 @@ function run_test_scenario() {
             skipped_testcases+=("$3")
             return
         fi
-    elif [[ $policy_type == "nap" ]]; then
+    elif [[ $policy_type == "nsp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
         if [ $APPARMOR == 0 ]; then
             WARN "Skipped $3"
@@ -738,14 +738,9 @@ echo >> $TEST_LOG
 
 ## == KubeArmor == ##
 
-res_kubearmor=0
-
 INFO "Stopping KubeArmor"
 stop_and_wait_for_kubearmor_termination
-
-if [ $res_kubearmor == 0 ]; then
-    DBG "Stopped KubeArmor"
-fi
+DBG "Stopped KubeArmor"
 
 if [[ $res_microservice -eq 1 ]] || [[ $res_host -eq 1 ]]; then
     FAIL "Failed to test KubeArmor"

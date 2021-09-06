@@ -234,6 +234,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					}
 				}
 
+				sort.Slice(dm.EndPoints[idx].Identities, func(i, j int) bool {
+					return dm.EndPoints[idx].Identities[i] < dm.EndPoints[idx].Identities[j]
+				})
+
 				// update container list
 				for k := range pod.Containers {
 					if !kl.ContainsElement(dm.EndPoints[idx].Containers, k) {
@@ -616,10 +620,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				if pod.Annotations["kubearmor-policy"] != "patched" {
 					dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
-				}
 
-				// update a endpoint corresponding to the pod
-				dm.UpdateEndPointWithPod(event.Type, pod)
+					// update a endpoint corresponding to the pod
+					dm.UpdateEndPointWithPod(event.Type, pod)
+				}
 			}
 		} else {
 			time.Sleep(time.Second * 1)
