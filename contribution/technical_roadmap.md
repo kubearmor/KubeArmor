@@ -129,3 +129,6 @@
       ```text
       Integration with network security solutions (e.g., Cilium)
       ```
+      
+    * Advanced in-kernel event auditing system
+      Current event auditing systems such as Falco/Tracee provide event-auditing on an individual event basis. They take into account the event context such as process-context, task context etc. With [KubeArmor's event auditing system](https://docs.google.com/document/d/17ozYdpimFV6Mag2rtIvITI8lVRL_kBp7bCwhSlu2hvM/edit?usp=sharing) we intend to take this to the next level. KubeArmor's in-kernel event auditing system will allow one to specify rules based on rate-limiting of events, correlation of multiple system events. As an example, consider that the security team is interested only if the number of system call connects happen at more than 10 events per second. Or consider if there are connects happening in parallel with file-read operations where the file is in critical/sensitive path. With KubeArmor's event auditor system, a security team can pinpoint the rule to a greater granularity and thus avoid false positives to a greater extent.
