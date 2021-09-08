@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package eventauditor
 
@@ -16,8 +16,8 @@ type EventAuditor struct {
 	// logs
 	Logger *fd.Feeder
 
-	// map
-	SharedMapMan *SharedMapManager
+	// bpf
+	BPFManager *KABPFManager
 
 	// entrypoints list
 }
@@ -28,12 +28,17 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 	ea.Logger = feeder
 
-	// initialize process maps and functions
-	ea.SharedMapMan = NewSharedMapManager()
-	ea.SharedMapMan.SetBPFObjPath(BPFObjRelPath)
+	// initialize ebpf manager
+	ea.BPFManager = NewKABPFManager()
+	ea.BPFManager.SetObjsMapsPath("./BPF/objs")
+	ea.BPFManager.SetObjsProgsPath("./BPF/objs")
 
-	if !ea.InitializeProcessMaps(ea.SharedMapMan) {
-		ea.Logger.Err("Failed to initialize process maps")
+	if err := ea.InitializeProcessMaps(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to initialize process maps: %v", err)
+	}
+
+	if err := ea.InitializeProcessPrograms(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to initialize process programs: %v", err)
 	}
 
 	// initialize entrypoints
@@ -46,19 +51,27 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 // DestroyEventAuditor Function
 func (ea *EventAuditor) DestroyEventAuditor() error {
+	var err error
+
 	// destroy deployed entrypoints
-	if !ea.DestoryEntryPoints() {
+	if !ea.DestroyEntryPoints() {
 		ea.Logger.Err("Failed to destroy entrypoints")
 	}
 
-	// destroy process maps
-	if !ea.DestroyProcessMaps(ea.SharedMapMan) {
-		ea.Logger.Err("Failed to destroy process maps")
+	// destroy process programs
+	if err = ea.DestroyProcessPrograms(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to destroy process programs: %v", err)
 	}
 
-	ea.SharedMapMan = nil
+	// destroy process maps
+	if err = ea.DestroyProcessMaps(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to destroy process maps: %v", err)
+	}
 
-	return nil
+	ea.BPFManager = nil
+	ea.Logger = nil
+
+	return err
 }
 
 // ============================= //
