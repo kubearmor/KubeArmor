@@ -17,6 +17,7 @@ replace (
 )
 
 require (
+	github.com/aquasecurity/libbpfgo v0.2.1-libbpf-0.4.0.0.20210903211524-20c69197ee3b // indirect
 	github.com/containerd/containerd v1.5.2
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.7+incompatible
@@ -26,13 +27,13 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iovisor/gobpf v0.2.0
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-00010101000000-000000000000
-	github.com/kubearmor/libbpf v0.0.0-20210830180409-c6972c07673c
+	github.com/kubearmor/libbpf v0.0.0-20210908162656-c8983a271524
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	go.uber.org/zap v1.18.1
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
-	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
+	golang.org/x/sys v0.0.0-20210908160347-a851e7ddeee0
 	golang.org/x/text v0.3.5 // indirect
 	google.golang.org/genproto v0.0.0-20210108203827-ffc7fda8c3d7 // indirect
 	google.golang.org/grpc v1.34.0
