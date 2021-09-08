@@ -319,7 +319,7 @@ func (dm *KubeArmorDaemon) InitEventAuditor() bool {
 // CloseEventAuditor Function
 func (dm *KubeArmorDaemon) CloseEventAuditor() bool {
 	if err := dm.EventAuditor.DestroyEventAuditor(); err != nil {
-		dm.Logger.Err("Failed to destory the EventAuditor")
+		dm.Logger.Err("Failed to destroy the EventAuditor")
 		return false
 	}
 	return true
