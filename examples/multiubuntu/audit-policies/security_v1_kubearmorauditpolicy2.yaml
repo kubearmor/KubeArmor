@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample-1
+  namespace: default
+spec:
+  # global messsage, severity and tags
+  message: "simple audit rules"
+  severity: "3"
+
+  rules:
+    - message: "suspicious shell activity"
+      severity: "4"
+      events:
+        - probe: sys_open
+          ipv4addr: 10.*.*.8
+          rate: 100p1s
+
+    - process: "*"
+      events:
+        - probe: sys_execve
+

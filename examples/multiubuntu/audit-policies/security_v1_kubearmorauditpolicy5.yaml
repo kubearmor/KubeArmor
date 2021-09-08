@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample-5
+  namespace: default
+spec:
+  # global messsage, severity and tags
+  message: "Audit rule for sample policy 5"
+  severity: "2"
+  tags:
+    - file
+
+  rules:
+    - process: SHELLS
+      severity: "4"
+      events:
+        - probe: sys_read
+          path: /bin/ls
+          mode: O_RDWR
+          rate: 10p1s
+
+    - events:
+        - probe: sys_execve
+          path: /etc/udev
+          rate: 20p1s

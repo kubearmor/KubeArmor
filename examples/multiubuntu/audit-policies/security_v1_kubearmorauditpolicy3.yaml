@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample-3
+  namespace: default
+spec:
+  # global messsage, severity and tags
+  message: "simple audit rules"
+  severity: "4"
+  tags:
+    - process
+
+  rules:
+    - process: "*"
+      message: "Not able to execute /bin"
+      events:
+        - probe: sys_execve
+          path: /bin/*
+          rate: 5p1s
