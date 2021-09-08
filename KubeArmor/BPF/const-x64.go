@@ -1,11 +1,5 @@
-// x86 64bit syscall numbers
-// Also used as event IDs
-// https://github.com/torvalds/linux/blob/master/arch/x86/entry/syscalls/syscall_64.tbl
+package evenAuditor
 
-// Define the syscall used with respect to x64 arch
-// +build amd64
-
-package main
 const sys_open="__x64_sys_open"
 const sys_openat="__x64_sys_openat"
 const sys_execve="__x64_sys_execve"

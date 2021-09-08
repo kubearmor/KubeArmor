@@ -3,7 +3,7 @@ ARCH=$(shell uname -m)
 TARGET := entrypoint
 TARGET_BPF := $(TARGET).bpf.o
 
-BPF_DIR := ./BPF
+BPF_DIR := ../BPF
 
 GO_SRC := *.go
 BPF_SRC := $(wildcard $(BPF_DIR)/*.bpf.c)

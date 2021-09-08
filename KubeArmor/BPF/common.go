@@ -1,6 +1,6 @@
 // +build amd64
 
-package main
+package eventauditor
 
 type hookType uint8
 
