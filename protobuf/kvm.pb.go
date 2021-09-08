@@ -24,7 +24,46 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-type ResponseStatus struct {
+type AgentIdentity struct {
+	Identity             string   `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AgentIdentity) Reset()         { *m = AgentIdentity{} }
+func (m *AgentIdentity) String() string { return proto.CompactTextString(m) }
+func (*AgentIdentity) ProtoMessage()    {}
+func (*AgentIdentity) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5863643a03e0ce6f, []int{0}
+}
+
+func (m *AgentIdentity) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AgentIdentity.Unmarshal(m, b)
+}
+func (m *AgentIdentity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AgentIdentity.Marshal(b, m, deterministic)
+}
+func (m *AgentIdentity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AgentIdentity.Merge(m, src)
+}
+func (m *AgentIdentity) XXX_Size() int {
+	return xxx_messageInfo_AgentIdentity.Size(m)
+}
+func (m *AgentIdentity) XXX_DiscardUnknown() {
+	xxx_messageInfo_AgentIdentity.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AgentIdentity proto.InternalMessageInfo
+
+func (m *AgentIdentity) GetIdentity() string {
+	if m != nil {
+		return m.Identity
+	}
+	return ""
+}
+
+type Status struct {
 	Status               int32    `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
 	ErrorMessage         string   `protobuf:"bytes,2,opt,name=errorMessage,proto3" json:"errorMessage,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -32,280 +71,118 @@ type ResponseStatus struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ResponseStatus) Reset()         { *m = ResponseStatus{} }
-func (m *ResponseStatus) String() string { return proto.CompactTextString(m) }
-func (*ResponseStatus) ProtoMessage()    {}
-func (*ResponseStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5863643a03e0ce6f, []int{0}
+func (m *Status) Reset()         { *m = Status{} }
+func (m *Status) String() string { return proto.CompactTextString(m) }
+func (*Status) ProtoMessage()    {}
+func (*Status) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5863643a03e0ce6f, []int{1}
 }
 
-func (m *ResponseStatus) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ResponseStatus.Unmarshal(m, b)
+func (m *Status) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Status.Unmarshal(m, b)
 }
-func (m *ResponseStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ResponseStatus.Marshal(b, m, deterministic)
+func (m *Status) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Status.Marshal(b, m, deterministic)
 }
-func (m *ResponseStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResponseStatus.Merge(m, src)
+func (m *Status) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Status.Merge(m, src)
 }
-func (m *ResponseStatus) XXX_Size() int {
-	return xxx_messageInfo_ResponseStatus.Size(m)
+func (m *Status) XXX_Size() int {
+	return xxx_messageInfo_Status.Size(m)
 }
-func (m *ResponseStatus) XXX_DiscardUnknown() {
-	xxx_messageInfo_ResponseStatus.DiscardUnknown(m)
+func (m *Status) XXX_DiscardUnknown() {
+	xxx_messageInfo_Status.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ResponseStatus proto.InternalMessageInfo
+var xxx_messageInfo_Status proto.InternalMessageInfo
 
-func (m *ResponseStatus) GetStatus() int32 {
+func (m *Status) GetStatus() int32 {
 	if m != nil {
 		return m.Status
 	}
 	return 0
 }
 
-func (m *ResponseStatus) GetErrorMessage() string {
+func (m *Status) GetErrorMessage() string {
 	if m != nil {
 		return m.ErrorMessage
 	}
 	return ""
 }
 
-type RequestPolicyFile struct {
-	AgentIdentity        string   `protobuf:"bytes,1,opt,name=agentIdentity,proto3" json:"agentIdentity,omitempty"`
-	PolicyLabel          string   `protobuf:"bytes,2,opt,name=policyLabel,proto3" json:"policyLabel,omitempty"`
-	PolicyFileName       string   `protobuf:"bytes,3,opt,name=policyFileName,proto3" json:"policyFileName,omitempty"`
-	PolicyFile           []byte   `protobuf:"bytes,4,opt,name=policyFile,proto3" json:"policyFile,omitempty"`
+type PolicyData struct {
+	PolicyName           string   `protobuf:"bytes,1,opt,name=policyName,proto3" json:"policyName,omitempty"`
+	PolicyData           []byte   `protobuf:"bytes,2,opt,name=policyData,proto3" json:"policyData,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RequestPolicyFile) Reset()         { *m = RequestPolicyFile{} }
-func (m *RequestPolicyFile) String() string { return proto.CompactTextString(m) }
-func (*RequestPolicyFile) ProtoMessage()    {}
-func (*RequestPolicyFile) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5863643a03e0ce6f, []int{1}
+func (m *PolicyData) Reset()         { *m = PolicyData{} }
+func (m *PolicyData) String() string { return proto.CompactTextString(m) }
+func (*PolicyData) ProtoMessage()    {}
+func (*PolicyData) Descriptor() ([]byte, []int) {
+	return fileDescriptor_5863643a03e0ce6f, []int{2}
 }
 
-func (m *RequestPolicyFile) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RequestPolicyFile.Unmarshal(m, b)
+func (m *PolicyData) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PolicyData.Unmarshal(m, b)
 }
-func (m *RequestPolicyFile) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RequestPolicyFile.Marshal(b, m, deterministic)
+func (m *PolicyData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PolicyData.Marshal(b, m, deterministic)
 }
-func (m *RequestPolicyFile) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RequestPolicyFile.Merge(m, src)
+func (m *PolicyData) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolicyData.Merge(m, src)
 }
-func (m *RequestPolicyFile) XXX_Size() int {
-	return xxx_messageInfo_RequestPolicyFile.Size(m)
+func (m *PolicyData) XXX_Size() int {
+	return xxx_messageInfo_PolicyData.Size(m)
 }
-func (m *RequestPolicyFile) XXX_DiscardUnknown() {
-	xxx_messageInfo_RequestPolicyFile.DiscardUnknown(m)
+func (m *PolicyData) XXX_DiscardUnknown() {
+	xxx_messageInfo_PolicyData.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_RequestPolicyFile proto.InternalMessageInfo
+var xxx_messageInfo_PolicyData proto.InternalMessageInfo
 
-func (m *RequestPolicyFile) GetAgentIdentity() string {
+func (m *PolicyData) GetPolicyName() string {
 	if m != nil {
-		return m.AgentIdentity
+		return m.PolicyName
 	}
 	return ""
 }
 
-func (m *RequestPolicyFile) GetPolicyLabel() string {
+func (m *PolicyData) GetPolicyData() []byte {
 	if m != nil {
-		return m.PolicyLabel
-	}
-	return ""
-}
-
-func (m *RequestPolicyFile) GetPolicyFileName() string {
-	if m != nil {
-		return m.PolicyFileName
-	}
-	return ""
-}
-
-func (m *RequestPolicyFile) GetPolicyFile() []byte {
-	if m != nil {
-		return m.PolicyFile
+		return m.PolicyData
 	}
 	return nil
 }
 
-type AgentIdentityInfo struct {
-	AgentIdentity        string   `protobuf:"bytes,1,opt,name=agentIdentity,proto3" json:"agentIdentity,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *AgentIdentityInfo) Reset()         { *m = AgentIdentityInfo{} }
-func (m *AgentIdentityInfo) String() string { return proto.CompactTextString(m) }
-func (*AgentIdentityInfo) ProtoMessage()    {}
-func (*AgentIdentityInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5863643a03e0ce6f, []int{2}
-}
-
-func (m *AgentIdentityInfo) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_AgentIdentityInfo.Unmarshal(m, b)
-}
-func (m *AgentIdentityInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_AgentIdentityInfo.Marshal(b, m, deterministic)
-}
-func (m *AgentIdentityInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AgentIdentityInfo.Merge(m, src)
-}
-func (m *AgentIdentityInfo) XXX_Size() int {
-	return xxx_messageInfo_AgentIdentityInfo.Size(m)
-}
-func (m *AgentIdentityInfo) XXX_DiscardUnknown() {
-	xxx_messageInfo_AgentIdentityInfo.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_AgentIdentityInfo proto.InternalMessageInfo
-
-func (m *AgentIdentityInfo) GetAgentIdentity() string {
-	if m != nil {
-		return m.AgentIdentity
-	}
-	return ""
-}
-
-type GRPCIPAndPort struct {
-	IP                   string   `protobuf:"bytes,1,opt,name=IP,proto3" json:"IP,omitempty"`
-	Port                 string   `protobuf:"bytes,2,opt,name=port,proto3" json:"port,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GRPCIPAndPort) Reset()         { *m = GRPCIPAndPort{} }
-func (m *GRPCIPAndPort) String() string { return proto.CompactTextString(m) }
-func (*GRPCIPAndPort) ProtoMessage()    {}
-func (*GRPCIPAndPort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5863643a03e0ce6f, []int{3}
-}
-
-func (m *GRPCIPAndPort) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GRPCIPAndPort.Unmarshal(m, b)
-}
-func (m *GRPCIPAndPort) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GRPCIPAndPort.Marshal(b, m, deterministic)
-}
-func (m *GRPCIPAndPort) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GRPCIPAndPort.Merge(m, src)
-}
-func (m *GRPCIPAndPort) XXX_Size() int {
-	return xxx_messageInfo_GRPCIPAndPort.Size(m)
-}
-func (m *GRPCIPAndPort) XXX_DiscardUnknown() {
-	xxx_messageInfo_GRPCIPAndPort.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GRPCIPAndPort proto.InternalMessageInfo
-
-func (m *GRPCIPAndPort) GetIP() string {
-	if m != nil {
-		return m.IP
-	}
-	return ""
-}
-
-func (m *GRPCIPAndPort) GetPort() string {
-	if m != nil {
-		return m.Port
-	}
-	return ""
-}
-
-type ConnectionStatus struct {
-	AgentIdentity        string   `protobuf:"bytes,1,opt,name=agentIdentity,proto3" json:"agentIdentity,omitempty"`
-	ConnectionStatus     bool     `protobuf:"varint,2,opt,name=connectionStatus,proto3" json:"connectionStatus,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ConnectionStatus) Reset()         { *m = ConnectionStatus{} }
-func (m *ConnectionStatus) String() string { return proto.CompactTextString(m) }
-func (*ConnectionStatus) ProtoMessage()    {}
-func (*ConnectionStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_5863643a03e0ce6f, []int{4}
-}
-
-func (m *ConnectionStatus) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ConnectionStatus.Unmarshal(m, b)
-}
-func (m *ConnectionStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ConnectionStatus.Marshal(b, m, deterministic)
-}
-func (m *ConnectionStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ConnectionStatus.Merge(m, src)
-}
-func (m *ConnectionStatus) XXX_Size() int {
-	return xxx_messageInfo_ConnectionStatus.Size(m)
-}
-func (m *ConnectionStatus) XXX_DiscardUnknown() {
-	xxx_messageInfo_ConnectionStatus.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ConnectionStatus proto.InternalMessageInfo
-
-func (m *ConnectionStatus) GetAgentIdentity() string {
-	if m != nil {
-		return m.AgentIdentity
-	}
-	return ""
-}
-
-func (m *ConnectionStatus) GetConnectionStatus() bool {
-	if m != nil {
-		return m.ConnectionStatus
-	}
-	return false
-}
-
 func init() {
-	proto.RegisterType((*ResponseStatus)(nil), "kvm.ResponseStatus")
-	proto.RegisterType((*RequestPolicyFile)(nil), "kvm.RequestPolicyFile")
-	proto.RegisterType((*AgentIdentityInfo)(nil), "kvm.agentIdentityInfo")
-	proto.RegisterType((*GRPCIPAndPort)(nil), "kvm.gRPCIPAndPort")
-	proto.RegisterType((*ConnectionStatus)(nil), "kvm.connectionStatus")
+	proto.RegisterType((*AgentIdentity)(nil), "kvm.agentIdentity")
+	proto.RegisterType((*Status)(nil), "kvm.status")
+	proto.RegisterType((*PolicyData)(nil), "kvm.policyData")
 }
 
 func init() { proto.RegisterFile("kvm.proto", fileDescriptor_5863643a03e0ce6f) }
 
 var fileDescriptor_5863643a03e0ce6f = []byte{
-	// 432 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0xd1, 0x6e, 0xd3, 0x30,
-	0x14, 0x86, 0x95, 0x76, 0x4c, 0xf4, 0xb0, 0x55, 0xd4, 0xd3, 0xa6, 0x08, 0x10, 0x8a, 0x22, 0x04,
-	0x85, 0x8b, 0x4e, 0x62, 0x57, 0xdc, 0x20, 0x65, 0xa0, 0x8e, 0x88, 0x51, 0x45, 0xde, 0xae, 0xb8,
-	0x73, 0x92, 0xb3, 0x10, 0x35, 0xb1, 0x83, 0xed, 0x14, 0xed, 0x79, 0x78, 0x0f, 0x9e, 0x0d, 0xc5,
-	0x49, 0x60, 0x69, 0x52, 0xa9, 0x77, 0x27, 0x9f, 0xce, 0xf9, 0xfd, 0xfb, 0xfc, 0x0e, 0x4c, 0xd6,
-	0x9b, 0x7c, 0x51, 0x48, 0xa1, 0x05, 0x19, 0xaf, 0x37, 0xb9, 0x7b, 0x0d, 0x53, 0x8a, 0xaa, 0x10,
-	0x5c, 0xe1, 0x8d, 0x66, 0xba, 0x54, 0xe4, 0x0c, 0x0e, 0x95, 0xa9, 0x6c, 0xcb, 0xb1, 0xe6, 0x8f,
-	0x68, 0xf3, 0x45, 0x5c, 0x38, 0x42, 0x29, 0x85, 0xfc, 0x86, 0x4a, 0xb1, 0x04, 0xed, 0x91, 0x63,
-	0xcd, 0x27, 0xb4, 0xc3, 0xdc, 0xdf, 0x16, 0xcc, 0x28, 0xfe, 0x2c, 0x51, 0xe9, 0x40, 0x64, 0x69,
-	0x74, 0xbf, 0x4c, 0x33, 0x24, 0xaf, 0xe0, 0x98, 0x25, 0xc8, 0xb5, 0x1f, 0x23, 0xd7, 0xa9, 0xbe,
-	0x37, 0xc2, 0x13, 0xda, 0x85, 0xc4, 0x81, 0x27, 0x85, 0x99, 0xb9, 0x66, 0x21, 0x66, 0x8d, 0xfc,
-	0x43, 0x44, 0x5e, 0xc3, 0xb4, 0xf8, 0xa7, 0xba, 0x62, 0x39, 0xda, 0x63, 0xd3, 0xb4, 0x45, 0xc9,
-	0x4b, 0x80, 0xff, 0xc4, 0x3e, 0x70, 0xac, 0xf9, 0x11, 0x7d, 0x40, 0xdc, 0x0f, 0x30, 0xeb, 0x1c,
-	0xed, 0xf3, 0x3b, 0xb1, 0x9f, 0x49, 0xf7, 0x02, 0x8e, 0x13, 0x1a, 0x7c, 0xf2, 0x03, 0x8f, 0xc7,
-	0x81, 0x90, 0x9a, 0x4c, 0x61, 0xe4, 0x07, 0x4d, 0xef, 0xc8, 0x0f, 0x08, 0x81, 0x83, 0x42, 0x48,
-	0xdd, 0xd8, 0x37, 0xb5, 0x1b, 0xc3, 0xd3, 0x48, 0x70, 0x8e, 0x91, 0x4e, 0x05, 0x6f, 0xb6, 0xbc,
-	0xdf, 0x4e, 0xde, 0xf5, 0x27, 0x8d, 0xf2, 0x63, 0xda, 0xe3, 0xef, 0xff, 0x8c, 0x61, 0xb6, 0xc2,
-	0x5f, 0x37, 0x28, 0x37, 0x69, 0x84, 0x5f, 0x18, 0x8f, 0x33, 0x94, 0xe4, 0x33, 0x9c, 0x2a, 0xac,
-	0xbc, 0xb6, 0xb7, 0xbf, 0x15, 0x5e, 0x75, 0x04, 0x39, 0x5b, 0x54, 0x2f, 0xa1, 0x17, 0xd6, 0xb3,
-	0x93, 0x86, 0x77, 0xde, 0xc4, 0x0a, 0x5e, 0xc8, 0xed, 0xce, 0xa5, 0x14, 0x79, 0x73, 0xd8, 0x4e,
-	0xb1, 0x1d, 0x9c, 0x5c, 0xc2, 0x49, 0x59, 0xc4, 0x4c, 0xa3, 0xd7, 0xb9, 0x6e, 0xdd, 0xde, 0xcb,
-	0x66, 0xd8, 0xd3, 0x15, 0x3c, 0x97, 0x58, 0xed, 0xb7, 0xd6, 0xad, 0xe9, 0xad, 0x68, 0x2d, 0x0d,
-	0xcd, 0x0c, 0x0b, 0x7d, 0x6c, 0xcd, 0x5c, 0x55, 0xc9, 0x16, 0x6d, 0xb2, 0xc4, 0xf4, 0x76, 0xd2,
-	0x1e, 0x9e, 0x5f, 0x82, 0x5d, 0xcf, 0x53, 0xec, 0xc5, 0x7c, 0x6a, 0x06, 0xb6, 0xf1, 0xa0, 0xce,
-	0xe5, 0xdb, 0xef, 0x6f, 0x92, 0x54, 0xff, 0x28, 0xc3, 0x45, 0x24, 0xf2, 0xf3, 0x75, 0x19, 0x22,
-	0x93, 0xb9, 0x90, 0xe7, 0x5f, 0xcb, 0x10, 0x3d, 0x53, 0x99, 0xff, 0x36, 0x2c, 0xef, 0xc2, 0x43,
-	0x53, 0x5d, 0xfc, 0x0d, 0x00, 0x00, 0xff, 0xff, 0xcc, 0xdd, 0x00, 0x93, 0xce, 0x03, 0x00, 0x00,
+	// 247 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x90, 0x41, 0x4b, 0xc3, 0x40,
+	0x10, 0x85, 0x89, 0xc5, 0x62, 0xc7, 0x8a, 0xb0, 0xa0, 0x94, 0x1e, 0x44, 0x72, 0x0a, 0x0a, 0x89,
+	0xe8, 0xc5, 0xab, 0xd2, 0x8b, 0xd4, 0x88, 0x44, 0xe8, 0xc1, 0xdb, 0x26, 0x1d, 0xe3, 0x12, 0x37,
+	0x5b, 0x66, 0x27, 0x81, 0xfe, 0x7b, 0xe9, 0x90, 0xb4, 0xcd, 0xed, 0xcd, 0x37, 0x8f, 0xb7, 0xfb,
+	0x06, 0x26, 0x55, 0x6b, 0xe3, 0x0d, 0x39, 0x76, 0x6a, 0x54, 0xb5, 0x36, 0xbc, 0x87, 0x0b, 0x5d,
+	0x62, 0xcd, 0x6f, 0x6b, 0xac, 0xd9, 0xf0, 0x56, 0xcd, 0xe1, 0xcc, 0x74, 0x7a, 0x16, 0xdc, 0x06,
+	0xd1, 0x24, 0xdb, 0xcf, 0xe1, 0x02, 0xc6, 0x9e, 0x35, 0x37, 0x5e, 0x5d, 0xf7, 0x4a, 0x3c, 0xa7,
+	0x59, 0xcf, 0x43, 0x98, 0x22, 0x91, 0xa3, 0x14, 0xbd, 0xd7, 0x25, 0xce, 0x4e, 0x24, 0x61, 0xc0,
+	0xc2, 0x77, 0x80, 0x8d, 0xfb, 0x33, 0xc5, 0x76, 0xa1, 0x59, 0xab, 0x9b, 0x7e, 0xfa, 0xd0, 0x16,
+	0xbb, 0x17, 0x8f, 0xc8, 0x61, 0xbf, 0x73, 0x4b, 0xde, 0x34, 0x3b, 0x22, 0x8f, 0x0e, 0x46, 0xcb,
+	0x55, 0xaa, 0x9e, 0xe1, 0x8a, 0xb0, 0x34, 0x9e, 0x91, 0x5e, 0x06, 0x7d, 0x54, 0xbc, 0x6b, 0x3c,
+	0xe8, 0x38, 0x3f, 0x17, 0xd6, 0x7d, 0x39, 0x06, 0xf0, 0x58, 0xaf, 0x3f, 0x25, 0x52, 0x5d, 0xca,
+	0xea, 0x90, 0x3f, 0xf0, 0x46, 0xc1, 0x43, 0xf0, 0x7a, 0xf7, 0x1d, 0x95, 0x86, 0x7f, 0x9b, 0x3c,
+	0x2e, 0x9c, 0x4d, 0xaa, 0x26, 0x47, 0x4d, 0xd6, 0x51, 0xb2, 0x5c, 0xa5, 0x5f, 0x48, 0xad, 0x29,
+	0x30, 0x91, 0xfb, 0xe6, 0xcd, 0x4f, 0x3e, 0x16, 0xf5, 0xf4, 0x1f, 0x00, 0x00, 0xff, 0xff, 0xab,
+	0x18, 0x54, 0xdd, 0x76, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -316,254 +193,143 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// NewServiceHandlerClient is the client API for NewServiceHandler service.
+// KVMClient is the client API for KVM service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type NewServiceHandlerClient interface {
-	SendPolicyFileToAgent(ctx context.Context, in *RequestPolicyFile, opts ...grpc.CallOption) (*ResponseStatus, error)
-	RequestPolicyFileFromService(ctx context.Context, in *RequestPolicyFile, opts ...grpc.CallOption) (*RequestPolicyFile, error)
-	UpdateAgentIdentity(ctx context.Context, in *AgentIdentityInfo, opts ...grpc.CallOption) (*ResponseStatus, error)
-	ReportPolicyStatusToService(ctx context.Context, in *ResponseStatus, opts ...grpc.CallOption) (*ResponseStatus, error)
-	UpdateGRPCIpAndPort(ctx context.Context, in *GRPCIPAndPort, opts ...grpc.CallOption) (*ResponseStatus, error)
-	UpdateReconnectionStatus(ctx context.Context, in *ConnectionStatus, opts ...grpc.CallOption) (*ResponseStatus, error)
+type KVMClient interface {
+	RegisterAgentIdentity(ctx context.Context, in *AgentIdentity, opts ...grpc.CallOption) (*Status, error)
+	SendPolicy(ctx context.Context, opts ...grpc.CallOption) (KVM_SendPolicyClient, error)
 }
 
-type newServiceHandlerClient struct {
+type kVMClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewNewServiceHandlerClient(cc *grpc.ClientConn) NewServiceHandlerClient {
-	return &newServiceHandlerClient{cc}
+func NewKVMClient(cc *grpc.ClientConn) KVMClient {
+	return &kVMClient{cc}
 }
 
-func (c *newServiceHandlerClient) SendPolicyFileToAgent(ctx context.Context, in *RequestPolicyFile, opts ...grpc.CallOption) (*ResponseStatus, error) {
-	out := new(ResponseStatus)
-	err := c.cc.Invoke(ctx, "/kvm.NewServiceHandler/sendPolicyFileToAgent", in, out, opts...)
+func (c *kVMClient) RegisterAgentIdentity(ctx context.Context, in *AgentIdentity, opts ...grpc.CallOption) (*Status, error) {
+	out := new(Status)
+	err := c.cc.Invoke(ctx, "/kvm.KVM/registerAgentIdentity", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *newServiceHandlerClient) RequestPolicyFileFromService(ctx context.Context, in *RequestPolicyFile, opts ...grpc.CallOption) (*RequestPolicyFile, error) {
-	out := new(RequestPolicyFile)
-	err := c.cc.Invoke(ctx, "/kvm.NewServiceHandler/requestPolicyFileFromService", in, out, opts...)
+func (c *kVMClient) SendPolicy(ctx context.Context, opts ...grpc.CallOption) (KVM_SendPolicyClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_KVM_serviceDesc.Streams[0], "/kvm.KVM/sendPolicy", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &kVMSendPolicyClient{stream}
+	return x, nil
 }
 
-func (c *newServiceHandlerClient) UpdateAgentIdentity(ctx context.Context, in *AgentIdentityInfo, opts ...grpc.CallOption) (*ResponseStatus, error) {
-	out := new(ResponseStatus)
-	err := c.cc.Invoke(ctx, "/kvm.NewServiceHandler/updateAgentIdentity", in, out, opts...)
-	if err != nil {
+type KVM_SendPolicyClient interface {
+	Send(*PolicyData) error
+	Recv() (*Status, error)
+	grpc.ClientStream
+}
+
+type kVMSendPolicyClient struct {
+	grpc.ClientStream
+}
+
+func (x *kVMSendPolicyClient) Send(m *PolicyData) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *kVMSendPolicyClient) Recv() (*Status, error) {
+	m := new(Status)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return m, nil
 }
 
-func (c *newServiceHandlerClient) ReportPolicyStatusToService(ctx context.Context, in *ResponseStatus, opts ...grpc.CallOption) (*ResponseStatus, error) {
-	out := new(ResponseStatus)
-	err := c.cc.Invoke(ctx, "/kvm.NewServiceHandler/reportPolicyStatusToService", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+// KVMServer is the server API for KVM service.
+type KVMServer interface {
+	RegisterAgentIdentity(context.Context, *AgentIdentity) (*Status, error)
+	SendPolicy(KVM_SendPolicyServer) error
 }
 
-func (c *newServiceHandlerClient) UpdateGRPCIpAndPort(ctx context.Context, in *GRPCIPAndPort, opts ...grpc.CallOption) (*ResponseStatus, error) {
-	out := new(ResponseStatus)
-	err := c.cc.Invoke(ctx, "/kvm.NewServiceHandler/updateGRPCIpAndPort", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+// UnimplementedKVMServer can be embedded to have forward compatible implementations.
+type UnimplementedKVMServer struct {
 }
 
-func (c *newServiceHandlerClient) UpdateReconnectionStatus(ctx context.Context, in *ConnectionStatus, opts ...grpc.CallOption) (*ResponseStatus, error) {
-	out := new(ResponseStatus)
-	err := c.cc.Invoke(ctx, "/kvm.NewServiceHandler/updateReconnectionStatus", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+func (*UnimplementedKVMServer) RegisterAgentIdentity(ctx context.Context, req *AgentIdentity) (*Status, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterAgentIdentity not implemented")
+}
+func (*UnimplementedKVMServer) SendPolicy(srv KVM_SendPolicyServer) error {
+	return status.Errorf(codes.Unimplemented, "method SendPolicy not implemented")
 }
 
-// NewServiceHandlerServer is the server API for NewServiceHandler service.
-type NewServiceHandlerServer interface {
-	SendPolicyFileToAgent(context.Context, *RequestPolicyFile) (*ResponseStatus, error)
-	RequestPolicyFileFromService(context.Context, *RequestPolicyFile) (*RequestPolicyFile, error)
-	UpdateAgentIdentity(context.Context, *AgentIdentityInfo) (*ResponseStatus, error)
-	ReportPolicyStatusToService(context.Context, *ResponseStatus) (*ResponseStatus, error)
-	UpdateGRPCIpAndPort(context.Context, *GRPCIPAndPort) (*ResponseStatus, error)
-	UpdateReconnectionStatus(context.Context, *ConnectionStatus) (*ResponseStatus, error)
+func RegisterKVMServer(s *grpc.Server, srv KVMServer) {
+	s.RegisterService(&_KVM_serviceDesc, srv)
 }
 
-// UnimplementedNewServiceHandlerServer can be embedded to have forward compatible implementations.
-type UnimplementedNewServiceHandlerServer struct {
-}
-
-func (*UnimplementedNewServiceHandlerServer) SendPolicyFileToAgent(ctx context.Context, req *RequestPolicyFile) (*ResponseStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendPolicyFileToAgent not implemented")
-}
-func (*UnimplementedNewServiceHandlerServer) RequestPolicyFileFromService(ctx context.Context, req *RequestPolicyFile) (*RequestPolicyFile, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RequestPolicyFileFromService not implemented")
-}
-func (*UnimplementedNewServiceHandlerServer) UpdateAgentIdentity(ctx context.Context, req *AgentIdentityInfo) (*ResponseStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateAgentIdentity not implemented")
-}
-func (*UnimplementedNewServiceHandlerServer) ReportPolicyStatusToService(ctx context.Context, req *ResponseStatus) (*ResponseStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReportPolicyStatusToService not implemented")
-}
-func (*UnimplementedNewServiceHandlerServer) UpdateGRPCIpAndPort(ctx context.Context, req *GRPCIPAndPort) (*ResponseStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateGRPCIpAndPort not implemented")
-}
-func (*UnimplementedNewServiceHandlerServer) UpdateReconnectionStatus(ctx context.Context, req *ConnectionStatus) (*ResponseStatus, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateReconnectionStatus not implemented")
-}
-
-func RegisterNewServiceHandlerServer(s *grpc.Server, srv NewServiceHandlerServer) {
-	s.RegisterService(&_NewServiceHandler_serviceDesc, srv)
-}
-
-func _NewServiceHandler_SendPolicyFileToAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RequestPolicyFile)
+func _KVM_RegisterAgentIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AgentIdentity)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(NewServiceHandlerServer).SendPolicyFileToAgent(ctx, in)
+		return srv.(KVMServer).RegisterAgentIdentity(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/kvm.NewServiceHandler/SendPolicyFileToAgent",
+		FullMethod: "/kvm.KVM/RegisterAgentIdentity",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NewServiceHandlerServer).SendPolicyFileToAgent(ctx, req.(*RequestPolicyFile))
+		return srv.(KVMServer).RegisterAgentIdentity(ctx, req.(*AgentIdentity))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NewServiceHandler_RequestPolicyFileFromService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RequestPolicyFile)
-	if err := dec(in); err != nil {
+func _KVM_SendPolicy_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(KVMServer).SendPolicy(&kVMSendPolicyServer{stream})
+}
+
+type KVM_SendPolicyServer interface {
+	Send(*Status) error
+	Recv() (*PolicyData, error)
+	grpc.ServerStream
+}
+
+type kVMSendPolicyServer struct {
+	grpc.ServerStream
+}
+
+func (x *kVMSendPolicyServer) Send(m *Status) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *kVMSendPolicyServer) Recv() (*PolicyData, error) {
+	m := new(PolicyData)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(NewServiceHandlerServer).RequestPolicyFileFromService(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/kvm.NewServiceHandler/RequestPolicyFileFromService",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NewServiceHandlerServer).RequestPolicyFileFromService(ctx, req.(*RequestPolicyFile))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
-func _NewServiceHandler_UpdateAgentIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AgentIdentityInfo)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NewServiceHandlerServer).UpdateAgentIdentity(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/kvm.NewServiceHandler/UpdateAgentIdentity",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NewServiceHandlerServer).UpdateAgentIdentity(ctx, req.(*AgentIdentityInfo))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NewServiceHandler_ReportPolicyStatusToService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ResponseStatus)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NewServiceHandlerServer).ReportPolicyStatusToService(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/kvm.NewServiceHandler/ReportPolicyStatusToService",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NewServiceHandlerServer).ReportPolicyStatusToService(ctx, req.(*ResponseStatus))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NewServiceHandler_UpdateGRPCIpAndPort_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GRPCIPAndPort)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NewServiceHandlerServer).UpdateGRPCIpAndPort(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/kvm.NewServiceHandler/UpdateGRPCIpAndPort",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NewServiceHandlerServer).UpdateGRPCIpAndPort(ctx, req.(*GRPCIPAndPort))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NewServiceHandler_UpdateReconnectionStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ConnectionStatus)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NewServiceHandlerServer).UpdateReconnectionStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/kvm.NewServiceHandler/UpdateReconnectionStatus",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NewServiceHandlerServer).UpdateReconnectionStatus(ctx, req.(*ConnectionStatus))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _NewServiceHandler_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "kvm.NewServiceHandler",
-	HandlerType: (*NewServiceHandlerServer)(nil),
+var _KVM_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "kvm.KVM",
+	HandlerType: (*KVMServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "sendPolicyFileToAgent",
-			Handler:    _NewServiceHandler_SendPolicyFileToAgent_Handler,
-		},
-		{
-			MethodName: "requestPolicyFileFromService",
-			Handler:    _NewServiceHandler_RequestPolicyFileFromService_Handler,
-		},
-		{
-			MethodName: "updateAgentIdentity",
-			Handler:    _NewServiceHandler_UpdateAgentIdentity_Handler,
-		},
-		{
-			MethodName: "reportPolicyStatusToService",
-			Handler:    _NewServiceHandler_ReportPolicyStatusToService_Handler,
-		},
-		{
-			MethodName: "updateGRPCIpAndPort",
-			Handler:    _NewServiceHandler_UpdateGRPCIpAndPort_Handler,
-		},
-		{
-			MethodName: "updateReconnectionStatus",
-			Handler:    _NewServiceHandler_UpdateReconnectionStatus_Handler,
+			MethodName: "registerAgentIdentity",
+			Handler:    _KVM_RegisterAgentIdentity_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "sendPolicy",
+			Handler:       _KVM_SendPolicy_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "kvm.proto",
 }

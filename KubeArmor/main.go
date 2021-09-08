@@ -42,12 +42,13 @@ func main() {
 	// options (boolean)
 	enableHostPolicyPtr := flag.Bool("enableHostPolicy", false, "enabling host policies")
 	enableEnforcerPerPodPtr := flag.Bool("enableEnforcerPerPod", false, "enabling the enforcer per pod")
+	enableKvmAgent := flag.Bool("enableKvmAgent", false, "Flag to enable/disable KVM Agent on runtime")
 
 	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *logFilterPtr, *enableHostPolicyPtr, *enableEnforcerPerPodPtr, *enableKvmAgent)
 
 	// == //
 }

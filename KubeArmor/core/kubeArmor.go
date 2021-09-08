@@ -17,6 +17,7 @@ import (
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	kvma "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 )
 
@@ -279,7 +280,7 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool) {
+func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolicy, enableEnforcerPerPod bool, enableKvmAgent bool) {
 	// create a daemon
 	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, logFilter, enableHostPolicy, enableEnforcerPerPod)
 
@@ -415,7 +416,17 @@ func KubeArmor(clusterName, gRPCPort, logPath, logFilter string, enableHostPolic
 	dm.LogFeeder.Print("Initialized KubeArmor")
 
 	// == //
-
+	// Start KVMAgent as per flag
+	if enableKvmAgent {
+		dm.LogFeeder.Print("Initializing KvmAgent")
+		err := kvma.InitKvmAgent()
+		if err != nil {
+			dm.LogFeeder.Err("Failed to initialize KvmAgent")
+		} else {
+			dm.LogFeeder.Print("Initialized KvmAgent")
+		}
+	}
+	// == //
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
 	<-sigChan
