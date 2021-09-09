@@ -326,5 +326,5 @@ type KubeArmorPolicyList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&KubeArmorPolicy{}, &KubeArmorPolicyList{})
+	SchemeBuilder.Register(addKnownTypes)
 }
