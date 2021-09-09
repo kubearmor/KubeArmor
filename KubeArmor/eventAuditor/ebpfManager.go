@@ -169,7 +169,7 @@ func (bm *KABPFManager) DestroyProgram(kaProg KABPFProg) error {
 	return nil
 }
 
-// AttachTracepoint Function
+// AttachProgram Function
 func (bm *KABPFManager) AttachProgram(kaProg KABPFProg) error {
 	var p *lbpf.KABPFProgram
 	var l *lbpf.KABPFLink
@@ -197,7 +197,7 @@ func (bm *KABPFManager) AttachProgram(kaProg KABPFProg) error {
 	return nil
 }
 
-// DestroyProgram Function
+// DetachProgram Function
 func (bm *KABPFManager) DetachProgram(kaProg KABPFProg) error {
 	var p *lbpf.KABPFProgram
 	var l *lbpf.KABPFLink
