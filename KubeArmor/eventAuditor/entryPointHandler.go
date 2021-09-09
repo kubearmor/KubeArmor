@@ -4,6 +4,7 @@
 package eventauditor
 
 import (
+	"errors"
 	"sync"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -12,6 +13,30 @@ import (
 // =========================== //
 // == Entrypoint Management == //
 // =========================== //
+
+// InitializeEventMaps Function
+func (ea *EventAuditor) InitializeEventMaps(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
+	}
+
+	err1 := bman.InitMap(KAEAGetMap(KAEAEventFilterMap), true)
+	err2 := bman.InitMap(KAEAGetMap(KAEAEventJumpTable), true)
+
+	return AppendErrors(err1, err2)
+}
+
+// DestroyEventMaps Function
+func (ea *EventAuditor) DestroyEventMaps(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
+	}
+
+	err1 := bman.DestroyMap(KAEAGetMap(KAEAEventFilterMap))
+	err2 := bman.DestroyMap(KAEAGetMap(KAEAEventJumpTable))
+
+	return AppendErrors(err1, err2)
+}
 
 // InitializeEntryPoints Function
 func (ea *EventAuditor) InitializeEntryPoints() bool {

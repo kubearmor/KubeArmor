@@ -41,6 +41,10 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 		ea.Logger.Errf("Failed to initialize process programs: %v", err)
 	}
 
+	if err := ea.InitializeEventMaps(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to initialize event maps: %v", err)
+	}
+
 	// initialize entrypoints
 	if !ea.InitializeEntryPoints() {
 		ea.Logger.Err("Failed to initialize entrypoints")
@@ -66,6 +70,11 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 	// destroy process maps
 	if err = ea.DestroyProcessMaps(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to destroy process maps: %v", err)
+	}
+
+	// destroy event maps
+	if err = ea.DestroyEventMaps(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to destroy event maps: %v", err)
 	}
 
 	ea.BPFManager = nil

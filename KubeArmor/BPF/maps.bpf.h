@@ -35,4 +35,14 @@ struct process_filter_value {
 	bool inspect;
 };
 
+struct event_filter_key {
+	__u32 pid_ns;
+	__u32 mnt_ns;
+	__u32 event_id;
+};
+
+struct event_filter_value {
+	__u32 jmp_idx;
+};
+
 #endif /* __MAPS_BPF_H */
