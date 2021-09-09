@@ -1,9 +1,10 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package eventauditor
 
 import (
+	"errors"
 	"sync"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -14,57 +15,63 @@ import (
 // ============================= //
 
 // InitializeProcessMaps Function
-func (ea *EventAuditor) InitializeProcessMaps(sharedMapMan *SharedMapManager) bool {
-	var err error
-
-	if sharedMapMan == nil {
-		return false
+func (ea *EventAuditor) InitializeProcessMaps(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
 	}
 
 	// create (pin) global maps
-	_, err = sharedMapMan.InitMap(KAEAPatternMap, true)
-	if err != nil {
-		return false
-	}
+	err1 := bman.InitMap(KAEAGetMap(KAEAPatternMap), true)
+	err2 := bman.InitMap(KAEAGetMap(KAEAProcessSpecMap), true)
+	err3 := bman.InitMap(KAEAGetMap(KAEAProcessFilterMap), true)
 
-	_, err = sharedMapMan.InitMap(KAEAProcessSpecMap, true)
-	if err != nil {
-		sharedMapMan.DestroyMap(KAEAPatternMap)
-		return false
-	}
-
-	_, err = sharedMapMan.InitMap(KAEAProcessFilterMap, true)
-	if err != nil {
-		sharedMapMan.DestroyMap(KAEAProcessSpecMap)
-		sharedMapMan.DestroyMap(KAEAPatternMap)
-		return false
-	}
-
-	// attach ebpf program for process-spec, pattern, process-filter mgmt
-
-	return true
+	return AppendErrors(err1, err2, err3)
 }
 
 // DestroyProcessMaps Function
-func (ea *EventAuditor) DestroyProcessMaps(sharedMapMan *SharedMapManager) bool {
-	var err error
-	var ret bool
+func (ea *EventAuditor) DestroyProcessMaps(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
+	}
 
-	if sharedMapMan == nil {
-		return false
+	// delete (unpin) global maps
+	err1 := bman.DestroyMap(KAEAGetMap(KAEAProcessFilterMap))
+	err2 := bman.DestroyMap(KAEAGetMap(KAEAProcessSpecMap))
+	err3 := bman.DestroyMap(KAEAGetMap(KAEAPatternMap))
+
+	return AppendErrors(err1, err2, err3)
+}
+
+// InitializeProcessProgs Function
+func (ea *EventAuditor) InitializeProcessPrograms(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
+	}
+
+	// attach ebpf program for process-spec, pattern, process-filter mgmt
+	err1 := bman.InitProgram(KAEAGetProg(KAEASysExecveProg))
+	err2 := bman.InitProgram(KAEAGetProg(KAEASysExitProg))
+
+	err3 := bman.AttachProgram(KAEAGetProg(KAEASysExecveProg))
+	err4 := bman.AttachProgram(KAEAGetProg(KAEASysExitProg))
+
+	return AppendErrors(err1, err2, err3, err4)
+}
+
+// DestroyProcessMaps Function
+func (ea *EventAuditor) DestroyProcessPrograms(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
 	}
 
 	// detach ebpf program for process-spec, pattern, process-filter mgmt
+	err1 := bman.DetachProgram(KAEAGetProg(KAEASysExitProg))
+	err2 := bman.DetachProgram(KAEAGetProg(KAEASysExecveProg))
 
-	// delete (unpin) global maps
-	err = sharedMapMan.DestroyMap(KAEAProcessFilterMap)
-	ret = err == nil
-	err = sharedMapMan.DestroyMap(KAEAProcessSpecMap)
-	ret = ret && err == nil
-	err = sharedMapMan.DestroyMap(KAEAPatternMap)
-	ret = ret && err == nil
+	err3 := bman.DestroyProgram(KAEAGetProg(KAEASysExecveProg))
+	err4 := bman.DestroyProgram(KAEAGetProg(KAEASysExitProg))
 
-	return ret
+	return AppendErrors(err1, err2, err3, err4)
 }
 
 // UpdateProcessMaps Function

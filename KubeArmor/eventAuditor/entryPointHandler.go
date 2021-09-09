@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package eventauditor
 
@@ -20,8 +20,8 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 	return true
 }
 
-// DestoryEntryPoints Function
-func (ea *EventAuditor) DestoryEntryPoints() bool {
+// DestroyEntryPoints Function
+func (ea *EventAuditor) DestroyEntryPoints() bool {
 	// if something wrong, return false
 
 	// destroy entrypoints (from tail to head)

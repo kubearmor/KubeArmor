@@ -3,11 +3,58 @@
 
 package eventauditor
 
-// KASharedMap type
-type KASharedMap string
+import (
+	"errors"
 
-// PinBasePath constant
-const PinBasePath = "/sys/fs/bpf/"
+	lbpf "github.com/kubearmor/libbpf"
+)
 
-// BPFObjRelPath constant is part of relative or absolute paths
-const BPFObjRelPath = "./BPF/objs/"
+// KABPFObjName type
+type KABPFObjFileName string
+
+// KABPFMapName type
+type KABPFMapName string
+
+// KABPFProgName type
+type KABPFProgName string
+
+// KABPFEventName type
+type KABPFEventName string
+
+// KABPFMap structure
+type KABPFMap struct {
+	Name     KABPFMapName
+	FileName KABPFObjFileName
+}
+
+// KABPFProg structure
+type KABPFProg struct {
+	Name      KABPFProgName
+	EventName KABPFEventName
+	EventType lbpf.KABPFLinkType
+	FileName  KABPFObjFileName
+}
+
+// KABPFPinBasePath constant
+const KABPFPinBasePath = "/sys/fs/bpf/"
+
+// AppendErrors Function
+// To be moved to project common place or replaced for other solution
+func AppendErrors(errs ...error) error {
+	var es string
+
+	for _, e := range errs {
+		if e != nil {
+			if len(es) > 0 {
+				es += "; "
+			}
+			es += e.Error()
+		}
+	}
+
+	if len(es) > 0 {
+		return errors.New(es)
+	}
+
+	return nil
+}

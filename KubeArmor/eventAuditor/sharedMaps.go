@@ -1,15 +1,16 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package eventauditor
+
+//#cgo CFLAGS: -I${SRCDIR}/../BPF
+//#include "shared.h"
+import "C"
 
 import (
 	"encoding/binary"
 	"unsafe"
 )
-
-//#include "../BPF/shared.h"
-import "C"
 
 // =========================== //
 // ======= Shared Maps ======= //
@@ -17,10 +18,41 @@ import "C"
 
 // KubeArmor Event Auditor Maps
 const (
-	KAEAPatternMap       KASharedMap = "ka_ea_pattern_map"
-	KAEAProcessSpecMap   KASharedMap = "ka_ea_process_spec_map"
-	KAEAProcessFilterMap KASharedMap = "ka_ea_process_filter_map"
+	KAEAPatternMap     KABPFMapName     = "ka_ea_pattern_map"
+	KAEAPatternMapFile KABPFObjFileName = "ka_ea_pattern_map.bpf.o"
+
+	KAEAProcessSpecMap     KABPFMapName     = "ka_ea_process_spec_map"
+	KAEAProcessSpecMapFile KABPFObjFileName = "ka_ea_process_spec_map.bpf.o"
+
+	KAEAProcessFilterMap     KABPFMapName     = "ka_ea_process_filter_map"
+	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process_filter_map.bpf.o"
 )
+
+// KAEAGetMap Function
+func KAEAGetMap(name KABPFMapName) KABPFMap {
+	switch name {
+	case KAEAPatternMap:
+		return KABPFMap{
+			Name:     KAEAPatternMap,
+			FileName: KAEAPatternMapFile,
+		}
+	case KAEAProcessSpecMap:
+		return KABPFMap{
+			Name:     KAEAProcessSpecMap,
+			FileName: KAEAProcessSpecMapFile,
+		}
+	case KAEAProcessFilterMap:
+		return KABPFMap{
+			Name:     KAEAProcessFilterMap,
+			FileName: KAEAProcessFilterMapFile,
+		}
+	default:
+		return KABPFMap{
+			Name:     "",
+			FileName: "",
+		}
+	}
+}
 
 // =========================== //
 // ======= Pattern Map ======= //
