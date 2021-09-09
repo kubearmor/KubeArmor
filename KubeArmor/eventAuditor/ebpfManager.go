@@ -184,13 +184,32 @@ func (bm *KABPFManager) AttachProgram(kaProg KABPFProg) error {
 		return fmt.Errorf("program %v already attached to %v", kaProg.Name, kaProg.EventName)
 	}
 
+	eventName := string(kaProg.EventName)
 	switch kaProg.EventType {
-	case lbpf.KABPFLinkTypeTracepoint:
-		if l, err = p.AttachTracepoint(string(kaProg.EventName)); err != nil {
+	case lbpf.KABPFLinkTypeLSM:
+		if l, err = p.AttachLSM(); err != nil {
 			return err
 		}
+	case lbpf.KABPFLinkTypeKprobe:
+		if l, err = p.AttachKprobe(eventName); err != nil {
+			return err
+		}
+	case lbpf.KABPFLinkTypeKretprobe:
+		if l, err = p.AttachKretprobe(eventName); err != nil {
+			return err
+		}
+	case lbpf.KABPFLinkTypeRawTracepoint:
+		if l, err = p.AttachRawTracepoint(eventName); err != nil {
+			return err
+		}
+	case lbpf.KABPFLinkTypeTracepoint:
+		if l, err = p.AttachTracepoint(eventName); err != nil {
+			return err
+		}
+	case lbpf.KABPFLinkTypeUnspec:
+		fallthrough
 	default:
-		return fmt.Errorf("undefined event type %v", kaProg.EventType)
+		return fmt.Errorf("unspecified event type %v", kaProg.EventType)
 	}
 
 	bm.links[kaProg.EventName] = l
