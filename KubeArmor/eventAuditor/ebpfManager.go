@@ -164,6 +164,7 @@ func (bm *KABPFManager) DestroyProgram(kaProg KABPFProg) error {
 		}
 	}
 
+	delete(bm.links, kaProg.EventName)
 	delete(bm.progs, kaProg.Name)
 
 	return nil
