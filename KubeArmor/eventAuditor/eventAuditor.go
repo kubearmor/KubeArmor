@@ -30,27 +30,46 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()
-	ea.BPFManager.SetObjsMapsPath("./BPF/objs")
-	ea.BPFManager.SetObjsProgsPath("./BPF/objs")
+	if err := ea.BPFManager.SetObjsMapsPath("./BPF/objs"); err != nil {
+		ea.Logger.Errf("Failed to set ebpf maps path: %v", err)
+		return nil
+	}
+	if err := ea.BPFManager.SetObjsProgsPath("./BPF/objs"); err != nil {
+		ea.Logger.Errf("Failed to set ebpf programs path: %v", err)
+		return nil
+	}
 
 	if err := ea.InitializeProcessMaps(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize process maps: %v", err)
+		return nil
 	}
 
 	if err := ea.InitializeProcessPrograms(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize process programs: %v", err)
+		goto fail1
 	}
 
 	if err := ea.InitializeEventMaps(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize event maps: %v", err)
+		goto fail2
 	}
 
 	// initialize entrypoints
 	if !ea.InitializeEntryPoints() {
 		ea.Logger.Err("Failed to initialize entrypoints")
+		goto fail3
 	}
 
 	return ea
+
+fail3:
+	_ = ea.DestroyEventMaps(ea.BPFManager)
+fail2:
+	_ = ea.DestroyProcessPrograms(ea.BPFManager)
+fail1:
+	_ = ea.DestroyProcessMaps(ea.BPFManager)
+
+	return nil
 }
 
 // DestroyEventAuditor Function
