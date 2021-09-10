@@ -42,7 +42,7 @@ func (ea *EventAuditor) DestroyEventMaps(bman *KABPFManager) error {
 // InitializeEntryPoints Function
 func (ea *EventAuditor) InitializeEntryPoints() bool {
 	// if something wrong, return false
-	b, err := bpf.OpenObjectFromFile("entrypoint.bpf.o")
+	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
 	must(err)
 	defer b.Close()
 
@@ -56,7 +56,8 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 func (ea *EventAuditor) DestroyEntryPoints() bool {
 	// if something wrong, return false
 
-	// destroy entrypoints (from tail to head)
+	//TODO destroy entrypoints
+	Destroy()
 
 	return true
 }
@@ -77,9 +78,6 @@ func (ea *EventAuditor) DetachEntryPoint(probe string) {
 	_, err = prog.Detach(sys_execve)
 	must(err)
 }
-
-// Contains the list of all entrypoints in the audit policy
-EntrypointList := []string
 
 // UpdateEntryPoints Function
 func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy,
