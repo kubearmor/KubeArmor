@@ -26,6 +26,12 @@ const (
 
 	KAEAProcessFilterMap     KABPFMapName     = "ka_ea_process_filter_map"
 	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process_filter_map.bpf.o"
+
+	KAEAEventFilterMap     KABPFMapName     = "ka_ea_event_filter_map"
+	KAEAEventFilterMapFile KABPFObjFileName = "ka_ea_event_filter_map.bpf.o"
+
+	KAEAEventJumpTable     KABPFMapName     = "ka_ea_event_jmp_table"
+	KAEAEventJumpTableFile KABPFObjFileName = "ka_ea_event_jmp_table.bpf.o"
 )
 
 // KAEAGetMap Function
@@ -45,6 +51,16 @@ func KAEAGetMap(name KABPFMapName) KABPFMap {
 		return KABPFMap{
 			Name:     KAEAProcessFilterMap,
 			FileName: KAEAProcessFilterMapFile,
+		}
+	case KAEAEventFilterMap:
+		return KABPFMap{
+			Name:     KAEAEventFilterMap,
+			FileName: KAEAEventFilterMapFile,
+		}
+	case KAEAEventJumpTable:
+		return KABPFMap{
+			Name:     KAEAEventJumpTable,
+			FileName: KAEAEventJumpTableFile,
 		}
 	default:
 		return KABPFMap{
@@ -214,4 +230,88 @@ func (pfe *ProcessFilterElement) ValuePointer() unsafe.Pointer {
 // MapName Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) MapName() string {
 	return string(KAEAProcessFilterMap)
+}
+
+// =========================== //
+// ===  Event Filter Map  ==== //
+// =========================== //
+
+// EventFilterElement Structure
+type EventFilterElement struct {
+	Key   EventFilterKey
+	Value EventFilterValue
+}
+
+// EventFilterKey Structure
+type EventFilterKey struct {
+	PidNS   uint32
+	MntNS   uint32
+	EventID uint32
+}
+
+// EventFilterValue Structure
+type EventFilterValue struct {
+	JumpIdx uint32
+}
+
+// SetKey Function (EventFilterElement)
+func (efe *EventFilterElement) SetKey(pidNS, mntNS, eventID uint32) {
+	efe.Key.PidNS = pidNS
+	efe.Key.MntNS = mntNS
+	efe.Key.EventID = eventID
+}
+
+// SetValue Function (EventFilterElement)
+func (efe *EventFilterElement) SetValue(jumpIdx uint32) {
+	efe.Value.JumpIdx = jumpIdx
+}
+
+// KeyPointer Function (EventFilterElement)
+func (efe *EventFilterElement) KeyPointer() unsafe.Pointer {
+	return unsafe.Pointer(&efe.Key)
+}
+
+// ValuePointer Function (EventFilterElement)
+func (efe *EventFilterElement) ValuePointer() unsafe.Pointer {
+	return unsafe.Pointer(&efe.Value)
+}
+
+// MapName Function (EventFilterElement)
+func (efe *EventFilterElement) MapName() string {
+	return string(KAEAEventFilterMap)
+}
+
+// =========================== //
+// ===  Event Jump Table  ==== //
+// =========================== //
+
+// EventJumpTableElement Structure
+type EventJumpTableElement struct {
+	JumpIdx uint32
+	ProgFD  uint32
+}
+
+// SetKey Function (EventJumpTableElement)
+func (ejte *EventJumpTableElement) SetKey(jumpIdx uint32) {
+	ejte.JumpIdx = jumpIdx
+}
+
+// SetValue Function (EventJumpTableElement)
+func (ejte *EventJumpTableElement) SetValue(progFd uint32) {
+	ejte.ProgFD = progFd
+}
+
+// KeyPointer Function (EventJumpTableElement)
+func (ejte *EventJumpTableElement) KeyPointer() unsafe.Pointer {
+	return unsafe.Pointer(&ejte.JumpIdx)
+}
+
+// ValuePointer Function (EventJumpTableElement)
+func (ejte *EventJumpTableElement) ValuePointer() unsafe.Pointer {
+	return unsafe.Pointer(&ejte.ProgFD)
+}
+
+// MapName Function (EventJumpTableElement)
+func (ejte *EventJumpTableElement) MapName() string {
+	return string(KAEAEventJumpTable)
 }
