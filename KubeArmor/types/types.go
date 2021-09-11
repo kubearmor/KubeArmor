@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package types
 
@@ -45,11 +45,11 @@ type ContainerGroup struct {
 	NamespaceName      string `json:"namespaceName"`
 	ContainerGroupName string `json:"containerGroupName"`
 
-	Labels     []string `json:"labels"`
-	Identities []string `json:"identities"`
+	Labels     map[string]string `json:"labels"`
+	Identities []string          `json:"identities"`
 
-	Containers       []string          `json:"containers"`
-	AppArmorProfiles map[string]string `json:"apparmorProfiles"`
+	Containers       []string `json:"containers"`
+	AppArmorProfiles []string `json:"apparmorProfiles"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 

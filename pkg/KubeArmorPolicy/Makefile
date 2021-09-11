@@ -1,5 +1,5 @@
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 # Image URL to use all building/pushing image targets
 IMG ?= kubearmor/kubearmor-policy-manager:latest

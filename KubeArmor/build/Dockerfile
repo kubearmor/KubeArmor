@@ -1,5 +1,5 @@
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 ### Builder
 
@@ -24,11 +24,12 @@ RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 FROM alpine:3.14
 
 RUN apk update
-RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
+RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
-RUN apk add bash curl procps bcc@edge bcc-dev@edge
-RUN apk add kubectl@edge apparmor@edge apparmor-utils@edge
+RUN apk add bash curl procps bcc@community bcc-dev@community
+RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/

@@ -1,5 +1,5 @@
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 CURDIR          := $(shell pwd)
 CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
@@ -8,6 +8,7 @@ LOGNAME         := $(shell logname)
 NETNEXT         := 0
 DLV_EXEC         = $(GOPATH)/bin/dlv
 DLV_LPORT       := 2345
+DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 .PHONY: build
@@ -92,27 +93,27 @@ endif
 
 .PHONY: vagrant-up
 vagrant-up: vagrant-check
-	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant up; true
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) DLV_RPORT=$(DLV_RPORT) vagrant up; true
 
 .PHONY: vagrant-status
 vagrant-status: vagrant-check
-	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant status; true
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) DLV_RPORT=$(DLV_RPORT) vagrant status; true
 
 .PHONY: vagrant-reload
 vagrant-reload: vagrant-check
-	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant reload; true
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) DLV_RPORT=$(DLV_RPORT) vagrant reload; true
 
 .PHONY: vagrant-ssh
 vagrant-ssh: vagrant-check
-	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant ssh; true
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) DLV_RPORT=$(DLV_RPORT) vagrant ssh; true
 
 .PHONY: vagrant-halt
 vagrant-halt: vagrant-check
-	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant halt; true
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) DLV_RPORT=$(DLV_RPORT) vagrant halt; true
 
 .PHONY: vagrant-destroy
 vagrant-destroy: vagrant-check
-	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) vagrant destroy; true
+	cd $(CONTRIBDIR)/vagrant; NETNEXT=$(NETNEXT) DLV_RPORT=$(DLV_RPORT) vagrant destroy; true
 
 $(DLV_EXEC):
 	go get -u github.com/go-delve/delve/cmd/dlv

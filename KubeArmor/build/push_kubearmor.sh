@@ -1,17 +1,15 @@
 #!/bin/bash
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
-
-# check version
+# Copyright 2021 Authors of KubeArmor
 
 VERSION=latest
 
+# check version
 if [ ! -z $1 ]; then
     VERSION=$1
 fi
 
 # push kubearmor/kubearmor
-
 echo "[INFO] Pushing kubearmor/kubearmor:$VERSION"
 docker push kubearmor/kubearmor:$VERSION
 

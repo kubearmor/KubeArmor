@@ -3,8 +3,8 @@ header:
     spdx-id: Apache-2.0
     copyright-owner: KubeArmor
     content: |
-      Copyright 2021 Authors of KubeArmor
       SPDX-License-Identifier: Apache-2.0
+      Copyright 2021 Authors of KubeArmor
 
   paths:
     - "**/*.go"
