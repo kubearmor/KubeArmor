@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package feeder
 
@@ -137,7 +137,7 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		msgStructs := ls.getMsgStructs()
 		for _, mgs := range msgStructs {
 			if err := mgs.Client.Send(&msg); err != nil {
-				fmt.Println("Failed to send a message")
+				kg.Err("Failed to send a message")
 			}
 		}
 	}
@@ -193,7 +193,7 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 		alertStructs := ls.getAlertStructs()
 		for _, als := range alertStructs {
 			if err := als.Client.Send(&alert); err != nil {
-				fmt.Println("Failed to send an alert")
+				kg.Err("Failed to send an alert")
 			}
 		}
 	}
@@ -249,7 +249,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 		logStructs := ls.getLogStructs()
 		for _, lgs := range logStructs {
 			if err := lgs.Client.Send(&log); err != nil {
-				fmt.Println("Failed to send a log")
+				kg.Err("Failed to send a log")
 			}
 		}
 	}

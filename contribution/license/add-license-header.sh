@@ -1,6 +1,6 @@
 #!/bin/bash
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 echo "Installing addlicense tool"
 go get -u github.com/google/addlicense

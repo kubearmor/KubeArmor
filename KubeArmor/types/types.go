@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package types
 
@@ -42,11 +42,11 @@ type Container struct {
 
 // HostVolumeMount Structure
 type HostVolumeMount struct {
-	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
-	UsedByContainerPath     map[string]string // key: container name, val: mounted path
+	Type                    string
 	VolumeName              string
 	PathName                string
-	Type                    string
+	UsedByContainerPath     map[string]string // key: container name, val: mounted path
+	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
 }
 
 // EndPoint Structure
@@ -57,10 +57,11 @@ type EndPoint struct {
 	Labels     map[string]string `json:"labels"`
 	Identities []string          `json:"identities"`
 
-	Containers       []string          `json:"containers"`
-	HostVolumes      []HostVolumeMount `json:"hostVolumes"`
-	AppArmorProfiles map[string]string `json:"apparmorProfiles"`
-	SELinuxProfiles  map[string]string `json:"selinuxProfiles"`
+	Containers       []string `json:"containers"`
+	AppArmorProfiles []string `json:"apparmorProfiles"`
+
+	SELinuxProfiles map[string]string `json:"selinuxProfiles"`
+	HostVolumes     []HostVolumeMount `json:"hostVolumes"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
