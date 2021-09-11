@@ -9,7 +9,7 @@ import (
 	lbpf "github.com/kubearmor/libbpf"
 )
 
-// KABPFObjName type
+// KABPFObjFileName type
 type KABPFObjFileName string
 
 // KABPFMapName type

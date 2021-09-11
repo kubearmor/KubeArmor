@@ -42,7 +42,7 @@ func (ea *EventAuditor) DestroyProcessMaps(bman *KABPFManager) error {
 	return AppendErrors(err1, err2, err3)
 }
 
-// InitializeProcessProgs Function
+// InitializeProcessPrograms Function
 func (ea *EventAuditor) InitializeProcessPrograms(bman *KABPFManager) error {
 	if bman == nil {
 		return errors.New("bpf manager cannot be nil")
@@ -58,7 +58,7 @@ func (ea *EventAuditor) InitializeProcessPrograms(bman *KABPFManager) error {
 	return AppendErrors(err1, err2, err3, err4)
 }
 
-// DestroyProcessMaps Function
+// DestroyProcessPrograms Function
 func (ea *EventAuditor) DestroyProcessPrograms(bman *KABPFManager) error {
 	if bman == nil {
 		return errors.New("bpf manager cannot be nil")
