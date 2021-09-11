@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package core
 
@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,7 +98,10 @@ func (kh *K8sHandler) InitK8sClient() bool {
 		if kl.IsInK8sCluster() {
 			return kh.InitInclusterAPIClient()
 		}
-		return kh.InitLocalAPIClient()
+		if kl.IsK8sLocal() {
+			return kh.InitLocalAPIClient()
+		}
+		return false
 	}
 
 	return true
@@ -237,24 +239,13 @@ func (kh *K8sHandler) GetNodeIdentities() []string {
 	// get a host name
 	hostName := kl.GetHostName()
 
-	// add the host name
-	nodeIdentities = append(nodeIdentities, "hostName="+hostName)
-
 	// get a node from k8s api client
 	node, err := kh.K8sClient.CoreV1().Nodes().Get(context.Background(), hostName, metav1.GetOptions{})
 	if err != nil {
 		return nodeIdentities
 	}
 
-	// add more info
-	nodeIdentities = append(nodeIdentities, "architecture="+node.Status.NodeInfo.Architecture)
-	nodeIdentities = append(nodeIdentities, "osType="+node.Status.NodeInfo.OperatingSystem)
-	nodeIdentities = append(nodeIdentities, "osName="+strings.Split(node.Status.NodeInfo.OSImage, " ")[0])
-	nodeIdentities = append(nodeIdentities, "osVersion="+strings.Split(node.Status.NodeInfo.OSImage, " ")[1])
-	nodeIdentities = append(nodeIdentities, "kernelVersion="+strings.Split(node.Status.NodeInfo.KernelVersion, "-")[0])
-	nodeIdentities = append(nodeIdentities, "runtimePlatform="+strings.Split(node.Status.NodeInfo.ContainerRuntimeVersion, ":")[0])
-
-	// add labels
+	// add identities
 	for k, v := range node.ObjectMeta.Labels {
 		nodeIdentities = append(nodeIdentities, k+"="+v)
 	}

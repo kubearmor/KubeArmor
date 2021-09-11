@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package enforcer
 
@@ -21,8 +21,7 @@ type RuntimeEnforcer struct {
 	LogFeeder *fd.Feeder
 
 	// LSM type
-	enableLSM    bool
-	enforcerType string
+	EnforcerType string
 
 	// LSMs
 	appArmorEnforcer *AppArmorEnforcer
@@ -33,7 +32,6 @@ func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
 	re := &RuntimeEnforcer{}
 
 	re.LogFeeder = feeder
-	re.enableLSM = false
 
 	if !kl.IsK8sLocal() {
 		// mount securityfs
@@ -53,42 +51,31 @@ func NewRuntimeEnforcer(feeder *fd.Feeder) *RuntimeEnforcer {
 		}
 	}
 
-	re.enforcerType = string(lsm)
+	re.EnforcerType = string(lsm)
 
-	if strings.Contains(re.enforcerType, "apparmor") {
+	if strings.Contains(re.EnforcerType, "apparmor") {
 		re.appArmorEnforcer = NewAppArmorEnforcer(feeder)
 		if re.appArmorEnforcer != nil {
 			re.LogFeeder.Print("Initialized AppArmor Enforcer")
-			re.enableLSM = true
+			re.EnforcerType = "AppArmor"
+		} else {
+			return nil
 		}
-	}
-
-	if !re.enableLSM {
+	} else {
 		return nil
 	}
 
 	return re
 }
 
-// UpdateSecurityProfiles Function
-func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, full bool) {
-	if strings.Contains(re.enforcerType, "apparmor") {
-		appArmorProfiles := []string{}
-
-		for k, v := range pod.Annotations {
-			if strings.Contains(k, "container.apparmor.security.beta.kubernetes.io") {
-				words := strings.Split(v, "/")
-				if len(words) == 2 {
-					appArmorProfiles = append(appArmorProfiles, words[1])
-				}
-			}
-		}
-
-		for _, profile := range appArmorProfiles {
+// UpdateAppArmorProfiles Function
+func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[string]string) {
+	if re.EnforcerType == "AppArmor" {
+		for _, profile := range profiles {
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(profile, full)
+				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(profile, full)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
 			}
 		}
 	}
@@ -96,43 +83,29 @@ func (re *RuntimeEnforcer) UpdateSecurityProfiles(action string, pod tp.K8sPod, 
 
 // UpdateSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateSecurityPolicies(conGroup tp.ContainerGroup) {
-	if strings.Contains(re.enforcerType, "apparmor") {
+	if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateSecurityPolicies(conGroup)
 	}
 }
 
 // DestroyRuntimeEnforcer Function
 func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
-	errorLSM := ""
+	errorLSM := false
 
-	if strings.Contains(re.enforcerType, "apparmor") {
+	if re.EnforcerType == "AppArmor" {
 		if re.appArmorEnforcer != nil {
 			if err := re.appArmorEnforcer.DestroyAppArmorEnforcer(); err != nil {
 				re.LogFeeder.Err(err.Error())
-				errorLSM = "AppArmor"
+				errorLSM = true
 			} else {
 				re.LogFeeder.Print("Destroyed AppArmor Enforcer")
 			}
 		}
 	}
 
-	if errorLSM != "" {
-		return fmt.Errorf("failed to destroy RuntimeEnforcer (%s)", errorLSM)
+	if errorLSM {
+		return fmt.Errorf("failed to destroy RuntimeEnforcer (%s)", re.EnforcerType)
 	}
 
 	return nil
-}
-
-// IsEnabled Function
-func (re *RuntimeEnforcer) IsEnabled() bool {
-	return re.enableLSM
-}
-
-// GetEnforcerType Function
-func (re *RuntimeEnforcer) GetEnforcerType() string {
-	if strings.Contains(re.enforcerType, "apparmor") {
-		return "apparmor"
-	}
-
-	return "None"
 }

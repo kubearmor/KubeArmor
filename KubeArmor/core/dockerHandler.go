@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package core
 
@@ -135,13 +135,13 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
-			fmt.Printf("Failed to get PidNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			kg.Errf("Failed to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
 	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
 		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
-			fmt.Printf("Failed to get MntNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			kg.Errf("Failed to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
@@ -170,6 +170,11 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 
 // GetAlreadyDeployedDockerContainers Function
 func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
+	// check if Docker exists
+	if Docker == nil {
+		return
+	}
+
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
 		for _, dcontainer := range containerList {
 			// get container information from docker client
@@ -186,6 +191,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				dm.ContainersLock.Lock()
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
 					dm.Containers[container.ContainerID] = container
+					dm.ContainersLock.Unlock()
 				} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
 					// this entry was updated by kubernetes before docker detects it
 					// thus, we here use the info given by kubernetes instead of the info given by docker
@@ -195,27 +201,41 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
 
 					container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
+
 					container.ProcessVisibilityEnabled = dm.Containers[container.ContainerID].ProcessVisibilityEnabled
 					container.FileVisibilityEnabled = dm.Containers[container.ContainerID].FileVisibilityEnabled
 					container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
 					container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
 
 					dm.Containers[container.ContainerID] = container
+					dm.ContainersLock.Unlock()
 
-					for _, conGroup := range dm.ContainerGroups {
-						if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[container.ContainerID] == "" {
-							conGroup.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+					dm.ContainerGroupsLock.Lock()
+					for idx, conGroup := range dm.ContainerGroups {
+						if conGroup.NamespaceName == container.NamespaceName && conGroup.ContainerGroupName == container.ContainerGroupName {
+							// update containers
+							if !kl.ContainsElement(conGroup.Containers, container.ContainerID) {
+								dm.ContainerGroups[idx].Containers = append(dm.ContainerGroups[idx].Containers, container.ContainerID)
+							}
+
+							// update apparmor profiles
+							if !kl.ContainsElement(conGroup.AppArmorProfiles, container.AppArmorProfile) {
+								dm.ContainerGroups[idx].AppArmorProfiles = append(dm.ContainerGroups[idx].AppArmorProfiles, container.AppArmorProfile)
+							}
+
 							break
 						}
 					}
+					dm.ContainerGroupsLock.Unlock()
 				} else {
 					dm.ContainersLock.Unlock()
 					continue
 				}
-				dm.ContainersLock.Unlock()
 
-				// update NsMap
-				dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
+				if dm.SystemMonitor != nil {
+					// update NsMap
+					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
+				}
 
 				dm.LogFeeder.Printf("Detected a container (added/%s)", container.ContainerID[:12])
 			}
@@ -225,6 +245,11 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 // UpdateDockerContainer Function
 func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
+	// check if Docker exists
+	if Docker == nil {
+		return
+	}
+
 	container := tp.Container{}
 
 	if action == "start" {
@@ -243,6 +268,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
+			dm.ContainersLock.Unlock()
 		} else if dm.Containers[containerID].PidNS == 0 && dm.Containers[containerID].MntNS == 0 {
 			// this entry was updated by kubernetes before docker detects it
 			// thus, we here use the info given by kubernetes instead of the info given by docker
@@ -252,27 +278,41 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			container.ContainerName = dm.Containers[containerID].ContainerName
 
 			container.PolicyEnabled = dm.Containers[containerID].PolicyEnabled
+
 			container.ProcessVisibilityEnabled = dm.Containers[containerID].ProcessVisibilityEnabled
 			container.FileVisibilityEnabled = dm.Containers[containerID].FileVisibilityEnabled
 			container.NetworkVisibilityEnabled = dm.Containers[containerID].NetworkVisibilityEnabled
 			container.CapabilitiesVisibilityEnabled = dm.Containers[containerID].CapabilitiesVisibilityEnabled
 
 			dm.Containers[containerID] = container
+			dm.ContainersLock.Unlock()
 
-			for _, conGroup := range dm.ContainerGroups {
-				if conGroup.ContainerGroupName == container.ContainerGroupName && conGroup.AppArmorProfiles[containerID] == "" {
-					conGroup.AppArmorProfiles[containerID] = container.AppArmorProfile
+			dm.ContainerGroupsLock.Lock()
+			for idx, conGroup := range dm.ContainerGroups {
+				if conGroup.NamespaceName == container.NamespaceName && conGroup.ContainerGroupName == container.ContainerGroupName {
+					// update containers
+					if !kl.ContainsElement(conGroup.Containers, container.ContainerID) {
+						dm.ContainerGroups[idx].Containers = append(dm.ContainerGroups[idx].Containers, container.ContainerID)
+					}
+
+					// update apparmor profiles
+					if !kl.ContainsElement(conGroup.AppArmorProfiles, container.AppArmorProfile) {
+						dm.ContainerGroups[idx].AppArmorProfiles = append(dm.ContainerGroups[idx].AppArmorProfiles, container.AppArmorProfile)
+					}
+
 					break
 				}
 			}
+			dm.ContainerGroupsLock.Unlock()
 		} else {
 			dm.ContainersLock.Unlock()
 			return
 		}
-		dm.ContainersLock.Unlock()
 
-		// update NsMap
-		dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+		if dm.SystemMonitor != nil {
+			// update NsMap
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+		}
 
 		dm.LogFeeder.Printf("Detected a container (added/%s)", containerID[:12])
 
@@ -282,17 +322,42 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 3: destroy
 
 		dm.ContainersLock.Lock()
-		val, ok := dm.Containers[containerID]
+		container, ok := dm.Containers[containerID]
 		if !ok {
 			dm.ContainersLock.Unlock()
 			return
 		}
-		container = val
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
-		// update NsMap
-		dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+		dm.ContainerGroupsLock.Lock()
+		for idx, conGroup := range dm.ContainerGroups {
+			if conGroup.NamespaceName == container.NamespaceName && conGroup.ContainerGroupName == container.ContainerGroupName {
+				// update containers
+				for idxC, containerID := range conGroup.Containers {
+					if containerID == container.ContainerID {
+						dm.ContainerGroups[idx].Containers = append(dm.ContainerGroups[idx].Containers[:idxC], dm.ContainerGroups[idx].Containers[idxC+1:]...)
+						break
+					}
+				}
+
+				// update apparmor profiles
+				for idxA, profile := range conGroup.AppArmorProfiles {
+					if profile == container.AppArmorProfile {
+						dm.ContainerGroups[idx].AppArmorProfiles = append(dm.ContainerGroups[idx].AppArmorProfiles[:idxA], dm.ContainerGroups[idx].AppArmorProfiles[idxA+1:]...)
+						break
+					}
+				}
+
+				break
+			}
+		}
+		dm.ContainerGroupsLock.Unlock()
+
+		if dm.SystemMonitor != nil {
+			// update NsMap
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+		}
 
 		dm.LogFeeder.Printf("Detected a container (removed/%s)", containerID[:12])
 	}
@@ -303,6 +368,7 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
+	// check if Docker exists
 	if Docker == nil {
 		return
 	}

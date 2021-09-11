@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package enforcer
 
@@ -96,7 +96,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Register AppArmorProfile
 
-	if ok := enforcer.RegisterAppArmorProfile("test-profile", true); !ok {
+	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to register AppArmorProfile")
 		return
 	}
@@ -105,7 +105,7 @@ func TestAppArmorProfile(t *testing.T) {
 
 	// Unregister AppArmorProfile
 
-	if ok := enforcer.UnregisterAppArmorProfile("test-profile", true); !ok {
+	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to unregister AppArmorProfile")
 		return
 	}
