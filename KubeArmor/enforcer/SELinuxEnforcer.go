@@ -150,7 +150,7 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(containerName string, hostVolu
 
 	for _, hostVolume := range hostVolumes {
 		if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
-			context, err := kl.GetSELinuxType(hostVolume.PathName)
+			context, err := GetSELinuxType(hostVolume.PathName)
 			if err != nil {
 				se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 				return false
@@ -306,7 +306,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 			if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
 				mountedPathToHostPath[hostVolume.UsedByContainerPath[containerName]] = hostVolume.PathName
 
-				context, err := kl.GetSELinuxType(hostVolume.PathName)
+				context, err := GetSELinuxType(hostVolume.PathName)
 				if err != nil {
 					se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 					return 0, "", false
@@ -343,7 +343,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 							filePath := strings.Split(absolutePath, containerPath)[1]
 							hostAbsolutePath := hostPath + filePath
 
-							if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+							if context, err := GetSELinuxType(hostAbsolutePath); err != nil {
 								se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 								break
 							} else {
@@ -373,7 +373,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 							filePath := strings.Split(absolutePath, containerPath)[1]
 							hostAbsolutePath := hostPath + filePath
 
-							if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+							if context, err := GetSELinuxType(hostAbsolutePath); err != nil {
 								se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 								break
 							} else {
