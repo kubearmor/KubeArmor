@@ -25,8 +25,6 @@ If there are any violations against security policies, KubeArmor immediately gen
 
 Traditional container security solutions \(e.g., Cilium\) mostly protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\). KubeArmor also allows operators to restrict the behaviors of nodes based on node identities.
 
-For this, KubeArmor provides the ability to filter process executions, file accesses, and even network operations inside containers at the system level.
-
 * Enforce security policies to containers in runtime
 
 In general, security policies \(e.g., Seccomp and AppArmor profiles\) are statically defined within pod definitions for Kubernetes, and they are applied to containers at creation time. Then, the security policies are not allowed to be updated in runtime.
