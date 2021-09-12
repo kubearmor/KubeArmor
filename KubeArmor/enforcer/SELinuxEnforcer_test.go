@@ -41,24 +41,21 @@ func TestSELinuxEnforcer(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
-	// Create SELinux Enforcer
-
+	// create SELinux Enforcer
 	enforcer := NewSELinuxEnforcer(logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create SELinux Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Created SELinux Enforcer")
 
-	// Destroy SELinux Enforcer
-
+	// destroy SELinux Enforcer
 	if err := enforcer.DestroySELinuxEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy SELinux Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Destroyed SELinux Enforcer")
 
 	// destroy Feeder
@@ -66,6 +63,5 @@ func TestSELinuxEnforcer(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }

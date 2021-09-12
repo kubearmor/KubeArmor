@@ -14,7 +14,7 @@ import (
 )
 
 func TestAppArmorEnforcer(t *testing.T) {
-	// Check AppArmor
+	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Log("Failed to access /sys/kernel/security/lsm")
 	}
@@ -41,24 +41,21 @@ func TestAppArmorEnforcer(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
-	// Create AppArmor Enforcer
-
+	// create AppArmor Enforcer
 	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Created AppArmor Enforcer")
 
-	// Destroy AppArmor Enforcer
-
+	// destroy AppArmor Enforcer
 	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
 
 	// destroy logger
@@ -66,12 +63,11 @@ func TestAppArmorEnforcer(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }
 
 func TestAppArmorProfile(t *testing.T) {
-	// Check AppArmor
+	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Log("Failed to access /sys/kernel/security/lsm")
 	}
@@ -98,42 +94,35 @@ func TestAppArmorProfile(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
-	// Create AppArmor Enforcer
-
+	// create AppArmor Enforcer
 	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Created AppArmor Enforcer")
 
-	// Register AppArmorProfile
-
+	// register AppArmorProfile
 	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to register AppArmorProfile")
 		return
 	}
-
 	t.Log("[PASS] Registered AppArmorProfile")
 
-	// Unregister AppArmorProfile
-
+	// unregister AppArmorProfile
 	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to unregister AppArmorProfile")
 		return
 	}
-
 	t.Log("[PASS] Unregister AppArmorProfile")
 
-	// Destroy AppArmor Enforcer
-
+	// destroy AppArmor Enforcer
 	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
 
 	// destroy logger
@@ -141,12 +130,11 @@ func TestAppArmorProfile(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }
 
 func TestHostAppArmorProfile(t *testing.T) {
-	// Check AppArmor
+	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Log("Failed to access /sys/kernel/security/lsm")
 	}
@@ -173,24 +161,21 @@ func TestHostAppArmorProfile(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
-	// Create AppArmor Enforcer
-
+	// create AppArmor Enforcer
 	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Created AppArmor Enforcer")
 
-	// Destroy AppArmor Enforcer
-
+	// destroy AppArmor Enforcer
 	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
 		return
 	}
-
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
 
 	// destroy logger
@@ -198,6 +183,5 @@ func TestHostAppArmorProfile(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }

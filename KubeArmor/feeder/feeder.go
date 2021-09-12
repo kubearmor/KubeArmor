@@ -515,19 +515,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		return
 	}
 
+	// set hostname
+	log.HostName = fd.HostName
+
 	// remove flags
-
 	log.PolicyEnabled = 0
-
 	log.ProcessVisibilityEnabled = false
 	log.FileVisibilityEnabled = false
 	log.NetworkVisibilityEnabled = false
 	log.CapabilitiesVisibilityEnabled = false
 
 	// standard output / file output
-
-	log.HostName = fd.HostName
-
 	if fd.Output == "stdout" {
 		arr, _ := json.Marshal(log)
 		fmt.Println(string(arr))
@@ -537,7 +535,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-
 	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "MatchedNativePolicy" {
 		pbAlert := pb.Alert{}
 
