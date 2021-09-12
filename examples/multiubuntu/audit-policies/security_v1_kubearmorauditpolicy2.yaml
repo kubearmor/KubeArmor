@@ -1,7 +1,7 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorAuditPolicy
 metadata:
-  name: kubearmorauditpolicy-sample-1
+  name: kubearmorauditpolicy-sample-2
   namespace: multiubuntu
 spec:
   selector:
@@ -18,7 +18,6 @@ spec:
     - probe: sys_open
       ipv4addr: 10.*.*.8
       rate: 100p1s
-
   - process: "*"
     events:
     - probe: sys_execve
