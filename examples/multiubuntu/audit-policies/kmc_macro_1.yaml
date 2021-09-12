@@ -1,7 +1,7 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorMacro
 metadata:
-  name: kubearmormacro-sample
+  name: kubearmormacro-sample-1
   namespace: multiubuntu
 spec:
   macros:
