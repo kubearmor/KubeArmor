@@ -1,7 +1,6 @@
 general:
   clusterName: Default
   containerPlatform: containerd # { docker | containerd }
-  gkeEnabled: true
 
 kubearmor:
   serviceAccountName: kubearmor
