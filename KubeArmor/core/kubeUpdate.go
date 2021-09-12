@@ -343,8 +343,6 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				// == AppArmor == //
 
-				// == AppArmor == //
-
 				if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
 					appArmorAnnotations := map[string]string{}
 					updateAppArmor := false

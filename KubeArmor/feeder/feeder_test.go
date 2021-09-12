@@ -14,7 +14,6 @@ func TestFeeder(t *testing.T) {
 		t.Log("[FAIL] Failed to create Feeder")
 		return
 	}
-
 	t.Log("[PASS] Created Feeder")
 
 	// destroy Feeder
@@ -22,6 +21,5 @@ func TestFeeder(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy Feeder")
 		return
 	}
-
 	t.Log("[PASS] Destroyed Feeder")
 }

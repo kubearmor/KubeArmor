@@ -522,7 +522,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// remove visibility flags
-
 	log.PolicyEnabled = 0
 	log.ProcessVisibilityEnabled = false
 	log.FileVisibilityEnabled = false
@@ -530,7 +529,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	log.CapabilitiesVisibilityEnabled = false
 
 	// standard output / file output
-
 	if fd.Filter == "policy" {
 		if len(log.PolicyName) > 0 {
 			log.HostName = fd.HostName
@@ -568,7 +566,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-
 	if log.Type == "MatchedPolicy" || log.Type == "MatchedNativePolicy" {
 		pbAlert := pb.Alert{}
 
