@@ -9,11 +9,11 @@
 [![Discussions](https://img.shields.io/badge/Got%20Questions%3F-Chat-Violet)](https://github.com/kubearmor/KubeArmor/discussions)
 
 
-KubeArmor is a container-aware runtime security enforcement system that restricts the behavior \(such as process execution, file access, and networking operation\) of containers at the system level.
+KubeArmor is a cloud-native runtime security enforcement system that restricts the behavior \(such as process execution, file access, and networking operation\) of containers and nodes at the system level.
 
 KubeArmor operates with [Linux security modules \(LSMs\)](https://en.wikipedia.org/wiki/Linux_Security_Modules), meaning that it can work on top of any Linux platforms \(such as Alpine, Ubuntu, and Container-optimized OS from Google\) if Linux security modules \(e.g., [AppArmor](https://en.wikipedia.org/wiki/AppArmor), [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux), or [KRSI](https://lwn.net/Articles/808048/)\) are enabled in the Linux Kernel. KubeArmor will use the appropriate LSMs to enforce the required policies.
 
-KubeArmor is designed for Kubernetes environments; thus, operators only need to define security policies and apply them to Kubernetes. Then, KubeArmor will automatically detect the changes in security policies from Kubernetes and enforce them to the corresponding containers.
+KubeArmor allows operators to define security policies and apply them to Kubernetes. Then, KubeArmor will automatically detect the changes in security policies from Kubernetes and enforce them to the corresponding containers and nodes.
 
 If there are any violations against security policies, KubeArmor immediately generates alerts with container identities. If operators have any logging systems, it automatically sends the alerts to their systems as well.
 
@@ -21,9 +21,9 @@ If there are any violations against security policies, KubeArmor immediately gen
 
 ## Functionality Overview
 
-* Restrict the behavior of containers at the system level
+* Restrict the behavior of containers and nodes at the system level
 
-Traditional container security solutions \(e.g., Cilium\) mostly protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\).
+Traditional container security solutions \(e.g., Cilium\) mostly protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\). KubeArmor also allows operators to restrict the behaviors of nodes based on node identities.
 
 For this, KubeArmor provides the ability to filter process executions, file accesses, and even network operations inside containers at the system level.
 
@@ -54,8 +54,8 @@ Please take a look at the following documents.
 1. [Deployment Guide](getting-started/deployment_guide.md)
 2. [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
 3. [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
-4. [Security Policy Specification for Hosts](getting-started/host_security_policy_specification.md)
-5. [Security Policy Examples for Hosts](getting-started/host_security_policy_examples.md)
+4. [Security Policy Specification for Nodes](getting-started/host_security_policy_specification.md)
+5. [Security Policy Examples for Nodes](getting-started/host_security_policy_examples.md)
 
 If you want to make a contribution, please refer to the following documents too.
 

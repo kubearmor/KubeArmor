@@ -1,5 +1,5 @@
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 # Build the manager binary
 FROM golang:1.13 as builder

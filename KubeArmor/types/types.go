@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package types
 
@@ -42,11 +42,11 @@ type Container struct {
 
 // HostVolumeMount Structure
 type HostVolumeMount struct {
-	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
-	UsedByContainerPath     map[string]string // key: container name, val: mounted path
+	Type                    string
 	VolumeName              string
 	PathName                string
-	Type                    string
+	UsedByContainerPath     map[string]string // key: container name, val: mounted path
+	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
 }
 
 // EndPoint Structure
@@ -57,10 +57,11 @@ type EndPoint struct {
 	Labels     map[string]string `json:"labels"`
 	Identities []string          `json:"identities"`
 
-	Containers       []string          `json:"containers"`
-	HostVolumes      []HostVolumeMount `json:"hostVolumes"`
-	AppArmorProfiles map[string]string `json:"apparmorProfiles"`
-	SELinuxProfiles  map[string]string `json:"selinuxProfiles"`
+	Containers       []string `json:"containers"`
+	AppArmorProfiles []string `json:"apparmorProfiles"`
+
+	SELinuxProfiles map[string]string `json:"selinuxProfiles"`
+	HostVolumes     []HostVolumeMount `json:"hostVolumes"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 	AuditPolicies    []AuditPolicy    `json:"auditPolicies"`
@@ -304,18 +305,19 @@ type Log struct {
 type MatchPolicy struct {
 	PolicyName string
 
+	Severity string
+	Tags     []string
+	Message  string
+
 	Source       string
 	Operation    string
-	Resource     string
 	ResourceType string
+	Resource     string
 
 	Regexp *regexp.Regexp
 	Native bool
 
-	Severity string
-	Tags     []string
-	Message  string
-	Action   string
+	Action string
 }
 
 // MatchPolicies Structure
@@ -538,9 +540,15 @@ type SecurityPolicy struct {
 // == Host Security Policy == //
 // ========================== //
 
+// NodeSelectorType Structure
+type NodeSelectorType struct {
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	Identities  []string          `json:"identities,omitempty"` // set during policy update
+}
+
 // HostSecuritySpec Structure
 type HostSecuritySpec struct {
-	NodeSelector SelectorType `json:"nodeSelector"`
+	NodeSelector NodeSelectorType `json:"nodeSelector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`

@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package core
 
@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,12 +60,12 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 				node.Labels = map[string]string{}
 				node.Identities = []string{}
 
-				// add annotations
+				// update annotations
 				for k, v := range event.Object.ObjectMeta.Annotations {
 					node.Annotations[k] = v
 				}
 
-				// add labels
+				// update labels and identities
 				for k, v := range event.Object.ObjectMeta.Labels {
 					node.Labels[k] = v
 					node.Identities = append(node.Identities, k+"="+v)
@@ -109,49 +108,34 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 	if action == "ADDED" {
 		// create a new endpoint
-
 		newPoint := tp.EndPoint{}
 
 		newPoint.NamespaceName = pod.Metadata["namespaceName"]
 		newPoint.EndPointName = pod.Metadata["podName"]
 
 		newPoint.Labels = map[string]string{}
-		newPoint.Identities = []string{}
-		newPoint.Containers = []string{}
-		newPoint.AppArmorProfiles = map[string]string{}
-
-		newPoint.Identities = append(newPoint.Identities, "namespaceName="+pod.Metadata["namespaceName"])
+		newPoint.Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
 
 		// update labels and identities
 		for k, v := range pod.Labels {
 			newPoint.Labels[k] = v
-
-			if !kl.ContainsElement(newPoint.Identities, k+"="+v) {
-				newPoint.Identities = append(newPoint.Identities, k+"="+v)
-			}
+			newPoint.Identities = append(newPoint.Identities, k+"="+v)
 		}
 
 		sort.Slice(newPoint.Identities, func(i, j int) bool {
 			return newPoint.Identities[i] < newPoint.Identities[j]
 		})
 
-		// update container list
-		for k := range pod.Containers {
-			if !kl.ContainsElement(newPoint.Containers, k) {
-				newPoint.Containers = append(newPoint.Containers, k)
-			}
-		}
-
-		// update flags
+		// update policy flag
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" {
+		} else if pod.Annotations["kubearmor-policy"] == "audited" || pod.Annotations["kubearmor-policy"] == "patched" {
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
 		} else {
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 		}
 
-		// parse annotations and set flags
+		// parse annotations and update visibility flags
 		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
 			if visibility == "process" {
 				newPoint.ProcessVisibilityEnabled = true
@@ -164,7 +148,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 		}
 
+		newPoint.Containers = []string{}
+		newPoint.AppArmorProfiles = []string{}
+
 		// update containers
+		for k := range pod.Containers {
+			newPoint.Containers = append(newPoint.Containers, k)
+		}
+
+		// update containers and apparmors
 		dm.ContainersLock.Lock()
 		for _, containerID := range newPoint.Containers {
 			container := dm.Containers[containerID]
@@ -180,35 +172,37 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container.NetworkVisibilityEnabled = newPoint.NetworkVisibilityEnabled
 			container.CapabilitiesVisibilityEnabled = newPoint.CapabilitiesVisibilityEnabled
 
-			newPoint.AppArmorProfiles[containerID] = container.AppArmorProfile
+			if !kl.ContainsElement(newPoint.AppArmorProfiles, container.AppArmorProfile) {
+				newPoint.AppArmorProfiles = append(newPoint.AppArmorProfiles, container.AppArmorProfile)
+			}
 
 			dm.Containers[containerID] = container
 		}
 		dm.ContainersLock.Unlock()
 
-		// update selinux profile names to the endpoint
 		newPoint.SELinuxProfiles = map[string]string{}
-		for k, v := range pod.Metadata {
+		newPoint.HostVolumes = []tp.HostVolumeMount{}
+
+		// update selinux profile names to the endpoint
+		for k, v := range pod.Annotations {
 			if strings.HasPrefix(k, "selinux-") {
-				contName := strings.Split(k, "selinux-")[1]
-				newPoint.SELinuxProfiles[contName] = v
+				containerName := strings.Split(k, "selinux-")[1]
+				newPoint.SELinuxProfiles[containerName] = v
 			}
 		}
 
 		// update host-side volume mounted
-		newPoint.HostVolumes = []tp.HostVolumeMount{}
 		newPoint.HostVolumes = append(newPoint.HostVolumes, pod.HostVolumes...)
 
 		// update security policies with the identities
 		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint.Identities)
 
+		// == //
+
 		// add the endpoint into the endpoint list
 		dm.EndPoints = append(dm.EndPoints, newPoint)
 
-		if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-			// create and register security profiles
-			dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
-		}
+		// == //
 
 		// update security policies
 		dm.Logger.UpdateSecurityPolicies(action, newPoint)
@@ -219,39 +213,20 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 	} else if action == "MODIFIED" {
 		for idx, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				// update the labels and identities of the endpoint
-
 				dm.EndPoints[idx].Labels = map[string]string{}
-				dm.EndPoints[idx].Identities = []string{}
-				dm.EndPoints[idx].Containers = []string{}
-				dm.EndPoints[idx].AppArmorProfiles = map[string]string{}
-
-				dm.EndPoints[idx].Identities = append(dm.EndPoints[idx].Identities, "namespaceName="+pod.Metadata["namespaceName"])
+				dm.EndPoints[idx].Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
 
 				// update labels and identities
 				for k, v := range pod.Labels {
 					dm.EndPoints[idx].Labels[k] = v
-
-					if !kl.ContainsElement(dm.EndPoints[idx].Identities, k+"="+v) {
-						dm.EndPoints[idx].Identities = append(dm.EndPoints[idx].Identities, k+"="+v)
-					}
+					dm.EndPoints[idx].Identities = append(dm.EndPoints[idx].Identities, k+"="+v)
 				}
 
 				sort.Slice(dm.EndPoints[idx].Identities, func(i, j int) bool {
 					return dm.EndPoints[idx].Identities[i] < dm.EndPoints[idx].Identities[j]
 				})
 
-				// update container list
-				for k := range pod.Containers {
-					if !kl.ContainsElement(dm.EndPoints[idx].Containers, k) {
-						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, k)
-					}
-				}
-
-				// update flags
-
-				prevPolicyEnabled := dm.EndPoints[idx].PolicyEnabled
-
+				// update policy flag
 				if pod.Annotations["kubearmor-policy"] == "enabled" {
 					dm.EndPoints[idx].PolicyEnabled = tp.KubeArmorPolicyEnabled
 				} else if pod.Annotations["kubearmor-policy"] == "audited" {
@@ -260,13 +235,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					dm.EndPoints[idx].PolicyEnabled = tp.KubeArmorPolicyDisabled
 				}
 
-				// parse annotations and set flags
-
 				dm.EndPoints[idx].ProcessVisibilityEnabled = false
 				dm.EndPoints[idx].FileVisibilityEnabled = false
 				dm.EndPoints[idx].NetworkVisibilityEnabled = false
 				dm.EndPoints[idx].CapabilitiesVisibilityEnabled = false
 
+				// parse annotations and update visibility flags
 				for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
 					if visibility == "process" {
 						dm.EndPoints[idx].ProcessVisibilityEnabled = true
@@ -279,7 +253,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					}
 				}
 
+				dm.EndPoints[idx].Containers = []string{}
+				dm.EndPoints[idx].AppArmorProfiles = []string{}
+
 				// update containers
+				for k := range pod.Containers {
+					dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, k)
+				}
+
+				// update containers and apparmors
 				dm.ContainersLock.Lock()
 				for _, containerID := range dm.EndPoints[idx].Containers {
 					container := dm.Containers[containerID]
@@ -295,19 +277,32 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					container.NetworkVisibilityEnabled = dm.EndPoints[idx].NetworkVisibilityEnabled
 					container.CapabilitiesVisibilityEnabled = dm.EndPoints[idx].CapabilitiesVisibilityEnabled
 
-					dm.EndPoints[idx].AppArmorProfiles[containerID] = container.AppArmorProfile
+					if !kl.ContainsElement(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile) {
+						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+					}
 
 					dm.Containers[containerID] = container
 				}
 				dm.ContainersLock.Unlock()
 
+				dm.EndPoints[idx].SELinuxProfiles = map[string]string{}
+				dm.EndPoints[idx].HostVolumes = []tp.HostVolumeMount{}
+
+				// update selinux profile names to the endpoint
+				for k, v := range pod.Annotations {
+					if strings.HasPrefix(k, "selinux-") {
+						containerName := strings.Split(k, "selinux-")[1]
+						dm.EndPoints[idx].SELinuxProfiles[containerName] = v
+					}
+				}
+
+				// update host-side volume mounted
+				dm.EndPoints[idx].HostVolumes = append(dm.EndPoints[idx].HostVolumes, pod.HostVolumes...)
+
 				// get security policies according to the updated identities
 				dm.EndPoints[idx].SecurityPolicies = dm.GetSecurityPolicies(dm.EndPoints[idx].Identities)
 
-				if prevPolicyEnabled != tp.KubeArmorPolicyEnabled && dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// initialize and register security profiles
-					dm.RuntimeEnforcer.UpdateSecurityProfiles("ADDED", pod)
-				}
+				// == //
 
 				// update security policies
 				dm.Logger.UpdateSecurityPolicies(action, dm.EndPoints[idx])
@@ -322,11 +317,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 	} else { // DELETED
 		for idx, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// initialize and unregister security profiles
-					dm.RuntimeEnforcer.UpdateSecurityProfiles(action, pod)
-				}
-
 				// remove endpoint
 				dm.EndPoints = append(dm.EndPoints[:idx], dm.EndPoints[idx+1:]...)
 
@@ -402,6 +392,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				// == Policy == //
+
 				if _, ok := pod.Annotations["kubearmor-policy"]; ok {
 					if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" && pod.Annotations["kubearmor-policy"] != "audited" {
 						pod.Annotations["kubearmor-policy"] = "enabled"
@@ -410,24 +402,21 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					pod.Annotations["kubearmor-policy"] = "enabled"
 				}
 
-				// == //
+				// == LSM == //
 
-				if dm.RuntimeEnforcer.EnableLSM {
-					if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
-						// exception: no AppArmor
-						if !strings.Contains(string(lsm), "apparmor") {
-							if pod.Annotations["kubearmor-policy"] == "enabled" {
-								pod.Annotations["kubearmor-policy"] = "audited"
-							}
-						}
+				if dm.RuntimeEnforcer == nil {
+					// exception: no LSM
+					if pod.Annotations["kubearmor-policy"] == "enabled" {
+						pod.Annotations["kubearmor-policy"] = "audited"
 					}
-				} else { // No LSM
+				} else if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil && !strings.Contains(string(lsm), "apparmor") {
+					// exception: no AppArmor
 					if pod.Annotations["kubearmor-policy"] == "enabled" {
 						pod.Annotations["kubearmor-policy"] = "audited"
 					}
 				}
 
-				// == //
+				// == Exception == //
 
 				if pod.Metadata["namespaceName"] == "kube-system" {
 					// exception: kubernetes app
@@ -441,7 +430,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				// == //
+				// == Visibility == //
 
 				if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
 					pod.Annotations["kubearmor-visibility"] = "none"
@@ -468,7 +457,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				// == AppArmor == //
 
-				if pod.Annotations["kubearmor-policy"] == "enabled" {
+				if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
 					appArmorAnnotations := map[string]string{}
 					updateAppArmor := false
 
@@ -491,50 +480,78 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					}
 
-					if dm.RuntimeEnforcer.GetEnforcerType() == "apparmor" {
-						if updateAppArmor && (event.Type == "ADDED" || event.Type == "MODIFIED") {
+					if event.Type == "ADDED" {
+						// update apparmor profiles
+						dm.RuntimeEnforcer.UpdateAppArmorProfiles("ADDED", appArmorAnnotations)
+
+						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
 							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+								// patch the deployment with apparmor annotations
 								if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
-									dm.Logger.Errf("Failed to update AppArmor Profiles (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 								} else {
-									dm.Logger.Printf("Patched AppArmor Profiles (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+									dm.Logger.Printf("Patched AppArmor Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
 								}
 								pod.Annotations["kubearmor-policy"] = "patched"
 							}
 						}
+					} else if event.Type == "MODIFIED" {
+						for _, k8spod := range dm.K8sPods {
+							if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
+								prevPolicyEnabled := "disabled"
+
+								if val, ok := k8spod.Annotations["kubearmor-policy"]; ok {
+									prevPolicyEnabled = val
+								}
+
+								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
+									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+										// patch the deployment with apparmor annotations
+										if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
+											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										} else {
+											dm.Logger.Printf("Patched AppArmor Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+										}
+										pod.Annotations["kubearmor-policy"] = "patched"
+									}
+								}
+
+								break
+							}
+						}
+					} else if event.Type == "DELETED" {
+						// update apparmor profiles
+						dm.RuntimeEnforcer.UpdateAppArmorProfiles("DELETED", appArmorAnnotations)
 					}
 				}
 
 				// == SELinux == //
 
-				if pod.Annotations["kubearmor-policy"] == "enabled" {
+				if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "SELinux" {
 					pod.HostVolumes = []tp.HostVolumeMount{}
-					seLinuxContexts := map[string]string{}
-					updateSELinux := false
 
 					for _, v := range event.Object.Spec.Volumes {
 						if v.HostPath != nil {
 							hostVolume := tp.HostVolumeMount{}
 
-							hostVolume.UsedByContainerReadOnly = map[string]bool{}
-							hostVolume.UsedByContainerPath = map[string]string{}
-
+							hostVolume.Type = string(*v.HostPath.Type)
 							hostVolume.VolumeName = v.Name
 							hostVolume.PathName = v.HostPath.Path
-							hostVolume.Type = string(*v.HostPath.Type)
+
+							hostVolume.UsedByContainerPath = map[string]string{}
+							hostVolume.UsedByContainerReadOnly = map[string]bool{}
 
 							pod.HostVolumes = append(pod.HostVolumes, hostVolume)
 						}
 					}
 
 					for _, container := range event.Object.Spec.Containers {
-						// match container volumes to host mounted volume
 						for _, containerVolume := range container.VolumeMounts {
 							for i, hostVoulme := range pod.HostVolumes {
 								if containerVolume.Name == hostVoulme.VolumeName {
 									if _, ok := pod.HostVolumes[i].UsedByContainerReadOnly[container.Name]; !ok {
-										pod.HostVolumes[i].UsedByContainerReadOnly[container.Name] = containerVolume.ReadOnly
 										pod.HostVolumes[i].UsedByContainerPath[container.Name] = containerVolume.MountPath
+										pod.HostVolumes[i].UsedByContainerReadOnly[container.Name] = containerVolume.ReadOnly
 									}
 								}
 							}
@@ -542,13 +559,16 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 						if container.SecurityContext != nil && container.SecurityContext.SELinuxOptions != nil {
 							if strings.Contains(container.SecurityContext.SELinuxOptions.Type, ".process") {
-								if _, ok := pod.Metadata["selinux-"+container.Name]; !ok {
+								if _, ok := pod.Annotations["selinux-"+container.Name]; !ok {
 									selinuxContext := strings.Split(container.SecurityContext.SELinuxOptions.Type, ".process")[0]
-									pod.Metadata["selinux-"+container.Name] = selinuxContext
+									pod.Annotations["selinux-"+container.Name] = selinuxContext
 								}
 							}
 						}
 					}
+
+					seLinuxContexts := map[string]string{}
+					updateSELinux := false
 
 					for _, container := range event.Object.Spec.Containers {
 						if container.SecurityContext == nil || container.SecurityContext.SELinuxOptions == nil || container.SecurityContext.SELinuxOptions.Type == "" {
@@ -575,10 +595,13 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					}
 
-					// if no selinux annotations but kubearmor-policy is enabled, add selinux annotations
-					if dm.RuntimeEnforcer.GetEnforcerType() == "selinux" {
-						if updateSELinux && (event.Type == "ADDED" || event.Type == "MODIFIED") {
+					if event.Type == "ADDED" {
+						// update selinux profiles
+						dm.RuntimeEnforcer.UpdateSELinuxProfiles("ADDED", pod.Annotations, pod.HostVolumes)
+
+						if updateSELinux && pod.Annotations["kubearmor-policy"] == "enabled" {
 							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+								// patch the deployment with selinux labels
 								if err := K8s.PatchDeploymentWithSELinuxOptions(pod.Metadata["namespaceName"], deploymentName, seLinuxContexts); err != nil {
 									dm.Logger.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 								} else {
@@ -587,17 +610,49 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								pod.Annotations["kubearmor-policy"] = "patched"
 							}
 						}
+					} else if event.Type == "MODIFIED" {
+						for _, k8spod := range dm.K8sPods {
+							if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
+								prevPolicyEnabled := "disabled"
+
+								if val, ok := k8spod.Annotations["kubearmor-policy"]; ok {
+									prevPolicyEnabled = val
+								}
+
+								if updateSELinux && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
+									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+										// patch the deployment with selinux labels
+										if err := K8s.PatchDeploymentWithSELinuxOptions(pod.Metadata["namespaceName"], deploymentName, seLinuxContexts); err != nil {
+											dm.Logger.Errf("Failed to update SELinux security options (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
+										} else {
+											dm.Logger.Printf("Patched SELinux security options (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
+										}
+										pod.Annotations["kubearmor-policy"] = "patched"
+									}
+								}
+
+								break
+							}
+						}
+					} else if event.Type == "DELETED" {
+						// update selinux profiles
+						dm.RuntimeEnforcer.UpdateSELinuxProfiles("DELETED", pod.Annotations, pod.HostVolumes)
 					}
 				}
 
 				// == //
 
-				// update the pod into the pod list
-
 				dm.K8sPodsLock.Lock()
 
 				if event.Type == "ADDED" {
-					if !kl.ContainsElement(dm.K8sPods, pod) {
+					new := true
+					for _, k8spod := range dm.K8sPods {
+						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
+							new = false
+							break
+						}
+					}
+					if new {
 						dm.K8sPods = append(dm.K8sPods, pod)
 					}
 				} else if event.Type == "MODIFIED" {
@@ -621,12 +676,16 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				dm.K8sPodsLock.Unlock()
 
-				if pod.Annotations["kubearmor-policy"] != "patched" {
-					dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
+				// == //
 
-					// update a endpoint corresponding to the pod
-					dm.UpdateEndPointWithPod(event.Type, pod)
+				if pod.Annotations["kubearmor-policy"] == "patched" {
+					dm.Logger.Printf("Detected a Pod (patched/%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
+				} else {
+					dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 				}
+
+				// update a endpoint corresponding to the pod
+				dm.UpdateEndPointWithPod(event.Type, pod)
 			}
 		} else {
 			time.Sleep(time.Second * 1)
@@ -649,7 +708,7 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
 			secPolicy := tp.SecurityPolicy{}
 			if err := kl.Clone(policy, &secPolicy); err != nil {
-				fmt.Println("Failed to clone a policy")
+				dm.Logger.Err("Failed to clone a policy")
 			}
 			secPolicies = append(secPolicies, secPolicy)
 		}
@@ -668,7 +727,14 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 		if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) {
 			if action == "ADDED" {
 				// add a new security policy if it doesn't exist
-				if !kl.ContainsElement(endPoint.SecurityPolicies, secPolicy) {
+				new := true
+				for _, policy := range endPoint.SecurityPolicies {
+					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+						new = false
+						break
+					}
+				}
+				if new {
 					dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
 				}
 			} else if action == "MODIFIED" {
@@ -681,7 +747,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			} else if action == "DELETED" {
 				// remove the given policy from the security policy list of this endpoint
 				for idxP, policy := range endPoint.SecurityPolicies {
-					if reflect.DeepEqual(secPolicy, policy) {
+					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
 						break
 					}
@@ -732,7 +798,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
 
 				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
-					fmt.Println("Failed to clone a spec")
+					dm.Logger.Err("Failed to clone a spec")
 				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
@@ -755,12 +821,10 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 				// add identities
 
-				secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, "namespaceName="+event.Object.Metadata.Namespace)
+				secPolicy.Spec.Selector.Identities = []string{"namespaceName=" + event.Object.Metadata.Namespace}
 
 				for k, v := range secPolicy.Spec.Selector.MatchLabels {
-					if !kl.ContainsElement(secPolicy.Spec.Selector.Identities, k+"="+v) {
-						secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-					}
+					secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
 				}
 
 				sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
@@ -1096,7 +1160,14 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				// update a security policy into the policy list
 
 				if event.Type == "ADDED" {
-					if !kl.ContainsElement(dm.SecurityPolicies, secPolicy) {
+					new := true
+					for _, policy := range dm.SecurityPolicies {
+						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							new = false
+							break
+						}
+					}
+					if new {
 						dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
 					}
 				} else if event.Type == "MODIFIED" {
@@ -1108,7 +1179,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				} else if event.Type == "DELETED" {
 					for idx, policy := range dm.SecurityPolicies {
-						if reflect.DeepEqual(secPolicy, policy) {
+						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
 							break
 						}
@@ -1184,7 +1255,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
 
 				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
-					fmt.Println("Failed to clone a spec")
+					dm.Logger.Err("Failed to clone a spec")
 				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
@@ -1207,10 +1278,10 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 
 				// add identities
 
+				secPolicy.Spec.NodeSelector.Identities = []string{}
+
 				for k, v := range secPolicy.Spec.NodeSelector.MatchLabels {
-					if !kl.ContainsElement(secPolicy.Spec.NodeSelector.Identities, k+"="+v) {
-						secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
-					}
+					secPolicy.Spec.NodeSelector.Identities = append(secPolicy.Spec.NodeSelector.Identities, k+"="+v)
 				}
 
 				sort.Slice(secPolicy.Spec.NodeSelector.Identities, func(i, j int) bool {
@@ -1502,7 +1573,14 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				// update a security policy into the policy list
 
 				if event.Type == "ADDED" {
-					if !kl.ContainsElement(dm.HostSecurityPolicies, secPolicy) {
+					new := true
+					for _, policy := range dm.HostSecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							new = false
+							break
+						}
+					}
+					if new {
 						dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, secPolicy)
 					}
 				} else if event.Type == "MODIFIED" {
@@ -1514,7 +1592,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					}
 				} else if event.Type == "DELETED" {
 					for idx, policy := range dm.HostSecurityPolicies {
-						if reflect.DeepEqual(secPolicy, policy) {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							dm.HostSecurityPolicies = append(dm.HostSecurityPolicies[:idx], dm.HostSecurityPolicies[idx+1:]...)
 							break
 						}
@@ -1611,11 +1689,16 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 			auditPolicies[i].Process = "*"
 		}
 
-		// set message
-		if rule.Message != "" {
-			auditPolicies[i].Message = rule.Message
+		// set severity
+		if rule.Severity != "" {
+			if severity, err := strconv.ParseInt(strings.TrimSpace(rule.Severity), 0, 32); err == nil {
+				auditPolicies[i].Severity = int(severity)
+			} else {
+				message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Severity) to int", rule.Severity, i)
+				return nil, errors.New(message)
+			}
 		} else {
-			auditPolicies[i].Message = defaultMessage
+			auditPolicies[i].Severity = int(defaultSeverity)
 		}
 
 		// set tags
@@ -1627,16 +1710,11 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 			copy(auditPolicies[i].Tags, defaultTags)
 		}
 
-		// set severity
-		if rule.Severity != "" {
-			if severity, err := strconv.ParseInt(strings.TrimSpace(rule.Severity), 0, 32); err == nil {
-				auditPolicies[i].Severity = int(severity)
-			} else {
-				message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Severity) to int", rule.Severity, i)
-				return nil, errors.New(message)
-			}
+		// set message
+		if rule.Message != "" {
+			auditPolicies[i].Message = rule.Message
 		} else {
-			auditPolicies[i].Severity = int(defaultSeverity)
+			auditPolicies[i].Message = defaultMessage
 		}
 
 		// set events
@@ -1690,7 +1768,7 @@ func (dm *KubeArmorDaemon) GetAuditPolicies(identities []string) []tp.AuditPolic
 		if kl.MatchIdentities(policy.Selector.Identities, identities) {
 			auditPolicy := tp.AuditPolicy{}
 			if err := kl.Clone(policy, &auditPolicy); err != nil {
-				fmt.Println("Failed to clone an audit policy")
+				dm.Logger.Errf("Failed to clone an audit policy")
 			}
 			auditPolicies = append(auditPolicies, auditPolicy)
 		}
@@ -1713,7 +1791,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 
 		// clone spec
 		if err := kl.Clone(k8sPolicy.Spec, &k8sAuditPolicySpec); err != nil {
-			dm.Logger.Printf("Failed to clone spec for k8sPolicy %s", k8sPolicy.Metadata.Name)
+			dm.Logger.Errf("Failed to clone spec for k8sPolicy %s", k8sPolicy.Metadata.Name)
 			continue
 		}
 
@@ -1742,6 +1820,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 
 				newAuditRule := auditRule
 				newAuditRule.Process = name
+
 				newAuditRule.Events = make([]tp.K8sEventType, len(auditRule.Events))
 				copy(newAuditRule.Events, auditRule.Events)
 
@@ -1762,6 +1841,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 
 					newEvent := event
 					newEvent.Probe = name
+
 					k8sAuditPolicySpec.AuditRules[i].Events = append(k8sAuditPolicySpec.AuditRules[i].Events, newEvent)
 				}
 			}
@@ -1770,7 +1850,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 		// convert k8sAuditPolicy spec, skip (and alert) if invalid conversions
 		auditPolicies, err := k8sAuditPolicyConvert(k8sAuditPolicySpec)
 		if err != nil {
-			dm.Logger.Printf("Failed to convert K8sAuditPolicySpec: %v", err)
+			dm.Logger.Errf("Failed to convert K8sAuditPolicySpec: %v", err)
 			continue
 		}
 
@@ -1794,6 +1874,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	}
 
 	dm.K8sAuditPoliciesLock.Unlock()
+
 	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
 
 	// assign AuditPolicies to the corresponding EndPoints
@@ -1831,15 +1912,21 @@ func (dm *KubeArmorDaemon) decodeAuditPolicy(decoder *json.Decoder) {
 		k8sPolicy := tp.K8sKubeArmorAuditPolicy{}
 
 		if err := kl.Clone(event.Object, &k8sPolicy); err != nil {
-			dm.Logger.Printf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost",
-				strings.ToLower(event.Type), k8sPolicy.Metadata.Name)
+			dm.Logger.Errf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost", strings.ToLower(event.Type), k8sPolicy.Metadata.Name)
 			continue
 		}
 
 		dm.K8sAuditPoliciesLock.Lock()
 
 		if event.Type == "ADDED" {
-			if !kl.ContainsElement(dm.K8sAuditPolicies, k8sPolicy) {
+			new := true
+			for _, policy := range dm.K8sAuditPolicies {
+				if policy.Metadata.Namespace == k8sPolicy.Metadata.Namespace && policy.Metadata.Name == k8sPolicy.Metadata.Name {
+					new = false
+					break
+				}
+			}
+			if new {
 				dm.K8sAuditPolicies = append(dm.K8sAuditPolicies, k8sPolicy)
 			}
 		} else if event.Type == "MODIFIED" {
@@ -1897,15 +1984,21 @@ func (dm *KubeArmorDaemon) decodeKubeArmorMacro(decoder *json.Decoder) {
 		macro := tp.K8sKubeArmorMacro{}
 
 		if err := kl.Clone(event.Object, &macro); err != nil {
-			dm.Logger.Printf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost",
-				strings.ToLower(event.Type), macro.Metadata.Name)
+			dm.Logger.Errf("Failed to clone spec for Audit Policy (%s/%s). This event will be lost", strings.ToLower(event.Type), macro.Metadata.Name)
 			continue
 		}
 
 		dm.K8sMacrosLock.Lock()
 
 		if event.Type == "ADDED" {
-			if !kl.ContainsElement(dm.K8sMacros, macro) {
+			new := true
+			for _, k8sMacro := range dm.K8sMacros {
+				if macro.Metadata.Namespace == k8sMacro.Metadata.Namespace && macro.Metadata.Name == k8sMacro.Metadata.Name {
+					new = false
+					break
+				}
+			}
+			if new {
 				dm.K8sMacros = append(dm.K8sMacros, macro)
 			}
 		} else if event.Type == "MODIFIED" {

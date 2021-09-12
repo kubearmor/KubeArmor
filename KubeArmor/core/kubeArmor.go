@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package core
 
@@ -179,8 +179,9 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableKubeArmorPo
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	if dm.EventAuditor != nil {
 		// close event auditor
-		dm.CloseEventAuditor()
-		dm.Logger.Print("Stopped the event auditor")
+		if dm.CloseEventAuditor() {
+			dm.Logger.Print("Stopped the event auditor")
+		}
 	}
 
 	if dm.RuntimeEnforcer != nil {
@@ -197,14 +198,20 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		}
 	}
 
-	dm.Logger.Print("Terminated the KubeArmor")
+	if dm.Logger != nil {
+		dm.Logger.Print("Terminated the KubeArmor")
+	} else {
+		kg.Print("Terminated the KubeArmor")
+	}
 
 	// wait for a while
 	time.Sleep(time.Second * 1)
 
-	// close logger
-	if dm.CloseLogger() {
-		kg.Print("Stopped the logger")
+	if dm.Logger != nil {
+		// close logger
+		if dm.CloseLogger() {
+			kg.Print("Stopped the logger")
+		}
 	}
 
 	// wait for other routines
@@ -294,7 +301,7 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, dm.Logger)
-	return dm.RuntimeEnforcer.EnableLSM
+	return dm.RuntimeEnforcer != nil
 }
 
 // CloseRuntimeEnforcer Function

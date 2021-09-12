@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package enforcer
 
@@ -32,6 +32,9 @@ type AppArmorEnforcer struct {
 	// logs
 	Logger *fd.Feeder
 
+	// default profile
+	ApparmorDefault string
+
 	// host profile
 	HostProfile string
 
@@ -53,6 +56,44 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 	// logs
 	ae.Logger = logger
+
+	// default profile
+	ae.ApparmorDefault = "## == Managed by KubeArmor == ##\n" +
+		"\n" +
+		"#include <tunables/global>\n" +
+		"\n" +
+		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
+		"  ## == PRE START == ##\n" +
+		"  #include <abstractions/base>\n" +
+		"  umount,\n" +
+		"  file,\n" +
+		"  network,\n" +
+		"  capability,\n" +
+		"  ## == PRE END == ##\n" +
+		"\n" +
+		"  ## == POLICY START == ##\n" +
+		"  ## == POLICY END == ##\n" +
+		"\n" +
+		"  ## == POST START == ##\n" +
+		"  /lib/x86_64-linux-gnu/{*,**} rm,\n" +
+		"\n" +
+		"  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
+		"  deny @{PROC}/sysrq-trigger rwklx,\n" +
+		"  deny @{PROC}/mem rwklx,\n" +
+		"  deny @{PROC}/kmem rwklx,\n" +
+		"  deny @{PROC}/kcore rwklx,\n" +
+		"\n" +
+		"  deny mount,\n" +
+		"\n" +
+		"  deny /sys/[^f]*/** wklx,\n" +
+		"  deny /sys/f[^s]*/** wklx,\n" +
+		"  deny /sys/fs/[^c]*/** wklx,\n" +
+		"  deny /sys/fs/c[^g]*/** wklx,\n" +
+		"  deny /sys/fs/cg[^r]*/** wklx,\n" +
+		"  deny /sys/firmware/efi/efivars/** rwklx,\n" +
+		"  deny /sys/kernel/security/** rwklx,\n" +
+		"  ## == POST END == ##\n" +
+		"}\n"
 
 	// host profile
 	ae.HostProfile = ""
@@ -99,7 +140,6 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 			ae.Logger.Errf("Failed to read /etc/apparmor.d/%s (%s)", fileName, err.Error())
 			continue
 		}
-
 		str := string(data)
 
 		if strings.Contains(str, "KubeArmor") {
@@ -132,6 +172,10 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 // DestroyAppArmorEnforcer Function
 func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
+	for profile := range ae.AppArmorProfiles {
+		ae.UnregisterAppArmorProfile(profile)
+	}
+
 	if ae.EnableKubeArmorHostPolicy {
 		ae.UnregisterAppArmorHostProfile()
 	}
@@ -145,75 +189,38 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 
 // RegisterAppArmorProfile Function
 func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
-	apparmorDefault := "## == Managed by KubeArmor == ##\n" +
-		"\n" +
-		"#include <tunables/global>\n" +
-		"\n" +
-		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
-		"  ## == PRE START == ##\n" +
-		"  #include <abstractions/base>\n" +
-		"  umount,\n" +
-		"  file,\n" +
-		"  network,\n" +
-		"  capability,\n" +
-		"  ## == PRE END == ##\n" +
-		"\n" +
-		"  ## == POLICY START == ##\n" +
-		"  ## == POLICY END == ##\n" +
-		"\n" +
-		"  ## == POST START == ##\n" +
-		"  /lib/x86_64-linux-gnu/{*,**} rm,\n" +
-		"\n" +
-		"  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
-		"  deny @{PROC}/sysrq-trigger rwklx,\n" +
-		"  deny @{PROC}/mem rwklx,\n" +
-		"  deny @{PROC}/kmem rwklx,\n" +
-		"  deny @{PROC}/kcore rwklx,\n" +
-		"\n" +
-		"  deny mount,\n" +
-		"\n" +
-		"  deny /sys/[^f]*/** wklx,\n" +
-		"  deny /sys/f[^s]*/** wklx,\n" +
-		"  deny /sys/fs/[^c]*/** wklx,\n" +
-		"  deny /sys/fs/c[^g]*/** wklx,\n" +
-		"  deny /sys/fs/cg[^r]*/** wklx,\n" +
-		"  deny /sys/firmware/efi/efivars/** rwklx,\n" +
-		"  deny /sys/kernel/security/** rwklx,\n" +
-		"  ## == POST END == ##\n" +
-		"}\n"
-
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
 	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + profileName)); err == nil {
 		content, err := ioutil.ReadFile(filepath.Clean("/etc/apparmor.d/" + profileName))
 		if err != nil {
-			ae.Logger.Printf("Unable to register an AppArmor profile (%s, %s)", profileName, err.Error())
+			ae.Logger.Errf("Unable to register an AppArmor profile (%s, %s)", profileName, err.Error())
 			return false
 		}
 
 		if !strings.Contains(string(content), "KubeArmor") {
-			ae.Logger.Printf("Unable to register an AppArmor profile (%s) (out-of-control)", profileName)
+			ae.Logger.Errf("Unable to register an AppArmor profile (%s) (out-of-control)", profileName)
 			return false
 		}
-	} else {
-		newProfile := strings.Replace(apparmorDefault, "apparmor-default", profileName, -1)
+	}
 
-		newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
-		if err != nil {
-			ae.Logger.Err(err.Error())
-			return false
-		}
-		defer func() {
-			if err := newFile.Close(); err != nil {
-				ae.Logger.Err(err.Error())
-			}
-		}()
+	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
 
-		if _, err := newFile.WriteString(newProfile); err != nil {
-			ae.Logger.Err(err.Error())
-			return false
+	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
+	if err != nil {
+		ae.Logger.Errf("Failed to create a profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		return false
+	}
+	defer func() {
+		if err := newFile.Close(); err != nil {
+			ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
 		}
+	}()
+
+	if _, err := newFile.WriteString(newProfile); err != nil {
+		ae.Logger.Errf("Failed to initialize the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		return false
 	}
 
 	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
@@ -222,7 +229,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 			ae.Logger.Printf("Registered an AppArmor profile (%s)", profileName)
 		}
 	} else {
-		ae.Logger.Printf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
+		ae.Logger.Errf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
@@ -237,15 +244,42 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + profileName)); err == nil {
 		content, err := ioutil.ReadFile(filepath.Clean("/etc/apparmor.d/" + profileName))
 		if err != nil {
-			ae.Logger.Printf("Unable to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
+			ae.Logger.Errf("Unable to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
 			return false
 		}
 
 		if !strings.Contains(string(content), "KubeArmor") {
-			ae.Logger.Printf("Unabale to unregister an AppArmor profile (%s) (out-of-control)", profileName)
+			ae.Logger.Errf("Unabale to unregister an AppArmor profile (%s) (out-of-control)", profileName)
 			return false
 		}
 	}
+
+	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+
+	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
+	if err != nil {
+		ae.Logger.Errf("Failed to open a profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		return false
+	}
+	defer func() {
+		if err := newFile.Close(); err != nil {
+			ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		}
+	}()
+
+	if _, err := newFile.WriteString(newProfile); err != nil {
+		ae.Logger.Errf("Failed to reset the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		return false
+	}
+
+	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err != nil {
+		ae.Logger.Errf("Failed to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
+		return false
+	}
+
+	delete(ae.AppArmorProfiles, profileName)
+
+	ae.Logger.Printf("Unregistered an AppArmor profile (%s)", profileName)
 
 	return true
 }
@@ -285,22 +319,17 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 
 	newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/kubearmor.host"))
 	if err != nil {
-		ae.Logger.Err(err.Error())
+		ae.Logger.Errf("Failed to create the KubeArmor host profile (%s)", err.Error())
 		return err
 	}
 	defer func() {
 		if err := newfile.Close(); err != nil {
-			ae.Logger.Err(err.Error())
+			ae.Logger.Errf("Failed to close the KubeArmor host profile (%s)", err.Error())
 		}
 	}()
 
 	if _, err := newfile.WriteString(apparmorHostDefault); err != nil {
-		ae.Logger.Err(err.Error())
-		return err
-	}
-
-	if err := newfile.Sync(); err != nil {
-		ae.Logger.Err(err.Error())
+		ae.Logger.Errf("Failed to update the KubeArmor host profile (%s)", err.Error())
 		return err
 	}
 
@@ -312,11 +341,12 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 // RemoveAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) RemoveAppArmorHostProfile() error {
 	if _, err := os.Stat("/etc/apparmor.d/kubearmor.host"); err != nil {
+		ae.Logger.Errf("Failed to find the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return nil
 	}
 
 	if err := os.Remove("/etc/apparmor.d/kubearmor.host"); err != nil {
-		ae.Logger.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		ae.Logger.Errf("Failed to remove the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return err
 	}
 
@@ -326,14 +356,14 @@ func (ae *AppArmorEnforcer) RemoveAppArmorHostProfile() error {
 // RegisterAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 	if err := ae.CreateAppArmorHostProfile(); err != nil {
-		ae.Logger.Errf("Failed to create the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		ae.Logger.Errf("Failed to create the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
 	}
 
 	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "-C", "/etc/apparmor.d/kubearmor.host"}); err == nil {
-		ae.Logger.Printf("Registered an AppArmor host profile in %s", ae.HostName)
+		ae.Logger.Printf("Registered the KubeArmor host profile in %s", ae.HostName)
 	} else {
-		ae.Logger.Printf("Failed to registered an AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		ae.Logger.Errf("Failed to registered the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
 	}
 
@@ -343,7 +373,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 // UnregisterAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 	if err := ae.RemoveAppArmorHostProfile(); err != nil {
-		ae.Logger.Errf("Failed to remove the AppArmor host profile in %s (%s)", ae.HostName, err.Error())
+		ae.Logger.Errf("Failed to remove the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
 	}
 
@@ -390,13 +420,13 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	appArmorProfiles := []string{}
 
-	for _, containerName := range endPoint.Containers {
-		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", ""}, endPoint.AppArmorProfiles[containerName]) {
+	for _, appArmorProfile := range endPoint.AppArmorProfiles {
+		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", ""}, appArmorProfile) {
 			continue
 		}
 
-		if !kl.ContainsElement(appArmorProfiles, endPoint.AppArmorProfiles[containerName]) {
-			appArmorProfiles = append(appArmorProfiles, endPoint.AppArmorProfiles[containerName])
+		if !kl.ContainsElement(appArmorProfiles, appArmorProfile) {
+			appArmorProfiles = append(appArmorProfiles, appArmorProfile)
 		}
 	}
 
@@ -440,9 +470,9 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 		}
 
 		if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/kubearmor.host"}); err == nil {
-			ae.Logger.Printf("Updated %d host security rules to the AppArmor host profile in %s", policyCount, ae.HostName)
+			ae.Logger.Printf("Updated %d host security rules to the KubeArmor host profile in %s", policyCount, ae.HostName)
 		} else {
-			ae.Logger.Printf("Failed to update %d host security rules to the AppArmor host profile in %s (%s)", policyCount, ae.HostName, err.Error())
+			ae.Logger.Errf("Failed to update %d host security rules to the KubeArmor host profile in %s (%s)", policyCount, ae.HostName, err.Error())
 		}
 	}
 }
