@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package enforcer
 
@@ -14,6 +14,8 @@ import (
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+
+	"golang.org/x/sys/unix"
 )
 
 // ====================== //
@@ -55,7 +57,7 @@ func NewSELinuxEnforcer(logger *fd.Feeder) *SELinuxEnforcer {
 
 	// install template cil
 	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + "base_container.cil"}); err != nil {
-		se.Logger.Printf("Failed to register a SELinux profile, %s (%s)", se.SELinuxContextTemplates+"base_container.cil", err.Error())
+		se.Logger.Errf("Failed to register a SELinux profile, %s (%s)", se.SELinuxContextTemplates+"base_container.cil", err.Error())
 		return nil
 	}
 
@@ -65,13 +67,12 @@ func NewSELinuxEnforcer(logger *fd.Feeder) *SELinuxEnforcer {
 // DestroySELinuxEnforcer Function
 func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 	for profileName := range se.SELinuxProfiles {
-		emptyPod := tp.K8sPod{Metadata: map[string]string{}}
-		se.UnregisterSELinuxProfile(emptyPod, profileName)
+		se.UnregisterSELinuxProfile(profileName)
 	}
 
 	// remove template cil
 	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-r", "base_container"}); err != nil {
-		se.Logger.Printf("Failed to register a SELinux profile, %s (%s)", se.SELinuxContextTemplates+"base_container.cil", err.Error())
+		se.Logger.Errf("Failed to register a SELinux profile, %s (%s)", se.SELinuxContextTemplates+"base_container.cil", err.Error())
 		return nil
 	}
 
@@ -90,19 +91,66 @@ const (
 	SELinuxFileReadWrite = "getattr ioctl lock open read write append lock create rename link unlink"
 )
 
-// RegisterSELinuxProfile Function
-func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, profileName string) bool {
-	namespace := pod.Metadata["namespaceName"]
-	podName := pod.Metadata["podName"]
+// DoLgetxattr is a wrapper that retries on EINTR
+func DoLgetxattr(path, attr string, dest []byte) (int, error) {
+	for {
+		// TODO: NEED THE TERMINATION CONDITION FOR THE WORST CASE
+		if sz, err := unix.Lgetxattr(path, attr, dest); err != unix.EINTR {
+			return sz, err
+		}
+	}
+}
 
+// Lgetxattr returns a []byte slice containing the value of an extended attribute attr set for path.
+func Lgetxattr(path, attr string) ([]byte, error) {
+	dest := make([]byte, 128)
+
+	sz, errno := DoLgetxattr(path, attr, dest)
+	for errno == unix.ERANGE {
+		// if buffer is too small, use zero-sized buffer to get the actual size
+		sz, errno = DoLgetxattr(path, attr, []byte{})
+		if errno != nil {
+			return nil, errno
+		}
+
+		dest = make([]byte, sz)
+		sz, errno = DoLgetxattr(path, attr, dest)
+	}
+
+	if errno != nil {
+		return nil, errno
+	}
+
+	return dest[:sz], nil
+}
+
+// GetSELinuxType Function
+func GetSELinuxType(path string) (string, error) {
+	xattrNameSelinux := "security.selinux"
+
+	label, err := Lgetxattr(path, xattrNameSelinux)
+	if err != nil {
+		return "", err
+	}
+
+	// Trim the NUL byte at the end of the byte buffer, if present.
+	if len(label) > 0 && label[len(label)-1] == '\x00' {
+		label = label[:len(label)-1]
+	}
+
+	return strings.Split(string(label), ":")[2], nil
+}
+
+// RegisterSELinuxProfile Function
+func (se *SELinuxEnforcer) RegisterSELinuxProfile(containerName string, hostVolumes []tp.HostVolumeMount, profileName string) bool {
 	defaultProfile := "(block " + profileName + "\n" +
 		"	(blockinherit container)\n" +
 		// "	(blockinherit restricted_net_container)\n" +
 		"	(allow process process (capability (dac_override)))\n"
 
-	for _, hostVolume := range pod.HostVolumes {
+	for _, hostVolume := range hostVolumes {
 		if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
-			context, err := kl.GetSELinuxType(hostVolume.PathName)
+			context, err := GetSELinuxType(hostVolume.PathName)
 			if err != nil {
 				se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 				return false
@@ -156,13 +204,13 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 	}
 
 	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", profilePath}); err != nil {
-		se.Logger.Printf("Failed to register a SELinux profile, %s for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
+		se.Logger.Errf("Failed to register a SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
 	if _, ok := se.SELinuxProfiles[profileName]; !ok {
 		se.SELinuxProfiles[profileName] = 1
-		se.Logger.Printf("Registered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
+		se.Logger.Errf("Registered a SELinux profile (%s)", profileName)
 		return true
 	}
 
@@ -170,66 +218,40 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(pod tp.K8sPod, containerName, 
 }
 
 // UnregisterSELinuxProfile Function
-func (se *SELinuxEnforcer) UnregisterSELinuxProfile(pod tp.K8sPod, profileName string) bool {
-	namespace := pod.Metadata["namespaceName"]
-	podName := pod.Metadata["podName"]
-
+func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
 	profilePath := se.SELinuxContextTemplates + profileName + ".cil"
 
 	if _, err := os.Stat(filepath.Clean(profilePath)); err != nil {
-		se.Logger.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
+		se.Logger.Errf("Unabale to unregister a SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
 	if _, err := ioutil.ReadFile(filepath.Clean(profilePath)); err != nil {
-		if namespace == "" || podName == "" {
-			se.Logger.Printf("Unabale to unregister a SELinux profile (%s) (%s)", profileName, err.Error())
-		} else {
-			se.Logger.Printf("Unabale to unregister a SELinux profile (%s) for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
-		}
+		se.Logger.Errf("Unabale to unregister a SELinux profile (%s) (%s)", profileName, err.Error())
 		return false
 	}
 
-	referenceCount, ok := se.SELinuxProfiles[profileName]
-
-	if !ok {
-		if namespace == "" || podName == "" {
-			se.Logger.Printf("Failed to unregister an unknown SELinux profile (%s) (not exist profile in the enforecer)", profileName)
-		} else {
-			se.Logger.Printf("Failed to unregister an unknown SELinux profile (%s) for (%s/%s) (not exist profile in the enforecer)", profileName, namespace, podName)
-		}
+	if _, ok := se.SELinuxProfiles[profileName]; !ok {
+		se.Logger.Errf("Failed to unregister an unknown SELinux profile (%s) (not exist profile in the enforecer)", profileName)
 		return false
 	}
 
-	if referenceCount > 1 {
-		se.SELinuxProfiles[profileName]--
-		se.Logger.Printf("Decreased the refCount (%d -> %d) of a SELinux profile (%s)", se.SELinuxProfiles[profileName]+1, se.SELinuxProfiles[profileName], profileName)
-	} else {
-		if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-r", profileName}); err != nil {
-			if namespace == "" || podName == "" {
-				se.Logger.Printf("Unabale to unregister a SELinux profile, %s (%s)", profileName, err.Error())
-			} else {
-				se.Logger.Printf("Unabale to unregister a SELinux profile, %s for (%s/%s) (%s)", profileName, namespace, podName, err.Error())
-			}
-			return false
-		}
-
-		if err := os.Remove(filepath.Clean(profilePath)); err != nil {
-			se.Logger.Errf("Failed to remove %s (%s)", profilePath, err.Error())
-			return false
-		}
-
-		delete(se.SELinuxProfiles, profileName)
-
-		if namespace == "" || podName == "" {
-			se.Logger.Printf("Unregistered a SELinux profile (%s)", profileName)
-		} else {
-			se.Logger.Printf("Unregistered a SELinux profile (%s) for (%s/%s)", profileName, namespace, podName)
-		}
+	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-r", profileName}); err != nil {
+		se.Logger.Errf("Unabale to unregister a SELinux profile (%s, %s)", profileName, err.Error())
+		return false
 	}
+
+	if err := os.Remove(filepath.Clean(profilePath)); err != nil {
+		se.Logger.Errf("Failed to remove %s (%s)", profilePath, err.Error())
+		return false
+	}
+
+	delete(se.SELinuxProfiles, profileName)
+
+	se.Logger.Printf("Unregistered a SELinux profile (%s)", profileName)
 
 	return true
 }
@@ -284,7 +306,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 			if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
 				mountedPathToHostPath[hostVolume.UsedByContainerPath[containerName]] = hostVolume.PathName
 
-				context, err := kl.GetSELinuxType(hostVolume.PathName)
+				context, err := GetSELinuxType(hostVolume.PathName)
 				if err != nil {
 					se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 					return 0, "", false
@@ -321,7 +343,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 							filePath := strings.Split(absolutePath, containerPath)[1]
 							hostAbsolutePath := hostPath + filePath
 
-							if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+							if context, err := GetSELinuxType(hostAbsolutePath); err != nil {
 								se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 								break
 							} else {
@@ -351,7 +373,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 							filePath := strings.Split(absolutePath, containerPath)[1]
 							hostAbsolutePath := hostPath + filePath
 
-							if context, err := kl.GetSELinuxType(hostAbsolutePath); err != nil {
+							if context, err := GetSELinuxType(hostAbsolutePath); err != nil {
 								se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
 								break
 							} else {
@@ -410,7 +432,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxPro
 		if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
 			se.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile)
 		} else {
-			se.Logger.Printf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile, err.Error())
+			se.Logger.Errf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile, err.Error())
 		}
 	}
 }
