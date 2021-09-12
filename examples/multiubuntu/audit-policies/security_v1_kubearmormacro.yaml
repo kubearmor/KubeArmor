@@ -2,7 +2,7 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorMacro
 metadata:
   name: kubearmormacro-sample
-  namespace: default
+  namespace: multiubuntu
 spec:
   macros:
     - name: SHELLS
