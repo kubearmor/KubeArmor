@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package monitor
 
@@ -486,20 +486,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
-
 					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
-
 					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
 					// add arguments
-
 					if val, ok := args[0].(string); ok {
 						log.Resource = val // procExecPath
 					}
-
 					if val, ok := args[1].([]string); ok {
 						for idx, arg := range val { // procArgs
 							if idx == 0 {
@@ -514,20 +510,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
-
 					execLogMap[ctx.HostPID] = log
 
 				} else if len(args) == 0 { // return
 					// get the stored log
-
 					log := execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-
 					delete(execLogMap, ctx.HostPID)
 
 					// get error message
-
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
@@ -540,7 +532,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// push the generated log
-
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
 					}
@@ -550,27 +541,22 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
-
 					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
-
 					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
-
-					// add arguments
 
 					fd := ""
 					procExecFlag := ""
 
+					// add arguments
 					if val, ok := args[0].(int32); ok {
 						fd = strconv.Itoa(int(val))
 					}
-
 					if val, ok := args[1].(string); ok {
 						log.Resource = val // procExecPath
 					}
-
 					if val, ok := args[2].([]string); ok {
 						for idx, arg := range val { // procArgs
 							if idx == 0 {
@@ -580,7 +566,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 							}
 						}
 					}
-
 					if val, ok := args[3].(string); ok {
 						procExecFlag = val
 					}
@@ -589,20 +574,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
-
 					execLogMap[ctx.HostPID] = log
 
 				} else if len(args) == 0 { // return
 					// get the stored log
-
 					log := execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-
 					delete(execLogMap, ctx.HostPID)
 
 					// get error message
-
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
@@ -615,7 +596,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// push the generated log
-
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
 					}
@@ -679,20 +659,16 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
-
 					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
 					mon.AddActiveHostPid(ctx.HostPID, pidNode)
 
 					// generate a log with the base information
-
 					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					// add arguments
-
 					if val, ok := args[0].(string); ok {
 						log.Resource = val // procExecPath
 					}
-
 					if val, ok := args[1].([]string); ok {
 						for idx, arg := range val { // procArgs
 							if idx == 0 {
@@ -707,20 +683,16 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
-
 					execLogMap[ctx.HostPID] = log
 
 				} else if len(args) == 0 { // return
 					// get the stored log
-
 					log := execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-
 					delete(execLogMap, ctx.HostPID)
 
 					// get error message
-
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
@@ -733,7 +705,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					}
 
 					// push the generated log
-
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
 					}
@@ -743,27 +714,22 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
-
 					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
 					mon.AddActiveHostPid(ctx.HostPID, pidNode)
 
 					// generate a log with the base information
-
 					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
-
-					// add arguments
 
 					fd := ""
 					procExecFlag := ""
 
+					// add arguments
 					if val, ok := args[0].(int32); ok {
 						fd = strconv.Itoa(int(val))
 					}
-
 					if val, ok := args[1].(string); ok {
 						log.Resource = val // procExecPath
 					}
-
 					if val, ok := args[2].([]string); ok {
 						for idx, arg := range val { // procArgs
 							if idx == 0 {
@@ -773,7 +739,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 							}
 						}
 					}
-
 					if val, ok := args[3].(string); ok {
 						procExecFlag = val
 					}
@@ -782,20 +747,16 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
-
 					execLogMap[ctx.HostPID] = log
 
 				} else if len(args) == 0 { // return
 					// get the stored log
-
 					log := execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-
 					delete(execLogMap, ctx.HostPID)
 
 					// get error message
-
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
 						if message != "" {
@@ -808,7 +769,6 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					}
 
 					// push the generated log
-
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
 					}

@@ -34,7 +34,7 @@ spec:
       labels:
         name: front-end
       annotations:
-        container.apparmor.security.beta.kubernetes.io/front-end: localhost/apparmor-front-end
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: front-end
@@ -86,7 +86,7 @@ spec:
       labels:
         name: carts-db
       annotations:
-        container.apparmor.security.beta.kubernetes.io/carts-db: localhost/apparmor-carts-db
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: carts-db
@@ -144,7 +144,7 @@ spec:
       labels:
         name: carts
       annotations:
-        container.apparmor.security.beta.kubernetes.io/carts: localhost/apparmor-carts
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: carts
@@ -206,7 +206,7 @@ spec:
       labels:
         name: catalogue-db
       annotations:
-        container.apparmor.security.beta.kubernetes.io/catalogue-db: localhost/apparmor-catalogue-db
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: catalogue-db
@@ -253,7 +253,7 @@ spec:
       labels:
         name: catalogue
       annotations:
-        container.apparmor.security.beta.kubernetes.io/catalogue: localhost/apparmor-catalogue
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: catalogue
@@ -303,7 +303,7 @@ spec:
       labels:
         name: user-db
       annotations:
-        container.apparmor.security.beta.kubernetes.io/user-db: localhost/apparmor-user-db
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: user-db
@@ -361,7 +361,7 @@ spec:
       labels:
         name: user
       annotations:
-        container.apparmor.security.beta.kubernetes.io/user: localhost/apparmor-user
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: user
@@ -414,7 +414,7 @@ spec:
       labels:
         name: payment
       annotations:
-        container.apparmor.security.beta.kubernetes.io/payment: localhost/apparmor-payment
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: payment
@@ -466,7 +466,7 @@ spec:
       labels:
         name: queue-master
       annotations:
-        container.apparmor.security.beta.kubernetes.io/queue-master: localhost/apparmor-queue-master
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: queue-master
@@ -507,7 +507,7 @@ spec:
       labels:
         name: rabbitmq
       annotations:
-        container.apparmor.security.beta.kubernetes.io/rabbitmq: localhost/apparmor-rabbitmq
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: rabbitmq
@@ -558,7 +558,7 @@ spec:
       labels:
         name: shipping
       annotations:
-        container.apparmor.security.beta.kubernetes.io/shipping: localhost/apparmor-shipping
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: shipping
@@ -620,7 +620,7 @@ spec:
       labels:
         name: orders-db
       annotations:
-        container.apparmor.security.beta.kubernetes.io/orders-db: localhost/apparmor-orders-db
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: orders-db
@@ -678,7 +678,7 @@ spec:
       labels:
         name: orders
       annotations:
-        container.apparmor.security.beta.kubernetes.io/orders: localhost/apparmor-orders
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: orders

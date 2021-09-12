@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package monitor
 
@@ -25,7 +25,6 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 			}
 
 			// generate a log
-
 			log := mon.BuildLogBase(msg)
 
 			switch msg.ContextSys.EventID {
@@ -196,7 +195,6 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 			}
 
 			// get error message
-
 			if msg.ContextSys.Retval < 0 {
 				message := getErrorMessage(msg.ContextSys.Retval)
 				if message != "" {
@@ -209,7 +207,6 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 			}
 
 			// push the generated log
-
 			if mon.Logger != nil {
 				go mon.Logger.PushLog(log)
 			}
