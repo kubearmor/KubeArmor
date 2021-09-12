@@ -1,0 +1,31 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample-4
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-4
+
+  message: "simple audit rules"
+  severity: "4"
+  tags:
+  - network
+  - file
+
+  rules:
+  - process: SHELLS
+    message: "suspicious shell activity"
+    severity: "5"
+    events:
+    - probe: sys_connect
+      ipv6addr: NON-EXTERNAL-IPV6
+      rate: 10p1s
+  - process: "*"
+    message: "suspicious device access"
+    events:
+    - probe: sys_read
+      path: /etc/bluetooth
+      mode: O_RDWR
+      rate: 5p1s

@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample-5
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-5
+
+  message: "Audit rule for sample policy 5"
+  severity: "2"
+  tags:
+  - file
+
+  rules:
+  - process: SHELLS
+    severity: "4"
+    events:
+    - probe: sys_read
+      path: /bin/ls
+      mode: O_RDWR
+      rate: 10p1s
+    - probe: sys_execve
+      path: /etc/udev
+      rate: 20p1s

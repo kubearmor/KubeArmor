@@ -1,0 +1,39 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-1
+
+  message: "simple audit rules"
+  severity: "4"
+  tags:
+  - network
+  - file
+
+  rules:
+  - process: SHELLS
+    message: "suspicious shell activity"
+    severity: "5"
+    events:
+    - probe: BIND-CONNECT-ACCEPT
+      ipv4addr: NON-EXTERNAL-IPV4
+      rate: 10p1s
+  - process: "*"
+    events:
+    - probe: sys_open
+      path: /etc/shadow
+      mode: O_RDWR_APPEND
+  - message: "outbound probes detected (for any process)"
+    severity: "5"
+    events:
+    - probe: tcp_rst
+      rate: 10p1s
+  - message: "inbound probes detected"
+    severity: "5"
+    events:
+    - probe: tcp_rst_send
+      rate: 10p1s
