@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package kvm;
 
-option go_package = "github.com/kubearmor/KubeArmor/protobuf";
+option go_package="github.com/kubearmor/KubeArmor/protobuf";
 
 message agentIdentity {
     string identity = 1;
@@ -20,5 +20,5 @@ message policyData {
 
 service KVM {
     rpc registerAgentIdentity (agentIdentity) returns (status);
-    rpc sendPolicy (stream policyData) returns (stream status);
+    rpc sendPolicy (stream status) returns (stream policyData);
 }
