@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package core
 
@@ -97,7 +97,10 @@ func (kh *K8sHandler) InitK8sClient() bool {
 		if kl.IsInK8sCluster() {
 			return kh.InitInclusterAPIClient()
 		}
-		return kh.InitLocalAPIClient()
+		if kl.IsK8sLocal() {
+			return kh.InitLocalAPIClient()
+		}
+		return false
 	}
 
 	return true
