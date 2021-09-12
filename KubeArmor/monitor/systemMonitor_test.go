@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package monitor
 
@@ -44,6 +44,7 @@ func TestSystemMonitor(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
 	// Create System Monitor
 	systemMonitor := NewSystemMonitor(node, logger, &Containers, &ContainersLock,
@@ -52,14 +53,12 @@ func TestSystemMonitor(t *testing.T) {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
 	}
-
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Destroy System Monitor
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
-
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy Feeder
@@ -67,7 +66,6 @@ func TestSystemMonitor(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }
 
@@ -101,6 +99,7 @@ func TestTraceSyscallWithPod(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
 	// Create System Monitor
 	systemMonitor := NewSystemMonitor(node, logger, &Containers, &ContainersLock,
@@ -109,7 +108,6 @@ func TestTraceSyscallWithPod(t *testing.T) {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
 	}
-
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Initialize BPF
@@ -117,7 +115,6 @@ func TestTraceSyscallWithPod(t *testing.T) {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
-
 	t.Logf("[PASS] Initialized BPF (for containers)")
 
 	// wait for a while
@@ -125,7 +122,6 @@ func TestTraceSyscallWithPod(t *testing.T) {
 
 	// Start to trace syscalls
 	go systemMonitor.TraceSyscall()
-
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while
@@ -135,7 +131,6 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
-
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy logger
@@ -143,7 +138,6 @@ func TestTraceSyscallWithPod(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }
 
@@ -177,6 +171,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
+	t.Log("[PASS] Created logger")
 
 	// Create System Monitor
 	systemMonitor := NewSystemMonitor(node, logger, &Containers, &ContainersLock,
@@ -185,7 +180,6 @@ func TestTraceSyscallWithHost(t *testing.T) {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 		return
 	}
-
 	t.Log("[PASS] Created SystemMonitor")
 
 	// Initialize BPF
@@ -193,7 +187,6 @@ func TestTraceSyscallWithHost(t *testing.T) {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
 		return
 	}
-
 	t.Logf("[PASS] Initialized BPF (for a host)")
 
 	// wait for a while
@@ -201,7 +194,6 @@ func TestTraceSyscallWithHost(t *testing.T) {
 
 	// Start to trace syscalls for host
 	go systemMonitor.TraceHostSyscall()
-
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while
@@ -211,7 +203,6 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
 	}
-
 	t.Log("[PASS] Destroyed SystemMonitor")
 
 	// destroy logger
@@ -219,6 +210,5 @@ func TestTraceSyscallWithHost(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }

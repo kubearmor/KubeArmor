@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package feeder
 
@@ -21,7 +21,6 @@ func TestFeeder(t *testing.T) {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
-
 	t.Log("[PASS] Created logger")
 
 	// destroy logger
@@ -29,6 +28,5 @@ func TestFeeder(t *testing.T) {
 		t.Log("[FAIL] Failed to destroy logger")
 		return
 	}
-
 	t.Log("[PASS] Destroyed logger")
 }
