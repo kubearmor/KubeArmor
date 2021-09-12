@@ -1,7 +1,5 @@
-/*
- * Copyright 2021 Authors of KubeArmor
- * SPDX-License-Identifier: Apache-2.0
- */
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Copyright 2021 Authors of KubeArmor */
 
 #include <stdio.h>
 
