@@ -2,7 +2,7 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorAuditPolicy
 metadata:
   name: kubearmorauditpolicy-sample-4
-  namespace: default
+  namespace: multiubuntu
 spec:
   selector:
     matchLabels:
