@@ -1,5 +1,5 @@
-// Copyright 2021 Authors of KubeArmor
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
 
 package core
 
@@ -135,13 +135,13 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
-			fmt.Printf("Failed to get PidNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			kg.Errf("Failed to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
 	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
 		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
-			fmt.Printf("Failed to get MntNS (%s, %s, %s)\n", containerID, pid, err.Error())
+			kg.Errf("Failed to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
@@ -189,9 +189,9 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 			if dcontainer.State == "running" {
 				dm.ContainersLock.Lock()
-
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
 					dm.Containers[container.ContainerID] = container
+					dm.ContainersLock.Unlock()
 				} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
 					// this entry was updated by kubernetes before docker detects it
 					// thus, we here use the info given by kubernetes instead of the info given by docker
@@ -207,30 +207,30 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					container.NetworkVisibilityEnabled = dm.Containers[container.ContainerID].NetworkVisibilityEnabled
 					container.CapabilitiesVisibilityEnabled = dm.Containers[container.ContainerID].CapabilitiesVisibilityEnabled
 
+					dm.Containers[container.ContainerID] = container
 					dm.ContainersLock.Unlock()
 
-					// == //
-
 					dm.EndPointsLock.Lock()
-					for _, endPoint := range dm.EndPoints {
-						if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[container.ContainerID] == "" {
-							endPoint.AppArmorProfiles[container.ContainerID] = container.AppArmorProfile
+					for idx, endPoint := range dm.EndPoints {
+						if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName {
+							// update containers
+							if !kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+								dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, container.ContainerID)
+							}
+
+							// update apparmor profiles
+							if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
+								dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+							}
+
 							break
 						}
 					}
 					dm.EndPointsLock.Unlock()
-
-					// == //
-
-					dm.ContainersLock.Lock()
-
-					dm.Containers[container.ContainerID] = container
 				} else {
 					dm.ContainersLock.Unlock()
 					continue
 				}
-
-				dm.ContainersLock.Unlock()
 
 				if dm.SystemMonitor != nil {
 					// update NsMap
@@ -266,9 +266,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		dm.ContainersLock.Lock()
-
 		if _, ok := dm.Containers[containerID]; !ok {
 			dm.Containers[containerID] = container
+			dm.ContainersLock.Unlock()
 		} else if dm.Containers[containerID].PidNS == 0 && dm.Containers[containerID].MntNS == 0 {
 			// this entry was updated by kubernetes before docker detects it
 			// thus, we here use the info given by kubernetes instead of the info given by docker
@@ -284,32 +284,30 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			container.NetworkVisibilityEnabled = dm.Containers[containerID].NetworkVisibilityEnabled
 			container.CapabilitiesVisibilityEnabled = dm.Containers[containerID].CapabilitiesVisibilityEnabled
 
+			dm.Containers[containerID] = container
 			dm.ContainersLock.Unlock()
 
-			// == //
-
 			dm.EndPointsLock.Lock()
+			for idx, endPoint := range dm.EndPoints {
+				if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName {
+					// update containers
+					if !kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, container.ContainerID)
+					}
 
-			for _, endPoint := range dm.EndPoints {
-				if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[containerID] == "" {
-					endPoint.AppArmorProfiles[containerID] = container.AppArmorProfile
+					// update apparmor profiles
+					if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
+						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+					}
+
 					break
 				}
 			}
-
 			dm.EndPointsLock.Unlock()
-
-			// == //
-
-			dm.ContainersLock.Lock()
-
-			dm.Containers[containerID] = container
 		} else {
 			dm.ContainersLock.Unlock()
 			return
 		}
-
-		dm.ContainersLock.Unlock()
 
 		if dm.SystemMonitor != nil {
 			// update NsMap
@@ -324,19 +322,33 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 3: destroy
 
 		dm.ContainersLock.Lock()
-		val, ok := dm.Containers[containerID]
+		container, ok := dm.Containers[containerID]
 		if !ok {
 			dm.ContainersLock.Unlock()
 			return
 		}
-		container = val
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
 
 		dm.EndPointsLock.Lock()
 		for idx, endPoint := range dm.EndPoints {
-			if endPoint.EndPointName == container.EndPointName && endPoint.AppArmorProfiles[containerID] == "" {
-				delete(dm.EndPoints[idx].AppArmorProfiles, containerID)
+			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName {
+				// update containers
+				for idxC, containerID := range endPoint.Containers {
+					if containerID == container.ContainerID {
+						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers[:idxC], dm.EndPoints[idx].Containers[idxC+1:]...)
+						break
+					}
+				}
+
+				// update apparmor profiles
+				for idxA, profile := range endPoint.AppArmorProfiles {
+					if profile == container.AppArmorProfile {
+						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles[:idxA], dm.EndPoints[idx].AppArmorProfiles[idxA+1:]...)
+						break
+					}
+				}
+
 				break
 			}
 		}

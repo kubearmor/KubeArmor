@@ -1,14 +1,12 @@
 #!/bin/bash
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 # download gobpf
 go get github.com/iovisor/gobpf
 
 # check sudo
-SUDO=OFF
-which sudo > /dev/null 2>&1
-if [ $? == 0 ]; then
+if [ -f /usr/bin/sudo ]; then
 	SUDO=ON
 fi
 

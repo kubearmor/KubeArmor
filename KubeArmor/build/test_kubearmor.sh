@@ -1,6 +1,6 @@
 #!/bin/bash
-# Copyright 2021 Authors of KubeArmor
 # SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
 
 realpath() {
     CURR=$PWD
@@ -69,13 +69,13 @@ fi
 cd $ARMOR_HOME/tests
 
 # test scenarios
-./test-scenarios-local.sh
+./test-scenarios-local.sh -testAll
 
 RESULT=$?
 
 if [ $KPROXY == 1 ]; then
     # stop kube-proxy
-    ps -ef | grep "kubectl proxy" | grep -v grep | awk '{print $2}' | xargs -I {} kill {}
+    ps -ef | grep "kubectl proxy" | grep -v grep | awk '{print $2}' | xargs -I {} kill -9 {}
 fi
 
 if [ $RESULT != 0 ]; then
