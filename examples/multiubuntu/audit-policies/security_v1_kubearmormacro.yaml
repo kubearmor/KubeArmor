@@ -5,23 +5,23 @@ metadata:
   namespace: multiubuntu
 spec:
   macros:
-    - name: SHELLS
-      value: /bin/*sh, /usr/bin/*sh
+  - name: SHELLS
+    value: /bin/*sh, /usr/bin/*sh
 
-    - name: BIND-CONNECT-ACCEPT
-      value: sys_bind, sys_connect, sys_accept
+  - name: BIND-CONNECT-ACCEPT
+    value: sys_bind, sys_connect, sys_accept
 
-    - name: NON-EXTERNAL-IPV4
-      value: 192.168.*.*, 10.*.*.*
+  - name: NON-EXTERNAL-IPV4
+    value: 192.168.*.*, 10.*.*.*
 
-    - name: NON-EXTERNAL-IPV6
-      value: fe80::37be:*:*:*
+  - name: NON-EXTERNAL-IPV6
+    value: fe80::37be:*:*:*
 
-    - name: O_RDWR
-      value: "2"
+  - name: O_RDWR
+    value: "2"
 
-    - name: O_APPEND
-      value: 0x400
+  - name: O_APPEND
+    value: 0x400
 
-    - name: O_RDWR_APPEND
-      value: 0x402
+  - name: O_RDWR_APPEND
+    value: 0x402
