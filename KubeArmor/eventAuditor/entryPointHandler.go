@@ -43,7 +43,7 @@ func (ea *EventAuditor) DestroyEventMaps(bman *KABPFManager) error {
 // InitializeEntryPoints is used to initialize all
 // data structures before handling entrypoints
 func (ea *EventAuditor) InitializeEntryPoints() bool {
-	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
+	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/objs/entrypoint.bpf.o")
 	must(err)
 	defer b.Close()
 
