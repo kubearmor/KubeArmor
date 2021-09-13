@@ -5,6 +5,9 @@ package eventauditor
 
 import (
 	"C"
+)
+
+import (
 	"errors"
 	"sync"
 
@@ -53,38 +56,37 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 	return true
 }
 
-// DestroyEntryPoints is used to clean all used dat structures
+/* TODO
+// DestroyEntryPoints is used to clean all used data structures
 // and any changes applied to the kernel
 func (ea *EventAuditor) DestroyEntryPoints() bool {
 
 	//TODO destroy entrypoints
-	Destroy()
+	DestroyMap()
+
+	DestroyProgram()
 
 	return true
 }
+*/
 
 func (ea *EventAuditor) AttachEntryPoint(probe string) {
-	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
+	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/objs/entrypoint.bpf.o")
 	must(err)
 	defer b.Close()
 
 	prog, err := b.FindProgramByName("entrypoint")
 	must(err)
-	_, err = prog.AttachKprobe(sys_execve)
+	_, err = prog.AttachKprobe(probe)
 	must(err)
 }
 
+/* TODO
 func (ea *EventAuditor) DetachEntryPoint(probe string) {
-	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
-	must(err)
-	defer b.Close()
-
 	// TODO Detach function is not implemented yet
-	prog, err := b.FindProgramByName("entrypoint")
-	must(err)
-	_, err = prog.Detach(sys_execve)
-	must(err)
+	Detach(probe)
 }
+*/
 
 // UpdateEntryPoints Function
 func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy,
@@ -97,15 +99,15 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 
 	// new entrypoints list
 	for _, policy := range AuditPolicies {
-		for i, event := range Events {
-			ea.NewEntrypointList = append(ea.NewEntrypointList, Events.Probe[i])
+		for _, event := range policy.Events {
+			ea.NewEntrypointList = append(ea.NewEntrypointList, event.Probe)
 		}
 	}
 
 	// outdated entrypoints, it will be in the OldEntrypointList array
 	for _, entrypoint := range ea.EntrypointList {
-		for i, probe := range ea.EntrypointList {
-			if probe != ea.NewEntrypointList[i] {
+		for _, probe := range ea.NewEntrypointList {
+			if probe != entrypoint {
 				ea.OldEntrypointList = append(ea.OldEntrypointList, probe)
 			}
 		}
@@ -119,10 +121,11 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 		ea.AttachEntryPoint(probe)
 	}
 
+	/* TODO
 	for _, probe := range ea.OldEntrypointList {
 		ea.DetachEntryPoint(probe)
 	}
-
+	*/
 }
 
 func must(err error) {
