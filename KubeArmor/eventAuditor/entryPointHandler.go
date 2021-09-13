@@ -4,6 +4,7 @@
 package eventauditor
 
 import (
+	"C"
 	"errors"
 	"sync"
 
@@ -39,9 +40,9 @@ func (ea *EventAuditor) DestroyEventMaps(bman *KABPFManager) error {
 	return AppendErrors(err1, err2)
 }
 
-// InitializeEntryPoints Function
+// InitializeEntryPoints is used to initialize all
+// data structures before handling entrypoints
 func (ea *EventAuditor) InitializeEntryPoints() bool {
-	// if something wrong, return false
 	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
 	must(err)
 	defer b.Close()
@@ -52,9 +53,9 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 	return true
 }
 
-// DestroyEntryPoints Function
+// DestroyEntryPoints is used to clean all used dat structures
+// and any changes applied to the kernel
 func (ea *EventAuditor) DestroyEntryPoints() bool {
-	// if something wrong, return false
 
 	//TODO destroy entrypoints
 	Destroy()
@@ -62,18 +63,24 @@ func (ea *EventAuditor) DestroyEntryPoints() bool {
 	return true
 }
 
-// AttachEntryPoint Function
 func (ea *EventAuditor) AttachEntryPoint(probe string) {
-	prog, err := b.FindProgramByName(entrypoint)
+	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
+	must(err)
+	defer b.Close()
+
+	prog, err := b.FindProgramByName("entrypoint")
 	must(err)
 	_, err = prog.AttachKprobe(sys_execve)
 	must(err)
 }
 
-// DetachEntryPoint Function
 func (ea *EventAuditor) DetachEntryPoint(probe string) {
+	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/entrypoint.bpf.o")
+	must(err)
+	defer b.Close()
+
 	// TODO Detach function is not implemented yet
-	prog, err := b.FindProgramByName(entrypoint)
+	prog, err := b.FindProgramByName("entrypoint")
 	must(err)
 	_, err = prog.Detach(sys_execve)
 	must(err)
@@ -81,40 +88,45 @@ func (ea *EventAuditor) DetachEntryPoint(probe string) {
 
 // UpdateEntryPoints Function
 func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy,
-	  auditPoliciesLock **sync.RWMutex) {
+	auditPoliciesLock **sync.RWMutex) {
 	AuditPolicies := *(auditPolicies)
 	AuditPoliciesLock := *(auditPoliciesLock)
 
 	AuditPoliciesLock.Lock()
 	defer AuditPoliciesLock.Unlock()
 
-
 	// new entrypoints list
 	for _, policy := range AuditPolicies {
 		for i, event := range Events {
-			NewEntrypointList = append(NewList, Events.Probe[i])
+			ea.NewEntrypointList = append(ea.NewEntrypointList, Events.Probe[i])
 		}
+	}
 
-	// outdated entrypoints, it will be in the toBeDetached array
-	for _, entrypoint := range EntrypointList {
-		for _, probe := range EntrypointList {
-			if (probe != EntrypointList)
-			{
-				OldEntrypointList = append(OldEntrypointList, probe)
+	// outdated entrypoints, it will be in the OldEntrypointList array
+	for _, entrypoint := range ea.EntrypointList {
+		for i, probe := range ea.EntrypointList {
+			if probe != ea.NewEntrypointList[i] {
+				ea.OldEntrypointList = append(ea.OldEntrypointList, probe)
 			}
 		}
 	}
 
 	// replace old entrypoints list with new entrypoints list
-	EntrypointList := NewEntrypointList
+	ea.EntrypointList = ea.NewEntrypointList
 
 	// update (attach/detach) entrypoints (ebpf)
-	for _, probe := range NewEntrypointList {
-		AttachEntryPoint(probe)
+	for _, probe := range ea.NewEntrypointList {
+		ea.AttachEntryPoint(probe)
 	}
 
-	for _, probe := range OldEntrypointList {
-		DetachEntryPoint(probe)
+	for _, probe := range ea.OldEntrypointList {
+		ea.DetachEntryPoint(probe)
 	}
 
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

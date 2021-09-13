@@ -1,4 +1,4 @@
-package evenAuditor
+package eventauditor
 
 const sys_open="__x64_sys_open"
 const sys_openat="__x64_sys_openat"

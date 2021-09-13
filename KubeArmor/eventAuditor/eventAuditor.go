@@ -20,15 +20,15 @@ type EventAuditor struct {
 	BPFManager *KABPFManager
 
 	// Contains the list of all entrypoints in the audit policy
-	EntrypointList := []string
+	EntrypointList []string
 
 	// entrypoints list
-	var NewEntrypointList []string // entrypoints to be attached
-	var OldEntrypointList []string // entrypoints to be detached
+	NewEntrypointList []string // entrypoints to be attached
+	OldEntrypointList []string // entrypoints to be detached
 
 	// lists to separately store probes
-	var kprobes []string
-	var syscalls []string
+	kprobes  []string
+	syscalls []string
 }
 
 // NewEventAuditor Function
