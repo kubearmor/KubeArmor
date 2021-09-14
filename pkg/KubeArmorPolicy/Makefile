@@ -72,6 +72,18 @@ docker-build:
 docker-push:
 	docker push ${IMG}
 
+client/gen:
+	@echo "--> Running code-generator to generate clients"
+	# prepare tool code-generator
+	@mkdir -p ./tmp/code-generator
+	@git clone https://github.com/kubernetes/code-generator.git --branch v0.21.0 --single-branch  ./tmp/code-generator
+	# generate client
+	./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api security.kubearmor.com:v1 --go-header-file hack/boilerplate.go.txt
+	# check generated client at ./pkg/client
+	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/* ./client/
+	@rm -rf ./github.com ./tmp/code-generator
+
+
 # find or download controller-gen
 # download controller-gen if necessary
 controller-gen:
