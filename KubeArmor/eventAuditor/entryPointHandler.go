@@ -20,35 +20,35 @@ import (
 
 // InitializeEntryPoints Function
 func (ea *EventAuditor) InitializeEntryPoints() bool {
+	var err error
+
 	if ea.BPFManager == nil {
 		return false
 	}
 
-	if err := ea.BPFManager.InitMap(KAEAGetMap(KAEAEventMap), true); err != nil {
+	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventMap), true); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEventMap: %v", err)
 		return false
 	}
 
-	if err := ea.BPFManager.InitMap(KAEAGetMap(KAEAEventFilterMap), true); err != nil {
+	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventFilterMap), true); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEventFilterMap: %v", err)
-		return false
+		goto fail1
 	}
 
-	if err := ea.BPFManager.InitMap(KAEAGetMap(KAEAEventJumpTable), true); err != nil {
+	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventJumpTable), true); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEventJumpTable: %v", err)
-		return false
+		goto fail2
 	}
 
-	b, err := lbpf.OpenObjectFromFile("./BPF/objs/entrypoint.bpf.o")
-	if err != nil {
+	if ea.EntryPointBPF, err = lbpf.OpenObjectFromFile("./BPF/objs/entrypoint.bpf.o"); err != nil {
 		ea.Logger.Errf("Failed to open entrypoint bpf: %v", err)
-		return false
+		goto fail3
 	}
-	ea.EntryPointBPF = b
 
 	if err := ea.EntryPointBPF.Load(); err != nil {
 		ea.Logger.Errf("Failed to load entrypoint bpf: %v", err)
-		return false
+		goto fail3
 	}
 
 	ea.SupportedEntryPoints = []string{
@@ -73,6 +73,17 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 	// }
 
 	return true
+
+fail3:
+	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventJumpTable))
+
+fail2:
+	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventFilterMap))
+
+fail1:
+	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventMap))
+
+	return false
 }
 
 // DestroyEntryPoints Function
