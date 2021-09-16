@@ -6,9 +6,9 @@
 package fake
 
 import (
-	clientset "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/clientset/versioned"
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/clientset/versioned/typed/security.kubearmor.com/v1"
-	fakesecurityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/clientset/versioned/typed/security.kubearmor.com/v1/fake"
+	clientset "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/clientset/versioned"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/clientset/versioned/typed/security.kubearmor.com/v1"
+	fakesecurityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/clientset/versioned/typed/security.kubearmor.com/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
