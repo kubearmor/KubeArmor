@@ -269,6 +269,7 @@ type KubeArmorHostPolicyStatus struct {
 // +kubebuilder:object:root=true
 
 // KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies API
+// +genclient
 // +kubebuilder:resource:shortName=hsp
 // +kubebuilder:subresource:status
 type KubeArmorHostPolicy struct {
@@ -289,5 +290,5 @@ type KubeArmorHostPolicyList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&KubeArmorHostPolicy{}, &KubeArmorHostPolicyList{})
+	SchemeBuilder.Register(addKnownTypes)
 }
