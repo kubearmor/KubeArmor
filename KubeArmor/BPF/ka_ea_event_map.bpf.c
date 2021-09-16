@@ -11,6 +11,6 @@ struct {
 	__type(key, __u32);
 	__type(value, __u32);
 	__uint(max_entries, 1 << 10);
-} ka_ea_event_filter_map SEC(".maps");
+} ka_ea_event_map SEC(".maps");
 
 char LICENSE[] SEC("license") = "GPL";
