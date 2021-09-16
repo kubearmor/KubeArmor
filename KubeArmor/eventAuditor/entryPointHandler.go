@@ -3,133 +3,158 @@
 
 package eventauditor
 
-import (
-	"C"
-)
+import "C"
 
 import (
-	"errors"
 	"sync"
 
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-	bpf "github.com/kubearmor/libbpf"
+
+	lbpf "github.com/kubearmor/libbpf"
 )
 
 // =========================== //
 // == Entrypoint Management == //
 // =========================== //
 
-// InitializeEventMaps Function
-func (ea *EventAuditor) InitializeEventMaps(bman *KABPFManager) error {
-	if bman == nil {
-		return errors.New("bpf manager cannot be nil")
-	}
-
-	err1 := bman.InitMap(KAEAGetMap(KAEAEventFilterMap), true)
-	err2 := bman.InitMap(KAEAGetMap(KAEAEventJumpTable), true)
-
-	return AppendErrors(err1, err2)
-}
-
-// DestroyEventMaps Function
-func (ea *EventAuditor) DestroyEventMaps(bman *KABPFManager) error {
-	if bman == nil {
-		return errors.New("bpf manager cannot be nil")
-	}
-
-	err1 := bman.DestroyMap(KAEAGetMap(KAEAEventFilterMap))
-	err2 := bman.DestroyMap(KAEAGetMap(KAEAEventJumpTable))
-
-	return AppendErrors(err1, err2)
-}
-
-// InitializeEntryPoints is used to initialize all
-// data structures before handling entrypoints
+// InitializeEntryPoints Function
 func (ea *EventAuditor) InitializeEntryPoints() bool {
-	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/objs/entrypoint.bpf.o")
-	must(err)
-	defer b.Close()
+	if ea.BPFManager == nil {
+		return false
+	}
 
-	err = b.Load()
-	must(err)
+	if err := ea.BPFManager.InitMap(KAEAGetMap(KAEAEventMap), true); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEventMap: %v", err)
+		return false
+	}
+
+	if err := ea.BPFManager.InitMap(KAEAGetMap(KAEAEventFilterMap), true); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEventFilterMap: %v", err)
+		return false
+	}
+
+	if err := ea.BPFManager.InitMap(KAEAGetMap(KAEAEventJumpTable), true); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEventJumpTable: %v", err)
+		return false
+	}
+
+	b, err := lbpf.OpenObjectFromFile("./BPF/objs/entrypoint.bpf.o")
+	if err != nil {
+		ea.Logger.Errf("Failed to open entrypoint bpf: %v", err)
+		return false
+	}
+	ea.EntryPointBPF = b
+
+	if err := ea.EntryPointBPF.Load(); err != nil {
+		ea.Logger.Errf("Failed to load entrypoint bpf: %v", err)
+		return false
+	}
+
+	ea.SupportedEntryPoints = []string{
+		"SYS_EXECVE", "SYS_EXECVEAT",
+		"SYS_OPEN", "SYS_OPENAT",
+		"SYS_SOCKET", "SYS_BIND", "SYS_LISTEN", "SYS_ACCEPT", "SYS_CONNECT"}
+
+	// for _, probe := range ea.SupportedEntryPoints {
+	// attach all entrpoints
+
+	// p, err := ea.EntryPointBPF.FindProgramByName("entrypoint")
+	// if err != nil {
+	// 	ea.Logger.Errf("Failed to find entrypoint from entrypoint bpf: %v", err)
+	// 	return false
+	// }
+
+	// if _, err := ea.EntryPointProg.AttachKprobe(probe); err != nil { // probe = sys_open
+	// 	ea.Logger.Errf("Failed to attach kprobe (%s): %v", probe, err)
+	// }
+
+	// set KAEAEventMap[syscall_id] = 0
+	// }
 
 	return true
 }
 
-/* TODO
-// DestroyEntryPoints is used to clean all used data structures
-// and any changes applied to the kernel
+// DestroyEntryPoints Function
 func (ea *EventAuditor) DestroyEntryPoints() bool {
+	if ea.BPFManager == nil {
+		return false
+	}
 
-	//TODO destroy entrypoints
-	DestroyMap()
+	// TODO: remove entrypoint bpf
 
-	DestroyProgram()
+	ea.EntryPointBPF.Close()
+
+	if err := ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventJumpTable)); err != nil {
+		ea.Logger.Errf("Failed to destroy KAEAEventJumpTable: %v", err)
+	}
+
+	if err := ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventFilterMap)); err != nil {
+		ea.Logger.Errf("Failed to destroy KAEAEventFilterMap: %v", err)
+	}
+
+	if err := ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventMap)); err != nil {
+		ea.Logger.Errf("Failed to destroy KAEAEventFilterMap: %v", err)
+	}
 
 	return true
 }
-*/
 
 func (ea *EventAuditor) AttachEntryPoint(probe string) {
-	b, err := bpf.OpenObjectFromFile("KubeArmor/BPF/objs/entrypoint.bpf.o")
-	must(err)
-	defer b.Close()
-
-	prog, err := b.FindProgramByName("entrypoint")
-	must(err)
-	_, err = prog.AttachKprobe(probe)
-	must(err)
+	// set KAEAEventMap[probe_id] = 1
 }
 
-/* TODO
 func (ea *EventAuditor) DetachEntryPoint(probe string) {
-	// TODO Detach function is not implemented yet
-	Detach(probe)
+	// set KAEAEventMap[probe_id] = 0
 }
-*/
 
 // UpdateEntryPoints Function
-func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy,
-	auditPoliciesLock **sync.RWMutex) {
+func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.RWMutex) {
 	AuditPolicies := *(auditPolicies)
 	AuditPoliciesLock := *(auditPoliciesLock)
 
 	AuditPoliciesLock.Lock()
 	defer AuditPoliciesLock.Unlock()
 
-	// new entrypoints list
+	entrypointList := []string{}
+
+	// all entrypoints list
 	for _, policy := range AuditPolicies {
 		for _, event := range policy.Events {
-			ea.NewEntrypointList = append(ea.NewEntrypointList, event.Probe)
-		}
-	}
-
-	// outdated entrypoints, it will be in the OldEntrypointList array
-	for _, entrypoint := range ea.EntrypointList {
-		for _, probe := range ea.NewEntrypointList {
-			if probe != entrypoint {
-				ea.OldEntrypointList = append(ea.OldEntrypointList, probe)
+			if !kl.ContainsElement(entrypointList, event.Probe) {
+				entrypointList = append(entrypointList, event.Probe)
 			}
 		}
 	}
 
-	// replace old entrypoints list with new entrypoints list
-	ea.EntrypointList = ea.NewEntrypointList
+	newEntryPointList := []string{}
 
-	// update (attach/detach) entrypoints (ebpf)
-	for _, probe := range ea.NewEntrypointList {
+	// new entrypoints to be attached
+	for _, newProbe := range entrypointList {
+		if !kl.ContainsElement(ea.ActiveEntryPoints, newProbe) {
+			newEntryPointList = append(newEntryPointList, newProbe)
+		}
+	}
+
+	// update entrypoints
+	for _, probe := range newEntryPointList {
 		ea.AttachEntryPoint(probe)
 	}
 
-	/* TODO
-	for _, probe := range ea.OldEntrypointList {
+	oldEntrypointList := []string{}
+
+	// old entrypoints to be detached
+	for _, oldProbe := range ea.ActiveEntryPoints {
+		if !kl.ContainsElement(entrypointList, oldProbe) {
+			oldEntrypointList = append(oldEntrypointList, oldProbe)
+		}
+	}
+
+	// update entrypoints
+	for _, probe := range oldEntrypointList {
 		ea.DetachEntryPoint(probe)
 	}
-	*/
-}
 
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
+	// replace old list with new list
+	ea.ActiveEntryPoints = entrypointList
 }

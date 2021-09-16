@@ -48,7 +48,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 		lsm, err = ioutil.ReadFile(lsmPath)
 		if err != nil {
 			re.Logger.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
-			return re
+			return nil
 		}
 	}
 
@@ -79,6 +79,11 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 
 // UpdateAppArmorProfiles Function
 func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[string]string) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
 	if re.EnforcerType == "AppArmor" {
 		for _, profile := range profiles {
 			if action == "ADDED" {
@@ -92,6 +97,11 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[st
 
 // UpdateSELinuxProfiles Function
 func (re *RuntimeEnforcer) UpdateSELinuxProfiles(action string, profiles map[string]string, hostVolumes []tp.HostVolumeMount) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
 	if re.EnforcerType == "SELinux" {
 		for k, v := range profiles {
 			if strings.HasPrefix(k, "selinux-") { // selinux- + [container_name]
@@ -108,6 +118,11 @@ func (re *RuntimeEnforcer) UpdateSELinuxProfiles(action string, profiles map[str
 
 // UpdateSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
 	if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
 	} else if re.EnforcerType == "SELinux" {
@@ -117,6 +132,11 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 // UpdateHostSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
 	if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	} else if re.EnforcerType == "SELinux" {
@@ -126,6 +146,11 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 
 // DestroyRuntimeEnforcer Function
 func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return nil
+	}
+
 	errorLSM := false
 
 	if re.EnforcerType == "AppArmor" {

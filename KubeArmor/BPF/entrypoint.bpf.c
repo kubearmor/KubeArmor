@@ -1,14 +1,36 @@
 // +build ignore
 
-#include "entrypoint.bpf.h"
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
 
-// #define SYS_OPEN            1
-// #define SYS_CONNECT         2
-// #define SYS_EXECVE          3
+// process
+
+SEC("kprobe/sys_execve")
+int kprobe__sys_execve(void *ctx)
+{
+    // uint32_t id = 59;
+    // uint32_t *val = bpf_lookup_elem(event_map, &id);
+    // if (val == 0) return;
+    // else if (val != 0 && *val == 0) return;
+
+    bpf_printk("sys_execve");
+    return 0;
+}
+
+SEC("kprobe/sys_execveat")
+int kprobe__sys_execveat(void *ctx)
+{
+    bpf_printk("sys_execveat");
+    return 0;
+}
+
+// file
 
 SEC("kprobe/sys_open")
 int kprobe__sys_open(void *ctx)
 {
+    // int id = 2;
+
 	bpf_printk("sys_open");
     return 0;
 }
@@ -20,19 +42,7 @@ int kprobe__sys_openat(void *ctx)
     return 0;
 }
 
-SEC("kprobe/sys_execve")
-int kprobe__sys_execve(void *ctx)
-{
-    bpf_printk("sys_execve");
-    return 0;
-}
-
-SEC("kprobe/sys_execveat")
-int kprobe__sys_execveat(void *ctx)
-{
-    bpf_printk("sys_execveat");
-    return 0;
-}
+// network
 
 SEC("kprobe/sys_socket")
 int kprobe__sys_socket(void *ctx)
@@ -68,4 +78,3 @@ int kprobe__sys_connect(void *ctx)
     bpf_printk("sys_connect");
     return 0;
 }
-
