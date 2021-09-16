@@ -101,3 +101,13 @@ func Err(message string) {
 func Errf(message string, args ...interface{}) {
 	zapLogger.Errorf(message, args...)
 }
+
+// Warn Function
+func Warn(message string) {
+	zapLogger.Warn(message)
+}
+
+// Warnf Function
+func Warnf(message string, args ...interface{}) {
+	zapLogger.Warnf(message, args...)
+}
