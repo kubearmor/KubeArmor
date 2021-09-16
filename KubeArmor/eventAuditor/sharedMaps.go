@@ -27,6 +27,9 @@ const (
 	KAEAProcessFilterMap     KABPFMapName     = "ka_ea_process_filter_map"
 	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process_filter_map.bpf.o"
 
+	KAEAEventMap     KABPFMapName     = "ka_ea_event_map"
+	KAEAEventMapFile KABPFObjFileName = "ka_ea_event_map.bpf.o"
+
 	KAEAEventFilterMap     KABPFMapName     = "ka_ea_event_filter_map"
 	KAEAEventFilterMapFile KABPFObjFileName = "ka_ea_event_filter_map.bpf.o"
 
@@ -51,6 +54,11 @@ func KAEAGetMap(name KABPFMapName) KABPFMap {
 		return KABPFMap{
 			Name:     KAEAProcessFilterMap,
 			FileName: KAEAProcessFilterMapFile,
+		}
+	case KAEAEventMap:
+		return KABPFMap{
+			Name:     KAEAEventMap,
+			FileName: KAEAEventMapFile,
 		}
 	case KAEAEventFilterMap:
 		return KABPFMap{
@@ -230,6 +238,41 @@ func (pfe *ProcessFilterElement) ValuePointer() unsafe.Pointer {
 // MapName Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) MapName() string {
 	return string(KAEAProcessFilterMap)
+}
+
+// ==================== //
+// ===  Event Map  ==== //
+// ==================== //
+
+// EventElement Structure
+type EventElement struct {
+	Key   uint32
+	Value uint32
+}
+
+// SetKey Function (EventFilterElement)
+func (ee *EventElement) SetKey(eventID uint32) {
+	ee.Key = eventID
+}
+
+// SetValue Function (EventElement)
+func (ee *EventElement) SetValue(flag uint32) {
+	ee.Value = flag
+}
+
+// KeyPointer Function (EventElement)
+func (ee *EventElement) KeyPointer() unsafe.Pointer {
+	return unsafe.Pointer(&ee.Key)
+}
+
+// ValuePointer Function (EventElement)
+func (ee *EventElement) ValuePointer() unsafe.Pointer {
+	return unsafe.Pointer(&ee.Value)
+}
+
+// MapName Function (EventElement)
+func (ee *EventElement) MapName() string {
+	return string(KAEAEventMap)
 }
 
 // =========================== //

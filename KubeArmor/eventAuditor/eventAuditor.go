@@ -5,6 +5,8 @@ package eventauditor
 
 import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+
+	lbpf "github.com/kubearmor/libbpf"
 )
 
 // =================== //
@@ -19,16 +21,14 @@ type EventAuditor struct {
 	// bpf
 	BPFManager *KABPFManager
 
-	// Contains the list of all entrypoints in the audit policy
-	EntrypointList []string
+	// all entrypoints that KubeArmor supports
+	SupportedEntryPoints []string
 
-	// entrypoints list
-	NewEntrypointList []string // entrypoints to be attached
-	OldEntrypointList []string // entrypoints to be detached
+	// all entrypoints in the audit policy
+	ActiveEntryPoints []string
 
-	// lists to separately store probes
-	kprobes  []string
-	syscalls []string
+	// entrypoint bpf
+	EntryPointBPF *lbpf.KABPFObject
 }
 
 // NewEventAuditor Function
@@ -39,10 +39,12 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()
+
 	if err := ea.BPFManager.SetObjsMapsPath("./BPF/objs"); err != nil {
 		ea.Logger.Errf("Failed to set ebpf maps path: %v", err)
 		return nil
 	}
+
 	if err := ea.BPFManager.SetObjsProgsPath("./BPF/objs"); err != nil {
 		ea.Logger.Errf("Failed to set ebpf programs path: %v", err)
 		return nil
@@ -58,24 +60,19 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 		goto fail1
 	}
 
-	if err := ea.InitializeEventMaps(ea.BPFManager); err != nil {
-		ea.Logger.Errf("Failed to initialize event maps: %v", err)
-		goto fail2
-	}
-
 	// initialize entrypoints
 	if !ea.InitializeEntryPoints() {
 		ea.Logger.Err("Failed to initialize entrypoints")
-		goto fail3
+		goto fail2
 	}
 
 	return ea
 
-fail3:
-	_ = ea.DestroyEventMaps(ea.BPFManager)
 fail2:
+	// destroy process programs
 	_ = ea.DestroyProcessPrograms(ea.BPFManager)
 fail1:
+	// destroy process maps
 	_ = ea.DestroyProcessMaps(ea.BPFManager)
 
 	return nil
@@ -83,32 +80,27 @@ fail1:
 
 // DestroyEventAuditor Function
 func (ea *EventAuditor) DestroyEventAuditor() error {
-	var err error
-
-	// destroy deployed entrypoints
+	// destroy entrypoints
 	if !ea.DestroyEntryPoints() {
 		ea.Logger.Err("Failed to destroy entrypoints")
 	}
 
 	// destroy process programs
-	if err = ea.DestroyProcessPrograms(ea.BPFManager); err != nil {
-		ea.Logger.Errf("Failed to destroy process programs: %v", err)
+	err1 := ea.DestroyProcessPrograms(ea.BPFManager)
+	if err1 != nil {
+		ea.Logger.Errf("Failed to destroy process programs: %v", err1)
 	}
 
 	// destroy process maps
-	if err = ea.DestroyProcessMaps(ea.BPFManager); err != nil {
-		ea.Logger.Errf("Failed to destroy process maps: %v", err)
-	}
-
-	// destroy event maps
-	if err = ea.DestroyEventMaps(ea.BPFManager); err != nil {
-		ea.Logger.Errf("Failed to destroy event maps: %v", err)
+	err2 := ea.DestroyProcessMaps(ea.BPFManager)
+	if err2 != nil {
+		ea.Logger.Errf("Failed to destroy process maps: %v", err2)
 	}
 
 	ea.BPFManager = nil
 	ea.Logger = nil
 
-	return err
+	return AppendErrors(err1, err2)
 }
 
 // ============================= //
