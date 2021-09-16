@@ -26,8 +26,7 @@ type KubeArmorHostPolicyReconciler struct {
 // +kubebuilder:rbac:groups=security.kubearmor.com,resources=kubearmorhostpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.kubearmor.com,resources=kubearmorhostpolicies/status,verbs=get;update;patch
 
-func (r *KubeArmorHostPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *KubeArmorHostPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("kubearmorhostpolicy", req.NamespacedName)
 
 	policy := &securityv1.KubeArmorHostPolicy{}

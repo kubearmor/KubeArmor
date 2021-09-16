@@ -3,10 +3,11 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy
 go 1.13
 
 require (
-	github.com/go-logr/logr v0.1.0
-	github.com/onsi/ginkgo v1.11.0
-	github.com/onsi/gomega v1.8.1
-	k8s.io/apimachinery v0.17.2
-	k8s.io/client-go v0.17.2
-	sigs.k8s.io/controller-runtime v0.5.0
+	github.com/go-logr/logr v0.4.0
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega v1.16.0
+	k8s.io/apimachinery v0.22.1
+	k8s.io/client-go v0.22.1
+	k8s.io/klog/v2 v2.10.0 // indirect
+	sigs.k8s.io/controller-runtime v0.10.0
 )
