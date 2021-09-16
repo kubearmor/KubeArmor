@@ -66,6 +66,11 @@ func NewSELinuxEnforcer(logger *fd.Feeder) *SELinuxEnforcer {
 
 // DestroySELinuxEnforcer Function
 func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
+	// skip if selinux enforcer is not active
+	if se == nil {
+		return nil
+	}
+
 	for profileName := range se.SELinuxProfiles {
 		se.UnregisterSELinuxProfile(profileName)
 	}
@@ -143,6 +148,11 @@ func GetSELinuxType(path string) (string, error) {
 
 // RegisterSELinuxProfile Function
 func (se *SELinuxEnforcer) RegisterSELinuxProfile(containerName string, hostVolumes []tp.HostVolumeMount, profileName string) bool {
+	// skip if selinux enforcer is not active
+	if se == nil {
+		return true
+	}
+
 	defaultProfile := "(block " + profileName + "\n" +
 		"	(blockinherit container)\n" +
 		// "	(blockinherit restricted_net_container)\n" +
@@ -219,6 +229,11 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(containerName string, hostVolu
 
 // UnregisterSELinuxProfile Function
 func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
+	// skip if selinux enforcer is not active
+	if se == nil {
+		return true
+	}
+
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
@@ -407,6 +422,11 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 
 // UpdateSELinuxProfile Function
 func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxProfile string, securityPolicies []tp.SecurityPolicy) {
+	// skip if selinux enforcer is not active
+	if se == nil {
+		return
+	}
+
 	if ruleCount, newProfile, ok := se.GenerateSELinuxProfile(endPoint, seLinuxProfile, securityPolicies); ok {
 		newfile, err := os.Create(filepath.Clean(se.SELinuxContextTemplates + seLinuxProfile + ".cil"))
 		if err != nil {
@@ -439,6 +459,11 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxPro
 
 // UpdateSecurityPolicies Function
 func (se *SELinuxEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
+	// skip if selinux enforcer is not active
+	if se == nil {
+		return
+	}
+
 	selinuxProfiles := []string{}
 
 	for _, seLinuxProfile := range endPoint.SELinuxProfiles {
@@ -458,5 +483,10 @@ func (se *SELinuxEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 // UpdateHostSecurityPolicies Function
 func (se *SELinuxEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	// skip if selinux enforcer is not active
+	if se == nil {
+		return
+	}
+
 	//
 }

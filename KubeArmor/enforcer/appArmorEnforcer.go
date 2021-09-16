@@ -172,6 +172,11 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 // DestroyAppArmorEnforcer Function
 func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return nil
+	}
+
 	for profile := range ae.AppArmorProfiles {
 		ae.UnregisterAppArmorProfile(profile)
 	}
@@ -189,6 +194,11 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 
 // RegisterAppArmorProfile Function
 func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return true
+	}
+
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
@@ -238,6 +248,11 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 
 // UnregisterAppArmorProfile Function
 func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return true
+	}
+
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
@@ -290,6 +305,11 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 
 // CreateAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return nil
+	}
+
 	apparmorHostDefault := "## == Managed by KubeArmor == ##\n" +
 		"\n" +
 		"#include <tunables/global>\n" +
@@ -340,6 +360,11 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 
 // RemoveAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) RemoveAppArmorHostProfile() error {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return nil
+	}
+
 	if _, err := os.Stat("/etc/apparmor.d/kubearmor.host"); err != nil {
 		ae.Logger.Errf("Failed to find the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return nil
@@ -355,6 +380,11 @@ func (ae *AppArmorEnforcer) RemoveAppArmorHostProfile() error {
 
 // RegisterAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return true
+	}
+
 	if err := ae.CreateAppArmorHostProfile(); err != nil {
 		ae.Logger.Errf("Failed to create the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
@@ -372,6 +402,11 @@ func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 
 // UnregisterAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return true
+	}
+
 	if err := ae.RemoveAppArmorHostProfile(); err != nil {
 		ae.Logger.Errf("Failed to remove the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
@@ -418,6 +453,11 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 
 // UpdateSecurityPolicies Function
 func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return
+	}
+
 	appArmorProfiles := []string{}
 
 	for _, appArmorProfile := range endPoint.AppArmorProfiles {
@@ -479,6 +519,11 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 
 // UpdateHostSecurityPolicies Function
 func (ae *AppArmorEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	// skip if AppArmorEnforcer is not active
+	if ae == nil {
+		return
+	}
+
 	if ae.EnableKubeArmorHostPolicy {
 		ae.UpdateAppArmorHostProfile(secPolicies)
 	} else {
