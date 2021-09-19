@@ -17,6 +17,7 @@ import (
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	kvma "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 )
 
@@ -301,7 +302,7 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool) {
+func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool, enableKvmAgent bool) {
 	// create a daemon
 	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableKubeArmorPolicy, enableKubeArmorHostPolicy)
 
@@ -486,6 +487,15 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		// watch host security policies
 		go dm.WatchHostSecurityPolicies()
 		dm.Logger.Print("Started to monitor host security policies")
+	}
+
+	if enableKvmAgent {
+		err := kvma.InitKvmAgent()
+		if err != nil {
+			dm.Logger.Print("Failed to initialize KvmAgent")
+		} else {
+			dm.Logger.Print("Initialized KvmAgent")
+		}
 	}
 
 	// == //
