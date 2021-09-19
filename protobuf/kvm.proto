@@ -13,8 +13,7 @@ message status {
 }
 
 message policyData {
-    string policyName = 1;
-    bytes policyData = 2;
+    bytes policyData = 1;
 }
 
 service KVM {

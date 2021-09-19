@@ -20,12 +20,11 @@ func getGrpcConnAddress() string {
 	return (os.Getenv("gRPC_IP") + ":" + os.Getenv("gRPC_PORT"))
 }
 
-func enforcePolicy(policyBytes []byte, policyName string) error {
+func enforcePolicy(policyBytes []byte) error {
 	err := *new(error)
 	err = nil
 
 	// Print policy details
-	log.Printf("Policy name is : %s", policyName)
 	log.Printf("Policy data bytes : %s", string(policyBytes))
 
 	return err
@@ -52,7 +51,7 @@ func connectToKVMService() error {
 			log.Printf("Error %s ", err)
 			break
 		}
-		err = enforcePolicy(policy.PolicyData, policy.PolicyName)
+		err = enforcePolicy(policy.PolicyData)
 		if err != nil {
 			log.Print("Policy Enforcement failed")
 			status = 1
