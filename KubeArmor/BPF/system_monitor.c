@@ -21,6 +21,7 @@
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/mount.h>
 
 #include <linux/un.h>
 #include <net/inet_sock.h>
@@ -54,6 +55,21 @@
 #define ARG_TYPE4(type)        ENC_ARG_TYPE(4, type)
 #define ARG_TYPE5(type)        ENC_ARG_TYPE(5, type)
 #define DEC_ARG_TYPE(n, type)  ((type>>(8*n))&0xFF)
+#define MAX_PATH_COMPONENTS 48
+
+#define my_container_of(ptr, type, member)                                     \
+	({                                                                     \
+		const typeof(((type *)0)->member) *__mptr = (ptr);             \
+		(type *)((char *)__mptr - offsetof(type, member));             \
+	})
+
+struct mount {
+	struct hlist_node mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
+	struct vfsmount mnt;
+	// ...
+};
 
 enum {
     // file
@@ -400,8 +416,105 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
     if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0) {
         return sizeof(sys_context_t);
     }
+static __always_inline int save_path_to_str_buf(bufs_t *string_p,
+						const struct path *path)
+{
+	struct path f_path;
+	bpf_probe_read(&f_path, sizeof(struct path), path);
+	char slash = '/';
+	int zero = 0;
+	struct dentry *dentry = f_path.dentry;
+	struct vfsmount *vfsmnt = f_path.mnt;
+	struct mount *mnt_parent_p;
 
-    return 0;
+	struct mount *mnt_p = my_container_of(vfsmnt, struct mount, mnt);
+	bpf_probe_read(&mnt_parent_p, sizeof(struct mount *),
+		       &mnt_p->mnt_parent);
+
+	u32 buf_off = (MAX_BUFFER_SIZE >> 1);
+	struct dentry *mnt_root;
+	struct dentry *d_parent;
+	struct qstr d_name;
+	unsigned int len;
+	unsigned int off;
+	int sz;
+
+#pragma unroll
+	for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
+		bpf_probe_read(&mnt_root, sizeof(struct dentry),
+			       &vfsmnt->mnt_root);
+		bpf_probe_read(&d_parent, sizeof(struct dentry),
+			       &dentry->d_parent);
+		if (dentry == mnt_root || dentry == d_parent) {
+			if (dentry != mnt_root) {
+				// We reached root, but not mount root - escaped?
+				break;
+			}
+			if (mnt_p != mnt_parent_p) {
+				// We reached root, but not global root - continue with mount point path
+				bpf_probe_read(&dentry, sizeof(struct dentry *),
+					       &mnt_p->mnt_mountpoint);
+				bpf_probe_read(&mnt_p, sizeof(struct mount *),
+					       &mnt_p->mnt_parent);
+				bpf_probe_read(&mnt_parent_p,
+					       sizeof(struct mount *),
+					       &mnt_p->mnt_parent);
+				vfsmnt = &mnt_p->mnt;
+				continue;
+			}
+			// Global root - path fully parsed
+			break;
+		}
+		// Add this dentry name to path
+		bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
+		/* d_name = get_d_name_from_dentry(dentry); */
+		len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
+		off = buf_off - len;
+
+		// Is string buffer big enough for dentry name?
+		sz = 0;
+		if (off <= buf_off) { // verify no wrap occurred
+			len = len & ((MAX_BUFFER_SIZE >> 1) - 1);
+			sz = bpf_probe_read_str(
+				&(string_p->buf[off &
+						((MAX_BUFFER_SIZE >> 1) - 1)]),
+				len, (void *)d_name.name);
+		} else
+			break;
+		if (sz > 1) {
+			buf_off -=
+				1; // remove null byte termination with slash sign
+			bpf_probe_read(&(string_p->buf[buf_off &
+						       (MAX_BUFFER_SIZE - 1)]),
+				       1, &slash);
+			buf_off -= sz - 1;
+		} else {
+			// If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+			break;
+		}
+		dentry = d_parent;
+	}
+
+	if (buf_off == (MAX_BUFFER_SIZE >> 1)) {
+		// memfd files have no path in the filesystem -> extract their name
+		buf_off = 0;
+		bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
+		/* d_name = get_d_name_from_dentry(dentry); */
+		bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
+				   (void *)d_name.name);
+	} else {
+		// Add leading slash
+		buf_off -= 1;
+		bpf_probe_read(
+			&(string_p->buf[buf_off & (MAX_BUFFER_SIZE - 1)]), 1,
+			&slash);
+		// Null terminate the path string
+		bpf_probe_read(&(string_p->buf[(MAX_BUFFER_SIZE >> 1) - 1]), 1,
+			       &zero);
+	}
+
+	set_buffer_offset(buf_off);
+	return buf_off;
 }
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
@@ -870,7 +983,7 @@ int trace_ret_openat(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T));
 }
 
-int save_file_path(strct pt_regs *ctx)
+int save_file_path(struct pt_regs *ctx)
 {
 	args_t args = {};
 	struct file *file = (struct file *)PT_REGS_RC(ctx);
@@ -880,112 +993,17 @@ int save_file_path(strct pt_regs *ctx)
 
 	bufs_t *string_p = get_buffer(1);
 	if (string_p == NIL)
+	bufs_t *string_p = get_buffer();
+	if (string_p == NULL)
 		return -1;
 
 	save_path_to_str_buf(string_p, &file->f_path);
-	u32 *off = get_buffer_offset(1);
+	u32 *off = get_buffer_offset();
 	if (off == NULL)
 		return -1;
+	return 0;
 }
 
-static __always_inline int save_path_to_str_buf(bufs_t *string_p,
-						const struct path *path)
-{
-	struct path f_path;
-	bpf_probe_read(&f_path, sizeof(struct path), path);
-	char slash = '/';
-	int zero = 0;
-	struct dentry *dentry = f_path.dentry;
-	struct vfsmount *vfsmnt = f_path.mnt;
-	struct mount *mnt_parent_p;
-
-	struct mount *mnt_p = container_of(vfsmnt, struct mount, mnt);
-	bpf_probe_read(&mnt_parent_p, sizeof(struct mount *),
-		       &mnt_p->mnt_parent);
-
-	u32 buf_off = (MAX_BUFFER_SIZE >> 1);
-	struct dentry *mnt_root;
-	struct dentry *d_parent;
-	struct qstr d_name;
-	unsigned int len;
-	unsigned int off;
-	int sz;
-
-#pragma unroll
-	for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
-		bpf_probe_read(&mnt_root, sizeof(struct dentry),
-			       &vfsmnt->mnt_root);
-		bpf_probe_read(&d_parent, sizeof(struct dentry),
-			       &dentry->d_parent);
-		if (dentry == mnt_root || dentry == d_parent) {
-			if (dentry != mnt_root) {
-				// We reached root, but not mount root - escaped?
-				break;
-			}
-			if (mnt_p != mnt_parent_p) {
-				// We reached root, but not global root - continue with mount point path
-				bpf_probe_read(&dentry, sizeof(struct dentry *),
-					       &mnt_p->mnt_mountpoint);
-				bpf_probe_read(&mnt_p, sizeof(struct mount *),
-					       &mnt_p->mnt_parent);
-				bpf_probe_read(&mnt_parent_p,
-					       sizeof(struct mount *),
-					       &mnt_p->mnt_parent);
-				vfsmnt = &mnt_p->mnt;
-				continue;
-			}
-			// Global root - path fully parsed
-			break;
-		}
-		// Add this dentry name to path
-		d_name = get_d_name_from_dentry(dentry);
-		len = (d_name.len + 1) & (MAX_STRING_SIZE - 1);
-		off = buf_off - len;
-
-		// Is string buffer big enough for dentry name?
-		sz = 0;
-		if (off <= buf_off) { // verify no wrap occurred
-			len = len & ((MAX_BUFFER_SIZE >> 1) - 1);
-			sz = bpf_probe_read_str(
-				&(string_p->buf[off &
-						((MAX_BUFFER_SIZE >> 1) - 1)]),
-				len, (void *)d_name.name);
-		} else
-			break;
-		if (sz > 1) {
-			buf_off -=
-				1; // remove null byte termination with slash sign
-			bpf_probe_read(&(string_p->buf[buf_off &
-						       (MAX_BUFFER_SIZE - 1)]),
-				       1, &slash);
-			buf_off -= sz - 1;
-		} else {
-			// If sz is 0 or 1 we have an error (path can't be null nor an empty string)
-			break;
-		}
-		dentry = d_parent;
-	}
-
-	if (buf_off == (MAX_BUFFER_SIZE >> 1)) {
-		// memfd files have no path in the filesystem -> extract their name
-		buf_off = 0;
-		d_name = get_d_name_from_dentry(dentry);
-		bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE,
-				   (void *)d_name.name);
-	} else {
-		// Add leading slash
-		buf_off -= 1;
-		bpf_probe_read(
-			&(string_p->buf[buf_off & (MAX_BUFFER_SIZE - 1)]), 1,
-			&slash);
-		// Null terminate the path string
-		bpf_probe_read(&(string_p->buf[(MAX_BUFFER_SIZE >> 1) - 1]), 1,
-			       &zero);
-	}
-
-	set_buf_off(STRING_BUF_IDX, buf_off);
-	return buf_off;
-}
 int syscall__close(struct pt_regs *ctx)
 { 
     if (skip_syscall())

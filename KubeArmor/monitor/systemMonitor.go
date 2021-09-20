@@ -316,6 +316,14 @@ func (mon *SystemMonitor) InitBPF() error {
 				return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
 			}
 		}
+		kretp, err := mon.BpfModule.LoadKprobe("save_file_path")
+		if err != nil {
+			return fmt.Errorf("error loading kprobe %s", "save_file_patch")
+		}
+		err = mon.BpfModule.AttachKretprobe("do_filp_open", kretp, -1)
+		if err != nil {
+			return fmt.Errorf("An error")
+		}
 
 		tracepoints := []string{"do_exit"}
 
