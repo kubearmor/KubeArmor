@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-3-file-path-owner-audit
+  namespace: multiubuntu
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      container: ubuntu-3
+  file:
+    matchPaths:
+    - path: /home/user1/secret_data1.txt #  
+      ownerOnly: true
+  action:
+    Audit
