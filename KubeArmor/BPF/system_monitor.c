@@ -441,9 +441,9 @@ static __always_inline int save_path_to_str_buf(bufs_t *string_p,
 
 #pragma unroll
 	for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
-		bpf_probe_read(&mnt_root, sizeof(struct dentry),
+		bpf_probe_read(&mnt_root, sizeof(struct dentry *),
 			       &vfsmnt->mnt_root);
-		bpf_probe_read(&d_parent, sizeof(struct dentry),
+		bpf_probe_read(&d_parent, sizeof(struct dentry *),
 			       &dentry->d_parent);
 		if (dentry == mnt_root || dentry == d_parent) {
 			if (dentry != mnt_root) {
