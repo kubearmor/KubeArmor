@@ -18,7 +18,7 @@ jobs:
           go-version: v1.16
 
       - name: Check gofmt
-        run: gofmt -s -d $(find . -type f -name '*.go' -print)
+        run: make gofmt
         working-directory: KubeArmor
 
   go-lint:
@@ -43,9 +43,7 @@ jobs:
           go-version: v1.16
 
       - name: Run Gosec Security Scanner
-        run: |
-          go get -u github.com/securego/gosec/v2/cmd/gosec
-          gosec ./...
+        run: make gosec
         working-directory: KubeArmor
 
   license:
