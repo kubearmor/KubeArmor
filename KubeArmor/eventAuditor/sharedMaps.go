@@ -19,13 +19,13 @@ import (
 // KubeArmor Event Auditor Maps
 const (
 	KAEAPatternMap     KABPFMapName     = "ka_ea_pattern_map"
-	KAEAPatternMapFile KABPFObjFileName = "ka_ea_pattern_map.bpf.o"
+	KAEAPatternMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
 	KAEAProcessSpecMap     KABPFMapName     = "ka_ea_process_spec_map"
-	KAEAProcessSpecMapFile KABPFObjFileName = "ka_ea_process_spec_map.bpf.o"
+	KAEAProcessSpecMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
 	KAEAProcessFilterMap     KABPFMapName     = "ka_ea_process_filter_map"
-	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process_filter_map.bpf.o"
+	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
 	KAEAEventMap     KABPFMapName     = "ka_ea_event_map"
 	KAEAEventMapFile KABPFObjFileName = "ka_ea_event_map.bpf.o"

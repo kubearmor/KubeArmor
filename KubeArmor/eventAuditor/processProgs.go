@@ -7,13 +7,13 @@ import lbpf "github.com/kubearmor/libbpf"
 
 // KubeArmor Event Auditor Programs
 const (
-	KAEASysExecveProg     KABPFProgName    = "ka_ea_sys_execve"
-	KAEASysExecveEvent    KABPFEventName   = "syscalls:sys_enter_execve"
-	KAEASysExecveProgFile KABPFObjFileName = "ka_ea_process_prog.bpf.o"
+	KAEASysExecveProg     KABPFProgName    = "ka_ea_sched_process_exec"
+	KAEASysExecveEvent    KABPFEventName   = "sched:sched_process_exec"
+	KAEASysExecveProgFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
-	KAEASysExitProg     KABPFProgName    = "ka_ea_sys_exit"
-	KAEASysExitEvent    KABPFEventName   = "syscalls:sys_enter_exit"
-	KAEASysExitProgFile KABPFObjFileName = "ka_ea_process_prog.bpf.o"
+	KAEASysExitProg     KABPFProgName    = "ka_ea_sched_process_exit"
+	KAEASysExitEvent    KABPFEventName   = "sched:sched_process_exit"
+	KAEASysExitProgFile KABPFObjFileName = "ka_ea_process.bpf.o"
 )
 
 // KAEAGetProg Function
