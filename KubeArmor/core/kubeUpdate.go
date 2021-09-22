@@ -1850,7 +1850,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 		// convert k8sAuditPolicy spec, skip (and alert) if invalid conversions
 		auditPolicies, err := k8sAuditPolicyConvert(k8sAuditPolicySpec)
 		if err != nil {
-			dm.Logger.Errf("Failed to convert K8sAuditPolicySpec: %v", err)
+			dm.Logger.Warnf("Failed to convert K8sAuditPolicySpec: %v", err)
 			continue
 		}
 
