@@ -131,6 +131,8 @@ function delete_and_wait_for_microservice_deletion() {
     fi
 }
 
+LAST_LOG=""
+
 function should_not_find_any_log() {
     DBG "Finding the corresponding log"
 
@@ -142,9 +144,14 @@ function should_not_find_any_log() {
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
+            if [ "$audit_log == $LAST_LOG" ]; then
+                audit_log="<No Log>"
+                DBG "Found no log from logs"
+            else
+                echo $audit_log
+                FAIL "Found the log from logs"
+                res_cmd=1
+            fi
         else
             audit_log="<No Log>"
             DBG "Found no log from logs"
@@ -152,14 +159,21 @@ function should_not_find_any_log() {
     else # local
         audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
         if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                DBG "Found no log from logs"
+            else
+                echo $audit_log
+                FAIL "Found the log from logs"
+                res_cmd=1
+            fi
         else
             audit_log="<No Log>"
             DBG "Found no log from logs"
         fi
     fi
+
+    LAST_LOG=$audit_log
 }
 
 function should_find_passed_log() {
@@ -177,8 +191,14 @@ function should_find_passed_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "[INFO] Found the log from logs"
+            fi
         fi
     else # local
         audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
@@ -187,10 +207,18 @@ function should_find_passed_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "[INFO] Found the log from logs"
+            fi
         fi
     fi
+
+    LAST_LOG=$audit_log
 }
 
 function should_find_blocked_log() {
@@ -213,8 +241,14 @@ function should_find_blocked_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "Found the log from logs"
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "Found the log from logs"
+            fi
         fi
     else # local
         audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
@@ -223,10 +257,18 @@ function should_find_blocked_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "Found the log from logs"
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "Found the log from logs"
+            fi
         fi
     fi
+
+    LAST_LOG=$audit_log
 }
 
 function should_not_find_any_host_log() {
@@ -240,9 +282,14 @@ function should_not_find_any_host_log() {
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
         if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                DBG "Found no log from logs"
+            else
+                echo $audit_log
+                FAIL "Found the log from logs"
+                res_cmd=1
+            fi
         else
             audit_log="<No Log>"
             DBG "[INFO] Found no log from logs"
@@ -250,14 +297,21 @@ function should_not_find_any_host_log() {
     else # local
         audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
         if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                DBG "Found no log from logs"
+            else
+                echo $audit_log
+                FAIL "Found the log from logs"
+                res_cmd=1
+            fi
         else
             audit_log="<No Log>"
             DBG "[INFO] Found no log from logs"
-        fi    
+        fi
     fi
+
+    LAST_LOG=$audit_log
 }
 
 function should_find_passed_host_log() {
@@ -275,8 +329,14 @@ function should_find_passed_host_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "[INFO] Found the log from logs"
+            fi
         fi    
     else # local
         audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep Passed)
@@ -285,10 +345,18 @@ function should_find_passed_host_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
-        fi    
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "[INFO] Found the log from logs"
+            fi
+        fi
     fi
+
+    LAST_LOG=$audit_log
 }
 
 function should_find_blocked_host_log() {
@@ -311,9 +379,15 @@ function should_find_blocked_host_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            echo "[INFO] Found the log from logs"
-        fi    
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "Found the log from logs"
+            fi
+        fi
     else # local
         audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" | grep -v Passed)
         if [ $? != 0 ]; then
@@ -321,10 +395,18 @@ function should_find_blocked_host_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
-        fi    
+            if [ "$audit_log" == "$LAST_LOG" ]; then
+                audit_log="<No Log>"
+                FAIL "Failed to find the log from logs"
+                res_cmd=1
+            else
+                echo $audit_log
+                DBG "Found the log from logs"
+            fi
+        fi
     fi
+
+    LAST_LOG=$audit_log
 }
 
 function run_test_scenario() {
