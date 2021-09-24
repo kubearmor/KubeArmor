@@ -3,17 +3,26 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
-// process
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 1 << 10);
+} ka_ea_event_map SEC(".maps");
 
+// process
 SEC("kprobe/sys_execve")
 int kprobe__sys_execve(void *ctx)
 {
-    // uint32_t id = 59;
-    // uint32_t *val = bpf_lookup_elem(event_map, &id);
-    // if (val == 0) return;
-    // else if (val != 0 && *val == 0) return;
+    uint32_t id = 2;
+    uint32_t *val = bpf_lookup_elem(&ka_ea_event_map, &id);
 
-    // bpf_printk("sys_execve");
+    if (val == 0)
+        return;
+    else if (val != 0 && *val == 0)
+        return;
+
+    bpf_printk("sys_execve");
     return 0;
 }
 
@@ -21,11 +30,10 @@ SEC("kprobe/sys_execveat")
 int kprobe__sys_execveat(void *ctx)
 {
     // bpf_printk("sys_execveat");
-    return 0;
+return 0;
 }
 
 // file
-
 SEC("kprobe/sys_open")
 int kprobe__sys_open(void *ctx)
 {
