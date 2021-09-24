@@ -5,8 +5,6 @@ package eventauditor
 
 import (
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
-
-	lbpf "github.com/kubearmor/libbpf"
 )
 
 // =================== //
@@ -22,16 +20,10 @@ type EventAuditor struct {
 	BPFManager *KABPFManager
 
 	// all entrypoints that KubeArmor supports
-	SupportedEntryPoints []string
+	SupportedEntryPoints map[string]uint32
 
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
-
-	// Entrypoint programs
-	EntryPointProg []string
-
-	// entrypoint bpf
-	EntryPointBPF *lbpf.KABPFObject
 }
 
 // NewEventAuditor Function

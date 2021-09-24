@@ -6,33 +6,12 @@ package eventauditor
 import "C"
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-
-	lbpf "github.com/kubearmor/libbpf"
-)
-
-// ===================== //
-// == Const. Variables == //
-// ===================== //
-
-// System Call Numbers
-const (
-	SysOpen   = 2
-	SysOpenAt = 257
-	SysClose  = 3
-
-	SysSocket  = 41
-	SysConnect = 42
-	SysAccept  = 43
-	SysBind    = 49
-	SysListen  = 50
-
-	SysExecve   = 59
-	SysExecveAt = 322
-	DoExit      = 351
 )
 
 // =========================== //
@@ -62,50 +41,15 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 		goto fail2
 	}
 
-	if ea.EntryPointBPF, err = lbpf.OpenObjectFromFile("./BPF/objs/entrypoint.bpf.o"); err != nil {
-		ea.Logger.Errf("Failed to open entrypoint bpf: %v", err)
+	ea.SupportedEntryPoints = map[string]uint32{
+		"execve": 59, "execveat": 322, "open": 2, "openat": 257,
+		"socket": 41, "connect": 42, "accept": 43, "bind": 49, "listen": 50}
+
+	if err = ea.InitializeEntryPointPrograms(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEntryPointPrograms: %v", err)
 		goto fail3
 	}
 
-	if err := ea.EntryPointBPF.Load(); err != nil {
-		ea.Logger.Errf("Failed to load entrypoint bpf: %v", err)
-		goto fail3
-	}
-
-	ea.SupportedEntryPoints = []string{
-		"SYS_EXECVE", "SYS_EXECVEAT",
-		"SYS_OPEN", "SYS_OPENAT",
-		"SYS_SOCKET", "SYS_BIND", "SYS_LISTEN", "SYS_ACCEPT", "SYS_CONNECT"}
-
-	for _, probe := range ea.SupportedEntryPoints {
-
-		for _, probe := range ea.SupportedEntryPoints {
-			ea.AttachEntryPoint(probe)
-		}
-
-		_, err = ea.EntryPointBPF.FindProgramByName("kprobe__sys_execve")
-		if err != nil {
-			ea.Logger.Errf("Failed to find entrypoint from entrypoint bpf: %v", err)
-			return false
-		}
-
-		if _, err := ea.EntryPointProg.AttachKprobe(probe); err != nil {
-			ea.Logger.Errf("Failed to attach kprobe (%s): %v", probe, err)
-		}
-
-		// Defining probe_id from the defined syscall numbers
-		// TODO add probe_id for other syscall
-		var probe_id uint32
-
-		if probe == "SYS_OPEN" {
-			probe_id = SysOpen
-		}
-
-		var eventMapElem EventElement
-		eventMapElem.SetKey(probe_id)
-		eventMapElem.SetValue(0)
-		err = ea.BPFManager.MapUpdateElement(&eventMapElem)
-	}
 	return true
 
 fail3:
@@ -115,48 +59,104 @@ fail2:
 	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventFilterMap))
 
 fail1:
-	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventMap))
-
 	return false
 }
 
 // DestroyEntryPoints Function
 func (ea *EventAuditor) DestroyEntryPoints() bool {
+	var err error
+
 	if ea.BPFManager == nil {
 		return false
 	}
 
-	// TODO: remove entrypoint bpf
+	if err = ea.DestroyEntryPointPrograms(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEntryPointPrograms: %v", err)
+	}
 
-	ea.EntryPointBPF.Close()
-
-	if err := ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventJumpTable)); err != nil {
+	if err = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventJumpTable)); err != nil {
 		ea.Logger.Errf("Failed to destroy KAEAEventJumpTable: %v", err)
 	}
 
-	if err := ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventFilterMap)); err != nil {
+	if err = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventFilterMap)); err != nil {
 		ea.Logger.Errf("Failed to destroy KAEAEventFilterMap: %v", err)
 	}
 
-	if err := ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventMap)); err != nil {
-		ea.Logger.Errf("Failed to destroy KAEAEventFilterMap: %v", err)
+	if err = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventMap)); err != nil {
+		ea.Logger.Errf("Failed to destroy KAEAEventMap: %v", err)
 	}
 
 	return true
 }
 
-func (ea *EventAuditor) AttachEntryPoint(probe string) {
-	var eventMapElem EventElement
-	eventMapElem.SetKey(SysOpen)
-	eventMapElem.SetValue(1)
-	err = ea.BPFManager.MapUpdateElement(&eventMapElem)
+func (ea *EventAuditor) InitializeEntryPointPrograms(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
+	}
+
+	for probe, _ := range ea.SupportedEntryPoints {
+		if err := bman.InitProgram(KAEAGetEntryPointProg(probe)); err != nil {
+			return err
+		}
+
+		if err := bman.AttachProgram(KAEAGetEntryPointProg(probe)); err != nil {
+			return err
+		}
+
+		ea.DisableEntryPoint(probe)
+	}
+
+	return nil
 }
 
-func (ea *EventAuditor) DetachEntryPoint(probe string) {
+func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
+	if bman == nil {
+		return errors.New("bpf manager cannot be nil")
+	}
+
+	for probe, _ := range ea.SupportedEntryPoints {
+		ea.DisableEntryPoint(probe)
+
+		if err := bman.DetachProgram(KAEAGetEntryPointProg(probe)); err != nil {
+			return err
+		}
+
+		if err := bman.DestroyProgram(KAEAGetEntryPointProg(probe)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	var eventMapElem EventElement
-	eventMapElem.SetKey(probe_id)
-	eventMapElem.SetValue(0)
-	err = ea.BPFManager.MapUpdateElement(&eventMapElem)
+
+	eventMapElem.SetKey(uint32(ea.SupportedEntryPoints[probe]))
+	eventMapElem.SetValue(uint32(1))
+
+	// TODO: value is not updated
+	if err := ea.BPFManager.MapUpdateElement(&eventMapElem); err != nil {
+		ea.Logger.Errf("Failed to update KAEAEventMap (attachEntryPoint, %s, %d) (%v)", probe, err)
+	}
+
+	// TODO: remove it once fixing the update
+	fmt.Println("EnableEntryPoint", eventMapElem)
+}
+
+func (ea *EventAuditor) DisableEntryPoint(probe string) {
+	var eventMapElem EventElement
+
+	eventMapElem.SetKey(uint32(ea.SupportedEntryPoints[probe]))
+	eventMapElem.SetValue(uint32(0))
+
+	// TODO: value is not updated
+	if err := ea.BPFManager.MapUpdateElement(&eventMapElem); err != nil {
+		ea.Logger.Errf("Failed to update KAEAEventMap (DetachEntryPoint, %s, %d) (%v)", probe, err)
+	}
+
+	// TODO: remove it once fixing the update
+	fmt.Println("DisableEntryPoint", eventMapElem)
 }
 
 // UpdateEntryPoints Function
@@ -189,7 +189,7 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 
 	// update entrypoints
 	for _, probe := range newEntryPointList {
-		ea.AttachEntryPoint(probe)
+		ea.EnableEntryPoint(probe)
 	}
 
 	oldEntrypointList := []string{}
@@ -203,7 +203,7 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 
 	// update entrypoints
 	for _, probe := range oldEntrypointList {
-		ea.DetachEntryPoint(probe)
+		ea.DisableEntryPoint(probe)
 	}
 
 	// replace old list with new list

@@ -260,6 +260,11 @@ func (ee *EventElement) SetValue(flag uint32) {
 	ee.Value = flag
 }
 
+// SetFoundValue Function (PatternMapElement)
+func (ee *EventElement) SetFoundValue(value []byte) {
+	ee.Value = binary.LittleEndian.Uint32(value)
+}
+
 // KeyPointer Function (EventElement)
 func (ee *EventElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&ee.Key)
