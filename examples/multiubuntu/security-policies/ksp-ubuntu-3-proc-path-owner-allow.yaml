@@ -29,19 +29,3 @@ spec:
       - dir: /proc/ # required to change root to user1 (coarse-grained way)
         recursive: true
   action: Allow
----
-apiVersion: security.kubearmor.com/v1
-kind: KubeArmorPolicy
-metadata:
-  name: ksp-ubuntu-3-proc-path-owner-audit
-  namespace: multiubuntu
-spec:
-  severity: 7
-  selector:
-    matchLabels:
-      container: ubuntu-3
-  process:
-    matchPaths:
-      - path: /home/user1/hello
-        ownerOnly: true
-  action: Audit
