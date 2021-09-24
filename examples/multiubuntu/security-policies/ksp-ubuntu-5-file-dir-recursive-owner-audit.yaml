@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-5-file-dir-recursive-owner-audit
+  namespace: multiubuntu
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      container: ubuntu-5
+  file:
+    matchDirectories: # cat /home/user1/dir1/key1.txt (logs)
+    - dir: /home/user1/ # su - user1 -c "cat /home/user1/dir1/key1.txt" (no logs)
+      recursive: true # su - user1 -c "echo test >> /home/user1/secret_data1.txt" (no logs)
+      ownerOnly: true # echo testroot >> /home/user1/secret_data1.txt (logs)
+  action:
+    Audit

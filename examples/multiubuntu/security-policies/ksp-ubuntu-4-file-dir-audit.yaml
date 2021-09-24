@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-file-dir-audit
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical directory was accessed"
+  tags:
+  - WARNNING
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  file:
+    matchDirectories: # cat /credentials/keys/priv.key (no logs)
+    - dir: /credentials/ # cat /credentials/password (logs, Audit(Block))
+  action:
+    Audit

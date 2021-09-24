@@ -33,4 +33,19 @@ RUN echo 'user1:passwd1' | chpasswd
 COPY hello /home/user1/hello
 RUN chown user1:user1 /home/user1/hello
 
+RUN echo "secret file user1" >> /home/user1/secret_data1.txt
+RUN chown user1:user1 /home/user1/secret_data1.txt
+
+RUN mkdir -p /home/user1/dir1
+RUN chown user1:user1 /home/user1/dir1
+RUN echo "key file 1" >> /home/user1/dir1/key1.txt
+RUN chown user1:user1 /home/user1/dir1/key1.txt
+
+RUN echo "other file" >> /home/user1/otherfile.txt
+RUN chown user1:user1 /home/user1/otherfile.txt
+
+COPY readwriter /readwrite
+COPY readwriter /home/user1/readwrite
+RUN chown user1:user1 /home/user1/readwrite  
+
 CMD [ "/entrypoint.sh" ]
