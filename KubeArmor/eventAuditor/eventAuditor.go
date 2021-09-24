@@ -27,6 +27,9 @@ type EventAuditor struct {
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
 
+	// Entrypoint programs
+	EntryPointProg []string
+
 	// entrypoint bpf
 	EntryPointBPF *lbpf.KABPFObject
 }

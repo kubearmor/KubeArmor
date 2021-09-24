@@ -14,6 +14,27 @@ import (
 	lbpf "github.com/kubearmor/libbpf"
 )
 
+// ===================== //
+// == Const. Variables == //
+// ===================== //
+
+// System Call Numbers
+const (
+	SysOpen   = 2
+	SysOpenAt = 257
+	SysClose  = 3
+
+	SysSocket  = 41
+	SysConnect = 42
+	SysAccept  = 43
+	SysBind    = 49
+	SysListen  = 50
+
+	SysExecve   = 59
+	SysExecveAt = 322
+	DoExit      = 351
+)
+
 // =========================== //
 // == Entrypoint Management == //
 // =========================== //
@@ -56,22 +77,35 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 		"SYS_OPEN", "SYS_OPENAT",
 		"SYS_SOCKET", "SYS_BIND", "SYS_LISTEN", "SYS_ACCEPT", "SYS_CONNECT"}
 
-	// for _, probe := range ea.SupportedEntryPoints {
-	// attach all entrpoints
+	for _, probe := range ea.SupportedEntryPoints {
 
-	// p, err := ea.EntryPointBPF.FindProgramByName("entrypoint")
-	// if err != nil {
-	// 	ea.Logger.Errf("Failed to find entrypoint from entrypoint bpf: %v", err)
-	// 	return false
-	// }
+		for _, probe := range ea.SupportedEntryPoints {
+			ea.AttachEntryPoint(probe)
+		}
 
-	// if _, err := ea.EntryPointProg.AttachKprobe(probe); err != nil { // probe = sys_open
-	// 	ea.Logger.Errf("Failed to attach kprobe (%s): %v", probe, err)
-	// }
+		_, err = ea.EntryPointBPF.FindProgramByName("kprobe__sys_execve")
+		if err != nil {
+			ea.Logger.Errf("Failed to find entrypoint from entrypoint bpf: %v", err)
+			return false
+		}
 
-	// set KAEAEventMap[syscall_id] = 0
-	// }
+		if _, err := ea.EntryPointProg.AttachKprobe(probe); err != nil {
+			ea.Logger.Errf("Failed to attach kprobe (%s): %v", probe, err)
+		}
 
+		// Defining probe_id from the defined syscall numbers
+		// TODO add probe_id for other syscall
+		var probe_id uint32
+
+		if probe == "SYS_OPEN" {
+			probe_id = SysOpen
+		}
+
+		var eventMapElem EventElement
+		eventMapElem.SetKey(probe_id)
+		eventMapElem.SetValue(0)
+		err = ea.BPFManager.MapUpdateElement(&eventMapElem)
+	}
 	return true
 
 fail3:
@@ -112,11 +146,17 @@ func (ea *EventAuditor) DestroyEntryPoints() bool {
 }
 
 func (ea *EventAuditor) AttachEntryPoint(probe string) {
-	// set KAEAEventMap[probe_id] = 1
+	var eventMapElem EventElement
+	eventMapElem.SetKey(SysOpen)
+	eventMapElem.SetValue(1)
+	err = ea.BPFManager.MapUpdateElement(&eventMapElem)
 }
 
 func (ea *EventAuditor) DetachEntryPoint(probe string) {
-	// set KAEAEventMap[probe_id] = 0
+	var eventMapElem EventElement
+	eventMapElem.SetKey(probe_id)
+	eventMapElem.SetValue(0)
+	err = ea.BPFManager.MapUpdateElement(&eventMapElem)
 }
 
 // UpdateEntryPoints Function
