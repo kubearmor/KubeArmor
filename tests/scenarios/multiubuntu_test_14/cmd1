@@ -4,4 +4,4 @@ result: failed
 ---
 operation: Process
 condition: /home/user1/hello
-action: Audit
+action: Allow

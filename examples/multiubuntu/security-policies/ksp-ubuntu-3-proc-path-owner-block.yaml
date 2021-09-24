@@ -13,19 +13,3 @@ spec:
       - path: /home/user1/hello
         ownerOnly: true
   action: Block
----
-apiVersion: security.kubearmor.com/v1
-kind: KubeArmorPolicy
-metadata:
-  name: ksp-ubuntu-3-proc-path-owner-audit
-  namespace: multiubuntu
-spec:
-  severity: 7
-  selector:
-    matchLabels:
-      container: ubuntu-3
-  process:
-    matchPaths:
-      - path: /home/user1/hello
-        ownerOnly: true
-  action: Audit
