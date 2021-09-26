@@ -8,7 +8,7 @@
 #include "shared.h"
 
 struct pattern_key {
-	char pattern[PATTERN_MAX_LEN];
+	char pattern[MAX_PATTERN_LEN];
 };
 
 struct pattern_value {

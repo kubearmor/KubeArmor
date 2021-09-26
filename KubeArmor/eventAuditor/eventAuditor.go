@@ -55,6 +55,11 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 		goto fail1
 	}
 
+	if err := ea.PopulateProcessJMPMap(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to populate process jmp map: %v", err)
+		return nil
+	}
+
 	// initialize entrypoints
 	if !ea.InitializeEntryPoints() {
 		ea.Logger.Err("Failed to initialize entrypoints")

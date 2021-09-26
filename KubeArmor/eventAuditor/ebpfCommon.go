@@ -32,7 +32,13 @@ type KABPFProg struct {
 	Name      KABPFProgName
 	EventName KABPFEventName
 	EventType lbpf.KABPFLinkType
+	TailProgs []KABPFTailProg
 	FileName  KABPFObjFileName
+}
+
+type KABPFTailProg struct {
+	Name  KABPFProgName
+	Index uint32
 }
 
 // KABPFPinBasePath constant
