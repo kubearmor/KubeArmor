@@ -486,6 +486,9 @@ type HostSecurityPolicy struct {
 	Spec     HostSecuritySpec  `json:"spec"`
 }
 
+// KubeArmorHostPolicyEvent Callback Function
+type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent)
+
 // ================== //
 // == Process Tree == //
 // ================== //

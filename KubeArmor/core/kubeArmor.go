@@ -12,12 +12,12 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kvma "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
-	kvma "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 )
 
@@ -302,7 +302,7 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool, enableKvmAgent bool) {
+func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool) {
 	// create a daemon
 	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableKubeArmorPolicy, enableKubeArmorHostPolicy)
 
@@ -402,6 +402,17 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	}
 
 	// == //
+	// Init KvmAgent
+	if !dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
+		err := kvma.InitKvmAgent(dm.ParseAndUpdateHostSecurityPolicy)
+		if err != nil {
+			kg.Print("Failed to initialize KvmAgent")
+		} else {
+			kg.Print("Initialized KvmAgent")
+		}
+	}
+
+	// == //
 
 	if dm.K8sEnabled && dm.EnableKubeArmorPolicy {
 		dm.Logger.Printf("Container Runtime: %s", dm.Node.ContainerRuntimeVersion)
@@ -487,15 +498,6 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		// watch host security policies
 		go dm.WatchHostSecurityPolicies()
 		dm.Logger.Print("Started to monitor host security policies")
-	}
-
-	if enableKvmAgent {
-		err := kvma.InitKvmAgent()
-		if err != nil {
-			dm.Logger.Print("Failed to initialize KvmAgent")
-		} else {
-			dm.Logger.Print("Initialized KvmAgent")
-		}
 	}
 
 	// == //

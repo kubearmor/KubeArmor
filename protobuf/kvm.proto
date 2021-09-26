@@ -1,6 +1,6 @@
 syntax = "proto3";
  
-package kvmAgent;
+package kvm;
 
 option go_package="github.com/kubearmor/KubeArmor/protobuf";
 
