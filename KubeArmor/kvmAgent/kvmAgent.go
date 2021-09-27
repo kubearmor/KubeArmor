@@ -3,6 +3,7 @@ package kvmAgent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -22,7 +23,7 @@ var (
 )
 
 func getGrpcConnAddress() string {
-	return (os.Getenv("gRPC_IP") + ":" + os.Getenv("gRPC_PORT"))
+	return (os.Getenv("CLUSTER_IP") + ":" + os.Getenv("CLUSTER_PORT"))
 }
 
 func enforcePolicy(policyBytes []byte) error {
@@ -102,10 +103,13 @@ func InitKvmAgent(eventCb tp.KubeArmorHostPolicyEventCallback) error {
 	identity = os.Getenv("IDENTITY")
 
 	client = pb.NewKVMClient(grpcClientConn)
+	if client != nil {
+		err = errors.New("Invalid Client connection")
+		return err
+	}
 
-	//response, err := client.RegisterAgentIdentity(context.Background(), &identity)
 	response, err := client.RegisterAgentIdentity(context.Background(), &pb.AgentIdentity{Identity: identity})
-	if err != nil {
+	if err != nil || response.Status != 0 {
 		log.Printf("Failed to register identity %d", response.Status)
 		return err
 	}
