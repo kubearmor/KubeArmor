@@ -983,24 +983,25 @@ int trace_ret_openat(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T));
 }
 
-int save_file_path(struct pt_regs *ctx)
+int kprobe_security_file_open(struct pt_regs *ctx)
 {
 	args_t args = {};
-	struct file *file = (struct file *)PT_REGS_RC(ctx);
+	struct file *file = (struct file *)PT_REGS_PARM1(ctx);
 
-	if (load_args(_SYS_OPEN, &args) != 0)
+	if (load_args(_SYS_OPENAT, &args) != 0)
 		return 0;
 
-	bufs_t *string_p = get_buffer(1);
-	if (string_p == NIL)
-	bufs_t *string_p = get_buffer();
-	if (string_p == NULL)
-		return -1;
+	char string_p[MAX_PATH_COMPONENTS] = {};
 
-	save_path_to_str_buf(string_p, &file->f_path);
-	u32 *off = get_buffer_offset();
-	if (off == NULL)
-		return -1;
+	bpf_d_path(&file->f_path, string_p, MAX_PATH_COMPONENTS);
+
+	u32 event_id = _SYS_OPENAT;
+	u32 tgid = bpf_get_current_pid_tgid();
+	u64 id = ((u64)event_id << 32) | tgid;
+
+	bpf_probe_read_str(&args.args[1], sizeof(args.args[1]), &string_p);
+
+	args_map.update(&id, &args);
 	return 0;
 }
 
