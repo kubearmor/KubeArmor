@@ -8,6 +8,13 @@
 #include "maps.bpf.h"
 
 struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__type(key, u32);
+	__type(value, u32);
+	__uint(max_entries, 2);
+} ka_ea_process_jmp_map SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, struct pattern_key);
 	__type(value, struct pattern_value);
@@ -28,121 +35,169 @@ struct {
 	__uint(max_entries, 1 << 10);
 } ka_ea_process_filter_map SEC(".maps");
 
-// get_task_context fills *tctx with task and event data;
-// with latter only if it's not NULL
-static __always_inline
-long get_task_context(struct task_context *tctx,
-					  const struct trace_event_raw_sched_process_exec *ectx)
-{
-	if (!tctx)
-		return -1;
+unsigned int pid;
+unsigned int tid;
+unsigned int pid_ns;
+unsigned int mnt_ns;
+char comm[TASK_COMM_LEN];
+char filename[MAX_FILENAME_LEN];
+u32 pattern_id;
 
+// get_task_filename fills global variable (.bss map) with task filename
+static
+long get_task_filename(const struct trace_event_raw_sched_process_exec *ctx)
+{
 	long ret;
 
-	ret = bpf_get_current_comm(&tctx->comm, sizeof(tctx->comm));
-	if (ret < 0)
-		return ret;
-
-	struct task_struct *task;
-	u64 id;
-
-	task = (struct task_struct *) bpf_get_current_task();
-	tctx->pid_ns = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns).inum;
-	tctx->mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns).inum;
-	id = bpf_get_current_pid_tgid();
-	tctx->pid = id >> 32;
-	tctx->tid = (u32) id;
-
-	if (!ectx)
-		return 0;
-	ret = bpf_core_read_str(&tctx->filename, sizeof(tctx->filename),
-							get_dynamic_array(ectx, filename));
+	ret = bpf_core_read_str(filename, sizeof(filename),
+				get_dynamic_array(ctx, filename));
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-// basename returns pointer from a filename basename if filename is a path,
-// otherwise returns filename pointer
-static __always_inline
-const char *basename(const char *filename)
+// get_task_ids fills global variables (.bss map) with task ids
+static
+long get_task_ids(const struct trace_event_raw_sched_process_exec *ctx)
 {
-	if (!filename)
-		return NULL;
+	long ret;
 
-	const char *base = filename;
+	ret = bpf_get_current_comm(comm, sizeof(comm));
+	if (ret < 0)
+		return ret;
 
-	// we should iterate up to i < MAX_FILENAME_LEN,
-	// but increasing loop iterations results in "BPF program is too large"
-	for (int i = 0; i < 32; i++) {
-		if (!filename[i])
-			break;
-		if (filename[i] == '/')
-			base = filename + i;
-	}
+	u64 id;
 
-	if (base == filename)
-		return filename;
+	id = bpf_get_current_pid_tgid();
+	pid = id >> 32;
+	tid = (u32) id;
 
-	base++;
-	if (!*base)
-		return filename;
+	struct task_struct *task;
 
-	return base;
+	task = (struct task_struct *) bpf_get_current_task();
+	pid_ns = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns).inum;
+	mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns).inum;
+
+	return 0;
 }
 
-// task_auditable checks if task must be audited
-static __always_inline
-bool task_auditable(const struct task_context *tctx)
+// match was inspired by the Krauss and Kurts wildcard algorithms
+// https://github.com/kirkjkrauss/MatchingWildcards/blob/master/Listing1.cpp
+// http://dodobyte.com/wildcard.html
+static
+bool match(const char *pat, const char *str)
 {
-	if (!tctx)
+	int i = 0;
+	int j = 0;
+	int str_track = -1;
+	int pat_track = -1;
+
+	while (j < MAX_PATTERN_LEN) {
+		// this check makes verifier happy
+		if (i >= MAX_FILENAME_LEN)
+			return false;
+		if (!pat[j] && !str[i])
+			return true;
+
+		if (pat[j] == '*') {
+			if (!str[i]) {
+				while (j < MAX_PATTERN_LEN-1 && pat[j] == '*')
+					j++;
+				return !pat[j];
+			}
+			str_track = i;
+			pat_track = j;
+			j++;
+			continue;
+		}
+
+		if (pat[j] != '?' && pat[j] != str[i]) {
+			if (pat_track == -1)
+				return false;
+			str_track++;
+			i = str_track;
+			j = pat_track;
+			continue;
+		}
+
+		i++;
+		j++;
+	}
+
+	return false;
+}
+
+// callback_ctx struct is used as check_hash_elem handler input/output
+struct callback_ctx {
+	const char *filename;
+	struct pattern_value *pvalue;
+};
+
+// check_hash_elem is the handler required by bpf_for_each_map_elem iterator
+static
+u64 check_hash_elem(struct bpf_map *map,
+		    struct pattern_key *key, struct pattern_value *val,
+		    struct callback_ctx *data)
+{
+	if (!key || !val || !data)
+		return 0;
+
+	if (match(key->pattern, data->filename)) {
+		data->pvalue->pattern_id = val->pattern_id;
+		return 1; // stop the iteration
+	}
+
+	return 0;
+}
+
+// task_auditable checks if task must be audited (phase 0)
+static
+bool task_auditable_0(void)
+{
+	struct pattern_value pvalue = {
+		.pattern_id = 0,
+	};
+	struct callback_ctx data = {
+		.filename = (const char *) &filename,
+		.pvalue = &pvalue,
+	};
+
+	// https://lwn.net/Articles/846504/
+	long elem_num = bpf_for_each_map_elem(&ka_ea_pattern_map,
+					      check_hash_elem, &data, 0);
+	if (elem_num < 0 || !data.pvalue->pattern_id)
 		return false;
 
-	struct pattern_value *pvalue;
+	pattern_id = data.pvalue->pattern_id;
 
-	// we are just checking if a plain process filename (base) is auditable,
-	// disregarding globs
-	pvalue = bpf_map_lookup_elem(&ka_ea_pattern_map, basename(tctx->filename));
-	if (!pvalue)
+	return true;
+}
+
+// task_auditable checks if task must be audited (phase 1)
+static
+bool task_auditable_1(const struct trace_event_raw_sched_process_exec *ctx)
+{
+	if (get_task_ids(ctx) < 0)
 		return false;
 
 	struct process_spec_key pskey = {
-		.pid_ns     = tctx->pid_ns,
-		.mnt_ns     = tctx->mnt_ns,
-		.pattern_id = pvalue->pattern_id,
+		.pid_ns     = pid_ns,
+		.mnt_ns     = mnt_ns,
+		.pattern_id = pattern_id,
 	};
 
 	return !!bpf_map_lookup_elem(&ka_ea_process_spec_map, &pskey);
 }
 
-// task_audited checks if task is being audited
-static __always_inline
-bool task_audited(const struct task_context *tctx)
-{
-	if (!tctx)
-		return false;
-
-	struct process_filter_key pfkey = {
-		.pid_ns   = tctx->pid_ns,
-		.mnt_ns   = tctx->mnt_ns,
-		.host_pid = tctx->pid,
-	};
-
-	return !!bpf_map_lookup_elem(&ka_ea_process_filter_map, &pfkey);
-}
-
 // set_task_for_audit set task for audit updating process filter map
-static __always_inline
-long set_task_for_audit(const struct task_context *tctx)
+static
+long set_task_for_audit(void)
 {
-	if (!tctx)
-		return 0;
-
 	struct process_filter_key pfkey = {
-		.pid_ns   = tctx->pid_ns,
-		.mnt_ns   = tctx->mnt_ns,
-		.host_pid = tctx->pid,
+		.pid_ns   = pid_ns,
+		.mnt_ns   = mnt_ns,
+		.host_pid = pid,
 	};
 
 	struct process_filter_value pfvalue = {
@@ -152,60 +207,68 @@ long set_task_for_audit(const struct task_context *tctx)
 	return bpf_map_update_elem(&ka_ea_process_filter_map, &pfkey, &pfvalue, BPF_ANY);
 }
 
-// unset_task_for_audit unset task for audit deleting from process filter map
-static __always_inline
-long unset_task_for_audit(const struct task_context *tctx)
+SEC("tp/sched/sched_process_exec/1")
+int ka_ea_sched_process_exec_1(struct trace_event_raw_sched_process_exec *ctx)
 {
-	if (!tctx)
+	if (!task_auditable_1(ctx))
 		return 0;
 
-	struct process_filter_key pfkey = {
-		.pid_ns   = tctx->pid_ns,
-		.mnt_ns   = tctx->mnt_ns,
-		.host_pid = tctx->pid,
-	};
+	if (set_task_for_audit() < 0)
+		bpf_printk("[ka-ea-process]: failure setting %s for audit", filename);
+	else
+		bpf_printk("[ka-ea-process]: %s set for audit", filename);
 
-	return bpf_map_delete_elem(&ka_ea_process_filter_map, &pfkey);
+	return 0;
+}
+
+SEC("tp/sched/sched_process_exec/0")
+int ka_ea_sched_process_exec_0(struct trace_event_raw_sched_process_exec *ctx)
+{
+	if (!task_auditable_0())
+		return 0;
+
+	bpf_tail_call(ctx, &ka_ea_process_jmp_map, 1);
+
+	return 0;
 }
 
 SEC("tp/sched/sched_process_exec")
-int ka_ea_sched_process_exec(struct trace_event_raw_sched_process_exec *ectx)
+int ka_ea_sched_process_exec(struct trace_event_raw_sched_process_exec *ctx)
 {
-	struct task_context tctx = {};
-
-	if (get_task_context(&tctx, ectx) < 0)
+	if (get_task_filename(ctx) < 0)
 		return 0;
 
-	if (!task_auditable(&tctx))
-		return 0;
-
-	if (set_task_for_audit(&tctx) < 0)
-		bpf_printk("[ka-ea]: failure setting for audit");
-	else
-		bpf_printk("[ka-ea]: set for audit");
+	// don't access the value returned from bpf_tail_call()
+	// although the doc states that it is negative in case of an error,
+	// one can get 'R0 !read_ok' when the call is successful
+	bpf_tail_call(ctx, &ka_ea_process_jmp_map, 0);
 
 	return 0;
 }
 
 SEC("tp/sched/sched_process_exit")
-int ka_ea_sched_process_exit(struct trace_event_raw_sched_process_template *ectx)
+int ka_ea_sched_process_exit(struct trace_event_raw_sched_process_template *ctx)
 {
-	struct task_context tctx = {};
-
-	if (get_task_context(&tctx, NULL) < 0)
+	if (get_task_ids(NULL) < 0)
 		return 0;
 
 	// disregard threads
-	if (tctx.pid != tctx.tid)
+	if (pid != tid)
 		return 0;
 
-	if (!task_audited(&tctx))
+	struct process_filter_key pfkey = {
+		.pid_ns   = pid_ns,
+		.mnt_ns   = mnt_ns,
+		.host_pid = pid,
+	};
+
+	if (!bpf_map_lookup_elem(&ka_ea_process_filter_map, &pfkey))
 		return 0;
 
-	if (unset_task_for_audit(&tctx) < 0)
-		bpf_printk("[ka-ea]: failure unsetting for audit");
+	if (bpf_map_delete_elem(&ka_ea_process_filter_map, &pfkey) < 0)
+		bpf_printk("[ka-ea-process]: failure unsetting %u for audit", pid);
 	else
-		bpf_printk("[ka-ea]: unset for audit");
+		bpf_printk("[ka-ea-process]: %u unset for audit", pid);
 
 	return 0;
 }
