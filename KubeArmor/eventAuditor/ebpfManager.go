@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	lbpf "github.com/kubearmor/libbpf"
@@ -184,26 +185,32 @@ func (bm *KABPFManager) AttachProgram(kaProg KABPFProg) error {
 		return fmt.Errorf("program %v already attached to %v", kaProg.Name, kaProg.EventName)
 	}
 
-	eventName := string(kaProg.EventName)
+	event := string(kaProg.EventName)
 	switch kaProg.EventType {
 	case lbpf.KABPFLinkTypeLSM:
 		if l, err = p.AttachLSM(); err != nil {
 			return err
 		}
 	case lbpf.KABPFLinkTypeKprobe:
-		if l, err = p.AttachKprobe(eventName); err != nil {
+		if l, err = p.AttachKprobe(event); err != nil {
 			return err
 		}
 	case lbpf.KABPFLinkTypeKretprobe:
-		if l, err = p.AttachKretprobe(eventName); err != nil {
+		if l, err = p.AttachKretprobe(event); err != nil {
 			return err
 		}
 	case lbpf.KABPFLinkTypeRawTracepoint:
-		if l, err = p.AttachRawTracepoint(eventName); err != nil {
+		if l, err = p.AttachRawTracepoint(event); err != nil {
 			return err
 		}
 	case lbpf.KABPFLinkTypeTracepoint:
-		if l, err = p.AttachTracepoint(eventName); err != nil {
+		ev := strings.Split(event, "/")
+		if len(ev) != 2 {
+			return fmt.Errorf("tracepoint event string must contain category and name separated by /")
+		}
+		eventCategory := ev[0]
+		eventName := ev[1]
+		if l, err = p.AttachTracepoint(eventCategory, eventName); err != nil {
 			return err
 		}
 	case lbpf.KABPFLinkTypeUnspec:
