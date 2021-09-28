@@ -406,7 +406,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	if !dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
 		err := kvma.InitKvmAgent(dm.ParseAndUpdateHostSecurityPolicy)
 		if err != nil {
-			kg.Print("Failed to initialize KvmAgent")
+			kg.Printf("Failed to initialize KvmAgent. Err : %s\n", err)
 		} else {
 			kg.Print("Initialized KvmAgent")
 		}

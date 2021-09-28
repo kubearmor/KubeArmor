@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -1210,11 +1209,10 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 			// If k8s environment, match identity
 			if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 				secPolicies = append(secPolicies, policy)
-			} else {
-				// If nonk8s/VM environment, do not match identity
-				secPolicies = append(secPolicies, policy)
 			}
-
+		} else {
+			// If nonk8s/VM environment, do not match identity
+			secPolicies = append(secPolicies, policy)
 		}
 	}
 
@@ -1226,8 +1224,6 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 }
 
 func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmorHostPolicyEvent) {
-
-	log.Println("Calling ParseAndUpdateHostSecurityPolicy")
 
 	dm.HostSecurityPoliciesLock.Lock()
 
