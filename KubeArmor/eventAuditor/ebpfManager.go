@@ -231,8 +231,9 @@ func (bm *KABPFManager) DetachProgram(kaProg KABPFProg) error {
 		return fmt.Errorf("program %v not attached to %v", kaProg.Name, kaProg.EventName)
 	}
 
-	// https://github.com/kubearmor/libbpf/issues/18
-	if err = l.Detach(); err != nil {
+	// Destroying link instead of Detaching it
+	// https://github.com/kubearmor/libbpf/commit/57b4db3167fdf723262e8e6d5ab0ba4b759f2ffd
+	if err = l.Destroy(); err != nil {
 		return err
 	}
 
