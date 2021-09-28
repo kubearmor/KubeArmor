@@ -8,6 +8,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -132,30 +133,44 @@ func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
+	probe = strings.Replace(probe, "sys_", "", -1)
+	_, supported := ea.SupportedEntryPoints[probe]
+
+	if !supported {
+		fmt.Println(probe, "is currently not supported")
+		return
+	}
+
 	eventMapElem.SetKey(uint32(ea.SupportedEntryPoints[probe]))
 	eventMapElem.SetValue(uint32(1))
 
-	// TODO: value is not updated
 	if err := ea.BPFManager.MapUpdateElement(&eventMapElem); err != nil {
 		ea.Logger.Errf("Failed to update KAEAEventMap (attachEntryPoint, %s, %d) (%v)", probe, err)
 	}
 
-	// TODO: remove it once fixing the update
+	// for debugging
 	fmt.Println("EnableEntryPoint", eventMapElem)
 }
 
 func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
+	probe = strings.Replace(probe, "sys_", "", -1)
+	_, supported := ea.SupportedEntryPoints[probe]
+
+	if !supported {
+		fmt.Println(probe, "is currently not supported")
+		return
+	}
+
 	eventMapElem.SetKey(uint32(ea.SupportedEntryPoints[probe]))
 	eventMapElem.SetValue(uint32(0))
 
-	// TODO: value is not updated
 	if err := ea.BPFManager.MapUpdateElement(&eventMapElem); err != nil {
 		ea.Logger.Errf("Failed to update KAEAEventMap (DetachEntryPoint, %s, %d) (%v)", probe, err)
 	}
 
-	// TODO: remove it once fixing the update
+	// for debugging
 	fmt.Println("DisableEntryPoint", eventMapElem)
 }
 
@@ -172,6 +187,7 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 	// all entrypoints list
 	for _, policy := range AuditPolicies {
 		for _, event := range policy.Events {
+			event.Probe = strings.Replace(event.Probe, "sys_", "", -1)
 			if !kl.ContainsElement(entrypointList, event.Probe) {
 				entrypointList = append(entrypointList, event.Probe)
 			}
@@ -182,6 +198,7 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 
 	// new entrypoints to be attached
 	for _, newProbe := range entrypointList {
+		newProbe = strings.Replace(newProbe, "sys_", "", -1)
 		if !kl.ContainsElement(ea.ActiveEntryPoints, newProbe) {
 			newEntryPointList = append(newEntryPointList, newProbe)
 		}
@@ -196,6 +213,7 @@ func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPoli
 
 	// old entrypoints to be detached
 	for _, oldProbe := range ea.ActiveEntryPoints {
+		oldProbe = strings.Replace(oldProbe, "sys_", "", -1)
 		if !kl.ContainsElement(entrypointList, oldProbe) {
 			oldEntrypointList = append(oldEntrypointList, oldProbe)
 		}
