@@ -265,8 +265,9 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 type Feeder struct {
 	// cluster + host
 	ClusterName string
-	HostName    string
-	HostIP      string
+
+	// node
+	Node *tp.Node
 
 	// port
 	Port string
@@ -293,13 +294,14 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName string, node tp.Node, port, output string) *Feeder {
+func NewFeeder(clusterName string, node *tp.Node, port, output string) *Feeder {
 	fd := &Feeder{}
 
 	// set cluster info
 	fd.ClusterName = clusterName
-	fd.HostName = node.NodeName
-	fd.HostIP = node.NodeIP
+
+	// node
+	fd.Node = node
 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", port)
@@ -496,8 +498,8 @@ func (fd *Feeder) PushMessage(level, message string) {
 
 	pbMsg.ClusterName = fd.ClusterName
 
-	pbMsg.HostName = fd.HostName
-	pbMsg.HostIP = fd.HostIP
+	pbMsg.HostName = fd.Node.NodeName
+	pbMsg.HostIP = fd.Node.NodeIP
 
 	pbMsg.Type = "Message"
 
@@ -516,7 +518,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// set hostname
-	log.HostName = fd.HostName
+	log.HostName = fd.Node.NodeName
 
 	// remove flags
 	log.PolicyEnabled = 0
@@ -542,7 +544,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.UpdatedTime = log.UpdatedTime
 
 		pbAlert.ClusterName = fd.ClusterName
-		pbAlert.HostName = fd.HostName
+		pbAlert.HostName = fd.Node.NodeName
 
 		pbAlert.NamespaceName = log.NamespaceName
 		pbAlert.PodName = log.PodName
@@ -593,7 +595,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.UpdatedTime = log.UpdatedTime
 
 		pbLog.ClusterName = fd.ClusterName
-		pbLog.HostName = fd.HostName
+		pbLog.HostName = fd.Node.NodeName
 
 		pbLog.NamespaceName = log.NamespaceName
 		pbLog.PodName = log.PodName

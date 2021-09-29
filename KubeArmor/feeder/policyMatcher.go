@@ -416,7 +416,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 // UpdateHostSecurityPolicies Function
 func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.HostSecurityPolicy) {
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, fd.HostName)
+		delete(fd.SecurityPolicies, fd.Node.NodeName)
 		return
 	}
 
@@ -439,7 +439,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -453,7 +453,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -462,7 +462,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -476,7 +476,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -508,7 +508,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -522,7 +522,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -531,7 +531,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -545,7 +545,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -557,7 +557,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -581,7 +581,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(proto.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -598,7 +598,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -615,7 +615,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(cap.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -632,7 +632,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -642,7 +642,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	}
 
 	fd.SecurityPoliciesLock.Lock()
-	fd.SecurityPolicies[fd.HostName] = matches
+	fd.SecurityPolicies[fd.Node.NodeName] = matches
 	fd.SecurityPoliciesLock.Unlock()
 }
 
@@ -672,7 +672,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
-		key := fd.HostName
+		key := fd.Node.NodeName
 
 		if log.NamespaceName != "" && log.PodName != "" {
 			key = log.NamespaceName + "_" + log.PodName
@@ -996,9 +996,70 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return log
 			}
 
-			//
+			if fd.Node.PolicyEnabled == tp.KubeArmorPolicyAudited {
+				if log.Operation == "Process" && allowProcPolicy != "" {
+					log.PolicyName = allowProcPolicy
+					log.Severity = allowProcPolicySeverity
 
-			if log.Result != "Passed" {
+					if len(allowProcTags) > 0 {
+						log.Tags = strings.Join(allowProcTags[:], ",")
+					}
+
+					if len(allowProcMessage) > 0 {
+						log.Message = allowProcMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Audit (Allow)"
+
+					return log
+
+				} else if log.Operation == "File" && allowFilePolicy != "" {
+					log.PolicyName = allowFilePolicy
+					log.Severity = allowFilePolicySeverity
+
+					if len(allowFileTags) > 0 {
+						log.Tags = strings.Join(allowFileTags[:], ",")
+					}
+
+					if len(allowFileMessage) > 0 {
+						log.Message = allowFileMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Audit (Allow)"
+
+					return log
+
+				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+					log.PolicyName = allowNetworkPolicy
+					log.Severity = allowNetworkPolicySeverity
+
+					if len(allowNetworkTags) > 0 {
+						log.Tags = strings.Join(allowNetworkTags[:], ",")
+					}
+
+					if len(allowNetworkMessage) > 0 {
+						log.Message = allowNetworkMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Audit (Allow)"
+
+					return log
+				}
+			}
+
+			if fd.Node.ProcessVisibilityEnabled && log.Operation == "Process" {
+				log.Type = "HostLog"
+				return log
+			} else if fd.Node.FileVisibilityEnabled && log.Operation == "File" {
+				log.Type = "HostLog"
+				return log
+			} else if fd.Node.NetworkVisibilityEnabled && log.Operation == "Network" {
+				log.Type = "HostLog"
+				return log
+			} else if fd.Node.CapabilitiesVisibilityEnabled && log.Operation == "Capabilities" {
 				log.Type = "HostLog"
 				return log
 			}
