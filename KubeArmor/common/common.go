@@ -28,9 +28,9 @@ func Clone(src, dst interface{}) error {
 	return json.Unmarshal(arr, dst)
 }
 
-// Remove String Element function
-func RemoveStringElement(slice []string, s int) []string {
-	return append(slice[:s], slice[s+1:]...)
+// RemoveStringElement function
+func RemoveStringElement(slice []string, size int) []string {
+	return append(slice[:size], slice[size+1:]...)
 }
 
 // ContainsElement Function

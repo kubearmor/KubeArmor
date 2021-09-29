@@ -17,11 +17,13 @@ import (
 
 // == //
 
-func resolvedWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
-	prunedProcessWhiteList := *processWhiteList
+func resolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
+	prunedProcessWhiteList := make([]string, len(*processWhiteList))
+	copy(prunedProcessWhiteList, *processWhiteList)
 	numOfRemovedElements := 0
+	
 	for index, line := range *processWhiteList {
-		for source, _ := range fromSources {
+		for source := range fromSources {
 			if strings.Contains(line, source) {
 				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
 
@@ -31,6 +33,7 @@ func resolvedWhiteListConflicts(processWhiteList *[]string, fromSources map[stri
 			}
 		}
 	}
+	
 	*processWhiteList = prunedProcessWhiteList
 }
 
@@ -1466,7 +1469,7 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	}
 
 	// Resolve conflicts
-	resolvedWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
+	resolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
 
 	// head
 
