@@ -36,7 +36,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 	node.EnableKubeArmorHostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	logger := feeder.NewFeeder("Default", &node, "32767", "none")
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
@@ -89,7 +89,7 @@ func TestAppArmorProfile(t *testing.T) {
 	node.EnableKubeArmorHostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	logger := feeder.NewFeeder("Default", &node, "32767", "none")
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
@@ -156,7 +156,7 @@ func TestHostAppArmorProfile(t *testing.T) {
 	node.EnableKubeArmorHostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder("Default", node, "32767", "none")
+	logger := feeder.NewFeeder("Default", &node, "32767", "none")
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return

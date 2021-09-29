@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-2-file-dir-recursive-owner-readonly-allow
+  namespace: multiubuntu
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      container: ubuntu-2
+  file:
+    matchDirectories: # cat /home/user1/dir1/key1.txt (permission denied)
+    - dir: /home/user1/ # su - user1 -c "cat /home/user1/dir1/key1.txt" (success)
+      recursive: true # su - user1 -c "echo test >> /home/user1/secret_data1.txt" (permission denied)
+      ownerOnly: true # echo testroot >> /home/user1/secret_data1.txt (permission denied)
+      readOnly: true
+  action:
+    Block

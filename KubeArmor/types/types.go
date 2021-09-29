@@ -95,6 +95,15 @@ type Node struct {
 
 	EnableKubeArmorPolicy     bool `json:"enableKubeArmorPolicy"`
 	EnableKubeArmorHostPolicy bool `json:"enableKubeArmorHostPolicy"`
+
+	// == //
+
+	PolicyEnabled int `json:"policyEnabled"`
+
+	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
+	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
+	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled"`
+	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
 // ================ //
