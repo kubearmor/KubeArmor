@@ -25,7 +25,7 @@ func resolvedWhiteListConflicts(processWhiteList *[]string, fromSources map[stri
 			if strings.Contains(line, source) {
 				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
 
-				// rm line from WhiteList
+				// remove line from WhiteList
 				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index - numOfRemovedElements)
 				numOfRemovedElements = numOfRemovedElements + 1
 			}
