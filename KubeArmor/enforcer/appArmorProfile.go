@@ -19,13 +19,17 @@ import (
 
 func resolvedWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
 	prunedProcessWhiteList := *processWhiteList
-	for _, line := range *processWhiteList {
+	numOfRemovedElements := 0
+	for index, line := range *processWhiteList {
 		for source, _ := range fromSources {
 			if strings.Contains(line, source) {
 				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
-				prunedProcessWhiteList = prunedProcessWhiteList[1:] // rm line from WhiteList
+
+				// rm line from WhiteList
+				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index - numOfRemovedElements)
+				numOfRemovedElements = numOfRemovedElements + 1
 			}
-		}		
+		}
 	}
 	*processWhiteList = prunedProcessWhiteList
 }
