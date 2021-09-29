@@ -17,6 +17,19 @@ import (
 
 // == //
 
+func resolvedWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
+	prunedProcessWhiteList := *processWhiteList
+	for _, line := range *processWhiteList {
+		for source, _ := range fromSources {
+			if strings.Contains(line, source) {
+				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
+				prunedProcessWhiteList = prunedProcessWhiteList[1:] // rm line from WhiteList
+			}
+		}		
+	}
+	*processWhiteList = prunedProcessWhiteList
+}
+
 func allowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
@@ -1346,6 +1359,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 
 	nativeAppArmorRules := []string{}
 
+	fusionProcessWhiteList := []string{}
+
 	// preparation
 
 	for _, secPolicy := range securityPolicies {
@@ -1446,6 +1461,9 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		}
 	}
 
+	// Resolve conflicts
+	resolvedWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
+
 	// head
 
 	profileHead := "  ## == PRE START == ##\n" + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
@@ -1525,7 +1543,11 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	bodyFromSource := ""
 
 	for source, lines := range fromSources {
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		if kl.ContainsElement(fusionProcessWhiteList, source) {
+			bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cix,\n", source)
+		} else {
+			bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		}
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s rix,\n", source)
 

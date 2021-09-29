@@ -28,6 +28,16 @@ func Clone(src, dst interface{}) error {
 	return json.Unmarshal(arr, dst)
 }
 
+func SliceContains(slice []string, str string) bool {
+	for _, v := range slice {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ContainsElement Function
 func ContainsElement(slice interface{}, element interface{}) bool {
 	switch reflect.TypeOf(slice).Kind() {
