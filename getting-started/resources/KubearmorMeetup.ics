@@ -1,0 +1,27 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ical.marudot.com//iCal Event Maker
+CALSCALE:GREGORIAN
+BEGIN:VTIMEZONE
+TZID:Asia/Kolkata
+LAST-MODIFIED:20201011T015911Z
+TZURL:http://tzurl.org/zoneinfo-outlook/Asia/Kolkata
+X-LIC-LOCATION:Asia/Kolkata
+BEGIN:STANDARD
+TZNAME:IST
+TZOFFSETFROM:+0530
+TZOFFSETTO:+0530
+DTSTART:19700101T000000
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTAMP:20210920T183125Z
+UID:20210920T183125Z-191007475@marudot.com
+DTSTART;TZID=Asia/Calcutta:20210930T203000
+RRULE:FREQ=WEEKLY;BYDAY=TH
+DTEND;TZID=Asia/Calcutta:20210930T210000
+SUMMARY:KubeArmor Community Meetup
+DESCRIPTION:KubeArmor Community Meetup\n\nAgenda:\n* Triage\, priorities\n* Community questions/feedback\n* Design discussions\, open sessions\n\nMinutes Document:\nhttps://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit\n\nVenue: https://us02web.zoom.us/j/5013008459?pwd=LzhGdk42T05QZEM5T2pmYzhYUEZuQT09
+LOCATION:https://us02web.zoom.us/j/5013008459?pwd=LzhGdk42T05QZEM5T2pmYzhYUEZuQT09
+END:VEVENT
+END:VCALENDAR

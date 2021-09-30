@@ -23,7 +23,7 @@ If there are any violations against security policies, KubeArmor immediately gen
 
 * Restrict the behavior of containers and nodes at the system level
 
-Traditional container security solutions \(e.g., Cilium\) mostly protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\). KubeArmor also allows operators to restrict the behaviors of nodes based on node identities.
+Traditional container security solutions \(e.g., Cilium\) protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\). KubeArmor also allows operators to restrict the behaviors of nodes based on node identities.
 
 * Enforce security policies to containers in runtime
 
@@ -63,9 +63,14 @@ If you want to make a contribution, please refer to the following documents too.
 
 ## Community
 
-* Slack
+### Weekly Meetup
+* Where: [Zoom Link](https://us02web.zoom.us/j/5013008459?pwd=LzhGdk42T05QZEM5T2pmYzhYUEZuQT09)
+* Minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
+* ICS: [ICS file](getting-started/resources/KubearmorMeetup.ics) for setting up meeting on your calendar
 
-  Please join the [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor developers and other users. We always welcome having a discussion about the problems that you face during the use of KubeArmor.
+### Slack
+
+Please join the [KubeArmor Slack channel](https://kubearmor.herokuapp.com) to communicate with KubeArmor community. We always welcome having a discussion about the problems that you face during the use of KubeArmor.
 
 ## License
 
