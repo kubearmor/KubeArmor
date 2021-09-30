@@ -1,0 +1,20 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-5-file-path-owner-readonly-audit
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical file was accessed"
+  tags:
+  - WARNING
+  selector:
+    matchLabels:
+      container: ubuntu-5
+  file:
+    matchPaths:
+    - path: /home/user1/secret_data1.txt
+      readOnly: true
+      ownerOnly: true # su - user1 -c echo "test" >> /home/user1/secret_data1.txt (log)
+  action:
+    Audit
