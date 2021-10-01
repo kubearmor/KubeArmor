@@ -29,9 +29,12 @@ enum {
 
 int skip_syscall(uint32_t key)
 {
-    uint32_t *val = bpf_map_lookup_elem(&ka_ea_event_map, &key);
-    if (val == 0) return 1;
-    else if (val != 0 && *val == 0) return 1;
+    uint32_t *val;
+
+    val = bpf_map_lookup_elem(&ka_ea_event_map, &key);
+    if (!val || *val == 0)
+        return 1;
+
     return 0;
 }
 

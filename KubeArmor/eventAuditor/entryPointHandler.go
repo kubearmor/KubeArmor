@@ -7,7 +7,7 @@ import "C"
 
 import (
 	"errors"
-	"fmt"
+	"strings"
 	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -132,31 +132,45 @@ func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
+	// currently handling syscalls only
+	if strings.HasPrefix(probe, "sys_") {
+		probe = strings.Replace(probe, "sys_", "", -1)
+	}
+	_, supported := ea.SupportedEntryPoints[probe]
+
+	if !supported {
+		ea.Logger.Errf("%s is currently not supported", probe)
+		return
+	}
+
 	eventMapElem.SetKey(uint32(ea.SupportedEntryPoints[probe]))
 	eventMapElem.SetValue(uint32(1))
 
-	// TODO: value is not updated
 	if err := ea.BPFManager.MapUpdateElement(&eventMapElem); err != nil {
 		ea.Logger.Errf("Failed to update KAEAEventMap (attachEntryPoint, %s, %d) (%v)", probe, err)
 	}
-
-	// TODO: remove it once fixing the update
-	fmt.Println("EnableEntryPoint", eventMapElem)
 }
 
 func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
+	// currently handling syscalls only
+	if strings.HasPrefix(probe, "sys_") {
+		probe = strings.Replace(probe, "sys_", "", -1)
+	}
+	_, supported := ea.SupportedEntryPoints[probe]
+
+	if !supported {
+		ea.Logger.Errf("%s is currently not supported", probe)
+		return
+	}
+
 	eventMapElem.SetKey(uint32(ea.SupportedEntryPoints[probe]))
 	eventMapElem.SetValue(uint32(0))
 
-	// TODO: value is not updated
 	if err := ea.BPFManager.MapUpdateElement(&eventMapElem); err != nil {
 		ea.Logger.Errf("Failed to update KAEAEventMap (DetachEntryPoint, %s, %d) (%v)", probe, err)
 	}
-
-	// TODO: remove it once fixing the update
-	fmt.Println("DisableEntryPoint", eventMapElem)
 }
 
 // UpdateEntryPoints Function

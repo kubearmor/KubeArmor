@@ -31,7 +31,7 @@ const (
 	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
 	KAEAEventMap     KABPFMapName     = "ka_ea_event_map"
-	KAEAEventMapFile KABPFObjFileName = "ka_ea_event_map.bpf.o"
+	KAEAEventMapFile KABPFObjFileName = "entrypoint.bpf.o"
 
 	KAEAEventFilterMap     KABPFMapName     = "ka_ea_event_filter_map"
 	KAEAEventFilterMapFile KABPFObjFileName = "ka_ea_event_filter_map.bpf.o"
