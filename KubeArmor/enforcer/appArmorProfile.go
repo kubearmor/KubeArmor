@@ -17,6 +17,26 @@ import (
 
 // == //
 
+func resolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
+	prunedProcessWhiteList := make([]string, len(*processWhiteList))
+	copy(prunedProcessWhiteList, *processWhiteList)
+	numOfRemovedElements := 0
+	
+	for index, line := range *processWhiteList {
+		for source := range fromSources {
+			if strings.Contains(line, source) {
+				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
+
+				// remove line from WhiteList
+				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index - numOfRemovedElements)
+				numOfRemovedElements = numOfRemovedElements + 1
+			}
+		}
+	}
+	
+	*processWhiteList = prunedProcessWhiteList
+}
+
 func allowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
@@ -1346,6 +1366,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 
 	nativeAppArmorRules := []string{}
 
+	fusionProcessWhiteList := []string{}
+
 	// preparation
 
 	for _, secPolicy := range securityPolicies {
@@ -1446,6 +1468,9 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		}
 	}
 
+	// Resolve conflicts
+	resolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
+
 	// head
 
 	profileHead := "  ## == PRE START == ##\n" + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
@@ -1525,7 +1550,11 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	bodyFromSource := ""
 
 	for source, lines := range fromSources {
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		if kl.ContainsElement(fusionProcessWhiteList, source) {
+			bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cix,\n", source)
+		} else {
+			bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		}
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s rix,\n", source)
 
