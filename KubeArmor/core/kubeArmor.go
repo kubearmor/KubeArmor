@@ -4,6 +4,7 @@
 package core
 
 import (
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -267,6 +268,7 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, dm.Logger)
+	log.Printf("dm.RuntimeEnforcer : %v\n", dm.RuntimeEnforcer)
 	return dm.RuntimeEnforcer != nil
 }
 
