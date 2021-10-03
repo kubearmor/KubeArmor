@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"net"
 	"os"
+	"syscall"
+	"time"
 
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
@@ -22,37 +25,37 @@ var (
 	UpdateHostPolicy func(tp.K8sKubeArmorHostPolicyEvent)
 )
 
-func getGrpcConnAddress() string {
-	return (os.Getenv("CLUSTER_IP") + ":" + os.Getenv("CLUSTER_PORT"))
+func getGrpcConnAddress() (string, error) {
+	serverAddr := net.JoinHostPort(os.Getenv("CLUSTER_IP"), os.Getenv("CLUSTER_PORT"))
+	if serverAddr == ":" {
+		return "", errors.New("host and port value is empty")
+	} else {
+		return serverAddr, nil
+	}
 }
 
 func enforcePolicy(policyBytes []byte) error {
-	err := *new(error)
-	err = nil
 	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 
-	err = json.Unmarshal(policyBytes, &policyEvent)
-	if err != nil {
-		log.Print("Unmarshal error => ", err)
-	} else {
+	err := json.Unmarshal(policyBytes, &policyEvent)
+	if err == nil {
 		UpdateHostPolicy(policyEvent)
 	}
-
 	return err
 }
 
-func connectToKVMService() error {
-	err := *new(error)
+func connectToKVMService(identity string) error {
 	var status int32
-	err = nil
 	status = 0
 
 	md := metadata.New(map[string]string{"identity": identity})
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
+	kg.Print("Connecting client stream to server")
+
 	stream, err := client.SendPolicy(ctx)
 	if err != nil {
-		log.Print("Failed to stream")
+		kg.Err("Failed to connect stream")
 		grpcClientConn.Close()
 		return err
 	}
@@ -63,12 +66,12 @@ func connectToKVMService() error {
 			continue
 		}
 		if err != nil {
-			log.Printf("Error %s ", err)
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 			break
 		}
 		err = enforcePolicy(policy.PolicyData)
 		if err != nil {
-			log.Print("Policy Enforcement failed")
+			kg.Print("Policy Enforcement failed")
 			status = 1
 		} else {
 			status = 0
@@ -83,38 +86,35 @@ func connectToKVMService() error {
 
 func InitKvmAgent(eventCb tp.KubeArmorHostPolicyEventCallback) error {
 
-	// Set error variable
-	err := *new(error)
-	err = nil
-
-	// Update callback fp
+	// Update callback FP
 	UpdateHostPolicy = eventCb
-
-	// Listen on tcp connection to the sepcified IP and PORT
-	connAddress := getGrpcConnAddress()
-
-	// Connect to gRPC server
-	grpcClientConn, err := grpc.Dial(connAddress, grpc.WithInsecure())
+	connAddress, err := getGrpcConnAddress()
 	if err != nil {
-		log.Print("Failed to connect to server")
 		return err
 	}
 
-	identity = os.Getenv("IDENTITY")
+	identity := os.Getenv("WORKLOAD_IDENTITY")
+
+	// Connect to gRPC server
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	grpcClientConn, err := grpc.DialContext(ctx, connAddress, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		kg.Err("gRPC Dial failed")
+		return err
+	}
+	defer grpcClientConn.Close()
 
 	client = pb.NewKVMClient(grpcClientConn)
-	if client != nil {
-		err = errors.New("Invalid Client connection")
-		return err
+	if client == nil {
+		return errors.New("invalid client handle")
 	}
 
 	response, err := client.RegisterAgentIdentity(context.Background(), &pb.AgentIdentity{Identity: identity})
 	if err != nil || response.Status != 0 {
-		log.Printf("Failed to register identity %d", response.Status)
-		return err
+		return errors.New("failed to register client identity")
 	}
 
-	go connectToKVMService()
+	go connectToKVMService(identity)
 
 	return err
 }
