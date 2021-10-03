@@ -7,7 +7,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"syscall"
+	"time"
 
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
@@ -50,9 +53,11 @@ func connectToKVMService() error {
 	md := metadata.New(map[string]string{"identity": identity})
 	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
+	kg.Print("Connecting stream to server")
+
 	stream, err := client.SendPolicy(ctx)
 	if err != nil {
-		log.Print("Failed to stream")
+		kg.Print("Failed to stream")
 		grpcClientConn.Close()
 		return err
 	}
@@ -63,8 +68,8 @@ func connectToKVMService() error {
 			continue
 		}
 		if err != nil {
-			log.Printf("Error %s ", err)
-			break
+			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+			return err
 		}
 		err = enforcePolicy(policy.PolicyData)
 		if err != nil {
@@ -87,31 +92,27 @@ func InitKvmAgent(eventCb tp.KubeArmorHostPolicyEventCallback) error {
 	err := *new(error)
 	err = nil
 
-	// Update callback fp
+	// Update callback FP
 	UpdateHostPolicy = eventCb
-
-	// Listen on tcp connection to the sepcified IP and PORT
 	connAddress := getGrpcConnAddress()
+	identity = os.Getenv("WORKLOAD_IDENTITY")
 
 	// Connect to gRPC server
-	grpcClientConn, err := grpc.Dial(connAddress, grpc.WithInsecure())
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	grpcClientConn, err := grpc.DialContext(ctx, connAddress, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		log.Print("Failed to connect to server")
+		kg.Printf("gRPC Dial failed")
 		return err
 	}
 
-	identity = os.Getenv("IDENTITY")
-
 	client = pb.NewKVMClient(grpcClientConn)
-	if client != nil {
-		err = errors.New("Invalid Client connection")
-		return err
+	if client == nil {
+		return errors.New("Invalid Client handle")
 	}
 
 	response, err := client.RegisterAgentIdentity(context.Background(), &pb.AgentIdentity{Identity: identity})
 	if err != nil || response.Status != 0 {
-		log.Printf("Failed to register identity %d", response.Status)
-		return err
+		return errors.New("Failed to register client Identity")
 	}
 
 	go connectToKVMService()
