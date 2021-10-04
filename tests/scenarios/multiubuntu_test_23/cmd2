@@ -1,0 +1,7 @@
+source: ubuntu-5-deployment
+cmd: cat /home/user1/secret_data1.txt
+result: failed
+---
+operation: File
+condition: /home/user1/secret_data1.txt
+action: Block

@@ -1,0 +1,7 @@
+source: ubuntu-2-deployment
+cmd: su - user1 -c "cat /home/user1/dir1/key1.txt"
+result: passed
+---
+operation: File
+condition: /home/user1/dir1/key1.txt
+action: Block

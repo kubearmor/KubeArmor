@@ -974,7 +974,7 @@ func blockedProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]
 func blockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
-			line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", path.Path, path.Path)
+			line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 			if !kl.ContainsElement(*fileBlackList, line) {
 				*fileBlackList = append(*fileBlackList, line)
 			}
@@ -1020,7 +1020,7 @@ func blockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSo
 			}
 
 			if path.ReadOnly && path.OwnerOnly {
-				line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", path.Path, path.Path)
+				line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 				if !kl.ContainsElement(fromSources[source], line) {
 					fromSources[source] = append(fromSources[source], line)
 				}
@@ -1048,12 +1048,12 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
-				line := fmt.Sprintf("  owner %s{*,**} r,\n  deny other %s{*,**} r,\n", dir.Directory, dir.Directory)
+				line := fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
 				if !kl.ContainsElement(*fileBlackList, line) {
 					*fileBlackList = append(*fileBlackList, line)
 				}
 			} else {
-				line := fmt.Sprintf("  owner %s* r,\n  deny other %s* ,\n", dir.Directory, dir.Directory)
+				line := fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 				if !kl.ContainsElement(*fileBlackList, line) {
 					*fileBlackList = append(*fileBlackList, line)
 				}
@@ -1122,12 +1122,12 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 
 			if dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					line := fmt.Sprintf("  owner %s{*,**} r,\n  deny other %s{*,**} r,\n", dir.Directory, dir.Directory)
+					line := fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
 					if !kl.ContainsElement(fromSources[source], line) {
 						fromSources[source] = append(fromSources[source], line)
 					}
 				} else {
-					line := fmt.Sprintf("  owner %s* r,\n  deny other %s* ,\n", dir.Directory, dir.Directory)
+					line := fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 					if !kl.ContainsElement(fromSources[source], line) {
 						fromSources[source] = append(fromSources[source], line)
 					}
@@ -1175,7 +1175,7 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 
 func blockedFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
-		line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", pat.Pattern, pat.Pattern)
+		line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*fileBlackList, line) {
 			*fileBlackList = append(*fileBlackList, line)
 		}

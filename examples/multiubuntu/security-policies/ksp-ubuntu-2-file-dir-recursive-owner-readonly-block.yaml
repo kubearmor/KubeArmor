@@ -1,7 +1,7 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-ubuntu-2-file-dir-recursive-owner-readonly-allow
+  name: ksp-ubuntu-2-file-dir-recursive-owner-readonly-block
   namespace: multiubuntu
 spec:
   severity: 7
