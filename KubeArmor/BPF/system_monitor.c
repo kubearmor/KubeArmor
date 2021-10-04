@@ -32,6 +32,12 @@
 
 // == Structures == //
 
+#undef container_of
+#define container_of(ptr, type, member)                                        \
+	({                                                                     \
+		const typeof(((type *)0)->member) *__mptr = (ptr);             \
+		(type *)((char *)__mptr - offsetof(type, member));             \
+	})
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
@@ -125,6 +131,13 @@ struct mnt_namespace {
     atomic_t count;
     #endif
     struct ns_common ns;
+};
+
+struct mount {
+	struct hlist_node mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
+	struct vfsmount mnt;
 };
 
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
@@ -573,25 +586,24 @@ static __always_inline struct mount *real_mount(struct vfsmount *mnt)
 	return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline bool prepend_name(char *buf, offset,
+static __always_inline bool prepend_name(char *buf, int offset,
 					 const struct qstr *name)
 {
+	u32 len = name->len;
 	char *dname;
 	bpf_probe_read_str(dname, len, &name->name);
-	u32 len = name->name;
 	char *s;
 
 	offset -= len + 1;
 	if (len < 0)
 		return false;
-	s = p->buf -= len + 1;
+	s = buf -= len + 1;
 	*s++ = '/';
-	// TODO: replace this with bpf_probe_read_str
 	bpf_probe_read_str(s, len, dname);
-	return true
+	return true;
 }
 
-static __always_inline int prepend_path(const path *path, char *buf)
+static __always_inline int prepend_path(const struct path *path, char *buf)
 {
 	struct dentry *dentry = path->dentry;
 	struct vfsmount *vfsmnt = path->mnt;
@@ -606,7 +618,7 @@ static __always_inline int prepend_path(const path *path, char *buf)
 
 	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
 		const struct dentry *parent = dentry->d_parent;
-		if (dentry == vfsmount->mnt_root) {
+		if (dentry == vfsmnt->mnt_root) {
 			struct mount *m = mnt->mnt_parent;
 			if (mnt != m) {
 				dentry = mnt->mnt_mountpoint;
@@ -624,7 +636,7 @@ static __always_inline int prepend_path(const path *path, char *buf)
 		// get d_name
 		struct qstr *d_name;
 		bpf_probe_read(d_name, sizeof(struct qstr *), &dentry->d_name);
-		prepend_name(buf, d_name->len, offset, d_name);
+		prepend_name(buf, offset, d_name);
 	}
 
 	return 0;
@@ -947,7 +959,7 @@ int kprobe_security_file_open(struct pt_regs *ctx)
 
 	char string_p[MAX_STRING_SIZE] = {};
 
-	prepend_path(&file->f_path, string_p,);
+	prepend_path(&file->f_path, string_p);
 
 	u32 tgid = bpf_get_current_pid_tgid();
 	u64 id = ((u64)event_id << 32) | tgid;
