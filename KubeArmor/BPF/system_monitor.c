@@ -21,6 +21,7 @@
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/mount.h>
 
 #include <linux/un.h>
 #include <net/inet_sock.h>
@@ -34,6 +35,7 @@
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
+#define MAX_LOOP_LIMIT    100 // arbitrarily set
 
 #define NONE_T        0UL
 #define INT_T         1UL
@@ -566,6 +568,68 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
+static __always_inline struct mount *real_mount(struct vfsmount *mnt)
+{
+	return container_of(mnt, struct mount, mnt);
+}
+
+static __always_inline bool prepend_name(char *buf, offset,
+					 const struct qstr *name)
+{
+	char *dname;
+	bpf_probe_read_str(dname, len, &name->name);
+	u32 len = name->name;
+	char *s;
+
+	offset -= len + 1;
+	if (len < 0)
+		return false;
+	s = p->buf -= len + 1;
+	*s++ = '/';
+	// TODO: replace this with bpf_probe_read_str
+	bpf_probe_read_str(s, len, dname);
+	return true
+}
+
+static __always_inline int prepend_path(const path *path, char *buf)
+{
+	struct dentry *dentry = path->dentry;
+	struct vfsmount *vfsmnt = path->mnt;
+	struct qstr d_name;
+	struct mount *mnt;
+
+	int offset = MAX_STRING_SIZE - 1;
+
+	mnt = real_mount(path->mnt);
+
+	// TODO: check if the dentry is unlinked
+
+	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
+		const struct dentry *parent = dentry->d_parent;
+		if (dentry == vfsmount->mnt_root) {
+			struct mount *m = mnt->mnt_parent;
+			if (mnt != m) {
+				dentry = mnt->mnt_mountpoint;
+				mnt = m;
+				continue;
+			}
+			/* Global root */
+			break;
+		}
+
+		if (dentry == parent) {
+			break;
+		}
+
+		// get d_name
+		struct qstr *d_name;
+		bpf_probe_read(d_name, sizeof(struct qstr *), &dentry->d_name);
+		prepend_name(buf, d_name->len, offset, d_name);
+	}
+
+	return 0;
+}
+
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
 {
     bufs_t *bufs_p = get_buffer();
@@ -875,20 +939,20 @@ int kprobe_security_file_open(struct pt_regs *ctx)
 	args_t args = {};
 	struct file *file = (struct file *)PT_REGS_PARM1(ctx);
 
-    // TODO: check which syscall we are in
-	if (load_args(_SYS_OPENAT, &args) != 0)
+	// TODO: check which syscall we are in
+	u32 event_id = _SYS_OPENAT;
+
+	if (load_args(event_id, &args) != 0)
 		return 0;
 
-	char string_p[MAX_PATH_COMPONENTS] = {};
+	char string_p[MAX_STRING_SIZE] = {};
 
-	// FIXME: this function is not available
-	bpf_d_path(&file->f_path, string_p, MAX_PATH_COMPONENTS);
+	prepend_path(&file->f_path, string_p,);
 
-	u32 event_id = _SYS_OPENAT;
 	u32 tgid = bpf_get_current_pid_tgid();
 	u64 id = ((u64)event_id << 32) | tgid;
 
-	bpf_probe_read_str(&args.args[1], sizeof(args.args[1]), &string_p);
+	bpf_probe_read_str(&args.args[1], sizeof(args.args[1]), string_p);
 
 	args_map.update(&id, &args);
 	return 0;
