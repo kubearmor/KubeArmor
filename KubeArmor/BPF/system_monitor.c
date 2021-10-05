@@ -114,8 +114,8 @@ typedef struct buffers {
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 1);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 1);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 2);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 2);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -392,21 +392,19 @@ static __always_inline u32 init_context(sys_context_t *context)
 
 // == Buffer Management == //
 
-static __always_inline bufs_t* get_buffer()
+// TODO: Add macros for the indices
+static __always_inline bufs_t* get_buffer(int idx)
 {
-    int idx = 0;
     return bufs.lookup(&idx);
 }
 
-static __always_inline void set_buffer_offset(u32 off)
+static __always_inline void set_buffer_offset(int idx, u32 off)
 {
-    int idx = 0;
     bufs_offset.update(&idx, &off);
 }
 
-static __always_inline u32* get_buffer_offset()
+static __always_inline u32* get_buffer_offset(int idx)
 {
-    int idx = 0;
     return bufs_offset.lookup(&idx);
 }
 
@@ -421,7 +419,7 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    u32 *off = get_buffer_offset();
+    u32 *off = get_buffer_offset(0);
     if (off == NULL) {
         return -1;
     }
@@ -448,7 +446,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
         bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
 
         *off += sz + sizeof(int);
-        set_buffer_offset(*off);
+        set_buffer_offset(0, *off);
 
         return sz + sizeof(int);
     }
@@ -465,7 +463,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    u32 *off = get_buffer_offset();
+    u32 *off = get_buffer_offset(0);
     if (off == NULL) {
         return -1;
     }
@@ -486,7 +484,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
 
     if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
         *off += size;
-        set_buffer_offset(*off);
+        set_buffer_offset(0, *off);
         return size;
     }
 
@@ -531,7 +529,7 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         return 0;
     }
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL) {
         return 0;
     }
@@ -586,7 +584,7 @@ static __always_inline struct mount *real_mount(struct vfsmount *mnt)
 	return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline bool prepend_name(char *buf, int offset,
+static __always_inline bool prepend_name(bufs_t *buf, int offset,
 					 const struct qstr *name)
 {
 	u32 len = name->len;
@@ -597,13 +595,14 @@ static __always_inline bool prepend_name(char *buf, int offset,
 	offset -= len + 1;
 	if (len < 0)
 		return false;
-	s = buf -= len + 1;
+	int total_off = offset - len - 1;
+	s = &(buf->buf[total_off]);
 	*s++ = '/';
 	bpf_probe_read_str(s, len, dname);
 	return true;
 }
 
-static __always_inline int prepend_path(const struct path *path, char *buf)
+static __always_inline int prepend_path(const struct path *path, bufs_t *buf)
 {
 	struct dentry *dentry = path->dentry;
 	struct vfsmount *vfsmnt = path->mnt;
@@ -644,11 +643,11 @@ static __always_inline int prepend_path(const struct path *path, char *buf)
 
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
 {
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return -1;
 
-    u32 *off = get_buffer_offset();
+    u32 *off = get_buffer_offset(0);
     if (off == NULL)
         return -1;
 
@@ -676,9 +675,9 @@ int syscall__execve(struct pt_regs *ctx,
     context.argnum = 2;
     context.retval = 0;
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -710,9 +709,9 @@ int trace_ret_execve(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -741,9 +740,9 @@ int syscall__execveat(struct pt_regs *ctx,
     context.argnum = 4;
     context.retval = 0;
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -777,9 +776,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -805,9 +804,9 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     remove_pid_ns();
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -906,9 +905,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -957,7 +956,7 @@ int kprobe_security_file_open(struct pt_regs *ctx)
 	if (load_args(event_id, &args) != 0)
 		return 0;
 
-	char string_p[MAX_STRING_SIZE] = {};
+    bufs_t *string_p = get_buffer(1);
 
 	prepend_path(&file->f_path, string_p);
 
