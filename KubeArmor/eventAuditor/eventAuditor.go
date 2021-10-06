@@ -4,7 +4,14 @@
 package eventauditor
 
 import (
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // =================== //
@@ -22,8 +29,25 @@ type EventAuditor struct {
 	// all entrypoints that KubeArmor supports
 	SupportedEntryPoints map[string]uint32
 
+	// entrypoint arguments
+	EntryPointParameters map[string][]string
+
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
+
+	// cache for compiled rules
+	// map[eventString]codeBlock
+	EventCodeBlockCache map[string]string
+
+	// cache for loaded programs
+	// map[sourceCode]jumpTableIndex
+	EventProgramCache map[string]uint32
+
+	// next index to use
+	NextJumpTableIndex uint32
+
+	// lock for caches and index count
+	CacheIndexLock *sync.RWMutex
 }
 
 // NewEventAuditor Function
@@ -34,6 +58,13 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()
+
+	// initialize caches
+	ea.EventCodeBlockCache = make(map[string]string)
+	ea.EventProgramCache = make(map[string]uint32)
+
+	ea.NextJumpTableIndex = 0
+	ea.CacheIndexLock = new(sync.RWMutex)
 
 	if err := ea.BPFManager.SetObjsMapsPath("./BPF/objs"); err != nil {
 		ea.Logger.Errf("Failed to set ebpf maps path: %v", err)
@@ -66,6 +97,11 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 		goto fail2
 	}
 
+	if err := ea.SaveRuntimeInfo(); err != nil {
+		ea.Logger.Errf("Failed to create runtime.h: %v", err)
+		goto fail2
+	}
+
 	return ea
 
 fail2:
@@ -74,6 +110,50 @@ fail2:
 fail1:
 	// destroy process maps
 	_ = ea.DestroyProcessMaps(ea.BPFManager)
+
+	return nil
+}
+
+// SaveRuntimeInfo Function
+func (ea *EventAuditor) SaveRuntimeInfo() error {
+	var err error
+	var file *os.File
+
+	if file, err = os.Create("./BPF/runtime.h"); err != nil {
+		return err
+	}
+	defer file.Close()
+
+	file.WriteString("// SPDX-License-Identifier: GPL-2.0\n")
+	file.WriteString("// Copyright 2021 Authors of KubeArmor\n\n")
+
+	file.WriteString("#ifndef u64\n")
+	file.WriteString("typedef unsigned long long u64;\n")
+	file.WriteString("#endif\n\n")
+
+	file.WriteString("u64 __bpf_pseudo_fd(u64, u64) asm(\"llvm.bpf.pseudo\");\n")
+	file.WriteString("#define __ka_ea_map(fd) __bpf_pseudo_fd(1, fd)\n\n")
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_process_jmp_map    %d\n",
+		ea.BPFManager.getMap(KAEAProcessJMPMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_pattern_map        %d\n",
+		ea.BPFManager.getMap(KAEAPatternMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_process_spec_map   %d\n",
+		ea.BPFManager.getMap(KAEAProcessSpecMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_process_filter_map %d\n",
+		ea.BPFManager.getMap(KAEAProcessFilterMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_event_map          %d\n",
+		ea.BPFManager.getMap(KAEAEventMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_event_filter_map   %d\n",
+		ea.BPFManager.getMap(KAEAEventFilterMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
+		ea.BPFManager.getMap(KAEAEventJumpTable).FD()))
 
 	return nil
 }
@@ -107,10 +187,64 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 // == Audit Policy Management == //
 // ============================= //
 
-// func (ea *EventAuditor) GenerateAuditPrograms() {
-// 	//
-// }
+func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLock *sync.RWMutex, containers map[string]tp.Container) {
+	endPointsLock.Lock()
+	defer endPointsLock.Unlock()
 
-// func (ea *EventAuditor) ChainAuditPrograms() {
-// 	//
-// }
+	getEventId := func(probe string) uint32 {
+		if strings.HasPrefix(probe, "sys_") {
+			probe = strings.Split(probe, "sys_")[1]
+		}
+
+		return ea.SupportedEntryPoints[probe]
+	}
+
+	for _, ep := range endPoints {
+		progCodeBlocks := make(map[string][]string)
+		progLoaded := make(map[uint32]uint32)
+
+		if len(ep.AuditPolicies) == 0 {
+			continue
+		}
+
+		// generate the event code blocks
+		for _, auditPolicy := range ep.AuditPolicies {
+			for _, eventRule := range auditPolicy.Events {
+				if codeBlock, err := ea.GenerateCodeBlock(eventRule); err == nil {
+					if !kl.ContainsElement(progCodeBlocks[eventRule.Probe], codeBlock) {
+						current := progCodeBlocks[eventRule.Probe]
+						progCodeBlocks[eventRule.Probe] = append(current, codeBlock)
+					}
+				} else {
+					ea.Logger.Warnf("Failed to generate event code: %v", err)
+				}
+			}
+		}
+
+		// generate and load the event programs
+		for probe, codeBlocks := range progCodeBlocks {
+			source := ea.GenerateAuditProgram(probe, codeBlocks)
+			eventId := getEventId(probe)
+
+			if index, err := ea.LoadAuditProgram(source, probe); err == nil {
+				progLoaded[eventId] = index
+			} else {
+				ea.Logger.Warnf("Failed to load audit program: %v", err)
+			}
+		}
+
+		// set index on event filter map
+		for _, containerName := range ep.Containers {
+			pidns := containers[containerName].PidNS
+			mntns := containers[containerName].MntNS
+
+			for eventId, jmpTableIndex := range progLoaded {
+				ea.Logger.Printf("pidns=%v, mntns=%v, eventId=%v, jumpidx=%v",
+					pidns, mntns, eventId, jmpTableIndex)
+
+				// TODO: populate event_filter_map
+				// event_filter_map[key] = value
+			}
+		}
+	}
+}

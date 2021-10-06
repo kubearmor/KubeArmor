@@ -45,6 +45,17 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 		"execve": 59, "execveat": 322, "open": 2, "openat": 257,
 		"socket": 41, "connect": 42, "accept": 43, "bind": 49, "listen": 50}
 
+	ea.EntryPointParameters = make(map[string][]string)
+	ea.EntryPointParameters["execve"] = []string{"Path"}
+	ea.EntryPointParameters["execveat"] = []string{"Path", "Flags"}
+	ea.EntryPointParameters["open"] = []string{"Path", "Flags", "Mode"}
+	ea.EntryPointParameters["openat"] = []string{"Path", "Flags", "Mode"}
+	ea.EntryPointParameters["socket"] = []string{"Protocol"}
+	ea.EntryPointParameters["connect"] = []string{"Ipv4Addr", "Ipv6Addr", "Port"}
+	ea.EntryPointParameters["accept"] = []string{"Ipv4Addr", "Ipv6Addr", "Port"}
+	ea.EntryPointParameters["bind"] = []string{"Ipv4Addr", "Ipv6Addr", "Port"}
+	ea.EntryPointParameters["listen"] = []string{}
+
 	if err = ea.InitializeEntryPointPrograms(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEntryPointPrograms: %v", err)
 		goto fail3
