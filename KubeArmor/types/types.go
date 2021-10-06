@@ -607,13 +607,13 @@ type AuditEventType struct {
 	// file related arguments
 	Path      string `json:"path,omitempty"`
 	Directory string `json:"dir,omitempty"`
-	Mode      int    `json:"mode,omitempty"`
+	Mode      string `json:"mode,omitempty"`
 
 	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
-	Port     int    `json:"port,omitempty"`
+	Port     string `json:"port,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
