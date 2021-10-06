@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-file-pattern-owner-readonly-block
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block files following a pattern for user1"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchPatterns: # echo testroot >> /home/user1/secret_data1.txt (permission denied)
+    - pattern: /home/user1/secret_data* # su - user1 -c "echo test >> /home/user1/secret_data1.txt" (permission denied)
+      ownerOnly: true # cat /home/user1/secret_data1.txt (permission denied)
+      readOnly: true # su - user1 -c "cat /home/user1/secret_data1.txt" (success) 
+  action:
+    Block
