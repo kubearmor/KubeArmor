@@ -236,6 +236,7 @@ type MatchPolicy struct {
 	Message  string
 
 	Source       string
+	IsFromSource bool
 	Operation    string
 	ResourceType string
 	Resource     string
