@@ -46,7 +46,7 @@ func (ea *EventAuditor) ringbufferconsume() error {
 		os.Exit(-1)
 	}
 
-	rb.Start()
+	rb.StartPoll()
 	for {
 		eventBytes := <-eventsChannel
 		pid := int(binary.LittleEndian.Uint32(eventBytes[0:4])) // Treat first 4 bytes as LittleEndian Uint32
