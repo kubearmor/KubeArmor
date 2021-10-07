@@ -209,8 +209,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -233,8 +231,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -280,8 +276,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -304,8 +298,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -358,17 +350,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range proto.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, proto)
-				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 
@@ -393,17 +383,15 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range cap.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, cap)
-				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 
@@ -453,8 +441,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -477,8 +463,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -524,8 +508,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -548,8 +530,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -602,17 +582,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range proto.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
-				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 
@@ -637,17 +615,15 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range cap.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, cap)
-				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -787,7 +763,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					if matched || strings.Contains(log.Resource, secPolicy.Resource) {
-						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" ||
+							(secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) ||
+							(secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 

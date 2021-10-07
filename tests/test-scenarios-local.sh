@@ -195,11 +195,11 @@ function should_not_find_any_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
+    audit_log=$(grep -E "$1.*MatchedPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
-            DBG "Found no log from logs"
+            DBG "Found no log from logs (duplicated)"
         else
             echo $audit_log
             FAIL "Found the log from logs"
@@ -218,7 +218,7 @@ function should_find_passed_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
+    audit_log=$(grep -E "$1.*MatchedPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -226,7 +226,7 @@ function should_find_passed_log() {
     else
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
+            FAIL "Failed to find the log from logs (duplicated)"
             res_cmd=1
         else
             echo $audit_log
@@ -247,7 +247,7 @@ function should_find_blocked_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
+    audit_log=$(grep -E "$1.*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -255,7 +255,7 @@ function should_find_blocked_log() {
     else
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
+            FAIL "Failed to find the log from logs (duplicated)"
             res_cmd=1
         else
             echo $audit_log
@@ -271,11 +271,11 @@ function should_not_find_any_host_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
+    audit_log=$(grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
-            DBG "Found no log from logs"
+            DBG "Found no log from logs (duplicated)"
         else
             echo $audit_log
             FAIL "Found the log from logs"
@@ -294,7 +294,7 @@ function should_find_passed_host_log() {
 
     sleep 3
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep Passed)
+    audit_log=$(grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -302,7 +302,7 @@ function should_find_passed_host_log() {
     else
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
+            FAIL "Failed to find the log from logs (duplicated)"
             res_cmd=1
         else
             echo $audit_log
@@ -323,7 +323,7 @@ function should_find_blocked_host_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" | grep -v Passed)
+    audit_log=$(grep -E "$HOST_NAME.*$match_type.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -331,7 +331,7 @@ function should_find_blocked_host_log() {
     else
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
+            FAIL "Failed to find the log from logs (duplicated)"
             res_cmd=1
         else
             echo $audit_log

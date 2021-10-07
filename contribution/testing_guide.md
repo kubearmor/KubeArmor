@@ -25,7 +25,7 @@
 
     3. Apply security policies for testing
 
-        Beforehand, check if the KubeArmorPolicy or KubeArmorHostPolicy CRD is already applied.
+        Beforehand, check if the KubeArmorPolicy and KubeArmorHostPolicy CRDs are already applied.
 
         ```text
         $ kubectl explain KubeArmorPolicy

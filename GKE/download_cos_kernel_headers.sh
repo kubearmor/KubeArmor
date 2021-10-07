@@ -7,8 +7,9 @@ cd /KubeArmor/GKE
 # get OS info
 . /media/root/etc/os-release
 
-# remove old kernel headers (just in case)
-rm -rf kernel-headers.tgz kernel
+if [[ -d /KubeArmor/GKE/kernel ]]; then
+    exit
+fi
 
 # download kernel headers
 wget https://accuknox.kr/cos/$BUILD_ID/kernel-headers.tgz

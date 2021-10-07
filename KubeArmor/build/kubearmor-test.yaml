@@ -17,47 +17,6 @@ subjects:
   name: kubearmor
   namespace: kube-system
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: kubearmor
-  namespace: kube-system
-spec:
-  selector:
-    kubearmor-app: kubearmor-relay
-  ports:
-  - port: 32767
-    protocol: TCP
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kubearmor-relay
-  namespace: kube-system
-  labels:
-    kubearmor-app: kubearmor-relay
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      kubearmor-app: kubearmor-relay
-  template:
-    metadata:
-      labels:
-        kubearmor-app: kubearmor-relay
-      annotations:
-        kubearmor-policy: audited
-    spec:
-      serviceAccountName: kubearmor
-      nodeSelector:
-        kubernetes.io/os: linux
-      containers:
-      - name: kubearmor-relay-server
-        image: kubearmor/kubearmor-relay-server:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 32767
----
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -87,16 +46,17 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: kubearmor
-        image: kubearmor/kubearmor:latest
-        imagePullPolicy: Always
+        image: kubearmor/kubearmor:test
+        imagePullPolicy: Never
         securityContext:
           privileged: true
+        command: ["/KubeArmor/kubearmor"]
         args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
         ports:
         - containerPort: 32767
         volumeMounts:
-        - name: docker-sock-path # docker (read-only)
-          mountPath: /var/run/docker.sock
+        - name: containerd-sock-path # containerd (read-only)
+          mountPath: /var/run/containerd/containerd.sock
           readOnly: true
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
@@ -108,6 +68,8 @@ spec:
           mountPath: /sys/fs/bpf
         - name: sys-kernel-debug-path # BPF (read-write)
           mountPath: /sys/kernel/debug
+        - name: etc-apparmor-d-path # AppArmor (read-write)
+          mountPath: /etc/apparmor.d
         - name: os-release-path # OS (read-only)
           mountPath: /media/root/etc/os-release
           readOnly: true
@@ -126,9 +88,9 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: docker-sock-path # docker
+      - name: containerd-sock-path # containerd
         hostPath:
-          path: /var/run/docker.sock
+          path: /var/run/containerd/containerd.sock
           type: Socket
       - name: usr-src-path # BPF
         hostPath:
@@ -146,134 +108,14 @@ spec:
         hostPath:
           path: /sys/kernel/debug
           type: Directory
+      - name: etc-apparmor-d-path # AppArmor
+        hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
       - name: os-release-path # OS
         hostPath:
           path: /etc/os-release
           type: File
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kubearmor-policy-manager-metrics-service
-  namespace: kube-system
-  labels:
-    kubearmor-app: kubearmor-policy-manager
-spec:
-  selector:
-    kubearmor-app: kubearmor-policy-manager
-  ports:
-  - name: https
-    port: 8443
-    targetPort: https
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kubearmor-policy-manager
-  namespace: kube-system
-  labels:
-    kubearmor-app: kubearmor-policy-manager
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      kubearmor-app: kubearmor-policy-manager
-  template:
-    metadata:
-      labels:
-        kubearmor-app: kubearmor-policy-manager
-      annotations:
-        kubearmor-policy: audited
-    spec:
-      serviceAccountName: kubearmor
-      containers:
-      - name: kube-rbac-proxy
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-        args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        ports:
-        - containerPort: 8443
-          name: https
-      - name: kubearmor-policy-manager
-        image: kubearmor/kubearmor-policy-manager:latest
-        args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        command:
-        - /manager
-        resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      terminationGracePeriodSeconds: 10
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kubearmor-host-policy-manager-metrics-service
-  namespace: kube-system
-  labels:
-    kubearmor-app: kubearmor-host-policy-manager
-spec:
-  selector:
-    kubearmor-app: kubearmor-host-policy-manager
-  ports:
-  - name: https
-    port: 8443
-    targetPort: https
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kubearmor-host-policy-manager
-  namespace: kube-system
-  labels:
-    kubearmor-app: kubearmor-host-policy-manager
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      kubearmor-app: kubearmor-host-policy-manager
-  template:
-    metadata:
-      labels:
-        kubearmor-app: kubearmor-host-policy-manager
-      annotations:
-        kubearmor-policy: audited
-    spec:
-      serviceAccountName: kubearmor
-      containers:
-      - name: kube-rbac-proxy
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-        args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        ports:
-        - containerPort: 8443
-          name: https
-      - name: kubearmor-host-policy-manager
-        image: kubearmor/kubearmor-host-policy-manager:latest
-        args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        command:
-        - /manager
-        resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      terminationGracePeriodSeconds: 10
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

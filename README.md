@@ -8,7 +8,6 @@
 [![Slack](https://kubearmor.herokuapp.com/badge.svg)](https://kubearmor.herokuapp.com)
 [![Discussions](https://img.shields.io/badge/Got%20Questions%3F-Chat-Violet)](https://github.com/kubearmor/KubeArmor/discussions)
 
-
 KubeArmor is a cloud-native runtime security enforcement system that restricts the behavior \(such as process execution, file access, and networking operation\) of containers and nodes at the system level.
 
 KubeArmor operates with [Linux security modules \(LSMs\)](https://en.wikipedia.org/wiki/Linux_Security_Modules), meaning that it can work on top of any Linux platforms \(such as Alpine, Ubuntu, and Container-optimized OS from Google\) if Linux security modules \(e.g., [AppArmor](https://en.wikipedia.org/wiki/AppArmor), [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux), or [KRSI](https://lwn.net/Articles/808048/)\) are enabled in the Linux Kernel. KubeArmor will use the appropriate LSMs to enforce the required policies.
@@ -64,6 +63,7 @@ If you want to make a contribution, please refer to the following documents too.
 ## Community
 
 ### Weekly Meetup
+
 * Where: [Zoom Link](https://us02web.zoom.us/j/5013008459?pwd=LzhGdk42T05QZEM5T2pmYzhYUEZuQT09)
 * Minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
 * ICS: [ICS file](getting-started/resources/KubearmorMeetup.ics) for setting up meeting on your calendar
