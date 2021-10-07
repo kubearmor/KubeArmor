@@ -472,6 +472,19 @@ func (fd *Feeder) Errf(message string, args ...interface{}) {
 	kg.Err(str)
 }
 
+// Warn Function
+func (fd *Feeder) Warn(message string) {
+	fd.PushMessage("WARN", message)
+	kg.Warn(message)
+}
+
+// Warnf Function
+func (fd *Feeder) Warnf(message string, args ...interface{}) {
+	str := fmt.Sprintf(message, args...)
+	fd.PushMessage("WARN", str)
+	kg.Warnf(str)
+}
+
 // =============== //
 // == Log Feeds == //
 // =============== //
