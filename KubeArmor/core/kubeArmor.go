@@ -224,6 +224,7 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
 	}
 
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
+		kg.Err(err.Error())
 		return false
 	}
 
