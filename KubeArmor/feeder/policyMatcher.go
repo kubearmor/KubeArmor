@@ -216,6 +216,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -239,6 +240,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -285,6 +287,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -308,6 +311,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -361,6 +365,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, proto)
+				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -395,6 +400,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, cap)
+				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -454,6 +460,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -477,6 +484,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -523,6 +531,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -546,6 +555,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -599,6 +609,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
+				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -633,6 +644,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				}
 
 				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, cap)
+				match.IsFromSource = len(fromSource) > 0
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -680,7 +692,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
-			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0]) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+			if secPolicy.Source == "" || secPolicy.IsFromSource || strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0]) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 				if secPolicy.Action == "Allow" {
 					if secPolicy.Operation == "Process" {
 						if allowProcPolicy == "" {
@@ -775,7 +787,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					if matched || strings.Contains(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 
