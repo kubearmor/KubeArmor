@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
+
 package eventauditor
 
 import "C"
@@ -26,20 +29,20 @@ func (ea *EventAuditor) ringbufferconsume() error {
 	defer bpfModule.Close()
 
 	bpfModule.Load()
-	prog, err := bpfModule.FindProgramByName("sys_enter_execve")
+	prog, err := bpfModule.FindProgramByName("syscall__sys_execve")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
 
-	_, err = prog.AttachKprobe("__x64_sys_execve")
+	_, err = prog.AttachKprobe("syscalls/sys_enter_execve")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
 	eventsChannel := make(chan []byte)
 
-	rb, err := bpfModule.InitRingBuf("events", eventsChannel)
+	rb, err := bpfModule.InitRingBuf("ringbuff_map", eventsChannel)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

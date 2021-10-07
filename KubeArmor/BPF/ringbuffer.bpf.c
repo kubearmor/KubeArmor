@@ -11,20 +11,20 @@ struct log{
     //int UID;
 };
 
-struct bpf_map_def SEC("maps") events = {
-    .type = BPF_MAP_TYPE_RINGBUF,
-    .max_entries = 1 << 10,
-};
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 1 << 10);
+} ringbuff_map SEC(".maps");
 
 long flag = 0;
 
-SEC("tracepoint/syscalls/sys_enter_execve")
-int sys_enter_execve(struct pt_regs *ctx) {
+SEC("tp/syscalls/sys_enter_execve")
+int syscall__sys_execve(void *ctx) {
     struct log *log;
     __u64 id = bpf_get_current_pid_tgid();
     __u32 tgid = id >> 32;
 
-    log = bpf_ringbuf_reserve(&events, sizeof(int), flag);
+    log = bpf_ringbuf_reserve(&ringbuff_map, sizeof(int), flag);
     if (!log) {
         return 0;
     }
@@ -34,3 +34,5 @@ int sys_enter_execve(struct pt_regs *ctx) {
     bpf_ringbuf_submit(log, flag);
     return 0;
 }
+
+char LICENSE[] SEC("license") = "GPL";
