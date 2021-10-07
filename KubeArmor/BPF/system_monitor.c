@@ -30,18 +30,18 @@
 #error Minimal required kernel version is 4.14
 #endif
 
-// == Structures == //
-
 #undef container_of
 #define container_of(ptr, type, member)                                        \
 	({                                                                     \
 		const typeof(((type *)0)->member) *__mptr = (ptr);             \
 		(type *)((char *)__mptr - offsetof(type, member));             \
 	})
+
+// == Structures == //
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
-#define MAX_LOOP_LIMIT    100 // arbitrarily set
+#define MAX_LOOP_LIMIT    5 // arbitrarily set
 
 #define NONE_T        0UL
 #define INT_T         1UL
@@ -579,48 +579,128 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
-static __always_inline struct mount *real_mount(struct vfsmount *mnt)
+static inline struct mount *real_mount(struct vfsmount *mnt)
 {
 	return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline bool prepend_name(bufs_t *buf, int offset,
-					 const struct qstr *name)
+static __always_inline int save_path_to_str_buf(bufs_t *string_p, const struct path *path)
 {
-	u32 len = name->len;
-	char *dname;
-	bpf_probe_read_str(dname, len, &name->name);
-	char *s;
+    struct path f_path;
+    bpf_probe_read(&f_path, sizeof(struct path), path);
+    char slash = '/';
+    int zero = 0;
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+    struct mount *mnt_parent_p;
 
-	offset -= len + 1;
-	if (len < 0)
-		return false;
-	int total_off = offset - len - 1;
-	s = &(buf->buf[total_off]);
-	*s++ = '/';
-	bpf_probe_read_str(s, len, dname);
-	return true;
+    struct mount *mnt_p = real_mount(vfsmnt);
+    bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+
+    u32 buf_off = (MAX_BUFFER_SIZE >> 1);
+    struct dentry *mnt_root;
+    struct dentry *d_parent;
+    struct qstr d_name;
+    unsigned int len;
+    unsigned int off;
+    int sz;
+
+    #pragma unroll
+    for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
+        /* mnt_root = get_mnt_root_ptr_from_vfsmnt(vfsmnt); */
+        bpf_probe_read(mnt_root, sizeof(struct dentry *), vfsmnt->mnt_root);
+        /* d_parent = get_d_parent_ptr_from_dentry(dentry); */
+        bpf_probe_read(d_parent, sizeof(struct dentry *), dentry->d_parent);
+        if (dentry == mnt_root || dentry == d_parent) {
+            if (dentry != mnt_root) {
+                // We reached root, but not mount root - escaped?
+                break;
+            }
+            if (mnt_p != mnt_parent_p) {
+                // We reached root, but not global root - continue with mount point path
+                bpf_probe_read(&dentry, sizeof(struct dentry*), &mnt_p->mnt_mountpoint);
+                bpf_probe_read(&mnt_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                bpf_probe_read(&mnt_parent_p, sizeof(struct mount*), &mnt_p->mnt_parent);
+                vfsmnt = &mnt_p->mnt;
+                continue;
+            }
+            // Global root - path fully parsed
+            break;
+        }
+        // Add this dentry name to path
+
+        /* d_name = get_d_name_from_dentry(dentry); */
+        bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
+        len = (d_name.len+1) & (MAX_STRING_SIZE-1);
+        off = buf_off - len;
+
+        // Is string buffer big enough for dentry name?
+        sz = 0;
+        if (off <= buf_off) { // verify no wrap occurred
+            len = len & ((MAX_BUFFER_SIZE >> 1)-1);
+            sz = bpf_probe_read_str(&(string_p->buf[off & ((MAX_BUFFER_SIZE >> 1)-1)]), len, (void *)d_name.name);
+        }
+        else
+            break;
+        if (sz > 1) {
+            buf_off -= 1; // remove null byte termination with slash sign
+            bpf_probe_read(&(string_p->buf[buf_off & (MAX_BUFFER_SIZE-1)]), 1, &slash);
+            buf_off -= sz - 1;
+        } else {
+            // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+            break;
+        }
+        dentry = d_parent;
+    }
+
+    if (buf_off == (MAX_BUFFER_SIZE >> 1)) {
+        // memfd files have no path in the filesystem -> extract their name
+        buf_off = 0;
+        bpf_probe_read(&d_name, sizeof(struct qstr),&dentry->d_name);
+        /* d_name = get_d_name_from_dentry(dentry); */
+        bpf_probe_read_str(&(string_p->buf[0]), MAX_STRING_SIZE, (void *)d_name.name);
+    } else {
+        // Add leading slash
+        buf_off -= 1;
+        bpf_probe_read(&(string_p->buf[buf_off & (MAX_BUFFER_SIZE-1)]), 1, &slash);
+        // Null terminate the path string
+        bpf_probe_read(&(string_p->buf[(MAX_BUFFER_SIZE >> 1)-1]), 1, &zero);
+    }
+
+    set_buffer_offset(1, buf_off);
+    return buf_off;
 }
 
-static __always_inline int prepend_path(const struct path *path, bufs_t *buf)
+static __always_inline int prepend_path(struct path *path, bufs_t *buf)
 {
-	struct dentry *dentry = path->dentry;
-	struct vfsmount *vfsmnt = path->mnt;
+	struct path f_path;
 	struct qstr d_name;
 	struct mount *mnt;
 
-	int offset = MAX_STRING_SIZE - 1;
+	bpf_probe_read(&f_path, sizeof(struct path), path);
+
+    struct dentry *dentry = f_path.dentry;
+    struct vfsmount *vfsmnt = f_path.mnt;
+
+	/* bpf_probe_read(vfsmnt, sizeof(struct vfsmount *), f_path.mnt); */
+	/* bpf_probe_read(dentry, sizeof(struct dentry *), f_path.dentry); */
+	int offset = MAX_STRING_SIZE;
 
 	mnt = real_mount(path->mnt);
 
 	// TODO: check if the dentry is unlinked
 
 	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
-		const struct dentry *parent = dentry->d_parent;
+		struct dentry *parent /* = dentry->d_parent */;
+		bpf_probe_read(parent, sizeof(struct dentry *), dentry->d_parent);
 		if (dentry == vfsmnt->mnt_root) {
-			struct mount *m = mnt->mnt_parent;
+			struct mount *m; /* = mnt->mnt_parent; */
+			bpf_probe_read(m, sizeof(struct mount *),
+				       mnt->mnt_parent);
 			if (mnt != m) {
-				dentry = mnt->mnt_mountpoint;
+                /* dentry = mnt->mnt_mountpoint; */
+				bpf_probe_read(dentry, sizeof(struct dentry *),
+					       &mnt->mnt_mountpoint);
 				mnt = m;
 				continue;
 			}
@@ -635,9 +715,22 @@ static __always_inline int prepend_path(const struct path *path, bufs_t *buf)
 		// get d_name
 		struct qstr *d_name;
 		bpf_probe_read(d_name, sizeof(struct qstr *), &dentry->d_name);
-		prepend_name(buf, offset, d_name);
-	}
+		u32 len = d_name->len;
 
+		char *name;
+		bpf_probe_read_str(name, len, &d_name->name);
+		char *s;
+
+		offset -= len + 1;
+		if (offset < 0)
+			break;
+		int total_off = offset - len - 1;
+		s = &(buf->buf[total_off]);
+		*s++ = '/';
+		bpf_probe_read_str(s, len, name);
+		/* if (!prepend_name(buf, offset, d_name)) */
+		/* 	break; */
+	}
 	return 0;
 }
 
@@ -948,7 +1041,13 @@ int trace_ret_openat(struct pt_regs *ctx)
 int kprobe_security_file_open(struct pt_regs *ctx)
 {
 	args_t args = {};
-	struct file *file = (struct file *)PT_REGS_PARM1(ctx);
+	struct file *f = (struct file*)PT_REGS_PARM1(ctx);
+  /* struct pt_regs * ctx2 = (struct pt_regs *)ctx->di; */
+  /*   bpf_probe_read(&args.args[0], sizeof(args.args[0]), &ctx2->di); */
+
+	bufs_t *string_p = get_buffer(1);
+
+	/* bpf_probe_read(&f_path, sizeof(struct path), &f->f_path); */
 
 	// TODO: check which syscall we are in
 	u32 event_id = _SYS_OPENAT;
@@ -956,9 +1055,8 @@ int kprobe_security_file_open(struct pt_regs *ctx)
 	if (load_args(event_id, &args) != 0)
 		return 0;
 
-    bufs_t *string_p = get_buffer(1);
-
-	prepend_path(&file->f_path, string_p);
+    /* prepend_path(&f->f_path, string_p); */
+save_path_to_str_buf(string_p, &f->f_path);
 
 	u32 tgid = bpf_get_current_pid_tgid();
 	u64 id = ((u64)event_id << 32) | tgid;
