@@ -10,7 +10,7 @@ spec:
       container: ubuntu-3
   file:
     matchPaths:
-    - path: /home/user1/secret_data1.txt #  
+    - path: /home/user1/secret_data1.txt
       ownerOnly: true
   action:
     Audit

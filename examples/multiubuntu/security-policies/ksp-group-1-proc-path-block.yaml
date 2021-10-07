@@ -12,7 +12,5 @@ spec:
   process:
     matchPaths:
     - path: /bin/sleep # try sleep 1 (permission denied)
-      # fromSource:
-      #   path: /bin/bash
   action:
     Block
