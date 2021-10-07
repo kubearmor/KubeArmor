@@ -236,10 +236,11 @@ type MatchPolicy struct {
 	Message  string
 
 	Source       string
-	IsFromSource bool
 	Operation    string
 	ResourceType string
 	Resource     string
+
+	IsFromSource bool
 
 	Regexp *regexp.Regexp
 	Native bool
@@ -271,9 +272,7 @@ type SelectorType struct {
 
 // MatchSourceType Structure
 type MatchSourceType struct {
-	Path      string `json:"path,omitempty"`
-	Directory string `json:"dir,omitempty"`
-	Recursive bool   `json:"recursive,omitempty"`
+	Path string `json:"path,omitempty"`
 }
 
 // ProcessPathType Structure
