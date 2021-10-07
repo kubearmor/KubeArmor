@@ -95,14 +95,6 @@ func validateProcessSchema(policy *securityv1.KubeArmorHostPolicy, req ctrl.Requ
 				return policyErr
 			}
 		}
-		for _, fromSource := range matchPaths.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
 	}
 	for _, matchDirectories := range policy.Spec.Process.MatchDirectories {
 		if policy.Spec.Action != "Allow" {
@@ -132,14 +124,6 @@ func validateFileSchema(policy *securityv1.KubeArmorHostPolicy, req ctrl.Request
 				return policyErr
 			}
 		}
-		for _, fromSource := range matchPaths.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
 	}
 	for _, matchDirectories := range policy.Spec.File.MatchDirectories {
 		if policy.Spec.Action != "Allow" {
@@ -162,30 +146,14 @@ func validateFileSchema(policy *securityv1.KubeArmorHostPolicy, req ctrl.Request
 
 func validateNetworkSchema(policy *securityv1.KubeArmorHostPolicy, req ctrl.Request) error {
 	var policyErr error
-	for _, matchProtocols := range policy.Spec.Network.MatchProtocols {
-		for _, fromSource := range matchProtocols.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
-	}
+	// for _, matchProtocols := range policy.Spec.Network.MatchProtocols {
+	// }
 	return policyErr
 }
 
 func validateCapabilitiesSchema(policy *securityv1.KubeArmorHostPolicy, req ctrl.Request) error {
 	var policyErr error
-	for _, matchCapabilities := range policy.Spec.Capabilities.MatchCapabilities {
-		for _, fromSource := range matchCapabilities.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
-	}
+	// for _, matchCapabilities := range policy.Spec.Capabilities.MatchCapabilities {
+	// }
 	return policyErr
 }

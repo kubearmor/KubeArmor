@@ -22,11 +22,7 @@ type MatchPathType string
 type MatchDirectoryType string
 
 type MatchSourceType struct {
-	Path      MatchPathType      `json:"path,omitempty"`
-	Directory MatchDirectoryType `json:"dir,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Recursive bool `json:"recursive,omitempty"`
+	Path MatchPathType `json:"path,omitempty"`
 }
 
 type ProcessPathType struct {
