@@ -15,7 +15,7 @@ import (
 
 type log struct {
 	PID int
-	UID int
+	//	UID int
 }
 
 func (ea *EventAuditor) ringbufferconsume() error {
