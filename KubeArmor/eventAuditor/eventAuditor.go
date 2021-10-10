@@ -24,6 +24,9 @@ type EventAuditor struct {
 
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
+
+	Patterns     map[PatternMapElement]bool
+	ProcessSpecs map[ProcessSpecElement]bool
 }
 
 // NewEventAuditor Function
@@ -31,6 +34,8 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 	ea := new(EventAuditor)
 
 	ea.Logger = feeder
+	ea.Patterns = map[PatternMapElement]bool{}
+	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
 
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()

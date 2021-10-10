@@ -1884,7 +1884,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	}
 	dm.EndPointsLock.Unlock()
 
-	dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
+	dm.EventAuditor.UpdateProcessMaps(&dm.Containers, &dm.ContainersLock, &dm.EndPoints, &dm.EndPointsLock)
 }
 
 func waitCustomResourceDefinition(name string) {
