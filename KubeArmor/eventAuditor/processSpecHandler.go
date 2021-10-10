@@ -47,7 +47,7 @@ func (ea *EventAuditor) PopulateProcessJMPMap(bman *KABPFManager) error {
 	}
 
 	for _, tp := range KAEAGetProg(KAEASysExecveProg).TailProgs {
-		var pjmp ProcessJMPMapElement
+		var pjmp ProcessJMPElement
 		var tailProg *lbpf.KABPFProgram
 
 		if tailProg, err = p.Object().FindProgramByName(string(tp.Name)); err != nil {
@@ -113,7 +113,7 @@ func (ea *EventAuditor) DestroyProcessPrograms(bman *KABPFManager) error {
 }
 
 // updatePatternMap Function
-func (ea *EventAuditor) updatePatternMap(patterns map[PatternMapElement]bool) {
+func (ea *EventAuditor) updatePatternMap(patterns map[PatternElement]bool) {
 	// Delete removed elements from bpf pattern map
 	for p := range ea.Patterns {
 		if _, ok := patterns[p]; !ok {
@@ -167,9 +167,9 @@ func (ea *EventAuditor) updateProcessSpecMap(procSpecs map[ProcessSpecElement]bo
 // getProcessElements Function
 func (ea *EventAuditor) getProcessElements(
 	containers *map[string]tp.Container, containersLocker **sync.RWMutex,
-	endPoints *[]tp.EndPoint, endPointsLocker **sync.RWMutex) (map[PatternMapElement]bool, map[ProcessSpecElement]bool) {
+	endPoints *[]tp.EndPoint, endPointsLocker **sync.RWMutex) (map[PatternElement]bool, map[ProcessSpecElement]bool) {
 
-	patterns := map[PatternMapElement]bool{}
+	patterns := map[PatternElement]bool{}
 	procSpecs := map[ProcessSpecElement]bool{}
 
 	// Populate bpf pattern and process specs elements
@@ -185,7 +185,7 @@ func (ea *EventAuditor) getProcessElements(
 			for _, auditPolicy := range ep.AuditPolicies {
 				for _, event := range auditPolicy.Events {
 					for _, path := range strings.Split(event.Path, ",") {
-						p := PatternMapElement{}
+						p := PatternElement{}
 						ps := ProcessSpecElement{}
 
 						p.SetKey(path)

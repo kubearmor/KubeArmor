@@ -36,6 +36,7 @@ type KABPFProg struct {
 	FileName  KABPFObjFileName
 }
 
+// KABPFTailProg structure
 type KABPFTailProg struct {
 	Name  KABPFProgName
 	Index uint32
