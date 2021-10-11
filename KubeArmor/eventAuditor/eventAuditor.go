@@ -35,12 +35,10 @@ type EventAuditor struct {
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
 
-  Patterns     map[PatternElement]bool
+	Patterns     map[PatternElement]bool
 	ProcessSpecs map[ProcessSpecElement]bool
 
-  =======
-
-  // cache for compiled rules
+	// cache for compiled rules
 	// map[eventString]codeBlock
 	EventCodeBlockCache map[string]string
 
