@@ -31,13 +31,13 @@ const (
 	KAEAProcessFilterMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
 	KAEAEventMap     KABPFMapName     = "ka_ea_event_map"
-	KAEAEventMapFile KABPFObjFileName = "entrypoint.bpf.o"
+	KAEAEventMapFile KABPFObjFileName = "ka_ea_entrypoint.bpf.o"
 
 	KAEAEventFilterMap     KABPFMapName     = "ka_ea_event_filter_map"
-	KAEAEventFilterMapFile KABPFObjFileName = "ka_ea_event_filter_map.bpf.o"
+	KAEAEventFilterMapFile KABPFObjFileName = "ka_ea_entrypoint.bpf.o"
 
 	KAEAEventJumpTable     KABPFMapName     = "ka_ea_event_jmp_table"
-	KAEAEventJumpTableFile KABPFObjFileName = "ka_ea_event_jmp_table.bpf.o"
+	KAEAEventJumpTableFile KABPFObjFileName = "ka_ea_entrypoint.bpf.o"
 )
 
 // KAEAGetMap Function
