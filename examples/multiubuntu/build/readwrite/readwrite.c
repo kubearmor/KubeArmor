@@ -25,7 +25,7 @@ int getByteFromFile(char* path) {
     fptr = fopen(path,"r");
 
     if(fptr == NULL) {
-      printf("Error!");
+      printf("Error!\n");
       exit(1);
     }
     fread(&b, 1, 1, fptr);
