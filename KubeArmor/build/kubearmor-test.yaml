@@ -51,7 +51,7 @@ spec:
         securityContext:
           privileged: true
         command: ["/KubeArmor/kubearmor"]
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableKubeArmorHostPolicy"]
         ports:
         - containerPort: 32767
         volumeMounts:
