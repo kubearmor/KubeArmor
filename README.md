@@ -66,7 +66,7 @@ If you want to make a contribution, please refer to the following documents too.
 
 * Where: [Zoom Link](https://us02web.zoom.us/j/5013008459?pwd=LzhGdk42T05QZEM5T2pmYzhYUEZuQT09)
 * Minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
-* ICS: [ICS file](getting-started/resources/KubearmorMeetup.ics) for setting up meeting on your calendar
+* ICS: [ICS file](getting-started/resources/KubeArmorMeetup.ics) for setting up meeting on your calendar
 
 ### Slack
 
