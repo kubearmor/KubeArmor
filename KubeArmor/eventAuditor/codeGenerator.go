@@ -631,12 +631,15 @@ func (ea *EventAuditor) GenerateAuditProgram(probe string, codeBlocks []string) 
 }
 
 func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, error) {
+	var eventJmpElement EventJumpTableElement
+
 	ea.CacheIndexLock.Lock()
 	defer ea.CacheIndexLock.Unlock()
 
 	// if already loaded, return the index
 	index := ea.NextJumpTableIndex
 	if jumpTableIndex, ok := ea.EventProgramCache[source]; ok {
+		ea.Logger.Printf("Event auditor bytecode loaded (cached/%v/%v)", probe, jumpTableIndex)
 		return jumpTableIndex, nil
 	}
 
@@ -658,23 +661,31 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 	}
 
 	// build the source
-	ea.Logger.Printf("Building %v", srcName)
 	if output, ok := kl.GetCommandStdoutAndStderr("make", []string{"-C", "./BPF"}); !ok {
-		return 0, fmt.Errorf("error compiling the source code: %v:\n%v", srcName, output)
+		os.Remove(srcName)
+		return 0, fmt.Errorf("error compiling audit program: %v:\n%v", srcName, output)
 	}
 
 	// load bpf program
-	ea.Logger.Printf("Loading %v", objName)
 	if err := ea.BPFManager.InitProgram(bpfProg); err != nil {
+		os.Remove(srcName)
+		os.Remove(objName)
 		return 0, err
 	}
 
-	// TODO: populete ka_event_jump_table
-	// set ka_event_jump_table[index] = progfd
+	// populate ka_ea_event_jmp_table
+	eventJmpElement.SetKey(index)
+	eventJmpElement.SetValue(uint32(ea.BPFManager.getProg(bpfProg.Name).FD()))
+	if err := ea.BPFManager.MapUpdateElement(&eventJmpElement); err != nil {
+		os.Remove(srcName)
+		os.Remove(objName)
+		return 0, err
+	}
 
 	os.Remove(srcName)
 	os.Remove(objName)
 
+	ea.Logger.Printf("Event auditor bytecode loaded (new/%v/%v)", probe, index)
 	ea.EventProgramCache[source] = index
 	ea.NextJumpTableIndex += 1
 	return index, nil
