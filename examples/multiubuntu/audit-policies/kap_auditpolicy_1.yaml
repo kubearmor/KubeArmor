@@ -21,6 +21,7 @@ spec:
     events:
     - probe: BIND-CONNECT-ACCEPT
       ipv4addr: NON-EXTERNAL-IPV4
+      port: 8080, 20-25, 6667
       rate: 10p1s
   - process: "*"
     events:
