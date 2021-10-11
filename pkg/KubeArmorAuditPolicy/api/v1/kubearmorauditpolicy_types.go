@@ -21,6 +21,8 @@ type EventType struct {
 	Directory string `json:"dir,omitempty"`
 	// +kubebuilder:validation:Optional
 	Mode string `json:"mode,omitempty"`
+	// +kubebuilder:validation:Optional
+	Flags string `json:"flags,omitempty"`
 
 	// socket related arguments
 

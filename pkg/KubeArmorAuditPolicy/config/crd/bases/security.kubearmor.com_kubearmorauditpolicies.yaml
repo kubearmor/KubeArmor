@@ -48,6 +48,8 @@ spec:
                           dir:
                             pattern: ^\/$|^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)+\/$
                             type: string
+                          flags:
+                            type: string
                           ipv4addr:
                             type: string
                           ipv6addr:

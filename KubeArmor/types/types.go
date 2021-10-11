@@ -202,12 +202,11 @@ type K8sEventType struct {
 	Probe string `json:"probe"`
 	Rate  string `json:"rate,omitempty"`
 
-	// file related arguments
 	Path      string `json:"path,omitempty"`
 	Directory string `json:"dir,omitempty"`
 	Mode      string `json:"mode,omitempty"`
+	Flags     string `json:"flags,omitempty"`
 
-	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
@@ -604,12 +603,11 @@ type AuditEventType struct {
 	Probe string `json:"probe"`
 	Rate  string `json:"rate,omitempty"`
 
-	// file related arguments
 	Path      string `json:"path,omitempty"`
 	Directory string `json:"dir,omitempty"`
 	Mode      string `json:"mode,omitempty"`
+	Flags     string `json:"flags,omitempty"`
 
-	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
