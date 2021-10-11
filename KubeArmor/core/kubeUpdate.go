@@ -1875,7 +1875,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	dm.EndPointsLock.Unlock()
 
 	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
-	dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
+	dm.EventAuditor.UpdateProcessMaps(&dm.Containers, &dm.ContainersLock, &dm.EndPoints, &dm.EndPointsLock)
 	dm.EventAuditor.UpdateAuditPrograms(dm.EndPoints, dm.EndPointsLock, dm.Containers)
 }
 

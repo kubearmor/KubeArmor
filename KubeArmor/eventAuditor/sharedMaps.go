@@ -90,39 +90,39 @@ func KAEAGetMap(name KABPFMapName) KABPFMap {
 // ===== Process JMP Map ===== //
 // =========================== //
 
-// ProcessJMPMapElement Structure
-type ProcessJMPMapElement struct {
+// ProcessJMPElement Structure
+type ProcessJMPElement struct {
 	Key   uint32
 	Value uint32
 }
 
-// SetKey Function (ProcessJMPMapElement)
-func (pme *ProcessJMPMapElement) SetKey(index uint32) {
+// SetKey Function (ProcessJMPElement)
+func (pme *ProcessJMPElement) SetKey(index uint32) {
 	pme.Key = index
 }
 
-// SetValue Function (ProcessJMPMapElement)
-func (pme *ProcessJMPMapElement) SetValue(progFD uint32) {
+// SetValue Function (ProcessJMPElement)
+func (pme *ProcessJMPElement) SetValue(progFD uint32) {
 	pme.Value = progFD
 }
 
-// SetFoundValue Function (ProcessJMPMapElement)
-func (pme *ProcessJMPMapElement) SetFoundValue(value []byte) {
+// SetFoundValue Function (ProcessJMPElement)
+func (pme *ProcessJMPElement) SetFoundValue(value []byte) {
 	pme.Value = binary.LittleEndian.Uint32(value)
 }
 
-// KeyPointer Function (ProcessJMPMapElement)
-func (pme *ProcessJMPMapElement) KeyPointer() unsafe.Pointer {
+// KeyPointer Function (ProcessJMPElement)
+func (pme *ProcessJMPElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&pme.Key)
 }
 
-// ValuePointer Function (ProcessJMPMapElement)
-func (pme *ProcessJMPMapElement) ValuePointer() unsafe.Pointer {
+// ValuePointer Function (ProcessJMPElement)
+func (pme *ProcessJMPElement) ValuePointer() unsafe.Pointer {
 	return unsafe.Pointer(&pme.Value)
 }
 
-// MapName Function (ProcessJMPMapElement)
-func (pme *ProcessJMPMapElement) MapName() string {
+// MapName Function (ProcessJMPElement)
+func (pme *ProcessJMPElement) MapName() string {
 	return string(KAEAProcessJMPMap)
 }
 
@@ -133,8 +133,8 @@ func (pme *ProcessJMPMapElement) MapName() string {
 // PatternMaxLen constant
 const PatternMaxLen = int(C.MAX_PATTERN_LEN)
 
-// PatternMapElement Structure
-type PatternMapElement struct {
+// PatternElement Structure
+type PatternElement struct {
 	Key   PatternMapKey
 	Value PatternMapValue
 }
@@ -149,34 +149,34 @@ type PatternMapValue struct {
 	PatternID uint32
 }
 
-// SetKey Function (PatternMapElement)
-func (pme *PatternMapElement) SetKey(pattern string) {
+// SetKey Function (PatternElement)
+func (pme *PatternElement) SetKey(pattern string) {
 	copy(pme.Key.Pattern[:PatternMaxLen], pattern)
 	pme.Key.Pattern[PatternMaxLen-1] = 0
 }
 
-// SetValue Function (PatternMapElement)
-func (pme *PatternMapElement) SetValue(patternID uint32) {
+// SetValue Function (PatternElement)
+func (pme *PatternElement) SetValue(patternID uint32) {
 	pme.Value.PatternID = patternID
 }
 
-// SetFoundValue Function (PatternMapElement)
-func (pme *PatternMapElement) SetFoundValue(value []byte) {
+// SetFoundValue Function (PatternElement)
+func (pme *PatternElement) SetFoundValue(value []byte) {
 	pme.Value.PatternID = binary.LittleEndian.Uint32(value)
 }
 
-// KeyPointer Function (PatternMapElement)
-func (pme *PatternMapElement) KeyPointer() unsafe.Pointer {
+// KeyPointer Function (PatternElement)
+func (pme *PatternElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&pme.Key)
 }
 
-// ValuePointer Function (PatternMapElement)
-func (pme *PatternMapElement) ValuePointer() unsafe.Pointer {
+// ValuePointer Function (PatternElement)
+func (pme *PatternElement) ValuePointer() unsafe.Pointer {
 	return unsafe.Pointer(&pme.Value)
 }
 
-// MapName Function (PatternMapElement)
-func (pme *PatternMapElement) MapName() string {
+// MapName Function (PatternElement)
+func (pme *PatternElement) MapName() string {
 	return string(KAEAPatternMap)
 }
 
@@ -298,7 +298,7 @@ type EventElement struct {
 	Value uint32
 }
 
-// SetKey Function (EventFilterElement)
+// SetKey Function (EventElement)
 func (ee *EventElement) SetKey(eventID uint32) {
 	ee.Key = eventID
 }
@@ -308,7 +308,7 @@ func (ee *EventElement) SetValue(flag uint32) {
 	ee.Value = flag
 }
 
-// SetFoundValue Function (PatternMapElement)
+// SetFoundValue Function (EventElement)
 func (ee *EventElement) SetFoundValue(value []byte) {
 	ee.Value = binary.LittleEndian.Uint32(value)
 }

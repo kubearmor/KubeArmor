@@ -6,6 +6,8 @@ package eventauditor
 import (
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"strings"
 	"sync"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -45,7 +47,7 @@ func (ea *EventAuditor) PopulateProcessJMPMap(bman *KABPFManager) error {
 	}
 
 	for _, tp := range KAEAGetProg(KAEASysExecveProg).TailProgs {
-		var pjmp ProcessJMPMapElement
+		var pjmp ProcessJMPElement
 		var tailProg *lbpf.KABPFProgram
 
 		if tailProg, err = p.Object().FindProgramByName(string(tp.Name)); err != nil {
@@ -110,13 +112,121 @@ func (ea *EventAuditor) DestroyProcessPrograms(bman *KABPFManager) error {
 	return AppendErrors(err1, err2, err3, err4)
 }
 
-// UpdateProcessMaps Function
-func (ea *EventAuditor) UpdateProcessMaps(endPoints *[]tp.EndPoint, endPointsLock **sync.RWMutex) {
-	// update process-spec and pattern maps
+// updatePatternMap Function
+func (ea *EventAuditor) updatePatternMap(patterns map[PatternElement]bool) {
+	// Delete removed elements from bpf pattern map
+	for p := range ea.Patterns {
+		if _, ok := patterns[p]; !ok {
+			if err := ea.BPFManager.MapDeleteElement(&p); err != nil {
+				ea.Logger.Warn(err.Error())
+			}
 
-	// for _, endPoint := range endPoints {
-	// 	for _, auditPolicy := range endPoint.AuditPolicies {
-	// 		//
-	// 	}
-	// }
+			delete(ea.Patterns, p)
+			continue
+		}
+
+		delete(patterns, p)
+	}
+
+	// Insert new elements into bpf pattern map
+	for p := range patterns {
+		if err := ea.BPFManager.MapUpdateElement(&p); err != nil {
+			ea.Logger.Warn(err.Error())
+		}
+
+		ea.Patterns[p] = true
+	}
+}
+
+// updateProcessSpecMap Function
+func (ea *EventAuditor) updateProcessSpecMap(procSpecs map[ProcessSpecElement]bool) {
+	// Delete removed elements from bpf process spec map
+	for ps := range ea.ProcessSpecs {
+		if _, ok := procSpecs[ps]; !ok {
+			if err := ea.BPFManager.MapDeleteElement(&ps); err != nil {
+				ea.Logger.Warn(err.Error())
+			}
+
+			delete(ea.ProcessSpecs, ps)
+			continue
+		}
+
+		delete(procSpecs, ps)
+	}
+
+	// Insert new elements into bpf process spec map
+	for ps := range procSpecs {
+		if err := ea.BPFManager.MapUpdateElement(&ps); err != nil {
+			ea.Logger.Warn(err.Error())
+		}
+
+		ea.ProcessSpecs[ps] = true
+	}
+}
+
+// getProcessElements Function
+func (ea *EventAuditor) getProcessElements(
+	containers *map[string]tp.Container, containersLocker **sync.RWMutex,
+	endPoints *[]tp.EndPoint, endPointsLocker **sync.RWMutex) (map[PatternElement]bool, map[ProcessSpecElement]bool) {
+
+	patterns := map[PatternElement]bool{}
+	procSpecs := map[ProcessSpecElement]bool{}
+
+	// Populate bpf pattern and process specs elements
+	// extracting data from current audit policies
+	for _, ep := range *endPoints {
+		for _, cnID := range ep.Containers {
+			cn := (*containers)[cnID]
+
+			if cn.EndPointName != ep.EndPointName {
+				continue
+			}
+
+			for _, auditPolicy := range ep.AuditPolicies {
+				for _, event := range auditPolicy.Events {
+					for _, path := range strings.Split(event.Path, ",") {
+						p := PatternElement{}
+						ps := ProcessSpecElement{}
+
+						p.SetKey(path)
+						hashID := fnv.New32()
+						if _, err := hashID.Write(p.Key.Pattern[:]); err != nil {
+							ea.Logger.Err(err.Error())
+						}
+						p.SetValue(hashID.Sum32())
+
+						patterns[p] = true
+
+						ps.SetKey(cn.PidNS, cn.MntNS, p.Value.PatternID)
+						ps.SetValue(true)
+
+						procSpecs[ps] = true
+					}
+				}
+			}
+		}
+	}
+
+	return patterns, procSpecs
+}
+
+// UpdateProcessMaps Function
+func (ea *EventAuditor) UpdateProcessMaps(
+	containers *map[string]tp.Container, containersLocker **sync.RWMutex,
+	endPoints *[]tp.EndPoint, endPointsLocker **sync.RWMutex) {
+
+	cLocker := *containersLocker
+	epLocker := *endPointsLocker
+
+	epLocker.Lock()
+	cLocker.Lock()
+
+	patterns, procSpecs := ea.getProcessElements(
+		containers, containersLocker, endPoints, endPointsLocker)
+
+	ea.updatePatternMap(patterns)
+	ea.updateProcessSpecMap(procSpecs)
+
+	cLocker.Unlock()
+	epLocker.Unlock()
 }

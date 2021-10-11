@@ -35,7 +35,12 @@ type EventAuditor struct {
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
 
-	// cache for compiled rules
+  Patterns     map[PatternElement]bool
+	ProcessSpecs map[ProcessSpecElement]bool
+
+  =======
+
+  // cache for compiled rules
 	// map[eventString]codeBlock
 	EventCodeBlockCache map[string]string
 
@@ -55,6 +60,8 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 	ea := new(EventAuditor)
 
 	ea.Logger = feeder
+	ea.Patterns = map[PatternElement]bool{}
+	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
 
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()
