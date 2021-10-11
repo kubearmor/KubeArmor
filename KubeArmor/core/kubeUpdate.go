@@ -248,8 +248,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update security policies
 		dm.Logger.UpdateSecurityPolicies(action, newPoint)
 
-		// enforce security policies
-		dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+		if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+			// enforce security policies
+			dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+		}
 
 	} else if action == "MODIFIED" {
 		for idx, endPoint := range dm.EndPoints {
@@ -348,8 +350,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				// update security policies
 				dm.Logger.UpdateSecurityPolicies(action, dm.EndPoints[idx])
 
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+				if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+				}
 
 				break
 			}
@@ -798,8 +802,10 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 			// update security policies
 			dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
-			// enforce security policies
-			dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+			if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce security policies
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+			}
 		}
 	}
 }
