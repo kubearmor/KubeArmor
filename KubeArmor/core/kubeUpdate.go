@@ -1644,7 +1644,15 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Path, macroName, macroValue)
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Directory, macroName, macroValue)
-			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Mode, macroName, macroValue)
+
+			// expand individual values
+			modeValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Mode, "|")
+			for idx := 0; idx < len(modeValues); idx++ {
+				if modeValues[idx] == macroName {
+					modeValues[idx] = macroValue
+				}
+			}
+			k8sAuditPolicySpec.AuditRules[i].Events[j].Mode = strings.Join(modeValues, "|")
 
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Protocol, macroName, macroValue)
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Ipv4Addr, macroName, macroValue)
@@ -1726,27 +1734,11 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 			auditPolicies[i].Events[j].Path = ruleEvent.Path
 			auditPolicies[i].Events[j].Directory = ruleEvent.Directory
 
-			if ruleEvent.Mode != "" {
-				if number, err := strconv.ParseInt(strings.TrimSpace(ruleEvent.Mode), 0, 32); err == nil {
-					auditPolicies[i].Events[j].Mode = int(number)
-				} else {
-					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Mode) to int", ruleEvent.Mode, i, j)
-					return nil, errors.New(message)
-				}
-			}
-
+			auditPolicies[i].Events[j].Mode = ruleEvent.Mode
 			auditPolicies[i].Events[j].Protocol = ruleEvent.Protocol
 			auditPolicies[i].Events[j].Ipv4Addr = ruleEvent.Ipv4Addr
 			auditPolicies[i].Events[j].Ipv6Addr = ruleEvent.Ipv6Addr
-
-			if ruleEvent.Port != "" {
-				if number, err := strconv.ParseInt(strings.TrimSpace(ruleEvent.Port), 0, 32); err == nil {
-					auditPolicies[i].Events[j].Port = int(number)
-				} else {
-					message := fmt.Sprintf("Cannot convert '%v' (K8sAuditPolicySpec.AuditRules[%v].Events[%v].Port) to int", ruleEvent.Port, i, j)
-					return nil, errors.New(message)
-				}
-			}
+			auditPolicies[i].Events[j].Port = ruleEvent.Port
 
 			auditPolicies[i].Events[j].Severity = auditPolicies[i].Severity
 			auditPolicies[i].Events[j].Tags = auditPolicies[i].Tags
@@ -1875,8 +1867,6 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 
 	dm.K8sAuditPoliciesLock.Unlock()
 
-	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
-
 	// assign AuditPolicies to the corresponding EndPoints
 	dm.EndPointsLock.Lock()
 	for i, endPoint := range dm.EndPoints {
@@ -1884,7 +1874,9 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	}
 	dm.EndPointsLock.Unlock()
 
+	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
 	dm.EventAuditor.UpdateProcessMaps(&dm.EndPoints, &dm.EndPointsLock)
+	dm.EventAuditor.UpdateAuditPrograms(dm.EndPoints, dm.EndPointsLock, dm.Containers)
 }
 
 func waitCustomResourceDefinition(name string) {

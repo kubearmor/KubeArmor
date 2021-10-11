@@ -4,6 +4,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -186,6 +187,18 @@ func GetCommandOutputWithoutErr(cmd string, args []string) string {
 		return ""
 	}
 	return string(out)
+}
+
+func GetCommandStdoutAndStderr(cmd string, args []string) (string, bool) {
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+
+	command := exec.Command(cmd, args...)
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+
+	err := command.Run()
+	return (stdout.String() + stderr.String()), (err == nil)
 }
 
 // RunCommandAndWaitWithErr Function

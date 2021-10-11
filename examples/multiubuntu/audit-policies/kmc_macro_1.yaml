@@ -24,4 +24,4 @@ spec:
     value: "0x400"
 
   - name: O_RDWR_APPEND
-    value: "0x402"
+    value: 0x400 | 2
