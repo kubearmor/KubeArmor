@@ -195,6 +195,8 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 // ============================= //
 
 func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLock *sync.RWMutex, containers map[string]tp.Container) {
+	var eventFilterElement EventFilterElement
+
 	endPointsLock.Lock()
 	defer endPointsLock.Unlock()
 
@@ -223,7 +225,7 @@ func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLo
 						progCodeBlocks[eventRule.Probe] = append(current, codeBlock)
 					}
 				} else {
-					ea.Logger.Warnf("Failed to generate event code: %v", err)
+					ea.Logger.Warnf("Failed to generate audit code: %v", err)
 				}
 			}
 		}
@@ -236,21 +238,22 @@ func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLo
 			if index, err := ea.LoadAuditProgram(source, probe); err == nil {
 				progLoaded[eventId] = index
 			} else {
-				ea.Logger.Warnf("Failed to load audit program: %v", err)
+				ea.Logger.Errf("Failed to load audit program: %v", err)
 			}
 		}
 
-		// set index on event filter map
+		// populate ka_ea_event_filter_map
 		for _, containerName := range ep.Containers {
 			pidns := containers[containerName].PidNS
 			mntns := containers[containerName].MntNS
 
 			for eventId, jmpTableIndex := range progLoaded {
-				ea.Logger.Printf("pidns=%v, mntns=%v, eventId=%v, jumpidx=%v",
-					pidns, mntns, eventId, jmpTableIndex)
-
-				// TODO: populate event_filter_map
-				// event_filter_map[key] = value
+				eventFilterElement.SetKey(pidns, mntns, eventId)
+				eventFilterElement.SetValue(jmpTableIndex)
+				if err := ea.BPFManager.MapUpdateElement(&eventFilterElement); err != nil {
+					ea.Logger.Errf("Failed to update ka_ea_event_filter_map: eventId=%d, jmpTableIndex=%d",
+						eventId, jmpTableIndex)
+				}
 			}
 		}
 	}

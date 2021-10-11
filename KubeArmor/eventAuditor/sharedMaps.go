@@ -362,6 +362,11 @@ func (efe *EventFilterElement) SetValue(jumpIdx uint32) {
 	efe.Value.JumpIdx = jumpIdx
 }
 
+// SetFoundValue Function (EventFilterElement)
+func (efe *EventFilterElement) SetFoundValue(value []byte) {
+	efe.Value.JumpIdx = binary.LittleEndian.Uint32(value)
+}
+
 // KeyPointer Function (EventFilterElement)
 func (efe *EventFilterElement) KeyPointer() unsafe.Pointer {
 	return unsafe.Pointer(&efe.Key)
@@ -395,6 +400,11 @@ func (ejte *EventJumpTableElement) SetKey(jumpIdx uint32) {
 // SetValue Function (EventJumpTableElement)
 func (ejte *EventJumpTableElement) SetValue(progFd uint32) {
 	ejte.ProgFD = progFd
+}
+
+// SetFoundValue Function (EventFilterElement)
+func (ejte *EventJumpTableElement) SetFoundValue(value []byte) {
+	ejte.ProgFD = binary.LittleEndian.Uint32(value)
 }
 
 // KeyPointer Function (EventJumpTableElement)
