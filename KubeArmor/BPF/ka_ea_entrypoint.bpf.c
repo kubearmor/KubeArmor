@@ -1,7 +1,7 @@
 // +build ignore
 
-#include "vmlinux.h"
-#include <bpf/bpf_helpers.h>
+#include "maps.bpf.h"
+#include "common.bpf.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -9,6 +9,20 @@ struct {
 	__type(value, __u32);
 	__uint(max_entries, 1 << 10);
 } ka_ea_event_map SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, struct event_filter_key);
+    __type(value, struct event_filter_value);
+    __uint(max_entries, 1 << 10);
+} ka_ea_event_filter_map SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+    __type(key, __u32);
+    __type(value, __u32);
+    __uint(max_entries, 1 << 16);
+} ka_ea_event_jmp_table SEC(".maps");
 
 enum {
     // process
@@ -26,6 +40,26 @@ enum {
     _SYS_BIND = 49,
     _SYS_LISTEN = 50,
 };
+
+static inline int
+call_event_handler(void *ctx, uint32_t event_id)
+{
+    struct event_filter_key key;
+    struct event_filter_value *value;
+
+    key.pid_ns = task_get_pid_ns();
+    key.mnt_ns = task_get_mnt_ns();
+    key.event_id = event_id;
+
+    value = bpf_map_lookup_elem(&ka_ea_event_filter_map, &key);
+    if (value) {
+        bpf_tail_call(ctx, &ka_ea_event_jmp_table, value->jmp_idx);
+    }
+
+    bpf_printk("[ka-ea-entrypoint]: bpf_tail_call failure: pidns=%d, mntns=%d, event=%d",
+        key.pid_ns, key.mnt_ns, key.event_id);
+    return 0;
+}
 
 int skip_syscall(uint32_t key)
 {
@@ -47,7 +81,8 @@ int syscall__sys_execve(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_execve");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_execve");
+
+    call_event_handler(ctx, _SYS_EXECVE);
     return 0;
 }
 
@@ -58,7 +93,8 @@ int syscall__sys_execveat(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_execveat");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_execveat");
+
+    call_event_handler(ctx, _SYS_EXECVEAT);
     return 0;
 }
 
@@ -71,7 +107,8 @@ int syscall__sys_open(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_open");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_open");
+
+    call_event_handler(ctx, _SYS_OPEN);
     return 0;
 }
 
@@ -82,7 +119,8 @@ int syscall__sys_openat(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_openat");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_openat");
+
+    call_event_handler(ctx, _SYS_OPENAT);
     return 0;
 }
 
@@ -95,7 +133,8 @@ int syscall__sys_socket(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_socket");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_socket");
+
+    call_event_handler(ctx, _SYS_SOCKET);
     return 0;
 }
 
@@ -106,7 +145,8 @@ int syscall__sys_connect(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_connect");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_connect");
+
+    call_event_handler(ctx, _SYS_CONNECT);
     return 0;
 }
 
@@ -117,7 +157,8 @@ int syscall__sys_accept(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_accept");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_accept");
+
+    call_event_handler(ctx, _SYS_ACCEPT);
     return 0;
 }
 
@@ -128,7 +169,8 @@ int syscall__sys_bind(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_bind");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_bind");
+
+    call_event_handler(ctx, _SYS_BIND);
     return 0;
 }
 
@@ -139,7 +181,8 @@ int syscall__sys_listen(void *ctx)
         // bpf_printk("[ka-ea-entrypoint]: fail - sys_listen");
         return 0;
     }
-    bpf_printk("[ka-ea-entrypoint]: pass - sys_listen");
+
+    call_event_handler(ctx, _SYS_LISTEN);
     return 0;
 }
 
