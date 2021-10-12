@@ -194,6 +194,7 @@ func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	return string(out)
 }
 
+// GetCommandStdoutAndStderr Function
 func GetCommandStdoutAndStderr(cmd string, args []string) (string, bool) {
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer

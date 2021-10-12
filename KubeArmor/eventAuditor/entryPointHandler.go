@@ -100,6 +100,7 @@ func (ea *EventAuditor) DestroyEntryPoints() bool {
 	return true
 }
 
+// InitializeEntryPointPrograms Function
 func (ea *EventAuditor) InitializeEntryPointPrograms(bman *KABPFManager) error {
 	if bman == nil {
 		return errors.New("bpf manager cannot be nil")
@@ -120,6 +121,7 @@ func (ea *EventAuditor) InitializeEntryPointPrograms(bman *KABPFManager) error {
 	return nil
 }
 
+// DestroyEntryPointPrograms Function
 func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 	if bman == nil {
 		return errors.New("bpf manager cannot be nil")
@@ -140,6 +142,7 @@ func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 	return nil
 }
 
+// EnableEntryPoint Function
 func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
@@ -162,6 +165,7 @@ func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	}
 }
 
+// DisableEntryPoint Function
 func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
