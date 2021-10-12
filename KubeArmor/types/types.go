@@ -97,6 +97,15 @@ type Node struct {
 	EnableKubeArmorPolicy      bool `json:"enableKubeArmorPolicy"`
 	EnableKubeArmorHostPolicy  bool `json:"enableKubeArmorHostPolicy"`
 	EnableKubeArmorAuditPolicy bool `json:"enableKubeArmorAuditPolicy"`
+
+	// == //
+
+	PolicyEnabled int `json:"policyEnabled"`
+
+	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
+	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
+	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled"`
+	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
 // ================ //
@@ -313,6 +322,8 @@ type MatchPolicy struct {
 	ResourceType string
 	Resource     string
 
+	IsFromSource bool
+
 	Regexp *regexp.Regexp
 	Native bool
 
@@ -343,9 +354,7 @@ type SelectorType struct {
 
 // MatchSourceType Structure
 type MatchSourceType struct {
-	Path      string `json:"path,omitempty"`
-	Directory string `json:"dir,omitempty"`
-	Recursive bool   `json:"recursive,omitempty"`
+	Path string `json:"path,omitempty"`
 }
 
 // ProcessPathType Structure

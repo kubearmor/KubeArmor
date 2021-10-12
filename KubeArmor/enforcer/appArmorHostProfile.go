@@ -24,18 +24,6 @@ func allowedHostProcessMatchPaths(path tp.ProcessPathType, fromSources map[strin
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -65,18 +53,6 @@ func allowedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, fromSources
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -117,18 +93,6 @@ func allowedHostFileMatchPaths(path tp.FilePathType, fromSources map[string][]st
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -167,18 +131,6 @@ func allowedHostFileMatchDirectories(dir tp.FileDirectoryType, fromSources map[s
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -247,18 +199,6 @@ func allowedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources 
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -280,18 +220,6 @@ func allowedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType,
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -328,18 +256,6 @@ func auditedHostProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]s
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -391,18 +307,6 @@ func auditedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processAudi
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -478,18 +382,6 @@ func auditedHostFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fr
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -579,18 +471,6 @@ func auditedHostFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -697,18 +577,6 @@ func blockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]s
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -760,18 +628,6 @@ func blockedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlac
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -818,7 +674,7 @@ func blockedHostProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList
 func blockedHostFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
-			line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", path.Path, path.Path)
+			line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 			if !kl.ContainsElement(*fileBlackList, line) {
 				*fileBlackList = append(*fileBlackList, line)
 			}
@@ -847,24 +703,12 @@ func blockedHostFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fr
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
 
 			if path.ReadOnly && path.OwnerOnly {
-				line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", path.Path, path.Path)
+				line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 				if !kl.ContainsElement(fromSources[source], line) {
 					fromSources[source] = append(fromSources[source], line)
 				}
@@ -892,12 +736,12 @@ func blockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
-				line := fmt.Sprintf("  owner %s{*,**} r,\n  deny other %s{*,**} r,\n", dir.Directory, dir.Directory)
+				line := fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
 				if !kl.ContainsElement(*fileBlackList, line) {
 					*fileBlackList = append(*fileBlackList, line)
 				}
 			} else {
-				line := fmt.Sprintf("  owner %s* r,\n  deny other %s* ,\n", dir.Directory, dir.Directory)
+				line := fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 				if !kl.ContainsElement(*fileBlackList, line) {
 					*fileBlackList = append(*fileBlackList, line)
 				}
@@ -948,30 +792,18 @@ func blockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
 
 			if dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					line := fmt.Sprintf("  owner %s{*,**} r,\n  deny other %s{*,**} r,\n", dir.Directory, dir.Directory)
+					line := fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
 					if !kl.ContainsElement(fromSources[source], line) {
 						fromSources[source] = append(fromSources[source], line)
 					}
 				} else {
-					line := fmt.Sprintf("  owner %s* r,\n  deny other %s* ,\n", dir.Directory, dir.Directory)
+					line := fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 					if !kl.ContainsElement(fromSources[source], line) {
 						fromSources[source] = append(fromSources[source], line)
 					}
@@ -1019,7 +851,7 @@ func blockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]
 
 func blockedHostFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
-		line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", pat.Pattern, pat.Pattern)
+		line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*fileBlackList, line) {
 			*fileBlackList = append(*fileBlackList, line)
 		}
@@ -1051,18 +883,6 @@ func blockedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources 
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -1085,18 +905,6 @@ func blockedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType,
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -1117,23 +925,17 @@ func GenerateHostProfileHead() string {
 		"\n" +
 		"#include <tunables/global>\n" +
 		"\n" +
-		"profile kubearmor.host /** flags=(attach_disconnected,mediate_deleted) {\n" +
+		"profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {\n" +
 		"  ## == PRE START == ##\n" +
 		"  #include <abstractions/base>\n" +
 		"  mount,\n" +
 		"  umount,\n" +
-		"  ptrace,\n" +
 		"  signal,\n" +
+		"  unix,\n" +
 		"\n" +
 		"  file,\n" +
 		"  network,\n" +
 		"  capability,\n" +
-		"\n" +
-		"  /usr/bin/runc Ux,\n" + // docker
-		"  /usr/bin/docker-runc Ux, \n" + // docker
-		"  /usr/sbin/runc Ux,\n" + // containerd
-		"  /snap/microk8s/2262/bin/runc Ux,\n" + // microk8s
-		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s
 		"  ## == PRE END == ##\n" +
 		"\n"
 
@@ -1307,8 +1109,8 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		bodyFromSource = bodyFromSource + "    #include <abstractions/base>\n"
 		bodyFromSource = bodyFromSource + "    mount,\n"
 		bodyFromSource = bodyFromSource + "    umount,\n"
-		bodyFromSource = bodyFromSource + "    ptrace,\n"
 		bodyFromSource = bodyFromSource + "    signal,\n"
+		bodyFromSource = bodyFromSource + "    unix,\n"
 		bodyFromSource = bodyFromSource + "\n"
 
 		file := true
@@ -1348,13 +1150,6 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		if capability {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
-
-		bodyFromSource = bodyFromSource + "\n"
-		bodyFromSource = bodyFromSource + "    /usr/bin/runc Ux,\n"                // docker
-		bodyFromSource = bodyFromSource + "    /usr/bin/docker-runc Ux, \n"        // docker
-		bodyFromSource = bodyFromSource + "    /usr/sbin/runc Ux,\n"               // containerd
-		bodyFromSource = bodyFromSource + "    /snap/microk8s/2262/bin/runc Ux,\n" // microk8s
-		bodyFromSource = bodyFromSource + "    /snap/microk8s/2264/bin/runc Ux,\n" // microk8s
 
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == PRE END (%s) == ##\n\n", source)
 

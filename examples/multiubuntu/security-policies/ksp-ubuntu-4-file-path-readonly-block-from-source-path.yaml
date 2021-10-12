@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-file-path-readonly-block-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical file was accessed"
+  tags:
+  - WARNNING
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  file:
+    matchPaths:
+    - path: /credentials/password
+      readOnly: true # ./readwrite -r /credentials/password (success)
+      fromSource: # ./readwrite -w /credentials/password (permission denied)
+      - path: /readwrite # /bin/cat /credentials/password (success)
+  action:
+    Block

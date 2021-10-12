@@ -11,7 +11,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api/security.kubearmor.com/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -26,8 +26,7 @@ type KubeArmorPolicyReconciler struct {
 // +kubebuilder:rbac:groups=security.kubearmor.com,resources=kubearmorpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.kubearmor.com,resources=kubearmorpolicies/status,verbs=get;update;patch
 
-func (r *KubeArmorPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *KubeArmorPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("kubearmorpolicy", req.NamespacedName)
 
 	policy := &securityv1.KubeArmorPolicy{}
@@ -96,14 +95,6 @@ func validateProcessSchema(policy *securityv1.KubeArmorPolicy, req ctrl.Request)
 				return policyErr
 			}
 		}
-		for _, fromSource := range matchPaths.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
 	}
 	for _, matchDirectories := range policy.Spec.Process.MatchDirectories {
 		if policy.Spec.Action != "Allow" {
@@ -133,14 +124,6 @@ func validateFileSchema(policy *securityv1.KubeArmorPolicy, req ctrl.Request) er
 				return policyErr
 			}
 		}
-		for _, fromSource := range matchPaths.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("Found invalid schema Recursive for Path %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
 	}
 	for _, matchDirectories := range policy.Spec.File.MatchDirectories {
 		if policy.Spec.Action != "Allow" {
@@ -163,30 +146,14 @@ func validateFileSchema(policy *securityv1.KubeArmorPolicy, req ctrl.Request) er
 
 func validateNetworkSchema(policy *securityv1.KubeArmorPolicy, req ctrl.Request) error {
 	var policyErr error
-	for _, matchProtocols := range policy.Spec.Network.MatchProtocols {
-		for _, fromSource := range matchProtocols.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
-	}
+	// for _, matchProtocols := range policy.Spec.Network.MatchProtocols {
+	// }
 	return policyErr
 }
 
 func validateCapabilitiesSchema(policy *securityv1.KubeArmorPolicy, req ctrl.Request) error {
 	var policyErr error
-	for _, matchCapabilities := range policy.Spec.Capabilities.MatchCapabilities {
-		for _, fromSource := range matchCapabilities.FromSource {
-			if fromSource.Path != "" {
-				if fromSource.Recursive || !fromSource.Recursive {
-					policyErr = fmt.Errorf("recursive is only effective with directories, not paths %v", req.NamespacedName)
-					return policyErr
-				}
-			}
-		}
-	}
+	// for _, matchCapabilities := range policy.Spec.Capabilities.MatchCapabilities {
+	// }
 	return policyErr
 }

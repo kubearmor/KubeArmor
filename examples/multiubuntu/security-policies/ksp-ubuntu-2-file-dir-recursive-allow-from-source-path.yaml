@@ -1,0 +1,29 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-2-file-dir-recursive-allow-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical directory was accessed"
+  tags:
+  - WARNNING
+  selector:
+    matchLabels:
+      container: ubuntu-2
+  process:
+    matchDirectories:
+    - dir: /bin/ # need some exectuables to test
+  file:
+    matchPaths:
+    - path: /dev/tty
+      readOnly: false
+    matchDirectories:
+    - dir: /credentials/ # cat /credentials/password (success)
+      recursive: true # cat /credentials/keys/priv.key (success)
+      fromSource: # head /credentials/password (permission denied)
+      - path: /bin/cat # head /credentials/keys/priv.key (permission denied)
+    - dir: /dev/pts/
+      recursive: true
+  action:
+    Allow

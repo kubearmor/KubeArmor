@@ -1,0 +1,7 @@
+source: ubuntu-3-deployment
+cmd: su - user1 -c /home/user1/hello
+result: passed
+---
+operation: Process
+condition: /home/user1/hello
+action: Block

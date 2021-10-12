@@ -1,0 +1,29 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-3-file-dir-readonly-allow-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical directory was accessed"
+  tags:
+  - WARNNING
+  selector:
+    matchLabels:
+      container: ubuntu-3
+  process:
+    matchDirectories:
+    - dir: /bin/ # need some exectuables to test
+  file:
+    matchPaths:
+    - path: /dev/tty
+      readOnly: false
+    matchDirectories:
+    - dir: /credentials/ # /bin/cat >> /credentials/password (permission denied)
+      readOnly: true  # /bin/cat /credentials/password (success)
+      fromSource: # head /credentials/password (permission denied)
+      - path: /bin/cat # /bin/cat >> /credentials/password (permission denied)
+    - dir: /dev/pts/
+      recursive: true
+  action:
+    Allow
