@@ -46,6 +46,7 @@ manifests: controller-gen
 	sed -i 's/scope: Namespaced/scope: Cluster/g' config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../helm/templates/security.kubearmor.com_kubearmorhostpolicies.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/CRD/KubeArmorHostPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml crd/KubeArmorHostPolicy.yaml
 
 # Generate deployments
 deployment: manifests
@@ -72,6 +73,17 @@ docker-build:
 # Push the docker image
 docker-push:
 	docker push ${IMG}
+
+client/gen:
+	@echo "--> Running code-generator to generate clients"
+	# prepare tool code-generator
+	@mkdir -p ./tmp/code-generator
+	@git clone https://github.com/kubernetes/code-generator.git --branch v0.22.1 --single-branch  ./tmp/code-generator
+	# generate client
+	./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/api security.kubearmor.com:v1 --go-header-file hack/boilerplate.go.txt
+	# check generated client at ./pkg/client
+	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/* ./client/
+	@rm -rf ./github.com ./tmp/code-generator
 
 # find or download controller-gen
 # download controller-gen if necessary

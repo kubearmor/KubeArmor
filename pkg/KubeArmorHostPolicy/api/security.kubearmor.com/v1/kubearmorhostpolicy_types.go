@@ -22,11 +22,7 @@ type MatchPathType string
 type MatchDirectoryType string
 
 type MatchSourceType struct {
-	Path      MatchPathType      `json:"path,omitempty"`
-	Directory MatchDirectoryType `json:"dir,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	Recursive bool `json:"recursive,omitempty"`
+	Path MatchPathType `json:"path,omitempty"`
 }
 
 type ProcessPathType struct {
@@ -269,6 +265,7 @@ type KubeArmorHostPolicyStatus struct {
 // +kubebuilder:object:root=true
 
 // KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies API
+// +genclient
 // +kubebuilder:resource:shortName=hsp
 // +kubebuilder:subresource:status
 type KubeArmorHostPolicy struct {
@@ -289,5 +286,5 @@ type KubeArmorHostPolicyList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&KubeArmorHostPolicy{}, &KubeArmorHostPolicyList{})
+	SchemeBuilder.Register(addKnownTypes)
 }
