@@ -150,7 +150,7 @@ func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	_, supported := ea.SupportedEntryPoints[probe]
 
 	if !supported {
-		ea.Logger.Errf("%s is currently not supported", probe)
+		ea.Logger.Warnf("%s is currently not supported", probe)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	_, supported := ea.SupportedEntryPoints[probe]
 
 	if !supported {
-		ea.Logger.Errf("%s is currently not supported", probe)
+		ea.Logger.Warnf("%s is currently not supported", probe)
 		return
 	}
 
