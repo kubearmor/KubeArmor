@@ -34,7 +34,11 @@ func getObjectName(probe string, index uint32) string {
 		index, CodeGenObjectSuffix)
 }
 
-func getProgramName(probe string) string {
+func getProgramName(probe string, index uint32) string {
+	return fmt.Sprintf("%s_i%v", getFnName(probe), index)
+}
+
+func getFnName(probe string) string {
 	return "ka_ea_codegen__" + probe
 }
 
@@ -612,7 +616,7 @@ func (ea *EventAuditor) GenerateAuditProgram(probe string, codeBlocks []string) 
 	source += "#include \"codegen.bpf.h\"\n\n"
 
 	source += "SEC(\"tracepoint/codegen\")\n"
-	source += "int " + getProgramName(probe) + "(void *ctx)\n{\n"
+	source += "int " + getFnName(probe) + "(void *ctx)\n{\n"
 
 	// common prologue
 	source += "\tif (!ka_ea_check_inspect())\n\t"
@@ -646,7 +650,7 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 	srcName := getSourceName(probe, index)
 	objName := getObjectName(probe, index)
 	bpfProg := KABPFProg{
-		Name:      KABPFProgName(getProgramName(probe)),
+		Name:      KABPFProgName(getProgramName(probe, index)),
 		EventName: KABPFEventName(getEventName(probe)),
 		EventType: lbpf.KABPFLinkTypeTracepoint,
 		FileName:  KABPFObjFileName(objName),
@@ -656,7 +660,9 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 	if file, err := os.Create(getSourceName(probe, index)); err != nil {
 		return 0, fmt.Errorf("error writing to file: %v: %v", srcName, err)
 	} else {
-		file.WriteString(source)
+		// avoid program name duplication
+		srcUniqFnName := strings.Replace(source, getFnName(probe), getProgramName(probe, index), 1)
+		file.WriteString(srcUniqFnName)
 		file.Close()
 	}
 
