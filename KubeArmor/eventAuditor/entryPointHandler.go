@@ -105,7 +105,7 @@ func (ea *EventAuditor) InitializeEntryPointPrograms(bman *KABPFManager) error {
 		return errors.New("bpf manager cannot be nil")
 	}
 
-	for probe, _ := range ea.SupportedEntryPoints {
+	for probe := range ea.SupportedEntryPoints {
 		if err := bman.InitProgram(KAEAGetEntryPointProg(probe)); err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 		return errors.New("bpf manager cannot be nil")
 	}
 
-	for probe, _ := range ea.SupportedEntryPoints {
+	for probe := range ea.SupportedEntryPoints {
 		ea.DisableEntryPoint(probe)
 
 		if err := bman.DetachProgram(KAEAGetEntryPointProg(probe)); err != nil {

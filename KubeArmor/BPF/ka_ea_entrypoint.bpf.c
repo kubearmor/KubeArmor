@@ -58,6 +58,7 @@ call_event_handler(void *ctx, uint32_t event_id)
 
     bpf_printk("[ka-ea-entrypoint]: bpf_tail_call failure: pidns=%d, mntns=%d, event=%d",
         key.pid_ns, key.mnt_ns, key.event_id);
+
     return 0;
 }
 
@@ -78,11 +79,11 @@ SEC("tp/syscalls/sys_enter_execve")
 int syscall__sys_execve(void *ctx)
 {
     if (skip_syscall(_SYS_EXECVE)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_execve");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_EXECVE);
+
     return 0;
 }
 
@@ -90,11 +91,11 @@ SEC("tp/syscalls/sys_enter_execveat")
 int syscall__sys_execveat(void *ctx)
 {
     if (skip_syscall(_SYS_EXECVEAT)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_execveat");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_EXECVEAT);
+
     return 0;
 }
 
@@ -104,11 +105,11 @@ SEC("tp/syscalls/sys_enter_open")
 int syscall__sys_open(void *ctx)
 {
     if (skip_syscall(_SYS_OPEN)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_open");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_OPEN);
+
     return 0;
 }
 
@@ -116,11 +117,11 @@ SEC("tp/syscalls/sys_enter_openat")
 int syscall__sys_openat(void *ctx)
 {
     if (skip_syscall(_SYS_OPENAT)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_openat");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_OPENAT);
+
     return 0;
 }
 
@@ -130,11 +131,11 @@ SEC("tp/syscalls/sys_enter_socket")
 int syscall__sys_socket(void *ctx)
 {
     if (skip_syscall(_SYS_SOCKET)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_socket");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_SOCKET);
+
     return 0;
 }
 
@@ -142,11 +143,11 @@ SEC("tp/syscalls/sys_enter_connect")
 int syscall__sys_connect(void *ctx)
 {
     if (skip_syscall(_SYS_CONNECT)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_connect");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_CONNECT);
+
     return 0;
 }
 
@@ -154,11 +155,11 @@ SEC("tp/syscalls/sys_enter_accept")
 int syscall__sys_accept(void *ctx)
 {
     if (skip_syscall(_SYS_ACCEPT)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_accept");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_ACCEPT);
+
     return 0;
 }
 
@@ -166,11 +167,11 @@ SEC("tp/syscalls/sys_enter_bind")
 int syscall__sys_bind(void *ctx)
 {
     if (skip_syscall(_SYS_BIND)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_bind");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_BIND);
+
     return 0;
 }
 
@@ -178,11 +179,11 @@ SEC("tp/syscalls/sys_enter_listen")
 int syscall__sys_listen(void *ctx)
 {
     if (skip_syscall(_SYS_LISTEN)) {
-        // bpf_printk("[ka-ea-entrypoint]: fail - sys_listen");
         return 0;
     }
 
     call_event_handler(ctx, _SYS_LISTEN);
+
     return 0;
 }
 
