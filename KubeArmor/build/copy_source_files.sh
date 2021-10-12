@@ -40,6 +40,9 @@ cp $ARMOR_HOME/main.go $ARMOR_HOME/build/KubeArmor/
 cp $ARMOR_HOME/build/patch.sh $ARMOR_HOME/build/KubeArmor/
 cp $ARMOR_HOME/build/patch_selinux.sh $ARMOR_HOME/build/KubeArmor/
 
+# copy entrypoint.sh
+cp $ARMOR_HOME/build/entrypoint.sh $ARMOR_HOME/build/KubeArmor/
+
 # copy GKE files
 cp -r $ARMOR_HOME/../GKE $ARMOR_HOME/build/
 
