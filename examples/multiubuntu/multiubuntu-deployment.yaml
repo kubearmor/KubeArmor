@@ -23,7 +23,7 @@ spec:
         container: ubuntu-1
       annotations:
         kubearmor-policy: enabled
-        kubearmor-visibility: process,file,network
+        # kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-1-container
@@ -109,7 +109,7 @@ spec:
         container: ubuntu-4
       annotations:
         kubearmor-policy: enabled
-        kubearmor-visibility: process,file,network
+        # kubearmor-visibility: process,file,network
     spec:
       containers:
       - name: ubuntu-4-container
