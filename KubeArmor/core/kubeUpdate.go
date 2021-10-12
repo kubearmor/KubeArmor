@@ -1645,7 +1645,7 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Path, macroName, macroValue)
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Directory, macroName, macroValue)
 
-			// expand individual values
+			// expand individual values (Mode)
 			modeValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Mode, "|")
 			for idx := 0; idx < len(modeValues); idx++ {
 				if modeValues[idx] == macroName {
@@ -1653,6 +1653,15 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 				}
 			}
 			k8sAuditPolicySpec.AuditRules[i].Events[j].Mode = strings.Join(modeValues, "|")
+
+			// expand individual values (Flags)
+			flagsValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Flags, "|")
+			for idx := 0; idx < len(flagsValues); idx++ {
+				if flagsValues[idx] == macroName {
+					flagsValues[idx] = macroValue
+				}
+			}
+			k8sAuditPolicySpec.AuditRules[i].Events[j].Flags = strings.Join(flagsValues, "|")
 
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Protocol, macroName, macroValue)
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Ipv4Addr, macroName, macroValue)
@@ -1735,6 +1744,7 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 			auditPolicies[i].Events[j].Directory = ruleEvent.Directory
 
 			auditPolicies[i].Events[j].Mode = ruleEvent.Mode
+			auditPolicies[i].Events[j].Flags = ruleEvent.Flags
 			auditPolicies[i].Events[j].Protocol = ruleEvent.Protocol
 			auditPolicies[i].Events[j].Ipv4Addr = ruleEvent.Ipv4Addr
 			auditPolicies[i].Events[j].Ipv6Addr = ruleEvent.Ipv6Addr
