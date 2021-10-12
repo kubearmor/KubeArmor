@@ -35,6 +35,7 @@ type EventAuditor struct {
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
 
+	// patterns and process specs
 	Patterns     map[PatternElement]bool
 	ProcessSpecs map[ProcessSpecElement]bool
 
@@ -53,16 +54,62 @@ type EventAuditor struct {
 	CacheIndexLock *sync.RWMutex
 }
 
+// SaveRuntimeInfo Function
+func (ea *EventAuditor) SaveRuntimeInfo() error {
+	var err error
+	var file *os.File
+
+	if file, err = os.Create("./BPF/runtime.h"); err != nil {
+		return err
+	}
+	defer file.Close()
+
+	file.WriteString("// SPDX-License-Identifier: GPL-2.0\n")
+	file.WriteString("// Copyright 2021 Authors of KubeArmor\n\n")
+
+	file.WriteString("#ifndef u64\n")
+	file.WriteString("typedef unsigned long long u64;\n")
+	file.WriteString("#endif\n\n")
+
+	file.WriteString("u64 __bpf_pseudo_fd(u64, u64) asm(\"llvm.bpf.pseudo\");\n")
+	file.WriteString("#define __ka_ea_map(fd) __bpf_pseudo_fd(1, fd)\n\n")
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_process_jmp_map    %d\n",
+		ea.BPFManager.getMap(KAEAProcessJMPMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_pattern_map        %d\n",
+		ea.BPFManager.getMap(KAEAPatternMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_process_spec_map   %d\n",
+		ea.BPFManager.getMap(KAEAProcessSpecMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_process_filter_map %d\n",
+		ea.BPFManager.getMap(KAEAProcessFilterMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_event_map          %d\n",
+		ea.BPFManager.getMap(KAEAEventMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_event_filter_map   %d\n",
+		ea.BPFManager.getMap(KAEAEventFilterMap).FD()))
+
+	file.WriteString(fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
+		ea.BPFManager.getMap(KAEAEventJumpTable).FD()))
+
+	return nil
+}
+
 // NewEventAuditor Function
 func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 	ea := new(EventAuditor)
 
 	ea.Logger = feeder
-	ea.Patterns = map[PatternElement]bool{}
-	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
 
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()
+
+	// initialize maps for patterns and process specs
+	ea.Patterns = map[PatternElement]bool{}
+	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
 
 	// initialize caches
 	ea.EventCodeBlockCache = make(map[string]string)
@@ -119,50 +166,6 @@ fail1:
 	return nil
 }
 
-// SaveRuntimeInfo Function
-func (ea *EventAuditor) SaveRuntimeInfo() error {
-	var err error
-	var file *os.File
-
-	if file, err = os.Create("./BPF/runtime.h"); err != nil {
-		return err
-	}
-	defer file.Close()
-
-	file.WriteString("// SPDX-License-Identifier: GPL-2.0\n")
-	file.WriteString("// Copyright 2021 Authors of KubeArmor\n\n")
-
-	file.WriteString("#ifndef u64\n")
-	file.WriteString("typedef unsigned long long u64;\n")
-	file.WriteString("#endif\n\n")
-
-	file.WriteString("u64 __bpf_pseudo_fd(u64, u64) asm(\"llvm.bpf.pseudo\");\n")
-	file.WriteString("#define __ka_ea_map(fd) __bpf_pseudo_fd(1, fd)\n\n")
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_process_jmp_map    %d\n",
-		ea.BPFManager.getMap(KAEAProcessJMPMap).FD()))
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_pattern_map        %d\n",
-		ea.BPFManager.getMap(KAEAPatternMap).FD()))
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_process_spec_map   %d\n",
-		ea.BPFManager.getMap(KAEAProcessSpecMap).FD()))
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_process_filter_map %d\n",
-		ea.BPFManager.getMap(KAEAProcessFilterMap).FD()))
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_event_map          %d\n",
-		ea.BPFManager.getMap(KAEAEventMap).FD()))
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_event_filter_map   %d\n",
-		ea.BPFManager.getMap(KAEAEventFilterMap).FD()))
-
-	file.WriteString(fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
-		ea.BPFManager.getMap(KAEAEventJumpTable).FD()))
-
-	return nil
-}
-
 // DestroyEventAuditor Function
 func (ea *EventAuditor) DestroyEventAuditor() error {
 	// destroy entrypoints
@@ -192,13 +195,14 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 // == Audit Policy Management == //
 // ============================= //
 
+// UpdateAuditPrograms Function
 func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLock *sync.RWMutex, containers map[string]tp.Container) {
 	var eventFilterElement EventFilterElement
 
 	endPointsLock.Lock()
 	defer endPointsLock.Unlock()
 
-	getEventId := func(probe string) uint32 {
+	getEventID := func(probe string) uint32 {
 		if strings.HasPrefix(probe, "sys_") {
 			probe = strings.Split(probe, "sys_")[1]
 		}
@@ -231,10 +235,10 @@ func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLo
 		// generate and load the event programs
 		for probe, codeBlocks := range progCodeBlocks {
 			source := ea.GenerateAuditProgram(probe, codeBlocks)
-			eventId := getEventId(probe)
+			eventID := getEventID(probe)
 
 			if index, err := ea.LoadAuditProgram(source, probe); err == nil {
-				progLoaded[eventId] = index
+				progLoaded[eventID] = index
 			} else {
 				ea.Logger.Errf("Failed to load audit program: %v", err)
 			}
@@ -245,12 +249,12 @@ func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLo
 			pidns := containers[containerName].PidNS
 			mntns := containers[containerName].MntNS
 
-			for eventId, jmpTableIndex := range progLoaded {
-				eventFilterElement.SetKey(pidns, mntns, eventId)
+			for eventID, jmpTableIndex := range progLoaded {
+				eventFilterElement.SetKey(pidns, mntns, eventID)
 				eventFilterElement.SetValue(jmpTableIndex)
 				if err := ea.BPFManager.MapUpdateElement(&eventFilterElement); err != nil {
-					ea.Logger.Errf("Failed to update ka_ea_event_filter_map: eventId=%d, jmpTableIndex=%d",
-						eventId, jmpTableIndex)
+					ea.Logger.Errf("Failed to update ka_ea_event_filter_map: eventID=%d, jmpTableIndex=%d",
+						eventID, jmpTableIndex)
 				}
 			}
 		}
