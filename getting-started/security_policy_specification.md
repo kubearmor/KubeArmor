@@ -27,16 +27,12 @@ spec:
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       ownerOnly: [true|false]              # --> optional
@@ -48,8 +44,6 @@ spec:
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchDirectories:
     - dir: [absolute directory path]
       recursive: [true|false]              # --> optional
@@ -57,8 +51,6 @@ spec:
       ownerOnly: [true|false]              # --> optional
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
     matchPatterns:
     - pattern: [regex pattern]
       readOnly: [true|false]               # --> optional
@@ -69,16 +61,12 @@ spec:
     - protocol: [TCP|tcp|UDP|udp|ICMP|icmp]
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
 
   capabilities:
     matchCapabilities:
     - capability: [capability name]
       fromSource:                          # --> optional
       - path: [absolute exectuable path]
-      - dir: [absolute directory path]
-        recursive: [true|false]
 
   action: [Allow|Audit|Block] (Block by default)
 ```
@@ -147,16 +135,12 @@ Now, we will briefly explain how to define a security policy.
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional
         - path: [absolute executable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
       matchDirectories:
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional
         - path: [absolute exectuable path]
-        - dir: [absolute directory path]
-          recursive: [true|false]
       matchPatterns:
       - pattern: [regex pattern]
         ownerOnly: [true|false]            # --> optional
@@ -174,7 +158,7 @@ Now, we will briefly explain how to define a security policy.
 
   * fromSource
 
-    If a path or a directory is specified in fromSource, the executable of the path or those in the directory will be allowed/blocked to execute the executables defined with matchPaths or matchDirectories. For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked.
+    If a path is specified in fromSource, the executable at the path will be allowed/blocked to execute the executables defined with matchPaths or matchDirectories. For better understanding, let us say that an operator defines a policy as follows. Then, /bin/bash will be only allowed (blocked) to execute /bin/sleep. Otherwise, the execution of /bin/sleep will be blocked (allowed).
 
     ```text
       process:
@@ -196,8 +180,6 @@ Now, we will briefly explain how to define a security policy.
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
-        - dir: [absolute directory path]
-          recursive: [true:false]
       matchDirectories:
       - dir: [absolute directory path]
         recursive: [true|false]            # --> optional
@@ -205,8 +187,6 @@ Now, we will briefly explain how to define a security policy.
         ownerOnly: [true|false]            # --> optional
         fromSource:                        # --> optional
         - path: [absolute file path]
-        - dir: [absolute directory path]
-          recursive: [true:false]
       matchPatterns:
       - pattern: [regex pattern]
         readOnly: [true|false]             # --> optional
@@ -229,8 +209,6 @@ Now, we will briefly explain how to define a security policy.
       - protocol: [protocol]               # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
         fromSource:                        # --> optional
         - path: [absolute file path]
-        - dir: [absolute directory path]
-          recursive: [true:false]
   ```
 
 * Capabilities
@@ -243,8 +221,6 @@ Now, we will briefly explain how to define a security policy.
       - capability: [capability name]
         fromSource:                        # --> optional
         - path: [absolute file path]
-        - dir: [absolute directory path]
-          recursive: [true:false]
   ```
 
 * Action
