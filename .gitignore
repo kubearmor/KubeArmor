@@ -4,6 +4,7 @@ kubearmor
 # BPF
 KubeArmor/BPF/include/
 KubeArmor/BPF/objs/
+KubeArmor/BPF/runtime.h
 
 # Contribution
 .vscode
