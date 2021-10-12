@@ -20,6 +20,8 @@ type Container struct {
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
+	MergedDir string `json:"MergedDir"`
+
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
 
@@ -194,6 +196,9 @@ type Log struct {
 	ContainerID   string `json:"containerID,omitempty"`
 	ContainerName string `json:"containerName,omitempty"`
 
+	// container merged directory
+	MergedDir string `json:"MergedDir,omitempty"`
+
 	// common
 	HostPID int32 `json:"hostPid"`
 	PPID    int32 `json:"ppid"`
@@ -246,6 +251,8 @@ type MatchPolicy struct {
 	Native bool
 
 	Action string
+	ReadOnly bool
+	OwnerOnly bool
 }
 
 // MatchPolicies Structure
