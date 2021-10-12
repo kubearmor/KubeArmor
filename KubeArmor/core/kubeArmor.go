@@ -225,7 +225,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 // InitLogger Function
 func (dm *KubeArmorDaemon) InitLogger() bool {
-	dm.Logger = fd.NewFeeder(dm.ClusterName, dm.Node, dm.gRPCPort, dm.LogPath)
+	dm.Logger = fd.NewFeeder(dm.ClusterName, &dm.Node, dm.gRPCPort, dm.LogPath)
 	return dm.Logger != nil
 }
 
@@ -259,6 +259,7 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
 	}
 
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
+		kg.Err(err.Error())
 		return false
 	}
 
@@ -400,6 +401,8 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		dm.Node.EnableKubeArmorPolicy = false
 		dm.Node.EnableKubeArmorHostPolicy = enableKubeArmorHostPolicy
 		dm.Node.EnableKubeArmorAuditPolicy = false
+
+		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 
 		kg.Print("Detected no Kubernetes")
 	}

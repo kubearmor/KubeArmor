@@ -16,7 +16,7 @@ func TestFeeder(t *testing.T) {
 	node.NodeIP = "nodeIP"
 
 	// create logger
-	logger := NewFeeder("Default", node, "32767", "none")
+	logger := NewFeeder("Default", &node, "32767", "none")
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return

@@ -29,6 +29,11 @@ func Clone(src, dst interface{}) error {
 	return json.Unmarshal(arr, dst)
 }
 
+// RemoveStringElement function
+func RemoveStringElement(slice []string, size int) []string {
+	return append(slice[:size], slice[size+1:]...)
+}
+
 // ContainsElement Function
 func ContainsElement(slice interface{}, element interface{}) bool {
 	switch reflect.TypeOf(slice).Kind() {

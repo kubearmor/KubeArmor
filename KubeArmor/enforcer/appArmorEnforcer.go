@@ -314,23 +314,17 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		"\n" +
 		"#include <tunables/global>\n" +
 		"\n" +
-		"profile kubearmor.host /** flags=(attach_disconnected,mediate_deleted) {\n" +
+		"profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {\n" +
 		"  ## == PRE START == ##\n" +
 		"  #include <abstractions/base>\n" +
 		"  mount,\n" +
 		"  umount,\n" +
-		"  ptrace,\n" +
 		"  signal,\n" +
+		"  unix,\n" +
 		"\n" +
 		"  file,\n" +
 		"  network,\n" +
 		"  capability,\n" +
-		"\n" +
-		"  /usr/bin/runc Ux,\n" + // docker
-		"  /usr/bin/docker-runc Ux, \n" + // docker
-		"  /usr/sbin/runc Ux,\n" + // containerd
-		"  /snap/microk8s/2262/bin/runc Ux,\n" + // microk8s
-		"  /snap/microk8s/2264/bin/runc Ux,\n" + // microk8s
 		"  ## == PRE END == ##\n" +
 		"\n" +
 		"  ## == POLICY START == ##\n" +
