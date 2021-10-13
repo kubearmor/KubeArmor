@@ -8,10 +8,8 @@ import "C"
 import (
 	"errors"
 	"strings"
-	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // =========================== //
@@ -150,8 +148,8 @@ func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	if strings.HasPrefix(probe, "sys_") {
 		probe = strings.Replace(probe, "sys_", "", -1)
 	}
-	_, supported := ea.SupportedEntryPoints[probe]
 
+	_, supported := ea.SupportedEntryPoints[probe]
 	if !supported {
 		ea.Logger.Warnf("%s is currently not supported", probe)
 		return
@@ -173,8 +171,8 @@ func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	if strings.HasPrefix(probe, "sys_") {
 		probe = strings.Replace(probe, "sys_", "", -1)
 	}
-	_, supported := ea.SupportedEntryPoints[probe]
 
+	_, supported := ea.SupportedEntryPoints[probe]
 	if !supported {
 		ea.Logger.Warnf("%s is currently not supported", probe)
 		return
@@ -189,9 +187,9 @@ func (ea *EventAuditor) DisableEntryPoint(probe string) {
 }
 
 // UpdateEntryPoints Function
-func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.RWMutex) {
-	AuditPolicies := *(auditPolicies)
-	AuditPoliciesLock := *(auditPoliciesLock)
+func (ea *EventAuditor) UpdateEntryPoints() {
+	AuditPolicies := *(ea.AuditPolicies)
+	AuditPoliciesLock := *(ea.AuditPoliciesLock)
 
 	AuditPoliciesLock.Lock()
 	defer AuditPoliciesLock.Unlock()

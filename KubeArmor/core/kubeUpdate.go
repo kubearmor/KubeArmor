@@ -262,8 +262,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 		if len(newPoint.AuditPolicies) > 0 {
 			// update maps and programs for audit policies
-			dm.EventAuditor.UpdateProcessMaps(&dm.Containers, &dm.ContainersLock, &dm.EndPoints, &dm.EndPointsLock)
-			dm.EventAuditor.UpdateAuditPrograms(dm.EndPoints, dm.EndPointsLock, dm.Containers)
+			dm.EventAuditor.UpdateProcessMaps()
+			dm.EventAuditor.UpdateAuditPrograms()
 		}
 
 	} else if action == "MODIFIED" {
@@ -373,8 +373,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 				if len(dm.EndPoints[idx].AuditPolicies) > 0 {
 					// update maps and programs for audit policies
-					dm.EventAuditor.UpdateProcessMaps(&dm.Containers, &dm.ContainersLock, &dm.EndPoints, &dm.EndPointsLock)
-					dm.EventAuditor.UpdateAuditPrograms(dm.EndPoints, dm.EndPointsLock, dm.Containers)
+					dm.EventAuditor.UpdateProcessMaps()
+					dm.EventAuditor.UpdateAuditPrograms()
 				}
 
 				break
@@ -1933,7 +1933,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			key := fmt.Sprintf("%v:%v", k8sPolicy.Metadata.Namespace, policy.Process)
 
 			// if the same namespace:process exists, merge events
-			if _, ok := dm.AuditPolicies[key]; ok {
+			if _, ok := auditPolicies[key]; ok {
 				mapEntry := dm.AuditPolicies[key]
 				mapEntry.Events = append(mapEntry.Events, policy.Events...)
 				auditPolicies[key] = mapEntry
@@ -1972,10 +1972,10 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 	dm.EndPointsLock.Unlock()
 	dm.AuditPoliciesLock.Unlock()
 
-	dm.EventAuditor.UpdateEntryPoints(&dm.AuditPolicies, &dm.AuditPoliciesLock)
+	dm.EventAuditor.UpdateEntryPoints()
 
-	dm.EventAuditor.UpdateProcessMaps(&dm.Containers, &dm.ContainersLock, &dm.EndPoints, &dm.EndPointsLock)
-	dm.EventAuditor.UpdateAuditPrograms(dm.EndPoints, dm.EndPointsLock, dm.Containers)
+	dm.EventAuditor.UpdateProcessMaps()
+	dm.EventAuditor.UpdateAuditPrograms()
 }
 
 func waitCustomResourceDefinition(name string) {

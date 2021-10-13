@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
-	"sync"
 
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	lbpf "github.com/kubearmor/libbpf"
 )
 
@@ -120,11 +118,9 @@ func (ea *EventAuditor) updatePatternMap(patterns map[PatternElement]bool) {
 			if err := ea.BPFManager.MapDeleteElement(&p); err != nil {
 				ea.Logger.Warn(err.Error())
 			}
-
 			delete(ea.Patterns, p)
 			continue
 		}
-
 		delete(patterns, p)
 	}
 
@@ -133,7 +129,6 @@ func (ea *EventAuditor) updatePatternMap(patterns map[PatternElement]bool) {
 		if err := ea.BPFManager.MapUpdateElement(&p); err != nil {
 			ea.Logger.Warn(err.Error())
 		}
-
 		ea.Patterns[p] = true
 	}
 }
@@ -146,11 +141,9 @@ func (ea *EventAuditor) updateProcessSpecMap(procSpecs map[ProcessSpecElement]bo
 			if err := ea.BPFManager.MapDeleteElement(&ps); err != nil {
 				ea.Logger.Warn(err.Error())
 			}
-
 			delete(ea.ProcessSpecs, ps)
 			continue
 		}
-
 		delete(procSpecs, ps)
 	}
 
@@ -159,24 +152,24 @@ func (ea *EventAuditor) updateProcessSpecMap(procSpecs map[ProcessSpecElement]bo
 		if err := ea.BPFManager.MapUpdateElement(&ps); err != nil {
 			ea.Logger.Warn(err.Error())
 		}
-
 		ea.ProcessSpecs[ps] = true
 	}
 }
 
 // getProcessElements Function
-func (ea *EventAuditor) getProcessElements(
-	containers *map[string]tp.Container, containersLocker **sync.RWMutex,
-	endPoints *[]tp.EndPoint, endPointsLocker **sync.RWMutex) (map[PatternElement]bool, map[ProcessSpecElement]bool) {
+func (ea *EventAuditor) getProcessElements() (map[PatternElement]bool, map[ProcessSpecElement]bool) {
+
+	Containers := *(ea.Containers)
+	EndPoints := *(ea.EndPoints)
 
 	patterns := map[PatternElement]bool{}
 	procSpecs := map[ProcessSpecElement]bool{}
 
 	// Populate bpf pattern and process specs elements
 	// extracting data from current audit policies
-	for _, ep := range *endPoints {
+	for _, ep := range EndPoints {
 		for _, cnID := range ep.Containers {
-			cn := (*containers)[cnID]
+			cn := Containers[cnID]
 
 			if cn.EndPointName != ep.EndPointName {
 				continue
@@ -186,7 +179,6 @@ func (ea *EventAuditor) getProcessElements(
 				for _, event := range auditPolicy.Events {
 					for _, path := range strings.Split(event.Path, ",") {
 						p := PatternElement{}
-						ps := ProcessSpecElement{}
 
 						p.SetKey(path)
 						hashID := fnv.New32()
@@ -196,6 +188,8 @@ func (ea *EventAuditor) getProcessElements(
 						p.SetValue(hashID.Sum32())
 
 						patterns[p] = true
+
+						ps := ProcessSpecElement{}
 
 						ps.SetKey(cn.PidNS, cn.MntNS, p.Value.PatternID)
 						ps.SetValue(true)
@@ -211,22 +205,19 @@ func (ea *EventAuditor) getProcessElements(
 }
 
 // UpdateProcessMaps Function
-func (ea *EventAuditor) UpdateProcessMaps(
-	containers *map[string]tp.Container, containersLocker **sync.RWMutex,
-	endPoints *[]tp.EndPoint, endPointsLocker **sync.RWMutex) {
+func (ea *EventAuditor) UpdateProcessMaps() {
+	ContainersLock := *(ea.ContainersLock)
 
-	cLocker := *containersLocker
-	epLocker := *endPointsLocker
+	ContainersLock.Lock()
+	defer ContainersLock.Unlock()
 
-	epLocker.Lock()
-	cLocker.Lock()
+	EndPointsLock := *(ea.EndPointsLock)
 
-	patterns, procSpecs := ea.getProcessElements(
-		containers, containersLocker, endPoints, endPointsLocker)
+	EndPointsLock.Lock()
+	defer EndPointsLock.Unlock()
+
+	patterns, procSpecs := ea.getProcessElements()
 
 	ea.updatePatternMap(patterns)
 	ea.updateProcessSpecMap(procSpecs)
-
-	cLocker.Unlock()
-	epLocker.Unlock()
 }

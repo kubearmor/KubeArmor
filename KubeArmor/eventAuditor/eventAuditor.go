@@ -23,8 +23,24 @@ type EventAuditor struct {
 	// logs
 	Logger *fd.Feeder
 
+	// containers
+	Containers     *map[string]tp.Container
+	ContainersLock **sync.RWMutex
+
+	// endpoints
+	EndPoints     *[]tp.EndPoint
+	EndPointsLock **sync.RWMutex
+
+	// audit policies
+	AuditPolicies     *map[string]tp.AuditPolicy
+	AuditPoliciesLock **sync.RWMutex
+
+	// == //
+
 	// bpf
 	BPFManager *KABPFManager
+
+	// == //
 
 	// all entrypoints that KubeArmor supports
 	SupportedEntryPoints map[string]uint32
@@ -35,9 +51,13 @@ type EventAuditor struct {
 	// all entrypoints in the audit policy
 	ActiveEntryPoints []string
 
+	// == //
+
 	// patterns and process specs
 	Patterns     map[PatternElement]bool
 	ProcessSpecs map[ProcessSpecElement]bool
+
+	// == //
 
 	// cache for compiled rules
 	// map[eventString]codeBlock
@@ -52,6 +72,8 @@ type EventAuditor struct {
 
 	// lock for caches and index count
 	CacheIndexLock *sync.RWMutex
+
+	// == //
 }
 
 // SaveRuntimeInfo Function
@@ -99,24 +121,25 @@ func (ea *EventAuditor) SaveRuntimeInfo() error {
 }
 
 // NewEventAuditor Function
-func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
+func NewEventAuditor(feeder *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
+	endPoints *[]tp.EndPoint, endPointsLock **sync.RWMutex, auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.RWMutex) *EventAuditor {
 	ea := new(EventAuditor)
 
 	ea.Logger = feeder
 
+	ea.Containers = containers
+	ea.ContainersLock = containersLock
+
+	ea.EndPoints = endPoints
+	ea.EndPointsLock = endPointsLock
+
+	ea.AuditPolicies = auditPolicies
+	ea.AuditPoliciesLock = auditPoliciesLock
+
+	// == //
+
 	// initialize ebpf manager
 	ea.BPFManager = NewKABPFManager()
-
-	// initialize maps for patterns and process specs
-	ea.Patterns = map[PatternElement]bool{}
-	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
-
-	// initialize caches
-	ea.EventCodeBlockCache = make(map[string]string)
-	ea.EventProgramCache = make(map[string]uint32)
-
-	ea.NextJumpTableIndex = 0
-	ea.CacheIndexLock = new(sync.RWMutex)
 
 	if err := ea.BPFManager.SetObjsMapsPath("./BPF/objs"); err != nil {
 		ea.Logger.Errf("Failed to set ebpf maps path: %v", err)
@@ -127,6 +150,20 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 		ea.Logger.Errf("Failed to set ebpf programs path: %v", err)
 		return nil
 	}
+
+	// == //
+
+	// initialize entrypoints
+	if !ea.InitializeEntryPoints() {
+		ea.Logger.Err("Failed to initialize entrypoints")
+		return nil
+	}
+
+	// == //
+
+	// initialize maps for patterns and process specs
+	ea.Patterns = map[PatternElement]bool{}
+	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
 
 	if err := ea.InitializeProcessMaps(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize process maps: %v", err)
@@ -140,19 +177,24 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 
 	if err := ea.PopulateProcessJMPMap(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to populate process jmp map: %v", err)
-		return nil
-	}
-
-	// initialize entrypoints
-	if !ea.InitializeEntryPoints() {
-		ea.Logger.Err("Failed to initialize entrypoints")
 		goto fail2
 	}
+
+	// == //
+
+	// initialize caches
+	ea.EventCodeBlockCache = make(map[string]string)
+	ea.EventProgramCache = make(map[string]uint32)
+
+	ea.NextJumpTableIndex = 0
+	ea.CacheIndexLock = new(sync.RWMutex)
 
 	if err := ea.SaveRuntimeInfo(); err != nil {
 		ea.Logger.Errf("Failed to create runtime.h: %v", err)
 		goto fail2
 	}
+
+	// == //
 
 	return ea
 
@@ -168,11 +210,6 @@ fail1:
 
 // DestroyEventAuditor Function
 func (ea *EventAuditor) DestroyEventAuditor() error {
-	// destroy entrypoints
-	if !ea.DestroyEntryPoints() {
-		ea.Logger.Err("Failed to destroy entrypoints")
-	}
-
 	// destroy process programs
 	err1 := ea.DestroyProcessPrograms(ea.BPFManager)
 	if err1 != nil {
@@ -183,6 +220,11 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 	err2 := ea.DestroyProcessMaps(ea.BPFManager)
 	if err2 != nil {
 		ea.Logger.Errf("Failed to destroy process maps: %v", err2)
+	}
+
+	// destroy entrypoints
+	if !ea.DestroyEntryPoints() {
+		ea.Logger.Err("Failed to destroy entrypoints")
 	}
 
 	ea.BPFManager = nil
@@ -196,11 +238,20 @@ func (ea *EventAuditor) DestroyEventAuditor() error {
 // ============================= //
 
 // UpdateAuditPrograms Function
-func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLock *sync.RWMutex, containers map[string]tp.Container) {
-	var eventFilterElement EventFilterElement
+func (ea *EventAuditor) UpdateAuditPrograms() {
+	Containers := *(ea.Containers)
+	ContainersLock := *(ea.ContainersLock)
 
-	endPointsLock.Lock()
-	defer endPointsLock.Unlock()
+	ContainersLock.Lock()
+	defer ContainersLock.Unlock()
+
+	EndPoints := *(ea.EndPoints)
+	EndPointsLock := *(ea.EndPointsLock)
+
+	EndPointsLock.Lock()
+	defer EndPointsLock.Unlock()
+
+	var eventFilterElement EventFilterElement
 
 	getEventID := func(probe string) uint32 {
 		if strings.HasPrefix(probe, "sys_") {
@@ -210,7 +261,7 @@ func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLo
 		return ea.SupportedEntryPoints[probe]
 	}
 
-	for _, ep := range endPoints {
+	for _, ep := range EndPoints {
 		progCodeBlocks := make(map[string][]string)
 		progLoaded := make(map[uint32]uint32)
 
@@ -246,8 +297,8 @@ func (ea *EventAuditor) UpdateAuditPrograms(endPoints []tp.EndPoint, endPointsLo
 
 		// populate ka_ea_event_filter_map
 		for _, containerName := range ep.Containers {
-			pidns := containers[containerName].PidNS
-			mntns := containers[containerName].MntNS
+			pidns := Containers[containerName].PidNS
+			mntns := Containers[containerName].MntNS
 
 			for eventID, jmpTableIndex := range progLoaded {
 				eventFilterElement.SetKey(pidns, mntns, eventID)

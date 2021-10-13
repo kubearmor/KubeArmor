@@ -3,7 +3,9 @@
 
 package eventauditor
 
-import lbpf "github.com/kubearmor/libbpf"
+import (
+	lbpf "github.com/kubearmor/libbpf"
+)
 
 // KubeArmor Event Auditor Programs
 const (
