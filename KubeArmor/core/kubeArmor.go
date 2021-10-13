@@ -320,7 +320,8 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 
 // InitEventAuditor Function
 func (dm *KubeArmorDaemon) InitEventAuditor() bool {
-	dm.EventAuditor = edt.NewEventAuditor(dm.Logger)
+	dm.EventAuditor = edt.NewEventAuditor(dm.Logger, &dm.Containers, &dm.ContainersLock,
+		&dm.EndPoints, &dm.EndPointsLock, &dm.AuditPolicies, &dm.AuditPoliciesLock)
 	return dm.EventAuditor != nil
 }
 

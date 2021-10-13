@@ -36,33 +36,7 @@ func NewKABPFManager() *KABPFManager {
 	}
 }
 
-// SetObjsMapsPath Function
-func (bm *KABPFManager) SetObjsMapsPath(path string) error {
-	var validPath string
-	var err error
-
-	if validPath, err = validateObjsPath(path); err != nil {
-		return err
-	}
-
-	bm.objsMapsPath = validPath
-
-	return nil
-}
-
-// SetObjsProgsPath Function
-func (bm *KABPFManager) SetObjsProgsPath(path string) error {
-	var validPath string
-	var err error
-
-	if validPath, err = validateObjsPath(path); err != nil {
-		return err
-	}
-
-	bm.objsProgsPath = validPath
-
-	return nil
-}
+// == //
 
 // InitMap Function
 func (bm *KABPFManager) InitMap(kaMap KABPFMap, pin bool) error {
@@ -121,6 +95,43 @@ func (bm *KABPFManager) DestroyMap(kaMap KABPFMap) error {
 
 	return AppendErrors(err1, err2)
 }
+
+// MapUpdateElement Function
+func (bm *KABPFManager) MapUpdateElement(e lbpf.KABPFMapElement) error {
+	m := bm.getMap(KABPFMapName(e.MapName()))
+	if m == nil {
+		return fmt.Errorf("map %v not initialized", e.MapName())
+	}
+
+	return m.UpdateElement(e)
+}
+
+// MapLookupElement Function
+func (bm *KABPFManager) MapLookupElement(e lbpf.KABPFMapElement) ([]byte, error) {
+	m := bm.getMap(KABPFMapName(e.MapName()))
+	if m == nil {
+		return nil, fmt.Errorf("map %v not initialized", e.MapName())
+	}
+
+	return m.LookupElement(e)
+}
+
+// MapDeleteElement Function
+func (bm *KABPFManager) MapDeleteElement(e lbpf.KABPFMapElement) error {
+	m := bm.getMap(KABPFMapName(e.MapName()))
+	if m == nil {
+		return fmt.Errorf("map %v not initialized", e.MapName())
+	}
+
+	return m.DeleteElement(e)
+}
+
+// pinMap Function
+func pinMap(m *lbpf.KABPFMap) error {
+	return m.Pin(KABPFPinBasePath + m.Name())
+}
+
+// == //
 
 // InitProgram Function
 func (bm *KABPFManager) InitProgram(kaProg KABPFProg) error {
@@ -249,6 +260,84 @@ func (bm *KABPFManager) DetachProgram(kaProg KABPFProg) error {
 	return err
 }
 
+// == //
+
+// validateObjsPath Function
+func validateObjsPath(path string) (string, error) {
+	var absPath string
+	var err error
+
+	if absPath, err = filepath.Abs(path); err != nil {
+		return "", err
+	}
+
+	if _, err = os.Stat(absPath); err != nil {
+		return "", err
+	}
+
+	return absPath, nil
+}
+
+// SetObjsMapsPath Function
+func (bm *KABPFManager) SetObjsMapsPath(path string) error {
+	var validPath string
+	var err error
+
+	if validPath, err = validateObjsPath(path); err != nil {
+		return err
+	}
+
+	bm.objsMapsPath = validPath
+
+	return nil
+}
+
+// SetObjsProgsPath Function
+func (bm *KABPFManager) SetObjsProgsPath(path string) error {
+	var validPath string
+	var err error
+
+	if validPath, err = validateObjsPath(path); err != nil {
+		return err
+	}
+
+	bm.objsProgsPath = validPath
+
+	return nil
+}
+
+// getObjFullPath Function
+func getObjFullPath(objPath string, n KABPFObjFileName) (string, error) {
+	objFilePath := path.Join(objPath, string(n))
+
+	if _, err := os.Stat(objFilePath); err != nil {
+		return "", err
+	}
+
+	return objFilePath, nil
+}
+
+// openAndLoadObj Function
+func openAndLoadObj(objsPath string, n KABPFObjFileName) (*lbpf.KABPFObject, error) {
+	var objFilePath string
+	var o *lbpf.KABPFObject
+	var err error
+
+	if objFilePath, err = getObjFullPath(objsPath, n); err != nil {
+		return nil, err
+	}
+
+	if o, err = lbpf.OpenObjectFromFile(objFilePath); err != nil {
+		return nil, err
+	}
+
+	if err = o.Load(); err != nil {
+		return nil, err
+	}
+
+	return o, nil
+}
+
 // isObjCloseable Function
 func (bm *KABPFManager) isObjCloseable(o *lbpf.KABPFObject) bool {
 	if o == nil {
@@ -290,84 +379,6 @@ func (bm *KABPFManager) closeObjIfPossible(n KABPFObjFileName) bool {
 	return true
 }
 
-// MapUpdateElement Function
-func (bm *KABPFManager) MapUpdateElement(e lbpf.KABPFMapElement) error {
-	m := bm.getMap(KABPFMapName(e.MapName()))
-	if m == nil {
-		return fmt.Errorf("map %v not initialized", e.MapName())
-	}
-
-	return m.UpdateElement(e)
-}
-
-// MapLookupElement Function
-func (bm *KABPFManager) MapLookupElement(e lbpf.KABPFMapElement) ([]byte, error) {
-	m := bm.getMap(KABPFMapName(e.MapName()))
-	if m == nil {
-		return nil, fmt.Errorf("map %v not initialized", e.MapName())
-	}
-
-	return m.LookupElement(e)
-}
-
-// MapDeleteElement Function
-func (bm *KABPFManager) MapDeleteElement(e lbpf.KABPFMapElement) error {
-	m := bm.getMap(KABPFMapName(e.MapName()))
-	if m == nil {
-		return fmt.Errorf("map %v not initialized", e.MapName())
-	}
-
-	return m.DeleteElement(e)
-}
-
-// getObjFullPath Function
-func getObjFullPath(objPath string, n KABPFObjFileName) (string, error) {
-	objFilePath := path.Join(objPath, string(n))
-
-	if _, err := os.Stat(objFilePath); err != nil {
-		return "", err
-	}
-
-	return objFilePath, nil
-}
-
-// validateObjsPath Function
-func validateObjsPath(path string) (string, error) {
-	var absPath string
-	var err error
-
-	if absPath, err = filepath.Abs(path); err != nil {
-		return "", err
-	}
-
-	if _, err = os.Stat(absPath); err != nil {
-		return "", err
-	}
-
-	return absPath, nil
-}
-
-// openAndLoadObj Function
-func openAndLoadObj(objsPath string, n KABPFObjFileName) (*lbpf.KABPFObject, error) {
-	var objFilePath string
-	var o *lbpf.KABPFObject
-	var err error
-
-	if objFilePath, err = getObjFullPath(objsPath, n); err != nil {
-		return nil, err
-	}
-
-	if o, err = lbpf.OpenObjectFromFile(objFilePath); err != nil {
-		return nil, err
-	}
-
-	if err = o.Load(); err != nil {
-		return nil, err
-	}
-
-	return o, nil
-}
-
 // getObj Function
 func (bm *KABPFManager) getObj(n KABPFObjFileName) *lbpf.KABPFObject {
 	return bm.objs[n]
@@ -388,7 +399,4 @@ func (bm *KABPFManager) getLink(n KABPFEventName) *lbpf.KABPFLink {
 	return bm.links[n]
 }
 
-// pinMap Function
-func pinMap(m *lbpf.KABPFMap) error {
-	return m.Pin(KABPFPinBasePath + m.Name())
-}
+// == //

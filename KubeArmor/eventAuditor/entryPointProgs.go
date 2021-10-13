@@ -3,7 +3,9 @@
 
 package eventauditor
 
-import lbpf "github.com/kubearmor/libbpf"
+import (
+	lbpf "github.com/kubearmor/libbpf"
+)
 
 // KAEAGetEntryPointProg Function
 func KAEAGetEntryPointProg(name string) KABPFProg {
