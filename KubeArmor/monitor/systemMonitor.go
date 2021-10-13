@@ -316,11 +316,12 @@ func (mon *SystemMonitor) InitBPF() error {
 				return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
 			}
 		}
-		kretp, err := mon.BpfModule.LoadKprobe("kprobe_security_file_open")
+
+		kretp, err := mon.BpfModule.LoadKprobe("kretprobe_do_filp_open")
 		if err != nil {
-			return fmt.Errorf("error loading kprobe %s", "kprobe_security_file_open")
+			return fmt.Errorf("error loading kprobe %s", "kretprobe_do_filp_open")
 		}
-		err = mon.BpfModule.AttachKprobe("security_file_open", kretp, -1)
+		err = mon.BpfModule.AttachKprobe("do_filp_open", kretp, -1)
 		if err != nil {
 			return fmt.Errorf("error attaching kprobe")
 		}

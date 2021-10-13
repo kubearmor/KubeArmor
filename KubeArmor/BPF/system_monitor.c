@@ -41,7 +41,7 @@
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
-#define MAX_LOOP_LIMIT    5 // arbitrarily set
+#define MAX_LOOP_LIMIT    50 // arbitrarily set
 
 #define NONE_T        0UL
 #define INT_T         1UL
@@ -584,32 +584,41 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 	return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline int prepend_path(struct path *path, bufs_t *buf)
+static __always_inline bool prepend_path(struct path *path, bufs_t *buf)
 {
+    bpf_trace_printk("this function got called");
 	struct path f_path;
 	struct qstr d_name;
 	struct mount *mnt;
+	struct dentry *parent;
+	struct dentry *mnt_root;
+	struct mount *m;
 
+	char slash = '/';
+    char * null = "";
+	int offset = MAX_STRING_SIZE - 1;
+
+	if (path == NULL)
+		return false;
 	bpf_probe_read(&f_path, sizeof(struct path), path);
 
 	struct dentry *dentry = f_path.dentry;
 	struct vfsmount *vfsmnt = f_path.mnt;
 
-	int offset = MAX_STRING_SIZE;
+    // terminate with NULL before prepending
+	bpf_probe_read_str(&(buf->buf[offset & (MAX_STRING_SIZE - 1)]), 1, null);
+	offset--;
 
 	mnt = real_mount(vfsmnt);
 
 	// TODO: check if the dentry is unlinked
 #pragma unroll
 	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
-		struct dentry *parent;
 		bpf_probe_read(&parent, sizeof(struct dentry *),
 			       &dentry->d_parent);
-		struct dentry *mnt_root;
 		bpf_probe_read(&mnt_root, sizeof(struct dentry *),
 			       &vfsmnt->mnt_root);
 		if (dentry == mnt_root) {
-			struct mount *m;
 			bpf_probe_read(&m, sizeof(struct mount *),
 				       &mnt->mnt_parent);
 			if (mnt != m) {
@@ -627,13 +636,11 @@ static __always_inline int prepend_path(struct path *path, bufs_t *buf)
 		}
 
 		// get d_name
-		struct qstr d_name;
 		bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
-		u32 len = d_name.len;
 
-		char slash = '/';
+		bpf_trace_printk("name: %s", d_name.name);
 
-		offset -= len + 1;
+		offset -= d_name.len + 1;
 		if (offset < 0)
 			break;
 
@@ -643,12 +650,13 @@ static __always_inline int prepend_path(struct path *path, bufs_t *buf)
 				&slash);
 			bpf_probe_read_str(&(buf->buf[(offset + 1) &
 						      (MAX_STRING_SIZE - 1)]),
-					   len & (MAX_STRING_SIZE - 1),
+					   d_name.len - 1 &
+						   (MAX_STRING_SIZE - 1),
 					   &d_name.name);
 		}
 	}
 	set_buffer_offset(1, offset);
-	return 0;
+	return true;
 }
 
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
@@ -955,25 +963,49 @@ int trace_ret_openat(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T));
 }
 
-int kprobe_security_file_open(struct pt_regs *ctx)
+int kretprobe_do_filp_open(struct pt_regs *ctx)
 {
+	if (skip_syscall())
+		return 0;
+
+	bpf_trace_printk("do_filp_open");
+
+	//bpf_trace_printk("do_filp_open", 14);
 	args_t args = {};
-	struct file *f = (struct file*)PT_REGS_PARM1(ctx);
 
- 	bufs_t *string_p = get_buffer(1);
+	struct file *f = (struct file *)PT_REGS_RC(ctx);
 
-	// TODO: check which syscall we are in
+	bufs_t *string_p = get_buffer(1);
+    if (string_p == NULL)
+       bpf_trace_printk("is the string_p null?") ;
+
+    bpf_trace_printk("looks like string_p is not null");
+
+
+	/* u32 event_id = ctx->args[1]; */
+	// TODO: get what syscall we are in
 	u32 event_id = _SYS_OPENAT;
+
+	if (event_id != _SYS_OPENAT && event_id != _SYS_OPEN)
+		return 0;
 
 	if (load_args(event_id, &args) != 0)
 		return 0;
 
-    prepend_path(&f->f_path, string_p);
+bpf_trace_printk("calling functions");
+	prepend_path(&f->f_path, string_p);
+    bpf_trace_printk("i got here", MAX_STRING_SIZE);
 
 	u32 tgid = bpf_get_current_pid_tgid();
 	u64 id = ((u64)event_id << 32) | tgid;
 
-	bpf_probe_read_str(&args.args[1], sizeof(args.args[1]), string_p);
+	u32 *off = get_buffer_offset(1);
+	bpf_trace_printk("prepend_name : %s", &(string_p->buf[*off]));
+	int path_index = 0;
+	if (event_id == _SYS_OPENAT)
+		path_index = 1;
+	bpf_probe_read_str(&args.args[path_index],
+			   sizeof(args.args[path_index]), &string_p->buf[*off]);
 
 	args_map.update(&id, &args);
 	return 0;
