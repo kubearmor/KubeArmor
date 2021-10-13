@@ -1933,7 +1933,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 			key := fmt.Sprintf("%v:%v", k8sPolicy.Metadata.Namespace, policy.Process)
 
 			// if the same namespace:process exists, merge events
-			if _, ok := dm.AuditPolicies[key]; ok {
+			if _, ok := auditPolicies[key]; ok {
 				mapEntry := dm.AuditPolicies[key]
 				mapEntry.Events = append(mapEntry.Events, policy.Events...)
 				auditPolicies[key] = mapEntry
