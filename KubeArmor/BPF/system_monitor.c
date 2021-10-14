@@ -41,7 +41,7 @@
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
-#define MAX_LOOP_LIMIT    50 // arbitrarily set
+#define MAX_LOOP_LIMIT    45 // arbitrarily set
 
 #define NONE_T        0UL
 #define INT_T         1UL
@@ -584,9 +584,8 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 	return container_of(mnt, struct mount, mnt);
 }
 
-static __always_inline bool prepend_path(struct path *path, bufs_t *buf)
+static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
 {
-    bpf_trace_printk("this function got called");
 	struct path f_path;
 	struct qstr d_name;
 	struct mount *mnt;
@@ -595,19 +594,17 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *buf)
 	struct mount *m;
 
 	char slash = '/';
-    char * null = "";
+	char null = '\0';
 	int offset = MAX_STRING_SIZE - 1;
 
-	if (path == NULL)
+	if (path == NULL) {
 		return false;
+	}
+
 	bpf_probe_read(&f_path, sizeof(struct path), path);
 
 	struct dentry *dentry = f_path.dentry;
 	struct vfsmount *vfsmnt = f_path.mnt;
-
-    // terminate with NULL before prepending
-	bpf_probe_read_str(&(buf->buf[offset & (MAX_STRING_SIZE - 1)]), 1, null);
-	offset--;
 
 	mnt = real_mount(vfsmnt);
 
@@ -638,22 +635,29 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *buf)
 		// get d_name
 		bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
 
-		bpf_trace_printk("name: %s", d_name.name);
-
-		offset -= d_name.len + 1;
+		offset -= (d_name.len + 1);
 		if (offset < 0)
 			break;
 
-		if (buf != NULL) {
-			bpf_probe_read(
-				&(buf->buf[offset & (MAX_STRING_SIZE - 1)]), 1,
-				&slash);
-			bpf_probe_read_str(&(buf->buf[(offset + 1) &
-						      (MAX_STRING_SIZE - 1)]),
-					   d_name.len - 1 &
-						   (MAX_STRING_SIZE - 1),
-					   &d_name.name);
+		if (string_p != NULL) {
+			int sz = bpf_probe_read_str(
+				&(string_p->buf[(offset) &
+						(MAX_STRING_SIZE - 1)]),
+				(d_name.len + 1) & (MAX_STRING_SIZE - 1), d_name.name);
+
+			if (sz > 1) {
+				bpf_probe_read(
+					&(string_p->buf[(offset + d_name.len ) &
+							(MAX_STRING_SIZE - 1)]),
+					1, &slash);
+			} else {
+				break;
+			}
 		}
+		dentry = parent;
+	}
+	if (string_p != NULL) {
+		bpf_probe_read(&(string_p->buf[MAX_STRING_SIZE - 1]), 1, &null);
 	}
 	set_buffer_offset(1, offset);
 	return true;
@@ -968,43 +972,42 @@ int kretprobe_do_filp_open(struct pt_regs *ctx)
 	if (skip_syscall())
 		return 0;
 
-	bpf_trace_printk("do_filp_open");
-
-	//bpf_trace_printk("do_filp_open", 14);
 	args_t args = {};
+	int path_index = 0;
 
 	struct file *f = (struct file *)PT_REGS_RC(ctx);
 
 	bufs_t *string_p = get_buffer(1);
-    if (string_p == NULL)
-       bpf_trace_printk("is the string_p null?") ;
-
-    bpf_trace_printk("looks like string_p is not null");
-
+	if (string_p == NULL)
+        return 1;
 
 	/* u32 event_id = ctx->args[1]; */
 	// TODO: get what syscall we are in
 	u32 event_id = _SYS_OPENAT;
 
-	if (event_id != _SYS_OPENAT && event_id != _SYS_OPEN)
-		return 0;
+	/* if (event_id != _SYS_OPENAT && event_id != _SYS_OPEN) */
+	/* 	return 0; */
 
 	if (load_args(event_id, &args) != 0)
 		return 0;
 
-bpf_trace_printk("calling functions");
+	int offset = MAX_STRING_SIZE - 1;
+	char null = '\0';
+
+	set_buffer_offset(1, offset);
+
 	prepend_path(&f->f_path, string_p);
-    bpf_trace_printk("i got here", MAX_STRING_SIZE);
 
 	u32 tgid = bpf_get_current_pid_tgid();
 	u64 id = ((u64)event_id << 32) | tgid;
 
 	u32 *off = get_buffer_offset(1);
-	bpf_trace_printk("prepend_name : %s", &(string_p->buf[*off]));
-	int path_index = 0;
+    if (off == NULL)
+        return 1;
 	if (event_id == _SYS_OPENAT)
 		path_index = 1;
-	bpf_probe_read_str(&args.args[path_index],
+    if (*off != MAX_STRING_SIZE - 1)
+        bpf_probe_read_str(&args.args[path_index],
 			   sizeof(args.args[path_index]), &string_p->buf[*off]);
 
 	args_map.update(&id, &args);

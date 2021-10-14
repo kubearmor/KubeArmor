@@ -321,7 +321,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		if err != nil {
 			return fmt.Errorf("error loading kprobe %s", "kretprobe_do_filp_open")
 		}
-		err = mon.BpfModule.AttachKprobe("do_filp_open", kretp, -1)
+		err = mon.BpfModule.AttachKretprobe("do_filp_open", kretp, -1)
 		if err != nil {
 			return fmt.Errorf("error attaching kprobe")
 		}
