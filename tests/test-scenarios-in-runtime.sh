@@ -142,7 +142,7 @@ function should_not_find_any_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*MatchedPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log == $LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -157,7 +157,7 @@ function should_not_find_any_log() {
             DBG "Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*MatchedPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log" == "$LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -185,7 +185,7 @@ function should_find_passed_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*MatchedPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -201,7 +201,7 @@ function should_find_passed_log() {
             fi
         fi
     else # local
-        audit_log=$(grep -E "$1.*MatchedPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -230,12 +230,12 @@ function should_find_blocked_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     match_type="MatchedPolicy"
-    if [[ $5 -eq 1 ]]; then
+    if [[ $6 -eq 1 ]]; then
         match_type="MatchedNativePolicy" 
     fi
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*$2.*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -251,7 +251,7 @@ function should_find_blocked_log() {
             fi
         fi
     else # local
-        audit_log=$(grep -E "$1.*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$1.*policyName.*$2.*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -280,7 +280,7 @@ function should_not_find_any_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log" == "$LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -295,7 +295,7 @@ function should_not_find_any_host_log() {
             DBG "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log" == "$LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -323,7 +323,7 @@ function should_find_passed_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -339,7 +339,7 @@ function should_find_passed_host_log() {
             fi
         fi    
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -368,12 +368,12 @@ function should_find_blocked_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     match_type="MatchedHostPolicy"
-    if [[ $4 -eq 1 ]]; then
+    if [[ $5 -eq 1 ]]; then
         match_type="MatchedNativePolicy" 
     fi
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*$match_type.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -389,7 +389,7 @@ function should_find_blocked_host_log() {
             fi
         fi
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*$match_type.*$1.*resource.*$2.*$3" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -414,7 +414,7 @@ function run_test_scenario() {
 
     YAML_FILE=$(ls *.yaml)
     policy_type=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
-
+    POLICY=$(grep "name:" $YAML_FILE | head -n1 | awk '{ print $2}')
     NATIVE=0
     HOST_POLICY=0
     NATIVE_HOST=0
@@ -533,52 +533,52 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_log $POD $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_log $POD $OP $COND $ACTION
+                    should_find_passed_log $POD $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_log $POD $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
                 fi
             fi
         else
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_host_log $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_host_log $OP $COND $ACTION
+                    should_find_passed_host_log $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_host_log $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
                 fi
             fi
         fi
