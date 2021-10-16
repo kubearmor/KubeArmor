@@ -1,7 +1,7 @@
 // +build ignore
 
-#include "maps.bpf.h"
 #include "common.bpf.h"
+#include "maps.bpf.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -46,9 +46,11 @@ call_event_handler(void *ctx, uint32_t event_id)
 {
     struct event_filter_key key;
     struct event_filter_value *value;
+    struct task_struct *task;
 
-    key.pid_ns = task_get_pid_ns();
-    key.mnt_ns = task_get_mnt_ns();
+    task = (struct task_struct *) bpf_get_current_task();
+    key.pid_ns = task_get_pid_ns(task);
+    key.mnt_ns = task_get_mnt_ns(task);
     key.event_id = event_id;
 
     value = bpf_map_lookup_elem(&ka_ea_event_filter_map, &key);
