@@ -21,6 +21,7 @@
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/mount.h>
 
 #include <linux/un.h>
 #include <net/inet_sock.h>
@@ -29,11 +30,18 @@
 #error Minimal required kernel version is 4.14
 #endif
 
-// == Structures == //
+#undef container_of
+#define container_of(ptr, type, member)                                        \
+	({                                                                     \
+		const typeof(((type *)0)->member) *__mptr = (ptr);             \
+		(type *)((char *)__mptr - offsetof(type, member));             \
+	})
 
+// == Structures == //
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
+#define MAX_LOOP_LIMIT    45 // arbitrarily set
 
 #define NONE_T        0UL
 #define INT_T         1UL
@@ -106,8 +114,8 @@ typedef struct buffers {
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 1);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 1);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 2);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 2);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -123,6 +131,13 @@ struct mnt_namespace {
     atomic_t count;
     #endif
     struct ns_common ns;
+};
+
+struct mount {
+	struct hlist_node mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
+	struct vfsmount mnt;
 };
 
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
@@ -377,21 +392,19 @@ static __always_inline u32 init_context(sys_context_t *context)
 
 // == Buffer Management == //
 
-static __always_inline bufs_t* get_buffer()
+// TODO: Add macros for the indices
+static __always_inline bufs_t* get_buffer(int idx)
 {
-    int idx = 0;
     return bufs.lookup(&idx);
 }
 
-static __always_inline void set_buffer_offset(u32 off)
+static __always_inline void set_buffer_offset(int idx, u32 off)
 {
-    int idx = 0;
     bufs_offset.update(&idx, &off);
 }
 
-static __always_inline u32* get_buffer_offset()
+static __always_inline u32* get_buffer_offset(int idx)
 {
-    int idx = 0;
     return bufs_offset.lookup(&idx);
 }
 
@@ -406,7 +419,7 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    u32 *off = get_buffer_offset();
+    u32 *off = get_buffer_offset(0);
     if (off == NULL) {
         return -1;
     }
@@ -433,7 +446,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
         bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
 
         *off += sz + sizeof(int);
-        set_buffer_offset(*off);
+        set_buffer_offset(0, *off);
 
         return sz + sizeof(int);
     }
@@ -450,7 +463,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    u32 *off = get_buffer_offset();
+    u32 *off = get_buffer_offset(0);
     if (off == NULL) {
         return -1;
     }
@@ -471,7 +484,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
 
     if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
         *off += size;
-        set_buffer_offset(*off);
+        set_buffer_offset(0, *off);
         return size;
     }
 
@@ -516,7 +529,7 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         return 0;
     }
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL) {
         return 0;
     }
@@ -566,13 +579,97 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
+static inline struct mount *real_mount(struct vfsmount *mnt)
+{
+	return container_of(mnt, struct mount, mnt);
+}
+
+static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
+{
+	struct path f_path;
+	struct qstr d_name;
+	struct mount *mnt;
+	struct dentry *parent;
+	struct dentry *mnt_root;
+	struct mount *m;
+
+	char slash = '/';
+	char null = '\0';
+	int offset = MAX_STRING_SIZE - 1;
+
+	if (path == NULL) {
+		return false;
+	}
+
+	bpf_probe_read(&f_path, sizeof(struct path), path);
+
+	struct dentry *dentry = f_path.dentry;
+	struct vfsmount *vfsmnt = f_path.mnt;
+
+	mnt = real_mount(vfsmnt);
+
+	// TODO: check if the dentry is unlinked
+#pragma unroll
+	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
+		bpf_probe_read(&parent, sizeof(struct dentry *),
+			       &dentry->d_parent);
+		bpf_probe_read(&mnt_root, sizeof(struct dentry *),
+			       &vfsmnt->mnt_root);
+		if (dentry == mnt_root) {
+			bpf_probe_read(&m, sizeof(struct mount *),
+				       &mnt->mnt_parent);
+			if (mnt != m) {
+				bpf_probe_read(&dentry, sizeof(struct dentry *),
+					       &mnt->mnt_mountpoint);
+				mnt = m;
+				continue;
+			}
+			/* Global root */
+			break;
+		}
+
+		if (dentry == parent) {
+			break;
+		}
+
+		// get d_name
+		bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
+
+		offset -= (d_name.len + 1);
+		if (offset < 0)
+			break;
+
+		if (string_p != NULL) {
+			int sz = bpf_probe_read_str(
+				&(string_p->buf[(offset) &
+						(MAX_STRING_SIZE - 1)]),
+				(d_name.len + 1) & (MAX_STRING_SIZE - 1), d_name.name);
+
+			if (sz > 1) {
+				bpf_probe_read(
+					&(string_p->buf[(offset + d_name.len ) &
+							(MAX_STRING_SIZE - 1)]),
+					1, &slash);
+			} else {
+				break;
+			}
+		}
+		dentry = parent;
+	}
+	if (string_p != NULL) {
+		bpf_probe_read(&(string_p->buf[MAX_STRING_SIZE - 1]), 1, &null);
+	}
+	set_buffer_offset(1, offset);
+	return true;
+}
+
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
 {
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return -1;
 
-    u32 *off = get_buffer_offset();
+    u32 *off = get_buffer_offset(0);
     if (off == NULL)
         return -1;
 
@@ -600,9 +697,9 @@ int syscall__execve(struct pt_regs *ctx,
     context.argnum = 2;
     context.retval = 0;
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -634,9 +731,9 @@ int trace_ret_execve(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -665,9 +762,9 @@ int syscall__execveat(struct pt_regs *ctx,
     context.argnum = 4;
     context.retval = 0;
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -701,9 +798,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -729,9 +826,9 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 
     remove_pid_ns();
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -830,9 +927,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         return 0;
     }
 
-    set_buffer_offset(sizeof(sys_context_t));
+    set_buffer_offset(0, sizeof(sys_context_t));
 
-    bufs_t *bufs_p = get_buffer();
+    bufs_t *bufs_p = get_buffer(0);
     if (bufs_p == NULL)
         return 0;
 
@@ -868,6 +965,53 @@ int syscall__openat(struct pt_regs *ctx)
 int trace_ret_openat(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T));
+}
+
+int kretprobe_do_filp_open(struct pt_regs *ctx)
+{
+	if (skip_syscall())
+		return 0;
+
+	args_t args = {};
+	int path_index = 0;
+
+	struct file *f = (struct file *)PT_REGS_RC(ctx);
+
+	bufs_t *string_p = get_buffer(1);
+	if (string_p == NULL)
+        return 1;
+
+	/* u32 event_id = ctx->args[1]; */
+	// TODO: get what syscall we are in
+	u32 event_id = _SYS_OPENAT;
+
+	/* if (event_id != _SYS_OPENAT && event_id != _SYS_OPEN) */
+	/* 	return 0; */
+
+	if (load_args(event_id, &args) != 0)
+		return 0;
+
+	int offset = MAX_STRING_SIZE - 1;
+	char null = '\0';
+
+	set_buffer_offset(1, offset);
+
+	prepend_path(&f->f_path, string_p);
+
+	u32 tgid = bpf_get_current_pid_tgid();
+	u64 id = ((u64)event_id << 32) | tgid;
+
+	u32 *off = get_buffer_offset(1);
+    if (off == NULL)
+        return 1;
+	if (event_id == _SYS_OPENAT)
+		path_index = 1;
+    if (*off != MAX_STRING_SIZE - 1)
+        bpf_probe_read_str(&args.args[path_index],
+			   sizeof(args.args[path_index]), &string_p->buf[*off]);
+
+	args_map.update(&id, &args);
+	return 0;
 }
 
 int syscall__close(struct pt_regs *ctx)
