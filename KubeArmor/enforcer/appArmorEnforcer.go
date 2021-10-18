@@ -508,6 +508,13 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 		} else {
 			ae.Logger.Errf("Failed to update %d host security rules to the KubeArmor host profile in %s (%s)", policyCount, ae.HostName, err.Error())
 		}
+
+		/* Remove contents of AppArmor profile once the policy is applied
+		 * This will prevent reboot issues related to ungraceful shutdown of kubearmor
+		 */
+		if err := os.Truncate("/etc/apparmor.d/kubearmor.host", 0); err != nil {
+			ae.Logger.Err(err.Error())
+		}
 	}
 }
 
