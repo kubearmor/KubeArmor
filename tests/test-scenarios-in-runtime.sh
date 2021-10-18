@@ -142,7 +142,7 @@ function should_not_find_any_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log == $LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -157,7 +157,7 @@ function should_not_find_any_log() {
             DBG "Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log" == "$LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -280,7 +280,7 @@ function should_not_find_any_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log" == "$LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -295,7 +295,7 @@ function should_not_find_any_host_log() {
             DBG "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             if [ "$audit_log" == "$LAST_LOG" ]; then
                 audit_log="<No Log>"
@@ -533,7 +533,7 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
@@ -549,7 +549,7 @@ function run_test_scenario() {
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
                     should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
@@ -559,7 +559,7 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
@@ -575,7 +575,7 @@ function run_test_scenario() {
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
                     should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
