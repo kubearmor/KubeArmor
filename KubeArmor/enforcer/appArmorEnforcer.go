@@ -46,6 +46,17 @@ type AppArmorEnforcer struct {
 	AppArmorProfilesLock *sync.Mutex
 }
 
+func clearKubeArmorHostFile(fileName string) {
+	ae := &AppArmorEnforcer{}
+
+	/* Remove contents of AppArmor profile once the policy is applied
+	 * This will prevent reboot issues related to ungraceful shutdown of kubearmor
+	 */
+	if err := os.Truncate(fileName, 0); err != nil {
+		ae.Logger.Err(err.Error())
+	}
+}
+
 // NewAppArmorEnforcer Function
 func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 	ae := &AppArmorEnforcer{}
@@ -394,12 +405,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 		return false
 	}
 
-	/* Remove contents of AppArmor profile once the policy is applied
-	 * This will prevent reboot issues related to ungraceful shutdown of kubearmor
-	 */
-	if err := os.Truncate(appArmorHostFile, 0); err != nil {
-		ae.Logger.Err(err.Error())
-	}
+	clearKubeArmorHostFile(appArmorHostFile)
 
 	return true
 }
@@ -519,12 +525,7 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 			ae.Logger.Errf("Failed to update %d host security rules to the KubeArmor host profile in %s (%s)", policyCount, ae.HostName, err.Error())
 		}
 
-		/* Remove contents of AppArmor profile once the policy is applied
-		 * This will prevent reboot issues related to ungraceful shutdown of kubearmor
-		 */
-		if err := os.Truncate(appArmorHostFile, 0); err != nil {
-			ae.Logger.Err(err.Error())
-		}
+		clearKubeArmorHostFile(appArmorHostFile)
 	}
 }
 
