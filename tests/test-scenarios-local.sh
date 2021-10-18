@@ -195,7 +195,7 @@ function should_not_find_any_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
@@ -218,7 +218,7 @@ function should_find_passed_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
+    audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -247,7 +247,7 @@ function should_find_blocked_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep -E "$1.*policyName.*$2.*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -271,7 +271,7 @@ function should_not_find_any_host_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         if [ "$audit_log" == "$LAST_LOG" ]; then
             audit_log="<No Log>"
@@ -294,7 +294,7 @@ function should_find_passed_host_log() {
 
     sleep 3
 
-    audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
+    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -323,7 +323,7 @@ function should_find_blocked_host_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -466,7 +466,7 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
@@ -482,7 +482,7 @@ function run_test_scenario() {
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
                     should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
@@ -492,7 +492,7 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
                     should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
@@ -508,7 +508,7 @@ function run_test_scenario() {
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
                     should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
