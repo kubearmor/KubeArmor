@@ -846,6 +846,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
 					dm.Logger.Err("Failed to clone a spec")
+					continue
 				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
@@ -1305,6 +1306,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 
 				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
 					dm.Logger.Err("Failed to clone a spec")
+					continue
 				}
 
 				kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
