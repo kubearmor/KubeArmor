@@ -67,7 +67,7 @@ func connectToKVMService(identity string) error {
 		}
 		if err != nil {
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-			break
+			return err
 		}
 		err = enforcePolicy(policy.PolicyData)
 		if err != nil {
@@ -102,7 +102,7 @@ func InitKvmAgent(eventCb tp.KubeArmorHostPolicyEventCallback) error {
 		kg.Err("gRPC Dial failed")
 		return err
 	}
-	defer grpcClientConn.Close()
+	//defer grpcClientConn.Close()
 
 	client = pb.NewKVMClient(grpcClientConn)
 	if client == nil {
