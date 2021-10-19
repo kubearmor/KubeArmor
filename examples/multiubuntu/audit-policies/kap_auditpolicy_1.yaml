@@ -27,7 +27,7 @@ spec:
     events:
     - probe: sys_open
       path: /etc/shadow
-      mode: O_RDWR_APPEND
+      flags: O_RDWR | O_APPEND
   - message: "outbound probes detected (for any process)"
     severity: "5"
     events:
