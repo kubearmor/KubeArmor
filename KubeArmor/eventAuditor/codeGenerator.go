@@ -484,6 +484,37 @@ func generateModeMatch(modeField string, eventID uint32) (string, error) {
 	return match, nil
 }
 
+func flagsTokenize(flagsValue string) (Token, error) {
+	flagsValue = strings.TrimSpace(flagsValue)
+	flagsToken := tokenize(flagsValue, Number)
+
+	if flagsToken.isNumber() {
+		return *flagsToken, nil
+	}
+
+	return Token{Undefined, nil},
+		fmt.Errorf("invalid parameter: %v (flags)", flagsValue)
+}
+
+func generateFlagsMatch(flagsField string, eventID uint32) (string, error) {
+	var err error
+	var flagsToken Token
+
+	flagsInt64 := int64(0)
+	flagsList := strings.Split(flagsField, "|")
+
+	for _, flagsValue := range flagsList {
+		if flagsToken, err = flagsTokenize(flagsValue); err != nil {
+			return "", err
+		}
+
+		flagsInt64 |= flagsToken.getNumber()
+	}
+
+	match := fmt.Sprintf("(__ka_ea_evt%d_flags(ctx) == 0x%x)", eventID, flagsInt64)
+	return match, nil
+}
+
 func buildIpv4AddrParam(ipv4Field string, eventID uint32, inc *[]string, exc *[]string) error {
 	if match, err := generateIpv4MatchInclusion(ipv4Field, eventID); err != nil {
 		return err
@@ -518,6 +549,40 @@ func buildModeParam(modeField string, eventID uint32, inc *[]string) error {
 	}
 
 	return nil
+}
+
+func buildFlagsParam(flagsField string, eventID uint32, inc *[]string) error {
+	if match, err := generateFlagsMatch(flagsField, eventID); err != nil {
+		return err
+	} else if len(match) > 0 {
+		*inc = append(*inc, match)
+	}
+
+	return nil
+}
+
+// TryTokenizeIpv4 Function
+func TryTokenizeIpv4(ipv4Value string) error {
+	_, err := ipv4Tokenize(ipv4Value)
+	return err
+}
+
+// TryTokenizePort Function
+func TryTokenizePort(portValue string) error {
+	_, err := portTokenize(portValue)
+	return err
+}
+
+// TryTokenizeMode Function
+func TryTokenizeMode(modeValue string) error {
+	_, err := modeTokenize(modeValue)
+	return err
+}
+
+// TryTokenizeFlags Function
+func TryTokenizeFlags(flagsValue string) error {
+	_, err := flagsTokenize(flagsValue)
+	return err
 }
 
 // ========================== //
@@ -558,6 +623,14 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 	if len(auditEvent.Mode) > 0 {
 		if eventSupportsArgument("Mode", auditEvent.Mode) {
 			if err := buildModeParam(auditEvent.Mode, eventID, &matchInclusion); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	if len(auditEvent.Flags) > 0 {
+		if eventSupportsArgument("Flags", auditEvent.Flags) {
+			if err := buildFlagsParam(auditEvent.Flags, eventID, &matchInclusion); err != nil {
 				return "", err
 			}
 		}
