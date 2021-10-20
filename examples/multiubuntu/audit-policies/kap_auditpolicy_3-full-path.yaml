@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorAuditPolicy
+metadata:
+  name: kubearmorauditpolicy-sample-3-full-path
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-3
+
+  message: "simple audit rules"
+  severity: "4"
+  tags:
+  - process
+
+  rules:
+  - process: "*"
+    message: "audit /bin/bash execution"
+    events:
+    - probe: sys_execve
+      path: /bin/bash
+      rate: 5p1s

@@ -7,6 +7,14 @@
 #include "vmlinux.h"
 #include "shared.h"
 
+struct filename_key {
+	u32 hash;
+};
+
+struct filename_value {
+	bool inspect;
+};
+
 struct pattern_key {
 	char pattern[MAX_PATTERN_LEN];
 };
@@ -16,9 +24,9 @@ struct pattern_value {
 };
 
 struct process_spec_key {
-	__u32 pid_ns;
-	__u32 mnt_ns;
-	__u32 pattern_id;
+	u32 pid_ns;
+	u32 mnt_ns;
+	u32 filename_hash;
 };
 
 struct process_spec_value {

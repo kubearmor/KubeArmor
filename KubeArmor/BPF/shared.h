@@ -4,11 +4,8 @@
 #ifndef __SHARED_H
 #define __SHARED_H
 
-#define TASK_COMM_LEN 16
-#define MAX_FILENAME_LEN 42 // verifier limit for match() unrolling
-#define MAX_PATTERN_LEN 7   // verifier limit for match() unrolling
-
-#define get_dynamic_array(entry, field) \
-	((void *)entry + (entry->__data_loc_##field & 0xffff))
+#define TASK_COMM_LEN	 16
+#define MAX_FILENAME_LEN 256
+#define MAX_PATTERN_LEN	 256
 
 #endif /* __SHARED_H */
