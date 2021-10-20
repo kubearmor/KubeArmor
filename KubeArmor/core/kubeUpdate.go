@@ -2026,7 +2026,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 
 			// if the same namespace:process exists, merge events
 			if _, ok := auditPolicies[key]; ok {
-				mapEntry := dm.AuditPolicies[key]
+				mapEntry := auditPolicies[key]
 				mapEntry.Events = append(mapEntry.Events, policy.Events...)
 				auditPolicies[key] = mapEntry
 			} else {
