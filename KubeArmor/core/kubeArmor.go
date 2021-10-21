@@ -152,21 +152,21 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
 		if dm.CloseRuntimeEnforcer() {
-			dm.Logger.Print("Stopped the runtime enforcer")
+			dm.Logger.Print("Stopped Kubearmor Enforcer")
 		}
 	}
 
 	if dm.SystemMonitor != nil {
 		// close system monitor
 		if dm.CloseSystemMonitor() {
-			dm.Logger.Print("Stopped the system monitor")
+			dm.Logger.Print("Stopped Kubearmor Monitor")
 		}
 	}
 
 	if dm.Logger != nil {
-		dm.Logger.Print("Terminated the KubeArmor")
+		dm.Logger.Print("Terminated KubeArmor")
 	} else {
-		kg.Print("Terminated the KubeArmor")
+		kg.Print("Terminated KubeArmor")
 	}
 
 	// wait for a while
