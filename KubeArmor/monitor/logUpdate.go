@@ -29,6 +29,8 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 		log.NamespaceName = val.NamespaceName
 		log.PodName = val.EndPointName
 		log.ContainerName = val.ContainerName
+
+		// get merged directory
 		log.MergedDir = val.MergedDir
 
 		// update policy flag

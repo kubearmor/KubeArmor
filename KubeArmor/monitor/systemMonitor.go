@@ -611,7 +611,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
 
 		//nolint
-		case _ = <-mon.SyscallLostChannel:
+		case <-mon.SyscallLostChannel:
 			continue
 		}
 	}
@@ -784,7 +784,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			mon.HostContextChan <- ContextCombined{ContainerID: "", ContextSys: ctx, ContextArgs: args}
 
 		//nolint
-		case _ = <-mon.SyscallLostChannel:
+		case <-mon.SyscallLostChannel:
 			continue
 		}
 	}
