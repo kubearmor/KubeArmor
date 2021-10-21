@@ -20,9 +20,6 @@ import (
 // == AppArmor Enforcer == //
 // ======================= //
 
-// AppArmorEnforcer constants
-const appArmorHostFile = "/etc/apparmor.d/kubearmor.host"
-
 // AppArmorEnforcer Structure
 type AppArmorEnforcer struct {
 	// host
@@ -44,17 +41,6 @@ type AppArmorEnforcer struct {
 	// profiles for containers
 	AppArmorProfiles     map[string]int
 	AppArmorProfilesLock *sync.Mutex
-}
-
-func clearKubeArmorHostFile(fileName string) {
-	ae := &AppArmorEnforcer{}
-
-	/* Remove contents of AppArmor profile once the policy is applied
-	 * This will prevent reboot issues related to ungraceful shutdown of kubearmor
-	 */
-	if err := os.Truncate(fileName, 0); err != nil {
-		ae.Logger.Err(err.Error())
-	}
 }
 
 // NewAppArmorEnforcer Function
@@ -334,6 +320,20 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 // ====================================== //
 // == AppArmor Host Profile Management == //
 // ====================================== //
+
+// AppArmorEnforcer constants
+const appArmorHostFile = "/etc/apparmor.d/kubearmor.host"
+
+func clearKubeArmorHostFile(fileName string) {
+	ae := &AppArmorEnforcer{}
+
+	/* Remove contents of AppArmor profile once the policy is applied
+	 * This will prevent reboot issues related to ungraceful shutdown of kubearmor
+	 */
+	if err := os.Truncate(fileName, 0); err != nil {
+		ae.Logger.Err(err.Error())
+	}
+}
 
 // CreateAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
