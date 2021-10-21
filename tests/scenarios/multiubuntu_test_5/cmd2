@@ -1,7 +1,0 @@
-source: ubuntu-2-deployment
-cmd: env
-result: failed
----
-operation: Process
-condition: env
-action: Block

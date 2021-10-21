@@ -1,7 +1,0 @@
-source: ubuntu-3-deployment
-cmd: sleep 1
-result: failed
----
-operation: Process
-condition: sleep
-action: Block

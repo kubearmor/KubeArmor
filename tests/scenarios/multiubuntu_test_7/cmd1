@@ -1,7 +1,0 @@
-source: ubuntu-5-deployment
-cmd: ping -c 1 8.8.8.8
-result: passed
----
-operation: Network
-condition: SOCK_RAW
-action: Audit

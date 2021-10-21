@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: github
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-1-deployment
+  namespace: github
+  labels:
+    deployment: ubuntu-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  template:
+    metadata:
+      labels:
+        container: ubuntu-1
+      annotations:
+        kubearmor-policy: enabled
+        container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/apparmor-multiubuntu-ubuntu-1-container
+    spec:
+      containers:
+      - name: ubuntu-1-container
+        image: kubearmor/ubuntu-w-utils:0.1

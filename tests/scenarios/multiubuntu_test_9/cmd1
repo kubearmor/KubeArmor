@@ -1,7 +1,0 @@
-source: ubuntu-4-deployment
-cmd: echo test >> /secret.txt
-result: passed
----
-operation: File
-condition: secret.txt
-action: Allow

@@ -615,6 +615,12 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
     do
         ## == ##
 
+        if [ "$microservice" == "github" ]; then
+            continue
+        fi
+
+        ## == ##
+
         INFO "Applying $microservice"
         apply_and_wait_for_microservice_creation $microservice
 
