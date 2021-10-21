@@ -25,7 +25,7 @@ struct log_t{
 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 10);
+    __uint(max_entries, 24);
 } ringbuff_map SEC(".maps");
 
 long flag = 0;
@@ -41,14 +41,14 @@ int syscall__sys_execve(struct trace_event_raw_sched_process_exec *ctx) {
         bpf_printk("Map not updated\n");
         return 0;
     }
-    log = bpf_ringbuf_reserve(&ringbuff_map, sizeof(int), flag);
+    log = bpf_ringbuf_reserve(&ringbuff_map, sizeof(int), BPF_RB_FORCE_WAKEUP);
     if (!log) {
         return 0;
     }
 
     log->pid = tgid;
 
-    bpf_ringbuf_submit(log, flag);
+    bpf_ringbuf_submit(log, BPF_RB_FORCE_WAKEUP);
     return 0;
 }
 
