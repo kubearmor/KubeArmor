@@ -536,15 +536,15 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	// set hostname
 	log.HostName = fd.Node.NodeName
 
+	// remove MergedDir
+	log.MergedDir = ""
+
 	// remove flags
 	log.PolicyEnabled = 0
 	log.ProcessVisibilityEnabled = false
 	log.FileVisibilityEnabled = false
 	log.NetworkVisibilityEnabled = false
 	log.CapabilitiesVisibilityEnabled = false
-
-	// do not output MergedDir
-	log.MergedDir = ""
 
 	// standard output / file output
 	if fd.Output == "stdout" {
