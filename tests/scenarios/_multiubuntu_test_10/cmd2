@@ -1,7 +1,7 @@
 source: ubuntu-3-deployment
-cmd: ls /etc/
+cmd: cat /etc/hostname
 result: failed
 ---
 operation: File
-condition: "/etc/"
+condition: "/etc/hostname"
 action: Block
