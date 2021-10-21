@@ -13,12 +13,23 @@ import (
 	lbpf "github.com/kubearmor/libbpf"
 )
 
-type log struct {
-	PID int
-	//	UID int
+type log_t struct {
+	ts int64
+
+	pid_id uint32
+	mnt_id uint32
+
+	host_ppid uint32
+	host_pid  uint32
+
+	ppid uint32
+	pid  uint32
+	uid  uint32
+
+	event_id uint32
 }
 
-func (ea *EventAuditor) ringbufferconsume() error {
+func (ea *EventAuditor) RingbufferConsume() error {
 	var err error
 
 	bpfModule, err := lbpf.OpenObjectFromFile("ringbuffer.bpf.o")
@@ -26,7 +37,6 @@ func (ea *EventAuditor) ringbufferconsume() error {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
-	defer bpfModule.Close()
 
 	bpfModule.Load()
 	prog, err := bpfModule.FindProgramByName("syscall__sys_execve")
@@ -35,7 +45,7 @@ func (ea *EventAuditor) ringbufferconsume() error {
 		os.Exit(-1)
 	}
 
-	_, err = prog.AttachKprobe("syscalls/sys_enter_execve")
+	_, err = prog.AttachKprobe("sched/sched_process_exec")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)

@@ -6,9 +6,21 @@
 #define asm_inline asm
 #endif
 
-struct log{
-    int PID;
-    //int UID;
+struct log_t{
+    u64 ts;
+
+    u32 pid_id;
+    u32 mnt_id;
+    
+    u32 host_ppid;
+    u32 host_pid;
+    
+    u32 ppid;
+    u32 pid;
+    u32 uid;
+
+    u32 event_id
+
 };
 
 struct {
@@ -18,9 +30,9 @@ struct {
 
 long flag = 0;
 
-SEC("tp/syscalls/sys_enter_execve")
+SEC("tp/sched/sched_process_exec")
 int syscall__sys_execve(struct trace_event_raw_sched_process_exec *ctx) {
-    struct log *log;
+    struct log_t *log;
     __u64 id = bpf_get_current_pid_tgid();
     __u32 tgid = id >> 32;
 
@@ -34,7 +46,7 @@ int syscall__sys_execve(struct trace_event_raw_sched_process_exec *ctx) {
         return 0;
     }
 
-    log->PID = tgid;
+    log->pid = tgid;
 
     bpf_ringbuf_submit(log, flag);
     return 0;
