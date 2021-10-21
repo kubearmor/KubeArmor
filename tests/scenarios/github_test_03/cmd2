@@ -1,7 +1,0 @@
-source: ubuntu-1-deployment
-cmd: cat /etc/gshadow
-result: failed
----
-operation: File
-condition: /etc/gshadow
-action: Block
