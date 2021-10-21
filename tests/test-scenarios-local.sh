@@ -191,7 +191,7 @@ function delete_and_wait_for_microservice_deletion() {
 function should_not_find_any_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
@@ -207,7 +207,7 @@ function should_not_find_any_log() {
 function should_find_passed_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
@@ -223,7 +223,7 @@ function should_find_passed_log() {
 function should_find_blocked_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     match_type="MatchedPolicy"
     if [[ $6 -eq 1 ]]; then
@@ -244,7 +244,7 @@ function should_find_blocked_log() {
 function should_not_find_any_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
@@ -260,7 +260,7 @@ function should_not_find_any_host_log() {
 function should_find_passed_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
@@ -276,7 +276,7 @@ function should_find_passed_host_log() {
 function should_find_blocked_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     match_type="MatchedHostPolicy"
     if [[ $5 -eq 1 ]]; then
@@ -363,7 +363,7 @@ function run_test_scenario() {
     fi
     DBG "Applied $YAML_FILE into $2"
 
-    sleep 3
+    sleep 5
     cmd_count=0
 
     for cmd in $(ls cmd*)

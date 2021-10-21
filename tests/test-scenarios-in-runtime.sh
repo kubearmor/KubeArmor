@@ -134,7 +134,7 @@ function delete_and_wait_for_microservice_deletion() {
 function should_not_find_any_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -165,7 +165,7 @@ function should_not_find_any_log() {
 function should_find_passed_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -196,7 +196,7 @@ function should_find_passed_log() {
 function should_find_blocked_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -232,7 +232,7 @@ function should_find_blocked_log() {
 function should_not_find_any_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -263,7 +263,7 @@ function should_not_find_any_host_log() {
 function should_find_passed_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -294,7 +294,7 @@ function should_find_passed_host_log() {
 function should_find_blocked_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -396,7 +396,7 @@ function run_test_scenario() {
     fi
     DBG "Applied $YAML_FILE into $2"
 
-    sleep 3
+    sleep 5
     cmd_count=0
 
     for cmd in $(ls cmd*)
