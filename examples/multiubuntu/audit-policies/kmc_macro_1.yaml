@@ -16,12 +16,3 @@ spec:
 
   - name: NON-EXTERNAL-IPV6
     value: fe80::37be:*:*:*
-
-  - name: O_RDWR
-    value: "2"
-
-  - name: O_APPEND
-    value: "0x400"
-
-  - name: O_RDWR_APPEND
-    value: 0x400 | 2
