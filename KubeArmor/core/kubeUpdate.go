@@ -1722,28 +1722,24 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Directory, macroName, macroValue)
 
 			// expand individual values (Mode)
-			if strings.Contains(k8sAuditPolicySpec.AuditRules[i].Events[j].Mode, "|") {
-				modeValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Mode, "|")
-				for idx := 0; idx < len(modeValues); idx++ {
-					if strings.TrimSpace(modeValues[idx]) == macroName {
-						modeValues[idx] = macroValue
-					}
+			modeValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Mode, "|")
+			for idx := 0; idx < len(modeValues); idx++ {
+				if strings.TrimSpace(modeValues[idx]) == macroName {
+					modeValues[idx] = macroValue
 				}
-
-				k8sAuditPolicySpec.AuditRules[i].Events[j].Mode = strings.Join(modeValues, "|")
 			}
+
+			k8sAuditPolicySpec.AuditRules[i].Events[j].Mode = strings.Join(modeValues, "|")
 
 			// expand individual values (Flags)
-			if strings.Contains(k8sAuditPolicySpec.AuditRules[i].Events[j].Flags, "|") {
-				flagsValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Flags, "|")
-				for idx := 0; idx < len(flagsValues); idx++ {
-					if strings.TrimSpace(flagsValues[idx]) == macroName {
-						flagsValues[idx] = macroValue
-					}
+			flagsValues := strings.Split(k8sAuditPolicySpec.AuditRules[i].Events[j].Flags, "|")
+			for idx := 0; idx < len(flagsValues); idx++ {
+				if strings.TrimSpace(flagsValues[idx]) == macroName {
+					flagsValues[idx] = macroValue
 				}
-
-				k8sAuditPolicySpec.AuditRules[i].Events[j].Flags = strings.Join(flagsValues, "|")
 			}
+
+			k8sAuditPolicySpec.AuditRules[i].Events[j].Flags = strings.Join(flagsValues, "|")
 
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Protocol, macroName, macroValue)
 			expandMacroField(&k8sAuditPolicySpec.AuditRules[i].Events[j].Ipv4Addr, macroName, macroValue)
@@ -1930,6 +1926,11 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 		if err := kl.Clone(k8sPolicy.Spec, &k8sAuditPolicySpec); err != nil {
 			dm.Logger.Errf("Failed to clone spec for k8sPolicy %s", k8sPolicy.Metadata.Name)
 			continue
+		}
+
+		// merge builtin macros
+		for macroName, macroValue := range edt.KAEABuiltinMacros {
+			k8sAuditPolicyMergeMacro(&k8sAuditPolicySpec, macroName, macroValue)
 		}
 
 		// merge macros
