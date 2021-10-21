@@ -11,12 +11,12 @@ fi
 . ~/.bashrc
 
 # turn off swap
-sudo swapoff -a
+# sudo swapoff -a
 
 # activate br_netfilter
-sudo modprobe br_netfilter
-sudo bash -c "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
-sudo bash -c "echo 'net.bridge.bridge-nf-call-iptables=1' >> /etc/sysctl.conf"
+# sudo modprobe br_netfilter
+# sudo bash -c "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+# sudo bash -c "echo 'net.bridge.bridge-nf-call-iptables=1' >> /etc/sysctl.conf"
 
 if [ ! -z $1 ] && [ "$1" == "weave" ]; then
     # initialize the master node (weave)
