@@ -210,8 +210,8 @@ ka_ea_check_inspect(void)
 	struct process_filter_key key;
 	struct process_filter_value *value;
 
-	key.pid_ns = task_get_pid_ns();
-	key.mnt_ns = task_get_mnt_ns();
+	key.pid_ns = task_get_pid_ns(NULL);
+	key.mnt_ns = task_get_mnt_ns(NULL);
 	key.host_pid = task_get_host_pid();
 
 	value = bpf_map_lookup_elem(__ka_ea_map(ka_ea_process_filter_map), &key);
