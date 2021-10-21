@@ -455,8 +455,8 @@ function run_test_scenario() {
         if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
             bash -c ''"${CMD}"''
         else
-            echo kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
-            kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
+            echo kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
+            kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
         fi
         if [ $? != 0 ]; then
             actual_res="failed"
@@ -535,7 +535,7 @@ function run_test_scenario() {
             echo "Result: $RESULT (expected) / $actual_res (actual)" >> $TEST_LOG
             echo "Output:" >> $TEST_LOG
             if [[ $HOST_POLICY -eq 0 ]]; then 
-                echo ""$(kubectl exec -n $2 -it $POD -- bash -c "$CMD") >> $TEST_LOG
+                echo ""$(kubectl exec -n $2 $POD -- bash -c "$CMD") >> $TEST_LOG
             else
                 echo ""$(bash -c "$CMD") >> $TEST_LOG
             fi
@@ -702,7 +702,7 @@ else
     WARN "Skipped Container Scenarios"
 fi
 
-HOST_NAME="$(hostname)"
+HOST_NAME=$(hostname)
 res_host=0
 
 if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
