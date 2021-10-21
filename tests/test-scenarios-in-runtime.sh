@@ -131,27 +131,20 @@ function delete_and_wait_for_microservice_deletion() {
     fi
 }
 
-LAST_LOG=""
-
 function should_not_find_any_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
-            if [ "$audit_log == $LAST_LOG" ]; then
-                audit_log="<No Log>"
-                DBG "Found no log from logs (duplicated)"
-            else
-                echo $audit_log
-                FAIL "Found the log from logs"
-                res_cmd=1
-            fi
+            echo $audit_log
+            FAIL "Found the log from logs"
+            res_cmd=1
         else
             audit_log="<No Log>"
             DBG "Found no log from logs"
@@ -159,46 +152,33 @@ function should_not_find_any_log() {
     else # local
         audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                DBG "Found no log from logs (duplicated)"
-            else
-                echo $audit_log
-                FAIL "Found the log from logs"
-                res_cmd=1
-            fi
+            echo $audit_log
+            FAIL "Found the log from logs"
+            res_cmd=1
         else
             audit_log="<No Log>"
             DBG "Found no log from logs"
         fi
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_passed_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "[INFO] Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "[INFO] Found the log from logs"
         fi
     else # local
         audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
@@ -207,24 +187,16 @@ function should_find_passed_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "[INFO] Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "[INFO] Found the log from logs"
         fi
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_blocked_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -235,20 +207,14 @@ function should_find_blocked_log() {
     fi
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "Found the log from logs"
         fi
     else # local
         audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
@@ -257,39 +223,26 @@ function should_find_blocked_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "Found the log from logs"
         fi
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_not_find_any_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                DBG "Found no log from logs (duplicated)"
-            else
-                echo $audit_log
-                FAIL "Found the log from logs"
-                res_cmd=1
-            fi
+            echo $audit_log
+            FAIL "Found the log from logs"
+            res_cmd=1
         else
             audit_log="<No Log>"
             DBG "[INFO] Found no log from logs"
@@ -297,46 +250,33 @@ function should_not_find_any_host_log() {
     else # local
         audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                DBG "Found no log from logs (duplicated)"
-            else
-                echo $audit_log
-                FAIL "Found the log from logs"
-                res_cmd=1
-            fi
+            echo $audit_log
+            FAIL "Found the log from logs"
+            res_cmd=1
         else
             audit_log="<No Log>"
             DBG "[INFO] Found no log from logs"
         fi
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_passed_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "[INFO] Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "[INFO] Found the log from logs"
         fi    
     else # local
         audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
@@ -345,24 +285,16 @@ function should_find_passed_host_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "[INFO] Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "[INFO] Found the log from logs"
         fi
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_blocked_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
@@ -373,20 +305,14 @@ function should_find_blocked_host_log() {
     fi
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec -it $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "Found the log from logs"
         fi
     else # local
         audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
@@ -395,18 +321,10 @@ function should_find_blocked_host_log() {
             FAIL "Failed to find the log from logs"
             res_cmd=1
         else
-            if [ "$audit_log" == "$LAST_LOG" ]; then
-                audit_log="<No Log>"
-                FAIL "Failed to find the log from logs (duplicated)"
-                res_cmd=1
-            else
-                echo $audit_log
-                DBG "Found the log from logs"
-            fi
+            echo $audit_log
+            DBG "Found the log from logs"
         fi
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function run_test_scenario() {
@@ -478,7 +396,7 @@ function run_test_scenario() {
     fi
     DBG "Applied $YAML_FILE into $2"
 
-    sleep 3
+    sleep 5
     cmd_count=0
 
     for cmd in $(ls cmd*)
@@ -522,8 +440,8 @@ function run_test_scenario() {
         if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
             bash -c ''"${CMD}"''
         else
-            echo kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
-            kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
+            echo kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
+            kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
         fi
         if [ $? != 0 ]; then
             actual_res="failed"
@@ -602,7 +520,7 @@ function run_test_scenario() {
             echo "Result: $RESULT (expected) / $actual_res (actual)" >> $TEST_LOG
             echo "Output:" >> $TEST_LOG
             if [[ $HOST_POLICY -eq 0 ]]; then 
-                echo ""$(kubectl exec -n $2 -it $POD -- bash -c "$CMD") >> $TEST_LOG
+                echo ""$(kubectl exec -n $2 $POD -- bash -c "$CMD") >> $TEST_LOG
             else
                 echo ""$(bash -c "$CMD") >> $TEST_LOG
             fi

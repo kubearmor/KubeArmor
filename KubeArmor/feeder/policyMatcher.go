@@ -4,10 +4,12 @@
 package feeder
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -31,7 +33,19 @@ func getProtocolFromName(proto string) string {
 	}
 }
 
-// getOperationAndCapabilityFromName
+func getFileProcessUID(path string) string {
+	info, err := os.Stat(path)
+	if err == nil {
+		stat := info.Sys().(*syscall.Stat_t)
+		uid := stat.Uid
+
+		return strconv.Itoa(int(uid))
+	}
+
+	return ""
+}
+
+// getOperationAndCapabilityFromName Function
 func getOperationAndCapabilityFromName(capName string) (op, cap string) {
 	switch strings.ToLower(capName) {
 	case "net_raw":
@@ -51,6 +65,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		Source:     src,
 	}
 
+	match.ReadOnly = false
+	match.OwnerOnly = false
+
 	if ppt, ok := mp.(tp.ProcessPathType); ok {
 		match.Severity = strconv.Itoa(ppt.Severity)
 		match.Tags = ppt.Tags
@@ -65,6 +82,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = ppt.Action
 		}
+
+		match.OwnerOnly = ppt.OwnerOnly
 	} else if pdt, ok := mp.(tp.ProcessDirectoryType); ok {
 		match.Severity = strconv.Itoa(pdt.Severity)
 		match.Tags = pdt.Tags
@@ -79,6 +98,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = pdt.Action
 		}
+
+		match.OwnerOnly = pdt.OwnerOnly
 	} else if ppt, ok := mp.(tp.ProcessPatternType); ok {
 		match.Severity = strconv.Itoa(ppt.Severity)
 		match.Tags = ppt.Tags
@@ -93,6 +114,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = ppt.Action
 		}
+
+		match.OwnerOnly = ppt.OwnerOnly
 	} else if fpt, ok := mp.(tp.FilePathType); ok {
 		match.Severity = strconv.Itoa(fpt.Severity)
 		match.Tags = fpt.Tags
@@ -107,6 +130,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = fpt.Action
 		}
+
+		match.ReadOnly = fpt.ReadOnly
+		match.OwnerOnly = fpt.OwnerOnly
 	} else if fdt, ok := mp.(tp.FileDirectoryType); ok {
 		match.Severity = strconv.Itoa(fdt.Severity)
 		match.Tags = fdt.Tags
@@ -121,6 +147,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = fdt.Action
 		}
+
+		match.ReadOnly = fdt.ReadOnly
+		match.OwnerOnly = fdt.OwnerOnly
 	} else if fpt, ok := mp.(tp.FilePatternType); ok {
 		match.Severity = strconv.Itoa(fpt.Severity)
 		match.Tags = fpt.Tags
@@ -134,6 +163,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = fpt.Action
 		}
+
+		match.ReadOnly = fpt.ReadOnly
+		match.OwnerOnly = fpt.OwnerOnly
 	} else if npt, ok := mp.(tp.NetworkProtocolType); ok {
 		match.Severity = strconv.Itoa(npt.Severity)
 		match.Tags = npt.Tags
@@ -593,7 +625,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
-
 		}
 
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
@@ -766,6 +797,24 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" ||
 							(secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) ||
 							(secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+							if secPolicy.ReadOnly {
+								if log.Resource != "" { // SysOpen() or SysOpenAt()
+									preLogData := strings.Split(log.Data, " ")
+									logData := strings.Split(preLogData[len(preLogData)-1], "=")
+									flags := logData[len(logData)-1]
+									if flags == "O_RDONLY" {
+										continue
+									}
+								}
+							}
+
+							if secPolicy.OwnerOnly {
+								fileProcessUID := getFileProcessUID(log.MergedDir+log.Resource)
+								if strconv.Itoa(int(log.UID)) == fileProcessUID {
+									continue
+								}
+							}
+
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 
@@ -779,7 +828,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
-
 							continue
 						}
 					}
