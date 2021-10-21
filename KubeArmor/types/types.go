@@ -20,8 +20,6 @@ type Container struct {
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
-	MergedDir string `json:"mergedDir"`
-
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
 
@@ -31,6 +29,8 @@ type Container struct {
 
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
+
+	MergedDir string `json:"mergedDir"`
 
 	// == //
 
@@ -120,11 +120,11 @@ type K8sNodeEvent struct {
 
 // K8sPod Structure
 type K8sPod struct {
-	Metadata    		map[string]string
-	Annotations 		map[string]string
-	Labels      		map[string]string
-	Containers  		map[string]string
-	HostVolumes 		[]HostVolumeMount
+	Metadata    map[string]string
+	Annotations map[string]string
+	Labels      map[string]string
+	Containers  map[string]string
+	HostVolumes []HostVolumeMount
 }
 
 // K8sPodEvent Structure
@@ -246,13 +246,13 @@ type MatchPolicy struct {
 	Resource     string
 
 	IsFromSource bool
+	OwnerOnly    bool
+	ReadOnly     bool
 
 	Regexp *regexp.Regexp
 	Native bool
 
 	Action string
-	ReadOnly bool
-	OwnerOnly bool
 }
 
 // MatchPolicies Structure

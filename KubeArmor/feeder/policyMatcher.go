@@ -65,8 +65,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		Source:     src,
 	}
 
-	match.ReadOnly = false
 	match.OwnerOnly = false
+	match.ReadOnly = false
 
 	if ppt, ok := mp.(tp.ProcessPathType); ok {
 		match.Severity = strconv.Itoa(ppt.Severity)
@@ -77,13 +77,13 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = ppt.Path
 		match.ResourceType = "Path"
 
+		match.OwnerOnly = ppt.OwnerOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
 		} else {
 			match.Action = ppt.Action
 		}
-
-		match.OwnerOnly = ppt.OwnerOnly
 	} else if pdt, ok := mp.(tp.ProcessDirectoryType); ok {
 		match.Severity = strconv.Itoa(pdt.Severity)
 		match.Tags = pdt.Tags
@@ -93,13 +93,13 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = pdt.Directory
 		match.ResourceType = "Directory"
 
+		match.OwnerOnly = pdt.OwnerOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(pdt.Action, "Block") {
 			match.Action = "Audit (" + pdt.Action + ")"
 		} else {
 			match.Action = pdt.Action
 		}
-
-		match.OwnerOnly = pdt.OwnerOnly
 	} else if ppt, ok := mp.(tp.ProcessPatternType); ok {
 		match.Severity = strconv.Itoa(ppt.Severity)
 		match.Tags = ppt.Tags
@@ -109,13 +109,13 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = ppt.Pattern
 		match.ResourceType = "" // to be defined based on the pattern matching syntax
 
+		match.OwnerOnly = ppt.OwnerOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
 		} else {
 			match.Action = ppt.Action
 		}
-
-		match.OwnerOnly = ppt.OwnerOnly
 	} else if fpt, ok := mp.(tp.FilePathType); ok {
 		match.Severity = strconv.Itoa(fpt.Severity)
 		match.Tags = fpt.Tags
@@ -125,14 +125,14 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fpt.Path
 		match.ResourceType = "Path"
 
+		match.OwnerOnly = fpt.OwnerOnly
+		match.ReadOnly = fpt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
 		} else {
 			match.Action = fpt.Action
 		}
-
-		match.ReadOnly = fpt.ReadOnly
-		match.OwnerOnly = fpt.OwnerOnly
 	} else if fdt, ok := mp.(tp.FileDirectoryType); ok {
 		match.Severity = strconv.Itoa(fdt.Severity)
 		match.Tags = fdt.Tags
@@ -142,14 +142,14 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fdt.Directory
 		match.ResourceType = "Directory"
 
+		match.OwnerOnly = fdt.OwnerOnly
+		match.ReadOnly = fdt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fdt.Action, "Block") {
 			match.Action = "Audit (" + fdt.Action + ")"
 		} else {
 			match.Action = fdt.Action
 		}
-
-		match.ReadOnly = fdt.ReadOnly
-		match.OwnerOnly = fdt.OwnerOnly
 	} else if fpt, ok := mp.(tp.FilePatternType); ok {
 		match.Severity = strconv.Itoa(fpt.Severity)
 		match.Tags = fpt.Tags
@@ -158,14 +158,14 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fpt.Pattern
 		match.ResourceType = "" // to be defined based on the pattern matching syntax
 
+		match.OwnerOnly = fpt.OwnerOnly
+		match.ReadOnly = fpt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
 		} else {
 			match.Action = fpt.Action
 		}
-
-		match.ReadOnly = fpt.ReadOnly
-		match.OwnerOnly = fpt.OwnerOnly
 	} else if npt, ok := mp.(tp.NetworkProtocolType); ok {
 		match.Severity = strconv.Itoa(npt.Severity)
 		match.Tags = npt.Tags
@@ -797,21 +797,36 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" ||
 							(secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) ||
 							(secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
-							if secPolicy.ReadOnly {
-								if log.Resource != "" { // SysOpen() or SysOpenAt()
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result == "Passed" {
+								if log.Resource != "" && secPolicy.ReadOnly && log.MergedDir != "" && secPolicy.OwnerOnly {
+									// read only
 									preLogData := strings.Split(log.Data, " ")
 									logData := strings.Split(preLogData[len(preLogData)-1], "=")
 									flags := logData[len(logData)-1]
+
+									// owner only
+									fileProcessUID := getFileProcessUID(log.MergedDir + log.Resource)
+
+									if flags == "O_RDONLY" && strconv.Itoa(int(log.UID)) == fileProcessUID {
+										continue
+									}
+								} else if log.Resource != "" && secPolicy.ReadOnly {
+									// read only
+									preLogData := strings.Split(log.Data, " ")
+									logData := strings.Split(preLogData[len(preLogData)-1], "=")
+									flags := logData[len(logData)-1]
+
 									if flags == "O_RDONLY" {
 										continue
 									}
-								}
-							}
+								} else if log.MergedDir != "" && secPolicy.OwnerOnly {
+									// owner only
+									fileProcessUID := getFileProcessUID(log.MergedDir + log.Resource)
 
-							if secPolicy.OwnerOnly {
-								fileProcessUID := getFileProcessUID(log.MergedDir+log.Resource)
-								if strconv.Itoa(int(log.UID)) == fileProcessUID {
-									continue
+									if strconv.Itoa(int(log.UID)) == fileProcessUID {
+										continue
+									}
 								}
 							}
 
@@ -828,6 +843,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							log.Type = "MatchedPolicy"
 							log.Action = secPolicy.Action
+
 							continue
 						}
 					}

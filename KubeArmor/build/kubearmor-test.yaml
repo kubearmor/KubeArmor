@@ -61,7 +61,7 @@ spec:
         - name: docker-sock-path # docker (read-only)
           mountPath: /var/run/docker.sock
           readOnly: true
-        - name: docker-storage-path 
+        - name: docker-storage-path # docker storage (read-only)
           mountPath: /var/lib/docker
           readOnly: true
         - name: usr-src-path # BPF (read-only)
@@ -102,7 +102,7 @@ spec:
         hostPath:
           path: /var/run/docker.sock
           type: Socket
-      - name: docker-storage-path
+      - name: docker-storage-path # docker
         hostPath:
           path: /var/lib/docker
           type: Directory
