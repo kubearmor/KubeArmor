@@ -63,3 +63,6 @@ sudo chmod 666 /var/run/docker.sock
 # install docker-compose
 sudo curl -sL https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
+
+# To Fix reboot issue???
+# sudo systemctl enable docker

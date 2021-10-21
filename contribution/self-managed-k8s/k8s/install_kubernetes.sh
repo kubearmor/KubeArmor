@@ -28,10 +28,10 @@ sudo apt-get install -y kubelet=1.21.3-00 kubeadm=1.21.3-00
 echo "bpffs                                     /sys/fs/bpf     bpf     defaults          0       0" | sudo tee -a /etc/fstab
 
 # install apparmor and audit
-sudo apt-get install -y apparmor apparmor-utils auditd
+sudo apt-get install -y apparmor apparmor-utils auditd # redondance with self-managed-k8s/setp.sh
 
 # enable auditd
-sudo systemctl enable auditd && sudo systemctl start auditd
+sudo systemctl enable auditd && sudo systemctl start auditd # redondance with self-managed-k8s/setp.sh
 
 # enable ip forwarding
 if [ $(cat /proc/sys/net/ipv4/ip_forward) == 0 ]; then
