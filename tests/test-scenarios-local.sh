@@ -188,8 +188,6 @@ function delete_and_wait_for_microservice_deletion() {
     fi
 }
 
-LAST_LOG=""
-
 function should_not_find_any_log() {
     DBG "Finding the corresponding log"
 
@@ -197,20 +195,13 @@ function should_not_find_any_log() {
 
     audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
-        if [ "$audit_log" == "$LAST_LOG" ]; then
-            audit_log="<No Log>"
-            DBG "Found no log from logs (duplicated)"
-        else
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
-        fi
+        echo $audit_log
+        FAIL "Found the log from logs"
+        res_cmd=1
     else
         audit_log="<No Log>"
         DBG "Found no log from logs"
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_passed_log() {
@@ -224,17 +215,9 @@ function should_find_passed_log() {
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
-        if [ "$audit_log" == "$LAST_LOG" ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs (duplicated)"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
-        fi
+        echo $audit_log
+        DBG "[INFO] Found the log from logs"
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_blocked_log() {
@@ -253,17 +236,9 @@ function should_find_blocked_log() {
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
-        if [ "$audit_log" == "$LAST_LOG" ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs (duplicated)"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
+        echo $audit_log
+        DBG "Found the log from logs"
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_not_find_any_host_log() {
@@ -273,20 +248,13 @@ function should_not_find_any_host_log() {
 
     audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
-        if [ "$audit_log" == "$LAST_LOG" ]; then
-            audit_log="<No Log>"
-            DBG "Found no log from logs (duplicated)"
-        else
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
-        fi
+        echo $audit_log
+        FAIL "Found the log from logs"
+        res_cmd=1
     else
         audit_log="<No Log>"
         DBG "[INFO] Found no log from logs"
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_passed_host_log() {
@@ -300,17 +268,9 @@ function should_find_passed_host_log() {
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
-        if [ "$audit_log" == "$LAST_LOG" ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs (duplicated)"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "[INFO] Found the log from logs"
-        fi
+        echo $audit_log
+        DBG "[INFO] Found the log from logs"
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function should_find_blocked_host_log() {
@@ -329,17 +289,9 @@ function should_find_blocked_host_log() {
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
-        if [ "$audit_log" == "$LAST_LOG" ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs (duplicated)"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
+        echo $audit_log
+        DBG "Found the log from logs"
     fi
-
-    LAST_LOG=$audit_log
 }
 
 function run_test_scenario() {
