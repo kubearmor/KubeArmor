@@ -2,7 +2,7 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-file-pattern-owner-readonly-block
-  namespace: multiubuntu
+  namespace: github
 spec:
   severity: 5
   message: "block files following a pattern for user1"

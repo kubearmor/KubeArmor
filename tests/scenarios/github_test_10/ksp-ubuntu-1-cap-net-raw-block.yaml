@@ -2,7 +2,7 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-cap-net-raw-block
-  namespace: multiubuntu
+  namespace: github
 spec:
   severity: 1
   selector:

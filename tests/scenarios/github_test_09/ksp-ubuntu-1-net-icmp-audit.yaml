@@ -2,7 +2,7 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-net-icmp-audit
-  namespace: multiubuntu
+  namespace: github
 spec:
   severity: 8
   selector:

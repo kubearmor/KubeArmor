@@ -2,7 +2,7 @@ apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
   name: ksp-ubuntu-1-file-path-owner-readonly-allow
-  namespace: multiubuntu
+  namespace: github
 spec:
   severity: 10
   message: "a critical file was accessed"
