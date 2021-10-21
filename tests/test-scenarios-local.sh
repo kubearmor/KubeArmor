@@ -123,13 +123,7 @@ function start_and_wait_for_kubearmor_initialization() {
         SKIP_NATIVE_HOST_POLICY=1
     fi
 
-    if [ "$GITHUB_ACTIONS" = true ]; then
-        echo "Github Actions - Environment"
-        make clean;make build-test
-        sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
-    else
-        sudo -E ./kubearmor -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
-    fi
+    sudo -E ./kubearmor -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
 
     for (( ; ; ))
     do
@@ -593,6 +587,12 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
     do
         ## == ##
 
+        if [ "$microservice" == "github" ]; then
+            continue
+        fi
+
+        ## == ##
+
         INFO "Applying $microservice"
         apply_and_wait_for_microservice_creation $microservice
 
@@ -648,7 +648,7 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
                 DBG "Deleted $microservice"
             fi
         fi
-    done    
+    done
     DBG "Finished Container Scenarios"
 else
     WARN "Skipped Container Scenarios"
@@ -748,16 +748,10 @@ else
     PASS "Successfully tested KubeArmor"
 fi
 
-if [ "$GITHUB_ACTIONS" = true ]
-then
-    echo "[INFO] Github Actions - Environment"
-    echo "[INFO] Not removing logs"
-else
-    echo "[INFO] Remove temporary logs after 10 seconds"
-    sleep 10
-    sudo rm -f $ARMOR_MSG $ARMOR_LOG
-    echo "[INFO] Removed the temporary logs"
-fi
+echo "[INFO] Remove temporary logs after 10 seconds"
+sleep 10
+sudo rm -f $ARMOR_MSG $ARMOR_LOG
+echo "[INFO] Removed the temporary logs"
 
 if [[ $res_microservice -ne 0 ]] || [[ $res_host -ne 0 ]]; then
     exit 1
