@@ -635,7 +635,7 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
 
             cd $TEST_HOME/scenarios
 
-            for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
+            for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*" | sort -z)
             do
                 is_test_ignored
                 [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue

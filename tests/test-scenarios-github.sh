@@ -577,7 +577,7 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
 
     cd $TEST_HOME/scenarios
 
-    for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
+    for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*" | sort -z)
     do
         res_case=0
 
