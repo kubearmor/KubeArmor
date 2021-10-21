@@ -114,6 +114,8 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	container.ContainerID = inspect.ID
 	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
 
+	container.MergedDir = inspect.GraphDriver.Data["MergedDir"]
+
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
 

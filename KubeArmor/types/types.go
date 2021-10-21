@@ -20,6 +20,8 @@ type Container struct {
 	ContainerID   string `json:"containerID"`
 	ContainerName string `json:"containerName"`
 
+	MergedDir string `json:"mergedDir"`
+
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
 
@@ -118,11 +120,11 @@ type K8sNodeEvent struct {
 
 // K8sPod Structure
 type K8sPod struct {
-	Metadata    map[string]string
-	Annotations map[string]string
-	Labels      map[string]string
-	Containers  map[string]string
-	HostVolumes []HostVolumeMount
+	Metadata    		map[string]string
+	Annotations 		map[string]string
+	Labels      		map[string]string
+	Containers  		map[string]string
+	HostVolumes 		[]HostVolumeMount
 }
 
 // K8sPodEvent Structure
@@ -194,6 +196,9 @@ type Log struct {
 	ContainerID   string `json:"containerID,omitempty"`
 	ContainerName string `json:"containerName,omitempty"`
 
+	// container merged directory
+	MergedDir string `json:"mergedDir,omitempty"`
+
 	// common
 	HostPID int32 `json:"hostPid"`
 	PPID    int32 `json:"ppid"`
@@ -246,6 +251,8 @@ type MatchPolicy struct {
 	Native bool
 
 	Action string
+	ReadOnly bool
+	OwnerOnly bool
 }
 
 // MatchPolicies Structure
