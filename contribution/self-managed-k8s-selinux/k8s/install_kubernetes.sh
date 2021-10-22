@@ -36,5 +36,5 @@ sudo systemctl stop firewalld
 sudo systemctl disable firewalld
 
 # install k8s
-sudo dnf install -y kubelet-1.21.3-0 kubectl-1.21.3-0 kubeadm-1.21.3-0 --disableexcludes=kubernetes
+sudo dnf install -y kubeadm=1.21.0-00 kubelet=1.21.0-00 kubectl=1.21.0-00 --disableexcludes=kubernetes
 sudo systemctl enable kubelet

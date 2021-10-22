@@ -12,8 +12,6 @@ fi
 
 # turn off swap
 sudo swapoff -a
-# sudo sed -i '/swap/d' /etc/fstab
-# sudo swapoff -a
 
 # activate br_netfilter
 sudo modprobe br_netfilter
