@@ -433,19 +433,24 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxPro
 			se.Logger.Err(err.Error())
 			return
 		}
-		defer func() {
-			if err := newfile.Close(); err != nil {
-				se.Logger.Err(err.Error())
-			}
-		}()
 
 		if _, err := newfile.WriteString(newProfile); err != nil {
 			se.Logger.Err(err.Error())
+
+			if err := newfile.Close(); err != nil {
+				se.Logger.Err(err.Error())
+			}
+
 			return
 		}
 
 		if err := newfile.Sync(); err != nil {
 			se.Logger.Err(err.Error())
+
+			if err := newfile.Close(); err != nil {
+				se.Logger.Err(err.Error())
+			}
+
 			return
 		}
 
@@ -453,6 +458,10 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxPro
 			se.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile)
 		} else {
 			se.Logger.Errf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile, err.Error())
+		}
+
+		if err := newfile.Close(); err != nil {
+			se.Logger.Err(err.Error())
 		}
 	}
 }

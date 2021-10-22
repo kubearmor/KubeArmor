@@ -4,10 +4,12 @@
 package feeder
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -31,7 +33,19 @@ func getProtocolFromName(proto string) string {
 	}
 }
 
-// getOperationAndCapabilityFromName
+func getFileProcessUID(path string) string {
+	info, err := os.Stat(path)
+	if err == nil {
+		stat := info.Sys().(*syscall.Stat_t)
+		uid := stat.Uid
+
+		return strconv.Itoa(int(uid))
+	}
+
+	return ""
+}
+
+// getOperationAndCapabilityFromName Function
 func getOperationAndCapabilityFromName(capName string) (op, cap string) {
 	switch strings.ToLower(capName) {
 	case "net_raw":
@@ -51,6 +65,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		Source:     src,
 	}
 
+	match.OwnerOnly = false
+	match.ReadOnly = false
+
 	if ppt, ok := mp.(tp.ProcessPathType); ok {
 		match.Severity = strconv.Itoa(ppt.Severity)
 		match.Tags = ppt.Tags
@@ -59,6 +76,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Operation = "Process"
 		match.Resource = ppt.Path
 		match.ResourceType = "Path"
+
+		match.OwnerOnly = ppt.OwnerOnly
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
@@ -74,6 +93,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = pdt.Directory
 		match.ResourceType = "Directory"
 
+		match.OwnerOnly = pdt.OwnerOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(pdt.Action, "Block") {
 			match.Action = "Audit (" + pdt.Action + ")"
 		} else {
@@ -87,6 +108,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Operation = "Process"
 		match.Resource = ppt.Pattern
 		match.ResourceType = "" // to be defined based on the pattern matching syntax
+
+		match.OwnerOnly = ppt.OwnerOnly
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
@@ -102,6 +125,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fpt.Path
 		match.ResourceType = "Path"
 
+		match.OwnerOnly = fpt.OwnerOnly
+		match.ReadOnly = fpt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
 		} else {
@@ -116,6 +142,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fdt.Directory
 		match.ResourceType = "Directory"
 
+		match.OwnerOnly = fdt.OwnerOnly
+		match.ReadOnly = fdt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fdt.Action, "Block") {
 			match.Action = "Audit (" + fdt.Action + ")"
 		} else {
@@ -128,6 +157,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Operation = "File"
 		match.Resource = fpt.Pattern
 		match.ResourceType = "" // to be defined based on the pattern matching syntax
+
+		match.OwnerOnly = fpt.OwnerOnly
+		match.ReadOnly = fpt.ReadOnly
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
@@ -593,7 +625,6 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
-
 		}
 
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
@@ -766,6 +797,39 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" ||
 							(secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) ||
 							(secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result == "Passed" {
+								if log.Resource != "" && secPolicy.ReadOnly && log.MergedDir != "" && secPolicy.OwnerOnly {
+									// read only
+									preLogData := strings.Split(log.Data, " ")
+									logData := strings.Split(preLogData[len(preLogData)-1], "=")
+									flags := logData[len(logData)-1]
+
+									// owner only
+									fileProcessUID := getFileProcessUID(log.MergedDir + log.Resource)
+
+									if flags == "O_RDONLY" && strconv.Itoa(int(log.UID)) == fileProcessUID {
+										continue
+									}
+								} else if log.Resource != "" && secPolicy.ReadOnly {
+									// read only
+									preLogData := strings.Split(log.Data, " ")
+									logData := strings.Split(preLogData[len(preLogData)-1], "=")
+									flags := logData[len(logData)-1]
+
+									if flags == "O_RDONLY" {
+										continue
+									}
+								} else if log.MergedDir != "" && secPolicy.OwnerOnly {
+									// owner only
+									fileProcessUID := getFileProcessUID(log.MergedDir + log.Resource)
+
+									if strconv.Itoa(int(log.UID)) == fileProcessUID {
+										continue
+									}
+								}
+							}
+
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 

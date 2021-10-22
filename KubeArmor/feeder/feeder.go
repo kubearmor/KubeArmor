@@ -314,28 +314,31 @@ func NewFeeder(clusterName string, node *tp.Node, port, output string) *Feeder {
 		// get the directory part from the path
 		dirLog := filepath.Dir(fd.Output)
 
-		// create directories
-		if err := os.MkdirAll(filepath.Clean(dirLog), 0750); err != nil {
-			kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
-			return nil
-		}
+		if _, err := os.Stat(filepath.Clean(fd.Output)); os.IsNotExist(err) {
+			// create directories
+			if err := os.MkdirAll(filepath.Clean(dirLog), 0750); err != nil {
+				kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
+				return nil
+			}
 
-		// create target file
-		targetFile, err := os.Create(filepath.Clean(fd.Output))
-		if err != nil {
-			kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
-			return nil
-		}
-		if err := targetFile.Close(); err != nil {
-			kg.Err(err.Error())
+			// create target file
+			targetFile, err := os.Create(filepath.Clean(fd.Output))
+			if err != nil {
+				kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
+				return nil
+			}
+			if err := targetFile.Close(); err != nil {
+				kg.Err(err.Error())
+			}
 		}
 
 		// open the file with the append mode
-		fd.LogFile, err = os.OpenFile(filepath.Clean(fd.Output), os.O_WRONLY|os.O_APPEND, 0600)
+		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			kg.Err(err.Error())
 			return nil
 		}
+		fd.LogFile = logFile
 	}
 
 	// listen to gRPC port
@@ -532,6 +535,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// set hostname
 	log.HostName = fd.Node.NodeName
+
+	// remove MergedDir
+	log.MergedDir = ""
 
 	// remove flags
 	log.PolicyEnabled = 0
