@@ -2,34 +2,32 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
-# sudo apt-get update
-# sudo apt-get -y install containerd
+# sudo sed -i '/swap/d' /etc/fstab
+# sudo swapoff -a
 
-sudo sed -i '/swap/d' /etc/fstab
-sudo swapoff -a
+# sudo systemctl disable --now ufw >/dev/null 2>&1
 
-sudo systemctl disable --now ufw >/dev/null 2>&1
+# sudo cat >>/etc/modules-load.d/containerd.conf<<EOF
+# overlay
+# br_netfilter
+# EOF
+# sudo modprobe overlay
+# sudo modprobe br_netfilter
 
-sudo cat >>/etc/modules-load.d/containerd.conf<<EOF
-overlay
-br_netfilter
-EOF
-sudo modprobe overlay
-sudo modprobe br_netfilter
+# sudo cat >>/etc/sysctl.d/kubernetes.conf<<EOF
+# net.bridge.bridge-nf-call-ip6tables = 1
+# net.bridge.bridge-nf-call-iptables  = 1
+# net.ipv4.ip_forward                 = 1
+# EOF
+# sudo sysctl --system >/dev/null 2>&1
 
-sudo cat >>/etc/sysctl.d/kubernetes.conf<<EOF
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables  = 1
-net.ipv4.ip_forward                 = 1
-EOF
-sudo sysctl --system >/dev/null 2>&1
-
-sudo apt update -qq
-sudo apt install -qq -y containerd apt-transport-https
-sudo mkdir /etc/containerd
-containerd config default > /etc/containerd/config.toml
-sudo systemctl restart containerd
-sudo systemctl enable containerd >/dev/null 2>&1
+sudo apt update #-qq
+sudo apt install -y containerd
+# sudo apt install -qq -y containerd apt-transport-https
+# sudo mkdir /etc/containerd
+# containerd config default > /etc/containerd/config.toml
+# sudo systemctl restart containerd
+# sudo systemctl enable containerd >/dev/null 2>&1
 
 # NULL 
 
