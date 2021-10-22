@@ -18,13 +18,13 @@ If you want to make a contribution, please follow the steps below.
 
 2. Clone the repository
 
-   Now, it is time to get the code on your machine. In your machine, please run the following command.
+   Now clone Kubearmor locally into your dev environment.
 
    ```text
     $ git clone https://github.com/[your GitHub ID]/KubeArmor
    ```
 
-   Then, you will get the full code of KubeArmor in your machine.  
+   This will clone a copy of Kubearmor installed in your dev environment.
 
 3. Make changes
 
@@ -43,7 +43,7 @@ If you want to make a contribution, please follow the steps below.
 
    If you see any warnings or errors, please fix them first.
 
-5. Commit the changes
+5. Commit changes
 
    Please see your changes using "git status" and add them to the branch using "git add".
 
@@ -69,7 +69,7 @@ If you want to make a contribution, please follow the steps below.
     ~/KubeArmor$ git push
    ```
 
-7. Create a pull request with your changes
+7. Create a pull request with your changes with the following steps
 
    First, go to your repository on GitHub.
 
