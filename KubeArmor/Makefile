@@ -54,7 +54,7 @@ testall:
 
 .PHONY: gofmt
 gofmt:
-	cd $(CURDIR); gofmt -s -d $(shell find . -type f -name '*.go' -print)
+	cd $(CURDIR); gofmt -s -w -d $(shell find . -type f -name '*.go' -print)
 
 .PHONY: golint
 golint:
