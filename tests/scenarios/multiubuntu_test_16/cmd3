@@ -1,0 +1,7 @@
+source: ubuntu-4-deployment
+cmd: echo test >> /credentials/password
+result: failed
+---
+operation: File
+condition: /credentials/password
+action: Block

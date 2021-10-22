@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: curl www.accuknox.com
+result: passed
+---
+operation: Network
+condition: SOCK_STREAM
+action: Block
