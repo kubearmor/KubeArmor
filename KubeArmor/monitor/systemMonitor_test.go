@@ -51,6 +51,12 @@ func TestSystemMonitor(t *testing.T) {
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Created SystemMonitor")
@@ -58,6 +64,13 @@ func TestSystemMonitor(t *testing.T) {
 	// Destroy System Monitor
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
+		return
 	}
 	t.Log("[PASS] Destroyed SystemMonitor")
 
@@ -106,6 +119,12 @@ func TestTraceSyscallWithPod(t *testing.T) {
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Created SystemMonitor")
@@ -113,6 +132,23 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	// Initialize BPF
 	if err := systemMonitor.InitBPF(); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
+
+		if err := systemMonitor.DestroySystemMonitor(); err != nil {
+			t.Log("[FAIL] Failed to destroy SystemMonitor")
+
+			if err := logger.DestroyFeeder(); err != nil {
+				t.Log("[FAIL] Failed to destroy logger")
+				return
+			}
+
+			return
+		}
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Logf("[PASS] Initialized BPF (for containers)")
@@ -130,6 +166,13 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	// Destroy System Monitor
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
+		return
 	}
 	t.Log("[PASS] Destroyed SystemMonitor")
 
@@ -178,6 +221,12 @@ func TestTraceSyscallWithHost(t *testing.T) {
 		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Created SystemMonitor")
@@ -185,6 +234,23 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	// Initialize BPF
 	if err := systemMonitor.InitBPF(); err != nil {
 		t.Errorf("[FAIL] Failed to initialize BPF (%s)", err.Error())
+
+		if err := systemMonitor.DestroySystemMonitor(); err != nil {
+			t.Log("[FAIL] Failed to destroy SystemMonitor")
+
+			if err := logger.DestroyFeeder(); err != nil {
+				t.Log("[FAIL] Failed to destroy logger")
+				return
+			}
+
+			return
+		}
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Logf("[PASS] Initialized BPF (for a host)")
@@ -202,6 +268,13 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	// Destroy System Monitor
 	if err := systemMonitor.DestroySystemMonitor(); err != nil {
 		t.Log("[FAIL] Failed to destroy SystemMonitor")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
+		return
 	}
 	t.Log("[PASS] Destroyed SystemMonitor")
 
