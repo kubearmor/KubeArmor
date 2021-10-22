@@ -63,7 +63,7 @@ run-host-only: build
 .PHONY: run-with-host
 run-with-host: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableHostPolicy
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy
 
 .PHONY: test
 test:
@@ -81,7 +81,7 @@ testall:
 
 .PHONY: gofmt
 gofmt:
-	cd $(CURDIR); gofmt -s -d .
+	cd $(CURDIR); $(GOENV) gofmt -s -w -d $(shell find . -type f -name '*.go' -print)
 
 .PHONY: golint
 golint:
