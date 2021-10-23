@@ -142,23 +142,21 @@ func (ea *EventAuditor) getProcessElements() (map[FilenameElement]bool, map[Proc
 			}
 
 			for _, auditPolicy := range ep.AuditPolicies {
-				for _, event := range auditPolicy.Events {
-					for _, path := range strings.Split(event.Path, ",") {
-						fne := FilenameElement{}
-						hashKey, _ := jenkins.HashString(path, 0, 0)
+				for _, path := range strings.Split(auditPolicy.Process, ",") {
+					fne := FilenameElement{}
+					hashKey, _ := jenkins.HashString(path, 0, 0)
 
-						fne.SetKey(hashKey)
-						fne.SetValue(true)
+					fne.SetKey(hashKey)
+					fne.SetValue(true)
 
-						filenameHashes[fne] = true
+					filenameHashes[fne] = true
 
-						ps := ProcessSpecElement{}
+					ps := ProcessSpecElement{}
 
-						ps.SetKey(cn.PidNS, cn.MntNS, fne.Key.Hash)
-						ps.SetValue(true)
+					ps.SetKey(cn.PidNS, cn.MntNS, fne.Key.Hash)
+					ps.SetValue(true)
 
-						procSpecs[ps] = true
-					}
+					procSpecs[ps] = true
 				}
 			}
 		}
