@@ -8,8 +8,8 @@ spec:
   - name: SHELLS
     value: /bin/*sh, /usr/bin/*sh
 
-  - name: BIND-CONNECT-ACCEPT
-    value: sys_bind, sys_connect, sys_accept
+  - name: BIND-CONNECT
+    value: sys_bind, sys_connect
 
   - name: NON-EXTERNAL-IPV4
     value: 192.168.*.*, 10.*.*.*
