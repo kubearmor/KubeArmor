@@ -1855,6 +1855,11 @@ func k8sEventVerifyParams(event tp.K8sEventType) error {
 	// check ipv4 using event auditor parsing
 	if len(event.Ipv4Addr) > 0 {
 		for _, ipv4 := range strings.Split(event.Ipv4Addr, ",") {
+			ipv4 = strings.TrimSpace(ipv4)
+			if ipv4[0] == '-' {
+				ipv4 = ipv4[1:]
+			}
+
 			if err := edt.TryTokenizeIpv4(ipv4); err != nil {
 				return err
 			}
