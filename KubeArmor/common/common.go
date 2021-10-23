@@ -6,6 +6,7 @@ package common
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -22,6 +23,28 @@ import (
 // ============ //
 // == Common == //
 // ============ //
+
+// SafeFileWriteAndClose Function
+func SafeFileWriteAndClose(f *os.File, s string) error {
+	if err := SafeFileWrite(f, s); err != nil {
+		return err
+	}
+
+	return f.Close()
+}
+
+// SafeFileWrite Function
+func SafeFileWrite(f *os.File, s string) error {
+	var err error
+
+	if _, err = f.WriteString(s); err != nil {
+		if anotherErr := f.Close(); anotherErr != nil {
+			err = errors.New(err.Error() + anotherErr.Error())
+		}
+	}
+
+	return err
+}
 
 // Clone Function
 func Clone(src, dst interface{}) error {

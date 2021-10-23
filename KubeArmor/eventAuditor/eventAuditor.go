@@ -18,7 +18,7 @@ import (
 // == Event Auditor == //
 // =================== //
 
-// Builtin Macro Definitions
+// KAEABuiltinMacros Definition
 var KAEABuiltinMacros = map[string]string{
 	// from fcntl.h
 	"O_ACCMODE":      "00000003",
@@ -127,44 +127,44 @@ type EventAuditor struct {
 func (ea *EventAuditor) SaveRuntimeInfo() error {
 	var err error
 	var file *os.File
+	var fileContent string
 
 	if file, err = os.Create("./BPF/runtime.h"); err != nil {
 		return err
 	}
-	defer file.Close()
 
-	file.WriteString("// SPDX-License-Identifier: GPL-2.0\n")
-	file.WriteString("// Copyright 2021 Authors of KubeArmor\n\n")
+	fileContent += "// SPDX-License-Identifier: GPL-2.0\n"
+	fileContent += "// Copyright 2021 Authors of KubeArmor\n\n"
 
-	file.WriteString("#ifndef u64\n")
-	file.WriteString("typedef unsigned long long u64;\n")
-	file.WriteString("#endif\n\n")
+	fileContent += "#ifndef u64\n"
+	fileContent += "typedef unsigned long long u64;\n"
+	fileContent += "#endif\n\n"
 
-	file.WriteString("u64 __bpf_pseudo_fd(u64, u64) asm(\"llvm.bpf.pseudo\");\n")
-	file.WriteString("#define __ka_ea_map(fd) __bpf_pseudo_fd(1, fd)\n\n")
+	fileContent += "u64 __bpf_pseudo_fd(u64, u64) asm(\"llvm.bpf.pseudo\");\n"
+	fileContent += "#define __ka_ea_map(fd) __bpf_pseudo_fd(1, fd)\n\n"
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_filename_map       %d\n",
-		ea.BPFManager.getMap(KAEAFilenameMap).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_filename_map       %d\n",
+		ea.BPFManager.getMap(KAEAFilenameMap).FD())
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_pattern_map        %d\n",
-		ea.BPFManager.getMap(KAEAPatternMap).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_pattern_map        %d\n",
+		ea.BPFManager.getMap(KAEAPatternMap).FD())
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_process_spec_map   %d\n",
-		ea.BPFManager.getMap(KAEAProcessSpecMap).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_process_spec_map   %d\n",
+		ea.BPFManager.getMap(KAEAProcessSpecMap).FD())
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_process_filter_map %d\n",
-		ea.BPFManager.getMap(KAEAProcessFilterMap).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_process_filter_map %d\n",
+		ea.BPFManager.getMap(KAEAProcessFilterMap).FD())
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_event_map          %d\n",
-		ea.BPFManager.getMap(KAEAEventMap).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_event_map          %d\n",
+		ea.BPFManager.getMap(KAEAEventMap).FD())
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_event_filter_map   %d\n",
-		ea.BPFManager.getMap(KAEAEventFilterMap).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_event_filter_map   %d\n",
+		ea.BPFManager.getMap(KAEAEventFilterMap).FD())
 
-	file.WriteString(fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
-		ea.BPFManager.getMap(KAEAEventJumpTable).FD()))
+	fileContent += fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
+		ea.BPFManager.getMap(KAEAEventJumpTable).FD())
 
-	return nil
+	return kl.SafeFileWriteAndClose(file, fileContent)
 }
 
 // NewEventAuditor Function

@@ -719,6 +719,14 @@ func (ea *EventAuditor) GenerateAuditProgram(probe string, codeBlocks []string) 
 func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, error) {
 	var eventJmpElement EventJumpTableElement
 
+	tryRemoveFile := func(n string) {
+		if _, err := os.Stat(n); err == nil {
+			if err := os.Remove(n); err != nil {
+				ea.Logger.Warnf("Failed to delete file `%v': %v", n, err)
+			}
+		}
+	}
+
 	ea.CacheIndexLock.Lock()
 	defer ea.CacheIndexLock.Unlock()
 
@@ -738,6 +746,9 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 		FileName:  KABPFObjFileName(objName),
 	}
 
+	defer tryRemoveFile(srcName)
+	defer tryRemoveFile(objName)
+
 	// save source
 	file, err := os.Create(getSourceName(probe, index))
 	if err != nil {
@@ -746,19 +757,17 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 
 	// avoid program name duplication
 	srcUniqFnName := strings.Replace(source, getFnName(probe), getProgramName(probe, index), 1)
-	file.WriteString(srcUniqFnName)
-	file.Close()
+	if err := kl.SafeFileWriteAndClose(file, srcUniqFnName); err != nil {
+		return 0, err
+	}
 
 	// build the source
 	if output, ok := kl.GetCommandStdoutAndStderr("make", []string{"-C", "./BPF"}); !ok {
-		os.Remove(srcName)
 		return 0, fmt.Errorf("error compiling audit program: %v:\n%v", srcName, output)
 	}
 
 	// load bpf program
 	if err := ea.BPFManager.InitProgram(bpfProg); err != nil {
-		os.Remove(srcName)
-		os.Remove(objName)
 		return 0, err
 	}
 
@@ -766,13 +775,8 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 	eventJmpElement.SetKey(index)
 	eventJmpElement.SetValue(uint32(ea.BPFManager.getProg(bpfProg.Name).FD()))
 	if err := ea.BPFManager.MapUpdateElement(&eventJmpElement); err != nil {
-		os.Remove(srcName)
-		os.Remove(objName)
 		return 0, err
 	}
-
-	os.Remove(srcName)
-	os.Remove(objName)
 
 	ea.Logger.Printf("Event auditor bytecode loaded (new/%v/%v)", probe, index)
 	ea.EventProgramCache[source] = index
