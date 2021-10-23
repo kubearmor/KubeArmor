@@ -58,9 +58,6 @@ call_event_handler(void *ctx, uint32_t event_id)
         bpf_tail_call(ctx, &ka_ea_event_jmp_table, value->jmp_idx);
     }
 
-    bpf_printk("[ka-ea-entrypoint]: bpf_tail_call failure: pidns=%d, mntns=%d, event=%d",
-        key.pid_ns, key.mnt_ns, key.event_id);
-
     return 0;
 }
 

@@ -19,15 +19,15 @@ spec:
     message: "suspicious shell activity"
     severity: "5"
     events:
-    - probe: BIND-CONNECT-ACCEPT
+    - probe: BIND-CONNECT
       ipv4addr: NON-EXTERNAL-IPV4
       port: 8080, 20-25, 6667
       rate: 10p1s
-  - process: "*"
+  - process: "/bin/cat"
     events:
-    - probe: sys_open
+    - probe: sys_openat
       path: /etc/shadow
-      flags: O_RDWR | O_APPEND
+      flags: O_RDONLY
   - message: "outbound probes detected (for any process)"
     severity: "5"
     events:

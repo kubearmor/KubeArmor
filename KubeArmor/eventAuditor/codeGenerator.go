@@ -15,6 +15,8 @@ import (
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	lbpf "github.com/kubearmor/libbpf"
+
+	jenkins "leb.io/hashland/jenkins"
 )
 
 // Configuration
@@ -313,19 +315,18 @@ func ipv4Tokenize(ipv4Value string) ([]Token, error) {
 	return nil, fmt.Errorf("invalid parameter: %v (ipv4addr)", ipv4Value)
 }
 
-func generateIpv4Match(ipv4Tokens []Token, eventID uint32) string {
+func generateIpv4Match(ipv4Tokens []Token) string {
 	matchGroup := []string{}
 	for i, token := range ipv4Tokens {
 		if token.isNumber() {
 			matchGroup = append(matchGroup,
-				fmt.Sprintf("((__ka_ea_evt%d_ipv4(ctx)->octet[%d]) == %d)",
-					eventID, i, token.getNumber()))
+				fmt.Sprintf("((v4ip.octet[%d]) == %d)", i, token.getNumber()))
 
 		} else if token.isRange() {
 			matchGroup = append(matchGroup,
-				fmt.Sprintf("(((__ka_ea_evt%d_ipv4(ctx)->octet[%d]) >= %d) && ((__ka_ea_evt%d_ipv4(ctx)->octet[%d]) <= %d))",
-					eventID, i, token.getRange()[0],
-					eventID, i, token.getRange()[1]))
+				fmt.Sprintf("(((v4ip.octet[%d]) >= %d) && ((v4ip.octet[%d]) <= %d))",
+					i, token.getRange()[0],
+					i, token.getRange()[1]))
 		}
 	}
 
@@ -333,7 +334,7 @@ func generateIpv4Match(ipv4Tokens []Token, eventID uint32) string {
 	return match
 }
 
-func generateIpv4MatchExclusion(ipv4Field string, eventID uint32) (string, error) {
+func generateIpv4MatchExclusion(ipv4Field string) (string, error) {
 	var err error
 	var ipv4Tokens []Token
 	var match string
@@ -349,7 +350,7 @@ func generateIpv4MatchExclusion(ipv4Field string, eventID uint32) (string, error
 				return "", err
 			}
 
-			matchGroup = append(matchGroup, generateIpv4Match(ipv4Tokens, eventID))
+			matchGroup = append(matchGroup, generateIpv4Match(ipv4Tokens))
 		}
 	}
 
@@ -360,7 +361,7 @@ func generateIpv4MatchExclusion(ipv4Field string, eventID uint32) (string, error
 	return match, nil
 }
 
-func generateIpv4MatchInclusion(ipv4Field string, eventID uint32) (string, error) {
+func generateIpv4MatchInclusion(ipv4Field string) (string, error) {
 	var err error
 	var ipv4Tokens []Token
 	var match string
@@ -376,7 +377,7 @@ func generateIpv4MatchInclusion(ipv4Field string, eventID uint32) (string, error
 				return "", err
 			}
 
-			matchGroup = append(matchGroup, generateIpv4Match(ipv4Tokens, eventID))
+			matchGroup = append(matchGroup, generateIpv4Match(ipv4Tokens))
 		}
 	}
 
@@ -421,7 +422,7 @@ func portTokenize(portValue string) (Token, error) {
 		fmt.Errorf("invalid parameter: %v (port)", portValue)
 }
 
-func generatePortMatch(portField string, eventID uint32) (string, error) {
+func generatePortMatch(portField string) (string, error) {
 	var err error
 	var portToken Token
 	var match string
@@ -436,13 +437,13 @@ func generatePortMatch(portField string, eventID uint32) (string, error) {
 
 		if portToken.isNumber() {
 			matchGroup = append(matchGroup,
-				fmt.Sprintf("(__ka_ea_evt%d_port(ctx) == %d)", eventID, portToken.getNumber()))
+				fmt.Sprintf("(port == %d)", portToken.getNumber()))
 
 		} else if portToken.isRange() {
 			matchGroup = append(matchGroup,
-				fmt.Sprintf("((__ka_ea_evt%d_port(ctx) >= %d) && (__ka_ea_evt%d_port(ctx) <= %d))",
-					eventID, portToken.getRange()[0],
-					eventID, portToken.getRange()[1]))
+				fmt.Sprintf("((port >= %d) && (port <= %d))",
+					portToken.getRange()[0],
+					portToken.getRange()[1]))
 		}
 	}
 
@@ -465,7 +466,7 @@ func modeTokenize(modeValue string) (Token, error) {
 		fmt.Errorf("invalid parameter: %v (mode)", modeValue)
 }
 
-func generateModeMatch(modeField string, eventID uint32) (string, error) {
+func generateModeMatch(modeField string) (string, error) {
 	var err error
 	var modeToken Token
 
@@ -480,7 +481,7 @@ func generateModeMatch(modeField string, eventID uint32) (string, error) {
 		modeInt64 |= modeToken.getNumber()
 	}
 
-	match := fmt.Sprintf("(__ka_ea_evt%d_mode(ctx) == 0x%x)", eventID, modeInt64)
+	match := fmt.Sprintf("(mode == 0x%x)", modeInt64)
 	return match, nil
 }
 
@@ -496,7 +497,7 @@ func flagsTokenize(flagsValue string) (Token, error) {
 		fmt.Errorf("invalid parameter: %v (flags)", flagsValue)
 }
 
-func generateFlagsMatch(flagsField string, eventID uint32) (string, error) {
+func generateFlagsMatch(flagsField string) (string, error) {
 	var err error
 	var flagsToken Token
 
@@ -511,18 +512,24 @@ func generateFlagsMatch(flagsField string, eventID uint32) (string, error) {
 		flagsInt64 |= flagsToken.getNumber()
 	}
 
-	match := fmt.Sprintf("(__ka_ea_evt%d_flags(ctx) == 0x%x)", eventID, flagsInt64)
+	match := fmt.Sprintf("(flags == 0x%x)", flagsInt64)
 	return match, nil
 }
 
-func buildIpv4AddrParam(ipv4Field string, eventID uint32, inc *[]string, exc *[]string) error {
-	if match, err := generateIpv4MatchInclusion(ipv4Field, eventID); err != nil {
+func generatePathMatch(pathField string) (string, error) {
+	hashKey, _ := jenkins.HashString(pathField, 0, 0)
+	match := fmt.Sprintf("(path == 0x%x)", hashKey)
+	return match, nil
+}
+
+func buildIpv4AddrParam(ipv4Field string, inc *[]string, exc *[]string) error {
+	if match, err := generateIpv4MatchInclusion(ipv4Field); err != nil {
 		return err
 	} else if len(match) > 0 {
 		*inc = append(*inc, match)
 	}
 
-	if match, err := generateIpv4MatchExclusion(ipv4Field, eventID); err != nil {
+	if match, err := generateIpv4MatchExclusion(ipv4Field); err != nil {
 		return err
 	} else if len(match) > 0 {
 		*exc = append(*exc, match)
@@ -531,8 +538,8 @@ func buildIpv4AddrParam(ipv4Field string, eventID uint32, inc *[]string, exc *[]
 	return nil
 }
 
-func buildPortParam(portField string, eventID uint32, inc *[]string) error {
-	if match, err := generatePortMatch(portField, eventID); err != nil {
+func buildPortParam(portField string, inc *[]string) error {
+	if match, err := generatePortMatch(portField); err != nil {
 		return err
 	} else if len(match) > 0 {
 		*inc = append(*inc, match)
@@ -541,8 +548,8 @@ func buildPortParam(portField string, eventID uint32, inc *[]string) error {
 	return nil
 }
 
-func buildModeParam(modeField string, eventID uint32, inc *[]string) error {
-	if match, err := generateModeMatch(modeField, eventID); err != nil {
+func buildModeParam(modeField string, inc *[]string) error {
+	if match, err := generateModeMatch(modeField); err != nil {
 		return err
 	} else if len(match) > 0 {
 		*inc = append(*inc, match)
@@ -551,8 +558,18 @@ func buildModeParam(modeField string, eventID uint32, inc *[]string) error {
 	return nil
 }
 
-func buildFlagsParam(flagsField string, eventID uint32, inc *[]string) error {
-	if match, err := generateFlagsMatch(flagsField, eventID); err != nil {
+func buildFlagsParam(flagsField string, inc *[]string) error {
+	if match, err := generateFlagsMatch(flagsField); err != nil {
+		return err
+	} else if len(match) > 0 {
+		*inc = append(*inc, match)
+	}
+
+	return nil
+}
+
+func buildPathParam(pathField string, inc *[]string) error {
+	if match, err := generatePathMatch(pathField); err != nil {
 		return err
 	} else if len(match) > 0 {
 		*inc = append(*inc, match)
@@ -593,6 +610,7 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 	var codeBlock string
 	var matchInclusion []string
 	var matchExclusion []string
+	var localVariables []string
 
 	eventSupportsArgument := func(param string, value string) bool {
 		if !kl.ContainsElement(ea.EntryPointParameters[probe], param) {
@@ -606,34 +624,61 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 	eventID := ea.SupportedEntryPoints[probe]
 	if len(auditEvent.Ipv4Addr) > 0 {
 		if eventSupportsArgument("Ipv4Addr", auditEvent.Ipv4Addr) {
-			if err := buildIpv4AddrParam(auditEvent.Ipv4Addr, eventID, &matchInclusion, &matchExclusion); err != nil {
+			if err := buildIpv4AddrParam(auditEvent.Ipv4Addr, &matchInclusion, &matchExclusion); err != nil {
 				return "", err
 			}
+
+			variable := fmt.Sprintf("__INIT_LOCAL_IPV4(%d)", eventID)
+			localVariables = append(localVariables, variable)
 		}
 	}
 
 	if len(auditEvent.Port) > 0 {
 		if eventSupportsArgument("Port", auditEvent.Port) {
-			if err := buildPortParam(auditEvent.Port, eventID, &matchInclusion); err != nil {
+			if err := buildPortParam(auditEvent.Port, &matchInclusion); err != nil {
 				return "", err
 			}
+
+			variable := fmt.Sprintf("__INIT_LOCAL_PORT(%d)", eventID)
+			localVariables = append(localVariables, variable)
 		}
 	}
 
 	if len(auditEvent.Mode) > 0 {
 		if eventSupportsArgument("Mode", auditEvent.Mode) {
-			if err := buildModeParam(auditEvent.Mode, eventID, &matchInclusion); err != nil {
+			if err := buildModeParam(auditEvent.Mode, &matchInclusion); err != nil {
 				return "", err
 			}
+
+			variable := fmt.Sprintf("__INIT_LOCAL_MODE(%d)", eventID)
+			localVariables = append(localVariables, variable)
 		}
 	}
 
 	if len(auditEvent.Flags) > 0 {
 		if eventSupportsArgument("Flags", auditEvent.Flags) {
-			if err := buildFlagsParam(auditEvent.Flags, eventID, &matchInclusion); err != nil {
+			if err := buildFlagsParam(auditEvent.Flags, &matchInclusion); err != nil {
 				return "", err
 			}
+
+			variable := fmt.Sprintf("__INIT_LOCAL_FLAGS(%d)", eventID)
+			localVariables = append(localVariables, variable)
 		}
+	}
+
+	if len(auditEvent.Path) > 0 {
+		if eventSupportsArgument("Path", auditEvent.Path) {
+			if err := buildPathParam(auditEvent.Path, &matchInclusion); err != nil {
+				return "", err
+			}
+
+			variable := fmt.Sprintf("__INIT_LOCAL_PATH(%d)", eventID)
+			localVariables = append(localVariables, variable)
+		}
+	}
+
+	for _, variable := range localVariables {
+		codeBlock += "\n" + variable + "\n"
 	}
 
 	if len(matchExclusion) > 0 {
@@ -700,7 +745,7 @@ func (ea *EventAuditor) GenerateAuditProgram(probe string, codeBlocks []string) 
 	source += "int " + getFnName(probe) + "(void *ctx)\n{\n"
 
 	// common prologue
-	source += "\tif (!ka_ea_check_inspect())\n\t"
+	source += "\tif (!ka_ea_audit_task())\n\t"
 	source += "{\n"
 	source += "\t\treturn 0;\n\t"
 	source += "}\n"
@@ -718,6 +763,14 @@ func (ea *EventAuditor) GenerateAuditProgram(probe string, codeBlocks []string) 
 // LoadAuditProgram Function
 func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, error) {
 	var eventJmpElement EventJumpTableElement
+
+	tryRemoveFile := func(n string) {
+		if _, err := os.Stat(n); err == nil {
+			if err := os.Remove(n); err != nil {
+				ea.Logger.Warnf("Failed to delete file `%v': %v", n, err)
+			}
+		}
+	}
 
 	ea.CacheIndexLock.Lock()
 	defer ea.CacheIndexLock.Unlock()
@@ -738,6 +791,9 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 		FileName:  KABPFObjFileName(objName),
 	}
 
+	defer tryRemoveFile(srcName)
+	defer tryRemoveFile(objName)
+
 	// save source
 	file, err := os.Create(getSourceName(probe, index))
 	if err != nil {
@@ -746,19 +802,17 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 
 	// avoid program name duplication
 	srcUniqFnName := strings.Replace(source, getFnName(probe), getProgramName(probe, index), 1)
-	file.WriteString(srcUniqFnName)
-	file.Close()
+	if err := kl.SafeFileWriteAndClose(file, srcUniqFnName); err != nil {
+		return 0, err
+	}
 
 	// build the source
 	if output, ok := kl.GetCommandStdoutAndStderr("make", []string{"-C", "./BPF"}); !ok {
-		os.Remove(srcName)
 		return 0, fmt.Errorf("error compiling audit program: %v:\n%v", srcName, output)
 	}
 
 	// load bpf program
 	if err := ea.BPFManager.InitProgram(bpfProg); err != nil {
-		os.Remove(srcName)
-		os.Remove(objName)
 		return 0, err
 	}
 
@@ -766,13 +820,8 @@ func (ea *EventAuditor) LoadAuditProgram(source string, probe string) (uint32, e
 	eventJmpElement.SetKey(index)
 	eventJmpElement.SetValue(uint32(ea.BPFManager.getProg(bpfProg.Name).FD()))
 	if err := ea.BPFManager.MapUpdateElement(&eventJmpElement); err != nil {
-		os.Remove(srcName)
-		os.Remove(objName)
 		return 0, err
 	}
-
-	os.Remove(srcName)
-	os.Remove(objName)
 
 	ea.Logger.Printf("Event auditor bytecode loaded (new/%v/%v)", probe, index)
 	ea.EventProgramCache[source] = index
