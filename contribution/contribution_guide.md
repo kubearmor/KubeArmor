@@ -24,7 +24,7 @@ If you want to make a contribution, please follow the steps below.
     $ git clone https://github.com/[your GitHub ID]/KubeArmor
    ```
 
-This will clone a copy of Kubearmor installed in your dev environment. 
+   This will clone a copy of Kubearmor installed in your dev environment. 
 
 3. Make changes
 
