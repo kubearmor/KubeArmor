@@ -3,8 +3,6 @@
 
 package eventauditor
 
-import "C"
-
 import (
 	"errors"
 	"strings"

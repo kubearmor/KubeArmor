@@ -464,14 +464,14 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	// initialize event auditor
 	if dm.EnableKubeArmorAuditPolicy {
 		if !dm.InitEventAuditor() {
-			dm.Logger.Err("Failed to initialize the event auditor")
+			dm.Logger.Err("Failed to initialize KubeArmor Auditor")
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
 			return
 		}
-		dm.Logger.Print("Started to audit system events")
+		dm.Logger.Print("Initialized KubeArmor Auditor")
 	}
 
 	// == //
@@ -569,7 +569,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 
 		// watch macros
 		go dm.WatchKubeArmorMacro()
-		dm.Logger.Print("Started to monitor kubearmor macros")
+		dm.Logger.Print("Started to monitor audit macros")
 	}
 
 	// == //
