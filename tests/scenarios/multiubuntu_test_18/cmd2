@@ -1,0 +1,7 @@
+source: ubuntu-4-deployment
+cmd: cat /secret.txt 
+result: failed
+---
+operation: File
+condition: /secret.txt
+action: Block

@@ -3,8 +3,8 @@
 
 package eventauditor
 
-//#cgo CFLAGS: -I${SRCDIR}/../BPF
-//#include "shared.h"
+// #cgo CFLAGS: -I${SRCDIR}/../BPF
+// #include "shared.h"
 import "C"
 
 import (
@@ -123,11 +123,13 @@ func (fe *FilenameElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (FilenameElement)
 func (fe *FilenameElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&fe.Key)
 }
 
 // ValuePointer Function (FilenameElement)
 func (fe *FilenameElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&fe.Value)
 }
 
@@ -177,11 +179,13 @@ func (pme *PatternElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (PatternElement)
 func (pme *PatternElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&pme.Key)
 }
 
 // ValuePointer Function (PatternElement)
 func (pme *PatternElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&pme.Value)
 }
 
@@ -231,11 +235,13 @@ func (pse *ProcessSpecElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&pse.Key)
 }
 
 // ValuePointer Function (ProcessSpecElement)
 func (pse *ProcessSpecElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&pse.Value)
 }
 
@@ -285,11 +291,13 @@ func (pfe *ProcessFilterElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&pfe.Key)
 }
 
 // ValuePointer Function (ProcessFilterElement)
 func (pfe *ProcessFilterElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&pfe.Value)
 }
 
@@ -325,11 +333,13 @@ func (ee *EventElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (EventElement)
 func (ee *EventElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&ee.Key)
 }
 
 // ValuePointer Function (EventElement)
 func (ee *EventElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&ee.Value)
 }
 
@@ -379,11 +389,13 @@ func (efe *EventFilterElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (EventFilterElement)
 func (efe *EventFilterElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&efe.Key)
 }
 
 // ValuePointer Function (EventFilterElement)
 func (efe *EventFilterElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&efe.Value)
 }
 
@@ -419,11 +431,13 @@ func (ejte *EventJumpTableElement) SetFoundValue(value []byte) {
 
 // KeyPointer Function (EventJumpTableElement)
 func (ejte *EventJumpTableElement) KeyPointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&ejte.JumpIdx)
 }
 
 // ValuePointer Function (EventJumpTableElement)
 func (ejte *EventJumpTableElement) ValuePointer() unsafe.Pointer {
+	// #nosec
 	return unsafe.Pointer(&ejte.ProgFD)
 }
 

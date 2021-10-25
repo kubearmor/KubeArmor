@@ -219,9 +219,7 @@ func (bm *KABPFManager) AttachProgram(kaProg KABPFProg) error {
 		if len(ev) != 2 {
 			return fmt.Errorf("tracepoint event string must contain category and name separated by /")
 		}
-		eventCategory := ev[0]
-		eventName := ev[1]
-		if l, err = p.AttachTracepoint(eventCategory, eventName); err != nil {
+		if l, err = p.AttachTracepoint(ev[0], ev[1]); err != nil {
 			return err
 		}
 	case lbpf.KABPFLinkTypeUnspec:

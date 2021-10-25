@@ -55,8 +55,11 @@ spec:
         ports:
         - containerPort: 32767
         volumeMounts:
-        - name: containerd-sock-path # containerd (read-only)
-          mountPath: /var/run/containerd/containerd.sock
+        - name: docker-sock-path # docker (read-only)
+          mountPath: /var/run/docker.sock
+          readOnly: true
+        - name: docker-storage-path # docker storage (read-only)
+          mountPath: /var/lib/docker
           readOnly: true
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
@@ -88,10 +91,14 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: containerd-sock-path # containerd
+      - name: docker-sock-path # docker
         hostPath:
-          path: /var/run/containerd/containerd.sock
+          path: /var/run/docker.sock
           type: Socket
+      - name: docker-storage-path # docker
+        hostPath:
+          path: /var/lib/docker
+          type: Directory
       - name: usr-src-path # BPF
         hostPath:
           path: /usr/src
@@ -1034,6 +1041,206 @@ spec:
             type: object
           status:
             description: KubeArmorHostPolicyStatus defines the observed state of KubeArmorHostPolicy
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: kubearmorauditpolicies.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorAuditPolicy
+    listKind: KubeArmorAuditPolicyList
+    plural: kubearmorauditpolicies
+    singular: kubearmorauditpolicy
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorAuditPolicy is the Schema for the kubearmorauditpolicies
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorAuditPolicySpec defines the desired state of KubeArmorAuditPolicy
+            properties:
+              message:
+                type: string
+              rules:
+                items:
+                  properties:
+                    events:
+                      items:
+                        properties:
+                          dir:
+                            type: string
+                          flags:
+                            type: string
+                          ipv4addr:
+                            type: string
+                          ipv6addr:
+                            type: string
+                          mode:
+                            type: string
+                          path:
+                            type: string
+                          port:
+                            type: string
+                          probe:
+                            type: string
+                          protocol:
+                            enum:
+                            - ip
+                            - tcp
+                            - udp
+                            - raw
+                            - IP
+                            - TCP
+                            - UDP
+                            - RAW
+                            type: string
+                          rate:
+                            pattern: ^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
+                            type: string
+                        required:
+                        - probe
+                        type: object
+                      type: array
+                    message:
+                      type: string
+                    process:
+                      type: string
+                    severity:
+                      pattern: ^([1-9]|10)$
+                      type: string
+                    tags:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - events
+                  type: object
+                type: array
+              selector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              severity:
+                pattern: ^([1-9]|10)$
+                type: string
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - rules
+            - selector
+            type: object
+          status:
+            description: KubeArmorAuditPolicyStatus defines the observed state of
+              KubeArmorAuditPolicy
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: kubearmormacros.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorMacro
+    listKind: KubeArmorMacroList
+    plural: kubearmormacros
+    singular: kubearmormacro
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorMacro is the Schema for the kubearmormacros API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorMacroSpec defines the desired state of KubeArmorMacro
+            properties:
+              macros:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
+            required:
+            - macros
+            type: object
+          status:
+            description: KubeArmorMacroStatus defines the observed state of KubeArmorMacro
             properties:
               status:
                 type: string

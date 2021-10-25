@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: /bin/cat /etc/hosts
+result: failed
+---
+operation: File
+condition: /etc/hosts
+action: Allow

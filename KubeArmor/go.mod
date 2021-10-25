@@ -9,6 +9,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/core => ./core
 	github.com/kubearmor/KubeArmor/KubeArmor/discover => ./discovery
 	github.com/kubearmor/KubeArmor/KubeArmor/enforcer => ./enforcer
+	github.com/kubearmor/KubeArmor/KubeArmor/eventAuditor => ./eventAuditor
 	github.com/kubearmor/KubeArmor/KubeArmor/feeder => ./feeder
 	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
 	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor

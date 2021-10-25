@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: cat /etc/shadow
+result: failed
+---
+operation: File
+condition: /etc/shadow
+action: Block

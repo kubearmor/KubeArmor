@@ -1260,7 +1260,6 @@ spec:
                       items:
                         properties:
                           dir:
-                            pattern: ^\/$|^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)+\/$
                             type: string
                           flags:
                             type: string
@@ -1271,7 +1270,6 @@ spec:
                           mode:
                             type: string
                           path:
-                            pattern: ^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)$
                             type: string
                           port:
                             type: string

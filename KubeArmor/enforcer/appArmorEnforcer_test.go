@@ -47,6 +47,12 @@ func TestAppArmorEnforcer(t *testing.T) {
 	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Created AppArmor Enforcer")
@@ -54,6 +60,12 @@ func TestAppArmorEnforcer(t *testing.T) {
 	// destroy AppArmor Enforcer
 	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
@@ -100,6 +112,12 @@ func TestAppArmorProfile(t *testing.T) {
 	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Created AppArmor Enforcer")
@@ -107,6 +125,23 @@ func TestAppArmorProfile(t *testing.T) {
 	// register AppArmorProfile
 	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to register AppArmorProfile")
+
+		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
+			t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
+
+			if err := logger.DestroyFeeder(); err != nil {
+				t.Log("[FAIL] Failed to destroy logger")
+				return
+			}
+
+			return
+		}
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Registered AppArmorProfile")
@@ -114,6 +149,23 @@ func TestAppArmorProfile(t *testing.T) {
 	// unregister AppArmorProfile
 	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
 		t.Error("[FAIL] Failed to unregister AppArmorProfile")
+
+		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
+			t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
+
+			if err := logger.DestroyFeeder(); err != nil {
+				t.Log("[FAIL] Failed to destroy logger")
+				return
+			}
+
+			return
+		}
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Unregister AppArmorProfile")
@@ -121,6 +173,12 @@ func TestAppArmorProfile(t *testing.T) {
 	// destroy AppArmor Enforcer
 	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
@@ -167,6 +225,12 @@ func TestHostAppArmorProfile(t *testing.T) {
 	enforcer := NewAppArmorEnforcer(node, logger)
 	if enforcer == nil {
 		t.Log("[FAIL] Failed to create AppArmor Enforcer")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Created AppArmor Enforcer")
@@ -174,6 +238,12 @@ func TestHostAppArmorProfile(t *testing.T) {
 	// destroy AppArmor Enforcer
 	if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 		t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
+
+		if err := logger.DestroyFeeder(); err != nil {
+			t.Log("[FAIL] Failed to destroy logger")
+			return
+		}
+
 		return
 	}
 	t.Log("[PASS] Destroyed AppArmor Enforcer")
