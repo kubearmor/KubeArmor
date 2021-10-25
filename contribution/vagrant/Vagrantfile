@@ -29,21 +29,28 @@ Vagrant.configure("2") do |config|
     config.vbguest.auto_update = false
   end
 
-  config.vm.define VM_NAME do |cfg|
-    cfg.vm.box = VM_IMG
-    cfg.vm.provider "virtualbox" do |vb|
-      vb.name = VM_NAME
-      vb.memory = 4096
-      vb.cpus = 2
-      vb.customize ['modifyvm', :id, '--nested-hw-virt', 'on']
-    end
+  if Vagrant.has_plugin?("vagrant-disksize")
+    config.vbguest.auto_update = false
   end
 
   # vagrant@VM_NAME
   config.vm.hostname = VM_NAME
 
   # vagrant plugins
-  config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload"]
+  config.vagrant.plugins = ["vagrant-vbguest", "vagrant-reload", "vagrant-disksize"]
+
+  # set disksize
+  config.disksize.size = '40GB'
+
+  config.vm.define VM_NAME do |cfg|
+    cfg.vm.box = VM_IMG
+    cfg.vm.provider "virtualbox" do |vb|
+      vb.name = VM_NAME
+      vb.memory = 4096
+      vb.cpus = 4
+      vb.customize ['modifyvm', :id, '--nested-hw-virt', 'on']
+    end
+  end
 
   # forward port for debug
   if ENV['DLV_RPORT'] then
