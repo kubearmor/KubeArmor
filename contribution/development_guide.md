@@ -93,11 +93,12 @@
       ```text
       ~/KubeArmor/KubeArmor$ vi Makefile
       ```
-Please Note:
 
-You could skip vagrant step completely if you're directly compiling Kubearmor on any Linux distro, or using Virtualbox. 
+    * Please Note:
 
-Please ensure that the steps to setup K8s is followed so as to resolve any open dependencies
+      You could skip vagrant step completely if you're directly compiling Kubearmor on any Linux distro, or using Virtualbox.
+
+      Please ensure that the steps to setup K8s is followed so as to resolve any open dependencies.
 
 
 3.  Environment Check
