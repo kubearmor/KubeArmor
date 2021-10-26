@@ -58,6 +58,9 @@ spec:
         - name: containerd-sock-path # containerd (read-only)
           mountPath: /var/run/containerd/containerd.sock
           readOnly: true
+        - name: containerd-storage-path # containerd storage (read-only)
+          mountPath: /run/containerd
+          readOnly: true
         - name: docker-sock-path # docker (read-only)
           mountPath: /var/run/docker.sock
           readOnly: true
@@ -98,6 +101,10 @@ spec:
         hostPath:
           path: /var/run/containerd/containerd.sock
           type: Socket
+      - name: containerd-storage-path # containerd
+        hostPath:
+          path: /run/containerd
+          type: Directory
       - name: docker-sock-path # docker
         hostPath:
           path: /var/run/docker.sock
