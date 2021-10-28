@@ -814,7 +814,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     args_t args = {};
 
     if (ctx == NULL)
-        return -1;
+        return 0;
 
     if (load_args(id, &args) != 0)
         return 0;
@@ -890,11 +890,12 @@ TRACEPOINT_PROBE(syscalls, sys_exit_openat)
 {
     u32 id = _SYS_OPENAT;
     u64 types = ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T);
+
     sys_context_t context = {};
     args_t orig_args = {};
 
     if (args == NULL)
-        return -1;
+        return 0;
 
     if (load_args(id, &orig_args) != 0)
         return 0;
@@ -923,6 +924,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_openat)
     save_args_to_buffer(types, &orig_args);
 
     events_perf_submit((struct pt_regs*)args);
+
     return 0;
 }
 
