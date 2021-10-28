@@ -234,7 +234,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					continue
 				}
 
-				if dm.SystemMonitor != nil {
+				if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
 				}
@@ -311,7 +311,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		if dm.SystemMonitor != nil {
+		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 		}
@@ -356,7 +356,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.EndPointsLock.Unlock()
 
-		if dm.SystemMonitor != nil {
+		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 		}

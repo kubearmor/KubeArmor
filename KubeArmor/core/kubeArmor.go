@@ -52,13 +52,13 @@ type KubeArmorDaemon struct {
 	// flag
 	K8sEnabled bool
 
-	// containers (from docker)
-	Containers     map[string]tp.Container
-	ContainersLock *sync.RWMutex
-
 	// K8s pods (from kubernetes)
 	K8sPods     []tp.K8sPod
 	K8sPodsLock *sync.RWMutex
+
+	// containers (from docker)
+	Containers     map[string]tp.Container
+	ContainersLock *sync.RWMutex
 
 	// endpoints
 	EndPoints     []tp.EndPoint
@@ -108,6 +108,8 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableKubeArmorPo
 		dm.ClusterName = clusterName
 	}
 
+	dm.Node = tp.Node{}
+
 	dm.gRPCPort = gRPCPort
 	dm.LogPath = logPath
 
@@ -116,11 +118,11 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableKubeArmorPo
 
 	dm.K8sEnabled = false
 
-	dm.Containers = map[string]tp.Container{}
-	dm.ContainersLock = new(sync.RWMutex)
-
 	dm.K8sPods = []tp.K8sPod{}
 	dm.K8sPodsLock = new(sync.RWMutex)
+
+	dm.Containers = map[string]tp.Container{}
+	dm.ContainersLock = new(sync.RWMutex)
 
 	dm.EndPoints = []tp.EndPoint{}
 	dm.EndPointsLock = new(sync.RWMutex)
