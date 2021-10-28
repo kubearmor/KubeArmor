@@ -330,6 +330,20 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
+		// {category, event}
+		sys_tracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
+
+		for _, sys_tracepoint := range sys_tracepoints {
+			rtp, err := mon.BpfModule.LoadTracepoint(fmt.Sprintf("tracepoint__%s__%s", sys_tracepoint[0], sys_tracepoint[1]))
+			if err != nil {
+				return fmt.Errorf("error:%s: %v", sys_tracepoint, err)
+			}
+			err = mon.BpfModule.AttachTracepoint(fmt.Sprintf("%s:%s", sys_tracepoint[0], sys_tracepoint[1]), rtp)
+			if err != nil {
+				return fmt.Errorf("error attaching tracepoint probe %s: %v", sys_tracepoint, err)
+			}
+		}
+
 		eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
 		mon.SyscallChannel = make(chan []byte, 8192)
 		mon.SyscallLostChannel = make(chan uint64)
@@ -370,6 +384,20 @@ func (mon *SystemMonitor) InitBPF() error {
 			err = mon.HostBpfModule.AttachKprobe(tracepoint, kp, -1)
 			if err != nil {
 				return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
+			}
+		}
+
+		// {category, event}
+		sys_tracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
+
+		for _, sys_tracepoint := range sys_tracepoints {
+			rtp, err := mon.HostBpfModule.LoadTracepoint(fmt.Sprintf("tracepoint__%s__%s", sys_tracepoint[0], sys_tracepoint[1]))
+			if err != nil {
+				return fmt.Errorf("error:%s: %v", sys_tracepoint, err)
+			}
+			err = mon.HostBpfModule.AttachTracepoint(fmt.Sprintf("%s:%s", sys_tracepoint[0], sys_tracepoint[1]), rtp)
+			if err != nil {
+				return fmt.Errorf("error attaching tracepoint probe %s: %v", sys_tracepoint, err)
 			}
 		}
 
