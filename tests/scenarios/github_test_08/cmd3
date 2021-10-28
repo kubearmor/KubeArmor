@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: su - user1 -c "echo test >> /home/user1/otherfile.txt"
+result: passed
+---
+operation: File
+condition: /home/user1/otherfile.txt
+action: Block

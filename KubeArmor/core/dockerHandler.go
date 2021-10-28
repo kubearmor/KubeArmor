@@ -129,6 +129,8 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	container.AppArmorProfile = inspect.AppArmorProfile
 
+	container.MergedDir = inspect.GraphDriver.Data["MergedDir"]
+
 	// == //
 
 	pid := strconv.Itoa(inspect.State.Pid)

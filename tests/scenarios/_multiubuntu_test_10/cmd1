@@ -1,7 +1,7 @@
 source: ubuntu-2-deployment
-cmd: ls /etc/
+cmd: cat /etc/shells
 result: failed
 ---
 operation: File
-condition: "/etc/"
+condition: "/etc/shells"
 action: Block

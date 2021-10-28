@@ -30,6 +30,8 @@ type Container struct {
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
 
+	MergedDir string `json:"mergedDir"`
+
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled"`
@@ -194,6 +196,9 @@ type Log struct {
 	ContainerID   string `json:"containerID,omitempty"`
 	ContainerName string `json:"containerName,omitempty"`
 
+	// container merged directory
+	MergedDir string `json:"mergedDir,omitempty"`
+
 	// common
 	HostPID int32 `json:"hostPid"`
 	PPID    int32 `json:"ppid"`
@@ -241,6 +246,8 @@ type MatchPolicy struct {
 	Resource     string
 
 	IsFromSource bool
+	OwnerOnly    bool
+	ReadOnly     bool
 
 	Regexp *regexp.Regexp
 	Native bool

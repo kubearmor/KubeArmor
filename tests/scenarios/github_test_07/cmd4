@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: echo test >> /home/user1/dir1/key1.txt
+result: failed
+---
+operation: File
+condition: /home/user1/dir1/key1.txt
+action: Block
