@@ -155,7 +155,6 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(containerName string, hostVolu
 
 	defaultProfile := "(block " + profileName + "\n" +
 		"	(blockinherit container)\n" +
-		// "	(blockinherit restricted_net_container)\n" +
 		"	(allow process process (capability (dac_override)))\n"
 
 	for _, hostVolume := range hostVolumes {
@@ -305,7 +304,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileN
 	// write default volume
 	newProfile := "(block " + profileName + "\n" +
 		"	(blockinherit container)\n" +
-		// "	(blockinherit restricted_net_container)\n" +
 		"	(allow process process (capability (dac_override)))\n"
 
 	found := false

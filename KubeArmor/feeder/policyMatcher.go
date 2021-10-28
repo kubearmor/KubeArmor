@@ -426,7 +426,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
-
 		}
 	}
 
@@ -1004,11 +1003,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			}
 
-			if log.Result != "Passed" {
-				log.Type = "ContainerLog"
-				return log
-			}
-
 			if log.ProcessVisibilityEnabled && log.Operation == "Process" {
 				log.Type = "ContainerLog"
 				return log
@@ -1040,7 +1034,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			if mightBeNative && log.Result != "Passed" {
 				log.PolicyName = "NativePolicy"
 
-				log.Severity = "-1"
+				log.Severity = "1"
 				log.Tags = ""
 				log.Message = "KubeArmor detected a native policy violation"
 

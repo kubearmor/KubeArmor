@@ -300,7 +300,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			return false
 		}
 
-		if dm.SystemMonitor != nil {
+		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 		}
@@ -341,7 +341,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		}
 		dm.EndPointsLock.Unlock()
 
-		if dm.SystemMonitor != nil {
+		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 		}
@@ -354,13 +354,13 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 // MonitorContainerdEvents Function
 func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
-
 	// check if Containerd exists
 	if Containerd == nil {
 		return
 	}
+
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
 
 	dm.Logger.Print("Started to monitor Containerd events")
 

@@ -41,8 +41,8 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, pidns, mntns
 func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string) {
 	ns := NsKey{}
 
-	mon.NsMapLock.RLock()
-	defer mon.NsMapLock.RUnlock()
+	mon.NsMapLock.Lock()
+	defer mon.NsMapLock.Unlock()
 
 	for key, val := range mon.NsMap {
 		if containerID == val {
@@ -150,6 +150,8 @@ func (mon *SystemMonitor) GetExecPathWithHostPID(containerID string, hostPid uin
 
 // DeleteActivePid Function
 func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
+	now := time.Now()
+
 	ActivePidMap := *(mon.ActivePidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
@@ -160,7 +162,7 @@ func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext
 	if pidMap, ok := ActivePidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.PID]; ok {
 			node.Exited = true
-			node.ExitedTime = time.Now()
+			node.ExitedTime = now
 		}
 	}
 
@@ -170,7 +172,7 @@ func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
 			node.Exited = true
-			node.ExitedTime = time.Now()
+			node.ExitedTime = now
 		}
 	}
 }

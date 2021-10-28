@@ -74,13 +74,13 @@ type LogStruct struct {
 // LogService Structure
 type LogService struct {
 	MsgStructs map[string]MsgStruct
-	MsgLock    *sync.Mutex
+	MsgLock    *sync.RWMutex
 
 	AlertStructs map[string]AlertStruct
-	AlertLock    *sync.Mutex
+	AlertLock    *sync.RWMutex
 
 	LogStructs map[string]LogStruct
-	LogLock    *sync.Mutex
+	LogLock    *sync.RWMutex
 }
 
 // HealthCheck Function
@@ -113,8 +113,8 @@ func (ls *LogService) removeMsgStruct(uid string) {
 func (ls *LogService) getMsgStructs() []MsgStruct {
 	msgStructs := []MsgStruct{}
 
-	ls.MsgLock.Lock()
-	defer ls.MsgLock.Unlock()
+	ls.MsgLock.RLock()
+	defer ls.MsgLock.RUnlock()
 
 	for _, mgs := range ls.MsgStructs {
 		msgStructs = append(msgStructs, mgs)
@@ -169,8 +169,8 @@ func (ls *LogService) removeAlertStruct(uid string) {
 func (ls *LogService) getAlertStructs() []AlertStruct {
 	alertStructs := []AlertStruct{}
 
-	ls.AlertLock.Lock()
-	defer ls.AlertLock.Unlock()
+	ls.AlertLock.RLock()
+	defer ls.AlertLock.RUnlock()
 
 	for _, als := range ls.AlertStructs {
 		alertStructs = append(alertStructs, als)
@@ -225,8 +225,8 @@ func (ls *LogService) removeLogStruct(uid string) {
 func (ls *LogService) getLogStructs() []LogStruct {
 	logStructs := []LogStruct{}
 
-	ls.LogLock.Lock()
-	defer ls.LogLock.Unlock()
+	ls.LogLock.RLock()
+	defer ls.LogLock.RUnlock()
 
 	for _, lgs := range ls.LogStructs {
 		logStructs = append(logStructs, lgs)
@@ -355,11 +355,11 @@ func NewFeeder(clusterName string, node *tp.Node, port, output string) *Feeder {
 	// register a log service
 	logService := &LogService{
 		MsgStructs:   make(map[string]MsgStruct),
-		MsgLock:      &sync.Mutex{},
+		MsgLock:      &sync.RWMutex{},
 		AlertStructs: make(map[string]AlertStruct),
-		AlertLock:    &sync.Mutex{},
+		AlertLock:    &sync.RWMutex{},
 		LogStructs:   make(map[string]LogStruct),
-		LogLock:      &sync.Mutex{},
+		LogLock:      &sync.RWMutex{},
 	}
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 

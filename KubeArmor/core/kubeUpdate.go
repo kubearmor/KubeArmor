@@ -85,8 +85,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 				node.EnableKubeArmorPolicy = dm.Node.EnableKubeArmorPolicy
 				node.EnableKubeArmorHostPolicy = dm.Node.EnableKubeArmorHostPolicy
 
-				// == //
-
 				if _, ok := node.Annotations["kubearmor-policy"]; ok {
 					if node.Annotations["kubearmor-policy"] != "enabled" && node.Annotations["kubearmor-policy"] != "disabled" && node.Annotations["kubearmor-policy"] != "audited" {
 						node.Annotations["kubearmor-policy"] = "enabled"
@@ -110,8 +108,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 					node.PolicyEnabled = tp.KubeArmorPolicyDisabled
 				}
 
-				// == //
-
 				if _, ok := node.Annotations["kubearmor-visibility"]; !ok {
 					node.Annotations["kubearmor-visibility"] = "none"
 				}
@@ -128,8 +124,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 					}
 				}
 
-				// == //
-
 				dm.Node = node
 			}
 		} else {
@@ -144,9 +138,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 // UpdateEndPointWithPod Function
 func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
-	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
-
 	if action == "ADDED" {
 		// create a new endpoint
 		newPoint := tp.EndPoint{}
@@ -238,136 +229,155 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update security policies with the identities
 		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint.Identities)
 
-		// == //
+		dm.EndPointsLock.Lock()
 
 		// add the endpoint into the endpoint list
 		dm.EndPoints = append(dm.EndPoints, newPoint)
 
-		// == //
-
 		// update security policies
 		dm.Logger.UpdateSecurityPolicies(action, newPoint)
 
-		if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-			// enforce security policies
-			dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
-		}
-
-	} else if action == "MODIFIED" {
-		for idx, endPoint := range dm.EndPoints {
-			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				dm.EndPoints[idx].Labels = map[string]string{}
-				dm.EndPoints[idx].Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
-
-				// update labels and identities
-				for k, v := range pod.Labels {
-					dm.EndPoints[idx].Labels[k] = v
-					dm.EndPoints[idx].Identities = append(dm.EndPoints[idx].Identities, k+"="+v)
-				}
-
-				sort.Slice(dm.EndPoints[idx].Identities, func(i, j int) bool {
-					return dm.EndPoints[idx].Identities[i] < dm.EndPoints[idx].Identities[j]
-				})
-
-				// update policy flag
-				if pod.Annotations["kubearmor-policy"] == "enabled" {
-					dm.EndPoints[idx].PolicyEnabled = tp.KubeArmorPolicyEnabled
-				} else if pod.Annotations["kubearmor-policy"] == "audited" {
-					dm.EndPoints[idx].PolicyEnabled = tp.KubeArmorPolicyAudited
-				} else {
-					dm.EndPoints[idx].PolicyEnabled = tp.KubeArmorPolicyDisabled
-				}
-
-				dm.EndPoints[idx].ProcessVisibilityEnabled = false
-				dm.EndPoints[idx].FileVisibilityEnabled = false
-				dm.EndPoints[idx].NetworkVisibilityEnabled = false
-				dm.EndPoints[idx].CapabilitiesVisibilityEnabled = false
-
-				// parse annotations and update visibility flags
-				for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-					if visibility == "process" {
-						dm.EndPoints[idx].ProcessVisibilityEnabled = true
-					} else if visibility == "file" {
-						dm.EndPoints[idx].FileVisibilityEnabled = true
-					} else if visibility == "network" {
-						dm.EndPoints[idx].NetworkVisibilityEnabled = true
-					} else if visibility == "capabilities" {
-						dm.EndPoints[idx].CapabilitiesVisibilityEnabled = true
-					}
-				}
-
-				dm.EndPoints[idx].Containers = []string{}
-				dm.EndPoints[idx].AppArmorProfiles = []string{}
-
-				// update containers
-				for k := range pod.Containers {
-					dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, k)
-				}
-
-				// update containers and apparmors
-				dm.ContainersLock.Lock()
-				for _, containerID := range dm.EndPoints[idx].Containers {
-					container := dm.Containers[containerID]
-
-					container.NamespaceName = dm.EndPoints[idx].NamespaceName
-					container.EndPointName = dm.EndPoints[idx].EndPointName
-					container.ContainerName = pod.Containers[containerID]
-
-					container.PolicyEnabled = dm.EndPoints[idx].PolicyEnabled
-
-					container.ProcessVisibilityEnabled = dm.EndPoints[idx].ProcessVisibilityEnabled
-					container.FileVisibilityEnabled = dm.EndPoints[idx].FileVisibilityEnabled
-					container.NetworkVisibilityEnabled = dm.EndPoints[idx].NetworkVisibilityEnabled
-					container.CapabilitiesVisibilityEnabled = dm.EndPoints[idx].CapabilitiesVisibilityEnabled
-
-					if !kl.ContainsElement(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile) {
-						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
-					}
-
-					dm.Containers[containerID] = container
-				}
-				dm.ContainersLock.Unlock()
-
-				dm.EndPoints[idx].SELinuxProfiles = map[string]string{}
-				dm.EndPoints[idx].HostVolumes = []tp.HostVolumeMount{}
-
-				// update selinux profile names to the endpoint
-				for k, v := range pod.Annotations {
-					if strings.HasPrefix(k, "selinux-") {
-						containerName := strings.Split(k, "selinux-")[1]
-						dm.EndPoints[idx].SELinuxProfiles[containerName] = v
-					}
-				}
-
-				// update host-side volume mounted
-				dm.EndPoints[idx].HostVolumes = append(dm.EndPoints[idx].HostVolumes, pod.HostVolumes...)
-
-				// get security policies according to the updated identities
-				dm.EndPoints[idx].SecurityPolicies = dm.GetSecurityPolicies(dm.EndPoints[idx].Identities)
-
-				// == //
-
-				// update security policies
-				dm.Logger.UpdateSecurityPolicies(action, dm.EndPoints[idx])
-
-				if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
-				}
-
-				break
+		if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorPolicy {
+			if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce security policies
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 			}
 		}
 
+		dm.EndPointsLock.Unlock()
+
+	} else if action == "MODIFIED" {
+		newEndPoint := tp.EndPoint{}
+
+		dm.EndPointsLock.Lock()
+		for _, endPoint := range dm.EndPoints {
+			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
+				newEndPoint = endPoint
+			}
+		}
+		dm.EndPointsLock.Unlock()
+
+		newEndPoint.Labels = map[string]string{}
+		newEndPoint.Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
+
+		// update labels and identities
+		for k, v := range pod.Labels {
+			newEndPoint.Labels[k] = v
+			newEndPoint.Identities = append(newEndPoint.Identities, k+"="+v)
+		}
+
+		sort.Slice(newEndPoint.Identities, func(i, j int) bool {
+			return newEndPoint.Identities[i] < newEndPoint.Identities[j]
+		})
+
+		// update policy flag
+		if pod.Annotations["kubearmor-policy"] == "enabled" {
+			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
+		} else if pod.Annotations["kubearmor-policy"] == "audited" {
+			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
+		} else {
+			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
+		}
+
+		newEndPoint.ProcessVisibilityEnabled = false
+		newEndPoint.FileVisibilityEnabled = false
+		newEndPoint.NetworkVisibilityEnabled = false
+		newEndPoint.CapabilitiesVisibilityEnabled = false
+
+		// parse annotations and update visibility flags
+		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
+			if visibility == "process" {
+				newEndPoint.ProcessVisibilityEnabled = true
+			} else if visibility == "file" {
+				newEndPoint.FileVisibilityEnabled = true
+			} else if visibility == "network" {
+				newEndPoint.NetworkVisibilityEnabled = true
+			} else if visibility == "capabilities" {
+				newEndPoint.CapabilitiesVisibilityEnabled = true
+			}
+		}
+
+		newEndPoint.Containers = []string{}
+		newEndPoint.AppArmorProfiles = []string{}
+
+		// update containers
+		for k := range pod.Containers {
+			newEndPoint.Containers = append(newEndPoint.Containers, k)
+		}
+
+		// update containers and apparmors
+		dm.ContainersLock.Lock()
+		for _, containerID := range newEndPoint.Containers {
+			container := dm.Containers[containerID]
+
+			container.NamespaceName = newEndPoint.NamespaceName
+			container.EndPointName = newEndPoint.EndPointName
+			container.ContainerName = pod.Containers[containerID]
+
+			container.PolicyEnabled = newEndPoint.PolicyEnabled
+
+			container.ProcessVisibilityEnabled = newEndPoint.ProcessVisibilityEnabled
+			container.FileVisibilityEnabled = newEndPoint.FileVisibilityEnabled
+			container.NetworkVisibilityEnabled = newEndPoint.NetworkVisibilityEnabled
+			container.CapabilitiesVisibilityEnabled = newEndPoint.CapabilitiesVisibilityEnabled
+
+			if !kl.ContainsElement(newEndPoint.AppArmorProfiles, container.AppArmorProfile) {
+				newEndPoint.AppArmorProfiles = append(newEndPoint.AppArmorProfiles, container.AppArmorProfile)
+			}
+
+			dm.Containers[containerID] = container
+		}
+		dm.ContainersLock.Unlock()
+
+		newEndPoint.SELinuxProfiles = map[string]string{}
+		newEndPoint.HostVolumes = []tp.HostVolumeMount{}
+
+		// update selinux profile names to the endpoint
+		for k, v := range pod.Annotations {
+			if strings.HasPrefix(k, "selinux-") {
+				containerName := strings.Split(k, "selinux-")[1]
+				newEndPoint.SELinuxProfiles[containerName] = v
+			}
+		}
+
+		// update host-side volume mounted
+		newEndPoint.HostVolumes = append(newEndPoint.HostVolumes, pod.HostVolumes...)
+
+		// get security policies according to the updated identities
+		newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint.Identities)
+
+		dm.EndPointsLock.Lock()
+
+		for idx, endPoint := range dm.EndPoints {
+			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
+				dm.EndPoints[idx] = newEndPoint
+			}
+		}
+
+		if dm.EnableKubeArmorPolicy {
+			// update security policies
+			dm.Logger.UpdateSecurityPolicies(action, newEndPoint)
+
+			if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorPolicy {
+				if newEndPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(newEndPoint)
+				}
+			}
+		}
+
+		dm.EndPointsLock.Unlock()
+
 	} else { // DELETED
+		dm.EndPointsLock.Lock()
 		for idx, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
 				// remove endpoint
 				dm.EndPoints = append(dm.EndPoints[:idx], dm.EndPoints[idx+1:]...)
-
 				break
 			}
 		}
+		dm.EndPointsLock.Unlock()
 	}
 }
 
@@ -384,6 +394,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					break
 				} else if err != nil {
 					break
+				}
+
+				if event.Type != "ADDED" && event.Type != "MODIFIED" && event.Type != "DELETED" {
+					continue
 				}
 
 				// create a pod
@@ -685,8 +699,6 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
-				// == //
-
 				dm.K8sPodsLock.Lock()
 
 				if event.Type == "ADDED" {
@@ -714,14 +726,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							break
 						}
 					}
-				} else { // Otherwise
-					dm.K8sPodsLock.Unlock()
-					continue
 				}
 
 				dm.K8sPodsLock.Unlock()
-
-				// == //
 
 				if pod.Annotations["kubearmor-policy"] == "patched" {
 					dm.Logger.Printf("Detected a Pod (patched/%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
@@ -799,12 +806,16 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 				}
 			}
 
-			// update security policies
-			dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
+			if dm.EnableKubeArmorPolicy {
+				// update security policies
+				dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
-			if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+				if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorPolicy {
+					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+						// enforce security policies
+						dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+					}
+				}
 			}
 		}
 	}
@@ -834,7 +845,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					continue
 				}
 
-				dm.SecurityPoliciesLock.Lock()
+				if event.Type != "ADDED" && event.Type != "MODIFIED" && event.Type != "DELETED" {
+					continue
+				}
 
 				// create a security policy
 
@@ -1207,6 +1220,8 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 				// update a security policy into the policy list
 
+				dm.SecurityPoliciesLock.Lock()
+
 				if event.Type == "ADDED" {
 					new := true
 					for _, policy := range dm.SecurityPolicies {
@@ -1262,12 +1277,16 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 		}
 	}
 
-	// update host security policies
-	dm.Logger.UpdateHostSecurityPolicies("UPDATED", secPolicies)
+	if dm.EnableKubeArmorHostPolicy {
+		// update host security policies
+		dm.Logger.UpdateHostSecurityPolicies("UPDATED", secPolicies)
 
-	if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-		// enforce host security policies
-		dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+		if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorHostPolicy {
+			if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce host security policies
+				dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)
+			}
+		}
 	}
 }
 
@@ -1295,7 +1314,9 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 					continue
 				}
 
-				dm.HostSecurityPoliciesLock.Lock()
+				if event.Type != "ADDED" && event.Type != "MODIFIED" && event.Type != "DELETED" {
+					continue
+				}
 
 				// create a host security policy
 
@@ -1622,6 +1643,8 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				}
 
 				// update a security policy into the policy list
+
+				dm.HostSecurityPoliciesLock.Lock()
 
 				if event.Type == "ADDED" {
 					new := true

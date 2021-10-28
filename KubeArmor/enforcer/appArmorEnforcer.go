@@ -40,7 +40,7 @@ type AppArmorEnforcer struct {
 
 	// profiles for containers
 	AppArmorProfiles     map[string]int
-	AppArmorProfilesLock *sync.Mutex
+	AppArmorProfilesLock *sync.RWMutex
 }
 
 // NewAppArmorEnforcer Function
@@ -100,7 +100,7 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 	// profiles
 	ae.AppArmorProfiles = map[string]int{}
-	ae.AppArmorProfilesLock = &sync.Mutex{}
+	ae.AppArmorProfilesLock = &sync.RWMutex{}
 
 	files, err := ioutil.ReadDir("/etc/apparmor.d")
 	if err != nil {
@@ -415,6 +415,9 @@ func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 		return true
 	}
 
+	ae.AppArmorProfilesLock.Lock()
+	defer ae.AppArmorProfilesLock.Unlock()
+
 	if err := ae.CreateAppArmorHostProfile(); err != nil {
 		ae.Logger.Errf("Failed to create the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
 		return false
@@ -438,6 +441,9 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 	if ae == nil {
 		return true
 	}
+
+	ae.AppArmorProfilesLock.Lock()
+	defer ae.AppArmorProfilesLock.Unlock()
 
 	if err := ae.RemoveAppArmorHostProfile(); err != nil {
 		ae.Logger.Errf("Failed to remove the KubeArmor host profile in %s (%s)", ae.HostName, err.Error())
