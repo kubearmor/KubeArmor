@@ -813,6 +813,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     sys_context_t context = {};
     args_t args = {};
 
+    if (ctx == NULL)
+        return 0;
+
     if (load_args(id, &args) != 0)
         return 0;
 
@@ -881,6 +884,48 @@ int syscall__close(struct pt_regs *ctx)
 int trace_ret_close(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T));
+}
+
+TRACEPOINT_PROBE(syscalls, sys_exit_openat)
+{
+    u32 id = _SYS_OPENAT;
+    u64 types = ARG_TYPE0(INT_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(OPEN_FLAGS_T);
+
+    sys_context_t context = {};
+    args_t orig_args = {};
+
+    if (args == NULL)
+        return 0;
+
+    if (load_args(id, &orig_args) != 0)
+        return 0;
+
+    if (skip_syscall())
+        return 0;
+
+    init_context(&context);
+
+    context.event_id = id;
+    context.argnum = get_arg_num(types);
+    context.retval = args->ret;
+
+    // TEMP: skip if No such file or directory
+    if (context.retval == -2) {
+        return 0;
+    }
+
+    set_buffer_offset(sizeof(sys_context_t));
+
+    bufs_t *bufs_p = get_buffer();
+    if (bufs_p == NULL)
+        return 0;
+
+    save_context_to_buffer(bufs_p, (void*)&context);
+    save_args_to_buffer(types, &orig_args);
+
+    events_perf_submit((struct pt_regs*)args);
+
+    return 0;
 }
 
 // == Syscall Hooks (Network) == //
