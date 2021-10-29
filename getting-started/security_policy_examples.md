@@ -230,6 +230,6 @@ Here, we demonstrate how to define security policies using our example microserv
         Block
     ```
 
-    * Explanation: We want to block any network operations using raw sockets from the containers with the 'ubuntu-2' label, meaning that containers cannot send non-TCP/UDP packets \(e.g., ICMP echo request or reply\) to other containers. To achieve this, we use matchCapabilities and specify the 'CAP\_NET\_RAW' capability to block raw socket creations inside the containers. Here, since we use the stream and datagram sockets to TCP and UDP packets respectively, we can still send those packets to others.
+    * Explanation: We want to block any network operations using raw sockets from the containers with the 'ubuntu-1' label, meaning that containers cannot send non-TCP/UDP packets \(e.g., ICMP echo request or reply\) to other containers. To achieve this, we use matchCapabilities and specify the 'CAP\_NET\_RAW' capability to block raw socket creations inside the containers. Here, since we use the stream and datagram sockets to TCP and UDP packets respectively, we can still send those packets to others.
 
     * Verification: After applying this policy, please get into the container with the 'ubuntu-1' label and run 'curl www.kubearmor.com'. This will work fine. Then, please run 'ping 8.8.8.8'. You will see 'operation not permitted' since the 'ping' command internally requires a raw socket to send ICMP packets.
