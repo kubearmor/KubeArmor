@@ -123,13 +123,7 @@ function start_and_wait_for_kubearmor_initialization() {
         SKIP_NATIVE_HOST_POLICY=1
     fi
 
-    if [ "$GITHUB_ACTIONS" = true ]; then
-        echo "Github Actions - Environment"
-        make clean;make build-test
-        sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
-    else
-        sudo -E ./kubearmor -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
-    fi
+    sudo -E ./kubearmor -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
 
     for (( ; ; ))
     do
@@ -191,9 +185,9 @@ function delete_and_wait_for_microservice_deletion() {
 function should_not_find_any_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep -v Passed)
+    audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -207,9 +201,9 @@ function should_not_find_any_log() {
 function should_find_passed_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*MatchedPolicy.*$2.*$3.*$4" | grep Passed)
+    audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -223,14 +217,14 @@ function should_find_passed_log() {
 function should_find_blocked_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     match_type="MatchedPolicy"
-    if [[ $5 -eq 1 ]]; then
+    if [[ $6 -eq 1 ]]; then
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$1.*$match_type.*$2.*$3.*$4" | grep -v Passed)
+    audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -244,9 +238,9 @@ function should_find_blocked_log() {
 function should_not_find_any_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep -v Passed)
+    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -260,9 +254,9 @@ function should_not_find_any_host_log() {
 function should_find_passed_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*MatchedHostPolicy.*$1.*$2.*$3" | grep Passed)
+    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -276,21 +270,21 @@ function should_find_passed_host_log() {
 function should_find_blocked_host_log() {
     DBG "Finding the corresponding log"
 
-    sleep 3
+    sleep 5
 
     match_type="MatchedHostPolicy"
-    if [[ $4 -eq 1 ]]; then
+    if [[ $5 -eq 1 ]]; then
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(tail -n 20 $ARMOR_LOG | grep -E "$HOST_NAME.*$match_type.*$1.*$2.*$3" | grep -v Passed)
+    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
         echo $audit_log
-        DBG "[INFO] Found the log from logs"
+        DBG "Found the log from logs"
     fi
 }
 
@@ -299,7 +293,7 @@ function run_test_scenario() {
 
     YAML_FILE=$(ls *.yaml)
     policy_type=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
-    
+    POLICY=$(grep "name:" $YAML_FILE | head -n1 | awk '{ print $2}')
     NATIVE=0
     HOST_POLICY=0
     NATIVE_HOST=0
@@ -363,7 +357,7 @@ function run_test_scenario() {
     fi
     DBG "Applied $YAML_FILE into $2"
 
-    sleep 3
+    sleep 5
     cmd_count=0
 
     for cmd in $(ls cmd*)
@@ -407,8 +401,8 @@ function run_test_scenario() {
         if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
             bash -c ''"${CMD}"''
         else
-            echo kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
-            kubectl exec -n $2 -it $POD -- bash -c ''"${CMD}"''
+            echo kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
+            kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
         fi
         if [ $? != 0 ]; then
             actual_res="failed"
@@ -418,52 +412,52 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_log $POD $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_log $POD $OP $COND $ACTION
+                    should_find_passed_log $POD $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_log $POD $OP $COND $ACTION
+                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_log $POD $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
                 fi
             fi
         else
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_host_log $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_host_log $OP $COND $ACTION
+                    should_find_passed_host_log $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_host_log $OP $COND $ACTION
+                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_host_log $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
                 fi
             fi
         fi
@@ -487,7 +481,7 @@ function run_test_scenario() {
             echo "Result: $RESULT (expected) / $actual_res (actual)" >> $TEST_LOG
             echo "Output:" >> $TEST_LOG
             if [[ $HOST_POLICY -eq 0 ]]; then 
-                echo ""$(kubectl exec -n $2 -it $POD -- bash -c "$CMD") >> $TEST_LOG
+                echo ""$(kubectl exec -n $2 $POD -- bash -c "$CMD") >> $TEST_LOG
             else
                 echo ""$(bash -c "$CMD") >> $TEST_LOG
             fi
@@ -593,6 +587,12 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
     do
         ## == ##
 
+        if [ "$microservice" == "github" ]; then
+            continue
+        fi
+
+        ## == ##
+
         INFO "Applying $microservice"
         apply_and_wait_for_microservice_creation $microservice
 
@@ -648,13 +648,13 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
                 DBG "Deleted $microservice"
             fi
         fi
-    done    
+    done
     DBG "Finished Container Scenarios"
 else
     WARN "Skipped Container Scenarios"
 fi
 
-HOST_NAME="$(hostname)"
+HOST_NAME=$(hostname)
 res_host=0
 
 if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
@@ -748,16 +748,10 @@ else
     PASS "Successfully tested KubeArmor"
 fi
 
-if [ "$GITHUB_ACTIONS" = true ]
-then
-    echo "[INFO] Github Actions - Environment"
-    echo "[INFO] Not removing logs"
-else
-    echo "[INFO] Remove temporary logs after 10 seconds"
-    sleep 10
-    sudo rm -f $ARMOR_MSG $ARMOR_LOG
-    echo "[INFO] Removed the temporary logs"
-fi
+echo "[INFO] Remove temporary logs after 10 seconds"
+sleep 10
+sudo rm -f $ARMOR_MSG $ARMOR_LOG
+echo "[INFO] Removed the temporary logs"
 
 if [[ $res_microservice -ne 0 ]] || [[ $res_host -ne 0 ]]; then
     exit 1

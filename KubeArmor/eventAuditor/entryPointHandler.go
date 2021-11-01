@@ -3,15 +3,11 @@
 
 package eventauditor
 
-import "C"
-
 import (
 	"errors"
 	"strings"
-	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 // =========================== //
@@ -43,7 +39,17 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 
 	ea.SupportedEntryPoints = map[string]uint32{
 		"execve": 59, "execveat": 322, "open": 2, "openat": 257,
-		"socket": 41, "connect": 42, "accept": 43, "bind": 49, "listen": 50}
+		"socket": 41, "connect": 42, "bind": 49, "listen": 50}
+
+	ea.EntryPointParameters = make(map[string][]string)
+	ea.EntryPointParameters["execve"] = []string{"Path"}
+	ea.EntryPointParameters["execveat"] = []string{"Path", "Flags"}
+	ea.EntryPointParameters["open"] = []string{"Path", "Flags", "Mode"}
+	ea.EntryPointParameters["openat"] = []string{"Path", "Flags", "Mode"}
+	ea.EntryPointParameters["socket"] = []string{"Protocol"}
+	ea.EntryPointParameters["connect"] = []string{"Ipv4Addr", "Ipv6Addr", "Port"}
+	ea.EntryPointParameters["bind"] = []string{"Ipv4Addr", "Ipv6Addr", "Port"}
+	ea.EntryPointParameters["listen"] = []string{}
 
 	if err = ea.InitializeEntryPointPrograms(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEntryPointPrograms: %v", err)
@@ -89,12 +95,13 @@ func (ea *EventAuditor) DestroyEntryPoints() bool {
 	return true
 }
 
+// InitializeEntryPointPrograms Function
 func (ea *EventAuditor) InitializeEntryPointPrograms(bman *KABPFManager) error {
 	if bman == nil {
 		return errors.New("bpf manager cannot be nil")
 	}
 
-	for probe, _ := range ea.SupportedEntryPoints {
+	for probe := range ea.SupportedEntryPoints {
 		if err := bman.InitProgram(KAEAGetEntryPointProg(probe)); err != nil {
 			return err
 		}
@@ -109,12 +116,13 @@ func (ea *EventAuditor) InitializeEntryPointPrograms(bman *KABPFManager) error {
 	return nil
 }
 
+// DestroyEntryPointPrograms Function
 func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 	if bman == nil {
 		return errors.New("bpf manager cannot be nil")
 	}
 
-	for probe, _ := range ea.SupportedEntryPoints {
+	for probe := range ea.SupportedEntryPoints {
 		ea.DisableEntryPoint(probe)
 
 		if err := bman.DetachProgram(KAEAGetEntryPointProg(probe)); err != nil {
@@ -129,6 +137,7 @@ func (ea *EventAuditor) DestroyEntryPointPrograms(bman *KABPFManager) error {
 	return nil
 }
 
+// EnableEntryPoint Function
 func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
@@ -136,10 +145,10 @@ func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	if strings.HasPrefix(probe, "sys_") {
 		probe = strings.Replace(probe, "sys_", "", -1)
 	}
-	_, supported := ea.SupportedEntryPoints[probe]
 
+	_, supported := ea.SupportedEntryPoints[probe]
 	if !supported {
-		ea.Logger.Errf("%s is currently not supported", probe)
+		ea.Logger.Warnf("%s is currently not supported", probe)
 		return
 	}
 
@@ -151,6 +160,7 @@ func (ea *EventAuditor) EnableEntryPoint(probe string) {
 	}
 }
 
+// DisableEntryPoint Function
 func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	var eventMapElem EventElement
 
@@ -158,10 +168,10 @@ func (ea *EventAuditor) DisableEntryPoint(probe string) {
 	if strings.HasPrefix(probe, "sys_") {
 		probe = strings.Replace(probe, "sys_", "", -1)
 	}
-	_, supported := ea.SupportedEntryPoints[probe]
 
+	_, supported := ea.SupportedEntryPoints[probe]
 	if !supported {
-		ea.Logger.Errf("%s is currently not supported", probe)
+		ea.Logger.Warnf("%s is currently not supported", probe)
 		return
 	}
 
@@ -174,9 +184,9 @@ func (ea *EventAuditor) DisableEntryPoint(probe string) {
 }
 
 // UpdateEntryPoints Function
-func (ea *EventAuditor) UpdateEntryPoints(auditPolicies *map[string]tp.AuditPolicy, auditPoliciesLock **sync.RWMutex) {
-	AuditPolicies := *(auditPolicies)
-	AuditPoliciesLock := *(auditPoliciesLock)
+func (ea *EventAuditor) UpdateEntryPoints() {
+	AuditPolicies := *(ea.AuditPolicies)
+	AuditPoliciesLock := *(ea.AuditPoliciesLock)
 
 	AuditPoliciesLock.Lock()
 	defer AuditPoliciesLock.Unlock()

@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-file-pattern-audit
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "audit files following a pattern"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchPatterns:
+    - pattern: /etc/*hado? # try open /etc/shadow or /etc/gshadow (logs)
+  action:
+    Audit

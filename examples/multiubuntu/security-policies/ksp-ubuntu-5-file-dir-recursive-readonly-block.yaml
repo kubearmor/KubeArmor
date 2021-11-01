@@ -1,0 +1,20 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-5-file-dir-recursive-readonly-block
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical directory was accessed"
+  tags:
+  - WARNNING
+  selector:
+    matchLabels:
+      container: ubuntu-5
+  file:
+    matchDirectories: # cat /credentials/keys/priv.key (success)
+    - dir: /credentials/ # cat /credentials/password (success)
+      recursive: true # echo test >> /credentials/keys/priv.key (permission denied)
+      readOnly: true # echo test >> /credentials/password (permission denied)
+  action:
+    Block

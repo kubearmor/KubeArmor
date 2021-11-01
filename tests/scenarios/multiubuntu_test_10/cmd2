@@ -1,7 +1,0 @@
-source: ubuntu-3-deployment
-cmd: ls /etc/
-result: failed
----
-operation: File
-condition: "/etc/"
-action: Block

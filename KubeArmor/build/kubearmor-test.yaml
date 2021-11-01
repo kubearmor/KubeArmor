@@ -1,0 +1,1258 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: kubearmor
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor
+  namespace: kube-system
+  labels:
+    kubearmor-app: kubearmor
+spec:
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor
+  template:
+    metadata:
+      labels:
+        kubearmor-app: kubearmor
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+    spec:
+      serviceAccountName: kubearmor
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - operator: Exists
+      hostPID: true
+      hostNetwork: true
+      restartPolicy: Always
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: kubearmor
+        image: kubearmor/kubearmor:test
+        imagePullPolicy: Never
+        securityContext:
+          privileged: true
+        command: ["/KubeArmor/kubearmor"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableKubeArmorHostPolicy"]
+        ports:
+        - containerPort: 32767
+        volumeMounts:
+        - name: docker-sock-path # docker (read-only)
+          mountPath: /var/run/docker.sock
+          readOnly: true
+        - name: docker-storage-path # docker storage (read-only)
+          mountPath: /var/lib/docker
+          readOnly: true
+        - name: usr-src-path # BPF (read-only)
+          mountPath: /usr/src
+          readOnly: true
+        - name: lib-modules-path # BPF (read-only)
+          mountPath: /lib/modules
+          readOnly: true
+        - name: sys-fs-bpf-path # BPF (read-write)
+          mountPath: /sys/fs/bpf
+        - name: sys-kernel-debug-path # BPF (read-write)
+          mountPath: /sys/kernel/debug
+        - name: etc-apparmor-d-path # AppArmor (read-write)
+          mountPath: /etc/apparmor.d
+        - name: os-release-path # OS (read-only)
+          mountPath: /media/root/etc/os-release
+          readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - |
+              if [ -z $(pgrep kubearmor) ]; then
+                exit 1;
+              fi;
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        terminationMessagePolicy: File
+        terminationMessagePath: /dev/termination-log
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: docker-sock-path # docker
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: docker-storage-path # docker
+        hostPath:
+          path: /var/lib/docker
+          type: Directory
+      - name: usr-src-path # BPF
+        hostPath:
+          path: /usr/src
+          type: Directory
+      - name: lib-modules-path # BPF
+        hostPath:
+          path: /lib/modules
+          type: Directory
+      - name: sys-fs-bpf-path # BPF
+        hostPath:
+          path: /sys/fs/bpf
+          type: Directory
+      - name: sys-kernel-debug-path # BPF
+        hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+      - name: etc-apparmor-d-path # AppArmor
+        hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
+      - name: os-release-path # OS
+        hostPath:
+          path: /etc/os-release
+          type: File
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: kubearmorpolicies.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorPolicy
+    listKind: KubeArmorPolicyList
+    plural: kubearmorpolicies
+    shortNames:
+    - ksp
+    singular: kubearmorpolicy
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorPolicy is the Schema for the kubearmorpolicies API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
+            properties:
+              action:
+                enum:
+                - Allow
+                - Audit
+                - Block
+                type: string
+              apparmor:
+                type: string
+              capabilities:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchCapabilities:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        capability:
+                          pattern: (chown|dac_override|dac_read_search|fowner|fsetid|kill|setgid|setuid|setpcap|linux_immutable|net_bind_service|net_broadcast|net_admin|net_raw|ipc_lock|ipc_owner|sys_module|sys_rawio|sys_chroot|sys_ptrace|sys_pacct|sys_admin|sys_boot|sys_nice|sys_resource|sys_time|sys_tty_config|mknod|lease|audit_write|audit_control|setfcap|mac_override|mac_admin)$
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - capability
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchCapabilities
+                type: object
+              file:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchDirectories:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        readOnly:
+                          type: boolean
+                        recursive:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - dir
+                      type: object
+                    type: array
+                  matchPaths:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - path
+                      type: object
+                    type: array
+                  matchPatterns:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        pattern:
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - pattern
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              message:
+                type: string
+              network:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchProtocols:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        protocol:
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - protocol
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchProtocols
+                type: object
+              process:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchDirectories:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        recursive:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - dir
+                      type: object
+                    type: array
+                  matchPaths:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - path
+                      type: object
+                    type: array
+                  matchPatterns:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        pattern:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - pattern
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              selector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              selinux:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchVolumeMounts:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        message:
+                          type: string
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchVolumeMounts
+                type: object
+              severity:
+                maximum: 10
+                minimum: 1
+                type: integer
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - selector
+            type: object
+          status:
+            description: KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: kubearmorhostpolicies.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorHostPolicy
+    listKind: KubeArmorHostPolicyList
+    plural: kubearmorhostpolicies
+    shortNames:
+    - hsp
+    singular: kubearmorhostpolicy
+  scope: Cluster
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorHostPolicySpec defines the desired state of KubeArmorHostPolicy
+            properties:
+              action:
+                enum:
+                - Allow
+                - Audit
+                - Block
+                type: string
+              apparmor:
+                type: string
+              capabilities:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchCapabilities:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        capability:
+                          pattern: (chown|dac_override|dac_read_search|fowner|fsetid|kill|setgid|setuid|setpcap|linux_immutable|net_bind_service|net_broadcast|net_admin|net_raw|ipc_lock|ipc_owner|sys_module|sys_rawio|sys_chroot|sys_ptrace|sys_pacct|sys_admin|sys_boot|sys_nice|sys_resource|sys_time|sys_tty_config|mknod|lease|audit_write|audit_control|setfcap|mac_override|mac_admin)$
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - capability
+                      - fromSource
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchCapabilities
+                type: object
+              file:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchDirectories:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        readOnly:
+                          type: boolean
+                        recursive:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - dir
+                      type: object
+                    type: array
+                  matchPaths:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - path
+                      type: object
+                    type: array
+                  matchPatterns:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        pattern:
+                          type: string
+                        readOnly:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - pattern
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              message:
+                type: string
+              network:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchProtocols:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        protocol:
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - fromSource
+                      - protocol
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - matchProtocols
+                type: object
+              nodeSelector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              process:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchDirectories:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        dir:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        recursive:
+                          type: boolean
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - dir
+                      type: object
+                    type: array
+                  matchPaths:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        fromSource:
+                          items:
+                            properties:
+                              path:
+                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                type: string
+                            type: object
+                          type: array
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        path:
+                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - path
+                      type: object
+                    type: array
+                  matchPatterns:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        message:
+                          type: string
+                        ownerOnly:
+                          type: boolean
+                        pattern:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - pattern
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                type: object
+              severity:
+                maximum: 10
+                minimum: 1
+                type: integer
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - nodeSelector
+            type: object
+          status:
+            description: KubeArmorHostPolicyStatus defines the observed state of KubeArmorHostPolicy
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: kubearmorauditpolicies.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorAuditPolicy
+    listKind: KubeArmorAuditPolicyList
+    plural: kubearmorauditpolicies
+    singular: kubearmorauditpolicy
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorAuditPolicy is the Schema for the kubearmorauditpolicies
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorAuditPolicySpec defines the desired state of KubeArmorAuditPolicy
+            properties:
+              message:
+                type: string
+              rules:
+                items:
+                  properties:
+                    events:
+                      items:
+                        properties:
+                          dir:
+                            type: string
+                          flags:
+                            type: string
+                          ipv4addr:
+                            type: string
+                          ipv6addr:
+                            type: string
+                          mode:
+                            type: string
+                          path:
+                            type: string
+                          port:
+                            type: string
+                          probe:
+                            type: string
+                          protocol:
+                            enum:
+                            - ip
+                            - tcp
+                            - udp
+                            - raw
+                            - IP
+                            - TCP
+                            - UDP
+                            - RAW
+                            type: string
+                          rate:
+                            pattern: ^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
+                            type: string
+                        required:
+                        - probe
+                        type: object
+                      type: array
+                    message:
+                      type: string
+                    process:
+                      type: string
+                    severity:
+                      pattern: ^([1-9]|10)$
+                      type: string
+                    tags:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - events
+                  type: object
+                type: array
+              selector:
+                properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
+              severity:
+                pattern: ^([1-9]|10)$
+                type: string
+              tags:
+                items:
+                  type: string
+                type: array
+            required:
+            - rules
+            - selector
+            type: object
+          status:
+            description: KubeArmorAuditPolicyStatus defines the observed state of
+              KubeArmorAuditPolicy
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: kubearmormacros.security.kubearmor.com
+spec:
+  group: security.kubearmor.com
+  names:
+    kind: KubeArmorMacro
+    listKind: KubeArmorMacroList
+    plural: kubearmormacros
+    singular: kubearmormacro
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: KubeArmorMacro is the Schema for the kubearmormacros API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: KubeArmorMacroSpec defines the desired state of KubeArmorMacro
+            properties:
+              macros:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
+            required:
+            - macros
+            type: object
+          status:
+            description: KubeArmorMacroStatus defines the observed state of KubeArmorMacro
+            properties:
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

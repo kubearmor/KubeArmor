@@ -39,9 +39,9 @@
 
      [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC, Go, Protobuf, and some other dependencies.
 
-     Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.  
+     Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
 
-2. Vagrant Environment
+2. Vagrant Environment (Recommended)
    * Requirements
 
      Here is the list of requirements for a Vagrant environment
@@ -93,6 +93,13 @@
       ```text
       ~/KubeArmor/KubeArmor$ vi Makefile
       ```
+
+    * Please Note:
+
+      You could skip vagrant step completely if you're directly compiling Kubearmor on any Linux distro, or using Virtualbox.
+
+      Please ensure that the steps to setup K8s is followed so as to resolve any open dependencies.
+
 
 3.  Environment Check
     * Compilation

@@ -86,6 +86,10 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[st
 
 	if re.EnforcerType == "AppArmor" {
 		for _, profile := range profiles {
+			if profile == "unconfined" {
+				continue
+			}
+
 			if action == "ADDED" {
 				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
 			} else if action == "DELETED" {

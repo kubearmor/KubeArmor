@@ -4,10 +4,12 @@
 package feeder
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -31,7 +33,19 @@ func getProtocolFromName(proto string) string {
 	}
 }
 
-// getOperationAndCapabilityFromName
+func getFileProcessUID(path string) string {
+	info, err := os.Stat(path)
+	if err == nil {
+		stat := info.Sys().(*syscall.Stat_t)
+		uid := stat.Uid
+
+		return strconv.Itoa(int(uid))
+	}
+
+	return ""
+}
+
+// getOperationAndCapabilityFromName Function
 func getOperationAndCapabilityFromName(capName string) (op, cap string) {
 	switch strings.ToLower(capName) {
 	case "net_raw":
@@ -51,6 +65,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		Source:     src,
 	}
 
+	match.OwnerOnly = false
+	match.ReadOnly = false
+
 	if ppt, ok := mp.(tp.ProcessPathType); ok {
 		match.Severity = strconv.Itoa(ppt.Severity)
 		match.Tags = ppt.Tags
@@ -59,6 +76,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Operation = "Process"
 		match.Resource = ppt.Path
 		match.ResourceType = "Path"
+
+		match.OwnerOnly = ppt.OwnerOnly
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
@@ -74,6 +93,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = pdt.Directory
 		match.ResourceType = "Directory"
 
+		match.OwnerOnly = pdt.OwnerOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(pdt.Action, "Block") {
 			match.Action = "Audit (" + pdt.Action + ")"
 		} else {
@@ -87,6 +108,8 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Operation = "Process"
 		match.Resource = ppt.Pattern
 		match.ResourceType = "" // to be defined based on the pattern matching syntax
+
+		match.OwnerOnly = ppt.OwnerOnly
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(ppt.Action, "Block") {
 			match.Action = "Audit (" + ppt.Action + ")"
@@ -102,6 +125,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fpt.Path
 		match.ResourceType = "Path"
 
+		match.OwnerOnly = fpt.OwnerOnly
+		match.ReadOnly = fpt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
 		} else {
@@ -116,6 +142,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = fdt.Directory
 		match.ResourceType = "Directory"
 
+		match.OwnerOnly = fdt.OwnerOnly
+		match.ReadOnly = fdt.ReadOnly
+
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fdt.Action, "Block") {
 			match.Action = "Audit (" + fdt.Action + ")"
 		} else {
@@ -128,6 +157,9 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Operation = "File"
 		match.Resource = fpt.Pattern
 		match.ResourceType = "" // to be defined based on the pattern matching syntax
+
+		match.OwnerOnly = fpt.OwnerOnly
+		match.ReadOnly = fpt.ReadOnly
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && strings.HasPrefix(fpt.Action, "Block") {
 			match.Action = "Audit (" + fpt.Action + ")"
@@ -209,13 +241,12 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -232,13 +263,12 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -278,13 +308,12 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -301,13 +330,12 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
 				match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -354,8 +382,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range proto.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -364,6 +390,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 
@@ -388,8 +415,6 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 			for _, src := range cap.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
@@ -398,6 +423,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 
@@ -416,7 +442,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 // UpdateHostSecurityPolicies Function
 func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.HostSecurityPolicy) {
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, fd.HostName)
+		delete(fd.SecurityPolicies, fd.Node.NodeName)
 		return
 	}
 
@@ -439,7 +465,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -447,13 +473,12 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -462,7 +487,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -470,13 +495,12 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -508,7 +532,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(path.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -516,13 +540,12 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range path.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, path)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, path)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -531,7 +554,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(dir.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
 				matches.Policies = append(matches.Policies, match)
 				continue
 			}
@@ -539,13 +562,12 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range dir.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, dir)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, dir)
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
@@ -557,7 +579,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 
 			fromSource := ""
 
-			match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, patt)
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, patt)
 
 			regexpComp, err := regexp.Compile(patt.Pattern)
 			if err != nil {
@@ -581,7 +603,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(proto.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -592,19 +614,17 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range proto.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, proto)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, proto)
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
-
 		}
 
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
@@ -615,7 +635,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			fromSource := ""
 
 			if len(cap.FromSource) == 0 {
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
@@ -626,23 +646,22 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			for _, src := range cap.FromSource {
 				if len(src.Path) > 0 {
 					fromSource = src.Path
-				} else if len(src.Directory) > 0 {
-					fromSource = src.Directory
 				} else {
 					continue
 				}
 
-				match := fd.newMatchPolicy(tp.KubeArmorPolicyEnabled, policyName, fromSource, cap)
+				match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, cap)
 				if len(match.Resource) == 0 {
 					continue
 				}
+				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
 		}
 	}
 
 	fd.SecurityPoliciesLock.Lock()
-	fd.SecurityPolicies[fd.HostName] = matches
+	fd.SecurityPolicies[fd.Node.NodeName] = matches
 	fd.SecurityPoliciesLock.Unlock()
 }
 
@@ -672,7 +691,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
-		key := fd.HostName
+		key := fd.Node.NodeName
 
 		if log.NamespaceName != "" && log.PodName != "" {
 			key = log.NamespaceName + "_" + log.PodName
@@ -680,7 +699,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
-			if secPolicy.Source == "" || strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0]) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+			if secPolicy.Source == "" || secPolicy.IsFromSource || strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0]) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 				if secPolicy.Action == "Allow" {
 					if secPolicy.Operation == "Process" {
 						if allowProcPolicy == "" {
@@ -775,7 +794,42 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					if matched || strings.Contains(log.Resource, secPolicy.Resource) {
-						if secPolicy.Source == "" || (secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) || (secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" ||
+							(secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) ||
+							(secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result == "Passed" {
+								if log.Resource != "" && secPolicy.ReadOnly && log.MergedDir != "" && secPolicy.OwnerOnly {
+									// read only
+									preLogData := strings.Split(log.Data, " ")
+									logData := strings.Split(preLogData[len(preLogData)-1], "=")
+									flags := logData[len(logData)-1]
+
+									// owner only
+									fileProcessUID := getFileProcessUID(log.MergedDir + log.Resource)
+
+									if flags == "O_RDONLY" && strconv.Itoa(int(log.UID)) == fileProcessUID {
+										continue
+									}
+								} else if log.Resource != "" && secPolicy.ReadOnly {
+									// read only
+									preLogData := strings.Split(log.Data, " ")
+									logData := strings.Split(preLogData[len(preLogData)-1], "=")
+									flags := logData[len(logData)-1]
+
+									if flags == "O_RDONLY" {
+										continue
+									}
+								} else if log.MergedDir != "" && secPolicy.OwnerOnly {
+									// owner only
+									fileProcessUID := getFileProcessUID(log.MergedDir + log.Resource)
+
+									if strconv.Itoa(int(log.UID)) == fileProcessUID {
+										continue
+									}
+								}
+							}
+
 							log.PolicyName = secPolicy.PolicyName
 							log.Severity = secPolicy.Severity
 
@@ -996,9 +1050,70 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return log
 			}
 
-			//
+			if fd.Node.PolicyEnabled == tp.KubeArmorPolicyAudited {
+				if log.Operation == "Process" && allowProcPolicy != "" {
+					log.PolicyName = allowProcPolicy
+					log.Severity = allowProcPolicySeverity
 
-			if log.Result != "Passed" {
+					if len(allowProcTags) > 0 {
+						log.Tags = strings.Join(allowProcTags[:], ",")
+					}
+
+					if len(allowProcMessage) > 0 {
+						log.Message = allowProcMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Audit (Allow)"
+
+					return log
+
+				} else if log.Operation == "File" && allowFilePolicy != "" {
+					log.PolicyName = allowFilePolicy
+					log.Severity = allowFilePolicySeverity
+
+					if len(allowFileTags) > 0 {
+						log.Tags = strings.Join(allowFileTags[:], ",")
+					}
+
+					if len(allowFileMessage) > 0 {
+						log.Message = allowFileMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Audit (Allow)"
+
+					return log
+
+				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
+					log.PolicyName = allowNetworkPolicy
+					log.Severity = allowNetworkPolicySeverity
+
+					if len(allowNetworkTags) > 0 {
+						log.Tags = strings.Join(allowNetworkTags[:], ",")
+					}
+
+					if len(allowNetworkMessage) > 0 {
+						log.Message = allowNetworkMessage
+					}
+
+					log.Type = "MatchedHostPolicy"
+					log.Action = "Audit (Allow)"
+
+					return log
+				}
+			}
+
+			if fd.Node.ProcessVisibilityEnabled && log.Operation == "Process" {
+				log.Type = "HostLog"
+				return log
+			} else if fd.Node.FileVisibilityEnabled && log.Operation == "File" {
+				log.Type = "HostLog"
+				return log
+			} else if fd.Node.NetworkVisibilityEnabled && log.Operation == "Network" {
+				log.Type = "HostLog"
+				return log
+			} else if fd.Node.CapabilitiesVisibilityEnabled && log.Operation == "Capabilities" {
 				log.Type = "HostLog"
 				return log
 			}

@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-proc-path-block-from-source
+  namespace: github
+spec:
+  severity: 5
+  message: "block /bin/dash executing /bin/ls"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPaths:
+    - path: /bin/ls
+      fromSource:
+      - path: /bin/dash
+  action:
+    Block

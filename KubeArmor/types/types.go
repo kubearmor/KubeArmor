@@ -30,6 +30,8 @@ type Container struct {
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
 
+	MergedDir string `json:"mergedDir"`
+
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled"`
@@ -97,6 +99,15 @@ type Node struct {
 	EnableKubeArmorPolicy      bool `json:"enableKubeArmorPolicy"`
 	EnableKubeArmorHostPolicy  bool `json:"enableKubeArmorHostPolicy"`
 	EnableKubeArmorAuditPolicy bool `json:"enableKubeArmorAuditPolicy"`
+
+	// == //
+
+	PolicyEnabled int `json:"policyEnabled"`
+
+	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
+	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
+	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled"`
+	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
 // ================ //
@@ -202,12 +213,11 @@ type K8sEventType struct {
 	Probe string `json:"probe"`
 	Rate  string `json:"rate,omitempty"`
 
-	// file related arguments
 	Path      string `json:"path,omitempty"`
 	Directory string `json:"dir,omitempty"`
 	Mode      string `json:"mode,omitempty"`
+	Flags     string `json:"flags,omitempty"`
 
-	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
@@ -268,6 +278,9 @@ type Log struct {
 	ContainerID   string `json:"containerID,omitempty"`
 	ContainerName string `json:"containerName,omitempty"`
 
+	// container merged directory
+	MergedDir string `json:"mergedDir,omitempty"`
+
 	// common
 	HostPID int32 `json:"hostPid"`
 	PPID    int32 `json:"ppid"`
@@ -314,6 +327,10 @@ type MatchPolicy struct {
 	ResourceType string
 	Resource     string
 
+	IsFromSource bool
+	OwnerOnly    bool
+	ReadOnly     bool
+
 	Regexp *regexp.Regexp
 	Native bool
 
@@ -344,9 +361,7 @@ type SelectorType struct {
 
 // MatchSourceType Structure
 type MatchSourceType struct {
-	Path      string `json:"path,omitempty"`
-	Directory string `json:"dir,omitempty"`
-	Recursive bool   `json:"recursive,omitempty"`
+	Path string `json:"path,omitempty"`
 }
 
 // ProcessPathType Structure
@@ -604,16 +619,15 @@ type AuditEventType struct {
 	Probe string `json:"probe"`
 	Rate  string `json:"rate,omitempty"`
 
-	// file related arguments
 	Path      string `json:"path,omitempty"`
 	Directory string `json:"dir,omitempty"`
-	Mode      int    `json:"mode,omitempty"`
+	Mode      string `json:"mode,omitempty"`
+	Flags     string `json:"flags,omitempty"`
 
-	// socket related arguments
 	Protocol string `json:"protocol,omitempty"`
 	Ipv4Addr string `json:"ipv4addr,omitempty"`
 	Ipv6Addr string `json:"ipv6addr,omitempty"`
-	Port     int    `json:"port,omitempty"`
+	Port     string `json:"port,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`

@@ -70,14 +70,9 @@ spec:
                         fromSource:
                           items:
                             properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
                               path:
                                 pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                                 type: string
-                              recursive:
-                                type: boolean
                             type: object
                           type: array
                         message:
@@ -131,14 +126,9 @@ spec:
                         fromSource:
                           items:
                             properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
                               path:
                                 pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                                 type: string
-                              recursive:
-                                type: boolean
                             type: object
                           type: array
                         message:
@@ -173,14 +163,9 @@ spec:
                         fromSource:
                           items:
                             properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
                               path:
                                 pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                                 type: string
-                              recursive:
-                                type: boolean
                             type: object
                           type: array
                         message:
@@ -266,14 +251,9 @@ spec:
                         fromSource:
                           items:
                             properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
                               path:
                                 pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                                 type: string
-                              recursive:
-                                type: boolean
                             type: object
                           type: array
                         message:
@@ -337,14 +317,9 @@ spec:
                         fromSource:
                           items:
                             properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
                               path:
                                 pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                                 type: string
-                              recursive:
-                                type: boolean
                             type: object
                           type: array
                         message:
@@ -377,14 +352,9 @@ spec:
                         fromSource:
                           items:
                             properties:
-                              dir:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                                type: string
                               path:
                                 pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
                                 type: string
-                              recursive:
-                                type: boolean
                             type: object
                           type: array
                         message:

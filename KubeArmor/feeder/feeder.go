@@ -265,8 +265,9 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 type Feeder struct {
 	// cluster + host
 	ClusterName string
-	HostName    string
-	HostIP      string
+
+	// node
+	Node *tp.Node
 
 	// port
 	Port string
@@ -293,13 +294,14 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName string, node tp.Node, port, output string) *Feeder {
+func NewFeeder(clusterName string, node *tp.Node, port, output string) *Feeder {
 	fd := &Feeder{}
 
 	// set cluster info
 	fd.ClusterName = clusterName
-	fd.HostName = node.NodeName
-	fd.HostIP = node.NodeIP
+
+	// node
+	fd.Node = node
 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", port)
@@ -312,28 +314,31 @@ func NewFeeder(clusterName string, node tp.Node, port, output string) *Feeder {
 		// get the directory part from the path
 		dirLog := filepath.Dir(fd.Output)
 
-		// create directories
-		if err := os.MkdirAll(filepath.Clean(dirLog), 0750); err != nil {
-			kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
-			return nil
-		}
+		if _, err := os.Stat(filepath.Clean(fd.Output)); os.IsNotExist(err) {
+			// create directories
+			if err := os.MkdirAll(filepath.Clean(dirLog), 0750); err != nil {
+				kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
+				return nil
+			}
 
-		// create target file
-		targetFile, err := os.Create(filepath.Clean(fd.Output))
-		if err != nil {
-			kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
-			return nil
-		}
-		if err := targetFile.Close(); err != nil {
-			kg.Err(err.Error())
+			// create target file
+			targetFile, err := os.Create(filepath.Clean(fd.Output))
+			if err != nil {
+				kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
+				return nil
+			}
+			if err := targetFile.Close(); err != nil {
+				kg.Err(err.Error())
+			}
 		}
 
 		// open the file with the append mode
-		fd.LogFile, err = os.OpenFile(filepath.Clean(fd.Output), os.O_WRONLY|os.O_APPEND, 0600)
+		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_WRONLY|os.O_APPEND, 0600)
 		if err != nil {
 			kg.Err(err.Error())
 			return nil
 		}
+		fd.LogFile = logFile
 	}
 
 	// listen to gRPC port
@@ -509,8 +514,8 @@ func (fd *Feeder) PushMessage(level, message string) {
 
 	pbMsg.ClusterName = fd.ClusterName
 
-	pbMsg.HostName = fd.HostName
-	pbMsg.HostIP = fd.HostIP
+	pbMsg.HostName = fd.Node.NodeName
+	pbMsg.HostIP = fd.Node.NodeIP
 
 	pbMsg.Type = "Message"
 
@@ -529,7 +534,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// set hostname
-	log.HostName = fd.HostName
+	log.HostName = fd.Node.NodeName
+
+	// remove MergedDir
+	log.MergedDir = ""
 
 	// remove flags
 	log.PolicyEnabled = 0
@@ -555,7 +563,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.UpdatedTime = log.UpdatedTime
 
 		pbAlert.ClusterName = fd.ClusterName
-		pbAlert.HostName = fd.HostName
+		pbAlert.HostName = fd.Node.NodeName
 
 		pbAlert.NamespaceName = log.NamespaceName
 		pbAlert.PodName = log.PodName
@@ -606,7 +614,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.UpdatedTime = log.UpdatedTime
 
 		pbLog.ClusterName = fd.ClusterName
-		pbLog.HostName = fd.HostName
+		pbLog.HostName = fd.Node.NodeName
 
 		pbLog.NamespaceName = log.NamespaceName
 		pbLog.PodName = log.PodName

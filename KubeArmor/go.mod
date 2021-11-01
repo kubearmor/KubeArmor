@@ -9,6 +9,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/core => ./core
 	github.com/kubearmor/KubeArmor/KubeArmor/discover => ./discovery
 	github.com/kubearmor/KubeArmor/KubeArmor/enforcer => ./enforcer
+	github.com/kubearmor/KubeArmor/KubeArmor/eventAuditor => ./eventAuditor
 	github.com/kubearmor/KubeArmor/KubeArmor/feeder => ./feeder
 	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
 	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor
@@ -34,7 +35,7 @@ require (
 	go.uber.org/zap v1.18.1
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985 // indirect
-	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6
+	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
 	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/genproto v0.0.0-20210108203827-ffc7fda8c3d7 // indirect
@@ -42,4 +43,5 @@ require (
 	k8s.io/api v0.21.2
 	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v0.21.2
+	leb.io/hashland v0.1.5
 )

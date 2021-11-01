@@ -4,7 +4,9 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -22,10 +24,37 @@ import (
 // == Common == //
 // ============ //
 
+// SafeFileWriteAndClose Function
+func SafeFileWriteAndClose(f *os.File, s string) error {
+	if err := SafeFileWrite(f, s); err != nil {
+		return err
+	}
+
+	return f.Close()
+}
+
+// SafeFileWrite Function
+func SafeFileWrite(f *os.File, s string) error {
+	var err error
+
+	if _, err = f.WriteString(s); err != nil {
+		if anotherErr := f.Close(); anotherErr != nil {
+			err = errors.New(err.Error() + anotherErr.Error())
+		}
+	}
+
+	return err
+}
+
 // Clone Function
 func Clone(src, dst interface{}) error {
 	arr, _ := json.Marshal(src)
 	return json.Unmarshal(arr, dst)
+}
+
+// RemoveStringElement function
+func RemoveStringElement(slice []string, size int) []string {
+	return append(slice[:size], slice[size+1:]...)
 }
 
 // ContainsElement Function
@@ -186,6 +215,19 @@ func GetCommandOutputWithoutErr(cmd string, args []string) string {
 		return ""
 	}
 	return string(out)
+}
+
+// GetCommandStdoutAndStderr Function
+func GetCommandStdoutAndStderr(cmd string, args []string) (string, bool) {
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+
+	command := exec.Command(cmd, args...)
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+
+	err := command.Run()
+	return (stdout.String() + stderr.String()), (err == nil)
 }
 
 // RunCommandAndWaitWithErr Function

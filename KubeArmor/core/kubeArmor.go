@@ -180,28 +180,28 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	if dm.EventAuditor != nil {
 		// close event auditor
 		if dm.CloseEventAuditor() {
-			dm.Logger.Print("Stopped the event auditor")
+			dm.Logger.Print("Stopped KubeArmor Auditor")
 		}
 	}
 
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
 		if dm.CloseRuntimeEnforcer() {
-			dm.Logger.Print("Stopped the runtime enforcer")
+			dm.Logger.Print("Stopped KubeArmor Enforcer")
 		}
 	}
 
 	if dm.SystemMonitor != nil {
 		// close system monitor
 		if dm.CloseSystemMonitor() {
-			dm.Logger.Print("Stopped the system monitor")
+			dm.Logger.Print("Stopped KubeArmor Monitor")
 		}
 	}
 
 	if dm.Logger != nil {
-		dm.Logger.Print("Terminated the KubeArmor")
+		dm.Logger.Print("Terminated KubeArmor")
 	} else {
-		kg.Print("Terminated the KubeArmor")
+		kg.Print("Terminated KubeArmor")
 	}
 
 	// wait for a while
@@ -210,7 +210,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	if dm.Logger != nil {
 		// close logger
 		if dm.CloseLogger() {
-			kg.Print("Stopped the logger")
+			kg.Print("Stopped KubeArmor Logger")
 		}
 	}
 
@@ -225,7 +225,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 // InitLogger Function
 func (dm *KubeArmorDaemon) InitLogger() bool {
-	dm.Logger = fd.NewFeeder(dm.ClusterName, dm.Node, dm.gRPCPort, dm.LogPath)
+	dm.Logger = fd.NewFeeder(dm.ClusterName, &dm.Node, dm.gRPCPort, dm.LogPath)
 	return dm.Logger != nil
 }
 
@@ -240,7 +240,7 @@ func (dm *KubeArmorDaemon) ServeLogFeeds() {
 // CloseLogger Function
 func (dm *KubeArmorDaemon) CloseLogger() bool {
 	if err := dm.Logger.DestroyFeeder(); err != nil {
-		kg.Print("Failed to destroy the logger")
+		kg.Print("Failed to destroy KubeArmor Logger")
 		return false
 	}
 	return true
@@ -259,6 +259,7 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
 	}
 
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
+		kg.Err(err.Error())
 		return false
 	}
 
@@ -288,7 +289,7 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 // CloseSystemMonitor Function
 func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 	if err := dm.SystemMonitor.DestroySystemMonitor(); err != nil {
-		dm.Logger.Err("Failed to destroy the SystemMonitor")
+		dm.Logger.Err("Failed to destroy KubeArmor Monitor")
 		return false
 	}
 	return true
@@ -307,7 +308,7 @@ func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 // CloseRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 	if err := dm.RuntimeEnforcer.DestroyRuntimeEnforcer(); err != nil {
-		dm.Logger.Err("Failed to destory the Enforcer")
+		dm.Logger.Err("Failed to destory KubeArmor Enforcer")
 		return false
 	}
 	return true
@@ -319,14 +320,15 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 
 // InitEventAuditor Function
 func (dm *KubeArmorDaemon) InitEventAuditor() bool {
-	dm.EventAuditor = edt.NewEventAuditor(dm.Logger)
+	dm.EventAuditor = edt.NewEventAuditor(dm.Logger, &dm.Containers, &dm.ContainersLock,
+		&dm.EndPoints, &dm.EndPointsLock, &dm.AuditPolicies, &dm.AuditPoliciesLock)
 	return dm.EventAuditor != nil
 }
 
 // CloseEventAuditor Function
 func (dm *KubeArmorDaemon) CloseEventAuditor() bool {
 	if err := dm.EventAuditor.DestroyEventAuditor(); err != nil {
-		dm.Logger.Err("Failed to destroy the EventAuditor")
+		dm.Logger.Err("Failed to destroy KubeArmor Auditor")
 		return false
 	}
 	return true
@@ -363,7 +365,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 
 	// initialize kubernetes client
 	if K8s.InitK8sClient() {
-		kg.Print("Initialized the Kubernetes client")
+		kg.Print("Initialized Kubernetes client")
 
 		// set the flag
 		dm.K8sEnabled = true
@@ -401,6 +403,8 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		dm.Node.EnableKubeArmorHostPolicy = enableKubeArmorHostPolicy
 		dm.Node.EnableKubeArmorAuditPolicy = false
 
+		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
+
 		kg.Print("Detected no Kubernetes")
 	}
 
@@ -408,14 +412,14 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 
 	// initialize log feeder
 	if !dm.InitLogger() {
-		kg.Err("Failed to intialize the log feeder")
+		kg.Err("Failed to intialize KubeArmor Logger")
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
 
 		return
 	}
-	dm.Logger.Print("Initialized the logger")
+	dm.Logger.Print("Initialized KubeArmor Logger")
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
@@ -426,14 +430,14 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	if dm.EnableKubeArmorPolicy || dm.EnableKubeArmorHostPolicy {
 		// initialize system monitor
 		if !dm.InitSystemMonitor() {
-			dm.Logger.Err("Failed to initialize the system monitor")
+			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
 			return
 		}
-		dm.Logger.Print("Initialized the system monitor")
+		dm.Logger.Print("Initialized KubeArmor Monitor")
 
 		// monior system events
 		go dm.MonitorSystemEvents()
@@ -443,9 +447,9 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 
 		// initialize runtime enforcer
 		if !dm.InitRuntimeEnforcer() {
-			dm.Logger.Print("Disabled the runtime enforcer since No LSM is enabled")
+			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
 		} else {
-			dm.Logger.Print("Initialized the runtime enforcer")
+			dm.Logger.Print("Initialized KubeArmor Enforcer")
 
 			if dm.EnableKubeArmorPolicy && !dm.EnableKubeArmorHostPolicy {
 				dm.Logger.Print("Started to protect containers")
@@ -460,14 +464,14 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	// initialize event auditor
 	if dm.EnableKubeArmorAuditPolicy {
 		if !dm.InitEventAuditor() {
-			dm.Logger.Err("Failed to initialize the event auditor")
+			dm.Logger.Err("Failed to initialize KubeArmor Auditor")
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
 
 			return
 		}
-		dm.Logger.Print("Started to audit system events")
+		dm.Logger.Print("Initialized KubeArmor Auditor")
 	}
 
 	// == //
@@ -565,7 +569,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 
 		// watch macros
 		go dm.WatchKubeArmorMacro()
-		dm.Logger.Print("Started to monitor kubearmor macros")
+		dm.Logger.Print("Started to monitor audit macros")
 	}
 
 	// == //
@@ -577,7 +581,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	// listen for interrupt signals
 	sigChan := GetOSSigChannel()
 	<-sigChan
-	dm.Logger.Print("Got a signal to terminate the KubeArmor")
+	dm.Logger.Print("Got a signal to terminate KubeArmor")
 	close(StopChan)
 
 	// destroy the daemon

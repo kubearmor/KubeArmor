@@ -259,6 +259,10 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
+		if v == "unconfined" {
+			continue
+		}
+
 		spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
 
 		if count > 1 {

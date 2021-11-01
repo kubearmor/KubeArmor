@@ -17,6 +17,26 @@ import (
 
 // == //
 
+func resolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
+	prunedProcessWhiteList := make([]string, len(*processWhiteList))
+	copy(prunedProcessWhiteList, *processWhiteList)
+	numOfRemovedElements := 0
+
+	for index, line := range *processWhiteList {
+		for source := range fromSources {
+			if strings.Contains(line, source) {
+				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
+
+				// remove line from WhiteList
+				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index-numOfRemovedElements)
+				numOfRemovedElements = numOfRemovedElements + 1
+			}
+		}
+	}
+
+	*processWhiteList = prunedProcessWhiteList
+}
+
 func allowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
@@ -38,18 +58,6 @@ func allowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]strin
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -101,18 +109,6 @@ func allowedProcessMatchDirectories(dir tp.ProcessDirectoryType, processWhiteLis
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -188,18 +184,6 @@ func allowedFileMatchPaths(path tp.FilePathType, fileWhiteList *[]string, fromSo
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -289,18 +273,6 @@ func allowedFileMatchDirectories(dir tp.FileDirectoryType, fileWhiteList *[]stri
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -398,18 +370,6 @@ func allowedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkWhiteList
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -436,18 +396,6 @@ func allowedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, cap
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -484,18 +432,6 @@ func auditedProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]strin
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -547,18 +483,6 @@ func auditedProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditLis
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -634,18 +558,6 @@ func auditedFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSo
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -735,18 +647,6 @@ func auditedFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]stri
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -853,18 +753,6 @@ func blockedProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]strin
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -916,18 +804,6 @@ func blockedProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackLis
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -974,7 +850,7 @@ func blockedProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]
 func blockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
-			line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", path.Path, path.Path)
+			line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 			if !kl.ContainsElement(*fileBlackList, line) {
 				*fileBlackList = append(*fileBlackList, line)
 			}
@@ -1003,24 +879,12 @@ func blockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSo
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
 
 			if path.ReadOnly && path.OwnerOnly {
-				line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", path.Path, path.Path)
+				line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 				if !kl.ContainsElement(fromSources[source], line) {
 					fromSources[source] = append(fromSources[source], line)
 				}
@@ -1048,12 +912,12 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
-				line := fmt.Sprintf("  owner %s{*,**} r,\n  deny other %s{*,**} r,\n", dir.Directory, dir.Directory)
+				line := fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
 				if !kl.ContainsElement(*fileBlackList, line) {
 					*fileBlackList = append(*fileBlackList, line)
 				}
 			} else {
-				line := fmt.Sprintf("  owner %s* r,\n  deny other %s* ,\n", dir.Directory, dir.Directory)
+				line := fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 				if !kl.ContainsElement(*fileBlackList, line) {
 					*fileBlackList = append(*fileBlackList, line)
 				}
@@ -1104,30 +968,18 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
 
 			if dir.ReadOnly && dir.OwnerOnly {
 				if dir.Recursive {
-					line := fmt.Sprintf("  owner %s{*,**} r,\n  deny other %s{*,**} r,\n", dir.Directory, dir.Directory)
+					line := fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
 					if !kl.ContainsElement(fromSources[source], line) {
 						fromSources[source] = append(fromSources[source], line)
 					}
 				} else {
-					line := fmt.Sprintf("  owner %s* r,\n  deny other %s* ,\n", dir.Directory, dir.Directory)
+					line := fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 					if !kl.ContainsElement(fromSources[source], line) {
 						fromSources[source] = append(fromSources[source], line)
 					}
@@ -1175,7 +1027,7 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 
 func blockedFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
-		line := fmt.Sprintf("  owner %s r,\n  deny other %s r,\n", pat.Pattern, pat.Pattern)
+		line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*fileBlackList, line) {
 			*fileBlackList = append(*fileBlackList, line)
 		}
@@ -1212,18 +1064,6 @@ func blockedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkBlackList
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
 				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				}
 			} else {
 				continue
 			}
@@ -1250,18 +1090,6 @@ func blockedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, cap
 				source = src.Path
 				if _, ok := fromSources[source]; !ok {
 					fromSources[source] = []string{}
-				}
-			} else if len(src.Directory) > 0 {
-				if src.Recursive {
-					source = fmt.Sprintf("%s{*,**}", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
-				} else {
-					source = fmt.Sprintf("%s*", src.Directory)
-					if _, ok := fromSources[source]; !ok {
-						fromSources[source] = []string{}
-					}
 				}
 			} else {
 				continue
@@ -1345,6 +1173,8 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	fromSources := map[string][]string{}
 
 	nativeAppArmorRules := []string{}
+
+	fusionProcessWhiteList := []string{}
 
 	// preparation
 
@@ -1446,6 +1276,9 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		}
 	}
 
+	// Resolve conflicts
+	resolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
+
 	// head
 
 	profileHead := "  ## == PRE START == ##\n" + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
@@ -1525,7 +1358,12 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	bodyFromSource := ""
 
 	for source, lines := range fromSources {
-		bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		if kl.ContainsElement(fusionProcessWhiteList, source) {
+			bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cix,\n", source)
+		} else {
+			bodyFromSource = bodyFromSource + fmt.Sprintf("  %s cx,\n", source)
+		}
+
 		bodyFromSource = bodyFromSource + fmt.Sprintf("  profile %s {\n", source)
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    %s rix,\n", source)
 

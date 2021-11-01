@@ -15,12 +15,14 @@ type EventType struct {
 
 	// file related arguments
 
-	// +kubebuilder:validation:Pattern=^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)$
+	// +kubebuilder:validation:Optional
 	Path string `json:"path,omitempty"`
-	// +kubebuilder:validation:Pattern=^\/$|^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)+\/$
+	// +kubebuilder:validation:Optional
 	Directory string `json:"dir,omitempty"`
 	// +kubebuilder:validation:Optional
 	Mode string `json:"mode,omitempty"`
+	// +kubebuilder:validation:Optional
+	Flags string `json:"flags,omitempty"`
 
 	// socket related arguments
 
