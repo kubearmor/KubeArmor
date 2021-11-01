@@ -26,7 +26,7 @@ ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 ARMOR_OPTIONS=()
 
 SKIP_CONTAINER_POLICY=0
-SKIP_NATIVE_POLICY=1
+SKIP_NATIVE_POLICY=0
 SKIP_HOST_POLICY=1
 SKIP_NATIVE_HOST_POLICY=1
 
@@ -226,7 +226,11 @@ function should_find_blocked_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    if [[ $6 -eq 0 ]]; then
+        audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    else
+        audit_log=$(grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    fi
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -279,7 +283,11 @@ function should_find_blocked_host_log() {
         match_type="MatchedNativePolicy" 
     fi
 
-    audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    if [[ $5 -eq 0 ]]; then
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    else
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"NativePolicy\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+    fi
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -557,7 +565,7 @@ INFO "Started KubeArmor"
 
 res_microservice=0
 
-if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
+if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
     INFO "Running Container Scenarios"
 
     microservice="github"
@@ -618,7 +626,7 @@ fi
 HOST_NAME=$(hostname)
 res_host=0
 
-if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
+if [[ $SKIP_HOST_POLICY -eq 0 || $SKIP_NATIVE_HOST_POLICY -eq 0 ]]; then
     INFO "Running Host Scenarios"
 
     cd $TEST_HOME/host_scenarios

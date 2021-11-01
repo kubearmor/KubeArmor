@@ -207,7 +207,11 @@ function should_find_blocked_log() {
     fi
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        if [[ $6 -eq 0 ]]; then
+            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        else
+            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        fi
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -217,7 +221,11 @@ function should_find_blocked_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        if [[ $6 -eq 0 ]]; then
+            audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        else
+            audit_log=$(grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        fi
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -305,7 +313,11 @@ function should_find_blocked_host_log() {
     fi
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        if [[ $5 -eq 0 ]]; then
+            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        else
+            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"NativePolicy\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        fi
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -315,7 +327,11 @@ function should_find_blocked_host_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        if [[ $5 -eq 0 ]]; then
+            audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        else
+            audit_log=$(grep -E "$HOST_NAME.*policyName.*\"NativePolicy\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        fi
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -608,7 +624,7 @@ is_test_allowed()
     return 1
 }
 
-if [[ $SKIP_CONTAINER_POLICY -eq 0 ]]; then
+if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
     INFO "Running Container Scenarios"
 
     for microservice in $(ls $TEST_HOME/microservices)
@@ -685,7 +701,7 @@ fi
 HOST_NAME="$(hostname)"
 res_host=0
 
-if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
+if [[ $SKIP_HOST_POLICY -eq 0 || $SKIP_NATIVE_HOST_POLICY -eq 0 ]]; then
     INFO "Running Host Scenarios"
 
     cd $TEST_HOME/host_scenarios

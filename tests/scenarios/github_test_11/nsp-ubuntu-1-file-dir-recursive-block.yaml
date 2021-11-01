@@ -1,0 +1,11 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: nap-ubuntu-1-file-dir-recursive-block
+  namespace: github
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  apparmor: |
+    deny /etc/{*,**} rw,
