@@ -37,6 +37,11 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 		goto fail2
 	}
 
+	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventRingBuffer), true); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEventRingBuffer: %v", err)
+		goto fail3
+	}
+
 	ea.SupportedEntryPoints = map[string]uint32{
 		"execve": 59, "execveat": 322, "open": 2, "openat": 257,
 		"socket": 41, "connect": 42, "bind": 49, "listen": 50}

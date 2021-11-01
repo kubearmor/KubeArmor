@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/signal"
 
-	bpf "github.com/aquasecurity/libbpfgo"
+	//bpf "github.com/kubearmor/libbpf"
 )
 
 type ringbuf_log struct {
@@ -33,15 +33,18 @@ type ringbuf_log struct {
 	//Comm [16]byte
 }
 
-func RingbufferConsume() {
-	bpfModule, err := bpf.NewModuleFromFile("./BPF/objs/ringbuffer.bpf.o")
-	if err != nil {
+func (ea *EventAuditor) RingbufferConsume() {
+
+	bpfModule := ea.BPFManager.getObj("ringbuffer.bpf.o")
+	//fmt.Printf("bpfModule=%v", bpfModule)
+	/*if bpfModule != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
-	}
+	}*/
 
-	bpfModule.BPFLoadObject()
+	//bpfModule.BPFLoadObject()
 
+/*
 	prog, err := bpfModule.GetProgram("syscall__sys_execve")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -53,7 +56,7 @@ func RingbufferConsume() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
-
+*/
 	eventsChannel := make(chan []byte)
 	rb, err := bpfModule.InitRingBuf("ka_ea_ringbuff_map", eventsChannel)
 	if err != nil {
@@ -74,7 +77,7 @@ func RingbufferConsume() {
 			fmt.Printf("pid %d \n", log.PID)
 		}
 	}()
-	rb.Start()
+	rb.StartPoll()
 	<-sig
-	rb.Stop()
+	rb.StopPoll()
 }
