@@ -66,6 +66,8 @@ func NewEventAuditor(feeder *fd.Feeder) *EventAuditor {
 		goto fail2
 	}
 
+	go RingbufferConsume()
+
 	return ea
 
 fail2:

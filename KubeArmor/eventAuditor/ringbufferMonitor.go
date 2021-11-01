@@ -6,65 +6,75 @@ package eventauditor
 import "C"
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"os"
+	"os/signal"
 
-	lbpf "github.com/kubearmor/libbpf"
+	bpf "github.com/aquasecurity/libbpfgo"
 )
 
-type log_t struct {
-	ts int64
+type ringbuf_log struct {
+	// Ts uint64
 
-	pid_id uint32
-	mnt_id uint32
+	// PidID uint32
+	// MntID uint32
 
-	host_ppid uint32
-	host_pid  uint32
+	// HostPPID uint32
+	// HostPID  uint32
 
-	ppid uint32
-	pid  uint32
-	uid  uint32
+	// PPID uint32
+	PID uint32
+	UID uint32
 
-	event_id uint32
+	// EventID int32
+
+	Comm [16]byte
 }
 
-func (ea *EventAuditor) RingbufferConsume() error {
-	var err error
-
-	bpfModule, err := lbpf.OpenObjectFromFile("ringbuffer.bpf.o")
+func RingbufferConsume() {
+	bpfModule, err := bpf.NewModuleFromFile("./BPF/objs/ringbuffer.bpf.o")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
 
-	bpfModule.Load()
-	prog, err := bpfModule.FindProgramByName("syscall__sys_execve")
+	bpfModule.BPFLoadObject()
+
+	prog, err := bpfModule.GetProgram("syscall__sys_execve")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
 
-	_, err = prog.AttachKprobe("sched/sched_process_exec")
+	_, err = prog.AttachTracepoint("sched", "sched_process_exec")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
+
 	eventsChannel := make(chan []byte)
-
-	rb, err := bpfModule.InitRingBuf("ringbuff_map", eventsChannel)
-
+	rb, err := bpfModule.InitRingBuf("ka_ea_ringbuff_map", eventsChannel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(-1)
 	}
-
-	rb.StartPoll()
-	for {
-		eventBytes := <-eventsChannel
-		pid := int(binary.LittleEndian.Uint32(eventBytes[0:4])) // Treat first 4 bytes as LittleEndian Uint32
-		fmt.Printf("PID %d\n", pid)
-	}
-	return nil
-
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, os.Kill)
+	go func() {
+		var log ringbuf_log
+		for {
+			data := <-eventsChannel
+			err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &log)
+			if err != nil {
+				fmt.Printf("failed to decode received data: %s", err)
+				break
+			}
+			fmt.Printf("Pid: %d \t Uid: %d \t Command: %s \n", log.PID, log.UID, log.Comm)
+		}
+	}()
+	rb.Start()
+	<-sig
+	rb.Stop()
 }
