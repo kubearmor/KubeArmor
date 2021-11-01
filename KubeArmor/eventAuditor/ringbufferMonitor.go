@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-
 	//bpf "github.com/kubearmor/libbpf"
 )
 
@@ -44,19 +43,19 @@ func (ea *EventAuditor) RingbufferConsume() {
 
 	//bpfModule.BPFLoadObject()
 
-/*
-	prog, err := bpfModule.GetProgram("syscall__sys_execve")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(-1)
-	}
+	/*
+		prog, err := bpfModule.GetProgram("syscall__sys_execve")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(-1)
+		}
 
-	_, err = prog.AttachTracepoint("sched", "sched_process_exec")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(-1)
-	}
-*/
+		_, err = prog.AttachTracepoint("sched", "sched_process_exec")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(-1)
+		}
+	*/
 	eventsChannel := make(chan []byte)
 	rb, err := bpfModule.InitRingBuf("ka_ea_ringbuff_map", eventsChannel)
 	if err != nil {
