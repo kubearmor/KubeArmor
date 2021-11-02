@@ -155,6 +155,14 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	spec := iface.(*specs.Spec)
 	container.AppArmorProfile = spec.Process.ApparmorProfile
 
+	if spec.Root.Path == "rootfs" { // containerd
+		preMergedDir := "/run/containerd/io.containerd.runtime.v2.task/k8s.io/"
+		postMergedDir := "/rootfs"
+		container.MergedDir = preMergedDir + container.ContainerID + postMergedDir
+	} else { // docker
+		container.MergedDir = spec.Root.Path
+	}
+
 	// == //
 
 	taskReq := pt.ListPidsRequest{ContainerID: container.ContainerID}

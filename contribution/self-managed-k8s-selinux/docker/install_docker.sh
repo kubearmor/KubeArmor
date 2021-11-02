@@ -13,10 +13,6 @@ sudo dnf config-manager \
 # install docker
 sudo dnf -y install docker-ce-3:19.03.9-3.fc30 containerd.io
 
-# copy daemon.json
-# sudo mkdir -p /etc/docker
-# echo '{ "exec-opts": ["native.cgroupdriver=systemd"] }' | sudo tee /etc/docker/daemon.json
-
 # run docker
 sudo systemctl enable docker
 sudo systemctl start docker
