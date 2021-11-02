@@ -19,8 +19,8 @@ import (
 
 // Variables
 var (
+	//identity         string
 	client           pb.KVMClient
-	identity         string
 	grpcClientConn   grpc.ClientConn
 	UpdateHostPolicy func(tp.K8sKubeArmorHostPolicyEvent)
 )
@@ -67,7 +67,7 @@ func connectToKVMService(identity string) error {
 		}
 		if err != nil {
 			syscall.Kill(syscall.Getpid(), syscall.SIGINT)
-			return err
+			break
 		}
 		err = enforcePolicy(policy.PolicyData)
 		if err != nil {
@@ -96,13 +96,13 @@ func InitKvmAgent(eventCb tp.KubeArmorHostPolicyEventCallback) error {
 	identity := os.Getenv("WORKLOAD_IDENTITY")
 
 	// Connect to gRPC server
-	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	grpcClientConn, err := grpc.DialContext(ctx, connAddress, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		kg.Err("gRPC Dial failed")
 		return err
 	}
-	//defer grpcClientConn.Close()
+	defer grpcClientConn.Close()
 
 	client = pb.NewKVMClient(grpcClientConn)
 	if client == nil {

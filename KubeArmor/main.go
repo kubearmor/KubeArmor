@@ -39,6 +39,7 @@ func main() {
 	logPathPtr := flag.String("logPath", "none", "log file path, {path|stdout|none}")
 
 	// options (boolean)
+	enableKubeArmorVmPtr := flag.Bool("enableKubeArmorVm", false, "enabling KubeArmorVM")
 	enableKubeArmorPolicyPtr := flag.Bool("enableKubeArmorPolicy", true, "enabling KubeArmorPolicy")
 	enableKubeArmorHostPolicyPtr := flag.Bool("enableKubeArmorHostPolicy", false, "enabling KubeArmorHostPolicy")
 
@@ -46,7 +47,7 @@ func main() {
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *enableKubeArmorPolicyPtr, *enableKubeArmorHostPolicyPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *enableKubeArmorPolicyPtr, *enableKubeArmorHostPolicyPtr, *enableKubeArmorVmPtr)
 
 	// == //
 }

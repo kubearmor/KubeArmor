@@ -302,9 +302,15 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool) {
+func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool, enableKubeArmorVm bool) {
 	// create a daemon
 	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableKubeArmorPolicy, enableKubeArmorHostPolicy)
+
+	// == //
+
+	if enableKubeArmorVm {
+		enableKubeArmorHostPolicy = true
+	}
 
 	// == //
 
@@ -492,10 +498,10 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	dm.Logger.Print("Initialized KubeArmor")
 
 	// Init KvmAgent
-	if !dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
+	if enableKubeArmorVm {
 		err := kvma.InitKvmAgent(dm.ParseAndUpdateHostSecurityPolicy)
 		if err != nil {
-			kg.Errf("KvmAgent init failed. Err : %s\n", err)
+			kg.Errf("kvmAgent init failed. Err : %s\n", err)
 			return
 		} else {
 			kg.Print("Initialized KvmAgent")
