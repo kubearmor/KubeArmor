@@ -42,10 +42,6 @@ case "$VERSION" in
     sudo apt-get install -y docker-ce;;
 esac
 
-# copy daemon.json
-# sudo mkdir -p /etc/docker
-# echo '{ "exec-opts": ["native.cgroupdriver=systemd"] }' | sudo tee /etc/docker/daemon.json
-
 # start Docker
 sudo systemctl start docker
 sleep 1

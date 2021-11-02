@@ -3,4 +3,4 @@
 # Copyright 2021 Authors of KubeArmor
 
 sudo apt-get update
-sudo apt-get -y install containerd
+sudo apt-get install -y containerd
