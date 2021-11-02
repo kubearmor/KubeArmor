@@ -95,8 +95,14 @@ spec:
         ports:
         - containerPort: 32767
         volumeMounts:
-        - name: docker-sock-path # docker (read-only)
-          mountPath: /var/run/docker.sock
+        - name: containerd-sock-path # containerd (read-only)
+          mountPath: /var/run/containerd/containerd.sock
+          readOnly: true
+        - name: containerd-storage-path # containerd storage (read-only)
+          mountPath: /run/containerd
+          readOnly: true
+        - name: docker-storage-path # docker storage (read-only)
+          mountPath: /var/lib/docker
           readOnly: true
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
@@ -128,10 +134,18 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: docker-sock-path # docker
+      - name: containerd-sock-path # containerd
         hostPath:
-          path: /var/run/docker.sock
+          path: /var/run/containerd/containerd.sock
           type: Socket
+      - name: containerd-storage-path # containerd
+        hostPath:
+          path: /run/containerd
+          type: DirectoryOrCreate
+      - name: docker-storage-path # docker
+        hostPath:
+          path: /var/lib/docker
+          type: DirectoryOrCreate
       - name: usr-src-path # BPF
         hostPath:
           path: /usr/src

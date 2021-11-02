@@ -98,6 +98,8 @@ spec:
         - name: containerd-sock-path # containerd (read-only)
           mountPath: /var/run/containerd/containerd.sock
           readOnly: true
+        - name: containerd-storage-path # containerd storage (read-only)
+          mountPath: /run/containerd
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
           readOnly: true
@@ -132,6 +134,10 @@ spec:
         hostPath:
           path: /var/snap/microk8s/common/run/containerd.sock
           type: Socket
+      - name: containerd-storage-path # containerd
+        hostPath:
+          path: /var/snap/microk8s/common/run/containerd
+          type: Directory
       - name: usr-src-path # BPF
         hostPath:
           path: /usr/src
