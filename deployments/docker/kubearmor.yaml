@@ -101,9 +101,6 @@ spec:
         - name: docker-storage-path # docker storage (read-only)
           mountPath: /var/lib/docker
           readOnly: true
-        - name: containerd-storage-path # containerd storage (read-only)
-          mountPath: /run/containerd
-          readOnly: true
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
           readOnly: true
@@ -141,10 +138,6 @@ spec:
       - name: docker-storage-path # docker
         hostPath:
           path: /var/lib/docker
-          type: Directory
-      - name: containerd-storage-path # container
-        hostPath:
-          path: /run/containerd
           type: Directory
       - name: usr-src-path # BPF
         hostPath:
