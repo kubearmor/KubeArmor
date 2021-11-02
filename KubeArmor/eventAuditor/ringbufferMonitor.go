@@ -3,8 +3,6 @@
 
 package eventauditor
 
-import "C"
-
 import (
 	"bytes"
 	"encoding/binary"
@@ -25,37 +23,17 @@ type ringbuf_log struct {
 
 	// PPID uint32
 	PID uint32
-	// UID  uint32
+	UID uint32
 
 	// EventID int32
 
-	//Comm [16]byte
+	Comm [16]byte
 }
 
 func (ea *EventAuditor) RingbufferConsume() {
 
 	bpfModule := ea.BPFManager.getObj("ringbuffer.bpf.o")
-	//fmt.Printf("bpfModule=%v", bpfModule)
-	/*if bpfModule != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(-1)
-	}*/
 
-	//bpfModule.BPFLoadObject()
-
-	/*
-		prog, err := bpfModule.GetProgram("syscall__sys_execve")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(-1)
-		}
-
-		_, err = prog.AttachTracepoint("sched", "sched_process_exec")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(-1)
-		}
-	*/
 	eventsChannel := make(chan []byte)
 	rb, err := bpfModule.InitRingBuf("ka_ea_ringbuff_map", eventsChannel)
 	if err != nil {
@@ -70,10 +48,10 @@ func (ea *EventAuditor) RingbufferConsume() {
 			data := <-eventsChannel
 			err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &log)
 			if err != nil {
-				fmt.Println("failed to decode received data: %s", err)
+				fmt.Printf("failed to decode received data, error: %s\n", err)
 				break
 			}
-			fmt.Printf("pid %d \n", log.PID)
+			fmt.Printf("Pid: %d \t Uid: %d \t Command: %s\n", log.PID, log.UID, log.Comm)
 		}
 	}()
 	rb.StartPoll()

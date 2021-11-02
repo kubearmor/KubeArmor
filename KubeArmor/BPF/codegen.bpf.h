@@ -23,11 +23,11 @@ struct log_t {
 
     // u32 ppid;
     u32 pid;
-    // u32 uid;
+    u32 uid;
 
     // u32 event_id;
 
-    //char comm[TASK_COMM_LEN];
+    char comm[TASK_COMM_LEN];
 };
 
 union v4addr {
@@ -98,20 +98,19 @@ struct syscalls_enter_bind_args {
 
 static inline int
 ka_ea_log_submit(struct pt_regs *ctx) {
-    u64 cur_id = bpf_get_current_pid_tgid();
+    u64 cur_pid = bpf_get_current_pid_tgid();
+	u64 cur_uid = bpf_get_current_uid_gid();
 
     struct log_t *log;
-   // if (!log) {
-     //   return 0;
-    //}
 
     log = bpf_ringbuf_reserve((void *)__ka_ea_map(ka_ea_ringbuff_map), sizeof(*log), 0);
     if(!log) {
         return 0;
     }
-
-    log->pid = cur_id >> 32;
-    //bpf_get_current_comm(log->comm, sizeof(log->comm));
+	
+    log->pid = cur_pid >> 32;
+	log->uid = cur_uid >> 32;
+    bpf_get_current_comm(log->comm, sizeof(log->comm));
 
     bpf_ringbuf_submit(log, 0);
     return 0;
