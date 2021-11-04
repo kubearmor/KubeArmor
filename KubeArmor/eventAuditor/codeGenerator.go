@@ -454,6 +454,51 @@ func generatePortMatch(portField string) (string, error) {
 	return match, nil
 }
 
+func scanRate(value string) []Token {
+	var nanoSecPerSec = int64(1000000000)
+	var rateTokens []Token
+	var token *Token
+
+	sliceValue := strings.Split(value, "p")
+	if len(sliceValue) == 2 {
+		numEvents := sliceValue[0]
+		timeLimit := sliceValue[1]
+		timeUnits := timeLimit[len(timeLimit)-1]
+
+		if timeUnits == 's' || timeUnits == 'm' {
+			token = tokenize(numEvents, Number)
+			rateTokens = append(rateTokens, *token)
+
+			token = tokenize(timeLimit[:len(timeLimit)-1], Number)
+			rateTokens = append(rateTokens, *token)
+
+			if token.isNumber() {
+				perSecValue := token.getNumber()
+				if timeUnits == 'm' {
+					perSecValue *= 60
+				}
+
+				rateTokens[1] = Token{Number, perSecValue * nanoSecPerSec}
+			}
+		}
+	}
+
+	return rateTokens
+}
+
+func rateTokenize(rateValue string) ([]Token, error) {
+	rateValue = strings.TrimSpace(rateValue)
+	rateTokens := scanRate(rateValue)
+
+	if len(rateTokens) == 2 {
+		if rateTokens[0].isNumber() && rateTokens[1].isNumber() {
+			return rateTokens, nil
+		}
+	}
+
+	return nil, fmt.Errorf("invalid parameter: %v (rate)", rateValue)
+}
+
 func modeTokenize(modeValue string) (Token, error) {
 	modeValue = strings.TrimSpace(modeValue)
 	modeToken := tokenize(modeValue, Number)
@@ -602,15 +647,22 @@ func TryTokenizeFlags(flagsValue string) error {
 	return err
 }
 
+// TryTokenizeRate Function
+func TryTokenizeRate(rateValue string) error {
+	_, err := rateTokenize(rateValue)
+	return err
+}
+
 // ========================== //
 // == eBPF Code Generation == //
 // ========================== //
 
-func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe string) (string, error) {
+func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe string, uniqID uint32) (string, error) {
 	var codeBlock string
 	var matchInclusion []string
 	var matchExclusion []string
 	var localVariables []string
+	var logFnCall string
 
 	eventSupportsArgument := func(param string, value string) bool {
 		if !kl.ContainsElement(ea.EntryPointParameters[probe], param) {
@@ -621,7 +673,25 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 		return true
 	}
 
+	logFnCall = fmt.Sprintf("__ka_ea_evt_log(\"%v\");", auditEvent.Message)
 	eventID := ea.SupportedEntryPoints[probe]
+
+	if len(auditEvent.Rate) > 0 {
+		var err error
+		var rateTokens []Token
+
+		if rateTokens, err = rateTokenize(auditEvent.Rate); err != nil {
+			return "", err
+		}
+
+		limitEvents := rateTokens[0].getNumber()
+		limitTime := rateTokens[1].getNumber()
+
+		logFnCall = fmt.Sprintf("__INIT_LOCAL_RATE(%d)\n", uniqID)
+		logFnCall += fmt.Sprintf("__ka_ea_rl_log(%v, %v, %v, \"%v\");", uniqID,
+			limitEvents, limitTime, auditEvent.Message)
+	}
+
 	if len(auditEvent.Ipv4Addr) > 0 {
 		if eventSupportsArgument("Ipv4Addr", auditEvent.Ipv4Addr) {
 			if err := buildIpv4AddrParam(auditEvent.Ipv4Addr, &matchInclusion, &matchExclusion); err != nil {
@@ -678,33 +748,30 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 	}
 
 	for _, variable := range localVariables {
-		codeBlock += "\n" + variable + "\n"
+		codeBlock += "\n" + variable
 	}
 
 	if len(matchExclusion) > 0 {
 		// add skip block
-		codeBlock += "\n// rule: skip\n"
-		codeBlock += fmt.Sprintf("if (%v)\n{\n\treturn 0;\n}\n",
+		codeBlock += fmt.Sprintf("\nif (%v)\n{\nreturn 0;\n}\n",
 			strings.Join(matchExclusion, " || "))
 	}
 
 	if len(matchInclusion) > 0 {
 		// add match and log block
-		codeBlock += "\n// rule: match and log\n"
-		codeBlock += fmt.Sprintf("if (%v)\n{\n\t__ka_ea_evt_log(\"%v\");\n}\n",
-			strings.Join(matchInclusion, " && "), auditEvent.Message)
+		codeBlock += fmt.Sprintf("\nif (%v)\n{\n%v\n}\n",
+			strings.Join(matchInclusion, " && "), logFnCall)
 
 	} else {
 		// add log block
-		codeBlock += "\n// rule: log\n"
-		codeBlock += fmt.Sprintf("__ka_ea_evt_log(\"%v\");\n", auditEvent.Message)
+		codeBlock += fmt.Sprintf("\n%v\n", logFnCall)
 	}
 
-	return codeBlock, nil
+	return fmt.Sprintf("\n/* %v */\n{%v}\n", auditEvent, codeBlock), nil
 }
 
 // GenerateCodeBlock Function
-func (ea *EventAuditor) GenerateCodeBlock(auditEvent tp.AuditEventType) (string, error) {
+func (ea *EventAuditor) GenerateCodeBlock(auditEvent tp.AuditEventType, uniqID uint32) (string, error) {
 	var err error
 	var ok bool
 	var codeBlock string
@@ -726,7 +793,7 @@ func (ea *EventAuditor) GenerateCodeBlock(auditEvent tp.AuditEventType) (string,
 	if codeBlock, ok = ea.EventCodeBlockCache[eventStr]; ok {
 		return codeBlock, nil
 
-	} else if codeBlock, err = ea.generateCodeBlock(auditEvent, probe); err != nil {
+	} else if codeBlock, err = ea.generateCodeBlock(auditEvent, probe, uniqID); err != nil {
 		return "", err
 	}
 
@@ -745,17 +812,17 @@ func (ea *EventAuditor) GenerateAuditProgram(probe string, codeBlocks []string) 
 	source += "int " + getFnName(probe) + "(void *ctx)\n{\n"
 
 	// common prologue
-	source += "\tif (!ka_ea_audit_task())\n\t"
+	source += "if (!ka_ea_audit_task())\n"
 	source += "{\n"
-	source += "\t\treturn 0;\n\t"
+	source += "return 0;\n"
 	source += "}\n"
 
 	// compiled rules
 	for _, block := range codeBlocks {
-		source += strings.Replace(block, "\n", "\n\t", -1)
+		source += block
 	}
 
-	source += "\n\treturn 0;"
+	source += "\nreturn 0;"
 	source += "\n}"
 	return source
 }

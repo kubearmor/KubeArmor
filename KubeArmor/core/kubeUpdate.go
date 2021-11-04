@@ -1749,7 +1749,73 @@ func k8sAuditPolicyMergeMacro(k8sAuditPolicySpec *tp.K8sAuditPolicySpec, macroNa
 	}
 }
 
-func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.AuditPolicy, error) {
+func k8sEventVerifyParams(event tp.K8sEventType) error {
+	// check path using regex
+	if len(event.Path) > 0 {
+		if match, _ := regexp.MatchString(`^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)$`, event.Path); !match {
+			return fmt.Errorf("invalid parameter: %v (path)", event.Path)
+		}
+	}
+
+	// check directory using regex
+	if len(event.Directory) > 0 {
+		if match, _ := regexp.MatchString(`^\/$|^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)+\/$`, event.Directory); !match {
+			return fmt.Errorf("invalid parameter: %v (directory)", event.Directory)
+		}
+	}
+
+	// check rate using event auditor parsing
+	if len(event.Rate) > 0 {
+		if err := edt.TryTokenizeRate(event.Rate); err != nil {
+			return err
+		}
+	}
+
+	// check ipv4 using event auditor parsing
+	if len(event.Ipv4Addr) > 0 {
+		for _, ipv4 := range strings.Split(event.Ipv4Addr, ",") {
+			ipv4 = strings.TrimSpace(ipv4)
+			if ipv4[0] == '-' {
+				ipv4 = ipv4[1:]
+			}
+
+			if err := edt.TryTokenizeIpv4(ipv4); err != nil {
+				return err
+			}
+		}
+	}
+
+	// check port using event auditor parsing
+	if len(event.Port) > 0 {
+		for _, port := range strings.Split(event.Port, ",") {
+			if err := edt.TryTokenizePort(port); err != nil {
+				return err
+			}
+		}
+	}
+
+	// check mode using event auditor parsing
+	if len(event.Mode) > 0 {
+		for _, mode := range strings.Split(event.Mode, "|") {
+			if err := edt.TryTokenizeMode(mode); err != nil {
+				return err
+			}
+		}
+	}
+
+	// check flags using event auditor parsing
+	if len(event.Flags) > 0 {
+		for _, flags := range strings.Split(event.Flags, "|") {
+			if err := edt.TryTokenizeFlags(flags); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (dm *KubeArmorDaemon) k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.AuditPolicy, error) {
 	auditPolicies := make([]tp.AuditPolicy, len(k8sAuditPolicySpec.AuditRules))
 
 	defaultSeverity := int64(1)
@@ -1813,87 +1879,28 @@ func k8sAuditPolicyConvert(k8sAuditPolicySpec tp.K8sAuditPolicySpec) ([]tp.Audit
 		}
 
 		// set events
-		auditPolicies[i].Events = make([]tp.AuditEventType, len(rule.Events))
-		for j, ruleEvent := range rule.Events {
-			auditPolicies[i].Events[j].Probe = ruleEvent.Probe
-			auditPolicies[i].Events[j].Rate = ruleEvent.Rate
-
-			auditPolicies[i].Events[j].Path = ruleEvent.Path
-			auditPolicies[i].Events[j].Directory = ruleEvent.Directory
-
-			auditPolicies[i].Events[j].Mode = ruleEvent.Mode
-			auditPolicies[i].Events[j].Flags = ruleEvent.Flags
-			auditPolicies[i].Events[j].Protocol = ruleEvent.Protocol
-			auditPolicies[i].Events[j].Ipv4Addr = ruleEvent.Ipv4Addr
-			auditPolicies[i].Events[j].Ipv6Addr = ruleEvent.Ipv6Addr
-			auditPolicies[i].Events[j].Port = ruleEvent.Port
-
-			auditPolicies[i].Events[j].Severity = auditPolicies[i].Severity
-			auditPolicies[i].Events[j].Tags = auditPolicies[i].Tags
-			auditPolicies[i].Events[j].Message = auditPolicies[i].Message
+		auditPolicies[i].Events = make(map[uint32]tp.AuditEventType)
+		for _, ruleEvent := range rule.Events {
+			uniqID := dm.EventAuditor.GetUniqRuleID()
+			auditPolicies[i].Events[uniqID] = tp.AuditEventType{
+				ruleEvent.Probe,
+				ruleEvent.Rate,
+				ruleEvent.Path,
+				ruleEvent.Directory,
+				ruleEvent.Mode,
+				ruleEvent.Flags,
+				ruleEvent.Protocol,
+				ruleEvent.Ipv4Addr,
+				ruleEvent.Ipv6Addr,
+				ruleEvent.Port,
+				auditPolicies[i].Severity,
+				auditPolicies[i].Tags,
+				auditPolicies[i].Message,
+			}
 		}
 	}
 
 	return auditPolicies, nil
-}
-
-func k8sEventVerifyParams(event tp.K8sEventType) error {
-	// check path using regex
-	if len(event.Path) > 0 {
-		if match, _ := regexp.MatchString(`^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)$`, event.Path); !match {
-			return fmt.Errorf("invalid parameter: %v (path)", event.Path)
-		}
-	}
-
-	// check directory using regex
-	if len(event.Directory) > 0 {
-		if match, _ := regexp.MatchString(`^\/$|^\/([A-z0-9-_.*]+\/)*([A-z0-9-_.*]+)+\/$`, event.Directory); !match {
-			return fmt.Errorf("invalid parameter: %v (directory)", event.Directory)
-		}
-	}
-
-	// check ipv4 using event auditor parsing
-	if len(event.Ipv4Addr) > 0 {
-		for _, ipv4 := range strings.Split(event.Ipv4Addr, ",") {
-			ipv4 = strings.TrimSpace(ipv4)
-			if ipv4[0] == '-' {
-				ipv4 = ipv4[1:]
-			}
-
-			if err := edt.TryTokenizeIpv4(ipv4); err != nil {
-				return err
-			}
-		}
-	}
-
-	// check port using event auditor parsing
-	if len(event.Port) > 0 {
-		for _, port := range strings.Split(event.Port, ",") {
-			if err := edt.TryTokenizePort(port); err != nil {
-				return err
-			}
-		}
-	}
-
-	// check mode using event auditor parsing
-	if len(event.Mode) > 0 {
-		for _, mode := range strings.Split(event.Mode, "|") {
-			if err := edt.TryTokenizeMode(mode); err != nil {
-				return err
-			}
-		}
-	}
-
-	// check flags using event auditor parsing
-	if len(event.Flags) > 0 {
-		for _, flags := range strings.Split(event.Flags, "|") {
-			if err := edt.TryTokenizeFlags(flags); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // GetAuditPolicies Function
@@ -2020,7 +2027,7 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 		}
 
 		// convert k8sAuditPolicy spec, skip (and alert) on error
-		policies, err := k8sAuditPolicyConvert(k8sAuditPolicySpec)
+		policies, err := dm.k8sAuditPolicyConvert(k8sAuditPolicySpec)
 		if err != nil {
 			dm.Logger.Warnf("Failed to convert K8sAuditPolicySpec: %v", err)
 			continue
@@ -2032,9 +2039,9 @@ func (dm *KubeArmorDaemon) UpdateAuditPolicies() {
 
 			// if the same namespace:process exists, merge events
 			if _, ok := auditPolicies[key]; ok {
-				mapEntry := auditPolicies[key]
-				mapEntry.Events = append(mapEntry.Events, policy.Events...)
-				auditPolicies[key] = mapEntry
+				for k, v := range policy.Events {
+					auditPolicies[key].Events[k] = v
+				}
 			} else {
 				auditPolicies[key] = policy
 			}

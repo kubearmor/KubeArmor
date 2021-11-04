@@ -25,6 +25,13 @@ struct {
 	__uint(max_entries, 1 << 16);
 } ka_ea_event_jmp_table SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, struct rate_limit_key);
+    __type(value, struct rate_limit_value);
+    __uint(max_entries, 1 << 16);
+} ka_ea_rate_limit_map SEC(".maps");
+
 enum {
 	// process
 	_SYS_EXECVE = 59,

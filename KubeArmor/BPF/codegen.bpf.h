@@ -78,6 +78,48 @@ struct syscalls_enter_bind_args {
 	long addrlen;
 };
 
+static inline void
+ka_ea_reset_rate(u32 uniq_id)
+{
+	struct rate_limit_key key = {};
+	struct rate_limit_value value = {};
+
+	key.pid_ns = task_get_pid_ns(NULL);
+	key.mnt_ns = task_get_mnt_ns(NULL);
+	key.uniq_id = uniq_id;
+
+	bpf_map_update_elem((void *)__ka_ea_map(ka_ea_rate_limit_map), &key,
+		&value, BPF_ANY);
+}
+
+static inline u64
+ka_ea_update_rate(u32 uniq_id, struct rate_limit_value *vp_out)
+{
+	struct rate_limit_key key;
+	struct rate_limit_value *vp, value;
+	u64 curns = bpf_ktime_get_ns();
+
+	key.pid_ns = task_get_pid_ns(NULL);
+	key.mnt_ns = task_get_mnt_ns(NULL);
+	key.uniq_id = uniq_id;
+
+	vp = bpf_map_lookup_elem((void *)__ka_ea_map(ka_ea_rate_limit_map), &key);
+	if (!vp || (vp->initns == 0)) {
+		value.initns = curns;
+		value.events = 1;
+	} else {
+		value.initns = vp->initns;
+		value.events = vp->events + 1;
+	}
+
+	bpf_map_update_elem((void *)__ka_ea_map(ka_ea_rate_limit_map), &key,
+		&value, BPF_ANY);
+
+	vp_out->initns = value.initns;
+	vp_out->events = value.events;
+	return curns;
+}
+
 static inline bool
 ka_ea_audit_task(void)
 {
@@ -253,6 +295,18 @@ tp_sys_bind_read_port(struct syscalls_enter_connect_args *ctx)
 #define __ka_ea_evt_log(m) \
 	bpf_printk(m)
 
+#define __ka_ea_rl_log(id, ev, ns, m) \
+	do { \
+		if (rlv.events >= ev) { \
+			if ((curns - rlv.initns) <= ns) { \
+				__ka_ea_evt_log(m); \
+				ka_ea_reset_rate(id); \
+			} else { \
+				ka_ea_reset_rate(id); \
+			} \
+		} \
+	} while(0)
+
 #define __INIT_LOCAL_PATH(e) \
 	u32 path;                \
 	path = __ka_ea_evt## e## _read_path(ctx);
@@ -273,6 +327,9 @@ tp_sys_bind_read_port(struct syscalls_enter_connect_args *ctx)
 	union v4addr v4ip = {};  \
 	__ka_ea_evt## e## _read_ipv4(ctx, &v4ip);
 
+#define __INIT_LOCAL_RATE(id) \
+	struct rate_limit_value rlv; \
+	u64 curns = ka_ea_update_rate(id, &rlv);
 
 char LICENSE[] SEC("license") = "GPL";
 

@@ -9,9 +9,7 @@ import (
 
 type EventType struct {
 	Probe string `json:"probe"`
-
-	// +kubebuilder:validation:Pattern=^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
-	Rate string `json:"rate,omitempty"`
+	Rate  string `json:"rate,omitempty"`
 
 	// file related arguments
 
