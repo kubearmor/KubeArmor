@@ -37,6 +37,11 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 		goto fail2
 	}
 
+	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventRingBuffer), true); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEventRingBuffer: %v", err)
+    goto fail3
+	}
+    
 	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventRateMap), true); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEventRateMap: %v", err)
 		goto fail3

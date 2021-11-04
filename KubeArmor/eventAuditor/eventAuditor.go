@@ -168,6 +168,9 @@ func (ea *EventAuditor) SaveRuntimeInfo() error {
 	fileContent += fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
 		ea.BPFManager.getMap(KAEAEventJumpTable).FD())
 
+	fileContent += fmt.Sprintf("#define ka_ea_ringbuff_map    %d\n",
+		ea.BPFManager.getMap(KAEAEventRingBuffer).FD())
+
 	fileContent += fmt.Sprintf("#define ka_ea_rate_limit_map     %d\n",
 		ea.BPFManager.getMap(KAEAEventRateMap).FD())
 
@@ -253,7 +256,9 @@ func NewEventAuditor(feeder *fd.Feeder, containers *map[string]tp.Container, con
 		goto fail2
 	}
 
-	// == //
+	go ea.RingbufferConsume()
+
+  // == //
 
 	// initialize rule number
 	ea.NextRuleNumber = 0

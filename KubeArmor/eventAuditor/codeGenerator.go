@@ -759,12 +759,14 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 
 	if len(matchInclusion) > 0 {
 		// add match and log block
-		codeBlock += fmt.Sprintf("\nif (%v)\n{\n%v\n}\n",
-			strings.Join(matchInclusion, " && "), logFnCall)
+		codeBlock += "\n// rule: match and log\n"
+		codeBlock += fmt.Sprintf("if (%v)\n{\n\t__ka_ea_evt_log(ctx);\n}\n",
+			strings.Join(matchInclusion, " && "))
 
 	} else {
 		// add log block
-		codeBlock += fmt.Sprintf("\n%v\n", logFnCall)
+		codeBlock += "\n// rule: log\n"
+		codeBlock += fmt.Sprintf("__ka_ea_evt_log(ctx);\n")
 	}
 
 	return fmt.Sprintf("\n/* %v */\n{%v}\n", auditEvent, codeBlock), nil

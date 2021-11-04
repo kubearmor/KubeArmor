@@ -12,6 +12,24 @@
 #define ntohs(n) \
 	(((((u16)(n) & 0xFF)) << 8) | (((u16)(n) & 0xFF00) >> 8))
 
+struct log_t {
+    // u64 ts;
+
+    // u32 pid_id;
+    // u32 mnt_id;
+
+    // u32 host_ppid;
+    // u32 host_pid;
+
+    // u32 ppid;
+    u32 pid;
+    u32 uid;
+
+    // u32 event_id;
+
+    char comm[TASK_COMM_LEN];
+};
+
 union v4addr {
 	__u32 d1;
 	__u8 octet[4];
@@ -77,6 +95,26 @@ struct syscalls_enter_bind_args {
 	long usockaddr;
 	long addrlen;
 };
+
+static inline int
+ka_ea_log_submit(struct pt_regs *ctx) {
+    u64 cur_pid = bpf_get_current_pid_tgid();
+	u64 cur_uid = bpf_get_current_uid_gid();
+
+    struct log_t *log;
+
+    log = bpf_ringbuf_reserve((void *)__ka_ea_map(ka_ea_ringbuff_map), sizeof(*log), 0);
+    if(!log) {
+        return 0;
+    }
+	
+    log->pid = cur_pid >> 32;
+	log->uid = cur_uid >> 32;
+    bpf_get_current_comm(log->comm, sizeof(log->comm));
+
+    bpf_ringbuf_submit(log, 0);
+    return 0;
+}
 
 static inline void
 ka_ea_reset_rate(u32 uniq_id)
@@ -292,8 +330,8 @@ tp_sys_bind_read_port(struct syscalls_enter_connect_args *ctx)
 #define __ka_ea_evt49_read_port(ctx) \
 	tp_sys_bind_read_port(ctx)
 
-#define __ka_ea_evt_log(m) \
-	bpf_printk(m)
+#define __ka_ea_evt_log(c) \
+	ka_ea_log_submit(c)
 
 #define __ka_ea_rl_log(id, ev, ns, m) \
 	do { \

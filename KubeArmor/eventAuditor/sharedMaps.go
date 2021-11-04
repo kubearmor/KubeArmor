@@ -39,7 +39,10 @@ const (
 	KAEAEventJumpTable     KABPFMapName     = "ka_ea_event_jmp_table"
 	KAEAEventJumpTableFile KABPFObjFileName = "ka_ea_entrypoint.bpf.o"
 
-	KAEAEventRateMap     KABPFMapName     = "ka_ea_rate_limit_map"
+	KAEAEventRingBuffer KABPFMapName = "ka_ea_ringbuff_map"
+	KAEAEventRingBufferFile KABPFObjFileName = "ringbuffer.bpf.o"
+
+  KAEAEventRateMap     KABPFMapName     = "ka_ea_rate_limit_map"
 	KAEAEventRateMapFile KABPFObjFileName = "ka_ea_entrypoint.bpf.o"
 )
 
@@ -81,6 +84,10 @@ func KAEAGetMap(name KABPFMapName) KABPFMap {
 			Name:     KAEAEventJumpTable,
 			FileName: KAEAEventJumpTableFile,
 		}
+	case KAEAEventRingBuffer:
+		return KABPFMap{
+			Name:     KAEAEventRingBuffer,
+			FileName: KAEAEventRingBufferFile,
 	case KAEAEventRateMap:
 		return KABPFMap{
 			Name:     KAEAEventRateMap,
