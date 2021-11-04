@@ -121,6 +121,10 @@ type EventAuditor struct {
 	CacheIndexLock *sync.RWMutex
 
 	// == //
+
+	// next rule number to use
+	NextRuleNumber uint32
+	RuleNumberLock *sync.RWMutex
 }
 
 // SaveRuntimeInfo Function
@@ -164,7 +168,20 @@ func (ea *EventAuditor) SaveRuntimeInfo() error {
 	fileContent += fmt.Sprintf("#define ka_ea_event_jmp_table    %d\n",
 		ea.BPFManager.getMap(KAEAEventJumpTable).FD())
 
+	fileContent += fmt.Sprintf("#define ka_ea_rate_limit_map     %d\n",
+		ea.BPFManager.getMap(KAEAEventRateMap).FD())
+
 	return kl.SafeFileWriteAndClose(file, fileContent)
+}
+
+// GetUniqRuleID Function
+func (ea *EventAuditor) GetUniqRuleID() uint32 {
+	ea.RuleNumberLock.Lock()
+	defer ea.RuleNumberLock.Unlock()
+
+	nextRuleNumber := ea.NextRuleNumber
+	ea.NextRuleNumber++
+	return nextRuleNumber
 }
 
 // NewEventAuditor Function
@@ -237,6 +254,10 @@ func NewEventAuditor(feeder *fd.Feeder, containers *map[string]tp.Container, con
 	}
 
 	// == //
+
+	// initialize rule number
+	ea.NextRuleNumber = 0
+	ea.RuleNumberLock = new(sync.RWMutex)
 
 	return ea
 
@@ -313,8 +334,8 @@ func (ea *EventAuditor) UpdateAuditPrograms() {
 
 		// generate the event code blocks
 		for _, auditPolicy := range ep.AuditPolicies {
-			for _, eventRule := range auditPolicy.Events {
-				if codeBlock, err := ea.GenerateCodeBlock(eventRule); err == nil {
+			for uniqID, eventRule := range auditPolicy.Events {
+				if codeBlock, err := ea.GenerateCodeBlock(eventRule, uniqID); err == nil {
 					if !kl.ContainsElement(progCodeBlocks[eventRule.Probe], codeBlock) {
 						current := progCodeBlocks[eventRule.Probe]
 						progCodeBlocks[eventRule.Probe] = append(current, codeBlock)

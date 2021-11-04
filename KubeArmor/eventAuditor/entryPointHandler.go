@@ -37,6 +37,11 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 		goto fail2
 	}
 
+	if err = ea.BPFManager.InitMap(KAEAGetMap(KAEAEventRateMap), true); err != nil {
+		ea.Logger.Errf("Failed to initialize KAEAEventRateMap: %v", err)
+		goto fail3
+	}
+
 	ea.SupportedEntryPoints = map[string]uint32{
 		"execve": 59, "execveat": 322, "open": 2, "openat": 257,
 		"socket": 41, "connect": 42, "bind": 49, "listen": 50}
@@ -53,10 +58,13 @@ func (ea *EventAuditor) InitializeEntryPoints() bool {
 
 	if err = ea.InitializeEntryPointPrograms(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize KAEAEntryPointPrograms: %v", err)
-		goto fail3
+		goto fail4
 	}
 
 	return true
+
+fail4:
+	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventRateMap))
 
 fail3:
 	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventJumpTable))
@@ -65,6 +73,7 @@ fail2:
 	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventFilterMap))
 
 fail1:
+	_ = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventMap))
 	return false
 }
 
@@ -77,7 +86,11 @@ func (ea *EventAuditor) DestroyEntryPoints() bool {
 	}
 
 	if err = ea.DestroyEntryPointPrograms(ea.BPFManager); err != nil {
-		ea.Logger.Errf("Failed to initialize KAEAEntryPointPrograms: %v", err)
+		ea.Logger.Errf("Failed to destroy KAEAEntryPointPrograms: %v", err)
+	}
+
+	if err = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventRateMap)); err != nil {
+		ea.Logger.Errf("Failed to destroy KAEAEventRateMap: %v", err)
 	}
 
 	if err = ea.BPFManager.DestroyMap(KAEAGetMap(KAEAEventJumpTable)); err != nil {

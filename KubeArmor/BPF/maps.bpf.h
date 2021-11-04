@@ -53,4 +53,15 @@ struct event_filter_value {
 	__u32 jmp_idx;
 };
 
+struct rate_limit_key {
+	__u32 pid_ns;
+	__u32 mnt_ns;
+	__u32 uniq_id;
+};
+
+struct rate_limit_value {
+	__u64 initns;
+	__u32 events;
+};
+
 #endif /* __MAPS_BPF_H */
