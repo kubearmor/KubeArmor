@@ -3,7 +3,7 @@
 * KubeArmor v1.1
 
   * Kubernetes Environments
-    * Self-managed Kubernetes \(using kubeadm\), MicroK8s, Minikube*
+    * Self-managed Kubernetes \(using kubeadm\), MicroK8s, K3s*, Minikube*
     * Google Kubernetes Engine \(GKE\), Amazon Elastic Kubernetes Service \(EKS\)\*, Azure Kubernetes Service \(AKS\)\*
 
   * Container Platforms
@@ -20,7 +20,7 @@
 
     * (KubeArmorPolicy) Add a new field, "selinux -> volumeMounts" in KubeArmorPolicy*
       ```text
-      (SELinux) Apply SELinux labels and actions to control the access of VolumeMounts using KubeArmorPolicy
+      (SELinux) Apply SELinux labels and actions to control the access of VolumeMounts
       ```
 
     * (KubeArmorHostPolicy) Support security policies for hosts*

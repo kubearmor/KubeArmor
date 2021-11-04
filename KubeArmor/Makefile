@@ -2,6 +2,7 @@
 # Copyright 2021 Authors of KubeArmor
 
 CURDIR          := $(shell pwd)
+CRDDIR          := $(realpath $(CURDIR)/../deployments/CRD)
 CONTRIBDIR      := $(realpath $(CURDIR)/../contribution)
 GO_EXEC         := $(shell which go)
 LOGNAME         := $(shell logname)
@@ -25,16 +26,20 @@ build-test:
 
 .PHONY: run
 run: build
+	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
 
 .PHONY: run-host-only
 run-host-only: build
+	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy
 
 .PHONY: run-with-host
 run-with-host: build
+	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
+	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy
 

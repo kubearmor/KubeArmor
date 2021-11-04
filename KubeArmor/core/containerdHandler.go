@@ -60,6 +60,9 @@ type ContainerdHandler struct {
 	containerd context.Context
 	docker     context.Context
 
+	// storage path
+	StoragePath string
+
 	// active containers
 	containers map[string]context.Context
 }
@@ -70,9 +73,18 @@ func NewContainerdHandler() *ContainerdHandler {
 
 	sockFile := "unix://"
 
-	for _, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock"} {
+	for idx, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock", "/run/k3s/containerd/containerd.sock"} {
 		if _, err := os.Stat(filepath.Clean(candidate)); err == nil {
 			sockFile = sockFile + candidate
+
+			if idx == 0 { // containerd
+				ch.StoragePath = "/run/containerd"
+			} else if idx == 1 { // microk8s
+				ch.StoragePath = "/var/snap/microk8s/common/run/containerd"
+			} else if idx == 2 { // k3s
+				ch.StoragePath = "/run/k3s/containerd"
+			}
+
 			break
 		}
 	}
@@ -156,7 +168,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	container.AppArmorProfile = spec.Process.ApparmorProfile
 
 	if spec.Root.Path == "rootfs" { // containerd
-		preMergedDir := "/run/containerd/io.containerd.runtime.v2.task/k8s.io/"
+		preMergedDir := ch.StoragePath + "/io.containerd.runtime.v2.task/k8s.io/"
 		postMergedDir := "/rootfs"
 		container.MergedDir = preMergedDir + container.ContainerID + postMergedDir
 	} else { // docker
