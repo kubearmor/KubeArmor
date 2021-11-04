@@ -39,9 +39,18 @@ kubearmor:
     - name: docker-sock-path # docker (read-only)
       mountPath: /var/run/docker.sock
       readOnly: true
+    - name: docker-storage-path # docker storage (read-only)
+      mountPath: /var/lib/docker
+      readOnly: true
   volumeMountsContainerd:
     - name: containerd-sock-path # containerd (read-only)
       mountPath: /var/run/containerd/containerd.sock
+      readOnly: true
+    - name: containerd-storage-path # containerd storage (read-only)
+      mountPath: /run/containerd
+      readOnly: true
+    - name: docker-storage-path # docker storage (read-only)
+      mountPath: /var/lib/docker
       readOnly: true
   volumes:
     - name: usr-src-path # BPF
@@ -73,11 +82,23 @@ kubearmor:
       hostPath:
         path: /var/run/docker.sock
         type: Socket
+    - name: docker-storage-path # docker
+      hostPath:
+        path: /var/lib/docker
+        type: DirectoryOrCreate
   volumesContainerd:
     - name: containerd-sock-path # containerd
       hostPath:
         path: /var/run/containerd/containerd.sock
         type: Socket
+    - name: containerd-storage-path # containerd
+      hostPath:
+        path: /run/containerd
+        type: DirectoryOrCreate
+    - name: docker-storage-path # docker
+      hostPath:
+        path: /var/lib/docker
+        type: DirectoryOrCreate
 
 kubearmor-relay:
   image:

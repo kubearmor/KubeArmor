@@ -3,7 +3,7 @@
 KubeArmor currently supports the following.
 
 ```text
-Self-managed Kubernetes. MicroK8s, MiniKube, Google Kubernetes Engine (GKE), Amazon Elastic Kubernetes Service (EKS)
+Self-managed Kubernetes. MicroK8s, K3s, MiniKube, Google Kubernetes Engine (GKE), Amazon Elastic Kubernetes Service (EKS)
 ```
 
 In order to deploy KubeArmor, please choose one of the below options according to your environment.
@@ -15,14 +15,7 @@ In order to deploy KubeArmor, please choose one of the below options according t
   ~/KubeArmor/deployments/generic$ kubectl apply -f .
   ```
 
-* Deploy KubeArmor on Self-managed Kubernetes with Docker 18.09 or above, Minikube
-
-  ```text
-  $ cd KubeArmor/deployments/docker
-  ~/KubeArmor/deployments/docker$ kubectl apply -f .
-  ```
-
-* Deploy KubeArmor on Self-managed Kubernetes with Docker in RedHat-based Linux distributions
+* Deploy KubeArmor on Self-managed Kubernetes with Docker 18.09 or above
 
   ```text
   $ cd KubeArmor/deployments/docker
@@ -34,6 +27,20 @@ In order to deploy KubeArmor, please choose one of the below options according t
   ```text
   $ cd KubeArmor/deployments/microk8s
   ~/KubeArmor/deployments/microk8s$ kubectl apply -f .
+  ```
+
+* Deploy KubeArmor on K3s
+
+  ```text
+  $ cd KubeArmor/deployments/k3s
+  ~/KubeArmor/deployments/k3s$ kubectl apply -f .
+  ```
+
+* Deploy KubeArmor (Audit Mode) on Minikube
+
+  ```text
+  $ cd KubeArmor/deployments/minikube
+  ~/KubeArmor/deployments/minikube$ kubectl apply -f .
   ```
 
 * Deploy KubeArmor on GKE

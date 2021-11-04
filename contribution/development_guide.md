@@ -20,9 +20,13 @@
 
         You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes. For this, please follow the instructions in [MicroK8s installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/microk8s/README.md).
 
+      * Alternative Setup - K3s
+
+        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes. For this, please follow the instructions in [K3s installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/k3s/README.md).
+
       * Notice - Minikube
 
-        KubeArmor does not support the policy enforcement on Minikube because MiniKube supports no LSM, which means that you will only get the alerts against given policy violations. However, if you want to test KubeArmor, you can follow the instructions in [Minikube installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/minikube/README.md).
+        KubeArmor does not support the policy enforcement on Minikube because MiniKube does not support LSMs, which means that you will only get the alerts against given policy violations. However, if you want to test KubeArmor, you can follow the instructions in [Minikube installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/minikube/README.md).
 
       * Caution - Docker Desktops
 
@@ -100,7 +104,6 @@
 
       Please ensure that the steps to setup K8s is followed so as to resolve any open dependencies.
 
-
 3.  Environment Check
     * Compilation
 
@@ -119,12 +122,6 @@
 
         ```text
         $ kubectl proxy &
-
-                or
-
-        $ tmux
-        (tmux)$ kubectl proxy
-        (tmux)$ CTRL B + D
         ```
 
         Then, run KubeArmor on your environment.
