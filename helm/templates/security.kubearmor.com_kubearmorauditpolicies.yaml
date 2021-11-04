@@ -73,7 +73,6 @@ spec:
                             - RAW
                             type: string
                           rate:
-                            pattern: ^([0-9]+p[0-9]+s|[0-9]+p[0-9]+m)$
                             type: string
                         required:
                         - probe
