@@ -637,9 +637,9 @@ type AuditEventType struct {
 // AuditPolicy Structure
 type AuditPolicy struct {
 	Selector SelectorType `json:"selector"`
+	Process  string       `json:"process,omitempty"`
 
-	Process string           `json:"process,omitempty"`
-	Events  []AuditEventType `json:"events"`
+	Events map[uint32]AuditEventType `json:"events"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`

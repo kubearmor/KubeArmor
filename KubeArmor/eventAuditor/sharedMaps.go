@@ -41,6 +41,9 @@ const (
 
 	KAEAEventRingBuffer KABPFMapName = "ka_ea_ringbuff_map"
 	KAEAEventRingBufferFile KABPFObjFileName = "ringbuffer.bpf.o"
+
+  KAEAEventRateMap     KABPFMapName     = "ka_ea_rate_limit_map"
+	KAEAEventRateMapFile KABPFObjFileName = "ka_ea_entrypoint.bpf.o"
 )
 
 // KAEAGetMap Function
@@ -85,6 +88,10 @@ func KAEAGetMap(name KABPFMapName) KABPFMap {
 		return KABPFMap{
 			Name:     KAEAEventRingBuffer,
 			FileName: KAEAEventRingBufferFile,
+	case KAEAEventRateMap:
+		return KABPFMap{
+			Name:     KAEAEventRateMap,
+			FileName: KAEAEventRateMapFile,
 		}
 	default:
 		return KABPFMap{
