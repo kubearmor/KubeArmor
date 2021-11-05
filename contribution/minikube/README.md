@@ -15,6 +15,12 @@ $ cd KubeArmor/contribution/minikube
 ~/KubeArmor/contribution/minikube$ ./install_minikube.sh
 ```
 
+Ensure to use virtualbox driver when running minikube. This step is necessary in order to mount roofs as read/write.
+
+```text
+$ minikube config set driver virtualbox
+```
+
 In order to use KubeArmor, Minikube needs to support eBPF capabilities. Unfortunately, Minikube doesn't suuport them by default. Thus, please run the following command rather than simply running "minikube start".
 
 ```text
