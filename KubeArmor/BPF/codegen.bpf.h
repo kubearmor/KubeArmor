@@ -102,9 +102,9 @@ ka_ea_log_submit(struct pt_regs *ctx) {
 	u64 cur_uid = bpf_get_current_uid_gid();
 
     struct log_t *log;
-
     log = bpf_ringbuf_reserve((void *)__ka_ea_map(ka_ea_ringbuff_map), sizeof(*log), 0);
     if(!log) {
+    	// TODO: log info about the lost event
         return 0;
     }
 	
@@ -333,11 +333,11 @@ tp_sys_bind_read_port(struct syscalls_enter_connect_args *ctx)
 #define __ka_ea_evt_log(c) \
 	ka_ea_log_submit(c)
 
-#define __ka_ea_rl_log(id, ev, ns, m) \
+#define __ka_ea_rl_log(id, ev, ns, c) \
 	do { \
 		if (rlv.events >= ev) { \
 			if ((curns - rlv.initns) <= ns) { \
-				__ka_ea_evt_log(m); \
+				__ka_ea_evt_log(c); \
 				ka_ea_reset_rate(id); \
 			} else { \
 				ka_ea_reset_rate(id); \

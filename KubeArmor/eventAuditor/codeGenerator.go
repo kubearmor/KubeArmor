@@ -673,7 +673,7 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 		return true
 	}
 
-	logFnCall = fmt.Sprintf("__ka_ea_evt_log(\"%v\");", auditEvent.Message)
+	logFnCall = fmt.Sprintf("__ka_ea_evt_log(ctx);")
 	eventID := ea.SupportedEntryPoints[probe]
 
 	if len(auditEvent.Rate) > 0 {
@@ -688,8 +688,8 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 		limitTime := rateTokens[1].getNumber()
 
 		logFnCall = fmt.Sprintf("__INIT_LOCAL_RATE(%d)\n", uniqID)
-		logFnCall += fmt.Sprintf("__ka_ea_rl_log(%v, %v, %v, \"%v\");", uniqID,
-			limitEvents, limitTime, auditEvent.Message)
+		logFnCall += fmt.Sprintf("__ka_ea_rl_log(%v, %v, %v, ctx);", uniqID,
+			limitEvents, limitTime)
 	}
 
 	if len(auditEvent.Ipv4Addr) > 0 {
@@ -759,14 +759,12 @@ func (ea *EventAuditor) generateCodeBlock(auditEvent tp.AuditEventType, probe st
 
 	if len(matchInclusion) > 0 {
 		// add match and log block
-		codeBlock += "\n// rule: match and log\n"
-		codeBlock += fmt.Sprintf("if (%v)\n{\n\t__ka_ea_evt_log(ctx);\n}\n",
-			strings.Join(matchInclusion, " && "))
+		codeBlock += fmt.Sprintf("\nif (%v)\n{\n%v\n}\n",
+			strings.Join(matchInclusion, " && "), logFnCall)
 
 	} else {
 		// add log block
-		codeBlock += "\n// rule: log\n"
-		codeBlock += fmt.Sprintf("__ka_ea_evt_log(ctx);\n")
+		codeBlock += fmt.Sprintf("\n%v\n", logFnCall)
 	}
 
 	return fmt.Sprintf("\n/* %v */\n{%v}\n", auditEvent, codeBlock), nil
