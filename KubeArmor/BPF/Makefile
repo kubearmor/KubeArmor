@@ -21,7 +21,7 @@ else
 endif
 
 .PHONY: all
-all: bpfobj
+all: bpfobj system_monitor_host.bpf.o system_monitor_host_and_container.bpf.o
 
 # bpf objects
 
@@ -30,6 +30,7 @@ CLANGFLAGS = -g -O2 -c -target bpf -MMD -MP
 CURDIR     = $(shell pwd)
 CLANGINC   = $(CURDIR)/include
 BPFOBJDIR  = $(CURDIR)/objs
+SYSMONITOR = $(CURDIR)/system_monitor.bpf.c
 BPFS_C     = $(wildcard *.bpf.c)
 BPFS_O     = $(addprefix $(BPFOBJDIR)/, $(BPFS_C:.c=.o))
 BPFS_D     = $(patsubst %.o, %.d, $(BPFS_O))
@@ -42,6 +43,14 @@ bpfobj: $(BPFS_O)
 $(BPFOBJDIR)/%.o: %.c | $(BPFOBJDIR)
 	$(info INFO: compiling bpf object $@)
 	$(Q)$(CLANG) $(CLANGFLAGS) -I $(CLANGINC) -o $@ $<
+
+system_monitor_host.bpf.o: $(SYSMONITOR) | $(BPFOBJDIR)
+	$(info INFO: compiling bpf object $@)
+	$(Q)$(CLANG) $(CLANGFLAGS) -DMONITOR_HOST -I $(CLANGINC) -o $(BPFOBJDIR)/$@ $<
+
+system_monitor_host_and_container.bpf.o: $(SYSMONITOR) | $(BPFOBJDIR)
+	$(info INFO: compiling bpf object $@)
+	$(Q)$(CLANG) $(CLANGFLAGS) -DMONITOR_HOST_AND_CONTAINER -I $(CLANGINC) -o $(BPFOBJDIR)/$@ $<
 
 # output
 
