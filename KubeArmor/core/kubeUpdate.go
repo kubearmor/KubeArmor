@@ -23,7 +23,7 @@ import (
 
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
-	nodeName := kl.GetHostName()
+	hostName := kl.GetHostName()
 
 	for {
 		if resp := K8s.WatchK8sNodes(); resp != nil {
@@ -38,12 +38,19 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 					break
 				}
 
-				if event.Object.ObjectMeta.Name != nodeName {
+				// Kubearmor uses hostname as the nodename, but this can, not always be the case.
+				// For example, on EKS the node name can be of the format <hostname>.<region>.compute.internal
+				nodeName := strings.Split(event.Object.ObjectMeta.Name, ".")
+				if len(nodeName) < 0 {
+					break
+				}
+
+				if nodeName[0] != hostName {
 					continue
 				}
 
 				node := tp.Node{}
-				node.NodeName = nodeName
+				node.NodeName = hostName
 
 				for _, address := range event.Object.Status.Addresses {
 					if address.Type == "InternalIP" {
