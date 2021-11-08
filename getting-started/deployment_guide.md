@@ -10,7 +10,7 @@ curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/inst
 ```
 karmor install
 ```
-It is assumed that the k8s cluster is already present/reachable and the user has rights to create service-accounts and cluster-role-bindings.
+It is assumed that the k8s cluster is already present/reachable setup with the [*required prerequisites*](#Prerequisites) and the user has rights to create service-accounts and cluster-role-bindings.
 
 ### 3. Deploying sample app and policies
    
@@ -48,3 +48,6 @@ karmor log
 4. Self-managed (on-prem) k8s
 5. Local k8s engines (microk8s, k3s, minikube)
 
+## Prerequisites
+1. [Amazon Elastic Kubernetes Service (EKS)](https://github.com/kubearmor/KubeArmor/tree/master/deployments/EKS#prerequisite-for-the-deployment)
+2. [Minikube](https://github.com/kubearmor/KubeArmor/tree/master/contribution/minikube#minikube-installation)
