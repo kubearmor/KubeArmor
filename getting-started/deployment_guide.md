@@ -12,6 +12,7 @@ karmor install
 ```
 <details>
   <summary>Output of karmor install</summary>
+
 ```
 aws@pandora:~$ karmor install
 Auto Detected Environment : docker
