@@ -2,9 +2,9 @@ name: ci-go
 
 on:
   push:
-    branches: [master]
+    branches: [master, event-auditor]
   pull_request:
-    branches: [master]
+    branches: [master, event-auditor]
 
 jobs:
   go-fmt:
