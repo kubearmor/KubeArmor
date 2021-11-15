@@ -1,13 +1,17 @@
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  creationTimestamp: null
   name: kubearmor
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  creationTimestamp: null
   name: kubearmor
+  namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -20,308 +24,336 @@ subjects:
 apiVersion: v1
 kind: Service
 metadata:
+  creationTimestamp: null
   name: kubearmor
   namespace: kube-system
 spec:
-  selector:
-    kubearmor-app: kubearmor-relay
   ports:
   - port: 32767
     protocol: TCP
+    targetPort: 0
+  selector:
+    kubearmor-app: kubearmor-relay
+status:
+  loadBalancer: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubearmor-relay
-  namespace: kube-system
+  creationTimestamp: null
   labels:
     kubearmor-app: kubearmor-relay
+  name: kubearmor-relay
+  namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
       kubearmor-app: kubearmor-relay
+  strategy: {}
   template:
     metadata:
-      labels:
-        kubearmor-app: kubearmor-relay
       annotations:
         kubearmor-policy: audited
+      creationTimestamp: null
+      labels:
+        kubearmor-app: kubearmor-relay
     spec:
-      serviceAccountName: kubearmor
-      nodeSelector:
-        kubernetes.io/os: linux
       containers:
-      - name: kubearmor-relay-server
-        image: kubearmor/kubearmor-relay-server:latest
-        imagePullPolicy: Always
+      - image: kubearmor/kubearmor-relay-server:latest
+        name: kubearmor-relay-server
         ports:
         - containerPort: 32767
         resources:
-          requests:
-            cpu: 250m
-            memory: 64Mi
           limits:
             cpu: 500m
             memory: 128Mi
+          requests:
+            cpu: 250m
+            memory: 64Mi
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: kubearmor
+status: {}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kubearmor
-  namespace: kube-system
+  creationTimestamp: null
   labels:
     kubearmor-app: kubearmor
+  name: kubearmor
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
       kubearmor-app: kubearmor
   template:
     metadata:
-      labels:
-        kubearmor-app: kubearmor
       annotations:
         container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+      creationTimestamp: null
+      labels:
+        kubearmor-app: kubearmor
     spec:
-      serviceAccountName: kubearmor
-      nodeSelector:
-        kubernetes.io/os: linux
-      tolerations:
-      - operator: Exists
-      hostPID: true
-      hostNetwork: true
-      restartPolicy: Always
-      dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: kubearmor
+      - args:
+        - -gRPC=32767
+        - -logPath=/tmp/kubearmor.log
+        - -enableKubeArmorHostPolicy
         image: kubearmor/kubearmor:latest
-        imagePullPolicy: Always
-        securityContext:
-          privileged: true
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
-        ports:
-        - containerPort: 32767
-        volumeMounts:
-        - name: containerd-sock-path # containerd (read-only)
-          mountPath: /var/run/containerd/containerd.sock
-          readOnly: true
-        - name: containerd-storage-path # containerd storage (read-only)
-          mountPath: /run/containerd
-          readOnly: true
-        - name: docker-storage-path # docker storage (read-only)
-          mountPath: /var/lib/docker
-          readOnly: true
-        - name: usr-src-path # BPF (read-only)
-          mountPath: /usr/src
-          readOnly: true
-        - name: lib-modules-path # BPF (read-only)
-          mountPath: /lib/modules
-          readOnly: true
-        - name: sys-fs-bpf-path # BPF (read-write)
-          mountPath: /sys/fs/bpf
-        - name: sys-kernel-debug-path # BPF (read-write)
-          mountPath: /sys/kernel/debug
-        - name: etc-apparmor-d-path # AppArmor (read-write)
-          mountPath: /etc/apparmor.d
-        - name: os-release-path # OS (read-only)
-          mountPath: /media/root/etc/os-release
-          readOnly: true
         livenessProbe:
           exec:
             command:
             - /bin/bash
             - -c
-            - |
-              if [ -z $(pgrep kubearmor) ]; then
-                exit 1;
-              fi;
+            - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
           initialDelaySeconds: 60
           periodSeconds: 10
-        terminationMessagePolicy: File
-        terminationMessagePath: /dev/termination-log
+        name: kubearmor
+        ports:
+        - containerPort: 32767
         resources:
-          requests:
-            cpu: 250m
-            memory: 64Mi
           limits:
             cpu: 500m
             memory: 128Mi
+          requests:
+            cpu: 250m
+            memory: 64Mi
+        securityContext:
+          privileged: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /usr/src
+          name: usr-src-path
+          readOnly: true
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
+        - mountPath: /sys/fs/bpf
+          name: sys-fs-bpf-path
+        - mountPath: /sys/kernel/debug
+          name: sys-kernel-debug-path
+        - mountPath: /media/root/etc/os-release
+          name: os-release-path
+          readOnly: true
+        - mountPath: /etc/apparmor.d
+          name: etc-apparmor-d-path
+        - mountPath: /var/run/containerd/containerd.sock
+          name: containerd-sock-path
+          readOnly: true
+        - mountPath: /run/containerd
+          name: containerd-storage-path
+          readOnly: true
+        - mountPath: /var/lib/docker
+          name: docker-storage-path
+          readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: Always
+      serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 30
+      tolerations:
+      - operator: Exists
       volumes:
-      - name: containerd-sock-path # containerd
-        hostPath:
-          path: /var/run/containerd/containerd.sock
-          type: Socket
-      - name: containerd-storage-path # containerd
-        hostPath:
-          path: /run/containerd
-          type: DirectoryOrCreate
-      - name: docker-storage-path # docker
-        hostPath:
-          path: /var/lib/docker
-          type: DirectoryOrCreate
-      - name: usr-src-path # BPF
-        hostPath:
+      - hostPath:
           path: /usr/src
           type: Directory
-      - name: lib-modules-path # BPF
-        hostPath:
+        name: usr-src-path
+      - hostPath:
           path: /lib/modules
           type: Directory
-      - name: sys-fs-bpf-path # BPF
-        hostPath:
+        name: lib-modules-path
+      - hostPath:
           path: /sys/fs/bpf
           type: Directory
-      - name: sys-kernel-debug-path # BPF
-        hostPath:
+        name: sys-fs-bpf-path
+      - hostPath:
           path: /sys/kernel/debug
           type: Directory
-      - name: etc-apparmor-d-path # AppArmor
-        hostPath:
-          path: /etc/apparmor.d
-          type: DirectoryOrCreate
-      - name: os-release-path # OS
-        hostPath:
+        name: sys-kernel-debug-path
+      - hostPath:
           path: /etc/os-release
           type: File
+        name: os-release-path
+      - hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
+        name: etc-apparmor-d-path
+      - hostPath:
+          path: /var/run/containerd/containerd.sock
+          type: Socket
+        name: containerd-sock-path
+      - hostPath:
+          path: /run/containerd
+          type: DirectoryOrCreate
+        name: containerd-storage-path
+      - hostPath:
+          path: /var/lib/docker
+          type: DirectoryOrCreate
+        name: docker-storage-path
+  updateStrategy: {}
+status:
+  currentNumberScheduled: 0
+  desiredNumberScheduled: 0
+  numberMisscheduled: 0
+  numberReady: 0
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: kubearmor-policy-manager-metrics-service
-  namespace: kube-system
+  creationTimestamp: null
   labels:
     kubearmor-app: kubearmor-policy-manager
+  name: kubearmor-policy-manager-metrics-service
+  namespace: kube-system
 spec:
-  selector:
-    kubearmor-app: kubearmor-policy-manager
   ports:
   - name: https
-    port: 8443
+    port: 32767
     targetPort: https
+  selector:
+    kubearmor-app: kubearmor-policy-manager
+status:
+  loadBalancer: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubearmor-policy-manager
-  namespace: kube-system
+  creationTimestamp: null
   labels:
     kubearmor-app: kubearmor-policy-manager
+  name: kubearmor-policy-manager
+  namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
       kubearmor-app: kubearmor-policy-manager
+  strategy: {}
   template:
     metadata:
-      labels:
-        kubearmor-app: kubearmor-policy-manager
       annotations:
         kubearmor-policy: audited
+      creationTimestamp: null
+      labels:
+        kubearmor-app: kubearmor-policy-manager
     spec:
-      serviceAccountName: kubearmor
       containers:
-      - name: kube-rbac-proxy
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-        args:
+      - args:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
         - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+        name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
         resources:
-          requests:
-            cpu: 100m
-            memory: 20Mi
           limits:
             cpu: 100m
             memory: 40Mi
-      - name: kubearmor-policy-manager
-        image: kubearmor/kubearmor-policy-manager:latest
-        args:
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      - args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
         command:
         - /manager
+        image: kubearmor/kubearmor-policy-manager:latest
+        name: kubearmor-policy-manager
         resources:
           limits:
             cpu: 100m
-            memory: 30Mi
+            memory: 40Mi
           requests:
             cpu: 100m
             memory: 20Mi
+      serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 10
+status: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: kubearmor-host-policy-manager-metrics-service
-  namespace: kube-system
+  creationTimestamp: null
   labels:
     kubearmor-app: kubearmor-host-policy-manager
+  name: kubearmor-host-policy-manager-metrics-service
+  namespace: kube-system
 spec:
-  selector:
-    kubearmor-app: kubearmor-host-policy-manager
   ports:
   - name: https
     port: 8443
     targetPort: https
+  selector:
+    kubearmor-app: kubearmor-host-policy-manager
+status:
+  loadBalancer: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubearmor-host-policy-manager
-  namespace: kube-system
+  creationTimestamp: null
   labels:
     kubearmor-app: kubearmor-host-policy-manager
+  name: kubearmor-host-policy-manager
+  namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
       kubearmor-app: kubearmor-host-policy-manager
+  strategy: {}
   template:
     metadata:
-      labels:
-        kubearmor-app: kubearmor-host-policy-manager
       annotations:
         kubearmor-policy: audited
+      creationTimestamp: null
+      labels:
+        kubearmor-app: kubearmor-host-policy-manager
     spec:
-      serviceAccountName: kubearmor
       containers:
-      - name: kube-rbac-proxy
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-        args:
+      - args:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
         - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+        name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
         resources:
-          requests:
-            cpu: 100m
-            memory: 20Mi
           limits:
             cpu: 100m
             memory: 40Mi
-      - name: kubearmor-host-policy-manager
-        image: kubearmor/kubearmor-host-policy-manager:latest
-        args:
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      - args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
         command:
         - /manager
+        image: kubearmor/kubearmor-policy-manager:latest
+        name: kubearmor-host-policy-manager
         resources:
           limits:
             cpu: 100m
-            memory: 30Mi
+            memory: 40Mi
           requests:
             cpu: 100m
             memory: 20Mi
+      serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 10
+status: {}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

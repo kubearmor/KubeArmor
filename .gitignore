@@ -2,6 +2,9 @@
 kubearmor
 karmor
 
+# KubeArmor Gen Deployment
+deploygen
+
 # Contribution
 .vscode
 
