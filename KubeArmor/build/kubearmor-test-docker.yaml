@@ -89,6 +89,13 @@ spec:
           periodSeconds: 10
         terminationMessagePolicy: File
         terminationMessagePath: /dev/termination-log
+        resources:
+          requests:
+            cpu: 250m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
       terminationGracePeriodSeconds: 30
       volumes:
       - name: docker-sock-path # docker
