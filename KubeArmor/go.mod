@@ -10,6 +10,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/discover => ./discovery
 	github.com/kubearmor/KubeArmor/KubeArmor/enforcer => ./enforcer
 	github.com/kubearmor/KubeArmor/KubeArmor/feeder => ./feeder
+	github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent => ./kvmAgent
 	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
 	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor
 	github.com/kubearmor/KubeArmor/KubeArmor/types => ./types

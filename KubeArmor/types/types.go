@@ -527,3 +527,9 @@ type PidNode struct {
 	Exited     bool
 	ExitedTime time.Time
 }
+
+// =============== //
+// == KVM Agent == //
+// =============== //
+
+type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent)

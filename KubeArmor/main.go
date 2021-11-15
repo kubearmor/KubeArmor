@@ -41,12 +41,13 @@ func main() {
 	// options (boolean)
 	enableKubeArmorPolicyPtr := flag.Bool("enableKubeArmorPolicy", true, "enabling KubeArmorPolicy")
 	enableKubeArmorHostPolicyPtr := flag.Bool("enableKubeArmorHostPolicy", false, "enabling KubeArmorHostPolicy")
+	enableKubeArmorVMPtr := flag.Bool("enableKubeArmorVm", false, "enabling KubeArmorVM")
 
 	flag.Parse()
 
 	// == //
 
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *enableKubeArmorPolicyPtr, *enableKubeArmorHostPolicyPtr)
+	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *enableKubeArmorPolicyPtr, *enableKubeArmorHostPolicyPtr, *enableKubeArmorVMPtr)
 
 	// == //
 }
