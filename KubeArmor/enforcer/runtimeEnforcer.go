@@ -63,10 +63,14 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 			return nil
 		}
 	} else if strings.Contains(re.EnforcerType, "selinux") {
-		re.seLinuxEnforcer = NewSELinuxEnforcer(logger)
-		if re.seLinuxEnforcer != nil {
-			re.Logger.Print("Initialized SELinux Enforcer")
-			re.EnforcerType = "SELinux"
+		if kl.IsK8sLocal() {
+			re.seLinuxEnforcer = NewSELinuxEnforcer(logger)
+			if re.seLinuxEnforcer != nil {
+				re.Logger.Print("Initialized SELinux Enforcer")
+				re.EnforcerType = "SELinux"
+			} else {
+				return nil
+			}
 		} else {
 			return nil
 		}
