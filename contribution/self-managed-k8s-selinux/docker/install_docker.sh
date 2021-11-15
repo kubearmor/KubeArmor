@@ -6,9 +6,7 @@ DOCKER_INSTALL=`dirname $(realpath "$0")`
 
 # setup the repo
 sudo dnf -y install dnf-plugins-core
-sudo dnf config-manager \
-    --add-repo \
-    https://download.docker.com/linux/fedora/docker-ce.repo
+sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
 
 # install docker
 sudo dnf -y install docker-ce-3:19.03.9-3.fc30 containerd.io

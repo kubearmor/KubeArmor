@@ -4,3 +4,5 @@
 
 # install KVM
 sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst
+
+echo "Please reboot the machine"
