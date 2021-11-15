@@ -18,5 +18,6 @@ rm vagrant_2.2.9_x86_64.deb
 # install vagrant plugins
 vagrant plugin install vagrant-vbguest
 vagrant plugin install vagrant-reload
+vagrant plugin install vagrant-disksize
 
 echo "Please reboot the machine"

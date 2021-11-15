@@ -38,6 +38,7 @@
 	})
 
 // == Structures == //
+
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
 #define MAX_STR_ARR_ELEM  20
@@ -434,7 +435,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
     }
 
     if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
-        return 0; // not enough space - return
+        return 0; // no enough space
     }
 
     u8 type = STR_T;
@@ -443,13 +444,13 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
     *off += 1;
 
     if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
-        return 0;
+        return 0; // no enough space
     }
 
     int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
     if (sz > 0) {
         if (*off > MAX_BUFFER_SIZE - sizeof(int)) {
-            return 0;
+            return 0; // no enough space
         }
 
         bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
@@ -465,12 +466,6 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 
 static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
 {
-	struct qstr    d_name;
-	struct mount * mnt;
-	struct dentry *parent;
-	struct dentry *mnt_root;
-	struct mount * m;
-
 	char slash  = '/';
 	char null   = '\0';
 	int  offset = MAX_STRING_SIZE;
@@ -479,16 +474,21 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
 		return false;
 	}
 
-	struct dentry *	 dentry = path->dentry;
+	struct dentry *dentry = path->dentry;
 	struct vfsmount *vfsmnt = path->mnt;
 
-	mnt = real_mount(vfsmnt);
+	struct mount *mnt = real_mount(vfsmnt);
 
-	// TODO: check if the dentry is unlinked
+	struct dentry *parent;
+	struct dentry *mnt_root;
+	struct mount *m;
+	struct qstr d_name;
+
     #pragma unroll
 	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
 		bpf_probe_read(&parent, sizeof(struct dentry *), &dentry->d_parent);
 		bpf_probe_read(&mnt_root, sizeof(struct dentry *), &vfsmnt->mnt_root);
+
 		if (dentry == mnt_root) {
 			bpf_probe_read(&m, sizeof(struct mount *), &mnt->mnt_parent);
 			if (mnt != m) {
@@ -496,6 +496,7 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p)
 				mnt = m;
 				continue;
 			}
+
 			/* Global root */
 			break;
 		}
@@ -543,6 +544,7 @@ static __always_inline struct path* load_file_p(){
 static __always_inline int save_file_to_buffer(bufs_t *bufs_p)
 {
 	struct path *path = load_file_p();
+
 	bufs_t *string_p = get_buffer(PATH_BUFFER);
 	if (string_p == NULL)
 		return -1;
@@ -749,7 +751,7 @@ int trace_ret_execve(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    // TEMP: skip if No such file or directory
+    // skip if No such file or directory
     if (context.retval == -2) {
         return 0;
     }
@@ -816,7 +818,7 @@ int trace_ret_execveat(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    // TEMP: skip if No such file or directory
+    // skip if No such file or directory
     if (context.retval == -2) {
         return 0;
     }
@@ -948,7 +950,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     context.argnum = get_arg_num(types);
     context.retval = PT_REGS_RC(ctx);
 
-    // TEMP: skip if No such file or directory
+    // skip if No such file or directory
     if (context.retval == -2) {
         return 0;
     }
