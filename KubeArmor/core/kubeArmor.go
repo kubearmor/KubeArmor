@@ -17,6 +17,7 @@ import (
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	kvm "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 )
 
@@ -90,6 +91,9 @@ type KubeArmorDaemon struct {
 	// runtime enforcer
 	RuntimeEnforcer *efc.RuntimeEnforcer
 
+	// kvm agent
+	KVMAgent *kvm.KVMAgent
+
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 }
@@ -143,6 +147,7 @@ func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableKubeArmorPo
 	dm.Logger = nil
 	dm.SystemMonitor = nil
 	dm.RuntimeEnforcer = nil
+	dm.KVMAgent = nil
 
 	dm.WgDaemon = sync.WaitGroup{}
 
@@ -281,6 +286,30 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 	return true
 }
 
+// =============== //
+// == KVM Agent == //
+// =============== //
+
+// InitKVMAgent Function
+func (dm *KubeArmorDaemon) InitKVMAgent() bool {
+	dm.KVMAgent = kvm.NewKVMAgent(dm.ParseAndUpdateHostSecurityPolicy)
+	return dm.KVMAgent != nil
+}
+
+// ConnectToKVMService Function
+func (dm *KubeArmorDaemon) ConnectToKVMService() {
+	go dm.KVMAgent.ConnectToKVMService()
+}
+
+// CloseKVMAgent Function
+func (dm *KubeArmorDaemon) CloseKVMAgent() bool {
+	if err := dm.KVMAgent.DestroyKVMAgent(); err != nil {
+		dm.Logger.Err("Failed to destory KVM Agent")
+		return false
+	}
+	return true
+}
+
 // ==================== //
 // == Signal Handler == //
 // ==================== //
@@ -304,7 +333,12 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool) {
+func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy, enableKubeArmorVM bool) {
+	// set KubeArmorHostPolicy if KubeArmorVM is enabled by default
+	if enableKubeArmorVM {
+		enableKubeArmorHostPolicy = true
+	}
+
 	// create a daemon
 	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableKubeArmorPolicy, enableKubeArmorHostPolicy)
 
@@ -496,6 +530,26 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	// == //
 
 	dm.Logger.Print("Initialized KubeArmor")
+
+	// == //
+
+	// Init KvmAgent
+	if enableKubeArmorVM {
+		// initialize kvm agent
+		if !dm.InitKVMAgent() {
+			dm.Logger.Err("Failed to initialize KVM Agent")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Initialized KVM Agent")
+
+		// connect to KVM Service
+		go dm.ConnectToKVMService()
+		dm.Logger.Print("Started to keep the connection to KVM Service")
+	}
 
 	// == //
 

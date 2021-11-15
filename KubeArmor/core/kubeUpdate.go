@@ -1279,6 +1279,8 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 			if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 				secPolicies = append(secPolicies, policy)
 			}
+		} else { // KubeArmorVM
+			secPolicies = append(secPolicies, policy)
 		}
 	}
 

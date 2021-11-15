@@ -11,7 +11,7 @@ import (
 )
 
 var clusterPtr, gRPCPtr, logPathPtr *string
-var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr *bool
+var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr *bool
 
 func init() {
 	// options (string)
@@ -22,6 +22,7 @@ func init() {
 	// options (boolean)
 	enableKubeArmorPolicyPtr = flag.Bool("enableKubeArmorPolicy", false, "enabling KubeArmorPolicy")
 	enableKubeArmorHostPolicyPtr = flag.Bool("enableKubeArmorHostPolicy", false, "enabling KubeArmorHostPolicy")
+	enableKubeArmorVMPtr = flag.Bool("enableKubeArmorVm", false, "enabling KubeArmorVM")
 }
 
 // TestMain - test to drive external testing coverage
@@ -32,7 +33,8 @@ func TestMain(t *testing.T) {
 	// Set os args to set flags in main
 	os.Args = []string{"cmd", "-cluster", *clusterPtr, "-gRPC", *gRPCPtr, "-logPath", *logPathPtr,
 		"-enableKubeArmorPolicy", strconv.FormatBool(*enableKubeArmorPolicyPtr),
-		"-enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)}
+		"-enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr),
+		"-enableKubeArmorVm", strconv.FormatBool(*enableKubeArmorVMPtr)}
 
 	// run KubeArmor
 	main()
