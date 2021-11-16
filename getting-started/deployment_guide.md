@@ -34,13 +34,13 @@ It is assumed that the k8s cluster is already present/reachable setup with the [
 
 ### 3. Deploying sample app and policies
    
-#### a. Deploy sample [multiubuntu app](https://github.com/kubearmor/KubeArmor/blob/master/examples/multiubuntu.md)
+#### a. Deploy sample [multiubuntu app](../examples/multiubuntu.md)
 ```
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/examples/multiubuntu/multiubuntu-deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/examples/multiubuntu/multiubuntu-deployment.yaml
 ```
-#### b. Deploy [sample policies](https://github.com/kubearmor/KubeArmor/blob/master/getting-started/security_policy_examples.md)
+#### b. Deploy [sample policies](security_policy_examples.md)
 ```
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/master/examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml
 ```
 This sample policy blocks execution of `sleep` command in ubuntu-1 pods.
 #### c. Simulate policy violation
@@ -64,10 +64,10 @@ karmor log
 ## K8s platforms tested
 1. Google Kubernetes Engine (GKE) Container Optimized OS (COS)
 2. GKE Ubuntu image
-3. [Amazon Elastic Kubernetes Service (EKS)](https://github.com/kubearmor/KubeArmor/tree/master/deployments/EKS)
+3. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS)
 4. Self-managed (on-prem) k8s
 5. Local k8s engines (microk8s, k3s, minikube)
 
 ## Prerequisites
-1. [Amazon Elastic Kubernetes Service (EKS)](https://github.com/kubearmor/KubeArmor/tree/master/deployments/EKS#prerequisite-for-the-deployment)
-2. [Minikube](https://github.com/kubearmor/KubeArmor/tree/master/contribution/minikube#minikube-installation)
+1. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
+2. [Minikube](../contribution/minikube#minikube-installation)
