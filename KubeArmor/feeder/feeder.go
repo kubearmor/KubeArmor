@@ -125,6 +125,7 @@ func (ls *LogService) getMsgStructs() []MsgStruct {
 
 // WatchMessages Function
 func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
+	var err error
 	uid := uuid.Must(uuid.NewRandom()).String()
 
 	ls.addMsgStruct(uid, svr, req.Filter)
@@ -136,9 +137,14 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 
 		msgStructs := ls.getMsgStructs()
 		for _, mgs := range msgStructs {
-			if err := mgs.Client.Send(&msg); err != nil {
-				kg.Err("Failed to send a message")
+			if err = mgs.Client.Send(&msg); err != nil {
+				kg.Warn("Failed to send a message")
+				break
 			}
+		}
+
+		if err != nil {
+			break
 		}
 	}
 
@@ -181,6 +187,7 @@ func (ls *LogService) getAlertStructs() []AlertStruct {
 
 // WatchAlerts Function
 func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_WatchAlertsServer) error {
+	var err error
 	uid := uuid.Must(uuid.NewRandom()).String()
 
 	ls.addAlertStruct(uid, svr, req.Filter)
@@ -192,9 +199,14 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 
 		alertStructs := ls.getAlertStructs()
 		for _, als := range alertStructs {
-			if err := als.Client.Send(&alert); err != nil {
-				kg.Err("Failed to send an alert")
+			if err = als.Client.Send(&alert); err != nil {
+				kg.Warn("Failed to send an alert")
+				break
 			}
+		}
+
+		if err != nil {
+			break
 		}
 	}
 
@@ -237,6 +249,7 @@ func (ls *LogService) getLogStructs() []LogStruct {
 
 // WatchLogs Function
 func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchLogsServer) error {
+	var err error
 	uid := uuid.Must(uuid.NewRandom()).String()
 
 	ls.addLogStruct(uid, svr, req.Filter)
@@ -248,9 +261,14 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 
 		logStructs := ls.getLogStructs()
 		for _, lgs := range logStructs {
-			if err := lgs.Client.Send(&log); err != nil {
-				kg.Err("Failed to send a log")
+			if err = lgs.Client.Send(&log); err != nil {
+				kg.Warn("Failed to send a log")
+				break
 			}
+		}
+
+		if err != nil {
+			break
 		}
 	}
 

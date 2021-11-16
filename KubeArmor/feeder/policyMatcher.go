@@ -668,6 +668,10 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 // == Policy Matches == //
 // ==================== //
 
+func lastString(ss []string) string {
+	return ss[len(ss)-1]
+}
+
 // UpdateMatchedPolicy Function
 func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	allowProcPolicy := ""
@@ -698,7 +702,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
-			if secPolicy.Source == "" || secPolicy.IsFromSource || strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0]) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+			if secPolicy.Source == "" || (secPolicy.IsFromSource && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) || (log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 				if secPolicy.Action == "Allow" {
 					if secPolicy.Operation == "Process" {
 						if allowProcPolicy == "" {
@@ -792,10 +796,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						}
 					}
 
-					if matched || strings.Contains(log.Resource, secPolicy.Resource) {
-						if (log.Result != "Passed" && secPolicy.Action == "Allow") || secPolicy.Source == "" ||
+					if matched || strings.Contains(log.Resource, secPolicy.Resource) || log.Resource == lastString(strings.Split(secPolicy.Resource, "/")) {
+						if (secPolicy.Action == "Allow" && log.Result != "Passed") || secPolicy.Source == "" ||
 							(secPolicy.Source != "" && strings.Contains(secPolicy.Source, strings.Split(log.Source, " ")[0])) ||
-							(secPolicy.Source != "" && log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
+							(log.Source == "runc:[2:INIT]" && strings.Contains(secPolicy.Source, strings.Split(log.Resource, " ")[0])) {
 
 							if log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result == "Passed" {
 								if log.Resource != "" && secPolicy.ReadOnly && log.MergedDir != "" && secPolicy.OwnerOnly {
