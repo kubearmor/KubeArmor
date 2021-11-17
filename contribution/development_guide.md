@@ -22,7 +22,7 @@
 
       * Alternative Setup - K3s
 
-        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes. For this, please follow the instructions in [K3s installation guide](./k3s/README.md).
+        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes. For this, please follow the instructions in [K3s installation guide](k3s/README.md).
 
       * Notice - Minikube
 
