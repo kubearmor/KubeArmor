@@ -532,4 +532,5 @@ type PidNode struct {
 // == KVM Agent == //
 // =============== //
 
+// KubeArmorHostPolicyEventCallback Function
 type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent)
