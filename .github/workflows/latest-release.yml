@@ -2,7 +2,7 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     branches:
-      - 'master'
+      - 'main'
 
 name: Latest version release
 

@@ -3,7 +3,7 @@
 Here, we demonstrate how to define security policies using our example microservice \(multiubuntu\).
 
 * Process Execution Restriction
-  * Block a specific executable \([ksp-group-1-proc-path-block.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml)\)
+  * Block a specific executable \([ksp-group-1-proc-path-block.yaml](../examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -26,7 +26,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: After applying this policy, please get into one of the containers with the 'group-1' \(using "kubectl -n multiubuntu exec -it ubuntu-X-deployment-... -- bash"\) and run '/bin/sleep'. You will see that /bin/sleep is blocked. 
 
-  * Block all executables in a specific directory \([ksp-ubuntu-1-proc-dir-block.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-1-proc-dir-block.yaml)\)
+  * Block all executables in a specific directory \([ksp-ubuntu-1-proc-dir-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-1-proc-dir-block.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -49,7 +49,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: After applying this policy, please get into the container with the 'ubuntu-1' label and run '/sbin/route' to see if this command is allowed \(this command will be blocked\). 
 
-  * Block all executables in a specific directory and its subdirectories \([ksp-ubuntu-2-proc-dir-recursive-block.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-2-proc-dir-recursive-block.yaml)\)
+  * Block all executables in a specific directory and its subdirectories \([ksp-ubuntu-2-proc-dir-recursive-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-2-proc-dir-recursive-block.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -73,7 +73,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: After applying this policy, please get into the container with the 'ubuntu-2' label and run '/usr/bin/env' or '/usr/bin/whoami'. You will see that those commands are blocked. 
 
-  * Allow specific executables only \([ksp-ubuntu-3-proc-dir-allow.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-3-proc-dir-allow.yaml)\)
+  * Allow specific executables only \([ksp-ubuntu-3-proc-dir-allow.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-3-proc-dir-allow.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -100,7 +100,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: In this policy, we allow some files \(i.e., /credentials/\*\) for verification. After applying this policy, please get into the container with the 'ubuntu-3' label and run 'cd /credentials', 'ls', and 'cat /credentials/password'. You will see that all of the binaries in /bin work well. Now, please simply run 'awk' or 'diff'. Then, those commands will be blocked since they are in /usr/bin. 
 
-  * Allow a specific executable to be launched by its owner only \([ksp-ubuntu-3-proc-path-owner-only.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-3-proc-path-owner-only.yaml)\)
+  * Allow a specific executable to be launched by its owner only \([ksp-ubuntu-3-proc-path-owner-only.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-3-proc-path-owner-only.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -134,7 +134,7 @@ Here, we demonstrate how to define security policies using our example microserv
     * Verification: For verification, we allow /bin/su and some files used by /bin/su to change users \(from 'root' to 'user1'\) in the policy. After applying this policy, please get into the container with the 'ubuntu-3' label and run '/home/user1/hello' first. This command will be blocked even though you are the 'root' user. Then, please run 'su - user1'. Now, you are the 'user1' user. Please run '/home/user1/hello' again. You will see that it works now. 
 
 * File Access Restriction
-  * Allow accessing specific files only \([ksp-ubuntu-4-file-path-readonly-allow.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-4-file-path-readonly-allow.yaml)\)
+  * Allow accessing specific files only \([ksp-ubuntu-4-file-path-readonly-allow.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-4-file-path-readonly-allow.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -162,7 +162,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: For testing, we allow binaries in /bin. After applying this policy, please get into the container with the 'ubuntu-4' label and run 'cat /secret.txt' and 'cat /credentials/password'. You can see the contents in those files. Now, please run 'echo \"test\" &gt;&gt; /secret.txt'. This command will work fine. Please run 'echo \"test\" &gt;&gt; /credentials/password'. You will see that the write operation will be blocked. 
 
-  * Block all file accesses in a specific directory and its subdirectories \([ksp-ubuntu-5-file-dir-recursive-block.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-5-file-dir-recursive-block.yaml)\)
+  * Block all file accesses in a specific directory and its subdirectories \([ksp-ubuntu-5-file-dir-recursive-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-5-file-dir-recursive-block.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -187,7 +187,7 @@ Here, we demonstrate how to define security policies using our example microserv
     * Verification: After applying this policy, please get into the container with the 'ubuntu-5' label and run 'cat /secret.txt'. You will see the contents of /secret.txt. Then, please run 'cat /credentials/password'. This command will be blocked due to the security policy. 
 
 * Network Operation Restriction
-  * Block ICMP packets \([ksp-ubuntu-5-net-icmp-block](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-5-net-icmp-block.yaml)\)
+  * Block ICMP packets \([ksp-ubuntu-5-net-icmp-block](../examples/multiubuntu/security-policies/ksp-ubuntu-5-net-icmp-block.yaml)\)
 
     ```text
       apiVersion: security.kubearmor.com/v1
@@ -208,10 +208,10 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Explanation: We want to block sending ICMP packets from the containers with the 'ubuntu-5' label while allowing packets for the other protocols \(e.g., TCP and UDP\). For this, we use 'matchProtocols' to define the protocol \(i.e., ICMP\) that we want to block.
 
-    * Verification: After applying this policy, please get into the container with the 'ubuntu-5' label and run 'curl www.kubearmor.com'. This will work fine. Then, please run 'ping 8.8.8.8'. You will see 'permission denied' since the 'ping' command internally uses the ICMP protocol. 
+    * Verification: After applying this policy, please get into the container with the 'ubuntu-5' label and run 'curl https://kubernetes.io/'. This will work fine. Then, run 'ping 8.8.8.8'. You will see 'permission denied' since the 'ping' command internally uses the ICMP protocol. 
 
 * Capabilities Restriction
-  * Block Raw Sockets \(i.e., non-TCP/UDP packets\) \([ksp-ubuntu-1-cap-net-raw-block.yaml](https://github.com/kubearmor/KubeArmor/tree/master/examples/multiubuntu/security-policies/ksp-ubuntu-1-cap-net-raw-block.yaml)\)
+  * Block Raw Sockets \(i.e., non-TCP/UDP packets\) \([ksp-ubuntu-1-cap-net-raw-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-1-cap-net-raw-block.yaml)\)
 
     ```text
     apiVersion: security.kubearmor.com/v1
@@ -232,4 +232,4 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Explanation: We want to block any network operations using raw sockets from the containers with the 'ubuntu-1' label, meaning that containers cannot send non-TCP/UDP packets \(e.g., ICMP echo request or reply\) to other containers. To achieve this, we use matchCapabilities and specify the 'CAP\_NET\_RAW' capability to block raw socket creations inside the containers. Here, since we use the stream and datagram sockets to TCP and UDP packets respectively, we can still send those packets to others.
 
-    * Verification: After applying this policy, please get into the container with the 'ubuntu-1' label and run 'curl www.kubearmor.com'. This will work fine. Then, please run 'ping 8.8.8.8'. You will see 'operation not permitted' since the 'ping' command internally requires a raw socket to send ICMP packets.
+    * Verification: After applying this policy, please get into the container with the 'ubuntu-1' label and run 'curl https://kubernetes.io/'. This will work fine. Then, run 'ping 8.8.8.8'. You will see 'operation not permitted' since the 'ping' command internally requires a raw socket to send ICMP packets.

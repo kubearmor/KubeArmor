@@ -14,19 +14,19 @@
      LSM - AppArmor
      ```
 
-     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/README.md). KubeArmor also requires either Docker or Containerd since it internally uses its APIs. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\). Otherwise, KubeArmor will work as Audit-Mode with no container behavior restriction.
+     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](self-managed-k8s/README.md). KubeArmor also requires either Docker or Containerd since it internally uses its APIs. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\). Otherwise, KubeArmor will work as Audit-Mode with no container behavior restriction.
 
       * Alternative Setup - MicroK8s
 
-        You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes. For this, please follow the instructions in [MicroK8s installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/microk8s/README.md).
+        You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes. For this, please follow the instructions in [MicroK8s installation guide](microk8s/README.md).
 
       * Alternative Setup - K3s
 
-        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes. For this, please follow the instructions in [K3s installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/k3s/README.md).
+        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes. For this, please follow the instructions in [K3s installation guide](k3s/README.md).
 
       * Notice - Minikube
 
-        KubeArmor does not support the policy enforcement on Minikube because MiniKube does not support LSMs, which means that you will only get the alerts against given policy violations. However, if you want to test KubeArmor, you can follow the instructions in [Minikube installation guide](https://github.com/kubearmor/KubeArmor/blob/master/contribution/minikube/README.md).
+        KubeArmor does not support the policy enforcement on Minikube because MiniKube does not support LSMs, which means that you will only get the alerts against given policy violations. However, if you want to test KubeArmor, you can follow the instructions in [Minikube installation guide](minikube/README.md).
 
       * Caution - Docker Desktops
 
@@ -41,7 +41,7 @@
      ~/KubeArmor/contribution/self-managed-k8s$ ./setup.sh
      ```
 
-     [setup.sh](https://github.com/kubearmor/KubeArmor/blob/master/contribution/self-managed-k8s/setup.sh) will automatically install BCC, Go, Protobuf, and some other dependencies.
+     [setup.sh](self-managed-k8s/setup.sh) will automatically install BCC, Go, Protobuf, and some other dependencies.
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
 
