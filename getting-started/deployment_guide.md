@@ -10,6 +10,7 @@ curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/inst
 ```
 karmor install
 ```
+This assumes you have your k8s cluster/env ready (check [prerequisites](#prerequisites)).
 <details>
   <summary>Output of karmor install</summary>
 
