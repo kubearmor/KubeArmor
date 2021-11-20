@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Generate KubeArmor artifacts
-        run: ./KubeArmor/build/build_kubearmor.sh
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
       - name: Run KubeArmor tests
         run: ./contribution/self-managed-k8s/setup.sh && ./tests/go-test-kubearmor-local.sh
