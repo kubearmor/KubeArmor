@@ -28,7 +28,7 @@ require (
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iovisor/gobpf v0.2.0
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-00010101000000-000000000000
-	github.com/kubearmor/libbpf v0.0.0-20211005190655-1bd63afd65f9
+	github.com/kubearmor/libbpf v0.0.0-20211101181736-814bc28b6835
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
