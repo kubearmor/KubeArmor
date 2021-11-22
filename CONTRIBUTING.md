@@ -1,7 +1,7 @@
 # How to Contribute to KubeArmor?
 
-1. Pick [issue](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc) to work on. For first-time contributors, best would be to pick issue [tagged good-first-issue](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22good+first+issue%22).
-2. If you feel adventurous and would like to take a challenging issue, we would love to have you contribute on issues [tagged help-wanted](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc+label%3A%22help+wanted%22).
+1. Pick [issue](https://github.com/issues?q=is%3Aopen+is%3Aissue+user%3Akubearmor+sort%3Aupdated-desc) to work on. For first-time contributors, best would be to pick issue [tagged good-first-issue](https://github.com/issues?q=is%3Aopen+is%3Aissue+user%3Akubearmor+label%3A%22good+first+issue%22+sort%3Aupdated-desc).
+2. If you feel adventurous and would like to take a challenging issue, we would love to have you contribute on issues [tagged help-wanted](https://github.com/issues?q=is%3Aopen+is%3Aissue+user%3Akubearmor+label%3A%22help+wanted%22+sort%3Aupdated-desc).
 3. There is a [Contribution Guide](contribution/contribution_guide.md) that explains how to create a fork and raise PR on GitHub.
 4. If the issue involves code changes you need to install development env using this [Development Guide](contribution/development_guide.md).
 
