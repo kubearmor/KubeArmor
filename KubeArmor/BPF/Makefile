@@ -27,6 +27,10 @@ all: bpfobj system_monitor_host.bpf.o system_monitor_host_and_container.bpf.o
 
 CLANG      = clang
 CLANGFLAGS = -g -O2 -c -target bpf -MMD -MP
+BPFTOOL    = /usr/sbin/bpftool
+BTFFILE    = /sys/kernel/btf/vmlinux
+VMLINUX    = $(CLANGINC)/vmlinux.h
+
 CURDIR     = $(shell pwd)
 CLANGINC   = $(CURDIR)/include
 BPFOBJDIR  = $(CURDIR)/objs
@@ -37,6 +41,11 @@ BPFS_D     = $(patsubst %.o, %.d, $(BPFS_O))
 
 .PHONY: bpfobj
 bpfobj: $(BPFS_O)
+
+$(BPFS_O): $(VMLINUX)
+
+$(VMLINUX):
+	$(BPFTOOL) btf dump file $(BTFFILE) format c > $(VMLINUX)
 
 -include $(BPFS_D)
 
