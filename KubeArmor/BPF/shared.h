@@ -5,7 +5,7 @@
 #define __SHARED_H
 
 #define TASK_COMM_LEN	 16
-#define MAX_FILENAME_LEN 256
-#define MAX_PATTERN_LEN	 256
+#define MAX_FILENAME_LEN 7
+#define MAX_PATTERN_LEN	 7
 
 #endif /* __SHARED_H */
