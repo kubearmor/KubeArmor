@@ -5,7 +5,7 @@ The list is sorted in ascending order.
 
 ## KubeArmor Maintainers
 
-* Asif Ali (Accuknox)
-* Jaehyun Nam (Accuknox)
-* Rahul Jadhav (Accuknox)
+* [Asif Ali](https://github.com/asifalix) (Accuknox)
+* [Jaehyun Nam](https://github.com/nam-jaehyun) (Accuknox)
+* [Rahul Jadhav](https://github.com/nyrahul) (Accuknox)
 
