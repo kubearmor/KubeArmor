@@ -28,8 +28,8 @@ RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee 
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk update
+RUN apk add bcc-tools
 RUN apk add bash curl procps 
-RUN apk add bcc bcc-dev --repository=http://dl-cdn.alpinelinux.org/alpine/v3.14/community
 RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/entrypoint.sh /KubeArmor/entrypoint.sh
