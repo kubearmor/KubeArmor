@@ -59,10 +59,10 @@ elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
     kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
 else
     # install a pod network (cilium)
-    # kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml
+    kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml
 
     # install a pod network (calico)
-    kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
+    # kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
 fi
 
 if [ ! -z $2 ] && [ "$2" == "master" ]; then
