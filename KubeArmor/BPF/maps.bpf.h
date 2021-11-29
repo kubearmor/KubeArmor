@@ -26,7 +26,7 @@ struct pattern_value {
 struct process_spec_key {
 	u32 pid_ns;
 	u32 mnt_ns;
-	u32 filename_hash;
+	u32 pattern_id;
 };
 
 struct process_spec_value {

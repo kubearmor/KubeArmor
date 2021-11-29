@@ -18,8 +18,8 @@ import (
 
 // KubeArmor Event Auditor Maps
 const (
-	KAEAFilenameMap     KABPFMapName     = "ka_ea_filename_map"
-	KAEAFilenameMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
+	KAEAProcessJMPMap     KABPFMapName     = "ka_ea_process_jmp_map"
+	KAEAProcessJMPMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
 
 	KAEAPatternMap     KABPFMapName     = "ka_ea_pattern_map"
 	KAEAPatternMapFile KABPFObjFileName = "ka_ea_process.bpf.o"
@@ -49,10 +49,10 @@ const (
 // KAEAGetMap Function
 func KAEAGetMap(name KABPFMapName) KABPFMap {
 	switch name {
-	case KAEAFilenameMap:
+	case KAEAProcessJMPMap:
 		return KABPFMap{
-			Name:     KAEAFilenameMap,
-			FileName: KAEAFilenameMapFile,
+			Name:     KAEAProcessJMPMap,
+			FileName: KAEAProcessJMPMapFile,
 		}
 	case KAEAPatternMap:
 		return KABPFMap{
@@ -103,55 +103,43 @@ func KAEAGetMap(name KABPFMapName) KABPFMap {
 }
 
 // =========================== //
-// ======= Filename Map ====== //
+// ===== Process JMP Map ===== //
 // =========================== //
 
-// FilenameElement Structure
-type FilenameElement struct {
-	Key   FilenameKey
-	Value FilenameValue
+// ProcessJMPMapElement Structure
+type ProcessJMPMapElement struct {
+	Key   uint32
+	Value uint32
 }
 
-// FilenameKey Structure
-type FilenameKey struct {
-	Hash uint32
+// SetKey Function (ProcessJMPMapElement)
+func (pme *ProcessJMPMapElement) SetKey(index uint32) {
+	pme.Key = index
 }
 
-// FilenameValue Structure
-type FilenameValue struct {
-	Inspect bool
+// SetValue Function (ProcessJMPMapElement)
+func (pme *ProcessJMPMapElement) SetValue(progFD uint32) {
+	pme.Value = progFD
 }
 
-// SetKey Function (FilenameElement)
-func (fe *FilenameElement) SetKey(hash uint32) {
-	fe.Key.Hash = hash
+// SetFoundValue Function (ProcessJMPMapElement)
+func (pme *ProcessJMPMapElement) SetFoundValue(value []byte) {
+	pme.Value = binary.LittleEndian.Uint32(value)
 }
 
-// SetValue Function (FilenameElement)
-func (fe *FilenameElement) SetValue(inspect bool) {
-	fe.Value.Inspect = inspect
+// KeyPointer Function (ProcessJMPMapElement)
+func (pme *ProcessJMPMapElement) KeyPointer() unsafe.Pointer {
+	return unsafe.Pointer(&pme.Key)
 }
 
-// SetFoundValue Function (FilenameElement)
-func (fe *FilenameElement) SetFoundValue(value []byte) {
-	fe.Value.Inspect = binary.LittleEndian.Uint32(value) != 0
+// ValuePointer Function (ProcessJMPMapElement)
+func (pme *ProcessJMPMapElement) ValuePointer() unsafe.Pointer {
+	return unsafe.Pointer(&pme.Value)
 }
 
-// KeyPointer Function (FilenameElement)
-func (fe *FilenameElement) KeyPointer() unsafe.Pointer {
-	// #nosec
-	return unsafe.Pointer(&fe.Key)
-}
-
-// ValuePointer Function (FilenameElement)
-func (fe *FilenameElement) ValuePointer() unsafe.Pointer {
-	// #nosec
-	return unsafe.Pointer(&fe.Value)
-}
-
-// MapName Function (FilenameElement)
-func (fe *FilenameElement) MapName() string {
-	return string(KAEAFilenameMap)
+// MapName Function (ProcessJMPMapElement)
+func (pme *ProcessJMPMapElement) MapName() string {
+	return string(KAEAProcessJMPMap)
 }
 
 // =========================== //

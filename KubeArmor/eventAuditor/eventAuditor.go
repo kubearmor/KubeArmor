@@ -101,7 +101,7 @@ type EventAuditor struct {
 	// == //
 
 	// filenames and process specs
-	Filenames    map[FilenameElement]bool
+	//Filenames    map[FilenameElement]bool
 	ProcessSpecs map[ProcessSpecElement]bool
 
 	// == //
@@ -147,8 +147,8 @@ func (ea *EventAuditor) SaveRuntimeInfo() error {
 	fileContent += "u64 __bpf_pseudo_fd(u64, u64) asm(\"llvm.bpf.pseudo\");\n"
 	fileContent += "#define __ka_ea_map(fd) __bpf_pseudo_fd(1, fd)\n\n"
 
-	fileContent += fmt.Sprintf("#define ka_ea_filename_map       %d\n",
-		ea.BPFManager.getMap(KAEAFilenameMap).FD())
+	fileContent += fmt.Sprintf("#define ka_ea_process_jmp_map    %d\n",
+		ea.BPFManager.getMap(KAEAProcessJMPMap).FD())
 
 	fileContent += fmt.Sprintf("#define ka_ea_pattern_map        %d\n",
 		ea.BPFManager.getMap(KAEAPatternMap).FD())
@@ -229,7 +229,7 @@ func NewEventAuditor(feeder *fd.Feeder, containers *map[string]tp.Container, con
 	// == //
 
 	// initialize maps for filenames and process specs
-	ea.Filenames = map[FilenameElement]bool{}
+	//ea.Filenames = map[FilenameElement]bool{}
 	ea.ProcessSpecs = map[ProcessSpecElement]bool{}
 
 	if err := ea.InitializeProcessMaps(ea.BPFManager); err != nil {
@@ -240,6 +240,11 @@ func NewEventAuditor(feeder *fd.Feeder, containers *map[string]tp.Container, con
 	if err := ea.InitializeProcessPrograms(ea.BPFManager); err != nil {
 		ea.Logger.Errf("Failed to initialize process programs: %v", err)
 		goto fail1
+	}
+
+	if err := ea.PopulateProcessJMPMap(ea.BPFManager); err != nil {
+		ea.Logger.Errf("Failed to populate process jmp map: %v", err)
+		return nil
 	}
 
 	// == //
