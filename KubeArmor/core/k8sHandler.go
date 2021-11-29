@@ -255,7 +255,7 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled",`
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
@@ -288,7 +288,7 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentNam
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled"}},"spec":{"containers":[`
 	count := len(seLinuxContexts)
 
 	for _, v := range seLinuxContexts {
