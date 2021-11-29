@@ -1,12 +1,6 @@
 name: ci-test
 
 on:
-  push:
-    branches: [main]
-    paths: 
-    - 'KubeArmor/**'
-    - 'tests/**'
-    - 'protobuf/**'
   pull_request:
     branches: [main]
     paths: 
