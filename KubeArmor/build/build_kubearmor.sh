@@ -3,6 +3,7 @@
 # Copyright 2021 Authors of KubeArmor
 
 [[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
+
 realpath() {
     CURR=$PWD
 

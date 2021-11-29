@@ -4,6 +4,7 @@
 
 [[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
 unset PUSH_ALL_TAGS
+
 # check version
 if [ ! -z $1 ]; then
     VERSION=":$1"
