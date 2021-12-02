@@ -6,10 +6,10 @@
 4. If the issue involves code changes you need to install development env using this [Development Guide](contribution/development_guide.md).
 
 Last but not the least, contributions are not necessarily in the form of code changes. Kubearmor community can benefit for contributions such as:
-1. [Policy-Templates](https://github.com/kubearmor/policy-templates): Users are welcome to contribute policy-templates for their workloads. The worloads have to be generic enough such that it benefits the wider community. For e.g., if someone brings up a system policy restricting access of nginx process that would be useful in multiple scenarios and for wider community then coming up with a policy-template that is specific to your proprietary application.
+1. [Policy-Templates](https://github.com/kubearmor/policy-templates): Users are welcome to contribute policy-templates for their workloads. The workloads have to be generic enough such that it benefits the wider community. For e.g., if someone brings up a system policy restricting access of nginx process that would be useful in multiple scenarios and for wider community then coming up with a policy-template that is specific to your proprietary application.
 2. Blogs
    a. explaining feature use (KVMService, Event Auditor, Visibility etc)
    b. How to use Kubearmor to protect your workload? Specific use-cases you may have. Please do not shy away from getting as technical as you can.
    c. ... put your topic of interest here ...
-3. Feedback to the community. Just helping advance any discussion on kubearmor slack, community meetings, office hours will make a big difference.
+3. Feedback to the community. Just helping advance any discussion on KubeArmor Slack, Community meetings, office hours will make a big difference.
 4. Talking about Kubearmor in meetups. We would certainly encourage users or devs of kubearmor to talk about it in open/closed forums. Community can help with logistics such as compiling/feedback on slide-decks, technical diagrams etc.
