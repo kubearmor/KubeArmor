@@ -5,9 +5,12 @@ package kvmagent
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"time"
@@ -17,6 +20,7 @@ import (
 
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -24,6 +28,7 @@ import (
 type KVMAgent struct {
 	Identity         string
 	gRPCServer       string
+	caCert           []byte
 	gRPCConnection   *grpc.ClientConn
 	gRPCClient       pb.KVMClient
 	UpdateHostPolicy func(tp.K8sKubeArmorHostPolicyEvent)
@@ -42,7 +47,8 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 	kvm := &KVMAgent{}
 
 	// Get identity
-	kvm.Identity = os.Getenv("WORKLOAD_IDENTITY")
+	kvm.Identity = os.Getenv("VM_IDENTITY")
+	kvm.caCert, _ = ioutil.ReadFile(os.Getenv("CA_CERT_FILE_PATH"))
 
 	// Get the address of gRPC server
 	gRPCServer, err := getgRPCAddress()
@@ -53,9 +59,21 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 
 	kvm.gRPCServer = gRPCServer
 
+	cp := x509.NewCertPool()
+	if !cp.AppendCertsFromPEM(kvm.caCert) {
+		kg.Err("credentials: failed to append certificates")
+		return nil
+	}
+
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: false,
+		RootCAs:            cp,
+		ServerName:         "0.0.0.0",
+	}
+
 	// Connect to gRPC server
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
+	gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)), grpc.WithBlock())
 	if err != nil {
 		kg.Warn(err.Error())
 		return nil
