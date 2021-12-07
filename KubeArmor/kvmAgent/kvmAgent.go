@@ -69,6 +69,7 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 		InsecureSkipVerify: false,
 		RootCAs:            cp,
 		ServerName:         "0.0.0.0",
+		MinVersion:         tls.VersionTLS12,
 	}
 
 	// Connect to gRPC server
