@@ -1,10 +1,10 @@
-name: Test image before pushing
+name: Test KubeArmor image before pushing
 on:
   push:
   pull_request:
     # Sequence of patterns matched against refs/tags
     branches:
-      - 'github-actions'
+      - 'main'
 
 env: 
   TEST_TAG: kubearmor/kubearmor:test
@@ -65,19 +65,6 @@ jobs:
           kubectl apply -f KubeArmor/build/kubearmor-test-docker.yaml
           ./tests/test-scenarios-in-runtime.sh ${{ env.TEST_TAG}}
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
-        
-      - name: Build and export to Docker
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          load: true
-          tags: ${{ env.TEST_TAG }}
-        
       - name: Archive log artifacts
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
@@ -87,10 +74,12 @@ jobs:
             /tmp/kubearmor.test
             /tmp/kubearmor.log
             /tmp/kubearmor.msg
-                    
-      - name: Build and push
-        uses: docker/build-push-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
         with:
-          context: .
-          push: true
-          tags: kubearmor/kubearmor:latest
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Push KubeArmor images to Docker
+        run: ./KubeArmor/build/push_kubearmor.sh latest
