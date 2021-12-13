@@ -64,13 +64,6 @@ spec:
         name: kubearmor-relay-server
         ports:
         - containerPort: 32767
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 250m
-            memory: 64Mi
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: kubearmor
@@ -112,13 +105,7 @@ spec:
         name: kubearmor
         ports:
         - containerPort: 32767
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 250m
-            memory: 64Mi
+        resources: {}
         securityContext:
           privileged: true
         terminationMessagePath: /dev/termination-log

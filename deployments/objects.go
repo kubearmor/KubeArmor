@@ -117,16 +117,6 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 									ContainerPort: 32767,
 								},
 							},
-							Resources: corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-								},
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("250m"),
-									corev1.ResourceMemory: resource.MustParse("64Mi"),
-								},
-							},
 						},
 					},
 				},
@@ -507,16 +497,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							},
 							TerminationMessagePolicy: "File",
 							TerminationMessagePath:   "/dev/termination-log",
-							Resources: corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-								},
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("250m"),
-									corev1.ResourceMemory: resource.MustParse("64Mi"),
-								},
-							},
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
