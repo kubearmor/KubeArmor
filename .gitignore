@@ -5,5 +5,9 @@ kubearmor
 .vscode
 
 # vagrant
-contribution/vagrant/.vagrant
+.vagrant
 contribution/vagrant/ubuntu-*-console.log
+
+# Packages
+*.deb
+*.rpm

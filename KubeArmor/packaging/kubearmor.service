@@ -1,0 +1,13 @@
+[Unit]
+Description=KubeArmor
+
+[Service]
+User=root
+KillMode=process
+EnvironmentFile=/opt/kubearmor/kubearmor.conf
+WorkingDirectory=/opt/kubearmor/
+ExecStart=/usr/local/bin/kubearmor -logPath=${LOG_PATH} -enableKubeArmorHostPolicy=${ENABLE_HOST_POLICY} -enableKubeArmorVm=${ENABLE_KVM} -gRPC=${GRPC}
+
+[Install]
+WantedBy=multi-user.target
+

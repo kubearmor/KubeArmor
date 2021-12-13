@@ -89,6 +89,29 @@ ifeq (, $(shell which gosec))
 endif
 	cd $(CURDIR); gosec ./...
 
+.PHONY: systemd-deb
+systemd-deb: build
+ifeq (, $(shell which nfpm))
+	@{ \
+	set -e ;\
+	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+	}
+endif
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) nfpm pkg --packager deb
+
+.PHONY: systemd-rpm
+systemd-rpm: build
+ifeq (, $(shell which nfpm))
+	@{ \
+	set -e ;\
+	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+	}
+endif
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) nfpm pkg --packager rpm
+
+.PHONY: systemd
+systemd: systemd-deb systemd-rpm
+
 .PHONY: clean
 clean:
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log

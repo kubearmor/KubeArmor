@@ -1,0 +1,44 @@
+name: goreleaser
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Build bcc
+        run: |
+          set -x
+          sudo apt-get update
+          sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev
+          pushd /tmp
+          git clone https://github.com/iovisor/bcc.git
+          mkdir -p bcc/build; cd bcc/build
+          sudo ln -s /usr/lib/llvm-9 /usr/local/llvm
+          cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr
+          make -j$(nproc)
+          sudo make install
+          popd
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+          workdir: KubeArmor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

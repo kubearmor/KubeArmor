@@ -1,0 +1,33 @@
+name: "kubearmor"
+arch: "${ARCH}"
+platform: "linux"
+version: "${VERSION}"
+section: "default"
+priority: "extra"
+replaces:
+  - kubearmor
+provides:
+  - kubearmor
+maintainer: "Barun Acharya <barun.acharya@accuknox.com>"
+description: |
+  Cloud-native Runtime Security Enforcement System
+vendor: "kubearmor"
+homepage: "https://kubearmor.com"
+license: "Apache 2"
+contents:
+  - src: ./kubearmor
+    dst: /usr/local/bin/kubearmor
+  - dst: /opt/kubearmor
+    type: dir
+  - src: ./packaging/kubearmor.conf
+    dst: /opt/kubearmor/kubearmor.conf
+    type: config
+  - src: ./packaging/kubearmor.service
+    dst: /usr/lib/systemd/system/kubearmor.service
+    type: config
+  - src: ./BPF/*
+    dst: /opt/kubearmor/BPF/
+  - src: ./templates/*
+    dst: /opt/kubearmor/templates/
+scripts:
+  postinstall: packaging/postinstall.sh
