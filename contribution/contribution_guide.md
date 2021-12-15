@@ -1,6 +1,8 @@
 # Contribution Guide
 
-KubeArmor maintainers welcome individuals and organizations from across the Cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements of documentation that helps us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project! 
+KubeArmor maintainers welcome individuals and organizations from across the Cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements of documentation that helps us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project!
+
+To make a contribution, please follow the steps below.
 
 
 1. Fork this repository \(KubeArmor\)
@@ -25,7 +27,7 @@ KubeArmor maintainers welcome individuals and organizations from across the Clou
     $ git clone https://github.com/[your GitHub ID]/KubeArmor
    ```
 
-   This will clone a copy of Kubearmor installed in your dev environment. 
+   This will clone a copy of Kubearmor installed in your dev environment.
 
 3. Make changes
 
@@ -95,11 +97,11 @@ KubeArmor maintainers welcome individuals and organizations from across the Clou
    To ensure that contributors are only submitting work that they have rights to, we are requiring everyone to acknowledge this by signing their work. Any copyright notices in this repos should specify the authors as "The KubeArmor authors".
 
    To sign your work, just add a line like this at the end of your commit message:
-   
+
    ```
    Signed-off-by: FirstName LastName <email@address.com>
    ```
-   
+
    This can easily be done with the `--signoff` option to `git commit`.
-   
+
    By doing this you state that you can certify the following (from https://developercertificate.org/):
