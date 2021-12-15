@@ -1,6 +1,7 @@
 # Contribution Guide
 
-If you want to make a contribution, please follow the steps below.
+KubeArmor maintainers welcome individuals and organizations from across the Cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements of documentation that helps us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project! 
+
 
 1. Fork this repository \(KubeArmor\)
 
