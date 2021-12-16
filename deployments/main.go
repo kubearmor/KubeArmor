@@ -10,6 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/clarketm/json"
+
 	"sigs.k8s.io/yaml"
 
 	hsp "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/crd"
@@ -54,7 +56,12 @@ func main() {
 
 func writeToYAML(f *os.File, o interface{}) error {
 
-	object, err := yaml.Marshal(o)
+	// Use "clarketm/json" to marshal so as to support zero values of structs with omitempty
+	j, err := json.Marshal(o)
+	if err != nil {
+		log.Fatal(err)
+	}
+	object, err := yaml.JSONToYAML(j)
 	if err != nil {
 		return err
 	}

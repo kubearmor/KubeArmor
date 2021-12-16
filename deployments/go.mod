@@ -3,6 +3,7 @@ module github.com/kubearmor/KubeArmor/deployment
 go 1.17
 
 require (
+	github.com/clarketm/json v1.17.1
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-20211109163321-a7298b7cfe3f
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-20211109163321-a7298b7cfe3f
 	k8s.io/api v0.22.3

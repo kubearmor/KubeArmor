@@ -4,6 +4,8 @@
 package main
 
 import (
+	"strconv"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -65,8 +67,9 @@ func GetRelayService(namespace string) *corev1.Service {
 			Selector: relayDeploymentLabels,
 			Ports: []corev1.ServicePort{
 				{
-					Port:     32767,
-					Protocol: "TCP",
+					Port:       port,
+					TargetPort: intstr.FromInt(int(port)),
+					Protocol:   "TCP",
 				},
 			},
 		},
@@ -114,7 +117,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 							//imagePullPolicy is Always since image has latest tag
 							Ports: []corev1.ContainerPort{
 								{
-									ContainerPort: 32767,
+									ContainerPort: port,
 								},
 							},
 						},
@@ -350,7 +353,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var privileged = bool(true)
 	var terminationGracePeriodSeconds = int64(30)
 	var args = []string{
-		"-gRPC=32767",
+		"-gRPC=" + strconv.Itoa(int(port)),
 		"-logPath=/tmp/kubearmor.log",
 	}
 	var volumeMounts = []corev1.VolumeMount{
@@ -478,7 +481,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Args: args,
 							Ports: []corev1.ContainerPort{
 								{
-									ContainerPort: 32767,
+									ContainerPort: port,
 								},
 							},
 							VolumeMounts: volumeMounts,
