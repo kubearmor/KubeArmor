@@ -15,10 +15,13 @@ vendor: "kubearmor"
 homepage: "https://kubearmor.com"
 license: "Apache 2"
 contents:
-  - src: ./kubearmor
-    dst: /usr/local/bin/kubearmor
   - dst: /opt/kubearmor
     type: dir
+  - src: ./kubearmor
+    dst: /opt/kubearmor/kubearmor
+  - src: /opt/kubearmor/kubearmor
+    dst: /usr/local/bin/kubearmor
+    type: symlink
   - src: ./packaging/kubearmor.conf
     dst: /opt/kubearmor/kubearmor.conf
     type: config

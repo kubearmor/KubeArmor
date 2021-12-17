@@ -24,6 +24,7 @@ nfpms:
     homepage: "https://kubearmor.com"
     license: "Apache 2"
     file_name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
+    bindir: /opt/kubearmor
     contents:
       - dst: /opt/kubearmor
         type: dir
@@ -33,6 +34,9 @@ nfpms:
       - src: ./packaging/kubearmor.service
         dst: /usr/lib/systemd/system/kubearmor.service
         type: config
+      - src: /opt/kubearmor/kubearmor
+        dst: /usr/local/bin/kubearmor
+        type: symlink
       - src: ./BPF/*
         dst: /opt/kubearmor/BPF/
       - src: ./templates/*
