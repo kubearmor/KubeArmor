@@ -13,6 +13,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent => ./kvmAgent
 	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
 	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor
+	github.com/kubearmor/KubeArmor/KubeArmor/policy => ./policy
 	github.com/kubearmor/KubeArmor/KubeArmor/types => ./types
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 )
@@ -27,7 +28,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iovisor/gobpf v0.2.0
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20211217093440-d99a1cb5f908
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
