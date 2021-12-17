@@ -37,6 +37,8 @@ nfpms:
       - src: /opt/kubearmor/kubearmor
         dst: /usr/local/bin/kubearmor
         type: symlink
+      - src: ./karmor
+        dst: /usr/local/bin/karmor
       - src: ./BPF/*
         dst: /opt/kubearmor/BPF/
       - src: ./templates/*
