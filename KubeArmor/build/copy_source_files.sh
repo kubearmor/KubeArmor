@@ -32,6 +32,7 @@ cp -r $ARMOR_HOME/feeder/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/kvmAgent/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/log/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/monitor/ $ARMOR_HOME/build/KubeArmor/
+cp -r $ARMOR_HOME/policy/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/templates/ $ARMOR_HOME/build/KubeArmor/
 cp -r $ARMOR_HOME/types/ $ARMOR_HOME/build/KubeArmor/
 cp $ARMOR_HOME/go.mod $ARMOR_HOME/build/KubeArmor/
