@@ -13,10 +13,14 @@ import (
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"google.golang.org/grpc/reflection"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+
 	kvm "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 )
@@ -377,6 +381,8 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
 		dm.EnableKubeArmorPolicy = false
+		enableKubeArmorHostPolicy = true
+		dm.EnableKubeArmorHostPolicy = true
 
 		dm.Node.EnableKubeArmorPolicy = false
 		dm.Node.EnableKubeArmorHostPolicy = enableKubeArmorHostPolicy
@@ -398,10 +404,6 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		return
 	}
 	dm.Logger.Print("Initialized KubeArmor Logger")
-
-	// serve log feeds
-	go dm.ServeLogFeeds()
-	dm.Logger.Print("Started to serve gRPC-based log feeds")
 
 	// == //
 
@@ -526,6 +528,18 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		go dm.WatchHostSecurityPolicies()
 		dm.Logger.Print("Started to monitor host security policies")
 	}
+
+	if !dm.K8sEnabled && dm.EnableKubeArmorHostPolicy {
+		dm.Logger.Print("Monitoring host security policies on GRPC")
+		policyService := &policy.ServiceServer{}
+		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
+		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+	}
+
+	// serve log feeds
+	reflection.Register(dm.Logger.LogServer)
+	go dm.ServeLogFeeds()
+	dm.Logger.Print("Started to serve gRPC-based log feeds")
 
 	// == //
 

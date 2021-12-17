@@ -495,7 +495,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// == Visibility == //
 
 				if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
-					pod.Annotations["kubearmor-visibility"] = "none"
+					pod.Annotations["kubearmor-visibility"] = "process,file,network,capabilities"
 				}
 
 				if event.Type == "ADDED" || event.Type == "MODIFIED" {
@@ -1629,8 +1629,10 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 
 	if event.Type == "ADDED" {
 		new := true
-		for _, policy := range dm.HostSecurityPolicies {
+		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				dm.HostSecurityPolicies[idx] = secPolicy
+				event.Type = "MODIFIED"
 				new = false
 				break
 			}

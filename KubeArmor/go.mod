@@ -13,6 +13,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent => ./kvmAgent
 	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
 	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor
+	github.com/kubearmor/KubeArmor/KubeArmor/policy => ./policy
 	github.com/kubearmor/KubeArmor/KubeArmor/types => ./types
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 )
@@ -27,15 +28,14 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/iovisor/gobpf v0.2.0
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20211217093440-d99a1cb5f908
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d
 	go.uber.org/zap v1.18.1
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985 // indirect
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
-	golang.org/x/tools v0.1.5 // indirect
+	golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
+	golang.org/x/tools v0.1.7 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/genproto v0.0.0-20210108203827-ffc7fda8c3d7 // indirect
 	google.golang.org/grpc v1.34.0

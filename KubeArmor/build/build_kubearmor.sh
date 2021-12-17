@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
+[[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
+
 realpath() {
     CURR=$PWD
 
@@ -32,7 +34,7 @@ fi
 # remove old images
 docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 
-echo "[INFO] Removed existing kubearmor/kubearmor images"
+echo "[INFO] Removed existing $REPO images"
 
 # remove old files (just in case)
 $ARMOR_HOME/build/clean_source_files.sh
@@ -45,15 +47,16 @@ $ARMOR_HOME/build/copy_source_files.sh
 echo "[INFO] Copied new source files"
 
 # build a new image
-echo "[INFO] Building kubearmor/kubearmor:$VERSION"
-docker build -t kubearmor/kubearmor:$VERSION  . -f $ARMOR_HOME/build/Dockerfile.kubearmor
+DTAG="-t $REPO:$VERSION"
+[[ "$GITHUB_SHA" != "" ]] && DTAG="$DTAG -t $REPO:$GITHUB_SHA"
+echo "[INFO] Building $DTAG"
+docker build $DTAG . -f $ARMOR_HOME/build/Dockerfile.kubearmor
 
 if [ $? != 0 ]; then
-    echo "[FAILED] Failed to build kubearmor/kubearmor:$VERSION"
+    echo "[FAILED] Failed to build $REPO:$VERSION"
     exit 1
-else
-    echo "[PASSED] Built kubearmor/kubearmor:$VERSION"
 fi
+echo "[PASSED] Built $REPO:$VERSION"
 
 # remove copied files
 $ARMOR_HOME/build/clean_source_files.sh

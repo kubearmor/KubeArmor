@@ -1,5 +1,7 @@
 # Deployment Guide
 
+If you do not already have a k8s cluster, check [the pre-requisites](#prerequisites) to setup one.
+
 ## Deployment Steps
 ### 1. Download and install karmor cli-tool
 ```
@@ -10,6 +12,7 @@ curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/inst
 ```
 karmor install
 ```
+This assumes you have your k8s cluster/env ready (check [prerequisites](#prerequisites)).
 <details>
   <summary>Output of karmor install</summary>
 
@@ -69,5 +72,6 @@ karmor log
 5. Local k8s engines (microk8s, k3s, minikube)
 
 ## Prerequisites
-1. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
-2. [Minikube](../contribution/minikube#minikube-installation)
+1. [k3s](../deployments/k3s)
+2. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
+3. [Minikube](../contribution/minikube#minikube-installation)
