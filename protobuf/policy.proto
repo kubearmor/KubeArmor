@@ -1,0 +1,17 @@
+syntax = "proto3";
+ 
+package policy;
+
+option go_package="github.com/kubearmor/KubeArmor/protobuf";
+
+message response {
+    int32 status = 1;
+}
+
+message policy {
+    bytes policy = 1;
+}
+
+service PolicyService {
+    rpc hostPolicy (policy) returns (response);
+}
