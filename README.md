@@ -48,7 +48,7 @@ KubeArmor aims to protect containers themselves rather than interactions among c
 
 Please take a look at the following documents.
 
-1. [Deployment Guide](getting-started/deployment_guide.md)
+1. [Getting Started](getting-started/deployment_guide.md)
 2. [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
 3. [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
 4. [Security Policy Specification for Nodes](getting-started/host_security_policy_specification.md)
