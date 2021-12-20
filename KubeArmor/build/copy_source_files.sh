@@ -24,22 +24,10 @@ ARMOR_HOME=`dirname $(realpath "$0")`/..
 mkdir -p $ARMOR_HOME/build/KubeArmor
 
 # copy files to build
-cp -r $ARMOR_HOME/BPF/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/common/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/core/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/enforcer/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/feeder/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/kvmAgent/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/log/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/monitor/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/policy/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/templates/ $ARMOR_HOME/build/KubeArmor/
-cp -r $ARMOR_HOME/types/ $ARMOR_HOME/build/KubeArmor/
-cp $ARMOR_HOME/go.mod $ARMOR_HOME/build/KubeArmor/
-cp $ARMOR_HOME/main.go $ARMOR_HOME/build/KubeArmor/
+rsync -av $ARMOR_HOME $ARMOR_HOME/build/KubeArmor --exclude build
 
 # copy patch.sh
-cp $ARMOR_HOME/build/patch.sh $ARMOR_HOME/build/KubeArmor/
+#cp $ARMOR_HOME/build/patch.sh $ARMOR_HOME/build/KubeArmor/
 cp $ARMOR_HOME/build/patch_selinux.sh $ARMOR_HOME/build/KubeArmor/
 
 # copy entrypoint.sh

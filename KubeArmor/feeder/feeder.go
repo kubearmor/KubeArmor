@@ -138,12 +138,13 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		msgStructs := ls.getMsgStructs()
 		for _, mgs := range msgStructs {
 			if err = mgs.Client.Send(&msg); err != nil {
-				kg.Warn("Failed to send a message")
+				kg.Warnf("Failed to send a message=[%+v] err=[%s]", msg, err.Error())
 				break
 			}
 		}
 
 		if err != nil {
+			kg.Warn("exiting WatchMessages")
 			break
 		}
 	}
@@ -200,12 +201,13 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 		alertStructs := ls.getAlertStructs()
 		for _, als := range alertStructs {
 			if err = als.Client.Send(&alert); err != nil {
-				kg.Warn("Failed to send an alert")
+				kg.Warnf("Failed to send an alert=[%+v] err=[%s]", alert, err.Error())
 				break
 			}
 		}
 
 		if err != nil {
+			kg.Warn("exiting WatchAlerts")
 			break
 		}
 	}
@@ -262,12 +264,13 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 		logStructs := ls.getLogStructs()
 		for _, lgs := range logStructs {
 			if err = lgs.Client.Send(&log); err != nil {
-				kg.Warn("Failed to send a log")
+				kg.Warnf("Failed to send a log=[%+v] err=[%s]", log, err.Error())
 				break
 			}
 		}
 
 		if err != nil {
+			kg.Warn("exiting the WatchLogs")
 			break
 		}
 	}

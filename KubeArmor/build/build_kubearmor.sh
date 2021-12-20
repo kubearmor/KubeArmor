@@ -48,9 +48,10 @@ echo "[INFO] Copied new source files"
 
 # build a new image
 DTAG="-t $REPO:$VERSION"
-[[ "$GITHUB_SHA" != "" ]] && DTAG="$DTAG -t $REPO:$GITHUB_SHA"
+unset LABEL
+[[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
 echo "[INFO] Building $DTAG"
-docker build $DTAG . -f $ARMOR_HOME/build/Dockerfile.kubearmor
+docker build $DTAG . -f $ARMOR_HOME/build/Dockerfile.kubearmor $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"

@@ -13,10 +13,14 @@ DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 .PHONY: build
-build:
+build: protobuf
 	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); go build -o kubearmor main.go
+
+.PHONY: protobuf
+protobuf:
+	cd $(CURDIR); make -C ../protobuf
 
 .PHONY: build-test
 build-test:
