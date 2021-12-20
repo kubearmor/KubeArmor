@@ -12,3 +12,6 @@ contribution/vagrant/ubuntu-*-console.log
 # Packages
 *.deb
 *.rpm
+
+# protobuf
+protobuf/go.sum
