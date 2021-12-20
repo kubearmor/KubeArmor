@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM centos:7 as builder
+FROM centos:8 as builder
 
 RUN yum -y install git curl wget gcc bcc bcc-devel
 
@@ -30,7 +30,7 @@ RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
 
 ### Make executable image
 
-FROM centos:7
+FROM centos:8
 
 RUN yum install -y bash curl bcc bcc-devel
 RUN yum install -y policycoreutils policycoreutils-python setools setools-console setroubleshoot
