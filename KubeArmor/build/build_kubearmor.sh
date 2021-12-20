@@ -23,6 +23,7 @@ realpath() {
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 cd $ARMOR_HOME/build
+pwd
 
 VERSION=latest
 
