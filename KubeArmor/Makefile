@@ -120,7 +120,6 @@ systemd: systemd-deb systemd-rpm
 clean:
 	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
 	cd $(CURDIR); find . -name .coverprofile | xargs -I {} rm {}
-	$(CURDIR)/build/clean_source_files.sh
 
 .PHONY: vagrant-check
 vagrant-check:

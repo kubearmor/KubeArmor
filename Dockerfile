@@ -15,7 +15,6 @@ COPY . .
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
 RUN go install github.com/golang/protobuf/protoc-gen-go@latest
-
 RUN make
 
 ### Make executable image
@@ -28,10 +27,10 @@ RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /
 
 RUN apk update
 RUN apk add bcc-tools
-RUN apk add bash curl procps 
+RUN apk add bash curl procps
 RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
-COPY --from=builder /usr/src/KubeArmor/KubeArmor/entrypoint.sh /KubeArmor/entrypoint.sh
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/build/entrypoint.sh /KubeArmor/entrypoint.sh
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/

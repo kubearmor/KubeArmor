@@ -222,7 +222,7 @@ Now, we will briefly explain how to define a host security policy.
 
 * Capabilities
 
-  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](../reference/supported_capability_list.md).
+  In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md).
 
   ```text
     capabilities:

@@ -1,4 +1,4 @@
-# Deployment Guide
+# Getting Started Guide
 
 If you do not already have a k8s cluster, check [the pre-requisites](#prerequisites) to setup one.
 
