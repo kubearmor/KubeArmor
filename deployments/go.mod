@@ -1,4 +1,4 @@
-module github.com/kubearmor/KubeArmor/deployment
+module github.com/kubearmor/KubeArmor/deployments
 
 go 1.17
 
