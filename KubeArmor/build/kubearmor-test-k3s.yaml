@@ -17,6 +17,7 @@ subjects:
   name: kubearmor
   namespace: kube-system
 ---
+
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -50,17 +51,15 @@ spec:
         imagePullPolicy: Never
         securityContext:
           privileged: true
-
         args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableKubeArmorHostPolicy"]
         ports:
         - containerPort: 32767
         volumeMounts:
-        - name: docker-sock-path # docker (read-only)
-          mountPath: /var/run/docker.sock
+        - name: containerd-sock-path # containerd (read-only)
+          mountPath: /var/run/containerd/containerd.sock
           readOnly: true
-        - name: docker-storage-path # docker storage (read-only)
-          mountPath: /var/lib/docker
-          readOnly: true
+        - name: containerd-storage-path # containerd storage (read-only)
+          mountPath: /run/containerd
         - name: usr-src-path # BPF (read-only)
           mountPath: /usr/src
           readOnly: true
@@ -91,14 +90,14 @@ spec:
         terminationMessagePath: /dev/termination-log
       terminationGracePeriodSeconds: 30
       volumes:
-      - name: docker-sock-path # docker
+      - name: containerd-sock-path # containerd
         hostPath:
-          path: /var/run/docker.sock
+          path: /run/k3s/containerd/containerd.sock
           type: Socket
-      - name: docker-storage-path # docker
+      - name: containerd-storage-path # containerd
         hostPath:
-          path: /var/lib/docker
-          type: Directory
+          path: /run/k3s/containerd
+          type: DirectoryOrCreate
       - name: usr-src-path # BPF
         hostPath:
           path: /usr/src
@@ -1056,3 +1055,4 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
+
