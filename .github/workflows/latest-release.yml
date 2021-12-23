@@ -1,12 +1,13 @@
-name: Test KubeArmor image before pushing
 on:
   push:
     # Sequence of patterns matched against refs/tags
     branches:
       - 'main'
 
+name: Latest version release after testing KubeArmor image
+
 env: 
-  TEST_TAG: kubearmor/kubearmor:test
+  TEST_TAG: kubearmor/kubearmor:latest
 
 jobs:
   build:
@@ -45,7 +46,7 @@ jobs:
 
       - name: Run KubeArmor tests
         run: |
-          ./tests/test-scenarios-in-runtime.sh ${{ env.TEST_TAG}}
+          ./tests/test-scenarios-github.sh
 
       - name: Archive log artifacts
         if: ${{ failure() }}
