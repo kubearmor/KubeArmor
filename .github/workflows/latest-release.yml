@@ -6,9 +6,6 @@ on:
 
 name: Latest version release after testing KubeArmor image
 
-env: 
-  TEST_TAG: kubearmor/kubearmor:latest
-
 jobs:
   build:
     name: Create KubeArmor Release - 18.04
@@ -18,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Generate KubeArmor artifacts
-        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh test
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
       - name: Setup Enviroment
         run: |        
@@ -65,4 +62,4 @@ jobs:
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
       - name: Push KubeArmor images to Docker
-        run: ./KubeArmor/build/push_kubearmor.sh latest
+        run: ./KubeArmor/build/push_kubearmor.sh
