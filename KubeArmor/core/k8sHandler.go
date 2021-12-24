@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -24,6 +23,7 @@ import (
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/spf13/pflag"
 )
 
 // ================= //
@@ -110,11 +110,11 @@ func (kh *K8sHandler) InitK8sClient() bool {
 func (kh *K8sHandler) InitLocalAPIClient() bool {
 	var kubeconfig *string
 	if home := os.Getenv("HOME"); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig = pflag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+		kubeconfig = pflag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
-	flag.Parse()
+	pflag.Parse()
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
