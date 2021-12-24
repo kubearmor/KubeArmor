@@ -29,7 +29,7 @@ const CFG_KUBEARMORPOLICY string = "enableKubeArmorPolicy"
 const CFG_KUBEARMORHOSTPOLICY string = "enableKubeArmorHostPolicy"
 const CFG_KUBEARMORVM string = "enableKubeArmorVm"
 
-func LoadConfig() {
+func LoadConfig() error {
 	// Set defaults
 	viper.SetDefault(CFG_CLUSTER, "default")
 	viper.SetDefault(CFG_GRPC, "32767")
@@ -52,8 +52,7 @@ func LoadConfig() {
 		viper.SetConfigFile(cfgfile)
 		err := viper.ReadInConfig()
 		if err != nil {
-			kg.Errf("error config file [%s]", cfgfile)
-			os.Exit(1)
+			return err
 		}
 	}
 
@@ -66,7 +65,10 @@ func LoadConfig() {
 	pflag.Bool(CFG_KUBEARMORVM, false, "enabling KubeArmorVM")
 
 	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
+	err := viper.BindPFlags(pflag.CommandLine)
+	if err != nil {
+		return err
+	}
 
 	GlobalCfg.Grpc = viper.GetString(CFG_GRPC)
 	GlobalCfg.Cluster = viper.GetString(CFG_CLUSTER)
@@ -80,4 +82,5 @@ func LoadConfig() {
 	}
 
 	kg.Printf("config [%+v]", GlobalCfg)
+	return nil
 }

@@ -5,7 +5,6 @@ package core
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"sort"
@@ -69,7 +68,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	hostName := kl.GetHostName()
 
 	for {
-		fmt.Println("watching k8s nodes")
 		if resp := K8s.WatchK8sNodes(); resp != nil {
 			defer resp.Body.Close()
 

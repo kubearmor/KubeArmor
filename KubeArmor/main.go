@@ -31,7 +31,11 @@ func main() {
 		return
 	}
 
-	cfg.LoadConfig()
+	err = cfg.LoadConfig()
+	if err != nil {
+		kg.Err(err.Error())
+		return
+	}
 
 	core.KubeArmor()
 
