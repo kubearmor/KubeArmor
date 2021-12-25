@@ -367,7 +367,8 @@ func KubeArmor() {
 		dm.Node.Annotations = map[string]string{}
 
 		// update annotations
-		dm.Node.Annotations["kubearmor-visibility"] = "process,network,file,capabilities"
+		kg.Printf("using host visibility [%s]", cfg.GlobalCfg.HostVisibility)
+		dm.Node.Annotations["kubearmor-visibility"] = cfg.GlobalCfg.HostVisibility
 		HandleNodeAnnotations(&dm.Node)
 
 		kg.Print("Detected no Kubernetes")
