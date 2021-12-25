@@ -6,8 +6,9 @@ package config
 import (
 	"os"
 
+	"flag"
+
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -28,6 +29,46 @@ const CFG_LOGPATH string = "logPath"
 const CFG_KUBEARMORPOLICY string = "enableKubeArmorPolicy"
 const CFG_KUBEARMORHOSTPOLICY string = "enableKubeArmorHostPolicy"
 const CFG_KUBEARMORVM string = "enableKubeArmorVm"
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func readCmdLineParams() {
+	// Read configuration from command line
+	clusterStr := flag.String(CFG_CLUSTER, "", "cluster name")
+	grpcStr := flag.String(CFG_GRPC, "", "gRPC port number")
+	logStr := flag.String(CFG_LOGPATH, "", "log file path, {path|stdout|none}")
+	policyB := flag.Bool(CFG_KUBEARMORPOLICY, true, "enabling KubeArmorPolicy")
+	hostPolicyB := flag.Bool(CFG_KUBEARMORHOSTPOLICY, false, "enabling KubeArmorHostPolicy")
+	kvmAgentB := flag.Bool(CFG_KUBEARMORVM, false, "enabling KubeArmorVM")
+
+	flag.Parse()
+	if *clusterStr != "" {
+		viper.Set(CFG_CLUSTER, *clusterStr)
+	}
+	if *grpcStr != "" {
+		viper.Set(CFG_GRPC, *grpcStr)
+	}
+	if *logStr != "" {
+		viper.Set(CFG_LOGPATH, *logStr)
+	}
+	if isFlagPassed(CFG_KUBEARMORPOLICY) {
+		viper.Set(CFG_KUBEARMORPOLICY, *policyB)
+	}
+	if isFlagPassed(CFG_KUBEARMORHOSTPOLICY) {
+		viper.Set(CFG_KUBEARMORHOSTPOLICY, *hostPolicyB)
+	}
+	if isFlagPassed(CFG_KUBEARMORVM) {
+		viper.Set(CFG_KUBEARMORVM, *kvmAgentB)
+	}
+}
 
 func LoadConfig() error {
 	// Set defaults
@@ -56,19 +97,7 @@ func LoadConfig() error {
 		}
 	}
 
-	// Read configuration from command line
-	pflag.String(CFG_CLUSTER, "", "cluster name")
-	pflag.String(CFG_GRPC, "", "gRPC port number")
-	pflag.String(CFG_LOGPATH, "", "log file path, {path|stdout|none}")
-	pflag.Bool(CFG_KUBEARMORPOLICY, true, "enabling KubeArmorPolicy")
-	pflag.Bool(CFG_KUBEARMORHOSTPOLICY, false, "enabling KubeArmorHostPolicy")
-	pflag.Bool(CFG_KUBEARMORVM, false, "enabling KubeArmorVM")
-
-	pflag.Parse()
-	err := viper.BindPFlags(pflag.CommandLine)
-	if err != nil {
-		return err
-	}
+	readCmdLineParams()
 
 	GlobalCfg.Grpc = viper.GetString(CFG_GRPC)
 	GlobalCfg.Cluster = viper.GetString(CFG_CLUSTER)
