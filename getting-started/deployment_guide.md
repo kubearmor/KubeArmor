@@ -50,12 +50,10 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/exam
 This sample policy blocks execution of `sleep` command in ubuntu-1 pods.
 #### c. Simulate policy violation
 ```
-$ kubectl -n multiubuntu exec -it POD_NAME_FOR_UBUNTU_1 -- bash
+$ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-1,container=ubuntu-1" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- bash
 # sleep 1
 (Permission Denied)
 ```
-Substitute POD_NAME_FOR_UBUNTU_1 with the actual pod name from `kubectl get pods -n multiubuntu`.
-
 ### 4. Getting Alerts/Telemetry from KubeArmor
 #### a. Enable port-forwarding for KubeArmor relay
 ```
