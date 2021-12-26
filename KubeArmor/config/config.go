@@ -44,47 +44,26 @@ func isFlagPassed(name string) bool {
 
 func readCmdLineParams() {
 	// Read configuration from command line
-	clusterStr := flag.String(CFG_CLUSTER, "", "cluster name")
-	grpcStr := flag.String(CFG_GRPC, "", "gRPC port number")
-	logStr := flag.String(CFG_LOGPATH, "", "log file path, {path|stdout|none}")
+	clusterStr := flag.String(CFG_CLUSTER, "default", "cluster name")
+	grpcStr := flag.String(CFG_GRPC, "32767", "gRPC port number")
+	logStr := flag.String(CFG_LOGPATH, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
 	policyB := flag.Bool(CFG_KUBEARMORPOLICY, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(CFG_KUBEARMORHOSTPOLICY, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(CFG_KUBEARMORVM, false, "enabling KubeArmorVM")
 	hostVisStr := flag.String(CFG_HOSTVISIBILITY, "process,file,network,capabilities", "Host Visibility to use [process,file,network,capabilities,none]")
 
 	flag.Parse()
-	if isFlagPassed(CFG_CLUSTER) {
-		viper.Set(CFG_CLUSTER, *clusterStr)
-	}
-	if isFlagPassed(CFG_GRPC) {
-		viper.Set(CFG_GRPC, *grpcStr)
-	}
-	if isFlagPassed(CFG_LOGPATH) {
-		viper.Set(CFG_LOGPATH, *logStr)
-	}
-	if isFlagPassed(CFG_HOSTVISIBILITY) {
-		viper.Set(CFG_HOSTVISIBILITY, *hostVisStr)
-	}
-	if isFlagPassed(CFG_KUBEARMORPOLICY) {
-		viper.Set(CFG_KUBEARMORPOLICY, *policyB)
-	}
-	if isFlagPassed(CFG_KUBEARMORHOSTPOLICY) {
-		viper.Set(CFG_KUBEARMORHOSTPOLICY, *hostPolicyB)
-	}
-	if isFlagPassed(CFG_KUBEARMORVM) {
-		viper.Set(CFG_KUBEARMORVM, *kvmAgentB)
-	}
+	viper.Set(CFG_CLUSTER, *clusterStr)
+	viper.Set(CFG_GRPC, *grpcStr)
+	viper.Set(CFG_LOGPATH, *logStr)
+	viper.Set(CFG_HOSTVISIBILITY, *hostVisStr)
+	viper.Set(CFG_KUBEARMORPOLICY, *policyB)
+	viper.Set(CFG_KUBEARMORHOSTPOLICY, *hostPolicyB)
+	viper.Set(CFG_KUBEARMORVM, *kvmAgentB)
 }
 
 func LoadConfig() error {
-	// Set defaults
-	viper.SetDefault(CFG_CLUSTER, "default")
-	viper.SetDefault(CFG_GRPC, "32767")
-	viper.SetDefault(CFG_LOGPATH, "/tmp/kubearmor.log")
-	viper.SetDefault(CFG_KUBEARMORPOLICY, true)
-	viper.SetDefault(CFG_KUBEARMORHOSTPOLICY, false)
-	viper.SetDefault(CFG_KUBEARMORVM, false)
-	viper.SetDefault(CFG_HOSTVISIBILITY, "process,file,network,capabilities")
+	readCmdLineParams()
 
 	// Read configuration from env var
 	// Note that the env var has to be set in uppercase for e.g, CLUSTER=xyz ./kubearmor
@@ -103,8 +82,6 @@ func LoadConfig() error {
 			return err
 		}
 	}
-
-	readCmdLineParams()
 
 	GlobalCfg.Grpc = viper.GetString(CFG_GRPC)
 	GlobalCfg.Cluster = viper.GetString(CFG_CLUSTER)
