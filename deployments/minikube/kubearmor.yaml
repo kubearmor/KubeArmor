@@ -109,6 +109,8 @@ spec:
           name: sys-fs-bpf-path
         - mountPath: /sys/kernel/debug
           name: sys-kernel-debug-path
+        - mountPath: /etc/apparmor.d
+          name: apparmor
         - mountPath: /media/root/etc/os-release
           name: os-release-path
           readOnly: true
@@ -163,6 +165,10 @@ spec:
           path: /var/lib/docker
           type: DirectoryOrCreate
         name: docker-storage-path
+      - hostPath:
+          path: /etc/apparmor.d
+          type: Directory
+        name: apparmor
 ---
 apiVersion: v1
 kind: Service
