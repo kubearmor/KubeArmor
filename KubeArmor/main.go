@@ -4,10 +4,10 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
@@ -31,23 +31,13 @@ func main() {
 		return
 	}
 
-	// == //
+	err = cfg.LoadConfig()
+	if err != nil {
+		kg.Err(err.Error())
+		return
+	}
 
-	// options (string)
-	clusterPtr := flag.String("cluster", "", "cluster name")
-	gRPCPtr := flag.String("gRPC", "32767", "gRPC port number")
-	logPathPtr := flag.String("logPath", "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
-
-	// options (boolean)
-	enableKubeArmorPolicyPtr := flag.Bool("enableKubeArmorPolicy", true, "enabling KubeArmorPolicy")
-	enableKubeArmorHostPolicyPtr := flag.Bool("enableKubeArmorHostPolicy", false, "enabling KubeArmorHostPolicy")
-	enableKubeArmorVMPtr := flag.Bool("enableKubeArmorVm", false, "enabling KubeArmorVM")
-
-	flag.Parse()
-
-	// == //
-
-	core.KubeArmor(*clusterPtr, *gRPCPtr, *logPathPtr, *enableKubeArmorPolicyPtr, *enableKubeArmorHostPolicyPtr, *enableKubeArmorVMPtr)
+	core.KubeArmor()
 
 	// == //
 }
