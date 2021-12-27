@@ -17,6 +17,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
+// HandleNodeAnnotations Handle Node Annotations i.e, set host visibility based on annotations, enable/disable policy
 func HandleNodeAnnotations(node *tp.Node) {
 	if _, ok := node.Annotations["kubearmor-policy"]; ok {
 		if node.Annotations["kubearmor-policy"] != "enabled" && node.Annotations["kubearmor-policy"] != "disabled" && node.Annotations["kubearmor-policy"] != "audited" {
