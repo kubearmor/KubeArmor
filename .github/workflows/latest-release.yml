@@ -24,11 +24,8 @@ jobs:
       - name: Run KubeArmor 
         run: |
           kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml
-          kubectl get pods --all-namespaces 
-
           while [[ $(kubectl get pods -l kubearmor-app=kubearmor -n kube-system -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting for pod" && sleep 1; done
-
-          sleep 60
+          kubectl get pods -A
 
       - name: Run KubeArmor tests
         run: |
