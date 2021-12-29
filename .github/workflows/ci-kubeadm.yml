@@ -51,11 +51,6 @@ jobs:
           popd
 
       - name: Test KubeArmor
-        run: ./tests/go-test-kubearmor-local.sh
-        env:
-          GOPATH: /home/runner/go
-
-      - name: Build KubeArmor Test Binary
         run: make build-test
         working-directory: KubeArmor
         env:
