@@ -84,4 +84,4 @@ The eBPF-based container monitor is licensed under the General Public License, V
 ## CNCF
 
 KubeArmor is Sandbox Project of the Cloud Native Computing Foundation
-![CNCF SandBox Project](https://github.com/cncf/artwork/blob/c163512488dc5f1bddb0786e7dc2a345dc4621f6/other/cncf-sandbox/horizontal/color/cncf-sandbox-horizontal-color.png)
+![CNCF SandBox Project](.gitbook/assets/cncf-sandbox.png)

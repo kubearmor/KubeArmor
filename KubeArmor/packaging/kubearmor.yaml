@@ -1,8 +1,7 @@
 cluster: "default"
 gRPC: "32767"
-logPath: "/tmp/kubearmor.log" #path | stdout | none
+logPath: "/tmp/kubearmor.log" # path | stdout | none
 enableKubeArmorPolicy: true
 enableKubeArmorHostPolicy: true
 enableKubeArmorVm: false
 hostVisibility: "process,file,network,capabilities"
-

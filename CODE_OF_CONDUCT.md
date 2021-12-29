@@ -39,7 +39,8 @@ when an individual is representing the project or its community.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported by contacting the project maintainers or our mediator, Nandhini Ananthakalyanaraman
- <nandhini@accuknox.com>. Individuals found to be in violation of the Code of Conduct may be removed from the project and prevented from future participation.
+(<nandhini@accuknox.com>). Individuals found to be in violation of the Code of Conduct may be 
+removed from the project and prevented from future participation.
 
 This Code of Conduct is adapted from the Contributor Covenant
 (http://contributor-covenant.org), version 1.2.0, available at

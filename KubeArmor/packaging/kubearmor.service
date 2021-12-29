@@ -9,4 +9,3 @@ ExecStart=/opt/kubearmor/kubearmor
 
 [Install]
 WantedBy=multi-user.target
-

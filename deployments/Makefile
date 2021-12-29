@@ -5,7 +5,7 @@ CURDIR=$(shell pwd)
 
 .PHONY: gen
 gen: build
-	./deploygen
+	$(CURDIR)/deploygen
 
 .PHONY: build
 build:
@@ -13,3 +13,6 @@ build:
 	go mod tidy
 	go build -o deploygen
 
+.PHONY: clean
+clean:
+	rm -f $(CURDIR)/deploygen

@@ -16,19 +16,22 @@
 
      KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](self-managed-k8s/README.md). KubeArmor also requires either Docker or Containerd since it internally uses its APIs. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\). Otherwise, KubeArmor will work as Audit-Mode with no container behavior restriction.
 
-      * Alternative Setup - MicroK8s
+      * Alternative Setup - Minikube
 
-        You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes. For this, please follow the instructions in [MicroK8s installation guide](microk8s/README.md).
+        MiniKube does not support LSMs by default; thus, you cannot test KubeArmor on Minikube. However, we provide the custom ISO image for testing KubeArmor on Minikube.  
+        Please follow the instructions in [Minikube installation guide](minikube/README.md).
 
       * Alternative Setup - K3s
 
-        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes. For this, please follow the instructions in [K3s installation guide](k3s/README.md).
+        You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes.  
+        Please follow the instructions in [K3s installation guide](k3s/README.md).
 
-      * Notice - Minikube
+      * Alternative Setup - MicroK8s
 
-        KubeArmor does not support the policy enforcement on Minikube because MiniKube does not support LSMs, which means that you will only get the alerts against given policy violations. However, if you want to test KubeArmor, you can follow the instructions in [Minikube installation guide](minikube/README.md).
+        You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes.  
+        Please follow the instructions in [MicroK8s installation guide](microk8s/README.md).
 
-      * Caution - Docker Desktops
+      * No Support - Docker Desktops
 
         KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives (including LSMs).
 
@@ -141,10 +144,11 @@ Here, we briefly give you an overview of KubeArmor's directories.
   KubeArmor/
     BPF                  - eBPF code for system monitor
     common               - Libraries internally used
+    config               - Configuration loader
     core                 - The main body (start point) of KubeArmor
     enforcer             - Runtime policy enforcer (enforcing security policies into LSMs)
     feeder               - gRPC-based feeder (sending audit/system logs to a log server)
-    log                  - Message logger (stdout) for KubeArmor
+    log                  - Message logger (stdout)
     monitor              - eBPF-based system monitor (mapping process IDs to container IDs)
     types                - Type definitions
   protobuf/              - Protocol buffer

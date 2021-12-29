@@ -2,13 +2,19 @@ module github.com/kubearmor/KubeArmor/deployments
 
 go 1.17
 
+replace (
+	github.com/kubearmor/KubeArmor => ../
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy => ../pkg/KubeArmorHostPolicy
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy => ../pkg/KubeArmorPolicy
+)
+
 require (
 	github.com/clarketm/json v1.17.1
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-20211109163321-a7298b7cfe3f
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-20211109163321-a7298b7cfe3f
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-00010101000000-000000000000
 	k8s.io/api v0.22.3
 	k8s.io/apimachinery v0.22.3
-	sigs.k8s.io/yaml v1.3.0
+	sigs.k8s.io/yaml v1.2.0
 )
 
 require (

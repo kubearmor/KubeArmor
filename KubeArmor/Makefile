@@ -23,7 +23,7 @@ protobuf:
 	cd $(CURDIR); make -C ../protobuf
 
 .PHONY: build-test
-build-test:
+build-test: testall
 	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
