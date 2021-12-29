@@ -112,6 +112,8 @@ spec:
         - mountPath: /media/root/etc/os-release
           name: os-release-path
           readOnly: true
+        - mountPath: /etc/apparmor.d
+          name: etc-apparmor-d-path
         - mountPath: /var/run/docker.sock
           name: docker-sock-path
           readOnly: true
@@ -149,6 +151,10 @@ spec:
           path: /etc/os-release
           type: File
         name: os-release-path
+      - hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
+        name: etc-apparmor-d-path
       - hostPath:
           path: /var/run/docker.sock
           type: Socket

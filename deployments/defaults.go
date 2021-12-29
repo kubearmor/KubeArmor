@@ -147,7 +147,10 @@ var defaultConfigs = map[string]DaemonSetConfig{
 	"minikube": {
 		Args: []string{},
 		VolumeMounts: []corev1.VolumeMount{
-
+			{
+				Name:      "etc-apparmor-d-path",
+				MountPath: "/etc/apparmor.d",
+			},
 			{
 				Name:      "docker-sock-path", // docker
 				MountPath: "/var/run/docker.sock",
@@ -160,6 +163,15 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
+			{
+				Name: "etc-apparmor-d-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/etc/apparmor.d",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
 			{
 				Name: "docker-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -181,7 +193,9 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"microk8s": {
-		Args: []string{},
+		Args: []string{
+			"-enableKubeArmorHostPolicy",
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "etc-apparmor-d-path",
