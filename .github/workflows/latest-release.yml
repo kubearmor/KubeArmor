@@ -10,6 +10,7 @@ jobs:
   build:
     name: Create KubeArmor Release - 18.04
     runs-on: ubuntu-18.04
+    timeout-minutes: 20
     steps:
       - name: Checkout KubeArmor code
         uses: actions/checkout@v2
@@ -19,42 +20,18 @@ jobs:
 
       - name: Setup Enviroment
         run: |        
-          # create a single-node K3s cluster
-          curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--flannel-backend=none --cluster-cidr=192.168.0.0/16 --disable-network-policy --disable=traefik" sh -
+          ./contribution/k3s/install_k3s.sh
 
-          #setting a variable environment
-          mkdir ~/.kube/
-          cp /etc/rancher/k3s/k3s.yaml ~/.kube/config 
-
-          # install Calico-Operator
-          kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
-
-          # install Calico-Manifest
-          kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
-            
       - name: Run KubeArmor 
         run: |
           kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml
-          kubectl get pods --all-namespaces 
-
           while [[ $(kubectl get pods -l kubearmor-app=kubearmor -n kube-system -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting for pod" && sleep 1; done
-
-          sleep 60
+          kubectl get pods -A
 
       - name: Run KubeArmor tests
         run: |
           ./tests/test-scenarios-github.sh
 
-      - name: Archive log artifacts
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
-        with:
-          name: kubearmor.logs
-          path: |
-            /tmp/kubearmor.test
-            /tmp/kubearmor.log
-            /tmp/kubearmor.msg
-      
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
