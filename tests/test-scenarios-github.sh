@@ -127,6 +127,14 @@ function start_and_wait_for_kubearmor_initialization() {
            exit 1
         fi
 
+        cd $ARMOR_HOME
+
+        if [ ! -f kubearmor ]; then
+            DBG "Building KubeArmor"
+            make clean; make
+            DBG "Built KubeArmor"
+        fi
+
         echo "Github Actions - Environment"
         make clean; make build-test
         sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
@@ -553,14 +561,6 @@ echo "Script: $0" >> $TEST_LOG
 echo >> $TEST_LOG
 echo "== Testcases ==" >> $TEST_LOG
 echo >> $TEST_LOG
-
-cd $ARMOR_HOME
-
-if [ ! -f kubearmor ]; then
-    DBG "Building KubeArmor"
-    make clean; make
-    DBG "Built KubeArmor"
-fi
 
 INFO "Starting KubeArmor"
 start_and_wait_for_kubearmor_initialization
