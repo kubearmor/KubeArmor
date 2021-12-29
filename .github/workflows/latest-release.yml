@@ -10,6 +10,7 @@ jobs:
   build:
     name: Create KubeArmor Release - 18.04
     runs-on: ubuntu-18.04
+    timeout-minutes: 20
     steps:
       - name: Checkout KubeArmor code
         uses: actions/checkout@v2
@@ -31,16 +32,6 @@ jobs:
         run: |
           ./tests/test-scenarios-github.sh
 
-      - name: Archive log artifacts
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
-        with:
-          name: kubearmor.logs
-          path: |
-            /tmp/kubearmor.test
-            /tmp/kubearmor.log
-            /tmp/kubearmor.msg
-      
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
