@@ -10,17 +10,12 @@
     * Docker, Containerd
 
   * LSM Supports
-    * AppArmor, SELinux*
+    * AppArmor
 
   * Features
     * (KubeArmorPolicy) Add a new field, "apparmor" in KubeArmorPolicy*
       ```text
       (AppArmor) Apply native AppArmor profiles using KubeArmorPolicy
-      ```
-
-    * (KubeArmorPolicy) Add a new field, "selinux -> volumeMounts" in KubeArmorPolicy*
-      ```text
-      (SELinux) Apply SELinux labels and actions to control the access of VolumeMounts
       ```
 
     * (KubeArmorHostPolicy) Support security policies for hosts*
@@ -108,7 +103,7 @@
     * OpenShift, PodMan
 
   * LSM Supports
-    * LSM eBPF (KRSI)
+    * LSM eBPF (KRSI), SELinux
 
   * Features
     * Automatically generate security policies for given containers against:

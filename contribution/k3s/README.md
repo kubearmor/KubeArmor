@@ -1,6 +1,6 @@
 # K3s Installation
 
-Instead of self-managed Kubernetes, you can set up K3s. For this, please run the following command.
+Instead of self-managed Kubernetes, you can set up K3s by running the following command.
 
 ```text
 $ cd KubeArmor/contribution/k3s
