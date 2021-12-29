@@ -27,7 +27,7 @@
         * Execute /bin/sleep inside of the ubuntu-1 pod
 
             ```text
-            $ kubectl -n multiubuntu exec -it {pod name for ubuntu 1} -- bash
+            $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-1,container=ubuntu-1" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- bash
             # sleep 1
             (Permission Denied)
             ```
@@ -35,7 +35,7 @@
         * Check audit logs
 
             ```text
-            $ kubectl -n kube-system exec -it {KubeArmor in the node where ubuntu 1 is located} -- tail /tmp/kubearmor.log
+            $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-1,container=ubuntu-1" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- tail /tmp/kubearmor.log
             ```
 
     * Example 2 - Block a file access
@@ -50,7 +50,7 @@
         * Access /credentials/password inside of the ubuntu-5 pod
 
             ```text
-            $ kubectl -n multiubuntu exec -it {pod name for ubuntu 5} -- bash
+            $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-2,container=ubuntu-5" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- bash
             # cat cat /credentials/password
             (Permission Denied)
             ```
@@ -58,5 +58,5 @@
         * Check audit logs
 
             ```text
-            $ kubectl -n kube-system exec -it {KubeArmor in the node where ubuntu 5 is located} -- tail /tmp/kubearmor.log
+            $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-2,container=ubuntu-5" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- tail /tmp/kubearmor.log
             ```
