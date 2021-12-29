@@ -17,6 +17,49 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
+// HandleNodeAnnotations Handle Node Annotations i.e, set host visibility based on annotations, enable/disable policy
+func HandleNodeAnnotations(node *tp.Node) {
+	if _, ok := node.Annotations["kubearmor-policy"]; ok {
+		if node.Annotations["kubearmor-policy"] != "enabled" && node.Annotations["kubearmor-policy"] != "disabled" && node.Annotations["kubearmor-policy"] != "audited" {
+			node.Annotations["kubearmor-policy"] = "enabled"
+		}
+	} else {
+		node.Annotations["kubearmor-policy"] = "enabled"
+	}
+
+	if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil && !strings.Contains(string(lsm), "apparmor") {
+		// exception: no AppArmor
+		if node.Annotations["kubearmor-policy"] == "enabled" {
+			node.Annotations["kubearmor-policy"] = "audited"
+		}
+	}
+
+	if node.Annotations["kubearmor-policy"] == "enabled" {
+		node.PolicyEnabled = tp.KubeArmorPolicyEnabled
+	} else if node.Annotations["kubearmor-policy"] == "audited" || node.Annotations["kubearmor-policy"] == "patched" {
+		node.PolicyEnabled = tp.KubeArmorPolicyAudited
+	} else {
+		node.PolicyEnabled = tp.KubeArmorPolicyDisabled
+	}
+
+	if _, ok := node.Annotations["kubearmor-visibility"]; !ok {
+		node.Annotations["kubearmor-visibility"] = "none"
+	}
+
+	for _, visibility := range strings.Split(node.Annotations["kubearmor-visibility"], ",") {
+		if visibility == "process" {
+			node.ProcessVisibilityEnabled = true
+		} else if visibility == "file" {
+			node.FileVisibilityEnabled = true
+		} else if visibility == "network" {
+			node.NetworkVisibilityEnabled = true
+		} else if visibility == "capabilities" {
+			node.CapabilitiesVisibilityEnabled = true
+		}
+	}
+	return
+}
+
 // ================= //
 // == Node Update == //
 // ================= //
@@ -88,44 +131,7 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 				node.EnableKubeArmorPolicy = dm.Node.EnableKubeArmorPolicy
 				node.EnableKubeArmorHostPolicy = dm.Node.EnableKubeArmorHostPolicy
 
-				if _, ok := node.Annotations["kubearmor-policy"]; ok {
-					if node.Annotations["kubearmor-policy"] != "enabled" && node.Annotations["kubearmor-policy"] != "disabled" && node.Annotations["kubearmor-policy"] != "audited" {
-						node.Annotations["kubearmor-policy"] = "enabled"
-					}
-				} else {
-					node.Annotations["kubearmor-policy"] = "enabled"
-				}
-
-				if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil && !strings.Contains(string(lsm), "apparmor") {
-					// exception: no AppArmor
-					if node.Annotations["kubearmor-policy"] == "enabled" {
-						node.Annotations["kubearmor-policy"] = "audited"
-					}
-				}
-
-				if node.Annotations["kubearmor-policy"] == "enabled" {
-					node.PolicyEnabled = tp.KubeArmorPolicyEnabled
-				} else if node.Annotations["kubearmor-policy"] == "audited" || node.Annotations["kubearmor-policy"] == "patched" {
-					node.PolicyEnabled = tp.KubeArmorPolicyAudited
-				} else {
-					node.PolicyEnabled = tp.KubeArmorPolicyDisabled
-				}
-
-				if _, ok := node.Annotations["kubearmor-visibility"]; !ok {
-					node.Annotations["kubearmor-visibility"] = "none"
-				}
-
-				for _, visibility := range strings.Split(node.Annotations["kubearmor-visibility"], ",") {
-					if visibility == "process" {
-						node.ProcessVisibilityEnabled = true
-					} else if visibility == "file" {
-						node.FileVisibilityEnabled = true
-					} else if visibility == "network" {
-						node.NetworkVisibilityEnabled = true
-					} else if visibility == "capabilities" {
-						node.CapabilitiesVisibilityEnabled = true
-					}
-				}
+				HandleNodeAnnotations(&node)
 
 				dm.Node = node
 			}

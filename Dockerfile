@@ -3,25 +3,23 @@
 
 ### Builder
 
-FROM golang:1.15.2-alpine3.12 as builder
+FROM golang:1.17.5-alpine3.15 as builder
 
 RUN apk update
-RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-dev
+RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-dev protobuf
 
 WORKDIR /usr/src/KubeArmor
 
-COPY ./KubeArmor ./KubeArmor
-COPY ./protobuf ./protobuf
-COPY ./GKE ./GKE
+COPY . .
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
-RUN ./patch.sh
-RUN GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o kubearmor main.go
+RUN go install github.com/golang/protobuf/protoc-gen-go@latest
+RUN make
 
 ### Make executable image
 
-FROM alpine:3.14
+FROM alpine:3.15
 
 RUN apk update
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
@@ -29,10 +27,10 @@ RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /
 
 RUN apk update
 RUN apk add bcc-tools
-RUN apk add bash curl procps 
+RUN apk add bash curl procps
 RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
-COPY --from=builder /usr/src/KubeArmor/KubeArmor/entrypoint.sh /KubeArmor/entrypoint.sh
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/build/entrypoint.sh /KubeArmor/entrypoint.sh
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/BPF/* /KubeArmor/BPF/

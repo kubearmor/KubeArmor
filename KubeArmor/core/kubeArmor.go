@@ -12,6 +12,7 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -39,15 +40,9 @@ func init() {
 
 // KubeArmorDaemon Structure
 type KubeArmorDaemon struct {
-	// cluster
-	ClusterName string
-
 	// node
 	Node tp.Node
 
-	// gRPC
-	gRPCPort  string
-	LogPath   string
 	LogFilter string
 
 	// options
@@ -103,26 +98,13 @@ type KubeArmorDaemon struct {
 }
 
 // NewKubeArmorDaemon Function
-func NewKubeArmorDaemon(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy bool) *KubeArmorDaemon {
+func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
-
-	if clusterName == "" {
-		if val, ok := os.LookupEnv("CLUSTER_NAME"); ok {
-			dm.ClusterName = val
-		} else {
-			dm.ClusterName = "Default"
-		}
-	} else {
-		dm.ClusterName = clusterName
-	}
 
 	dm.Node = tp.Node{}
 
-	dm.gRPCPort = gRPCPort
-	dm.LogPath = logPath
-
-	dm.EnableKubeArmorPolicy = enableKubeArmorPolicy
-	dm.EnableKubeArmorHostPolicy = enableKubeArmorHostPolicy
+	dm.EnableKubeArmorPolicy = cfg.GlobalCfg.Policy
+	dm.EnableKubeArmorHostPolicy = cfg.GlobalCfg.HostPolicy
 
 	dm.K8sEnabled = false
 
@@ -201,7 +183,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 // InitLogger Function
 func (dm *KubeArmorDaemon) InitLogger() bool {
-	dm.Logger = fd.NewFeeder(dm.ClusterName, &dm.Node, dm.gRPCPort, dm.LogPath)
+	dm.Logger = fd.NewFeeder(cfg.GlobalCfg.Cluster, &dm.Node, cfg.GlobalCfg.Grpc, cfg.GlobalCfg.LogPath)
 	return dm.Logger != nil
 }
 
@@ -337,16 +319,9 @@ func GetOSSigChannel() chan os.Signal {
 // ========== //
 
 // KubeArmor Function
-func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, enableKubeArmorHostPolicy, enableKubeArmorVM bool) {
-	// set KubeArmorHostPolicy if KubeArmorVM is enabled by default
-	if enableKubeArmorVM {
-		enableKubeArmorHostPolicy = true
-	}
-
+func KubeArmor() {
 	// create a daemon
-	dm := NewKubeArmorDaemon(clusterName, gRPCPort, logPath, enableKubeArmorPolicy, enableKubeArmorHostPolicy)
-
-	// == //
+	dm := NewKubeArmorDaemon()
 
 	// initialize kubernetes client
 	if K8s.InitK8sClient() {
@@ -371,8 +346,8 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 			time.Sleep(time.Second * 1)
 		}
 
-		dm.Node.EnableKubeArmorPolicy = enableKubeArmorPolicy
-		dm.Node.EnableKubeArmorHostPolicy = enableKubeArmorHostPolicy
+		dm.Node.EnableKubeArmorPolicy = cfg.GlobalCfg.Policy
+		dm.Node.EnableKubeArmorHostPolicy = cfg.GlobalCfg.HostPolicy
 	} else {
 		dm.Node.NodeName = kl.GetHostName()
 		dm.Node.NodeIP = kl.GetExternalIPAddr()
@@ -381,13 +356,20 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
 		dm.EnableKubeArmorPolicy = false
-		enableKubeArmorHostPolicy = true
+		cfg.GlobalCfg.HostPolicy = true
 		dm.EnableKubeArmorHostPolicy = true
 
 		dm.Node.EnableKubeArmorPolicy = false
-		dm.Node.EnableKubeArmorHostPolicy = enableKubeArmorHostPolicy
+		dm.Node.EnableKubeArmorHostPolicy = cfg.GlobalCfg.HostPolicy
 
 		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
+
+		dm.Node.Annotations = map[string]string{}
+
+		// update annotations
+		kg.Printf("using host visibility [%s]", cfg.GlobalCfg.HostVisibility)
+		dm.Node.Annotations["kubearmor-visibility"] = cfg.GlobalCfg.HostVisibility
+		HandleNodeAnnotations(&dm.Node)
 
 		kg.Print("Detected no Kubernetes")
 	}
@@ -548,7 +530,7 @@ func KubeArmor(clusterName, gRPCPort, logPath string, enableKubeArmorPolicy, ena
 	// == //
 
 	// Init KvmAgent
-	if enableKubeArmorVM {
+	if cfg.GlobalCfg.KVMAgent {
 		// initialize kvm agent
 		if !dm.InitKVMAgent() {
 			dm.Logger.Err("Failed to initialize KVM Agent")

@@ -28,8 +28,8 @@ nfpms:
     contents:
       - dst: /opt/kubearmor
         type: dir
-      - src: ./packaging/kubearmor.conf
-        dst: /opt/kubearmor/kubearmor.conf
+      - src: ./packaging/kubearmor.yaml
+        dst: /opt/kubearmor/kubearmor.yaml
         type: config
       - src: ./packaging/kubearmor.service
         dst: /usr/lib/systemd/system/kubearmor.service

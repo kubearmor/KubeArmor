@@ -23,6 +23,8 @@ import (
 	"github.com/google/uuid"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ============ //
@@ -125,7 +127,6 @@ func (ls *LogService) getMsgStructs() []MsgStruct {
 
 // WatchMessages Function
 func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
-	var err error
 	uid := uuid.Must(uuid.NewRandom()).String()
 
 	ls.addMsgStruct(uid, svr, req.Filter)
@@ -137,14 +138,23 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 
 		msgStructs := ls.getMsgStructs()
 		for _, mgs := range msgStructs {
-			if err = mgs.Client.Send(&msg); err != nil {
-				kg.Warn("Failed to send a message")
-				break
+			select {
+			case <-svr.Context().Done():
+				kg.Warn("conn closed exiting WatchAlerts")
+				return nil
+			default:
+				if status, ok := status.FromError(mgs.Client.Send(&msg)); ok {
+					switch status.Code() {
+					case codes.OK:
+						//noop
+					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+						kg.Warnf("Failed to send an alert=[%+v] err=[%s]", msg, status.Err().Error())
+						return status.Err()
+					default:
+						return nil
+					}
+				}
 			}
-		}
-
-		if err != nil {
-			break
 		}
 	}
 
@@ -187,7 +197,6 @@ func (ls *LogService) getAlertStructs() []AlertStruct {
 
 // WatchAlerts Function
 func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_WatchAlertsServer) error {
-	var err error
 	uid := uuid.Must(uuid.NewRandom()).String()
 
 	ls.addAlertStruct(uid, svr, req.Filter)
@@ -199,14 +208,23 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 
 		alertStructs := ls.getAlertStructs()
 		for _, als := range alertStructs {
-			if err = als.Client.Send(&alert); err != nil {
-				kg.Warn("Failed to send an alert")
-				break
+			select {
+			case <-svr.Context().Done():
+				kg.Warn("conn closed exiting WatchAlerts")
+				return nil
+			default:
+				if status, ok := status.FromError(als.Client.Send(&alert)); ok {
+					switch status.Code() {
+					case codes.OK:
+						//noop
+					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+						kg.Warnf("Failed to send an alert=[%+v] err=[%s]", alert, status.Err().Error())
+						return status.Err()
+					default:
+						return nil
+					}
+				}
 			}
-		}
-
-		if err != nil {
-			break
 		}
 	}
 
@@ -249,7 +267,6 @@ func (ls *LogService) getLogStructs() []LogStruct {
 
 // WatchLogs Function
 func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchLogsServer) error {
-	var err error
 	uid := uuid.Must(uuid.NewRandom()).String()
 
 	ls.addLogStruct(uid, svr, req.Filter)
@@ -261,14 +278,23 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 
 		logStructs := ls.getLogStructs()
 		for _, lgs := range logStructs {
-			if err = lgs.Client.Send(&log); err != nil {
-				kg.Warn("Failed to send a log")
-				break
+			select {
+			case <-svr.Context().Done():
+				kg.Warn("conn closed exiting WatchLogs")
+				return nil
+			default:
+				if status, ok := status.FromError(lgs.Client.Send(&log)); ok {
+					switch status.Code() {
+					case codes.OK:
+						//noop
+					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+						kg.Warnf("Failed to send a log=[%+v] err=[%s]", log, status.Err().Error())
+						return status.Err()
+					default:
+						return nil
+					}
+				}
 			}
-		}
-
-		if err != nil {
-			break
 		}
 	}
 

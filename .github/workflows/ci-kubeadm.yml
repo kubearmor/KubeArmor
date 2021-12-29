@@ -3,8 +3,16 @@ name: ci-test
 on:
   push:
     branches: [main]
+    paths: 
+    - 'KubeArmor/**'
+    - 'tests/**'
+    - 'protobuf/**'
   pull_request:
     branches: [main]
+    paths: 
+    - 'KubeArmor/**'
+    - 'tests/**'
+    - 'protobuf/**'
 
 jobs:
   build:
@@ -26,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.15
+          go-version: 1.17
 
       - name: Build bcc
         run: |

@@ -23,6 +23,7 @@ realpath() {
 
 ARMOR_HOME=`dirname $(realpath "$0")`/..
 cd $ARMOR_HOME/build
+pwd
 
 VERSION=latest
 
@@ -36,21 +37,14 @@ docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {}
 
 echo "[INFO] Removed existing $REPO images"
 
-# remove old files (just in case)
-$ARMOR_HOME/build/clean_source_files.sh
-
-echo "[INFO] Removed source files just in case"
-
-# copy files to build
-$ARMOR_HOME/build/copy_source_files.sh
-
-echo "[INFO] Copied new source files"
+# set DTAG and LABEL
+DTAG="-t $REPO:$VERSION"
+unset LABEL
+[[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
 
 # build a new image
-DTAG="-t $REPO:$VERSION"
-[[ "$GITHUB_SHA" != "" ]] && DTAG="$DTAG -t $REPO:$GITHUB_SHA"
 echo "[INFO] Building $DTAG"
-docker build $DTAG . -f $ARMOR_HOME/build/Dockerfile.kubearmor
+cd $ARMOR_HOME/..; docker build $DTAG . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"
@@ -58,8 +52,4 @@ if [ $? != 0 ]; then
 fi
 echo "[PASSED] Built $REPO:$VERSION"
 
-# remove copied files
-$ARMOR_HOME/build/clean_source_files.sh
-
-echo "[INFO] Removed source files"
 exit 0

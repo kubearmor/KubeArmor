@@ -1,6 +1,8 @@
-# Deployment Guide
+# Getting Started Guide
 
 If you do not already have a k8s cluster, check [the pre-requisites](#prerequisites) to setup one.
+
+If you want to try KubeArmor directly on the host, [use kubearmor in systemd mode](kubearmor_vm.md)
 
 ## Deployment Steps
 ### 1. Download and install karmor cli-tool
