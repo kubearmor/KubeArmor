@@ -22,7 +22,7 @@ echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/a
 sudo apt-get update
 
 # install Kubernetes
-sudo apt-get install -y kubeadm=1.21.0-00 kubelet=1.21.0-00 kubectl=1.21.0-00
+sudo apt-get install -y kubeadm kubelet kubectl
 
 # mount bpffs (for cilium)
 echo "bpffs                                     /sys/fs/bpf     bpf     defaults          0       0" | sudo tee -a /etc/fstab
@@ -35,3 +35,7 @@ if [ $(cat /proc/sys/net/ipv4/ip_forward) == 0 ]; then
     sudo bash -c "echo '1' > /proc/sys/net/ipv4/ip_forward"
     sudo bash -c "echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf"
 fi
+
+# disable rp_filter
+sudo bash -c "echo 'net.ipv4.conf.lxc*.rp_filter = 0' > /etc/sysctl.d/99-override_cilium_rp_filter.conf"
+sudo systemctl restart systemd-sysctl

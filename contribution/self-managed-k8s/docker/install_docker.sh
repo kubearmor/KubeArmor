@@ -42,8 +42,21 @@ case "$VERSION" in
     sudo apt-get install -y docker-ce;;
 esac
 
+# configure daemon.json
+sudo mkdir -p /etc/docker
+cat <<EOF | sudo tee /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2"
+}
+EOF
+
 # start Docker
-sudo systemctl start docker
+sudo systemctl restart docker
 sleep 1
 
 # add user to docker
