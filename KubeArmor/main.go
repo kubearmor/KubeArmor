@@ -13,8 +13,6 @@ import (
 )
 
 func main() {
-	// == //
-
 	if os.Geteuid() != 0 {
 		kg.Printf("Need to have root privileges to run %s\n", os.Args[0])
 		return
@@ -38,6 +36,4 @@ func main() {
 	}
 
 	core.KubeArmor()
-
-	// == //
 }

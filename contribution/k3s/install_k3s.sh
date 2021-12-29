@@ -16,4 +16,3 @@ if [ -f $KUBECONFIG ]; then
 fi
 
 cp /etc/rancher/k3s/k3s.yaml $KUBEDIR/config 
-

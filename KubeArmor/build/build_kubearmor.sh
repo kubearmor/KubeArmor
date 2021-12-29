@@ -34,7 +34,6 @@ fi
 
 # remove old images
 docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
-
 echo "[INFO] Removed existing $REPO images"
 
 # set DTAG and LABEL
