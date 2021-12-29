@@ -17,4 +17,4 @@ go.sum: go.mod
 
 .PHONY: clean
 clean:
-	rm go.sum *.pb.go
+	rm -f go.sum *.pb.go
