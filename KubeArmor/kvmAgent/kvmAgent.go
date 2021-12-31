@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -94,6 +95,15 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 		stream, err := kvm.gRPCClient.SendPolicy(ctx)
 		if err != nil {
 			kg.Warn("Failed to connect stream")
+
+			if strings.Contains(string(err.Error()), "err-identity-removed") {
+				kg.Warn("Identity removed from server")
+				// close the connection
+				if err = kvm.gRPCConnection.Close(); err != nil {
+					kg.Warn("Failed to close the current connection")
+				}
+				return
+			}
 
 			// close the connection
 			if err = kvm.gRPCConnection.Close(); err != nil {
