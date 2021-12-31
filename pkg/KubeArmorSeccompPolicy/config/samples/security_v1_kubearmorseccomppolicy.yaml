@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorSeccompPolicy
+metadata:
+  name: kubearmorseccomppolicy-sample
+  namespace: wordpress-mysql
+spec:
+  severity: 3
+  selector:
+    matchLabels:
+      app: wordpress
+  seccomp:
+    arch: [x86_64, x86, x32]
+    syscalls: [accept4, epoll_wait, pselect6, futex, madvise]
+    action: Allow
