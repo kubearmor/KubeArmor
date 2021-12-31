@@ -1,12 +1,31 @@
 project_name: kubearmor
 
 builds:
-  - binary: kubearmor
+  - binary: "opt/kubearmor/kubearmor"
     id: kubearmor
     goos:
       - linux
     goarch:
       - amd64
+
+archives:
+  - id: "kubearmor"
+    builds:
+      - "kubearmor"
+    name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
+    files:
+      - src: ./packaging/kubearmor.yaml
+        dst: /opt/kubearmor
+        strip_parent: true
+      - src: ./packaging/kubearmor.service
+        dst: /usr/lib/systemd/system
+        strip_parent: true
+      - src: ./karmor
+        dst: /usr/local/bin
+      - src: ./BPF/*
+        dst: /opt/kubearmor/
+      - src: ./templates/*
+        dst: /opt/kubearmor/
 
 nfpms:
   - id: "kubearmor"
@@ -24,7 +43,7 @@ nfpms:
     homepage: "https://kubearmor.com"
     license: "Apache 2"
     file_name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
-    bindir: /opt/kubearmor
+    bindir: /
     contents:
       - dst: /opt/kubearmor
         type: dir
