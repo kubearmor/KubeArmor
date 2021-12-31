@@ -34,3 +34,11 @@ contents:
     dst: /opt/kubearmor/templates/
 scripts:
   postinstall: packaging/post-install.sh
+overrides:
+  deb:
+    depends:
+      - bpfcc-tools
+      - linux-headers-generic | linux-headers-generic-pae | linux-headers-lowlatency | linux-headers-lowlatency-pae
+  rpm:
+    depends:
+      - bcc-tools

@@ -45,3 +45,11 @@ nfpms:
         dst: /opt/kubearmor/templates/
     scripts:
       postinstall: packaging/post-install.sh
+    overrides:
+      deb:
+        dependencies:
+          - bpfcc-tools
+          - linux-headers-generic | linux-headers-generic-pae | linux-headers-lowlatency | linux-headers-lowlatency-pae
+      rpm:
+        dependencies:
+          - bcc-tools
