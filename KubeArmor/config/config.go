@@ -122,6 +122,7 @@ func LoadConfig() error {
 	return nil
 }
 
+// PodBasedPolicyEnabled ... returns true if pod-policy or seccomp is true
 func PodBasedPolicyEnabled() bool {
 	if GlobalCfg.Policy || GlobalCfg.Seccomp {
 		return true
@@ -129,6 +130,7 @@ func PodBasedPolicyEnabled() bool {
 	return false
 }
 
+// HostBasedPolicyEnabled ... returns true if host-policy is true
 func HostBasedPolicyEnabled() bool {
 	if GlobalCfg.HostPolicy {
 		return true
@@ -136,6 +138,7 @@ func HostBasedPolicyEnabled() bool {
 	return false
 }
 
+// OnlyPodBasedPolicyEnabled ... returns true only if pod-policy or seccomp-policy is true and host-policy is false
 func OnlyPodBasedPolicyEnabled() bool {
 	if (GlobalCfg.Policy || GlobalCfg.Seccomp) && !GlobalCfg.HostPolicy {
 		return true
@@ -143,6 +146,7 @@ func OnlyPodBasedPolicyEnabled() bool {
 	return false
 }
 
+// OnlyHostBasedPolicyEnabled ... returns true only if HostPolicy is true and pod-policies are disabled
 func OnlyHostBasedPolicyEnabled() bool {
 	if !(GlobalCfg.Policy || GlobalCfg.Seccomp) && GlobalCfg.HostPolicy {
 		return true
@@ -150,6 +154,7 @@ func OnlyHostBasedPolicyEnabled() bool {
 	return false
 }
 
+// PolicyEnabled ... returns true if any of the policy (pod-policy, host-policy, seccomp-policy) is enabled
 func PolicyEnabled() bool {
 	if GlobalCfg.HostPolicy || GlobalCfg.Seccomp || GlobalCfg.Policy {
 		return true
