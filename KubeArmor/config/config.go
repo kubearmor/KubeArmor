@@ -19,6 +19,7 @@ type KubearmorConfig struct {
 	LogPath        string // Log file to use
 	HostVisibility string // Host visibility to use for kubearmor in process mode
 	Policy         bool   // Enable/Disable policy enforcement
+	Seccomp        bool   // Enable/Disable seccomp policy enforcement
 	HostPolicy     bool   // Enable/Disable host policy enforcement
 	KVMAgent       bool   // Enable/Disable KVM Agent
 }
@@ -40,6 +41,9 @@ const ConfigHostVisibility string = "hostVisibility"
 
 // ConfigKubearmorPolicy Kubearmor policy key
 const ConfigKubearmorPolicy string = "enableKubeArmorPolicy"
+
+// ConfigSeccomp Kubearmor policy key
+const ConfigSeccomp string = "seccomp"
 
 // ConfigKubearmorHostPolicy Kubearmor host policy key
 const ConfigKubearmorHostPolicy string = "enableKubeArmorHostPolicy"
@@ -63,6 +67,7 @@ func readCmdLineParams() {
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
+	seccomp := flag.Bool(ConfigSeccomp, false, "enable/disable seccomp")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	hostVisStr := flag.String(ConfigHostVisibility, "process,file,network,capabilities", "Host Visibility to use [process,file,network,capabilities,none]")
@@ -73,6 +78,7 @@ func readCmdLineParams() {
 	viper.Set(ConfigLogPath, *logStr)
 	viper.Set(ConfigHostVisibility, *hostVisStr)
 	viper.Set(ConfigKubearmorPolicy, *policyB)
+	viper.Set(ConfigSeccomp, *seccomp)
 	viper.Set(ConfigKubearmorHostPolicy, *hostPolicyB)
 	viper.Set(ConfigKubearmorVM, *kvmAgentB)
 }
@@ -103,6 +109,7 @@ func LoadConfig() error {
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
+	GlobalCfg.Seccomp = viper.GetBool(ConfigSeccomp)
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
@@ -113,4 +120,39 @@ func LoadConfig() error {
 
 	kg.Printf("config [%+v]", GlobalCfg)
 	return nil
+}
+
+func PodBasedPolicyEnabled() bool {
+	if GlobalCfg.Policy || GlobalCfg.Seccomp {
+		return true
+	}
+	return false
+}
+
+func HostBasedPolicyEnabled() bool {
+	if GlobalCfg.HostPolicy {
+		return true
+	}
+	return false
+}
+
+func OnlyPodBasedPolicyEnabled() bool {
+	if (GlobalCfg.Policy || GlobalCfg.Seccomp) && !GlobalCfg.HostPolicy {
+		return true
+	}
+	return false
+}
+
+func OnlyHostBasedPolicyEnabled() bool {
+	if !(GlobalCfg.Policy || GlobalCfg.Seccomp) && GlobalCfg.HostPolicy {
+		return true
+	}
+	return false
+}
+
+func PolicyEnabled() bool {
+	if GlobalCfg.HostPolicy || GlobalCfg.Seccomp || GlobalCfg.Policy {
+		return true
+	}
+	return false
 }

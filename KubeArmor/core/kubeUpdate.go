@@ -14,8 +14,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
+
+var watchingPodEvents bool = false
 
 // HandleNodeAnnotations Handle Node Annotations i.e, set host visibility based on annotations, enable/disable policy
 func HandleNodeAnnotations(node *tp.Node) {
@@ -126,10 +129,6 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 				// container runtime
 				node.ContainerRuntimeVersion = event.Object.Status.NodeInfo.ContainerRuntimeVersion
-
-				// policy options
-				node.EnableKubeArmorPolicy = dm.Node.EnableKubeArmorPolicy
-				node.EnableKubeArmorHostPolicy = dm.Node.EnableKubeArmorHostPolicy
 
 				HandleNodeAnnotations(&node)
 
@@ -246,7 +245,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update security policies
 		dm.Logger.UpdateSecurityPolicies(action, newPoint)
 
-		if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorPolicy {
+		if dm.RuntimeEnforcer != nil && cfg.GlobalCfg.Policy {
 			if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 				// enforce security policies
 				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
@@ -363,11 +362,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 		}
 
-		if dm.EnableKubeArmorPolicy {
+		if cfg.GlobalCfg.Policy {
 			// update security policies
 			dm.Logger.UpdateSecurityPolicies(action, newEndPoint)
 
-			if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorPolicy {
+			if dm.RuntimeEnforcer != nil {
 				if newEndPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 					// enforce security policies
 					dm.RuntimeEnforcer.UpdateSecurityPolicies(newEndPoint)
@@ -392,6 +391,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
+	if watchingPodEvents {
+		dm.Logger.Printf("already watching pod events")
+		return
+	}
+	dm.Logger.Print("Started to monitor Pod events")
+	watchingPodEvents = true
 	for {
 		if resp := K8s.WatchK8sPods(); resp != nil {
 			defer resp.Body.Close()
@@ -815,11 +820,11 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 				}
 			}
 
-			if dm.EnableKubeArmorPolicy {
+			if cfg.GlobalCfg.Policy {
 				// update security policies
 				dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
-				if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorPolicy {
+				if dm.RuntimeEnforcer != nil {
 					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
 						dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
@@ -1290,11 +1295,11 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 		}
 	}
 
-	if dm.EnableKubeArmorHostPolicy {
+	if cfg.GlobalCfg.HostPolicy {
 		// update host security policies
 		dm.Logger.UpdateHostSecurityPolicies("UPDATED", secPolicies)
 
-		if dm.RuntimeEnforcer != nil && dm.EnableKubeArmorHostPolicy {
+		if dm.RuntimeEnforcer != nil {
 			if dm.Node.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 				// enforce host security policies
 				dm.RuntimeEnforcer.UpdateHostSecurityPolicies(secPolicies)

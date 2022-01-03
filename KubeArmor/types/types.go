@@ -95,9 +95,6 @@ type Node struct {
 
 	ContainerRuntimeVersion string `json:"containerRuntimeVersion"`
 
-	EnableKubeArmorPolicy     bool `json:"enableKubeArmorPolicy"`
-	EnableKubeArmorHostPolicy bool `json:"enableKubeArmorHostPolicy"`
-
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled"`

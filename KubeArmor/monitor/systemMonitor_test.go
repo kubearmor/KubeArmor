@@ -10,6 +10,7 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -35,8 +36,8 @@ func TestSystemMonitor(t *testing.T) {
 	node.NodeName = "nodeName"
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
 	logger := feeder.NewFeeder("Default", &node, "32767", "none")
@@ -103,8 +104,8 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	node.NodeName = "nodeName"
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = false
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = false
 
 	// create logger
 	logger := feeder.NewFeeder("Default", &node, "32767", "none")
@@ -205,8 +206,8 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	node.NodeName = "nodeName"
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
-	node.EnableKubeArmorPolicy = false
-	node.EnableKubeArmorHostPolicy = true
+	cfg.GlobalCfg.Policy = false
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
 	logger := feeder.NewFeeder("Default", &node, "32767", "none")

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
@@ -320,7 +321,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			return false
 		}
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.PodBasedPolicyEnabled() {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 		}
@@ -361,7 +362,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		}
 		dm.EndPointsLock.Unlock()
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.PodBasedPolicyEnabled() {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 		}

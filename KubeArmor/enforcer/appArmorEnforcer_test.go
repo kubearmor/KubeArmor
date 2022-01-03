@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -32,8 +33,8 @@ func TestAppArmorEnforcer(t *testing.T) {
 	node := tp.Node{}
 	node.NodeName = "nodeName"
 	node.NodeIP = "nodeIP"
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
 	logger := feeder.NewFeeder("Default", &node, "32767", "none")
@@ -97,8 +98,8 @@ func TestAppArmorProfile(t *testing.T) {
 	node := tp.Node{}
 	node.NodeName = "nodeName"
 	node.NodeIP = "nodeIP"
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
 	logger := feeder.NewFeeder("Default", &node, "32767", "none")
@@ -210,8 +211,8 @@ func TestHostAppArmorProfile(t *testing.T) {
 	node := tp.Node{}
 	node.NodeName = "nodeName"
 	node.NodeIP = "nodeIP"
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
 	logger := feeder.NewFeeder("Default", &node, "32767", "none")

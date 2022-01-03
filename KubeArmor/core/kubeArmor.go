@@ -45,10 +45,6 @@ type KubeArmorDaemon struct {
 
 	LogFilter string
 
-	// options
-	EnableKubeArmorPolicy     bool
-	EnableKubeArmorHostPolicy bool
-
 	// flag
 	K8sEnabled bool
 
@@ -102,9 +98,6 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm := new(KubeArmorDaemon)
 
 	dm.Node = tp.Node{}
-
-	dm.EnableKubeArmorPolicy = cfg.GlobalCfg.Policy
-	dm.EnableKubeArmorHostPolicy = cfg.GlobalCfg.HostPolicy
 
 	dm.K8sEnabled = false
 
@@ -229,17 +222,17 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
-	if dm.EnableKubeArmorPolicy {
+	if cfg.PodBasedPolicyEnabled() {
 		go dm.SystemMonitor.TraceSyscall()
 		go dm.SystemMonitor.UpdateLogs()
 	}
 
-	if dm.EnableKubeArmorHostPolicy {
+	if cfg.HostBasedPolicyEnabled() {
 		go dm.SystemMonitor.TraceHostSyscall()
 		go dm.SystemMonitor.UpdateHostLogs()
 	}
 
-	if dm.EnableKubeArmorPolicy || dm.EnableKubeArmorHostPolicy {
+	if cfg.PolicyEnabled() {
 		go dm.SystemMonitor.CleanUpExitedHostPids()
 	}
 }
@@ -346,8 +339,6 @@ func KubeArmor() {
 			time.Sleep(time.Second * 1)
 		}
 
-		dm.Node.EnableKubeArmorPolicy = cfg.GlobalCfg.Policy
-		dm.Node.EnableKubeArmorHostPolicy = cfg.GlobalCfg.HostPolicy
 	} else {
 		dm.Node.NodeName = kl.GetHostName()
 		dm.Node.NodeIP = kl.GetExternalIPAddr()
@@ -355,12 +346,9 @@ func KubeArmor() {
 		dm.Node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
-		dm.EnableKubeArmorPolicy = false
+		cfg.GlobalCfg.Policy = false
+		cfg.GlobalCfg.Seccomp = false
 		cfg.GlobalCfg.HostPolicy = true
-		dm.EnableKubeArmorHostPolicy = true
-
-		dm.Node.EnableKubeArmorPolicy = false
-		dm.Node.EnableKubeArmorHostPolicy = cfg.GlobalCfg.HostPolicy
 
 		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 
@@ -389,7 +377,7 @@ func KubeArmor() {
 
 	// == //
 
-	if dm.EnableKubeArmorPolicy || dm.EnableKubeArmorHostPolicy {
+	if cfg.PolicyEnabled() {
 		// initialize system monitor
 		if !dm.InitSystemMonitor() {
 			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
@@ -411,21 +399,14 @@ func KubeArmor() {
 		if !dm.InitRuntimeEnforcer() {
 			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
 		} else {
-			dm.Logger.Print("Initialized KubeArmor Enforcer")
-
-			if dm.EnableKubeArmorPolicy && !dm.EnableKubeArmorHostPolicy {
-				dm.Logger.Print("Started to protect containers")
-			} else if !dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
-				dm.Logger.Print("Started to protect a host")
-			} else if dm.EnableKubeArmorPolicy && dm.EnableKubeArmorHostPolicy {
-				dm.Logger.Print("Started to protect a host and containers")
-			}
+			dm.Logger.Printf("Initialized KubeArmor Policy=%d, Seccomp=%d, hostPolicy=%d",
+				cfg.GlobalCfg.Policy, cfg.GlobalCfg.Seccomp, cfg.GlobalCfg.HostPolicy)
 		}
 	}
 
 	// == //
 
-	if dm.K8sEnabled && dm.EnableKubeArmorPolicy {
+	if dm.K8sEnabled && cfg.PodBasedPolicyEnabled() {
 		dm.Logger.Printf("Container Runtime: %s", dm.Node.ContainerRuntimeVersion)
 
 		if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "docker") {
@@ -494,24 +475,30 @@ func KubeArmor() {
 	time.Sleep(time.Second * 1)
 
 	// == //
-
-	if dm.K8sEnabled && dm.EnableKubeArmorPolicy {
+	if cfg.PodBasedPolicyEnabled() {
 		// watch k8s pods
 		go dm.WatchK8sPods()
-		dm.Logger.Print("Started to monitor Pod events")
+	}
 
+	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		// watch security policies
 		go dm.WatchSecurityPolicies()
 		dm.Logger.Print("Started to monitor security policies")
 	}
 
-	if dm.K8sEnabled && dm.EnableKubeArmorHostPolicy {
+	if dm.K8sEnabled && cfg.GlobalCfg.Seccomp {
+		// watch security policies
+		// TODO go dm.WatchSecurityPolicies()
+		dm.Logger.Print("Started to monitor kscmp security policies")
+	}
+
+	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
 		// watch host security policies
 		go dm.WatchHostSecurityPolicies()
 		dm.Logger.Print("Started to monitor host security policies")
 	}
 
-	if !dm.K8sEnabled && dm.EnableKubeArmorHostPolicy {
+	if !dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
 		dm.Logger.Print("Monitoring host security policies on GRPC")
 		policyService := &policy.ServiceServer{}
 		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy

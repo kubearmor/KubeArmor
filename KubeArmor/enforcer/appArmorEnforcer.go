@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -24,10 +25,6 @@ import (
 type AppArmorEnforcer struct {
 	// host
 	HostName string
-
-	// options
-	EnableKubeArmorPolicy     bool
-	EnableKubeArmorHostPolicy bool
 
 	// logs
 	Logger *fd.Feeder
@@ -49,10 +46,6 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 	// host
 	ae.HostName = node.NodeName
-
-	// options
-	ae.EnableKubeArmorPolicy = node.EnableKubeArmorPolicy
-	ae.EnableKubeArmorHostPolicy = node.EnableKubeArmorHostPolicy
 
 	// logs
 	ae.Logger = logger
@@ -161,7 +154,7 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 		}
 	}
 
-	if ae.EnableKubeArmorHostPolicy {
+	if cfg.GlobalCfg.HostPolicy {
 		if ok := ae.RegisterAppArmorHostProfile(); !ok {
 			return nil
 		}
@@ -181,7 +174,7 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 		ae.UnregisterAppArmorProfile(profile)
 	}
 
-	if ae.EnableKubeArmorHostPolicy {
+	if cfg.GlobalCfg.HostPolicy {
 		ae.UnregisterAppArmorHostProfile()
 	}
 
@@ -582,7 +575,7 @@ func (ae *AppArmorEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecu
 		return
 	}
 
-	if ae.EnableKubeArmorHostPolicy {
+	if cfg.GlobalCfg.HostPolicy {
 		ae.UpdateAppArmorHostProfile(secPolicies)
 	} else {
 		ae.UpdateAppArmorHostProfile([]tp.HostSecurityPolicy{})
