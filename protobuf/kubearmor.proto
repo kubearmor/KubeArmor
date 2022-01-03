@@ -57,8 +57,13 @@ message Alert {
 
   string Action = 22;
   string Result = 23;
-}
+  string SourcePath = 24;
+  string ParentProcessName = 25;
+  string ProcessName = 26;
+  string UserName = 27;
 
+
+}
 // log struct
 message Log {
   int64 Timestamp = 1;
@@ -85,6 +90,10 @@ message Log {
   string Data = 17;
 
   string Result = 18;
+  string SourcePath = 19;
+  string ParentProcessName = 20;
+  string ProcessName = 21;
+  string UserName = 22;
 }
 
 // request message
