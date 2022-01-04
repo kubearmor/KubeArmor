@@ -32,7 +32,7 @@ build-test: testall
 run: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log $(CLIOPT)
 
 .PHONY: run-host-only
 run-host-only: build

@@ -399,7 +399,7 @@ func KubeArmor() {
 		if !dm.InitRuntimeEnforcer() {
 			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
 		} else {
-			dm.Logger.Printf("Initialized KubeArmor Policy=%d, Seccomp=%d, hostPolicy=%d",
+			dm.Logger.Printf("Initialized KubeArmor Policy=%v, Seccomp=%v, hostPolicy=%v",
 				cfg.GlobalCfg.Policy, cfg.GlobalCfg.Seccomp, cfg.GlobalCfg.HostPolicy)
 		}
 	}

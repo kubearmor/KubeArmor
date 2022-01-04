@@ -51,6 +51,7 @@ const ConfigKubearmorHostPolicy string = "enableKubeArmorHostPolicy"
 // ConfigKubearmorVM Kubearmor VM key
 const ConfigKubearmorVM string = "enableKubeArmorVm"
 
+/*
 func isFlagPassed(name string) bool {
 	found := false
 	flag.Visit(func(f *flag.Flag) {
@@ -60,6 +61,7 @@ func isFlagPassed(name string) bool {
 	})
 	return found
 }
+*/
 
 func readCmdLineParams() {
 	// Read configuration from command line
