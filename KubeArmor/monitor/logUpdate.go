@@ -6,6 +6,7 @@ package monitor
 import (
 	"bytes"
 	"fmt"
+	"os/user"
 	"strconv"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -65,6 +66,16 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.PPID = int32(msg.ContextSys.PPID)
 	log.PID = int32(msg.ContextSys.PID)
 	log.UID = int32(msg.ContextSys.UID)
+	// to be added
+	//log.SourcePath        = string()
+	// log.ParentProcessName = string(msg.ContextSys.ParentProcessName)
+	// log.ProcessName = string(msg.ContextSys.ProcessName)
+	user, err := user.LookupId(fmt.Sprint((msg.ContextSys.UID)))
+	if err != nil {
+		fmt.Println("test")
+	}
+
+	log.UserName = user.Username
 
 	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
 		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PPID)

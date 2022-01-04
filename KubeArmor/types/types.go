@@ -200,11 +200,14 @@ type Log struct {
 	MergedDir string `json:"mergedDir,omitempty"`
 
 	// common
-	HostPID int32 `json:"hostPid"`
-	PPID    int32 `json:"ppid"`
-	PID     int32 `json:"pid"`
-	UID     int32 `json:"uid"`
-
+	HostPID           int32  `json:"hostPid"`
+	PPID              int32  `json:"ppid"`
+	PID               int32  `json:"pid"`
+	UID               int32  `json:"uid"`
+	SourcePath        string `json:"SourcePath"`
+	ParentProcessName string `json:"ParentProcessName"`
+	ProcessName       string `json:"ProcessName"`
+	UserName          string `json:"UserName"`
 	// policy
 	PolicyName string `json:"policyName,omitempty"`
 
