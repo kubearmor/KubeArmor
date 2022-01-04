@@ -21,6 +21,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// const variables
+const errIdentityRemoved = "err-identity-removed"
+
 // KVMAgent Structure
 type KVMAgent struct {
 	Identity         string
@@ -96,7 +99,7 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 		if err != nil {
 			kg.Warn("Failed to connect stream")
 
-			if strings.Contains(string(err.Error()), "err-identity-removed") {
+			if strings.Contains(string(err.Error()), errIdentityRemoved) {
 				kg.Warn("Identity removed from server")
 				// close the connection
 				if err = kvm.gRPCConnection.Close(); err != nil {
