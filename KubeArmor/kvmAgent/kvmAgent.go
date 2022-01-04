@@ -99,15 +99,6 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 		if err != nil {
 			kg.Warn("Failed to connect stream")
 
-			if strings.Contains(string(err.Error()), errIdentityRemoved) {
-				kg.Warn("Identity removed from server")
-				// close the connection
-				if err = kvm.gRPCConnection.Close(); err != nil {
-					kg.Warn("Failed to close the current connection")
-				}
-				return
-			}
-
 			// close the connection
 			if err = kvm.gRPCConnection.Close(); err != nil {
 				kg.Warn("Failed to close the current connection")
@@ -136,6 +127,16 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 			if err == io.EOF {
 				continue
 			} else if err != nil {
+
+				if strings.Contains(string(err.Error()), errIdentityRemoved) {
+					kg.Warn("Identity removed from server")
+					// close the connection
+					if err = kvm.gRPCConnection.Close(); err != nil {
+						kg.Warn("Failed to close the current connection")
+					}
+					return
+				}
+
 				// close the connection
 				if err = kvm.gRPCConnection.Close(); err != nil {
 					kg.Warn("Failed to close the current connection")
