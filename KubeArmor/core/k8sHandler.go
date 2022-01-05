@@ -311,6 +311,42 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentNam
 	return nil
 }
 
+// PatchDeploymentWithSeccompAnnotations Function
+func (kh *K8sHandler) PatchDeploymentWithSeccompAnnotations(namespaceName, deploymentName string, seccompAnnotations map[string]string) error {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return nil
+	}
+
+	spec := `{"spec":{"template":{"spec":{"securityContext":{"seccompProfile":{"type":"Localhost",`
+	// spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled",`
+	count := len(seccompAnnotations)
+
+	for _, v := range seccompAnnotations {
+		if v == "unconfined" {
+			continue
+		}
+
+		spec = spec + `"localhostProfile":"def-log.json"`
+		//spec = spec + `"localhostProfile":"` + v + `"`
+		// spec = spec + `"container.seccomp.security.alpha.kubernetes.io/` + k + `":"localhost/` + v + `"`
+
+		if count > 1 {
+			spec = spec + ","
+		}
+
+		count--
+	}
+
+	spec = spec + `}}}}}}`
+
+	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ================ //
 // == ReplicaSet == //
 // ================ //
@@ -426,13 +462,14 @@ func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) bool {
 }
 
 // WatchK8sSecurityPolicies Function
-func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
+func (kh *K8sHandler) WatchK8sSecurityPolicies(apires string) *http.Response {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
+	str := kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/" + apires + "?watch=true"
 
 	if kl.IsInK8sCluster() {
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
+		URL := "https://" + str
 
 		req, err := http.NewRequest("GET", URL, nil)
 		if err != nil {
@@ -451,7 +488,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	}
 
 	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
+	URL := "http://" + str
 
 	// #nosec
 	if resp, err := http.Get(URL); err == nil {

@@ -434,6 +434,26 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	fd.SecurityPoliciesLock.Unlock()
 }
 
+func (fd *Feeder) UpdateSeccompPolicies(action string, endPoint tp.EndPoint) {
+	// name := endPoint.NamespaceName + "_" + endPoint.EndPointName
+
+	if action == "DELETED" {
+		//		delete(fd.SeccompPolicies, name)
+		return
+	}
+
+	// ADDED | MODIFIED
+	//	matches := tp.MatchPolicies{}
+
+	//	for _, secPolicy := range endPoint.SeccompPolicies {
+	//		policyName := secPolicy.Metadata["policyName"]
+	//	}
+
+	//	fd.SeccompPoliciesLock.Lock()
+	//	fd.SeccompPolicies[name] = matches
+	//	fd.SeccompPoliciesLock.Unlock()
+}
+
 // ============================ //
 // == Host Security Policies == //
 // ============================ //

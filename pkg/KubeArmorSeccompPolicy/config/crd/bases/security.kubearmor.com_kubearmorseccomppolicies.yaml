@@ -39,6 +39,8 @@ spec:
           spec:
             description: KubeArmorSeccompPolicySpec defines the desired state of KubeArmorSeccompPolicy
             properties:
+              action:
+                type: string
               message:
                 type: string
               seccomp:

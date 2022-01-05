@@ -55,6 +55,9 @@ type KubeArmorSeccompPolicySpec struct {
 
 	// +kubebuilder:validation:optional
 	Message string `json:"message,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Action string `json:"action,omitempty"`
 }
 
 // KubeArmorSeccompPolicyStatus defines the observed state of KubeArmorSeccompPolicy

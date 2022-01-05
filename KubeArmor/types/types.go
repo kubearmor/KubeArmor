@@ -66,6 +66,7 @@ type EndPoint struct {
 	HostVolumes     []HostVolumeMount `json:"hostVolumes"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
+	SeccompPolicies  []SeccompPolicy  `json:"securityPolicies"`
 
 	// == //
 
@@ -133,6 +134,42 @@ type K8sPodEvent struct {
 // K8sPolicyStatus Structure
 type K8sPolicyStatus struct {
 	Status string `json:"status,omitempty"`
+}
+
+// K8sSeccompPolicyEvent Structure
+type K8sSeccompPolicyEvent struct {
+	Type   string           `json:"type"`
+	Object K8sSeccompPolicy `json:"object"`
+}
+
+type SeccompType struct {
+	Archs []string `json:"arch,omitempty"`
+
+	Syscalls []string `json:"syscalls,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
+}
+
+// K8sSeccompPolicy Structure
+type K8sSeccompPolicy struct {
+	Metadata metav1.ObjectMeta `json:"metadata"`
+	Spec     SeccompSpec       `json:"spec"`
+	Status   K8sPolicyStatus   `json:"status,omitempty"`
+}
+
+// SeccompSpec Structure
+type SeccompSpec struct {
+	Selector SelectorType `json:"selector"`
+
+	Seccomp SeccompType `json:"seccomp,omitempty"`
+
+	Severity int      `json:"severity"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action"`
 }
 
 // K8sKubeArmorPolicyEvent Structure
@@ -464,6 +501,12 @@ type SecuritySpec struct {
 type SecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     SecuritySpec      `json:"spec"`
+}
+
+// SeccompPolicy Structure
+type SeccompPolicy struct {
+	Metadata map[string]string `json:"metadata"`
+	Spec     SeccompSpec       `json:"spec"`
 }
 
 // ========================== //

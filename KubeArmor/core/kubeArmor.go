@@ -488,7 +488,7 @@ func KubeArmor() {
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Seccomp {
 		// watch security policies
-		// TODO go dm.WatchSecurityPolicies()
+		go dm.WatchSeccompPolicies()
 		dm.Logger.Print("Started to monitor kscmp security policies")
 	}
 

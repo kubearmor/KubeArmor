@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -26,6 +27,9 @@ type RuntimeEnforcer struct {
 	// LSMs
 	appArmorEnforcer *AppArmorEnforcer
 	seLinuxEnforcer  *SELinuxEnforcer
+
+	// Seccomp
+	seccompEnforcer *SeccompEnforcer
 }
 
 // NewRuntimeEnforcer Function
@@ -53,6 +57,10 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	}
 
 	re.EnforcerType = string(lsm)
+
+	if cfg.GlobalCfg.Seccomp {
+		re.seccompEnforcer = NewSeccompEnforcer(node, logger)
+	}
 
 	if strings.Contains(re.EnforcerType, "apparmor") {
 		re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
@@ -124,6 +132,26 @@ func (re *RuntimeEnforcer) UpdateSELinuxProfiles(action string, profiles map[str
 	}
 }
 
+// UpdateSeccompProfiles Function
+func (re *RuntimeEnforcer) UpdateSeccompProfiles(action string, profiles map[string]string) {
+	// skip if runtime enforcer is not active
+	if re == nil || re.seccompEnforcer == nil {
+		return
+	}
+
+	for _, profile := range profiles {
+		if profile == "unconfined" {
+			continue
+		}
+
+		if action == "ADDED" {
+			re.seccompEnforcer.RegisterSeccompProfile(profile)
+		} else if action == "DELETED" {
+			re.seccompEnforcer.UnregisterSeccompProfile(profile)
+		}
+	}
+}
+
 // UpdateSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	// skip if runtime enforcer is not active
@@ -136,6 +164,20 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	} else if re.EnforcerType == "SELinux" {
 		re.seLinuxEnforcer.UpdateSecurityPolicies(endPoint)
 	}
+}
+
+// UpdateSeccompPolicies Function
+func (re *RuntimeEnforcer) UpdateSeccompPolicies(endPoint tp.EndPoint) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
+	if re.seccompEnforcer == nil {
+		return
+	}
+
+	re.seccompEnforcer.UpdateSeccompPolicies(endPoint)
 }
 
 // UpdateHostSecurityPolicies Function
