@@ -317,27 +317,25 @@ func (kh *K8sHandler) PatchDeploymentWithSeccompAnnotations(namespaceName, deplo
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"spec":{"securityContext":{"seccompProfile":{"type":"Localhost",`
-	// spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled",`
-	count := len(seccompAnnotations)
+	spec := `{"spec":{"template":{"spec":{"containers":[`
+	addcomma := false
 
-	for _, v := range seccompAnnotations {
+	for k, v := range seccompAnnotations {
 		if v == "unconfined" {
 			continue
 		}
 
-		spec = spec + `"localhostProfile":"def-log.json"`
-		//spec = spec + `"localhostProfile":"` + v + `"`
-		// spec = spec + `"container.seccomp.security.alpha.kubernetes.io/` + k + `":"localhost/` + v + `"`
-
-		if count > 1 {
+		if addcomma {
 			spec = spec + ","
 		}
+		spec = spec + `{"name": "` + k + `", "securityContext":{ "seccompProfile":{"type":"Localhost","localhostProfile":"def-log.json"}}}`
 
-		count--
+		addcomma = true
 	}
 
-	spec = spec + `}}}}}}`
+	spec = spec + `]}}}}`
+
+	kg.Printf("Patching deployment=%s namespace=%s with %s", deploymentName, namespaceName, spec)
 
 	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 	if err != nil {

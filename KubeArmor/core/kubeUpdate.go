@@ -719,36 +719,40 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// == Seccomp == //
 
 				if dm.RuntimeEnforcer != nil && cfg.GlobalCfg.Seccomp {
-					seccompAnnotations := map[string]string{}
+					seccompSpec := map[string]string{}
 					updateSeccomp := false
 
-					for k, v := range pod.Annotations {
-						if strings.HasPrefix(k, "container.seccomp.security.alpha.kubernetes.io") {
-							if v == "unconfined" {
-								containerName := strings.Split(k, "/")[1]
-								seccompAnnotations[containerName] = v
-							} else {
-								containerName := strings.Split(k, "/")[1]
-								seccompAnnotations[containerName] = strings.Split(v, "/")[1]
+					/*
+						// Identify seccompSpec applied on containers.
+						for k, v := range pod.Annotations {
+							if strings.HasPrefix(k, "container.seccomp.security.alpha.kubernetes.io") {
+								if v == "unconfined" {
+									containerName := strings.Split(k, "/")[1]
+									seccompSpec[containerName] = v
+								} else {
+									containerName := strings.Split(k, "/")[1]
+									seccompSpec[containerName] = strings.Split(v, "/")[1]
+								}
 							}
 						}
-					}
+					*/
 
+					// If there are any containers that have not been covered add it to the list and set the updateSeccomp=true
 					for _, container := range event.Object.Spec.Containers {
-						if _, ok := seccompAnnotations[container.Name]; !ok {
-							seccompAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + container.Name
+						if _, ok := seccompSpec[container.Name]; !ok {
+							seccompSpec[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + container.Name
 							updateSeccomp = true
 						}
 					}
 
 					if event.Type == "ADDED" {
 						// update seccomp profiles
-						dm.RuntimeEnforcer.UpdateSeccompProfiles("ADDED", seccompAnnotations)
+						dm.RuntimeEnforcer.UpdateSeccompProfiles("ADDED", seccompSpec)
 
 						if updateSeccomp {
 							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
 								// patch the deployment with seccomp annotations
-								if err := K8s.PatchDeploymentWithSeccompAnnotations(pod.Metadata["namespaceName"], deploymentName, seccompAnnotations); err != nil {
+								if err := K8s.PatchDeploymentWithSeccompAnnotations(pod.Metadata["namespaceName"], deploymentName, seccompSpec); err != nil {
 									dm.Logger.Errf("Failed to update Seccomp Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 								} else {
 									dm.Logger.Printf("Patched Seccomp Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
@@ -768,7 +772,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								if updateSeccomp && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
 									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
 										// patch the deployment with seccomp annotations
-										if err := K8s.PatchDeploymentWithSeccompAnnotations(pod.Metadata["namespaceName"], deploymentName, seccompAnnotations); err != nil {
+										if err := K8s.PatchDeploymentWithSeccompAnnotations(pod.Metadata["namespaceName"], deploymentName, seccompSpec); err != nil {
 											dm.Logger.Errf("Failed to update Seccomp Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 										} else {
 											dm.Logger.Printf("Patched Seccomp Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
@@ -782,7 +786,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					} else if event.Type == "DELETED" {
 						// update Seccomp profiles
-						dm.RuntimeEnforcer.UpdateSeccompProfiles("DELETED", seccompAnnotations)
+						dm.RuntimeEnforcer.UpdateSeccompProfiles("DELETED", seccompSpec)
 					}
 				}
 				// === End of Seccomp === //
