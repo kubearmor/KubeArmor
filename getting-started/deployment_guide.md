@@ -61,6 +61,15 @@ kubectl port-forward -n kube-system svc/kubearmor 32767:32767
 karmor log
 ```
 
+## Manual YAML based [KubeArmor deployment](https://github.com/kubearmor/KubeArmor/tree/main/deployments)
+1. [EKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/EKS)
+2. [GKE](https://github.com/kubearmor/KubeArmor/tree/main/deployments/GKE)
+3. [docker](https://github.com/kubearmor/KubeArmor/tree/main/deployments/docker)
+4. [generic](https://github.com/kubearmor/KubeArmor/tree/main/deployments/generic)
+5. [k3s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/k3s)
+6. [microk8s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/microk8s)
+7. [minikube](https://github.com/kubearmor/KubeArmor/tree/main/deployments/minikube)
+
 ## K8s platforms tested
 1. Google Kubernetes Engine (GKE) Container Optimized OS (COS)
 2. GKE Ubuntu image
