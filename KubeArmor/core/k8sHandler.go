@@ -328,7 +328,7 @@ func (kh *K8sHandler) PatchDeploymentWithSeccompAnnotations(namespaceName, deplo
 		if addcomma {
 			spec = spec + ","
 		}
-		spec = spec + `{"name": "` + k + `", "securityContext":{ "seccompProfile":{"type":"Localhost","localhostProfile":"def-log.json"}}}`
+		spec = spec + `{"name": "` + k + `", "securityContext":{ "seccompProfile":{"type":"Localhost","localhostProfile":"` + v + `"}}}`
 
 		addcomma = true
 	}

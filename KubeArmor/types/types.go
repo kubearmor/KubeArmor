@@ -61,12 +61,13 @@ type EndPoint struct {
 
 	Containers       []string `json:"containers"`
 	AppArmorProfiles []string `json:"apparmorProfiles"`
+	SeccompProfiles  []string `json:"seccompProfiles"`
 
 	SELinuxProfiles map[string]string `json:"selinuxProfiles"`
 	HostVolumes     []HostVolumeMount `json:"hostVolumes"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
-	SeccompPolicies  []SeccompPolicy  `json:"securityPolicies"`
+	SeccompPolicies  []SeccompPolicy  `json:"seccompPolicies"`
 
 	// == //
 

@@ -195,10 +195,13 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
-	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + profileName)); err == nil {
-		content, err := ioutil.ReadFile(filepath.Clean("/etc/apparmor.d/" + profileName))
+	fname := filepath.Clean("/etc/apparmor.d/" + profileName)
+
+	if _, err := os.Stat(fname); err == nil {
+		content, err := ioutil.ReadFile(fname)
 		if err != nil {
-			ae.Logger.Errf("Unable to register an AppArmor profile (%s, %s)", profileName, err.Error())
+			ae.Logger.Errf("Unable to register an AppArmor profile (%s, %s)",
+				profileName, err.Error())
 			return false
 		}
 
@@ -210,39 +213,41 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(profileName string) bool {
 
 	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
 
-	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
+	newFile, err := os.Create(fname)
 	if err != nil {
-		ae.Logger.Errf("Failed to create a profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		ae.Logger.Errf("Failed to create a profile (%s, %s)", fname, err.Error())
 		return false
 	}
 
 	if _, err := newFile.WriteString(newProfile); err != nil {
-		ae.Logger.Errf("Failed to initialize the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		ae.Logger.Errf("Failed to initialize the profile (%s, %s)",
+			fname, err.Error())
 
 		if err := newFile.Close(); err != nil {
-			ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+			ae.Logger.Errf("Failed to close the profile (%s, %s)", fname, err.Error())
 		}
 
 		return false
 	}
 
-	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err == nil {
+	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", fname}); err == nil {
 		if _, ok := ae.AppArmorProfiles[profileName]; !ok {
 			ae.AppArmorProfiles[profileName] = 1
 			ae.Logger.Printf("Registered an AppArmor profile (%s)", profileName)
 		}
 	} else {
-		ae.Logger.Errf("Failed to register an AppArmor profile (%s, %s)", profileName, err.Error())
+		ae.Logger.Errf("Failed to register an AppArmor profile (%s, %s)",
+			profileName, err.Error())
 
 		if err := newFile.Close(); err != nil {
-			ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+			ae.Logger.Errf("Failed to close the profile (%s, %s)", fname, err.Error())
 		}
 
 		return false
 	}
 
 	if err := newFile.Close(); err != nil {
-		ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		ae.Logger.Errf("Failed to close the profile (%s, %s)", fname, err.Error())
 	}
 
 	return true
@@ -258,10 +263,13 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
-	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + profileName)); err == nil {
-		content, err := ioutil.ReadFile(filepath.Clean("/etc/apparmor.d/" + profileName))
+	fname := filepath.Clean("/etc/apparmor.d/" + profileName)
+
+	if _, err := os.Stat(fname); err == nil {
+		content, err := ioutil.ReadFile(fname)
 		if err != nil {
-			ae.Logger.Errf("Unable to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
+			ae.Logger.Errf("Unable to unregister an AppArmor profile (%s, %s)",
+				profileName, err.Error())
 			return false
 		}
 
@@ -273,27 +281,28 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 
 	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
 
-	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
+	newFile, err := os.Create(fname)
 	if err != nil {
-		ae.Logger.Errf("Failed to open a profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		ae.Logger.Errf("Failed to open a profile (%s, %s)", fname, err.Error())
 		return false
 	}
 
 	if _, err := newFile.WriteString(newProfile); err != nil {
-		ae.Logger.Errf("Failed to reset the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		ae.Logger.Errf("Failed to reset the profile (%s, %s)", fname, err.Error())
 
 		if err := newFile.Close(); err != nil {
-			ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+			ae.Logger.Errf("Failed to close the profile (%s, %s)", fname, err.Error())
 		}
 
 		return false
 	}
 
-	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + profileName}); err != nil {
-		ae.Logger.Errf("Failed to unregister an AppArmor profile (%s, %s)", profileName, err.Error())
+	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", fname}); err != nil {
+		ae.Logger.Errf("Failed to unregister an AppArmor profile (%s, %s)",
+			profileName, err.Error())
 
 		if err := newFile.Close(); err != nil {
-			ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+			ae.Logger.Errf("Failed to close the profile (%s, %s)", fname, err.Error())
 		}
 
 		return false
@@ -304,7 +313,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(profileName string) bool {
 	ae.Logger.Printf("Unregistered an AppArmor profile (%s)", profileName)
 
 	if err := newFile.Close(); err != nil {
-		ae.Logger.Errf("Failed to close the profile (%s, %s)", "/etc/apparmor.d/"+profileName, err.Error())
+		ae.Logger.Errf("Failed to close the profile (%s, %s)", fname, err.Error())
 	}
 
 	return true
