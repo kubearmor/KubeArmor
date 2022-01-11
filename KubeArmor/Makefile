@@ -89,32 +89,21 @@ ifeq (, $(shell which gosec))
 endif
 	cd $(CURDIR); gosec ./...
 
-.PHONY: systemd-deb
-systemd-deb: build
-ifeq (, $(shell which nfpm))
+.PHONY: local-release
+local-release: build
+ifeq (, $(shell which goreleaser))
 	@{ \
 	set -e ;\
-	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+	go install github.com/goreleaser/goreleaser@latest
 	}
 endif
-	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) nfpm pkg --packager deb
-
-.PHONY: systemd-rpm
-systemd-rpm: build
-ifeq (, $(shell which nfpm))
-	@{ \
-	set -e ;\
-	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
-	}
-endif
-	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) nfpm pkg --packager rpm
-
-.PHONY: systemd
-systemd: systemd-deb systemd-rpm
+	cd $(CURDIR); curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sh -s -- -b .
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate
 
 .PHONY: clean
 clean:
-	cd $(CURDIR); sudo rm -f kubearmor /tmp/kubearmor.log
+	cd $(CURDIR); sudo rm -f karmor kubearmor /tmp/kubearmor.log
+	cd $(CURDIR); sudo rm -rf dist
 	cd $(CURDIR); find . -name .coverprofile | xargs -I {} rm {}
 
 .PHONY: vagrant-check
