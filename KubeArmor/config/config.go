@@ -8,19 +8,25 @@ import (
 
 	"flag"
 
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
 )
 
-// KubearmorConfig Configuration structure for Kubearmor
+// KubearmorConfig Structure
 type KubearmorConfig struct {
-	Grpc           string // GRPC Port to use
-	Cluster        string // Cluster name to use for feeds
-	LogPath        string // Log file to use
-	HostVisibility string // Host visibility to use for kubearmor in process mode
-	Policy         bool   // Enable/Disable policy enforcement
-	HostPolicy     bool   // Enable/Disable host policy enforcement
-	KVMAgent       bool   // Enable/Disable KVM Agent
+	Cluster string // Cluster name to use for feeds
+	Host    string // Host name to use for feeds
+
+	GRPC              string // gRPC Port to use
+	LogPath           string // Log file to use
+	SELinuxProfileDir string // Directory to store SELinux profiles
+	HostVisibility    string // Host visibility to use for kubearmor in process mode
+
+	Policy     bool // Enable/Disable policy enforcement
+	HostPolicy bool // Enable/Disable host policy enforcement
+
+	KVMAgent bool // Enable/Disable KVM Agent
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -29,11 +35,17 @@ var GlobalCfg KubearmorConfig
 // ConfigCluster Cluster name key
 const ConfigCluster string = "cluster"
 
+// ConfigHost Host name key
+const ConfigHost string = "localhost"
+
 // ConfigGRPC GRPC Port key
 const ConfigGRPC string = "gRPC"
 
 // ConfigLogPath Log Path key
 const ConfigLogPath string = "logPath"
+
+// ConfigSELinuxProfileDir SELinux Profile Directory key
+const ConfigSELinuxProfileDir string = "seLinuxProfileDir"
 
 // ConfigHostVisibility Host visibility key
 const ConfigHostVisibility string = "hostVisibility"
@@ -47,38 +59,39 @@ const ConfigKubearmorHostPolicy string = "enableKubeArmorHostPolicy"
 // ConfigKubearmorVM Kubearmor VM key
 const ConfigKubearmorVM string = "enableKubeArmorVm"
 
-func isFlagPassed(name string) bool {
-	found := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
-		}
-	})
-	return found
-}
-
 func readCmdLineParams() {
-	// Read configuration from command line
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
+	hostStr := flag.String(ConfigHost, kl.GetHostName(), "host name")
+
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
-	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
-	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
-	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
+	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	hostVisStr := flag.String(ConfigHostVisibility, "process,file,network,capabilities", "Host Visibility to use [process,file,network,capabilities,none]")
 
+	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
+	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
+
+	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
+
 	flag.Parse()
+
 	viper.Set(ConfigCluster, *clusterStr)
+	viper.Set(ConfigHost, *hostStr)
+
 	viper.Set(ConfigGRPC, *grpcStr)
 	viper.Set(ConfigLogPath, *logStr)
+	viper.Set(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.Set(ConfigHostVisibility, *hostVisStr)
+
 	viper.Set(ConfigKubearmorPolicy, *policyB)
 	viper.Set(ConfigKubearmorHostPolicy, *hostPolicyB)
+
 	viper.Set(ConfigKubearmorVM, *kvmAgentB)
 }
 
 // LoadConfig Load configuration
 func LoadConfig() error {
+	// Read configuration from command line
 	readCmdLineParams()
 
 	// Read configuration from env var
@@ -99,18 +112,23 @@ func LoadConfig() error {
 		}
 	}
 
-	GlobalCfg.Grpc = viper.GetString(ConfigGRPC)
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
+	GlobalCfg.Host = viper.GetString(ConfigHost)
+
+	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
-	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
-	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
-	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
+	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
 
+	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
+	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
+
+	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.HostPolicy = true
 	}
 
 	kg.Printf("config [%+v]", GlobalCfg)
+
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -441,7 +442,7 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 // UpdateHostSecurityPolicies Function
 func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.HostSecurityPolicy) {
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, fd.Node.NodeName)
+		delete(fd.SecurityPolicies, cfg.GlobalCfg.Host)
 		return
 	}
 
@@ -660,7 +661,7 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 	}
 
 	fd.SecurityPoliciesLock.Lock()
-	fd.SecurityPolicies[fd.Node.NodeName] = matches
+	fd.SecurityPolicies[cfg.GlobalCfg.Host] = matches
 	fd.SecurityPoliciesLock.Unlock()
 }
 
@@ -694,7 +695,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
-		key := fd.Node.NodeName
+		key := cfg.GlobalCfg.Host
 
 		if log.NamespaceName != "" && log.PodName != "" {
 			key = log.NamespaceName + "_" + log.PodName

@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -234,7 +235,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					continue
 				}
 
-				if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
 				}
@@ -311,7 +312,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 		}
@@ -356,7 +357,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.EndPointsLock.Unlock()
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 		}
