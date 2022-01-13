@@ -1,0 +1,69 @@
+policy_module(karmorX, 1.0.0)
+
+########################################
+
+require {
+    role unconfined_r;
+    type unconfined_t, fs_t, user_devpts_t;
+}
+
+allow karmorX_t user_devpts_t:chr_file { getattr ioctl lock open read write append };
+
+########################################
+
+type karmorX_t;
+type karmorX_exec_t;
+
+application_domain(karmorX_t, karmorX_exec_t)
+role unconfined_r types karmorX_t;
+
+unconfined_domtrans_to(karmorX_t, karmorX_exec_t)
+#permissive karmorX_t;
+
+allow karmorX_t karmorX_exec_t:file { getattr execute execute_no_trans ioctl lock open read };
+
+########################################
+
+type karmorX_allow_t;
+
+allow unconfined_t karmorX_allow_t:file { getattr execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom }; # -execute
+allow karmorX_allow_t fs_t:filesystem { associate };
+
+allow karmorX_t karmorX_allow_t:file { getattr execute execute_no_trans ioctl lock open read write link unlink };
+
+########################################
+
+type karmorX_block_t;
+
+allow unconfined_t karmorX_block_t:file { getattr execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom }; # -execute
+allow karmorX_block_t fs_t:filesystem { associate };
+
+allow karmorX_t karmorX_block_t:file { getattr execute_no_trans ioctl lock open read write link unlink }; # -execute
+
+########################################
+
+type karmorX_read_t;
+files_type(karmorX_read_t)
+
+allow karmorX_t karmorX_read_t:dir { getattr ioctl lock open read search write add_name remove_name };
+allow karmorX_t karmorX_read_t:file { getattr ioctl lock open read }; # -write, -append
+
+type karmorX_write_t;
+files_type(karmorX_write_t)
+
+allow karmorX_t karmorX_write_t:dir { getattr ioctl lock open read search write add_name remove_name };
+allow karmorX_t karmorX_write_t:file { getattr ioctl lock open write append }; # -read
+
+type karmorX_file_t;
+files_type(karmorX_file_t)
+
+allow karmorX_t karmorX_file_t:dir { getattr ioctl lock open read search write add_name remove_name };
+allow karmorX_t karmorX_file_t:file { getattr ioctl lock open read write append };
+
+type karmorX_none_t;
+files_type(karmorX_none_t)
+
+allow karmorX_t karmorX_none_t:dir { getattr ioctl lock open read search write add_name remove_name };
+allow karmorX_t karmorX_none_t:file { getattr ioctl lock open };
+
+########################################
