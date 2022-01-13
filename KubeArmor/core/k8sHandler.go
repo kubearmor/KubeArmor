@@ -8,12 +8,10 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -108,16 +106,13 @@ func (kh *K8sHandler) InitK8sClient() bool {
 
 // InitLocalAPIClient Function
 func (kh *K8sHandler) InitLocalAPIClient() bool {
-	var kubeconfig *string
-	if home := os.Getenv("HOME"); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		return false
 	}
-	flag.Parse()
 
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return false
 	}
@@ -255,7 +250,7 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled",`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
@@ -282,17 +277,17 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 	return nil
 }
 
-// PatchDeploymentWithSELinuxOptions Function
-func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentName string, seLinuxContexts map[string]string) error {
+// PatchDeploymentWithSELinuxAnnotations Function
+func (kh *K8sHandler) PatchDeploymentWithSELinuxAnnotations(namespaceName, deploymentName string, seLinuxAnnotations map[string]string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled"}},"spec":{"containers":[`
-	count := len(seLinuxContexts)
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	count := len(seLinuxAnnotations)
 
-	for _, v := range seLinuxContexts {
-		spec = spec + v
+	for k, v := range seLinuxAnnotations {
+		spec = spec + `"kubearmor-selinux/` + k + `":"` + v + `"`
 
 		if count > 1 {
 			spec = spec + ","
@@ -301,9 +296,9 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentNam
 		count--
 	}
 
-	spec = spec + `]}}}}`
+	spec = spec + `}}}}}`
 
-	_, err := kh.K8sClient.AppsV1().Deployments(namespace).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}

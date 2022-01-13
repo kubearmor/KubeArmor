@@ -42,15 +42,6 @@ type Container struct {
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
-// HostVolumeMount Structure
-type HostVolumeMount struct {
-	Type                    string
-	VolumeName              string
-	PathName                string
-	UsedByContainerPath     map[string]string // key: container name, val: mounted path
-	UsedByContainerReadOnly map[string]bool   // key: container name, val: readOnly
-}
-
 // EndPoint Structure
 type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
@@ -61,9 +52,7 @@ type EndPoint struct {
 
 	Containers       []string `json:"containers"`
 	AppArmorProfiles []string `json:"apparmorProfiles"`
-
-	SELinuxProfiles map[string]string `json:"selinuxProfiles"`
-	HostVolumes     []HostVolumeMount `json:"hostVolumes"`
+	SELinuxProfiles  []string `json:"selinuxProfiles"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
 
@@ -79,8 +68,7 @@ type EndPoint struct {
 
 // Node Structure
 type Node struct {
-	NodeName string `json:"nodeName"`
-	NodeIP   string `json:"nodeIP"`
+	NodeIP string `json:"nodeIP"`
 
 	Annotations map[string]string `json:"annotations"`
 	Labels      map[string]string `json:"labels"`
@@ -94,9 +82,6 @@ type Node struct {
 	KubeletVersion  string `json:"kubeletVersion"`
 
 	ContainerRuntimeVersion string `json:"containerRuntimeVersion"`
-
-	EnableKubeArmorPolicy     bool `json:"enableKubeArmorPolicy"`
-	EnableKubeArmorHostPolicy bool `json:"enableKubeArmorHostPolicy"`
 
 	// == //
 
@@ -124,7 +109,6 @@ type K8sPod struct {
 	Annotations map[string]string
 	Labels      map[string]string
 	Containers  map[string]string
-	HostVolumes []HostVolumeMount
 }
 
 // K8sPodEvent Structure
@@ -423,28 +407,6 @@ type CapabilitiesType struct {
 	Action   string   `json:"action,omitempty"`
 }
 
-// MatchVolumeMountType Structure
-type MatchVolumeMountType struct {
-	Path      string `json:"path,omitempty"`
-	Directory string `json:"dir,omitempty"`
-	ReadOnly  bool   `json:"readOnly,omitempty"`
-
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action,omitempty"`
-}
-
-// SELinuxType Structure
-type SELinuxType struct {
-	MatchVolumeMounts []MatchVolumeMountType `json:"matchVolumeMounts,omitempty"`
-
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action,omitempty"`
-}
-
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Selector SelectorType `json:"selector"`
@@ -454,8 +416,7 @@ type SecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
-	AppArmor string      `json:"apparmor,omitempty"`
-	SELinux  SELinuxType `json:"selinux,omitempty"`
+	AppArmor string `json:"apparmor,omitempty"`
 
 	Severity int      `json:"severity"`
 	Tags     []string `json:"tags,omitempty"`
@@ -500,6 +461,26 @@ type HostSecuritySpec struct {
 type HostSecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     HostSecuritySpec  `json:"spec"`
+}
+
+// ================== //
+// == SELinux Rule == //
+// ================== //
+
+// SELinuxRule Structure
+type SELinuxRule struct {
+	SubjectLabel string
+	SubjectPath  string
+
+	ObjectLabel string
+	ObjectPath  string
+
+	Permissive bool
+
+	Directory bool
+	Recursive bool
+
+	Pattern bool
 }
 
 // ================== //

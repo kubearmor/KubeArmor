@@ -4,7 +4,6 @@
 package enforcer
 
 import (
-	"bufio"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,10 +11,9 @@ import (
 	"sync"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-
-	"golang.org/x/sys/unix"
 )
 
 // ====================== //
@@ -27,38 +25,88 @@ type SELinuxEnforcer struct {
 	// logs
 	Logger *fd.Feeder
 
+	// policy enforcer
+	SELinuxTemplatePath string
+
+	// host profile
+	HostProfile string
+
+	// profiles for containers
 	SELinuxProfiles     map[string]int
 	SELinuxProfilesLock *sync.Mutex
-
-	SELinuxContextTemplates string
 }
 
 // NewSELinuxEnforcer Function
-func NewSELinuxEnforcer(logger *fd.Feeder) *SELinuxEnforcer {
+func NewSELinuxEnforcer(node tp.Node, logger *fd.Feeder) *SELinuxEnforcer {
 	se := &SELinuxEnforcer{}
 
+	// logs
 	se.Logger = logger
 
-	se.SELinuxProfiles = map[string]int{}
-	se.SELinuxProfilesLock = &sync.Mutex{}
+	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		se.Logger.Errf("Failed to get the current directory (%s)", err.Error())
+		return nil
+	}
 
-	if _, err := os.Stat("/usr/sbin/semanage"); err != nil {
+	// to get SELinux modules and inject/remove new modules
+	if _, err := os.Stat(filepath.Clean("/usr/sbin/semanage")); err != nil {
 		se.Logger.Errf("Failed to find /usr/sbin/semanage (%s)", err.Error())
 		return nil
 	}
 
-	se.SELinuxContextTemplates = "/KubeArmor/templates/"
-
-	if kl.IsK8sLocal() {
-		if ex, err := os.Executable(); err == nil {
-			se.SELinuxContextTemplates = filepath.Dir(ex) + "/templates/"
-		}
+	// to change the labels of files and directories
+	if _, err := os.Stat(filepath.Clean("/usr/bin/chcon")); err != nil {
+		se.Logger.Errf("Failed to find /usr/bin/chcon (%s)", err.Error())
+		return nil
 	}
 
-	// install template cil
-	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + "base_container.cil"}); err != nil {
-		se.Logger.Errf("Failed to register a SELinux profile, %s (%s)", se.SELinuxContextTemplates+"base_container.cil", err.Error())
+	// to recover the original labels of files and directories
+	if _, err := os.Stat(filepath.Clean("/usr/sbin/restorecon")); err != nil {
+		se.Logger.Errf("Failed to find /usr/sbin/restorecon (%s)", err.Error())
 		return nil
+	}
+
+	// SELinux templates
+	templatePath := homeDir + "/templates/install.sh"
+	if _, err := os.Stat(filepath.Clean(templatePath)); err != nil {
+		// go test
+		templatePath = os.Getenv("PWD") + "/../templates/install.sh"
+		if _, err := os.Stat(filepath.Clean(templatePath)); err != nil {
+			se.Logger.Err("Failed to find templates/install.sh")
+			return nil
+		}
+	}
+	se.SELinuxTemplatePath = templatePath
+
+	// check the SELinux profile directory
+	if ok := strings.HasSuffix(cfg.GlobalCfg.SELinuxProfileDir, "/"); !ok {
+		cfg.GlobalCfg.SELinuxProfileDir = cfg.GlobalCfg.SELinuxProfileDir + "/"
+	}
+
+	// remove old profiles if exists
+	if err = os.RemoveAll(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir)); err != nil {
+		se.Logger.Errf("Failed to remove existing SELinux profiles (%s)", err.Error())
+		return nil
+	}
+
+	// create a profile directory if not exists
+	if err := os.MkdirAll(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir), 0755); err != nil {
+		se.Logger.Errf("Failed to create %s (%s)", cfg.GlobalCfg.SELinuxProfileDir, err.Error())
+		return nil
+	}
+
+	// host profile
+	se.HostProfile = "kubearmor.host"
+
+	// profiles
+	se.SELinuxProfiles = map[string]int{}
+	se.SELinuxProfilesLock = &sync.Mutex{}
+
+	if cfg.GlobalCfg.HostPolicy {
+		if ok := se.RegisterSELinuxHostProfile(); !ok {
+			return nil
+		}
 	}
 
 	return se
@@ -66,7 +114,7 @@ func NewSELinuxEnforcer(logger *fd.Feeder) *SELinuxEnforcer {
 
 // DestroySELinuxEnforcer Function
 func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
-	// skip if selinux enforcer is not active
+	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return nil
 	}
@@ -75,10 +123,8 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 		se.UnregisterSELinuxProfile(profileName)
 	}
 
-	// remove template cil
-	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-r", "base_container"}); err != nil {
-		se.Logger.Errf("Failed to register a SELinux profile, %s (%s)", se.SELinuxContextTemplates+"base_container.cil", err.Error())
-		return nil
+	if cfg.GlobalCfg.HostPolicy {
+		se.UnregisterSELinuxHostProfile()
 	}
 
 	return nil
@@ -88,147 +134,53 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 // == SELinux Profile Management == //
 // ================================ //
 
-// SELinux Flags
-const (
-	SELinuxDirReadOnly   = "getattr search open read lock ioctl"
-	SELinuxDirReadWrite  = "getattr search open read lock ioctl setattr write link add_name remove_name reparent lock create unlink rename rmdir"
-	SELinuxFileReadOnly  = "getattr ioctl lock open read"
-	SELinuxFileReadWrite = "getattr ioctl lock open read write append lock create rename link unlink"
-)
-
-// DoLgetxattr is a wrapper that retries on EINTR
-func DoLgetxattr(path, attr string, dest []byte) (int, error) {
-	for {
-		// TODO: NEED THE TERMINATION CONDITION FOR THE WORST CASE
-		if sz, err := unix.Lgetxattr(path, attr, dest); err != unix.EINTR {
-			return sz, err
-		}
-	}
-}
-
-// Lgetxattr returns a []byte slice containing the value of an extended attribute attr set for path.
-func Lgetxattr(path, attr string) ([]byte, error) {
-	dest := make([]byte, 128)
-
-	sz, errno := DoLgetxattr(path, attr, dest)
-	for errno == unix.ERANGE {
-		// if buffer is too small, use zero-sized buffer to get the actual size
-		sz, errno = DoLgetxattr(path, attr, []byte{})
-		if errno != nil {
-			return nil, errno
-		}
-
-		dest = make([]byte, sz)
-		sz, errno = DoLgetxattr(path, attr, dest)
-	}
-
-	if errno != nil {
-		return nil, errno
-	}
-
-	return dest[:sz], nil
-}
-
-// GetSELinuxType Function
-func GetSELinuxType(path string) (string, error) {
-	xattrNameSelinux := "security.selinux"
-
-	label, err := Lgetxattr(path, xattrNameSelinux)
-	if err != nil {
-		return "", err
-	}
-
-	// Trim the NUL byte at the end of the byte buffer, if present.
-	if len(label) > 0 && label[len(label)-1] == '\x00' {
-		label = label[:len(label)-1]
-	}
-
-	return strings.Split(string(label), ":")[2], nil
-}
-
 // RegisterSELinuxProfile Function
-func (se *SELinuxEnforcer) RegisterSELinuxProfile(containerName string, hostVolumes []tp.HostVolumeMount, profileName string) bool {
-	// skip if selinux enforcer is not active
+func (se *SELinuxEnforcer) RegisterSELinuxProfile(profileName string) bool {
+	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return true
 	}
 
-	defaultProfile := "(block " + profileName + "\n" +
-		"	(blockinherit container)\n" +
-		"	(allow process process (capability (dac_override)))\n"
-
-	for _, hostVolume := range hostVolumes {
-		if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
-			context, err := GetSELinuxType(hostVolume.PathName)
-			if err != nil {
-				se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
-				return false
-			}
-
-			contextLine := "	(allow process " + context
-
-			if readOnly {
-				if hostVolume.Type == "Directory" {
-					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-					defaultProfile = defaultProfile + contextDirLine
-				} else {
-					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-					defaultProfile = defaultProfile + contextFileLine
-				}
-			} else {
-				if hostVolume.Type == "Directory" {
-					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-					defaultProfile = defaultProfile + contextDirLine
-				} else {
-					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-					defaultProfile = defaultProfile + contextFileLine
-				}
-			}
-		}
-	}
-	defaultProfile = defaultProfile + ")\n"
-
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
-	profilePath := se.SELinuxContextTemplates + profileName + ".cil"
-	if _, err := os.Stat(filepath.Clean(profilePath)); err == nil {
-		if err := os.Remove(filepath.Clean(profilePath)); err != nil {
-			se.Logger.Err(err.Error())
-			return false
-		}
-	}
-
-	newFile, err := os.Create(filepath.Clean(profilePath))
+	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + profileName))
 	if err != nil {
-		se.Logger.Err(err.Error())
+		se.Logger.Warnf("Unable to create the SELinux profile (%s)", profileName)
 		return false
 	}
-	if _, err := newFile.WriteString(defaultProfile); err != nil {
-		se.Logger.Err(err.Error())
+
+	if _, err := newFile.WriteString(""); err != nil {
+		se.Logger.Warnf("Unable to update the SELinux profile (%s)", profileName)
+
+		if err := newFile.Close(); err != nil {
+			se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
+		}
+
 		return false
 	}
+
 	if err := newFile.Close(); err != nil {
-		se.Logger.Err(err.Error())
-	}
-
-	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", profilePath}); err != nil {
-		se.Logger.Errf("Failed to register a SELinux profile (%s, %s)", profileName, err.Error())
+		se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
 		return false
 	}
 
-	if _, ok := se.SELinuxProfiles[profileName]; !ok {
-		se.SELinuxProfiles[profileName] = 1
-		se.Logger.Errf("Registered a SELinux profile (%s)", profileName)
-		return true
+	if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + profileName); ok {
+		if _, ok := se.SELinuxProfiles[profileName]; !ok {
+			se.SELinuxProfiles[profileName] = 1
+			se.Logger.Printf("Registered the SELinux profile (%s)", profileName)
+		}
+	} else {
+		se.Logger.Warnf("Unable to register the SELinux profile (%s)", profileName)
+		return false
 	}
 
-	return false
+	return true
 }
 
 // UnregisterSELinuxProfile Function
 func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
-	// skip if selinux enforcer is not active
+	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return true
 	}
@@ -236,36 +188,121 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
-	profilePath := se.SELinuxContextTemplates + profileName + ".cil"
-
-	if _, err := os.Stat(filepath.Clean(profilePath)); err != nil {
-		se.Logger.Errf("Unabale to unregister a SELinux profile (%s, %s)", profileName, err.Error())
+	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + profileName))
+	if err != nil {
+		se.Logger.Warnf("Unable to create the SELinux profile (%s)", profileName)
 		return false
 	}
 
-	if _, err := ioutil.ReadFile(filepath.Clean(profilePath)); err != nil {
-		se.Logger.Errf("Unabale to unregister a SELinux profile (%s) (%s)", profileName, err.Error())
+	if _, err := newFile.WriteString(""); err != nil {
+		se.Logger.Warnf("Unable to update the SELinux profile (%s)", profileName)
+
+		if err := newFile.Close(); err != nil {
+			se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
+		}
+
 		return false
 	}
 
-	if _, ok := se.SELinuxProfiles[profileName]; !ok {
-		se.Logger.Errf("Failed to unregister an unknown SELinux profile (%s) (not exist profile in the enforecer)", profileName)
+	if err := newFile.Close(); err != nil {
+		se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
 		return false
 	}
 
-	if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-r", profileName}); err != nil {
-		se.Logger.Errf("Unabale to unregister a SELinux profile (%s, %s)", profileName, err.Error())
-		return false
-	}
-
-	if err := os.Remove(filepath.Clean(profilePath)); err != nil {
-		se.Logger.Errf("Failed to remove %s (%s)", profilePath, err.Error())
+	if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + profileName); !ok {
+		se.Logger.Warnf("Unable to unregister the SELinux profile (%s)", profileName)
 		return false
 	}
 
 	delete(se.SELinuxProfiles, profileName)
 
-	se.Logger.Printf("Unregistered a SELinux profile (%s)", profileName)
+	se.Logger.Printf("Unregistered the SELinux profile (%s)", profileName)
+
+	return true
+}
+
+// ===================================== //
+// == SELinux Host Profile Management == //
+// ===================================== //
+
+// RegisterSELinuxHostProfile Function
+func (se *SELinuxEnforcer) RegisterSELinuxHostProfile() bool {
+	// skip if SELinuxEnforcer is not active
+	if se == nil {
+		return true
+	}
+
+	se.SELinuxProfilesLock.Lock()
+	defer se.SELinuxProfilesLock.Unlock()
+
+	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
+	if err != nil {
+		se.Logger.Warnf("Unable to create the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		return false
+	}
+
+	if _, err := newFile.WriteString(""); err != nil {
+		se.Logger.Warnf("Unable to update the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+
+		if err := newFile.Close(); err != nil {
+			se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		}
+
+		return false
+	}
+
+	if err := newFile.Close(); err != nil {
+		se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		return false
+	}
+
+	if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile); !ok {
+		se.Logger.Warnf("Unable to register the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		return false
+	}
+
+	se.Logger.Printf("Registered the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+
+	return true
+}
+
+// UnregisterSELinuxHostProfile Function
+func (se *SELinuxEnforcer) UnregisterSELinuxHostProfile() bool {
+	// skip if SELinuxEnforcer is not active
+	if se == nil {
+		return true
+	}
+
+	se.SELinuxProfilesLock.Lock()
+	defer se.SELinuxProfilesLock.Unlock()
+
+	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
+	if err != nil {
+		se.Logger.Warnf("Unable to create the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		return false
+	}
+
+	if _, err := newFile.WriteString(""); err != nil {
+		se.Logger.Warnf("Unable to update the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+
+		if err := newFile.Close(); err != nil {
+			se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		}
+
+		return false
+	}
+
+	if err := newFile.Close(); err != nil {
+		se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		return false
+	}
+
+	if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile); !ok {
+		se.Logger.Warnf("Unable to unregister the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		return false
+	}
+
+	se.Logger.Printf("Unregistered the KubeArmor host profile from %s", cfg.GlobalCfg.Host)
 
 	return true
 }
@@ -274,159 +311,15 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
 // == Security Policy Enforcement == //
 // ================================= //
 
-// GenerateSELinuxProfile Function
-func (se *SELinuxEnforcer) GenerateSELinuxProfile(endPoint tp.EndPoint, profileName string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
-	securityRules := 0
-
-	if _, err := os.Stat(filepath.Clean(se.SELinuxContextTemplates + profileName + ".cil")); os.IsNotExist(err) {
-		return 0, err.Error(), false
-	}
-
-	file, err := os.Open(filepath.Clean(se.SELinuxContextTemplates + profileName + ".cil"))
-	if err != nil {
-		return 0, err.Error(), false
-	}
-
-	oldProfile := ""
-
-	fscanner := bufio.NewScanner(file)
-	for fscanner.Scan() {
-		line := fscanner.Text()
-		oldProfile += (line + "\n")
-	}
-	if err := file.Close(); err != nil {
-		se.Logger.Err(err.Error())
-	}
-
-	// key: container-side path, val: host-side path
-	mountedPathToHostPath := map[string]string{}
-
-	// write default volume
-	newProfile := "(block " + profileName + "\n" +
-		"	(blockinherit container)\n" +
-		"	(allow process process (capability (dac_override)))\n"
-
-	found := false
-
-	for _, hostVolume := range endPoint.HostVolumes {
-		for containerName := range hostVolume.UsedByContainerPath {
-			if !strings.Contains(profileName, containerName) {
-				continue
-			}
-
-			found = true
-
-			if readOnly, ok := hostVolume.UsedByContainerReadOnly[containerName]; ok {
-				mountedPathToHostPath[hostVolume.UsedByContainerPath[containerName]] = hostVolume.PathName
-
-				context, err := GetSELinuxType(hostVolume.PathName)
-				if err != nil {
-					se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
-					return 0, "", false
-				}
-
-				contextLine := "	(allow process " + context
-
-				if readOnly {
-					contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-					contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-					newProfile = newProfile + contextDirLine + contextFileLine
-				} else {
-					contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-					contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-					newProfile = newProfile + contextDirLine + contextFileLine
-				}
-			}
-		}
-
-		if !found {
-			return 0, "", false
-		}
-
-		// write policy volume
-		for _, policy := range securityPolicies {
-			for _, vol := range policy.Spec.SELinux.MatchVolumeMounts {
-				// file
-				if len(vol.Path) > 0 {
-					absolutePath := vol.Path
-					readOnly := vol.ReadOnly
-
-					for containerPath, hostPath := range mountedPathToHostPath {
-						if strings.Contains(absolutePath, containerPath) {
-							filePath := strings.Split(absolutePath, containerPath)[1]
-							hostAbsolutePath := hostPath + filePath
-
-							if context, err := GetSELinuxType(hostAbsolutePath); err != nil {
-								se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
-								break
-							} else {
-								contextLine := "	(allow process " + context
-
-								if readOnly {
-									contextFileLine := contextLine + " (file (" + SELinuxFileReadOnly + ")))\n"
-									newProfile = newProfile + contextFileLine
-									securityRules++
-								} else {
-									contextFileLine := contextLine + " (file (" + SELinuxFileReadWrite + ")))\n"
-									newProfile = newProfile + contextFileLine
-									securityRules++
-								}
-							}
-						}
-					}
-				}
-
-				// directory
-				if len(vol.Directory) > 0 {
-					absolutePath := vol.Directory
-					readOnly := vol.ReadOnly
-
-					for containerPath, hostPath := range mountedPathToHostPath {
-						if strings.Contains(absolutePath, containerPath) {
-							filePath := strings.Split(absolutePath, containerPath)[1]
-							hostAbsolutePath := hostPath + filePath
-
-							if context, err := GetSELinuxType(hostAbsolutePath); err != nil {
-								se.Logger.Errf("Failed to get the SELinux type of %s (%s)", hostVolume.PathName, err.Error())
-								break
-							} else {
-								contextLine := "	(allow process " + context
-
-								if readOnly {
-									contextDirLine := contextLine + " (dir (" + SELinuxDirReadOnly + ")))\n"
-									newProfile = newProfile + contextDirLine
-									securityRules++
-								} else {
-									contextDirLine := contextLine + " (dir (" + SELinuxDirReadWrite + ")))\n"
-									newProfile = newProfile + contextDirLine
-									securityRules++
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	newProfile = newProfile + ")\n"
-
-	if newProfile != oldProfile {
-		return securityRules, newProfile, true
-	}
-
-	return 0, "", false
-}
-
 // UpdateSELinuxProfile Function
 func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxProfile string, securityPolicies []tp.SecurityPolicy) {
-	// skip if selinux enforcer is not active
-	if se == nil {
-		return
-	}
+	if policyCount, newProfile, sources, ok := se.GenerateSELinuxProfile(seLinuxProfile, securityPolicies); ok {
+		if ok := se.InstallSELinuxModulesIfNeeded(sources); !ok {
+			se.Logger.Warnf("Unable to install SELinux modules required by the SELinux profile (%s)", seLinuxProfile)
+			return
+		}
 
-	if ruleCount, newProfile, ok := se.GenerateSELinuxProfile(endPoint, seLinuxProfile, securityPolicies); ok {
-		newfile, err := os.Create(filepath.Clean(se.SELinuxContextTemplates + seLinuxProfile + ".cil"))
+		newfile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + seLinuxProfile))
 		if err != nil {
 			se.Logger.Err(err.Error())
 			return
@@ -452,21 +345,22 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxPro
 			return
 		}
 
-		if err := kl.RunCommandAndWaitWithErr("semanage", []string{"module", "-a", se.SELinuxContextTemplates + seLinuxProfile + ".cil"}); err == nil {
-			se.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile)
-		} else {
-			se.Logger.Errf("Failed to update %d security rule(s) to %s/%s/%s (%s)", ruleCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile, err.Error())
-		}
-
 		if err := newfile.Close(); err != nil {
 			se.Logger.Err(err.Error())
 		}
+
+		if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + seLinuxProfile); !ok {
+			se.Logger.Warnf("Unable to update SELinux labels affected by the SELinux profile (%s)", seLinuxProfile)
+			return
+		}
+
+		se.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", policyCount, endPoint.NamespaceName, endPoint.EndPointName, seLinuxProfile)
 	}
 }
 
 // UpdateSecurityPolicies Function
 func (se *SELinuxEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
-	// skip if selinux enforcer is not active
+	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return
 	}
@@ -479,8 +373,14 @@ func (se *SELinuxEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 		}
 	}
 
-	for _, selinuxProfile := range selinuxProfiles {
-		se.UpdateSELinuxProfile(endPoint, selinuxProfile, endPoint.SecurityPolicies)
+	if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+		for _, selinuxProfile := range selinuxProfiles {
+			se.UpdateSELinuxProfile(endPoint, selinuxProfile, endPoint.SecurityPolicies)
+		}
+	} else { // PolicyDisabled
+		for _, selinuxProfile := range selinuxProfiles {
+			se.UpdateSELinuxProfile(endPoint, selinuxProfile, []tp.SecurityPolicy{})
+		}
 	}
 }
 
@@ -488,12 +388,328 @@ func (se *SELinuxEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 // == Host Security Policy Enforcement == //
 // ====================================== //
 
+// UpdateSELinuxHostProfile Function
+func (se *SELinuxEnforcer) UpdateSELinuxHostProfile(secPolicies []tp.HostSecurityPolicy) {
+	if policyCount, newProfile, sources, ok := se.GenerateSELinuxHostProfile(secPolicies); ok {
+		if ok := se.InstallSELinuxModulesIfNeeded(sources); !ok {
+			se.Logger.Warnf("Unable to install SELinux modules required by the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+			return
+		}
+
+		newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
+		if err != nil {
+			se.Logger.Err(err.Error())
+			return
+		}
+
+		if _, err := newFile.WriteString(newProfile); err != nil {
+			se.Logger.Err(err.Error())
+
+			if err := newFile.Close(); err != nil {
+				se.Logger.Err(err.Error())
+			}
+
+			return
+		}
+
+		if err := newFile.Sync(); err != nil {
+			se.Logger.Err(err.Error())
+
+			if err := newFile.Close(); err != nil {
+				se.Logger.Err(err.Error())
+			}
+
+			return
+		}
+
+		if err := newFile.Close(); err != nil {
+			se.Logger.Err(err.Error())
+		}
+
+		if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile); !ok {
+			se.Logger.Warnf("Unable to update SELinux labels affected by the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+			return
+		}
+
+		se.Logger.Printf("Updated %d host security rule(s) to the KubeArmor host profile in %s", policyCount, cfg.GlobalCfg.Host)
+	}
+}
+
 // UpdateHostSecurityPolicies Function
 func (se *SELinuxEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
-	// skip if selinux enforcer is not active
+	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return
 	}
 
-	//
+	if cfg.GlobalCfg.HostPolicy {
+		se.UpdateSELinuxHostProfile(secPolicies)
+	} else {
+		se.UpdateSELinuxHostProfile([]tp.HostSecurityPolicy{})
+	}
+}
+
+// ============================= //
+// == SELinux Rule Management == //
+// ============================= //
+
+// ContainsElement Function
+func (se *SELinuxEnforcer) ContainsElement(rules []tp.SELinuxRule, newRule tp.SELinuxRule) bool {
+	for _, rule := range rules {
+		if rule.SubjectPath == newRule.SubjectPath && rule.ObjectPath == newRule.ObjectPath {
+			return true
+		}
+	}
+	return false
+}
+
+// InstallSELinuxModulesIfNeeded Function
+func (se *SELinuxEnforcer) InstallSELinuxModulesIfNeeded(sources []string) bool {
+	modules := []string{}
+
+	res, err := kl.GetCommandOutputWithErr("/usr/sbin/semanage", []string{"module", "-l"})
+	if err != nil {
+		se.Logger.Err(err.Error())
+		return false
+	}
+
+	for _, line := range strings.Split(res, "\n") {
+		// fields: ModuleName Priority Language
+		words := strings.Fields(line)
+
+		if len(words) == 3 && strings.HasPrefix(words[0], "karmor") {
+			modules = append(modules, words[0])
+		}
+	}
+
+	for _, source := range sources {
+		if kl.ContainsElement(modules, source) {
+			continue
+		}
+
+		se.Logger.Printf("Installing a SELinux module (%s)", source)
+
+		if err := kl.RunCommandAndWaitWithErr(se.SELinuxTemplatePath, []string{source}); err == nil {
+			se.Logger.Printf("Installed the SELinux module (%s)", source)
+		} else {
+			se.Logger.Warnf("Unable to install a SELinux module (%s)", source)
+			return false
+		}
+	}
+
+	return true
+}
+
+// RestoreSELinuxLabels Function
+func (se *SELinuxEnforcer) RestoreSELinuxLabels(profilePath string) bool {
+	if _, err := os.Stat(filepath.Clean(profilePath + ".old")); err != nil {
+		return true
+	}
+
+	profile, err := ioutil.ReadFile(filepath.Clean(profilePath + ".old"))
+	if err != nil {
+		se.Logger.Warnf("Unable to read %s", profilePath+".old")
+		return false
+	}
+
+	res := true
+
+	for _, line := range strings.Split(string(profile), "\n") {
+		// fields: SubjectLabel SubjectPath ObjectLabel ObjectPath Permissive Directory Recursive Pattern
+		words := strings.Fields(line)
+		if len(words) != 8 {
+			continue
+		}
+
+		subjectPath := words[1]
+		objectPath := words[3]
+
+		permissive := words[4]
+
+		directory := words[5]
+		recursive := words[6]
+
+		if permissive == "true" {
+			continue
+		}
+
+		if subjectPath == "-" {
+			if directory == "true" {
+				if recursive == "true" {
+					// find $object_path -type f -or -type l -exec /usr/sbin/restorecon -v -F {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-type", "f", "-or", "-type", "l", "-exec", "/usr/sbin/restorecon", "-F", "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
+						res = false
+					}
+				} else { // recursive == false
+					// find $object_path -maxdepth 1 -type f -or -type l -exec /usr/sbin/restorecon -v -F {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-maxdepth", "1", "-type", "f", "-or", "-type", "l", "-exec", "/usr/sbin/restorecon", "-F", "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
+						res = false
+					}
+				}
+			} else { // file
+				// /usr/sbin/restorecon -v -F $object_path
+				if err := kl.RunCommandAndWaitWithErr("/usr/sbin/restorecon", []string{"-F", objectPath}); err != nil {
+					se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
+					res = false
+				}
+			}
+		} else { // fromSource
+			if directory == "true" {
+				if recursive == "true" {
+					// /usr/sbin/restorecon -F -v $subject_path
+					if err := kl.RunCommandAndWaitWithErr("/usr/sbin/restorecon", []string{"-F", subjectPath}); err != nil {
+						se.Logger.Warnf("Unable to restore the original label of %s", subjectPath)
+						res = false
+					}
+
+					// find $object_path -type f -or -type l -exec /usr/sbin/restorecon -v -F {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-type", "f", "-or", "-type", "l", "-exec", "/usr/sbin/restorecon", "-F", "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
+						res = false
+					}
+				} else { // recursive == false
+					// /usr/sbin/restorecon -F -v $subject_path
+					if err := kl.RunCommandAndWaitWithErr("/usr/sbin/restorecon", []string{"-F", subjectPath}); err != nil {
+						se.Logger.Warnf("Unable to restore the original label of %s", subjectPath)
+						res = false
+					}
+
+					// find $object_path -maxdepth 1 -type f -or -type l -exec /usr/sbin/restorecon -v -F {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-maxdepth", "1", "-type", "f", "-or", "-type", "l", "-exec", "/usr/sbin/restorecon", "-F", "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
+						res = false
+					}
+				}
+			} else { // file
+				// /usr/sbin/restorecon -F -v $subject_path
+				if err := kl.RunCommandAndWaitWithErr("/usr/sbin/restorecon", []string{"-F", subjectPath}); err != nil {
+					se.Logger.Warnf("Unable to restore the original label of %s", subjectPath)
+					res = false
+				}
+
+				// /usr/sbin/restorecon -F -v $object_path
+				if err := kl.RunCommandAndWaitWithErr("/usr/sbin/restorecon", []string{"-F", objectPath}); err != nil {
+					se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
+					res = false
+				}
+			}
+		}
+	}
+
+	return res
+}
+
+// UpdateSELinuxLabels Function
+func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
+	if _, err := os.Stat(filepath.Clean(profilePath)); err != nil {
+		se.Logger.Warnf("Unable to find %s", profilePath)
+		return false
+	}
+
+	if ok := se.RestoreSELinuxLabels(profilePath); !ok {
+		se.Logger.Warnf("Unable to restore the original SELinux labels affected by %s", profilePath)
+	}
+
+	if err := kl.CopyFile(profilePath, profilePath+".old"); err != nil {
+		se.Logger.Warnf("Unable to create %s.old", profilePath)
+	}
+
+	profile, err := ioutil.ReadFile(filepath.Clean(profilePath))
+	if err != nil {
+		se.Logger.Warnf("Unable to read %s", profilePath)
+		return false
+	}
+
+	res := true
+
+	for _, line := range strings.Split(string(profile), "\n") {
+		// fields: SubjectLabel SubjectPath ObjectLabel ObjectPath Permissive Directory Recursive Pattern
+		words := strings.Fields(line)
+		if len(words) != 8 {
+			continue
+		}
+
+		subjectLabel := words[0]
+		subjectPath := words[1]
+
+		objectLabel := words[2]
+		objectPath := words[3]
+
+		permissive := words[4]
+
+		directory := words[5]
+		recursive := words[6]
+
+		if permissive == "true" {
+			continue
+		}
+
+		if subjectPath == "-" {
+			if directory == "true" {
+				if recursive == "true" {
+					// find $object_path -type f -or -type l -exec /usr/bin/chcon -t $object_label {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-type", "f", "-or", "-type", "l", "-exec", "/usr/bin/chcon", "-t", objectLabel, "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
+						res = false
+					}
+				} else { // recursive == false
+					// find $object_path -maxdepth 1 -type f -or -type l -exec /usr/bin/chcon -t $object_label {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-maxdepth", "1", "-type", "f", "-or", "-type", "l", "-exec", "/usr/bin/chcon", "-t", objectLabel, "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
+						res = false
+					}
+				}
+			} else { // file
+				// /usr/bin/chcon -t $object_label $object_path
+				if err := kl.RunCommandAndWaitWithErr("/usr/bin/chcon", []string{"-t", objectLabel, objectPath}); err != nil {
+					se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
+					res = false
+				}
+			}
+		} else { // fromSource
+			if directory == "true" {
+				if recursive == "true" {
+					// /usr/bin/chcon -t $subject_label $subject_path
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/chcon", []string{"-t", subjectLabel, subjectPath}); err != nil {
+						se.Logger.Warnf("Unable to update the SELinux label of %s", subjectPath)
+						res = false
+					}
+
+					// find $object_path -type f -or -type l -exec /usr/bin/chcon -t $object_label {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-type", "f", "-or", "-type", "l", "-exec", "/usr/bin/chcon", "-t", objectLabel, "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
+						res = false
+					}
+				} else { // recursive == false
+					// /usr/bin/chcon -t $subject_label $subject_path
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/chcon", []string{"-t", subjectLabel, subjectPath}); err != nil {
+						se.Logger.Warnf("Unable to update the SELinux label of %s", subjectPath)
+						res = false
+					}
+
+					// find $object_path -maxdepth 1 -type f -or -type l -exec /usr/sbin/restorecon -v -F {} \;
+					if err := kl.RunCommandAndWaitWithErr("/usr/bin/find", []string{objectPath, "-maxdepth", "1", "-type", "f", "-or", "-type", "l", "-exec", "/usr/bin/chcon", "-t", objectLabel, "{}", "\\;"}); err != nil {
+						se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
+						res = false
+					}
+				}
+			} else { // file
+				// /usr/bin/chcon -t $subject_label $subject_path
+				if err := kl.RunCommandAndWaitWithErr("/usr/bin/chcon", []string{"-t", subjectLabel, subjectPath}); err != nil {
+					se.Logger.Warnf("Unable to update the SELinux label of %s", subjectPath)
+					res = false
+				}
+
+				// /usr/bin/chcon -t $object_label $object_path
+				if err := kl.RunCommandAndWaitWithErr("/usr/bin/chcon", []string{"-t", objectLabel, objectPath}); err != nil {
+					se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
+					res = false
+				}
+			}
+		}
+	}
+
+	return res
 }
