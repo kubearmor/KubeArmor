@@ -3,7 +3,9 @@
 
 package main
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+)
 
 var kubearmor = "kubearmor"
 var port int32 = 32767
