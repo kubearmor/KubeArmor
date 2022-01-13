@@ -12,11 +12,9 @@ import (
 func TestFeeder(t *testing.T) {
 	// node
 	node := tp.Node{}
-	node.NodeName = "nodeName"
-	node.NodeIP = "nodeIP"
 
 	// create logger
-	logger := NewFeeder("Default", &node, "32767", "none")
+	logger := NewFeeder(&node)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return

@@ -31,21 +31,15 @@ build-test: testall
 .PHONY: run
 run: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
+	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy=true
 
 .PHONY: run-host-only
 run-host-only: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy
-
-.PHONY: run-with-host
-run-with-host: build
-	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
-	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
-	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true
 
 .PHONY: test
 test:
