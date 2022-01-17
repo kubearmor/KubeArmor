@@ -105,11 +105,16 @@ func ObjCommaExpandFirstDupOthers(objptr interface{}) {
 
 // CopyFile Function
 func CopyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := os.Open(filepath.Clean(src))
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		cerr := in.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
 
 	out, err := os.Create(dst)
 	if err != nil {
