@@ -271,7 +271,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update policy flag
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" {
+		} else if pod.Annotations["kubearmor-policy"] == "audited" || pod.Annotations["kubearmor-policy"] == "patched" {
 			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
 		} else {
 			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
@@ -472,8 +472,16 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// == Exception == //
 
 				// exception: kubernetes app
-				if _, ok := pod.Labels["k8s-app"]; ok {
-					pod.Annotations["kubearmor-policy"] = "audited"
+				if pod.Metadata["namespaceName"] == "kube-system" {
+					if _, ok := pod.Labels["k8s-app"]; ok {
+						pod.Annotations["kubearmor-policy"] = "audited"
+					}
+
+					if value, ok := pod.Labels["component"]; ok {
+						if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" {
+							pod.Annotations["kubearmor-policy"] = "audited"
+						}
+					}
 				}
 
 				// exception: cilium-operator
@@ -489,8 +497,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// == Visibility == //
 
 				if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
-					pod.Annotations["kubearmor-visibility"] = "process,file,network,capabilities"
+					pod.Annotations["kubearmor-visibility"] = cfg.GlobalCfg.Visibility
 				}
+
+				// == Skip if already patched == //
 
 				if event.Type == "ADDED" || event.Type == "MODIFIED" {
 					exist := false
@@ -538,7 +548,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 					if event.Type == "ADDED" {
 						// update apparmor profiles
-						dm.RuntimeEnforcer.UpdateAppArmorProfiles("ADDED", appArmorAnnotations)
+						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
 							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
@@ -577,7 +587,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					} else if event.Type == "DELETED" {
 						// update apparmor profiles
-						dm.RuntimeEnforcer.UpdateAppArmorProfiles("DELETED", appArmorAnnotations)
+						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "DELETED", appArmorAnnotations)
 					}
 				}
 
@@ -602,8 +612,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 
 					if event.Type == "ADDED" {
-						// update apparmor profiles
-						dm.RuntimeEnforcer.UpdateSELinuxProfiles("ADDED", seLinuxAnnotations)
+						// update selinux profiles
+						dm.RuntimeEnforcer.UpdateSELinuxProfiles(pod.Metadata["podName"], "ADDED", seLinuxAnnotations)
 
 						if updateSELinux && pod.Annotations["kubearmor-policy"] == "enabled" {
 							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
@@ -642,7 +652,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					} else if event.Type == "DELETED" {
 						// update selinux profiles
-						dm.RuntimeEnforcer.UpdateSELinuxProfiles("DELETED", seLinuxAnnotations)
+						dm.RuntimeEnforcer.UpdateSELinuxProfiles(pod.Metadata["podName"], "DELETED", seLinuxAnnotations)
 					}
 				}
 
@@ -707,7 +717,7 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
 			secPolicy := tp.SecurityPolicy{}
 			if err := kl.Clone(policy, &secPolicy); err != nil {
-				dm.Logger.Err("Failed to clone a policy")
+				dm.Logger.Errf("Failed to clone a policy (%s)", err.Error())
 			}
 			secPolicies = append(secPolicies, secPolicy)
 		}
@@ -805,7 +815,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
 
 				if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
-					dm.Logger.Err("Failed to clone a spec")
+					dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
 					continue
 				}
 
@@ -1215,7 +1225,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	secPolicy.Metadata["policyName"] = event.Object.Metadata.Name
 
 	if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
-		dm.Logger.Err("Failed to clone a spec")
+		dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
 		return
 	}
 

@@ -32,7 +32,7 @@ type SELinuxEnforcer struct {
 	HostProfile string
 
 	// profiles for containers
-	SELinuxProfiles     map[string]int
+	SELinuxProfiles     map[string][]string
 	SELinuxProfilesLock *sync.Mutex
 }
 
@@ -91,7 +91,7 @@ func NewSELinuxEnforcer(node tp.Node, logger *fd.Feeder) *SELinuxEnforcer {
 	}
 
 	// create a profile directory if not exists
-	if err := os.MkdirAll(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir), 0750); err != nil {
 		se.Logger.Errf("Failed to create %s (%s)", cfg.GlobalCfg.SELinuxProfileDir, err.Error())
 		return nil
 	}
@@ -100,7 +100,7 @@ func NewSELinuxEnforcer(node tp.Node, logger *fd.Feeder) *SELinuxEnforcer {
 	se.HostProfile = "kubearmor.host"
 
 	// profiles
-	se.SELinuxProfiles = map[string]int{}
+	se.SELinuxProfiles = map[string][]string{}
 	se.SELinuxProfilesLock = &sync.Mutex{}
 
 	if cfg.GlobalCfg.HostPolicy {
@@ -120,7 +120,7 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 	}
 
 	for profileName := range se.SELinuxProfiles {
-		se.UnregisterSELinuxProfile(profileName)
+		se.UnregisterSELinuxProfile("", profileName)
 	}
 
 	if cfg.GlobalCfg.HostPolicy {
@@ -135,7 +135,7 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 // ================================ //
 
 // RegisterSELinuxProfile Function
-func (se *SELinuxEnforcer) RegisterSELinuxProfile(profileName string) bool {
+func (se *SELinuxEnforcer) RegisterSELinuxProfile(podName, profileName string) bool {
 	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return true
@@ -144,42 +144,45 @@ func (se *SELinuxEnforcer) RegisterSELinuxProfile(profileName string) bool {
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
+	if _, err := os.Stat(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + profileName)); err == nil {
+		if _, ok := se.SELinuxProfiles[profileName]; ok {
+			if !kl.ContainsElement(se.SELinuxProfiles[profileName], podName) {
+				se.SELinuxProfiles[profileName] = append(se.SELinuxProfiles[profileName], podName)
+			}
+			return true
+		}
+	}
+
 	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + profileName))
 	if err != nil {
-		se.Logger.Warnf("Unable to create the SELinux profile (%s)", profileName)
+		se.Logger.Warnf("Unable to create the SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
 	if _, err := newFile.WriteString(""); err != nil {
-		se.Logger.Warnf("Unable to update the SELinux profile (%s)", profileName)
-
-		if err := newFile.Close(); err != nil {
-			se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
-		}
-
+		se.Logger.Warnf("Unable to update the SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
 	if err := newFile.Close(); err != nil {
-		se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
+		se.Logger.Warnf("Unable to close the SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
-	if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + profileName); ok {
-		if _, ok := se.SELinuxProfiles[profileName]; !ok {
-			se.SELinuxProfiles[profileName] = 1
-			se.Logger.Printf("Registered the SELinux profile (%s)", profileName)
-		}
-	} else {
+	if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + profileName); !ok {
 		se.Logger.Warnf("Unable to register the SELinux profile (%s)", profileName)
 		return false
 	}
+
+	se.SELinuxProfiles[profileName] = []string{podName}
+
+	se.Logger.Printf("Registered the SELinux profile (%s)", profileName)
 
 	return true
 }
 
 // UnregisterSELinuxProfile Function
-func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
+func (se *SELinuxEnforcer) UnregisterSELinuxProfile(podName, profileName string) bool {
 	// skip if SELinuxEnforcer is not active
 	if se == nil {
 		return true
@@ -188,24 +191,39 @@ func (se *SELinuxEnforcer) UnregisterSELinuxProfile(profileName string) bool {
 	se.SELinuxProfilesLock.Lock()
 	defer se.SELinuxProfilesLock.Unlock()
 
+	if _, ok := se.SELinuxProfiles[profileName]; ok {
+		if kl.ContainsElement(se.SELinuxProfiles[profileName], podName) {
+			for idx, registeredPodName := range se.SELinuxProfiles[profileName] {
+				if registeredPodName == podName {
+					se.SELinuxProfiles[profileName] = append(se.SELinuxProfiles[profileName][:idx], se.SELinuxProfiles[profileName][idx+1:]...)
+					break
+				}
+			}
+
+			if len(se.SELinuxProfiles[profileName]) > 0 {
+				return true
+			}
+		}
+	}
+
+	if _, err := os.Stat(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + profileName)); err != nil {
+		se.Logger.Warnf("Unable to find the SELinux profile (%s, %s)", profileName, err.Error())
+		return false
+	}
+
 	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + profileName))
 	if err != nil {
-		se.Logger.Warnf("Unable to create the SELinux profile (%s)", profileName)
+		se.Logger.Warnf("Unable to open the SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
 	if _, err := newFile.WriteString(""); err != nil {
-		se.Logger.Warnf("Unable to update the SELinux profile (%s)", profileName)
-
-		if err := newFile.Close(); err != nil {
-			se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
-		}
-
+		se.Logger.Warnf("Unable to reset the SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
 	if err := newFile.Close(); err != nil {
-		se.Logger.Warnf("Unable to close the SELinux profile (%s)", profileName)
+		se.Logger.Warnf("Unable to close the SELinux profile (%s, %s)", profileName, err.Error())
 		return false
 	}
 
@@ -237,22 +255,17 @@ func (se *SELinuxEnforcer) RegisterSELinuxHostProfile() bool {
 
 	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
 	if err != nil {
-		se.Logger.Warnf("Unable to create the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		se.Logger.Warnf("Unable to create the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 		return false
 	}
 
 	if _, err := newFile.WriteString(""); err != nil {
-		se.Logger.Warnf("Unable to update the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
-
-		if err := newFile.Close(); err != nil {
-			se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
-		}
-
+		se.Logger.Warnf("Unable to update the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 		return false
 	}
 
 	if err := newFile.Close(); err != nil {
-		se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		se.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 		return false
 	}
 
@@ -278,22 +291,17 @@ func (se *SELinuxEnforcer) UnregisterSELinuxHostProfile() bool {
 
 	newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
 	if err != nil {
-		se.Logger.Warnf("Unable to create the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		se.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 		return false
 	}
 
 	if _, err := newFile.WriteString(""); err != nil {
-		se.Logger.Warnf("Unable to update the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
-
-		if err := newFile.Close(); err != nil {
-			se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
-		}
-
+		se.Logger.Warnf("Unable to update the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 		return false
 	}
 
 	if err := newFile.Close(); err != nil {
-		se.Logger.Warnf("Unable to close the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+		se.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 		return false
 	}
 
@@ -321,32 +329,33 @@ func (se *SELinuxEnforcer) UpdateSELinuxProfile(endPoint tp.EndPoint, seLinuxPro
 
 		newfile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + seLinuxProfile))
 		if err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to open the SELinux profile (%s, %s)", seLinuxProfile, err.Error())
 			return
 		}
 
 		if _, err := newfile.WriteString(newProfile); err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to update the SELinux profile (%s, %s)", seLinuxProfile, err.Error())
 
 			if err := newfile.Close(); err != nil {
-				se.Logger.Err(err.Error())
+				se.Logger.Warnf("Unable to close the SELinux profile (%s, %s)", seLinuxProfile, err.Error())
 			}
 
 			return
 		}
 
 		if err := newfile.Sync(); err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to sync the SELinux profile (%s, %s)", seLinuxProfile, err.Error())
 
 			if err := newfile.Close(); err != nil {
-				se.Logger.Err(err.Error())
+				se.Logger.Warnf("Unable to close the SELinux profile (%s, %s)", seLinuxProfile, err.Error())
 			}
 
 			return
 		}
 
 		if err := newfile.Close(); err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to close the SELinux profile (%s, %s)", seLinuxProfile, err.Error())
+			return
 		}
 
 		if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + seLinuxProfile); !ok {
@@ -398,32 +407,33 @@ func (se *SELinuxEnforcer) UpdateSELinuxHostProfile(secPolicies []tp.HostSecurit
 
 		newFile, err := os.Create(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
 		if err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			return
 		}
 
 		if _, err := newFile.WriteString(newProfile); err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to update the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 
 			if err := newFile.Close(); err != nil {
-				se.Logger.Err(err.Error())
+				se.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			}
 
 			return
 		}
 
 		if err := newFile.Sync(); err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to sync the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 
 			if err := newFile.Close(); err != nil {
-				se.Logger.Err(err.Error())
+				se.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			}
 
 			return
 		}
 
 		if err := newFile.Close(); err != nil {
-			se.Logger.Err(err.Error())
+			se.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
+			return
 		}
 
 		if ok := se.UpdateSELinuxLabels(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile); !ok {
@@ -469,7 +479,7 @@ func (se *SELinuxEnforcer) InstallSELinuxModulesIfNeeded(sources []string) bool 
 
 	res, err := kl.GetCommandOutputWithErr("/usr/sbin/semanage", []string{"module", "-l"})
 	if err != nil {
-		se.Logger.Err(err.Error())
+		se.Logger.Warnf("Unable to read the list of SELinux modules (%s)", err.Error())
 		return false
 	}
 

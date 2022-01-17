@@ -85,7 +85,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 }
 
 // UpdateAppArmorProfiles Function
-func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[string]string) {
+func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profiles map[string]string) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
@@ -98,16 +98,16 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[st
 			}
 
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
+				re.appArmorEnforcer.RegisterAppArmorProfile(podName, profile)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(podName, profile)
 			}
 		}
 	}
 }
 
 // UpdateSELinuxProfiles Function
-func (re *RuntimeEnforcer) UpdateSELinuxProfiles(action string, profiles map[string]string) {
+func (re *RuntimeEnforcer) UpdateSELinuxProfiles(podName, action string, profiles map[string]string) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
@@ -120,9 +120,9 @@ func (re *RuntimeEnforcer) UpdateSELinuxProfiles(action string, profiles map[str
 			}
 
 			if action == "ADDED" {
-				re.seLinuxEnforcer.RegisterSELinuxProfile(profile)
+				re.seLinuxEnforcer.RegisterSELinuxProfile(podName, profile)
 			} else if action == "DELETED" {
-				re.seLinuxEnforcer.UnregisterSELinuxProfile(profile)
+				re.seLinuxEnforcer.UnregisterSELinuxProfile(podName, profile)
 			}
 		}
 	}
