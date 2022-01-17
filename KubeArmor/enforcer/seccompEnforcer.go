@@ -85,7 +85,6 @@ func (se *SeccompEnforcer) RegisterSeccompProfile(profileName string) bool {
 		se.Logger.Errf("Failed to create a profile (%s, %s)", fname, err.Error())
 		return false
 	}
-	defer newFile.Close()
 
 	str := `
 {

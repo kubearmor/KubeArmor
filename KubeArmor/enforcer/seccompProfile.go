@@ -24,7 +24,7 @@ func GenerateSeccompProfile(seccompPolicies []tp.SeccompPolicy) string {
 // GenerateSeccompProfile Function
 func (se *SeccompEnforcer) GenerateSeccompProfile(seccompProfile string, seccompPolicies []tp.SeccompPolicy) (string, bool) {
 
-	fname := SeccompFileName(seccompProfile)
+	fname := filepath.Clean(SeccompFileName(seccompProfile)) // filepath.Clean is done again (SeccompFileName already has it) to keep lint happy!
 
 	if _, err := os.Stat(fname); os.IsNotExist(err) {
 		return err.Error(), false
