@@ -6,12 +6,19 @@ package feeder
 import (
 	"testing"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 func TestFeeder(t *testing.T) {
 	// node
 	node := tp.Node{}
+
+	// load configuration
+	if err := cfg.LoadConfig(); err != nil {
+		t.Log("[FAIL] Failed to load configuration")
+		return
+	}
 
 	// create logger
 	logger := NewFeeder(&node)

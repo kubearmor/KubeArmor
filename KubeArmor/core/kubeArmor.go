@@ -196,7 +196,7 @@ func (dm *KubeArmorDaemon) ServeLogFeeds() {
 // CloseLogger Function
 func (dm *KubeArmorDaemon) CloseLogger() bool {
 	if err := dm.Logger.DestroyFeeder(); err != nil {
-		kg.Print("Failed to destroy KubeArmor Logger")
+		kg.Errf("Failed to destroy KubeArmor Logger (%s)", err.Error())
 		return false
 	}
 	return true
@@ -215,7 +215,7 @@ func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
 	}
 
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
-		kg.Err(err.Error())
+		kg.Errf("Failed to initialize BPF (%s)", err.Error())
 		return false
 	}
 
@@ -245,7 +245,7 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 // CloseSystemMonitor Function
 func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 	if err := dm.SystemMonitor.DestroySystemMonitor(); err != nil {
-		dm.Logger.Err("Failed to destroy KubeArmor Monitor")
+		dm.Logger.Errf("Failed to destroy KubeArmor Monitor (%s)", err.Error())
 		return false
 	}
 	return true
@@ -264,7 +264,7 @@ func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
 // CloseRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 	if err := dm.RuntimeEnforcer.DestroyRuntimeEnforcer(); err != nil {
-		dm.Logger.Err("Failed to destory KubeArmor Enforcer")
+		dm.Logger.Errf("Failed to destory KubeArmor Enforcer (%s)", err.Error())
 		return false
 	}
 	return true
@@ -288,7 +288,7 @@ func (dm *KubeArmorDaemon) ConnectToKVMService() {
 // CloseKVMAgent Function
 func (dm *KubeArmorDaemon) CloseKVMAgent() bool {
 	if err := dm.KVMAgent.DestroyKVMAgent(); err != nil {
-		dm.Logger.Err("Failed to destory KVM Agent")
+		dm.Logger.Errf("Failed to destory KVM Agent (%s)", err.Error())
 		return false
 	}
 	return true
@@ -373,7 +373,7 @@ func KubeArmor() {
 		}
 
 	} else {
-		kg.Err("Neither K8s nor KVMAgent is configured")
+		kg.Warn("Neither K8s nor KVMAgent is configured")
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()

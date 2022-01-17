@@ -188,13 +188,13 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
 			if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
-				kg.Errf("Failed to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
+				kg.Warnf("Unable to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 			}
 		}
 
 		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
 			if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
-				kg.Errf("Failed to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
+				kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 			}
 		}
 	} else {

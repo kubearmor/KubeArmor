@@ -17,20 +17,26 @@ import (
 func TestSELinuxEnforcer(t *testing.T) {
 	// Check SELinux
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "selinux") {
-		t.Log("SELinux is not enabled")
+		t.Log("[INFO] SELinux is not enabled")
 		return
 	}
 
 	// node
 	node := tp.Node{}
+
+	// load configuration
+	if err := cfg.LoadConfig(); err != nil {
+		t.Log("[FAIL] Failed to load configuration")
+		return
+	}
 
 	// configuration
 	cfg.GlobalCfg.Policy = true
@@ -82,15 +88,15 @@ func TestSELinuxEnforcer(t *testing.T) {
 func TestSELinuxProfile(t *testing.T) {
 	// Check SELinux
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "selinux") {
-		t.Log("SELinux is not enabled")
+		t.Log("[INFO] SELinux is not enabled")
 		return
 	}
 
@@ -147,15 +153,15 @@ func TestSELinuxProfile(t *testing.T) {
 func TestSELinuxHostProfile(t *testing.T) {
 	// Check SELinux
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "selinux") {
-		t.Log("SELinux is not enabled")
+		t.Log("[INFO] SELinux is not enabled")
 		return
 	}
 

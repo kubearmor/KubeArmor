@@ -17,20 +17,26 @@ import (
 func TestAppArmorEnforcer(t *testing.T) {
 	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "apparmor") {
-		t.Log("AppArmor is not enabled")
+		t.Log("[INFO] AppArmor is not enabled")
 		return
 	}
 
 	// node
 	node := tp.Node{}
+
+	// load configuration
+	if err := cfg.LoadConfig(); err != nil {
+		t.Log("[FAIL] Failed to load configuration")
+		return
+	}
 
 	// configuration
 	cfg.GlobalCfg.Policy = true
@@ -82,15 +88,15 @@ func TestAppArmorEnforcer(t *testing.T) {
 func TestAppArmorProfile(t *testing.T) {
 	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "apparmor") {
-		t.Log("AppArmor is not enabled")
+		t.Log("[INFO] AppArmor is not enabled")
 		return
 	}
 
@@ -124,7 +130,7 @@ func TestAppArmorProfile(t *testing.T) {
 	t.Log("[PASS] Created AppArmor Enforcer")
 
 	// register AppArmorProfile
-	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
+	if ok := enforcer.RegisterAppArmorProfile("test", "test-profile"); !ok {
 		t.Log("[FAIL] Failed to register AppArmorProfile")
 
 		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
@@ -148,7 +154,7 @@ func TestAppArmorProfile(t *testing.T) {
 	t.Log("[PASS] Registered AppArmorProfile")
 
 	// unregister AppArmorProfile
-	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
+	if ok := enforcer.UnregisterAppArmorProfile("test", "test-profile"); !ok {
 		t.Log("[FAIL] Failed to unregister AppArmorProfile")
 
 		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
@@ -195,15 +201,15 @@ func TestAppArmorProfile(t *testing.T) {
 func TestHostAppArmorProfile(t *testing.T) {
 	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "apparmor") {
-		t.Log("AppArmor is not enabled")
+		t.Log("[INFO] AppArmor is not enabled")
 		return
 	}
 

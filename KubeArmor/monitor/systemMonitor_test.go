@@ -36,6 +36,12 @@ func TestSystemMonitor(t *testing.T) {
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
 
+	// load configuration
+	if err := cfg.LoadConfig(); err != nil {
+		t.Log("[FAIL] Failed to load configuration")
+		return
+	}
+
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = true
