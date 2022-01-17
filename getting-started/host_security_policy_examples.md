@@ -20,6 +20,16 @@ Here, we demonstrate how to define host security policies.
       action:
         Block
     ```
+---
+  **NOTE**
+
+  The given policy works with almost every linux distribution. If it is not working in your case, check the process location. The following location shows location of `sleep` binary in different ubuntu distributions:  
+
+
+  * In case of *Ubuntu 20.04* : /usr/bin/sleep
+  * In case of *Ubuntu 18.04* : /bin/sleep   
+
+---
 
     * Explanation: The purpose of this policy is to block the execution of '/bin/sleep' in a host whose host name is 'kubearmor-dev'. For this, we define 'kubernetes.io/hostname: kubearmor-dev' in nodeSelector -&gt; matchLabels and the specific path \('/bin/sleep'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
 
