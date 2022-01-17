@@ -21,7 +21,9 @@ type KubearmorConfig struct {
 	GRPC              string // gRPC Port to use
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
-	HostVisibility    string // Host visibility to use for kubearmor in process mode
+
+	Visibility     string // Container visibility to use
+	HostVisibility string // Host visibility to use
 
 	Policy     bool // Enable/Disable policy enforcement
 	HostPolicy bool // Enable/Disable host policy enforcement
@@ -47,6 +49,9 @@ const ConfigLogPath string = "logPath"
 // ConfigSELinuxProfileDir SELinux Profile Directory key
 const ConfigSELinuxProfileDir string = "seLinuxProfileDir"
 
+// ConfigVisibility Container visibility key
+const ConfigVisibility string = "visibility"
+
 // ConfigHostVisibility Host visibility key
 const ConfigHostVisibility string = "hostVisibility"
 
@@ -66,6 +71,8 @@ func readCmdLineParams() {
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
+
+	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
 	hostVisStr := flag.String(ConfigHostVisibility, "process,file,network,capabilities", "Host Visibility to use [process,file,network,capabilities,none]")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
@@ -81,6 +88,8 @@ func readCmdLineParams() {
 	viper.Set(ConfigGRPC, *grpcStr)
 	viper.Set(ConfigLogPath, *logStr)
 	viper.Set(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
+
+	viper.Set(ConfigVisibility, *visStr)
 	viper.Set(ConfigHostVisibility, *hostVisStr)
 
 	viper.Set(ConfigKubearmorPolicy, *policyB)
@@ -118,6 +127,8 @@ func LoadConfig() error {
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
+
+	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
 
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
