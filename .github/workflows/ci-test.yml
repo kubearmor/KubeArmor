@@ -50,18 +50,18 @@ jobs:
           sudo make install
           popd
 
-      - name: Setup Enviroment
-        run: |        
-          ./contribution/k3s/install_k3s.sh
-
-      - name: Run kubectl proxy
-        run: kubectl proxy &
-
       - name: Test KubeArmor
         run: make build-test
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
+
+      - name: Setup Enviroment
+        run: |
+          ./contribution/k3s/install_k3s.sh
+
+      - name: Run kubectl proxy
+        run: kubectl proxy &
 
       - name: Run Auto Testing Framework
         run: ./tests/test-scenarios-github.sh

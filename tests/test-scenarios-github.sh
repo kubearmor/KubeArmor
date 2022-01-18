@@ -135,8 +135,10 @@ function start_and_wait_for_kubearmor_initialization() {
             DBG "Built KubeArmor"
         fi
 
+        # just in case
+        stop_and_wait_for_kubearmor_termination
+
         echo "Github Actions - Environment"
-        make clean; make build-test
         sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
         CAT_LOG="cat $ARMOR_LOG"
 
