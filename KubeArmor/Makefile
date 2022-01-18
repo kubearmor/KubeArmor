@@ -27,6 +27,7 @@ build-test: testall
 	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
+	@echo "END"
 
 .PHONY: run
 run: build
