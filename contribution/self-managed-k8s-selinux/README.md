@@ -1,8 +1,8 @@
-# Kubernetes Installation for SELinux-enabled Fedora OS
+# Kubernetes Installation for SELinux-enabled OS
 
 * Requirements
 
-  SELinux-enabled Fedora 30 or above.
+  CentOS 8 or above.
 
 * Prerequisites
 

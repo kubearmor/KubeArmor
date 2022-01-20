@@ -2,59 +2,49 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
-realpath() {
-    CURR=$PWD
+# make a directory to build bcc
+mkdir -p /tmp/build; cd /tmp/build
 
-    cd "$(dirname "$0")"
-    LINK=$(readlink "$(basename "$0")")
+# download bcc
+sudo dnf -y install git
+git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
 
-    while [ "$LINK" ]; do
-        cd "$(dirname "$LINK")"
-        LINK=$(readlink "$(basename "$1")")
-    done
+# install dependencies for bcc
+sudo dnf -y install gcc gcc-c++ make cmake bison flex ethtool iperf3 \
+                    python3-netaddr python3-pip zlib-devel elfutils-libelf-devel libarchive \
+                    wget zip clang clang-devel llvm llvm-devel llvm-static ncurses-devel
 
-    REALPATH="$PWD/$(basename "$1")"
-    echo "$REALPATH"
-
-    cd $CURR
-}
-
-# install build dependencies
-sudo dnf -y update
-sudo dnf install -y bison cmake ethtool flex git iperf libstdc++-static \
-                    python-netaddr python-pip gcc gcc-c++ make zlib-devel \
-                    elfutils-libelf-devel  python-pip cmake make \
-                    luajit luajit-devel kernel-devel \
-                    http://repo.iovisor.org/yum/extra/mageia/cauldron/x86_64/netperf-2.7.0-1.mga6.x86_64.rpm
-sudo pip install pyroute2
-
-# install binary clang
-sudo dnf install -y clang clang-devel llvm llvm-devel llvm-static ncurses-devel
-
-# install and compile BCC
-cd
-git clone https://github.com/iovisor/bcc.git
-mkdir bcc/build; cd bcc/build
-cmake .. && make && sudo make install
+# install bcc
+mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
+cmake .. -DENABLE_LLVM_SHARED=1 && make -j$(nproc) && sudo make install
 if [ $? != 0 ]; then
     echo "Failed to install bcc"
     exit 1
 fi
-cd
 
-# install go
-wget https://dl.google.com/go/go1.15.3.linux-amd64.tar.gz
-tar -xvf go1.15.3.linux-amd64.tar.gz
-sudo mv go /usr/local
-rm go1.15.3.linux-amd64.tar.gz
-echo "export GOPATH=$HOME/go" >> ~/.bashrc
-echo "export GOROOT=/usr/local/go" >> ~/.bashrc
-echo "export PATH=$PATH:/usr/local/go/bin" >> ~/.bashrc
-source ~/.bashrc
+# install dependencies for selinux
+sudo dnf -y install policycoreutils-devel setools-console
 
-# copy cil templates
-KUBEARMOR_HOME=`dirname $(realpath "$0")`/../..
-sudo cp -r $KUBEARMOR_HOME/KubeArmor/templates /usr/share/
+# install golang
+echo "Installing golang binaries..."
+goBinary=$(curl -s https://go.dev/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)
+wget --quiet https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
+sudo tar -C /usr/local -xzf /tmp/build/$goBinary
+
+if [[ $(hostname) = kubearmor-dev* ]]; then
+    echo >> /home/vagrant/.bashrc
+    echo "export GOPATH=\$HOME/go" >> /home/vagrant/.bashrc
+    echo "export GOROOT=/usr/local/go" >> /home/vagrant/.bashrc
+    echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> /home/vagrant/.bashrc
+    echo >> /home/vagrant/.bashrc
+    mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go
+elif [ -z "$GOPATH" ]; then
+    echo >> ~/.bashrc
+    echo "export GOPATH=\$HOME/go" >> ~/.bashrc
+    echo "export GOROOT=/usr/local/go" >> ~/.bashrc
+    echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> ~/.bashrc
+    echo >> ~/.bashrc
+fi
 
 # download protoc
 mkdir -p /tmp/build/protoc; cd /tmp/build/protoc
@@ -64,6 +54,17 @@ wget https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/proto
 unzip protoc-3.14.0-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
 sudo chmod 755 /usr/local/bin/protoc
+
+# apply env
+if [[ $(hostname) = kubearmor-dev* ]]; then
+    export GOPATH=/home/vagrant/go
+    export GOROOT=/usr/local/go
+    export PATH=$PATH:/usr/local/go/bin:/home/vagrant/go/bin
+elif [ -z "$GOPATH" ]; then
+    export GOPATH=$HOME/go
+    export GOROOT=/usr/local/go
+    export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+fi
 
 # download protoc-gen-go
 go get -u google.golang.org/grpc

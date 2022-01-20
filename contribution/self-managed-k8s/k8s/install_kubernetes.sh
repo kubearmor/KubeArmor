@@ -37,5 +37,5 @@ if [ $(cat /proc/sys/net/ipv4/ip_forward) == 0 ]; then
 fi
 
 # disable rp_filter
-sudo bash -c "echo 'net.ipv4.conf.lxc*.rp_filter = 0' > /etc/sysctl.d/99-override_cilium_rp_filter.conf"
+sudo bash -c "echo 'net.ipv4.conf.all.rp_filter = 0' > /etc/sysctl.d/99-override_cilium_rp_filter.conf"
 sudo systemctl restart systemd-sysctl
