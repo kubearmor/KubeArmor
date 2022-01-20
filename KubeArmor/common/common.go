@@ -116,7 +116,7 @@ func CopyFile(src, dst string) error {
 		}
 	}()
 
-	out, err := os.Create(dst)
+	out, err := os.Create(filepath.Clean(dst))
 	if err != nil {
 		return err
 	}
