@@ -6,6 +6,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -102,6 +103,42 @@ func ObjCommaExpandFirstDupOthers(objptr interface{}) {
 	}
 }
 
+// CopyFile Function
+func CopyFile(src, dst string) error {
+	in, err := os.Open(filepath.Clean(src))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		cerr := in.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		cerr := out.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+
+	err = out.Sync()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ========== //
 // == Time == //
 // ========== //
@@ -175,10 +212,21 @@ func GetDateTimeFromTimestamp(timestamp float64) string {
 func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	// #nosec
 	res := exec.Command(cmd, args...)
-	out, err := res.Output()
+	stdin, err := res.StdinPipe()
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		defer stdin.Close()
+		_, _ = io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
+	}()
+
+	out, err := res.CombinedOutput()
 	if err != nil {
 		return string(out), err
 	}
+
 	return string(out), nil
 }
 
@@ -186,21 +234,32 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	// #nosec
 	res := exec.Command(cmd, args...)
-	out, err := res.Output()
+	stdin, err := res.StdinPipe()
 	if err != nil {
 		return ""
 	}
+
+	go func() {
+		defer stdin.Close()
+		_, _ = io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
+	}()
+
+	out, err := res.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+
 	return string(out)
 }
 
 // RunCommandAndWaitWithErr Function
 func RunCommandAndWaitWithErr(cmd string, args []string) error {
 	// #nosec
-	command := exec.Command(cmd, args...)
-	if err := command.Start(); err != nil {
+	res := exec.Command(cmd, args...)
+	if err := res.Start(); err != nil {
 		return err
 	}
-	if err := command.Wait(); err != nil {
+	if err := res.Wait(); err != nil {
 		return err
 	}
 	return nil
@@ -262,18 +321,29 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
-	k8sConfig := os.Getenv("HOME") + "/.kube"
+	k8sConfig := os.Getenv("KUBECONFIG")
 	if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
 		return true
 	}
+
+	home := os.Getenv("HOME")
+	if _, err := os.Stat(filepath.Clean(home + "/.kube/config")); err == nil {
+		return true
+	}
+
 	return false
 }
 
 // IsInK8sCluster Function
 func IsInK8sCluster() bool {
-	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
+	if _, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
 		return true
 	}
+
+	if _, err := os.Stat(filepath.Clean("/run/secrets/kubernetes.io")); err == nil {
+		return true
+	}
+
 	return false
 }
 

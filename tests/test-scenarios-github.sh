@@ -119,8 +119,31 @@ function start_and_wait_for_kubearmor_initialization() {
 
     ka_podname=`kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o custom-columns=":metadata.name" --no-headers`
     if [ "$ka_podname" != "" ]; then
+        echo "Found KubeArmor from Kubernetes"
+
         CAT_LOG="kubectl exec -n kube-system $ka_podname -- cat $ARMOR_LOG"
+        CAT_MSG="kubectl exec -n kube-system $ka_podname -- cat $ARMOR_MSG"
+
+        sleep 10
+
+        for count in {1..120}
+        do
+            $CAT_MSG | grep "Initialized KubeArmor" &> /dev/null
+            [[ $? -eq 0 ]] && break
+
+            $CAT_MSG | grep "Terminated KubeArmor" &> /dev/null
+            [[ $? -eq 0 ]] && $CAT_MSG && exit 1
+
+            sleep 1
+        done
+
+        $CAT_MSG
     else # start kubearmor as local process
+        echo "Not found KubeArmor from Kubernetes, executing KubeArmor as a local process"
+
+        CAT_LOG="cat $ARMOR_LOG"
+        CAT_MSG="cat $ARMOR_MSG"
+
         PROXY=$(ps -ef | grep "kubectl proxy" | wc -l)
         if [ $PROXY != 2 ]; then
            FAIL "Proxy is not running"
@@ -129,23 +152,24 @@ function start_and_wait_for_kubearmor_initialization() {
 
         cd $ARMOR_HOME
 
-        if [ ! -f kubearmor ]; then
-            DBG "Building KubeArmor"
-            make clean; make
-            DBG "Built KubeArmor"
-        fi
-
-        echo "Github Actions - Environment"
         make clean; make build-test
         sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
-        CAT_LOG="cat $ARMOR_LOG"
+        echo "Executed KubeArmor"
 
-        for (( ; ; ))
+        sleep 10
+
+        for count in {1..120}
         do
-           grep "Initialized KubeArmor" $ARMOR_MSG &> /dev/null
-           [[ $? -eq 0 ]] && break
-           sleep 1
+            $CAT_MSG | grep "Initialized KubeArmor" &> /dev/null
+            [[ $? -eq 0 ]] && break
+
+            $CAT_MSG | grep "Terminated KubeArmor" &> /dev/null
+            [[ $? -eq 0 ]] && $CAT_MSG && exit 1
+
+            sleep 1
         done
+
+        $CAT_MSG
     fi
 }
 
@@ -153,7 +177,7 @@ function stop_and_wait_for_kubearmor_termination() {
     [[ "$ka_podname" != "" ]] && echo "kubearmor not started by this script, hence not stopping" && return
     ps -e | grep kubearmor | awk '{print $1}' | xargs -I {} sudo kill {}
 
-    for (( ; ; ))
+    for count in {1..60}
     do
         ps -e | grep kubearmor &> /dev/null
         if [ $? != 0 ]; then
@@ -181,7 +205,7 @@ function apply_and_wait_for_microservice_creation() {
         RAW=$(kubectl get pods -n $1 | wc -l)
 
         ALL=`expr $RAW - 1`
-        READY=`kubectl get pods -n $1 | grep Running | wc -l`
+        READY=`kubectl get pods -n $1 | grep -e Running -e AppArmor | wc -l`
 
         [[ $ALL == $READY ]] && break
 
@@ -545,7 +569,7 @@ function run_test_scenario() {
 
 ## == KubeArmor == ##
 
-sudo rm -f $ARMOR_MSG $ARMOR_LOG
+sudo rm -f $ARMOR_MSG $ARMOR_LOG $TEST_LOG
 
 total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -ld $TEST_HOME/host_scenarios/$(hostname)_* 2> /dev/null | grep ^d | wc -l))
 

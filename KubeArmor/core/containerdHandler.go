@@ -12,6 +12,7 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
@@ -187,13 +188,13 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
 			if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
-				kg.Errf("Failed to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
+				kg.Warnf("Unable to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 			}
 		}
 
 		if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
 			if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
-				kg.Errf("Failed to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
+				kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 			}
 		}
 	} else {
@@ -320,7 +321,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			return false
 		}
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 		}
@@ -361,7 +362,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		}
 		dm.EndPointsLock.Unlock()
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 		}

@@ -44,4 +44,4 @@ nfpms:
       - src: ./templates/*
         dst: /opt/kubearmor/templates/
     scripts:
-      postinstall: packaging/postinstall.sh
+      postinstall: packaging/post-install.sh

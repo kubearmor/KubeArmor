@@ -122,7 +122,7 @@ func readStringFromBuff(buff io.Reader) (string, error) {
 		_, _ = readInt8FromBuff(buff) // discard last byte which is string terminating null
 	}()
 	if err != nil {
-		return "", fmt.Errorf("error reading string arg: %v", err)
+		return "", fmt.Errorf("error reading string: %v", err)
 	}
 	return string(res), nil
 }
@@ -952,7 +952,7 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 
 	at, err := readArgTypeFromBuff(dataBuff)
 	if err != nil {
-		return res, fmt.Errorf("error reading arg type: %v", err)
+		return res, fmt.Errorf("error reading argument type: %v", err)
 	}
 
 	switch at {
@@ -988,13 +988,13 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 	case capT:
 		cap, err := readInt32FromBuff(dataBuff)
 		if err != nil {
-			return nil, fmt.Errorf("error reading capability arg: %v", err)
+			return nil, fmt.Errorf("error reading capability type: %v", err)
 		}
 		res = getCapabilityName(cap)
 	case syscallT:
 		sc, err := readInt32FromBuff(dataBuff)
 		if err != nil {
-			return nil, fmt.Errorf("error reading syscall arg: %v", err)
+			return nil, fmt.Errorf("error reading syscall type: %v", err)
 		}
 		res = getSyscallName(sc)
 	case sockAddrT:
@@ -1028,7 +1028,7 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		}
 		res = getSocketType(t)
 	default:
-		return nil, fmt.Errorf("error unknown arg type %v", at)
+		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}
 
 	return res, nil

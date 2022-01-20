@@ -19,6 +19,7 @@ import (
 	"github.com/iovisor/gobpf/bcc"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -110,10 +111,6 @@ type SystemMonitor struct {
 	HostName      string
 	KernelVersion string
 
-	// options
-	EnableKubeArmorPolicy     bool
-	EnableKubeArmorHostPolicy bool
-
 	// logs
 	Logger *fd.Feeder
 
@@ -175,11 +172,8 @@ func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp
 	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
-	mon.HostName = node.NodeName
+	mon.HostName = cfg.GlobalCfg.Host
 	mon.KernelVersion = node.KernelVersion
-
-	mon.EnableKubeArmorPolicy = node.EnableKubeArmorPolicy
-	mon.EnableKubeArmorHostPolicy = node.EnableKubeArmorHostPolicy
 
 	mon.Logger = logger
 
@@ -263,17 +257,17 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	mon.Logger.Print("Initializing an eBPF program")
 
-	if mon.EnableKubeArmorPolicy && !mon.EnableKubeArmorHostPolicy { // container only
+	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
 		mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
 		if mon.BpfModule == nil {
 			return errors.New("bpf module is nil")
 		}
-	} else if !mon.EnableKubeArmorPolicy && mon.EnableKubeArmorHostPolicy { // host only
+	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
 		mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
 		if mon.HostBpfModule == nil {
 			return errors.New("bpf module is nil")
 		}
-	} else if mon.EnableKubeArmorPolicy && mon.EnableKubeArmorHostPolicy { // container and host
+	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
 		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
 			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST_AND_CONTAINER"})
 			if mon.BpfModule == nil {

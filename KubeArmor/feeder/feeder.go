@@ -17,6 +17,7 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
@@ -140,7 +141,7 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 		for _, mgs := range msgStructs {
 			select {
 			case <-svr.Context().Done():
-				kg.Warn("conn closed exiting WatchAlerts")
+				kg.Warn("conn closed exiting WatchMessages")
 				return nil
 			default:
 				if status, ok := status.FromError(mgs.Client.Send(&msg)); ok {
@@ -148,7 +149,7 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 					case codes.OK:
 						//noop
 					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-						kg.Warnf("Failed to send an alert=[%+v] err=[%s]", msg, status.Err().Error())
+						kg.Warnf("Failed to send a message=[%+v] err=[%s]", msg, status.Err().Error())
 						return status.Err()
 					default:
 						return nil
@@ -307,9 +308,6 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 
 // Feeder Structure
 type Feeder struct {
-	// cluster + host
-	ClusterName string
-
 	// node
 	Node *tp.Node
 
@@ -338,48 +336,24 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(clusterName string, node *tp.Node, port, output string) *Feeder {
+func NewFeeder(node *tp.Node) *Feeder {
 	fd := &Feeder{}
-
-	// set cluster info
-	fd.ClusterName = clusterName
 
 	// node
 	fd.Node = node
 
 	// gRPC configuration
-	fd.Port = fmt.Sprintf(":%s", port)
+	fd.Port = fmt.Sprintf(":%s", cfg.GlobalCfg.GRPC)
 
 	// output
-	fd.Output = output
+	fd.Output = cfg.GlobalCfg.LogPath
 
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
-		// get the directory part from the path
-		dirLog := filepath.Dir(fd.Output)
-
-		if _, err := os.Stat(filepath.Clean(fd.Output)); os.IsNotExist(err) {
-			// create directories
-			if err := os.MkdirAll(filepath.Clean(dirLog), 0750); err != nil {
-				kg.Errf("Failed to create a target directory (%s, %s)", dirLog, err.Error())
-				return nil
-			}
-
-			// create target file
-			targetFile, err := os.Create(filepath.Clean(fd.Output))
-			if err != nil {
-				kg.Errf("Failed to create a target file (%s, %s)", fd.Output, err.Error())
-				return nil
-			}
-			if err := targetFile.Close(); err != nil {
-				kg.Err(err.Error())
-			}
-		}
-
-		// open the file with the append mode
-		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_WRONLY|os.O_APPEND, 0600)
+		// #nosec
+		logFile, err := os.OpenFile(filepath.Clean(fd.Output), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
-			kg.Err(err.Error())
+			kg.Errf("Failed to open %s", fd.Output)
 			return nil
 		}
 		fd.LogFile = logFile
@@ -556,9 +530,9 @@ func (fd *Feeder) PushMessage(level, message string) {
 	pbMsg.Timestamp = timestamp
 	pbMsg.UpdatedTime = updatedTime
 
-	pbMsg.ClusterName = fd.ClusterName
+	pbMsg.ClusterName = cfg.GlobalCfg.Cluster
 
-	pbMsg.HostName = fd.Node.NodeName
+	pbMsg.HostName = cfg.GlobalCfg.Host
 	pbMsg.HostIP = fd.Node.NodeIP
 
 	pbMsg.Type = "Message"
@@ -578,7 +552,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// set hostname
-	log.HostName = fd.Node.NodeName
+	log.HostName = cfg.GlobalCfg.Host
 
 	// remove MergedDir
 	log.MergedDir = ""
@@ -606,8 +580,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Timestamp = log.Timestamp
 		pbAlert.UpdatedTime = log.UpdatedTime
 
-		pbAlert.ClusterName = fd.ClusterName
-		pbAlert.HostName = fd.Node.NodeName
+		pbAlert.ClusterName = cfg.GlobalCfg.Cluster
+		pbAlert.HostName = cfg.GlobalCfg.Host
 
 		pbAlert.NamespaceName = log.NamespaceName
 		pbAlert.PodName = log.PodName
@@ -657,8 +631,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.Timestamp = log.Timestamp
 		pbLog.UpdatedTime = log.UpdatedTime
 
-		pbLog.ClusterName = fd.ClusterName
-		pbLog.HostName = fd.Node.NodeName
+		pbLog.ClusterName = cfg.GlobalCfg.Cluster
+		pbLog.HostName = cfg.GlobalCfg.Host
 
 		pbLog.NamespaceName = log.NamespaceName
 		pbLog.PodName = log.PodName

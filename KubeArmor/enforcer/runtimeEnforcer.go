@@ -37,7 +37,10 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	if !kl.IsK8sLocal() {
 		// mount securityfs
 		if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
-			re.Logger.Errf("Failed to mount securityfs (%s)", err.Error())
+			if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
+				re.Logger.Errf("Failed to read /sys/kernel/security (%s)", err.Error())
+				return nil
+			}
 		}
 	}
 
@@ -64,7 +67,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 		}
 	} else if strings.Contains(re.EnforcerType, "selinux") {
 		if kl.IsK8sLocal() {
-			re.seLinuxEnforcer = NewSELinuxEnforcer(logger)
+			re.seLinuxEnforcer = NewSELinuxEnforcer(node, logger)
 			if re.seLinuxEnforcer != nil {
 				re.Logger.Print("Initialized SELinux Enforcer")
 				re.EnforcerType = "SELinux"
@@ -82,7 +85,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 }
 
 // UpdateAppArmorProfiles Function
-func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[string]string) {
+func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profiles map[string]string) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
@@ -95,30 +98,31 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(action string, profiles map[st
 			}
 
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(profile)
+				re.appArmorEnforcer.RegisterAppArmorProfile(podName, profile)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(profile)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(podName, profile)
 			}
 		}
 	}
 }
 
 // UpdateSELinuxProfiles Function
-func (re *RuntimeEnforcer) UpdateSELinuxProfiles(action string, profiles map[string]string, hostVolumes []tp.HostVolumeMount) {
+func (re *RuntimeEnforcer) UpdateSELinuxProfiles(podName, action string, profiles map[string]string) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
 	}
 
 	if re.EnforcerType == "SELinux" {
-		for k, v := range profiles {
-			if strings.HasPrefix(k, "selinux-") { // selinux- + [container_name]
-				containerName := strings.Split(k, "selinux-")[1]
-				if action == "ADDED" {
-					re.seLinuxEnforcer.RegisterSELinuxProfile(containerName, hostVolumes, v)
-				} else if action == "DELETED" {
-					re.seLinuxEnforcer.UnregisterSELinuxProfile(v)
-				}
+		for _, profile := range profiles {
+			if profile == "unconfined" {
+				continue
+			}
+
+			if action == "ADDED" {
+				re.seLinuxEnforcer.RegisterSELinuxProfile(podName, profile)
+			} else if action == "DELETED" {
+				re.seLinuxEnforcer.UnregisterSELinuxProfile(podName, profile)
 			}
 		}
 	}
@@ -170,7 +174,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 				re.Logger.Print("Destroyed AppArmor Enforcer")
 			}
 		}
-	} else if re.EnforcerType == "selinux" {
+	} else if re.EnforcerType == "SELinux" {
 		if re.seLinuxEnforcer != nil {
 			if err := re.seLinuxEnforcer.DestroySELinuxEnforcer(); err != nil {
 				re.Logger.Err(err.Error())

@@ -164,7 +164,7 @@ function apply_and_wait_for_microservice_creation() {
         RAW=$(kubectl get pods -n $1 | wc -l)
 
         ALL=`expr $RAW - 1`
-        READY=`kubectl get pods -n $1 | grep Running | wc -l`
+        READY=`kubectl get pods -n $1 | grep -e Running -e AppArmor | wc -l`
 
         [[ $ALL == $READY ]] && break
 
@@ -528,7 +528,7 @@ function run_test_scenario() {
 
 ## == KubeArmor == ##
 
-sudo rm -f $ARMOR_MSG $ARMOR_LOG
+sudo rm -f $ARMOR_MSG $ARMOR_LOG $TEST_LOG
 
 total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -ld $TEST_HOME/host_scenarios/$(hostname)_* 2> /dev/null | grep ^d | wc -l))
 

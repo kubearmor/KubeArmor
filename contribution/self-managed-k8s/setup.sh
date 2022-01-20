@@ -18,13 +18,13 @@ sudo rm -rf /tmp/build; mkdir -p /tmp/build; cd /tmp/build
 # download bcc
 git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
 
-# install bcc
-mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
-
 # install dependencies for bcc
 sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
                         clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
                         arping netperf iperf3
+
+# install bcc
+mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
 cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
 if [ $? != 0 ]; then
     echo "Failed to install bcc"

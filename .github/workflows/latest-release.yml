@@ -3,6 +3,9 @@ on:
     # Sequence of patterns matched against refs/tags
     branches:
       - 'main'
+    paths: 
+      - 'KubeArmor/**'
+      - 'protobuf/**'
 
 name: Latest version release after testing KubeArmor image
 
@@ -28,7 +31,7 @@ jobs:
           while [[ $(kubectl get pods -l kubearmor-app=kubearmor -n kube-system -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do sleep 1; done
           kubectl get pods -A
 
-      - name: Run KubeArmor tests
+      - name: Test KubeArmor
         run: |
           ./tests/test-scenarios-github.sh
 

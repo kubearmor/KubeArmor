@@ -14,7 +14,8 @@ import (
 
 // == //
 
-func allowedHostProcessMatchPaths(path tp.ProcessPathType, fromSources map[string][]string) {
+// AllowedHostProcessMatchPaths Function
+func (ae *AppArmorEnforcer) AllowedHostProcessMatchPaths(path tp.ProcessPathType, fromSources map[string][]string) {
 	if len(path.FromSource) > 0 {
 		for _, src := range path.FromSource {
 			source := ""
@@ -44,7 +45,8 @@ func allowedHostProcessMatchPaths(path tp.ProcessPathType, fromSources map[strin
 	}
 }
 
-func allowedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, fromSources map[string][]string) {
+// AllowedHostProcessMatchDirectories Function
+func (ae *AppArmorEnforcer) AllowedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, fromSources map[string][]string) {
 	if len(dir.FromSource) > 0 {
 		for _, src := range dir.FromSource {
 			source := ""
@@ -83,7 +85,8 @@ func allowedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, fromSources
 	}
 }
 
-func allowedHostFileMatchPaths(path tp.FilePathType, fromSources map[string][]string) {
+// AllowedHostFileMatchPaths Function
+func (ae *AppArmorEnforcer) AllowedHostFileMatchPaths(path tp.FilePathType, fromSources map[string][]string) {
 	if len(path.FromSource) > 0 {
 		for _, src := range path.FromSource {
 			source := ""
@@ -122,7 +125,8 @@ func allowedHostFileMatchPaths(path tp.FilePathType, fromSources map[string][]st
 	}
 }
 
-func allowedHostFileMatchDirectories(dir tp.FileDirectoryType, fromSources map[string][]string) {
+// AllowedHostFileMatchDirectories Function
+func (ae *AppArmorEnforcer) AllowedHostFileMatchDirectories(dir tp.FileDirectoryType, fromSources map[string][]string) {
 	if len(dir.FromSource) > 0 {
 		for _, src := range dir.FromSource {
 			source := ""
@@ -189,7 +193,8 @@ func allowedHostFileMatchDirectories(dir tp.FileDirectoryType, fromSources map[s
 	}
 }
 
-func allowedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources map[string][]string) {
+// AllowedHostNetworkMatchProtocols Function
+func (ae *AppArmorEnforcer) AllowedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources map[string][]string) {
 	if len(proto.FromSource) > 0 {
 		for _, src := range proto.FromSource {
 			source := ""
@@ -211,7 +216,8 @@ func allowedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources 
 	}
 }
 
-func allowedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, fromSources map[string][]string) {
+// AllowedHostCapabilitiesMatchCapabilities Function
+func (ae *AppArmorEnforcer) AllowedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, fromSources map[string][]string) {
 	if len(cap.FromSource) > 0 {
 		for _, src := range cap.FromSource {
 			source := ""
@@ -235,7 +241,8 @@ func allowedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType,
 
 //
 
-func auditedHostProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]string, fromSources map[string][]string) {
+// AuditedHostProcessMatchPaths Function
+func (ae *AppArmorEnforcer) AuditedHostProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s ix,\n", path.Path)
@@ -276,7 +283,8 @@ func auditedHostProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]s
 	}
 }
 
-func auditedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditList *[]string, fromSources map[string][]string) {
+// AuditedHostProcessMatchDirectories Function
+func (ae *AppArmorEnforcer) AuditedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.Recursive && dir.OwnerOnly {
 			line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
@@ -337,7 +345,8 @@ func auditedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processAudi
 	}
 }
 
-func auditedHostProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]string) {
+// AuditedHostProcessMatchPatterns Function
+func (ae *AppArmorEnforcer) AuditedHostProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]string) {
 	if pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
 		if !kl.ContainsElement(*processAuditList, line) {
@@ -351,7 +360,8 @@ func auditedHostProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList
 	}
 }
 
-func auditedHostFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSources map[string][]string) {
+// AuditedHostFileMatchPaths Function
+func (ae *AppArmorEnforcer) AuditedHostFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s r,\n", path.Path)
@@ -412,7 +422,8 @@ func auditedHostFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fr
 	}
 }
 
-func auditedHostFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]string, fromSources map[string][]string) {
+// AuditedHostFileMatchDirectories Function
+func (ae *AppArmorEnforcer) AuditedHostFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
@@ -529,7 +540,8 @@ func auditedHostFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]
 	}
 }
 
-func auditedHostFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]string) {
+// AuditedHostFileMatchPatterns Function
+func (ae *AppArmorEnforcer) AuditedHostFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
 		if !kl.ContainsElement(*fileAuditList, line) {
@@ -555,7 +567,8 @@ func auditedHostFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]strin
 
 //
 
-func blockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]string, fromSources map[string][]string) {
+// BlockedHostProcessMatchPaths Function
+func (ae *AppArmorEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
@@ -596,7 +609,8 @@ func blockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]s
 	}
 }
 
-func blockedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackList *[]string, fromSources map[string][]string) {
+// BlockedHostProcessMatchDirectories Function
+func (ae *AppArmorEnforcer) BlockedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.Recursive && dir.OwnerOnly {
 			line := fmt.Sprintf("  owner %s{*,**} ix,\n  deny other %s{*,**} x,\n", dir.Directory, dir.Directory)
@@ -657,7 +671,8 @@ func blockedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlac
 	}
 }
 
-func blockedHostProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]string) {
+// BlockedHostProcessMatchPatterns Function
+func (ae *AppArmorEnforcer) BlockedHostProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]string) {
 	if pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*processBlackList, line) {
@@ -671,7 +686,8 @@ func blockedHostProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList
 	}
 }
 
-func blockedHostFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
+// BlockedHostFileMatchPaths Function
+func (ae *AppArmorEnforcer) BlockedHostFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
 			line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
@@ -732,7 +748,8 @@ func blockedHostFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fr
 	}
 }
 
-func blockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]string, fromSources map[string][]string) {
+// BlockedHostFileMatchDirectories Function
+func (ae *AppArmorEnforcer) BlockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
@@ -849,7 +866,8 @@ func blockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]
 	}
 }
 
-func blockedHostFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
+// BlockedHostFileMatchPatterns Function
+func (ae *AppArmorEnforcer) BlockedHostFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
 		line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*fileBlackList, line) {
@@ -873,7 +891,8 @@ func blockedHostFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]strin
 	}
 }
 
-func blockedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources map[string][]string) {
+// BlockedHostNetworkMatchProtocols Function
+func (ae *AppArmorEnforcer) BlockedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources map[string][]string) {
 	if len(proto.FromSource) > 0 {
 		for _, src := range proto.FromSource {
 			source := ""
@@ -895,7 +914,8 @@ func blockedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, fromSources 
 	}
 }
 
-func blockedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, fromSources map[string][]string) {
+// BlockedHostCapabilitiesMatchCapabilities Function
+func (ae *AppArmorEnforcer) BlockedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, fromSources map[string][]string) {
 	if len(cap.FromSource) > 0 {
 		for _, src := range cap.FromSource {
 			source := ""
@@ -920,7 +940,7 @@ func blockedHostCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType,
 // == //
 
 // GenerateHostProfileHead Function
-func GenerateHostProfileHead() string {
+func (ae *AppArmorEnforcer) GenerateHostProfileHead() string {
 	profileHead := "## == Managed by KubeArmor == ##\n" +
 		"\n" +
 		"#include <tunables/global>\n" +
@@ -943,7 +963,7 @@ func GenerateHostProfileHead() string {
 }
 
 // GenerateHostProfileFoot Function
-func GenerateHostProfileFoot() string {
+func (ae *AppArmorEnforcer) GenerateHostProfileFoot() string {
 	profileFoot := "}\n"
 
 	return profileFoot
@@ -952,9 +972,7 @@ func GenerateHostProfileFoot() string {
 // == //
 
 // GenerateHostProfileBody Function
-func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, string) {
-	// preparation
-
+func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, string) {
 	count := 0
 
 	processAuditList := []string{}
@@ -981,31 +999,31 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
-					allowedHostProcessMatchPaths(path, fromSources)
+					ae.AllowedHostProcessMatchPaths(path, fromSources)
 				} else if path.Action == "Audit" {
-					auditedHostProcessMatchPaths(path, &processAuditList, fromSources)
+					ae.AuditedHostProcessMatchPaths(path, &processAuditList, fromSources)
 				} else if path.Action == "Block" {
-					blockedHostProcessMatchPaths(path, &processBlackList, fromSources)
+					ae.BlockedHostProcessMatchPaths(path, &processBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
-					allowedHostProcessMatchDirectories(dir, fromSources)
+					ae.AllowedHostProcessMatchDirectories(dir, fromSources)
 				} else if dir.Action == "Audit" {
-					auditedHostProcessMatchDirectories(dir, &processAuditList, fromSources)
+					ae.AuditedHostProcessMatchDirectories(dir, &processAuditList, fromSources)
 				} else if dir.Action == "Block" {
-					blockedHostProcessMatchDirectories(dir, &processBlackList, fromSources)
+					ae.BlockedHostProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Audit" {
-					auditedHostProcessMatchPatterns(pat, &processAuditList)
+					ae.AuditedHostProcessMatchPatterns(pat, &processAuditList)
 				} else if pat.Action == "Block" {
-					blockedHostProcessMatchPatterns(pat, &processBlackList)
+					ae.BlockedHostProcessMatchPatterns(pat, &processBlackList)
 				}
 			}
 		}
@@ -1013,31 +1031,31 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		if len(secPolicy.Spec.File.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
-					allowedHostFileMatchPaths(path, fromSources)
+					ae.AllowedHostFileMatchPaths(path, fromSources)
 				} else if path.Action == "Audit" {
-					auditedHostFileMatchPaths(path, &fileAuditList, fromSources)
+					ae.AuditedHostFileMatchPaths(path, &fileAuditList, fromSources)
 				} else if path.Action == "Block" {
-					blockedHostFileMatchPaths(path, &fileBlackList, fromSources)
+					ae.BlockedHostFileMatchPaths(path, &fileBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
-					allowedHostFileMatchDirectories(dir, fromSources)
+					ae.AllowedHostFileMatchDirectories(dir, fromSources)
 				} else if dir.Action == "Audit" {
-					auditedHostFileMatchDirectories(dir, &fileAuditList, fromSources)
+					ae.AuditedHostFileMatchDirectories(dir, &fileAuditList, fromSources)
 				} else if dir.Action == "Block" {
-					blockedHostFileMatchDirectories(dir, &fileBlackList, fromSources)
+					ae.BlockedHostFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Audit" {
-					auditedHostFileMatchPatterns(pat, &fileAuditList)
+					ae.AuditedHostFileMatchPatterns(pat, &fileAuditList)
 				} else if pat.Action == "Block" {
-					blockedHostFileMatchPatterns(pat, &fileBlackList)
+					ae.BlockedHostFileMatchPatterns(pat, &fileBlackList)
 				}
 			}
 		}
@@ -1045,9 +1063,9 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 				if proto.Action == "Allow" {
-					allowedHostNetworkMatchProtocols(proto, fromSources)
+					ae.AllowedHostNetworkMatchProtocols(proto, fromSources)
 				} else if proto.Action == "Block" {
-					blockedHostNetworkMatchProtocols(proto, fromSources)
+					ae.BlockedHostNetworkMatchProtocols(proto, fromSources)
 				}
 			}
 		}
@@ -1055,9 +1073,9 @@ func GenerateHostProfileBody(securityPolicies []tp.HostSecurityPolicy) (int, str
 		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 				if cap.Action == "Allow" {
-					allowedHostCapabilitiesMatchCapabilities(cap, fromSources)
+					ae.AllowedHostCapabilitiesMatchCapabilities(cap, fromSources)
 				} else if cap.Action == "Block" {
-					blockedHostCapabilitiesMatchCapabilities(cap, fromSources)
+					ae.BlockedHostCapabilitiesMatchCapabilities(cap, fromSources)
 				}
 			}
 		}
@@ -1193,11 +1211,11 @@ func (ae *AppArmorEnforcer) GenerateAppArmorHostProfile(secPolicies []tp.HostSec
 
 	// generate a profile body
 
-	count, profileBody := GenerateHostProfileBody(secPolicies)
+	count, profileBody := ae.GenerateHostProfileBody(secPolicies)
 
 	// generate a new profile
 
-	newProfile := GenerateHostProfileHead() + profileBody + GenerateHostProfileFoot()
+	newProfile := ae.GenerateHostProfileHead() + profileBody + ae.GenerateHostProfileFoot()
 
 	// check the new profile with the old profile
 

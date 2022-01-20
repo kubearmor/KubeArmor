@@ -10,7 +10,7 @@ deploygen
 
 # vagrant
 .vagrant
-contribution/vagrant/ubuntu-*-console.log
+contribution/vagrant/*.log
 
 # Packages
 *.deb

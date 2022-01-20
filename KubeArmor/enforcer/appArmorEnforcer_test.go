@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -16,27 +17,33 @@ import (
 func TestAppArmorEnforcer(t *testing.T) {
 	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "apparmor") {
-		t.Log("AppArmor is not enabled")
+		t.Log("[INFO] AppArmor is not enabled")
 		return
 	}
 
 	// node
 	node := tp.Node{}
-	node.NodeName = "nodeName"
-	node.NodeIP = "nodeIP"
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+
+	// load configuration
+	if err := cfg.LoadConfig(); err != nil {
+		t.Log("[FAIL] Failed to load configuration")
+		return
+	}
+
+	// configuration
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder("Default", &node, "32767", "none")
+	logger := feeder.NewFeeder(&node)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
@@ -81,27 +88,27 @@ func TestAppArmorEnforcer(t *testing.T) {
 func TestAppArmorProfile(t *testing.T) {
 	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "apparmor") {
-		t.Log("AppArmor is not enabled")
+		t.Log("[INFO] AppArmor is not enabled")
 		return
 	}
 
 	// node
 	node := tp.Node{}
-	node.NodeName = "nodeName"
-	node.NodeIP = "nodeIP"
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+
+	// configuration
+	cfg.GlobalCfg.Policy = true
+	cfg.GlobalCfg.HostPolicy = false
 
 	// create logger
-	logger := feeder.NewFeeder("Default", &node, "32767", "none")
+	logger := feeder.NewFeeder(&node)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
@@ -123,8 +130,8 @@ func TestAppArmorProfile(t *testing.T) {
 	t.Log("[PASS] Created AppArmor Enforcer")
 
 	// register AppArmorProfile
-	if ok := enforcer.RegisterAppArmorProfile("test-profile"); !ok {
-		t.Error("[FAIL] Failed to register AppArmorProfile")
+	if ok := enforcer.RegisterAppArmorProfile("test", "test-profile"); !ok {
+		t.Log("[FAIL] Failed to register AppArmorProfile")
 
 		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 			t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
@@ -147,8 +154,8 @@ func TestAppArmorProfile(t *testing.T) {
 	t.Log("[PASS] Registered AppArmorProfile")
 
 	// unregister AppArmorProfile
-	if ok := enforcer.UnregisterAppArmorProfile("test-profile"); !ok {
-		t.Error("[FAIL] Failed to unregister AppArmorProfile")
+	if ok := enforcer.UnregisterAppArmorProfile("test", "test-profile"); !ok {
+		t.Log("[FAIL] Failed to unregister AppArmorProfile")
 
 		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
 			t.Log("[FAIL] Failed to destroy AppArmor Enforcer")
@@ -194,27 +201,27 @@ func TestAppArmorProfile(t *testing.T) {
 func TestHostAppArmorProfile(t *testing.T) {
 	// check AppArmor
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
-		t.Log("Failed to access /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
 	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
-		t.Log("Failed to read /sys/kernel/security/lsm")
+		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
 	}
 	if !strings.Contains(string(lsm), "apparmor") {
-		t.Log("AppArmor is not enabled")
+		t.Log("[INFO] AppArmor is not enabled")
 		return
 	}
 
 	// node
 	node := tp.Node{}
-	node.NodeName = "nodeName"
-	node.NodeIP = "nodeIP"
-	node.EnableKubeArmorPolicy = true
-	node.EnableKubeArmorHostPolicy = true
+
+	// configuration
+	cfg.GlobalCfg.Policy = false
+	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder("Default", &node, "32767", "none")
+	logger := feeder.NewFeeder(&node)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
