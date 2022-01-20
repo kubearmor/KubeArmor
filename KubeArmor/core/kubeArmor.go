@@ -359,13 +359,15 @@ func KubeArmor() {
 				}
 
 				if dm.Node.NodeIP == "" && timeout == 60 {
-					kg.Print("The node information is not available")
+					kg.Print("The node information is not available, terminating KubeArmor")
 
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
 
 					return
 				}
+
+				kg.Print("The node information is not available")
 
 				// wait for a while
 				time.Sleep(time.Second * 1)
