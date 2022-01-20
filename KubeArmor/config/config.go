@@ -65,7 +65,7 @@ const ConfigKubearmorHostPolicy string = "enableKubeArmorHostPolicy"
 // ConfigKubearmorVM Kubearmor VM key
 const ConfigKubearmorVM string = "enableKubeArmorVm"
 
-// CoverageTest Coverage Test key
+// ConfigCoverageTest Coverage Test key
 const ConfigCoverageTest string = "coverageTest"
 
 func readCmdLineParams() {
