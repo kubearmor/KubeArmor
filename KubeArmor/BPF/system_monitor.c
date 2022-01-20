@@ -658,7 +658,7 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
             save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
             break;
         case FILE_TYPE_T:
-            if (!save_file_to_buffer(bufs_p))
+            if (save_file_to_buffer(bufs_p))
                 break;
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
