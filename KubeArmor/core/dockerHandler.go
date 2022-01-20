@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -51,24 +52,26 @@ func NewDockerHandler() *DockerHandler {
 	// specify the docker api version that we want to use
 	// Versioned API: https://docs.docker.com/engine/api/
 
-	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
+	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--silent", "--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
 	if err != nil {
 		return nil
 	}
 
-	if err := json.Unmarshal([]byte(versionStr), &docker.Version); err == nil {
-		apiVersion, _ := strconv.ParseFloat(docker.Version.APIVersion, 64)
+	if err := json.Unmarshal([]byte(versionStr), &docker.Version); err != nil {
+		kg.Warnf("Unable to get Docker version (%s)", err.Error())
+	}
 
-		if apiVersion >= 1.39 {
-			// downgrade the api version to 1.39
-			if err := os.Setenv("DOCKER_API_VERSION", "1.39"); err != nil {
-				kg.Err(err.Error())
-			}
-		} else {
-			// set the current api version
-			if err := os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion); err != nil {
-				kg.Err(err.Error())
-			}
+	apiVersion, _ := strconv.ParseFloat(docker.Version.APIVersion, 64)
+
+	if apiVersion >= 1.39 {
+		// downgrade the api version to 1.39
+		if err := os.Setenv("DOCKER_API_VERSION", "1.39"); err != nil {
+			kg.Warnf("Unable to set DOCKER_API_VERSION (%s)", err.Error())
+		}
+	} else {
+		// set the current api version
+		if err := os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion); err != nil {
+			kg.Warnf("Unable to set DOCKER_API_VERSION (%s)", err.Error())
 		}
 	}
 
@@ -137,13 +140,13 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
-			kg.Errf("Failed to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
+			kg.Warnf("Unable to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
 	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
 		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
-			kg.Errf("Failed to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
+			kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
@@ -234,7 +237,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					continue
 				}
 
-				if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
 				}
@@ -311,7 +314,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
 		}
@@ -356,7 +359,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.EndPointsLock.Unlock()
 
-		if dm.SystemMonitor != nil && dm.EnableKubeArmorPolicy {
+		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
 		}

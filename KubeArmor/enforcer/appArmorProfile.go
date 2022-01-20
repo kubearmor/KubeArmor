@@ -17,7 +17,8 @@ import (
 
 // == //
 
-func resolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
+// ResolvedProcessWhiteListConflicts Function
+func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
 	prunedProcessWhiteList := make([]string, len(*processWhiteList))
 	copy(prunedProcessWhiteList, *processWhiteList)
 	numOfRemovedElements := 0
@@ -37,7 +38,8 @@ func resolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources m
 	*processWhiteList = prunedProcessWhiteList
 }
 
-func allowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]string, fromSources map[string][]string) {
+// AllowedProcessMatchPaths Function
+func (ae *AppArmorEnforcer) AllowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s ix,\n", path.Path)
@@ -78,7 +80,8 @@ func allowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]strin
 	}
 }
 
-func allowedProcessMatchDirectories(dir tp.ProcessDirectoryType, processWhiteList *[]string, fromSources map[string][]string) {
+// AllowedProcessMatchDirectories Function
+func (ae *AppArmorEnforcer) AllowedProcessMatchDirectories(dir tp.ProcessDirectoryType, processWhiteList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.Recursive && dir.OwnerOnly {
 			line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
@@ -139,7 +142,8 @@ func allowedProcessMatchDirectories(dir tp.ProcessDirectoryType, processWhiteLis
 	}
 }
 
-func allowedProcessMatchPatterns(pat tp.ProcessPatternType, processWhiteList *[]string) {
+// AllowedProcessMatchPatterns Function
+func (ae *AppArmorEnforcer) AllowedProcessMatchPatterns(pat tp.ProcessPatternType, processWhiteList *[]string) {
 	if pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
 		if !kl.ContainsElement(*processWhiteList, line) {
@@ -153,7 +157,8 @@ func allowedProcessMatchPatterns(pat tp.ProcessPatternType, processWhiteList *[]
 	}
 }
 
-func allowedFileMatchPaths(path tp.FilePathType, fileWhiteList *[]string, fromSources map[string][]string) {
+// AllowedFileMatchPaths Function
+func (ae *AppArmorEnforcer) AllowedFileMatchPaths(path tp.FilePathType, fileWhiteList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s r,\n", path.Path)
@@ -214,7 +219,8 @@ func allowedFileMatchPaths(path tp.FilePathType, fileWhiteList *[]string, fromSo
 	}
 }
 
-func allowedFileMatchDirectories(dir tp.FileDirectoryType, fileWhiteList *[]string, fromSources map[string][]string) {
+// AllowedFileMatchDirectories Function
+func (ae *AppArmorEnforcer) AllowedFileMatchDirectories(dir tp.FileDirectoryType, fileWhiteList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
@@ -331,7 +337,8 @@ func allowedFileMatchDirectories(dir tp.FileDirectoryType, fileWhiteList *[]stri
 	}
 }
 
-func allowedFileMatchPatterns(pat tp.FilePatternType, fileWhiteList *[]string) {
+// AllowedFileMatchPatterns Function
+func (ae *AppArmorEnforcer) AllowedFileMatchPatterns(pat tp.FilePatternType, fileWhiteList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
 		if !kl.ContainsElement(*fileWhiteList, line) {
@@ -355,7 +362,8 @@ func allowedFileMatchPatterns(pat tp.FilePatternType, fileWhiteList *[]string) {
 	}
 }
 
-func allowedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkWhiteList *[]string, fromSources map[string][]string) {
+// AllowedNetworkMatchProtocols Function
+func (ae *AppArmorEnforcer) AllowedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkWhiteList *[]string, fromSources map[string][]string) {
 	if len(proto.FromSource) == 0 {
 		line := fmt.Sprintf("  network %s,\n", proto.Protocol)
 		if !kl.ContainsElement(*networkWhiteList, line) {
@@ -382,7 +390,8 @@ func allowedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkWhiteList
 	}
 }
 
-func allowedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, capabilityWhiteList *[]string, fromSources map[string][]string) {
+// AllowedCapabilitiesMatchCapabilities Function
+func (ae *AppArmorEnforcer) AllowedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, capabilityWhiteList *[]string, fromSources map[string][]string) {
 	if len(cap.FromSource) == 0 {
 		line := fmt.Sprintf("  capability %s,\n", cap.Capability)
 		if !kl.ContainsElement(*capabilityWhiteList, line) {
@@ -411,7 +420,8 @@ func allowedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, cap
 
 //
 
-func auditedProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]string, fromSources map[string][]string) {
+// AuditedProcessMatchPaths Function
+func (ae *AppArmorEnforcer) AuditedProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s ix,\n", path.Path)
@@ -452,7 +462,8 @@ func auditedProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]strin
 	}
 }
 
-func auditedProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditList *[]string, fromSources map[string][]string) {
+// AuditedProcessMatchDirectories Function
+func (ae *AppArmorEnforcer) AuditedProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.Recursive && dir.OwnerOnly {
 			line := fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
@@ -513,7 +524,8 @@ func auditedProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditLis
 	}
 }
 
-func auditedProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]string) {
+// AuditedProcessMatchPatterns Function
+func (ae *AppArmorEnforcer) AuditedProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]string) {
 	if pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
 		if !kl.ContainsElement(*processAuditList, line) {
@@ -527,7 +539,8 @@ func auditedProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]
 	}
 }
 
-func auditedFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSources map[string][]string) {
+// AuditedFileMatchPaths Function
+func (ae *AppArmorEnforcer) AuditedFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s r,\n", path.Path)
@@ -588,7 +601,8 @@ func auditedFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSo
 	}
 }
 
-func auditedFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]string, fromSources map[string][]string) {
+// AuditedFileMatchDirectories Function
+func (ae *AppArmorEnforcer) AuditedFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
@@ -705,7 +719,8 @@ func auditedFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]stri
 	}
 }
 
-func auditedFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]string) {
+// AuditedFileMatchPatterns Function
+func (ae *AppArmorEnforcer) AuditedFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s r,\n", pat.Pattern)
 		if !kl.ContainsElement(*fileAuditList, line) {
@@ -731,7 +746,8 @@ func auditedFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]string) {
 
 //
 
-func blockedProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]string, fromSources map[string][]string) {
+// BlockedProcessMatchPaths Function
+func (ae *AppArmorEnforcer) BlockedProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.OwnerOnly {
 			line := fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
@@ -772,7 +788,8 @@ func blockedProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]strin
 	}
 }
 
-func blockedProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackList *[]string, fromSources map[string][]string) {
+// BlockedProcessMatchDirectories Function
+func (ae *AppArmorEnforcer) BlockedProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.Recursive && dir.OwnerOnly {
 			line := fmt.Sprintf("  owner %s{*,**} ix,\n  deny other %s{*,**} x,\n", dir.Directory, dir.Directory)
@@ -833,7 +850,8 @@ func blockedProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackLis
 	}
 }
 
-func blockedProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]string) {
+// BlockedProcessMatchPatterns Function
+func (ae *AppArmorEnforcer) BlockedProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]string) {
 	if pat.OwnerOnly {
 		line := fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*processBlackList, line) {
@@ -847,7 +865,8 @@ func blockedProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]
 	}
 }
 
-func blockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
+// BlockedFileMatchPaths Function
+func (ae *AppArmorEnforcer) BlockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
 		if path.ReadOnly && path.OwnerOnly {
 			line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
@@ -908,7 +927,8 @@ func blockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSo
 	}
 }
 
-func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]string, fromSources map[string][]string) {
+// BlockedFileMatchDirectories Function
+func (ae *AppArmorEnforcer) BlockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]string, fromSources map[string][]string) {
 	if len(dir.FromSource) == 0 {
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
@@ -1025,7 +1045,8 @@ func blockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]stri
 	}
 }
 
-func blockedFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
+// BlockedFileMatchPatterns Function
+func (ae *AppArmorEnforcer) BlockedFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
 	if pat.ReadOnly && pat.OwnerOnly {
 		line := fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", pat.Pattern, pat.Pattern)
 		if !kl.ContainsElement(*fileBlackList, line) {
@@ -1049,7 +1070,8 @@ func blockedFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
 	}
 }
 
-func blockedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkBlackList *[]string, fromSources map[string][]string) {
+// BlockedNetworkMatchProtocols Function
+func (ae *AppArmorEnforcer) BlockedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkBlackList *[]string, fromSources map[string][]string) {
 	if len(proto.FromSource) == 0 {
 		line := fmt.Sprintf("  deny network %s,\n", proto.Protocol)
 		if !kl.ContainsElement(*networkBlackList, line) {
@@ -1076,7 +1098,8 @@ func blockedNetworkMatchProtocols(proto tp.NetworkProtocolType, networkBlackList
 	}
 }
 
-func blockedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, capabilityBlackList *[]string, fromSources map[string][]string) {
+// BlockedCapabilitiesMatchCapabilities Function
+func (ae *AppArmorEnforcer) BlockedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, capabilityBlackList *[]string, fromSources map[string][]string) {
 	if len(cap.FromSource) == 0 {
 		line := fmt.Sprintf("  deny capability %s,\n", cap.Capability)
 		if !kl.ContainsElement(*capabilityBlackList, line) {
@@ -1106,7 +1129,7 @@ func blockedCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, cap
 // == //
 
 // GenerateProfileHead Function
-func GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string) string {
+func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string) string {
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
@@ -1126,7 +1149,7 @@ func GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capa
 }
 
 // GenerateProfileFoot Function
-func GenerateProfileFoot() string {
+func (ae *AppArmorEnforcer) GenerateProfileFoot() string {
 	profileFoot := "  /lib/x86_64-linux-gnu/{*,**} rm,\n"
 	profileFoot = profileFoot + "\n"
 	profileFoot = profileFoot + "  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n"
@@ -1151,7 +1174,7 @@ func GenerateProfileFoot() string {
 // == //
 
 // GenerateProfileBody Function
-func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
+func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 	// preparation
 
 	count := 0
@@ -1190,33 +1213,33 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
-					allowedProcessMatchPaths(path, &processWhiteList, fromSources)
+					ae.AllowedProcessMatchPaths(path, &processWhiteList, fromSources)
 				} else if path.Action == "Audit" {
-					auditedProcessMatchPaths(path, &processAuditList, fromSources)
+					ae.AuditedProcessMatchPaths(path, &processAuditList, fromSources)
 				} else if path.Action == "Block" {
-					blockedProcessMatchPaths(path, &processBlackList, fromSources)
+					ae.BlockedProcessMatchPaths(path, &processBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
-					allowedProcessMatchDirectories(dir, &processWhiteList, fromSources)
+					ae.AllowedProcessMatchDirectories(dir, &processWhiteList, fromSources)
 				} else if dir.Action == "Audit" {
-					auditedProcessMatchDirectories(dir, &processAuditList, fromSources)
+					ae.AuditedProcessMatchDirectories(dir, &processAuditList, fromSources)
 				} else if dir.Action == "Block" {
-					blockedProcessMatchDirectories(dir, &processBlackList, fromSources)
+					ae.BlockedProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Allow" {
-					allowedProcessMatchPatterns(pat, &processWhiteList)
+					ae.AllowedProcessMatchPatterns(pat, &processWhiteList)
 				} else if pat.Action == "Audit" {
-					auditedProcessMatchPatterns(pat, &processAuditList)
+					ae.AuditedProcessMatchPatterns(pat, &processAuditList)
 				} else if pat.Action == "Block" {
-					blockedProcessMatchPatterns(pat, &processBlackList)
+					ae.BlockedProcessMatchPatterns(pat, &processBlackList)
 				}
 			}
 		}
@@ -1224,33 +1247,33 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		if len(secPolicy.Spec.File.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
-					allowedFileMatchPaths(path, &fileWhiteList, fromSources)
+					ae.AllowedFileMatchPaths(path, &fileWhiteList, fromSources)
 				} else if path.Action == "Audit" {
-					auditedFileMatchPaths(path, &fileAuditList, fromSources)
+					ae.AuditedFileMatchPaths(path, &fileAuditList, fromSources)
 				} else if path.Action == "Block" {
-					blockedFileMatchPaths(path, &fileBlackList, fromSources)
+					ae.BlockedFileMatchPaths(path, &fileBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
-					allowedFileMatchDirectories(dir, &fileWhiteList, fromSources)
+					ae.AllowedFileMatchDirectories(dir, &fileWhiteList, fromSources)
 				} else if dir.Action == "Audit" {
-					auditedFileMatchDirectories(dir, &fileAuditList, fromSources)
+					ae.AuditedFileMatchDirectories(dir, &fileAuditList, fromSources)
 				} else if dir.Action == "Block" {
-					blockedFileMatchDirectories(dir, &fileBlackList, fromSources)
+					ae.BlockedFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Allow" {
-					allowedFileMatchPatterns(pat, &fileWhiteList)
+					ae.AllowedFileMatchPatterns(pat, &fileWhiteList)
 				} else if pat.Action == "Audit" {
-					auditedFileMatchPatterns(pat, &fileAuditList)
+					ae.AuditedFileMatchPatterns(pat, &fileAuditList)
 				} else if pat.Action == "Block" {
-					blockedFileMatchPatterns(pat, &fileBlackList)
+					ae.BlockedFileMatchPatterns(pat, &fileBlackList)
 				}
 			}
 		}
@@ -1258,9 +1281,9 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 				if proto.Action == "Allow" {
-					allowedNetworkMatchProtocols(proto, &networkWhiteList, fromSources)
+					ae.AllowedNetworkMatchProtocols(proto, &networkWhiteList, fromSources)
 				} else if proto.Action == "Block" {
-					blockedNetworkMatchProtocols(proto, &networkBlackList, fromSources)
+					ae.BlockedNetworkMatchProtocols(proto, &networkBlackList, fromSources)
 				}
 			}
 		}
@@ -1268,20 +1291,20 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 				if cap.Action == "Allow" {
-					allowedCapabilitiesMatchCapabilities(cap, &capabilityWhiteList, fromSources)
+					ae.AllowedCapabilitiesMatchCapabilities(cap, &capabilityWhiteList, fromSources)
 				} else if cap.Action == "Block" {
-					blockedCapabilitiesMatchCapabilities(cap, &capabilityBlackList, fromSources)
+					ae.BlockedCapabilitiesMatchCapabilities(cap, &capabilityBlackList, fromSources)
 				}
 			}
 		}
 	}
 
 	// Resolve conflicts
-	resolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
+	ae.ResolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
 
 	// head
 
-	profileHead := "  ## == PRE START == ##\n" + GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
+	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
 
 	// body
 
@@ -1430,7 +1453,7 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST START (%s) == ##\n", source)
 
-		bodyFromSource = bodyFromSource + strings.Replace(GenerateProfileFoot(), "  ", "    ", -1)
+		bodyFromSource = bodyFromSource + strings.Replace(ae.GenerateProfileFoot(), "  ", "    ", -1)
 
 		bodyFromSource = bodyFromSource + fmt.Sprintf("    ## == POST END (%s) == ##\n", source)
 		bodyFromSource = bodyFromSource + "  }\n"
@@ -1458,7 +1481,7 @@ func GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
 
 	// foot
 
-	profileFoot := "  ## == POST START == ##\n" + GenerateProfileFoot() + "  ## == POST END == ##\n"
+	profileFoot := "  ## == POST START == ##\n" + ae.GenerateProfileFoot() + "  ## == POST END == ##\n"
 
 	// finalization
 
@@ -1485,7 +1508,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	// generate a profile body
 
-	count, newProfileBody := GenerateProfileBody(securityPolicies)
+	count, newProfileBody := ae.GenerateProfileBody(securityPolicies)
 
 	newProfile := "## == Managed by KubeArmor == ##\n" +
 		"\n" +
