@@ -122,7 +122,7 @@ function start_and_wait_for_kubearmor_initialization() {
         echo "Found KubeArmor from Kubernetes"
 
         CAT_LOG="kubectl exec -n kube-system $ka_podname -- cat $ARMOR_LOG"
-        CAT_MSG="kubectl exec -n kube-system $ka_podname -- cat $ARMOR_MSG"
+        CAT_MSG="kubectl logs -n kube-system $ka_podname"
 
         sleep 10
 
