@@ -31,35 +31,31 @@ build-test: testall
 .PHONY: run
 run: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
+	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=true -enableKubeArmorHostPolicy=true
 
 .PHONY: run-host-only
 run-host-only: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy
-
-.PHONY: run-with-host
-run-with-host: build
-	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
-	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
-	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true
 
 .PHONY: test
 test:
+	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/feeder; go mod tidy
-	cd $(CURDIR)/feeder; go clean -testcache .; go test -v .
+	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v .
 
 .PHONY: testall
 testall:
+	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/feeder; go mod tidy
-	cd $(CURDIR)/feeder; go clean -testcache .; go test -v -coverprofile=.coverprofile .
+	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/enforcer; go mod tidy
-	cd $(CURDIR)/enforcer; go clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
+	cd $(CURDIR)/enforcer; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/monitor; go mod tidy
-	cd $(CURDIR)/monitor; go clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
+	cd $(CURDIR)/monitor; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 
 .PHONY: gofmt
 gofmt:
