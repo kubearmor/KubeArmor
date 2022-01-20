@@ -32,7 +32,7 @@ type KVMAgent struct {
 func getgRPCAddress() (string, error) {
 	serverAddr := net.JoinHostPort(os.Getenv("CLUSTER_IP"), os.Getenv("CLUSTER_PORT"))
 	if serverAddr == ":" {
-		return "", errors.New("host and port value is empty")
+		return "", errors.New("either CLUSTER_IP or CLUSTER_PORT is not set")
 	}
 	return serverAddr, nil
 }
@@ -47,7 +47,7 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 	// Get the address of gRPC server
 	gRPCServer, err := getgRPCAddress()
 	if err != nil {
-		kg.Warn(err.Error())
+		kg.Errf("Failed to get gRPC address", err.Error())
 		return nil
 	}
 
@@ -57,7 +57,7 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		kg.Warn(err.Error())
+		kg.Errf("Not accessible to gRPC server (%s)", err.Error())
 		return nil
 	}
 
@@ -67,7 +67,7 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 	// Register identity
 	response, err := kvm.gRPCClient.RegisterAgentIdentity(context.Background(), &pb.AgentIdentity{Identity: kvm.Identity})
 	if err != nil || response.Status != 0 {
-		kg.Warn("failed to register KVM agent identity")
+		kg.Errf("Failed to register KVM agent identity (%s)", err.Error())
 		return nil
 	}
 
@@ -93,18 +93,18 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 
 		stream, err := kvm.gRPCClient.SendPolicy(ctx)
 		if err != nil {
-			kg.Warn("Failed to connect stream")
+			kg.Warnf("Unable to connect stream (%s)", err.Error())
 
 			// close the connection
 			if err = kvm.gRPCConnection.Close(); err != nil {
-				kg.Warn("Failed to close the current connection")
+				kg.Warnf("Unable to close the current connection (%s)", err.Error())
 			}
 
 			// connect to gRPC server again
 			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 			gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
 			if err != nil {
-				kg.Warn("gRPC server is not accessable")
+				kg.Errf("Not accessible to gRPC server (%s)", err.Error())
 				return
 			}
 
@@ -125,14 +125,14 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 			} else if err != nil {
 				// close the connection
 				if err = kvm.gRPCConnection.Close(); err != nil {
-					kg.Warn("Failed to close the current connection")
+					kg.Warnf("Unable to close the current connection (%s)", err.Error())
 				}
 
 				// connect to gRPC server again
 				ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 				gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
 				if err != nil {
-					kg.Warn("gRPC server is not accessable")
+					kg.Errf("Not accessible to gRPC server (%s)", err.Error())
 					return
 				}
 
@@ -149,13 +149,13 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 				// update the policy
 				kvm.UpdateHostPolicy(policyEvent)
 			} else {
-				kg.Warn("Failed to load a policy")
+				kg.Warnf("Unable to load a policy (%s)", err.Error())
 				status = 1
 			}
 
 			// return the status
 			if err = stream.Send(&pb.Status{Status: status}); err != nil {
-				kg.Warn(err.Error())
+				kg.Warnf("Unable to send the status (%s)", err.Error())
 			}
 		}
 	}

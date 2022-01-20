@@ -22,6 +22,7 @@ type ServiceServer struct {
 func (p *ServiceServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
 	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 	res := new(pb.Response)
+
 	err := json.Unmarshal(data.Policy, &policyEvent)
 	if err == nil {
 		p.UpdateHostPolicy(policyEvent)
@@ -30,5 +31,6 @@ func (p *ServiceServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Resp
 		kg.Warn("Invalid Host Policy Event")
 		res.Status = 0
 	}
+
 	return res, nil
 }

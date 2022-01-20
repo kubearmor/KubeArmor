@@ -255,7 +255,7 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled",`
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
@@ -282,17 +282,17 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 	return nil
 }
 
-// PatchDeploymentWithSELinuxOptions Function
-func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentName string, seLinuxContexts map[string]string) error {
+// PatchDeploymentWithSELinuxAnnotations Function
+func (kh *K8sHandler) PatchDeploymentWithSELinuxAnnotations(namespaceName, deploymentName string, seLinuxAnnotations map[string]string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-visibility":"process,file,network","kubearmor-policy":"enabled"}},"spec":{"containers":[`
-	count := len(seLinuxContexts)
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	count := len(seLinuxAnnotations)
 
-	for _, v := range seLinuxContexts {
-		spec = spec + v
+	for k, v := range seLinuxAnnotations {
+		spec = spec + `"kubearmor-selinux/` + k + `":"` + v + `"`
 
 		if count > 1 {
 			spec = spec + ","
@@ -301,9 +301,9 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxOptions(namespace, deploymentNam
 		count--
 	}
 
-	spec = spec + `]}}}}`
+	spec = spec + `}}}}}`
 
-	_, err := kh.K8sClient.AppsV1().Deployments(namespace).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}
