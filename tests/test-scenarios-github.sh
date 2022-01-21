@@ -128,10 +128,10 @@ function start_and_wait_for_kubearmor_initialization() {
 
         for count in {1..120}
         do
-            $CAT_MSG | grep "\Initialized KubeArmor$" &> /dev/null
+            $CAT_MSG | grep "Initialized KubeArmor$" &> /dev/null
             [[ $? -eq 0 ]] && break
 
-            $CAT_MSG | grep "\Terminated KubeArmor$" &> /dev/null
+            $CAT_MSG | grep "Terminated KubeArmor$" &> /dev/null
             [[ $? -eq 0 ]] && $CAT_MSG && exit 1
 
             sleep 1
@@ -160,10 +160,10 @@ function start_and_wait_for_kubearmor_initialization() {
 
         for count in {1..120}
         do
-            $CAT_MSG | grep "\Initialized KubeArmor$" &> /dev/null
+            $CAT_MSG | grep "Initialized KubeArmor$" &> /dev/null
             [[ $? -eq 0 ]] && break
 
-            $CAT_MSG | grep "\Terminated KubeArmor$" &> /dev/null
+            $CAT_MSG | grep "Terminated KubeArmor$" &> /dev/null
             [[ $? -eq 0 ]] && $CAT_MSG && exit 1
 
             sleep 1
