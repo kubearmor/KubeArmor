@@ -4,6 +4,10 @@ If you do not already have a k8s cluster, check [the pre-requisites](#prerequisi
 
 If you want to try KubeArmor directly on the host, [use kubearmor in systemd mode](kubearmor_vm.md)
 
+## Setting Environment for KubeArmor
+
+1. To set up KubeArmor using MiniKube cluster, follow this [steps](https://github.com/kubearmor/KubeArmor/tree/main/contribution/minikube).
+
 ## Deployment Steps
 ### 1. Download and install karmor cli-tool
 ```
