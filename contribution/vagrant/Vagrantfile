@@ -96,6 +96,9 @@ Vagrant.configure("2") do |config|
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
   end
 
+  # install karmor
+  config.vm.provision :shell, :inline => "curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b /usr/local/bin"
+
   # change permissions
   config.vm.provision :shell, :inline => "mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go"
 
