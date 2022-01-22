@@ -71,6 +71,8 @@ spec:
           mountPath: /sys/fs/bpf
         - name: sys-kernel-debug-path # BPF (read-write)
           mountPath: /sys/kernel/debug
+        - name: sys-kernel-security-path # LSM (read-write)
+          mountPath: /sys/kernel/security
         - name: etc-apparmor-d-path # AppArmor (read-write)
           mountPath: /etc/apparmor.d
         - name: os-release-path # OS (read-only)
@@ -114,6 +116,10 @@ spec:
       - name: sys-kernel-debug-path # BPF
         hostPath:
           path: /sys/kernel/debug
+          type: Directory
+      - name: sys-kernel-security-path # LSM
+        hostPath:
+          path: /sys/kernel/security
           type: Directory
       - name: etc-apparmor-d-path # AppArmor
         hostPath:

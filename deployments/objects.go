@@ -372,6 +372,10 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			MountPath: "/sys/fs/bpf",
 		},
 		{
+			Name:      "sys-kernel-security-path", //LSM (read-only)
+			MountPath: "/sys/kernel/debug",
+		},
+		{
 			Name:      "sys-kernel-debug-path", //BPF (read-only)
 			MountPath: "/sys/kernel/debug",
 		},
@@ -406,6 +410,15 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/sys/fs/bpf",
+					Type: &hostPathDirectory,
+				},
+			},
+		},
+		{
+			Name: "sys-kernel-security-path",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/kernel/security",
 					Type: &hostPathDirectory,
 				},
 			},

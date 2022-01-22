@@ -19,9 +19,6 @@ spec:
     metadata:
       labels:
         container: ubuntu-1
-      annotations:
-        kubearmor-policy: enabled
-        container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/apparmor-multiubuntu-ubuntu-1-container
     spec:
       containers:
       - name: ubuntu-1-container

@@ -109,6 +109,8 @@ spec:
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
         - mountPath: /sys/kernel/debug
+          name: sys-kernel-security-path
+        - mountPath: /sys/kernel/debug
           name: sys-kernel-debug-path
         - mountPath: /media/root/etc/os-release
           name: os-release-path
@@ -147,6 +149,10 @@ spec:
           path: /sys/fs/bpf
           type: Directory
         name: sys-fs-bpf-path
+      - hostPath:
+          path: /sys/kernel/security
+          type: Directory
+        name: sys-kernel-security-path
       - hostPath:
           path: /sys/kernel/debug
           type: Directory

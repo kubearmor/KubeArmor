@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -108,16 +107,16 @@ func (kh *K8sHandler) InitK8sClient() bool {
 
 // InitLocalAPIClient Function
 func (kh *K8sHandler) InitLocalAPIClient() bool {
-	var kubeconfig *string
-	if home := os.Getenv("HOME"); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		kubeconfig = os.Getenv("HOME") + "/.kube/config"
+		if _, err := os.Stat(filepath.Clean(kubeconfig)); err != nil {
+			return false
+		}
 	}
-	flag.Parse()
 
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return false
 	}
