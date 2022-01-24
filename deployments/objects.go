@@ -15,6 +15,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
+// GetServiceAccount Function
 func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
@@ -28,6 +29,7 @@ func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 	}
 }
 
+// GetClusterRoleBinding Function
 func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -53,6 +55,7 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 	}
 }
 
+// GetRelayService Function
 func GetRelayService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -82,6 +85,7 @@ var relayDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-relay",
 }
 
+// GetRelayDeployment Function
 func GetRelayDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -134,6 +138,7 @@ var policyManagerDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-policy-manager",
 }
 
+// GetPolicyManagerService Function
 func GetPolicyManagerService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -158,6 +163,7 @@ func GetPolicyManagerService(namespace string) *corev1.Service {
 	}
 }
 
+// GetPolicyManagerDeployment Function
 func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -241,6 +247,7 @@ var hostPolicyManagerDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-host-policy-manager",
 }
 
+// GetHostPolicyManagerService Function
 func GetHostPolicyManagerService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -265,6 +272,7 @@ func GetHostPolicyManagerService(namespace string) *corev1.Service {
 	}
 }
 
+// GetHostPolicyManagerDeployment Function
 func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -344,7 +352,7 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 	}
 }
 
-// Generate Environment Specific DaemonSet Object based on provided Environment
+// GenerateDaemonSet Function
 func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 
 	var label = map[string]string{
@@ -373,7 +381,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		},
 		{
 			Name:      "sys-kernel-security-path", //LSM (read-only)
-			MountPath: "/sys/kernel/debug",
+			MountPath: "/sys/kernel/security",
 		},
 		{
 			Name:      "sys-kernel-debug-path", //BPF (read-only)

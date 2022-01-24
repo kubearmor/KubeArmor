@@ -108,7 +108,7 @@ spec:
           readOnly: true
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
-        - mountPath: /sys/kernel/debug
+        - mountPath: /sys/kernel/security
           name: sys-kernel-security-path
         - mountPath: /sys/kernel/debug
           name: sys-kernel-debug-path
