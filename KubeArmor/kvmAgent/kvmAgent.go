@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -19,6 +20,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
+
+// const variables
+const errIdentityRemoved = "err-identity-removed"
 
 // KVMAgent Structure
 type KVMAgent struct {
@@ -123,6 +127,16 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 			if err == io.EOF {
 				continue
 			} else if err != nil {
+
+				if strings.Contains(string(err.Error()), errIdentityRemoved) {
+					kg.Warn("Identity removed from server")
+					// close the connection
+					if err = kvm.gRPCConnection.Close(); err != nil {
+						kg.Warn("Failed to close the current connection")
+					}
+					return
+				}
+
 				// close the connection
 				if err = kvm.gRPCConnection.Close(); err != nil {
 					kg.Warnf("Unable to close the current connection (%s)", err.Error())
