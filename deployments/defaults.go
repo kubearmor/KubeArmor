@@ -17,6 +17,7 @@ var policyManagerDeploymentName = "kubearmor-policy-manager"
 var hostPolicyManagerServiceName = "kubearmor-host-policy-manager-metrics-service"
 var hostPolicyManagerDeploymentName = "kubearmor-host-policy-manager"
 
+// DaemonSetConfig Structure
 type DaemonSetConfig struct {
 	Args         []string
 	VolumeMounts []corev1.VolumeMount
