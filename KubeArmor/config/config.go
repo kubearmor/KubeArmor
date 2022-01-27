@@ -77,7 +77,7 @@ func readCmdLineParams() {
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 
 	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
-	hostVisStr := flag.String(ConfigHostVisibility, "process,file,network,capabilities", "Host Visibility to use [process,file,network,capabilities,none]")
+	hostVisStr := flag.String(ConfigHostVisibility, "", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
@@ -143,6 +143,14 @@ func LoadConfig() error {
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
+	}
+
+	if GlobalCfg.HostVisibility == "" {
+		if GlobalCfg.KVMAgent {
+			GlobalCfg.HostVisibility = "process,file,network,capabilities"
+		} else { // k8s
+			GlobalCfg.HostVisibility = "none"
+		}
 	}
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
