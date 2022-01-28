@@ -22,11 +22,11 @@ import (
 
 // HandleNodeAnnotations Handle Node Annotations i.e, set host visibility based on annotations, enable/disable policy
 func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
-	if _, ok := node.Annotations["kubearmor-policy"]; ok {
-		if node.Annotations["kubearmor-policy"] != "enabled" && node.Annotations["kubearmor-policy"] != "disabled" && node.Annotations["kubearmor-policy"] != "audited" {
-			node.Annotations["kubearmor-policy"] = "enabled"
-		}
-	} else {
+	if _, ok := node.Annotations["kubearmor-policy"]; !ok {
+		node.Annotations["kubearmor-policy"] = "enabled"
+	}
+
+	if node.Annotations["kubearmor-policy"] != "enabled" && node.Annotations["kubearmor-policy"] != "disabled" && node.Annotations["kubearmor-policy"] != "audited" {
 		node.Annotations["kubearmor-policy"] = "enabled"
 	}
 
@@ -41,9 +41,9 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 
 	if node.Annotations["kubearmor-policy"] == "enabled" {
 		node.PolicyEnabled = tp.KubeArmorPolicyEnabled
-	} else if node.Annotations["kubearmor-policy"] == "audited" || node.Annotations["kubearmor-policy"] == "patched" {
+	} else if node.Annotations["kubearmor-policy"] == "audited" {
 		node.PolicyEnabled = tp.KubeArmorPolicyAudited
-	} else {
+	} else { // disabled
 		node.PolicyEnabled = tp.KubeArmorPolicyDisabled
 	}
 
@@ -163,9 +163,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update policy flag
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" || pod.Annotations["kubearmor-policy"] == "patched" {
+		} else if pod.Annotations["kubearmor-policy"] == "audited" {
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
-		} else {
+		} else { // disabled
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 		}
 
@@ -234,11 +234,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// update security policies
 			dm.Logger.UpdateSecurityPolicies(action, newPoint)
 
-			if dm.RuntimeEnforcer != nil {
-				if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
-				}
+			if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce security policies
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 			}
 		}
 
@@ -271,9 +269,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update policy flag
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
 			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" || pod.Annotations["kubearmor-policy"] == "patched" {
+		} else if pod.Annotations["kubearmor-policy"] == "audited" {
 			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
-		} else {
+		} else { // disabled
 			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 		}
 
@@ -350,11 +348,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// update security policies
 			dm.Logger.UpdateSecurityPolicies(action, newEndPoint)
 
-			if dm.RuntimeEnforcer != nil {
-				if newEndPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(newEndPoint)
-				}
+			if dm.RuntimeEnforcer != nil && newEndPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				// enforce security policies
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(newEndPoint)
 			}
 		}
 
@@ -445,11 +441,11 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				// == Policy == //
 
-				if _, ok := pod.Annotations["kubearmor-policy"]; ok {
-					if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" && pod.Annotations["kubearmor-policy"] != "audited" {
-						pod.Annotations["kubearmor-policy"] = "enabled"
-					}
-				} else {
+				if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
+					pod.Annotations["kubearmor-policy"] = "enabled"
+				}
+
+				if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" && pod.Annotations["kubearmor-policy"] != "audited" {
 					pod.Annotations["kubearmor-policy"] = "enabled"
 				}
 
@@ -689,6 +685,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				if pod.Annotations["kubearmor-policy"] == "patched" {
 					dm.Logger.Printf("Detected a Pod (patched/%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
+					continue
 				} else {
 					dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 				}
