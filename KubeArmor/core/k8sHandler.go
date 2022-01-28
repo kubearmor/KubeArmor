@@ -17,6 +17,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -209,38 +210,46 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 // ========== //
 
 // WatchK8sNodes Function
-func (kh *K8sHandler) WatchK8sNodes() *http.Response {
+func (kh *K8sHandler) WatchK8sNodes() watch.Interface {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
 	if kl.IsInK8sCluster() { // kube-apiserver
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/nodes?watch=true"
 
-		req, err := http.NewRequest("GET", URL, nil)
-		if err != nil {
-			return nil
+		if kh.InitInclusterAPIClient() {
+			watchNodes, err := kh.K8sClient.
+				CoreV1().
+				Nodes().
+				Watch(
+					context.Background(),
+					metav1.ListOptions{},
+				)
+			if err != nil {
+				return nil
+			}
+
+			return watchNodes
 		}
 
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-
-		resp, err := kh.WatchClient.Do(req)
-		if err != nil {
-			return nil
-		}
-
-		return resp
 	}
 
 	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/nodes?watch=true"
+	if kh.InitLocalAPIClient() {
+		watchNodes, err := kh.K8sClient.
+			CoreV1().
+			Nodes().
+			Watch(
+				context.Background(),
+				metav1.ListOptions{},
+			)
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
-		return resp
+		if err != nil {
+			return nil
+		}
+
+		return watchNodes
 	}
-
 	return nil
 }
 
@@ -367,6 +376,21 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 		}
 
 		return resp
+
+		// kh.InitInclusterAPIClient()
+
+		// watchPods, err := kh.K8sClient.
+		// 	CoreV1().
+		// 	Pods().
+		// 	Watch(
+		// 		context.Background(),
+		// 		metav1.ListOptions{},
+		// 	)
+		// if err != nil {
+		// 	return nil
+		// }
+
+		// return watchPods
 	}
 
 	// kube-proxy (local)
@@ -376,6 +400,21 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}
+
+	// kh.InitlocalAPIClient()
+
+	// watchPods, err := kh.K8sClient.
+	// 	CoreV1().
+	// 	Pods().
+	// 	Watch(
+	// 		context.Background(),
+	// 		metav1.ListOptions{},
+	// 	)
+	// if err != nil {
+	// 	return nil
+	// }
+
+	// return watchPods
 
 	return nil
 }
@@ -447,6 +486,20 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		}
 
 		return resp
+
+		// kh.InitInclusterAPIClient()
+
+		// watchSecurityPolicies, err := kh.K8sClient.
+		// 	PolicyVeta1().PodSecurityPolicy().
+		// 	Watch(
+		// 		context.Background(),
+		// 		metav1.ListOptions{},
+		// 	)
+		// if err != nil {
+		// 	return nil
+		// }
+
+		// return watchSecurityPolicies
 	}
 
 	// kube-proxy (local)
@@ -456,6 +509,20 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	if resp, err := http.Get(URL); err == nil {
 		return resp
 	}
+
+	// kh.InitLocalAPIClient()
+
+	// watchSecurityPolicies, err := kh.K8sClient.
+	// 	CoreV1().SecurityPolicies().
+	// 	Watch(
+	// 		context.Background(),
+	// 		metav1.ListOptions{},
+	// 	)
+	// if err != nil {
+	// 	return nil
+	// }
+
+	// return watchSecurityPolicies
 
 	return nil
 }

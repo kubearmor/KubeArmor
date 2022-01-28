@@ -67,67 +67,62 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	for {
-		if resp := K8s.WatchK8sNodes(); resp != nil {
-			defer resp.Body.Close()
+		if nodeWatcher := K8s.WatchK8sNodes(); nodeWatcher != nil {
+			return
 
-			decoder := json.NewDecoder(resp.Body)
-			for {
-				event := tp.K8sNodeEvent{}
-				if err := decoder.Decode(&event); err == io.EOF {
-					break
-				} else if err != nil {
-					break
-				}
+			go func() {
+				for event := range nodeWatcher.ResultChan() {
 
-				// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
-				// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
-				nodeName := strings.Split(event.Object.ObjectMeta.Name, ".")
-				if nodeName[0] != cfg.GlobalCfg.Host {
-					continue
-				}
-
-				node := tp.Node{}
-
-				for _, address := range event.Object.Status.Addresses {
-					if address.Type == "InternalIP" {
-						node.NodeIP = address.Address
-						break
+					// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
+					// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
+					nodeName := strings.Split(event.Object.GetObjectKind().GroupVersionKind().String(), ".")
+					if nodeName[0] != cfg.GlobalCfg.Host {
+						continue
 					}
+
+					node := tp.Node{}
+
+					for _, address := range event.Object.Status.Addresses {
+						if address.Type == "InternalIP" {
+							node.NodeIP = address.Address
+							break
+						}
+					}
+
+					node.Annotations = map[string]string{}
+					node.Labels = map[string]string{}
+					node.Identities = []string{}
+
+					// update annotations
+					for k, v := range event.Object.ObjectMeta.Annotations {
+						node.Annotations[k] = v
+					}
+
+					// update labels and identities
+					for k, v := range event.Object.ObjectMeta.Labels {
+						node.Labels[k] = v
+						node.Identities = append(node.Identities, k+"="+v)
+					}
+
+					sort.Slice(node.Identities, func(i, j int) bool {
+						return node.Identities[i] < node.Identities[j]
+					})
+
+					// node info
+					node.Architecture = event.Object.Status.NodeInfo.Architecture
+					node.OperatingSystem = event.Object.Status.NodeInfo.OperatingSystem
+					node.OSImage = event.Object.Status.NodeInfo.OSImage
+					node.KernelVersion = event.Object.Status.NodeInfo.KernelVersion
+					node.KubeletVersion = event.Object.Status.NodeInfo.KubeletVersion
+
+					// container runtime
+					node.ContainerRuntimeVersion = event.Object.Status.NodeInfo.ContainerRuntimeVersion
+
+					dm.HandleNodeAnnotations(&node)
+
+					dm.Node = node
 				}
-
-				node.Annotations = map[string]string{}
-				node.Labels = map[string]string{}
-				node.Identities = []string{}
-
-				// update annotations
-				for k, v := range event.Object.ObjectMeta.Annotations {
-					node.Annotations[k] = v
-				}
-
-				// update labels and identities
-				for k, v := range event.Object.ObjectMeta.Labels {
-					node.Labels[k] = v
-					node.Identities = append(node.Identities, k+"="+v)
-				}
-
-				sort.Slice(node.Identities, func(i, j int) bool {
-					return node.Identities[i] < node.Identities[j]
-				})
-
-				// node info
-				node.Architecture = event.Object.Status.NodeInfo.Architecture
-				node.OperatingSystem = event.Object.Status.NodeInfo.OperatingSystem
-				node.OSImage = event.Object.Status.NodeInfo.OSImage
-				node.KernelVersion = event.Object.Status.NodeInfo.KernelVersion
-				node.KubeletVersion = event.Object.Status.NodeInfo.KubeletVersion
-
-				// container runtime
-				node.ContainerRuntimeVersion = event.Object.Status.NodeInfo.ContainerRuntimeVersion
-
-				dm.HandleNodeAnnotations(&node)
-
-				dm.Node = node
-			}
+			}()
 		} else {
 			time.Sleep(time.Second * 1)
 		}
