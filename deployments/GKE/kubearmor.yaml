@@ -304,7 +304,7 @@ spec:
         - --enable-leader-election
         command:
         - /manager
-        image: kubearmor/kubearmor-policy-manager:latest
+        image: kubearmor/kubearmor-host-policy-manager:latest
         name: kubearmor-host-policy-manager
         resources:
           limits:

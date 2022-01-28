@@ -327,7 +327,7 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 						},
 						{
 							Name:  "kubearmor-host-policy-manager",
-							Image: "kubearmor/kubearmor-policy-manager:latest",
+							Image: "kubearmor/kubearmor-host-policy-manager:latest",
 							Args: []string{
 								"--metrics-addr=127.0.0.1:8080",
 								"--enable-leader-election",
