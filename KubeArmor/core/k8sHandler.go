@@ -490,7 +490,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		// kh.InitInclusterAPIClient()
 
 		// watchSecurityPolicies, err := kh.K8sClient.
-		// 	PolicyVeta1().PodSecurityPolicy().
+		// PolicyV1beta1().PodSecurityPolicies().
 		// 	Watch(
 		// 		context.Background(),
 		// 		metav1.ListOptions{},
@@ -513,7 +513,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	// kh.InitLocalAPIClient()
 
 	// watchSecurityPolicies, err := kh.K8sClient.
-	// 	CoreV1().SecurityPolicies().
+	// PolicyV1beta1().PodSecurityPolicies().
 	// 	Watch(
 	// 		context.Background(),
 	// 		metav1.ListOptions{},

@@ -4,6 +4,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -66,6 +67,7 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
+	var buf bytes.Buffer
 	for {
 		if nodeWatcher := K8s.WatchK8sNodes(); nodeWatcher != nil {
 			return
@@ -78,6 +80,14 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 					nodeName := strings.Split(event.Object.GetObjectKind().GroupVersionKind().String(), ".")
 					if nodeName[0] != cfg.GlobalCfg.Host {
 						continue
+					}
+
+					decoder := json.NewDecoder(&buf)
+					event := tp.K8sNodeEvent{}
+					if err := decoder.Decode(&event); err == io.EOF {
+						break
+					} else if err != nil {
+						break
 					}
 
 					node := tp.Node{}
