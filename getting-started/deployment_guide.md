@@ -71,6 +71,9 @@ karmor log
 4. Self-managed (on-prem) k8s
 5. Local k8s engines (microk8s, k3s, minikube)
 
+## KubeArmor in EKS Cluster
+To setup KubeArmor in a EKS cluster, follow this [steps](https://github.com/kubearmor/KubeArmor/tree/main/deployments/EKS#prerequisite-for-the-deployment).
+
 ## Prerequisites
 1. [k3s](../deployments/k3s)
 2. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
