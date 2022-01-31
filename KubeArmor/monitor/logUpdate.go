@@ -30,6 +30,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 		log.NamespaceName = val.NamespaceName
 		log.PodName = val.EndPointName
 		log.ContainerName = val.ContainerName
+		log.ContainerImage = val.ContainerImage
 
 		// get merged directory
 		log.MergedDir = val.MergedDir
@@ -77,7 +78,7 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.ProcessPath = strings.Split(mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID), " ")[0]
 
 	if log.ParentProcessPath == "" {
-		log.ParentProcessPath = mon.GetProcessPathFromProc(msg.ContextSys.HostPID)
+		log.ParentProcessPath = mon.GetProcessPathFromProc(msg.ContextSys.HostPPID)
 	}
 
 	if log.Source == "" {
