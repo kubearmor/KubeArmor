@@ -77,7 +77,7 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.ProcessPath = strings.Split(mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID), " ")[0]
 
 	if log.ParentProcessPath == "" {
-		log.ParentProcessPath = mon.GetProcessPathFromProc(msg.ContextSys.PPID)
+		log.ParentProcessPath = mon.GetProcessPathFromProc(msg.ContextSys.HostPID)
 	}
 
 	if log.Source == "" {

@@ -587,6 +587,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.PodName = log.PodName
 		pbAlert.ContainerID = log.ContainerID
 		pbAlert.ContainerName = log.ContainerName
+		pbAlert.ContainerImage = log.ContainerImage
 
 		pbAlert.HostPID = log.HostPID
 		pbAlert.PPID = log.PPID
@@ -621,7 +622,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		if len(log.Action) > 0 {
 			pbAlert.Action = log.Action
 		}
-
+		pbAlert.ProcessPath = log.ProcessPath
+		pbAlert.ParentProcessPath = log.ParentProcessPath
 		pbAlert.Result = log.Result
 
 		AlertQueue <- pbAlert
