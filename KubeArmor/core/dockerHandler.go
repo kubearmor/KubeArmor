@@ -116,6 +116,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	container.ContainerID = inspect.ID
 	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
+	container.ContainerImage = inspect.Image
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"

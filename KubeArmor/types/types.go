@@ -17,11 +17,11 @@ import (
 
 // Container Structure
 type Container struct {
-	ContainerID   string `json:"containerID"`
-	ContainerName string `json:"containerName"`
-
-	NamespaceName string `json:"namespaceName"`
-	EndPointName  string `json:"endPointName"`
+	ContainerID    string `json:"containerID"`
+	ContainerName  string `json:"containerName"`
+	ContainerImage string `json:"containerImage"`
+	NamespaceName  string `json:"namespaceName"`
+	EndPointName   string `json:"endPointName"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
 

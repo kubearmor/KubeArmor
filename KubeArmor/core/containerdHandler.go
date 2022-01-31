@@ -146,6 +146,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 	container.ContainerID = res.Container.ID
 	container.ContainerName = res.Container.ID[:12]
+	container.ContainerImage = res.Container.Image
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
