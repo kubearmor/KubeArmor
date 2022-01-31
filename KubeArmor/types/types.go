@@ -177,17 +177,20 @@ type Log struct {
 	PodName       string `json:"podName,omitempty"`
 
 	// container
-	ContainerID   string `json:"containerID,omitempty"`
-	ContainerName string `json:"containerName,omitempty"`
+	ContainerID    string `json:"containerID,omitempty"`
+	ContainerName  string `json:"containerName,omitempty"`
+	ContainerImage string `json:"containerImage,omitempty"`
 
 	// container merged directory
 	MergedDir string `json:"mergedDir,omitempty"`
 
 	// common
-	HostPID int32 `json:"hostPid"`
-	PPID    int32 `json:"ppid"`
-	PID     int32 `json:"pid"`
-	UID     int32 `json:"uid"`
+	HostPID           int32  `json:"hostPid"`
+	PPID              int32  `json:"ppid"`
+	PID               int32  `json:"pid"`
+	UID               int32  `json:"uid"`
+	ProcessPath       string `json:"processPath"`
+	ParentProcessPath string `json:"parentProcessPath"`
 
 	// policy
 	PolicyName string `json:"policyName,omitempty"`

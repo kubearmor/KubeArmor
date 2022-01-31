@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -70,6 +71,13 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PPID)
 	} else {
 		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID)
+	}
+
+	log.ParentProcessPath = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PPID)
+	log.ProcessPath = strings.Split(mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID), " ")[0]
+
+	if log.ParentProcessPath == "" {
+		log.ParentProcessPath = mon.GetProcessPathFromProc(msg.ContextSys.PPID)
 	}
 
 	if log.Source == "" {

@@ -4,6 +4,9 @@
 package monitor
 
 import (
+	"bytes"
+	"fmt"
+	"os"
 	"time"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -129,6 +132,32 @@ func (mon *SystemMonitor) GetExecPath(containerID string, pid uint32) string {
 	}
 
 	return ""
+}
+
+// GetProcessName Function
+func (mon *SystemMonitor) GetProcessName(containerID string, pid uint32) string {
+	ActivePidMap := *(mon.ActivePidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+
+	ActivePidMapLock.RLock()
+	defer ActivePidMapLock.RUnlock()
+
+	if pidMap, ok := ActivePidMap[containerID]; ok {
+		if node, ok := pidMap[pid]; ok {
+			return string(bytes.Trim([]byte(node.Comm), "\x00"))
+		}
+	}
+
+	return ""
+}
+
+func (mon *SystemMonitor) GetProcessPathFromProc(pid uint32) string {
+	procPath := fmt.Sprintf("/proc/%d/exe", pid)
+	path, err := os.Readlink(procPath)
+	if err != nil {
+		mon.Logger.Errf("Failed to read proc file system: %s", err)
+	}
+	return path
 }
 
 // GetExecPathWithHostPID Function
