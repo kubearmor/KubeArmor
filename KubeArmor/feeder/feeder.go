@@ -25,7 +25,6 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
 
@@ -46,8 +45,8 @@ func init() {
 
 // MsgStruct Structure
 type MsgStruct struct {
-	Filter string
-	Queue  *kl.Queue
+	Filter    string
+	Broadcast chan *pb.Message
 }
 
 // MsgStructs Map
@@ -58,8 +57,8 @@ var MsgLock *sync.RWMutex
 
 // AlertStruct Structure
 type AlertStruct struct {
-	Filter string
-	Queue  *kl.Queue
+	Filter    string
+	Broadcast chan *pb.Alert
 }
 
 // AlertStructs Map
@@ -70,8 +69,8 @@ var AlertLock *sync.RWMutex
 
 // LogStruct Structure
 type LogStruct struct {
-	Filter string
-	Queue  *kl.Queue
+	Filter    string
+	Broadcast chan *pb.Log
 }
 
 // LogStructs Map
@@ -92,14 +91,13 @@ func (ls *LogService) HealthCheck(ctx context.Context, nonce *pb.NonceMessage) (
 }
 
 // addMsgStruct Function
-func (ls *LogService) addMsgStruct(uid string, filter string) {
+func (ls *LogService) addMsgStruct(uid string, conn chan *pb.Message, filter string) {
 	MsgLock.Lock()
 	defer MsgLock.Unlock()
 
 	msgStruct := MsgStruct{}
 	msgStruct.Filter = filter
-	msgStruct.Queue = kl.NewQueue()
-
+	msgStruct.Broadcast = conn
 	MsgStructs[uid] = msgStruct
 
 	kg.Printf("Added a new client (%s) for WatchMessages", uid)
@@ -118,30 +116,25 @@ func (ls *LogService) removeMsgStruct(uid string) {
 // WatchMessages Function
 func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
 	uid := uuid.Must(uuid.NewRandom()).String()
-
-	ls.addMsgStruct(uid, req.Filter)
+	conn := make(chan *pb.Message)
+	ls.addMsgStruct(uid, conn, req.Filter)
 	defer ls.removeMsgStruct(uid)
 
 	for Running {
 		select {
 		case <-svr.Context().Done():
 			return nil
-		default:
-			if msgInt := MsgStructs[uid].Queue.Pop(); msgInt != nil {
-				msg := msgInt.(pb.Message)
-				if status, ok := status.FromError(svr.Send(&msg)); ok {
-					switch status.Code() {
-					case codes.OK:
-						// noop
-					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-						kg.Warnf("Failed to send a message=[%+v] err=[%s]", msg, status.Err().Error())
-						return status.Err()
-					default:
-						return nil
-					}
+		case resp := <-conn:
+			if status, ok := status.FromError(svr.Send(resp)); ok {
+				switch status.Code() {
+				case codes.OK:
+					// noop
+				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+					kg.Warnf("Failed to send a message=[%+v] err=[%s]", resp, status.Err().Error())
+					return status.Err()
+				default:
+					return nil
 				}
-			} else {
-				time.Sleep(time.Second * 1)
 			}
 		}
 	}
@@ -150,14 +143,13 @@ func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_Wa
 }
 
 // addAlertStruct Function
-func (ls *LogService) addAlertStruct(uid string, filter string) {
+func (ls *LogService) addAlertStruct(uid string, conn chan *pb.Alert, filter string) {
 	AlertLock.Lock()
 	defer AlertLock.Unlock()
 
 	alertStruct := AlertStruct{}
 	alertStruct.Filter = filter
-	alertStruct.Queue = kl.NewQueue()
-
+	alertStruct.Broadcast = conn
 	AlertStructs[uid] = alertStruct
 
 	kg.Printf("Added a new client (%s, %s) for WatchAlerts", uid, filter)
@@ -180,30 +172,25 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 	if req.Filter != "all" && req.Filter != "policy" {
 		return nil
 	}
-
-	ls.addAlertStruct(uid, req.Filter)
+	conn := make(chan *pb.Alert)
+	ls.addAlertStruct(uid, conn, req.Filter)
 	defer ls.removeAlertStruct(uid)
 
 	for Running {
 		select {
 		case <-svr.Context().Done():
 			return nil
-		default:
-			if alertInt := AlertStructs[uid].Queue.Pop(); alertInt != nil {
-				alert := alertInt.(pb.Alert)
-				if status, ok := status.FromError(svr.Send(&alert)); ok {
-					switch status.Code() {
-					case codes.OK:
-						// noop
-					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-						kg.Warnf("Failed to send an alert=[%+v] err=[%s]", alert, status.Err().Error())
-						return status.Err()
-					default:
-						return nil
-					}
+		case resp := <-conn:
+			if status, ok := status.FromError(svr.Send(resp)); ok {
+				switch status.Code() {
+				case codes.OK:
+					// noop
+				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+					kg.Warnf("Failed to send an alert=[%+v] err=[%s]", resp, status.Err().Error())
+					return status.Err()
+				default:
+					return nil
 				}
-			} else {
-				time.Sleep(time.Second * 1)
 			}
 		}
 	}
@@ -212,14 +199,13 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 }
 
 // addLogStruct Function
-func (ls *LogService) addLogStruct(uid string, filter string) {
+func (ls *LogService) addLogStruct(uid string, conn chan *pb.Log, filter string) {
 	LogLock.Lock()
 	defer LogLock.Unlock()
 
 	logStruct := LogStruct{}
 	logStruct.Filter = filter
-	logStruct.Queue = kl.NewQueue()
-
+	logStruct.Broadcast = conn
 	LogStructs[uid] = logStruct
 
 	kg.Printf("Added a new client (%s, %s) for WatchLogs", uid, filter)
@@ -242,30 +228,25 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 	if req.Filter != "all" && req.Filter != "system" {
 		return nil
 	}
-
-	ls.addLogStruct(uid, req.Filter)
+	conn := make(chan *pb.Log)
+	ls.addLogStruct(uid, conn, req.Filter)
 	defer ls.removeLogStruct(uid)
 
 	for Running {
 		select {
 		case <-svr.Context().Done():
 			return nil
-		default:
-			if logInt := LogStructs[uid].Queue.Pop(); logInt != nil {
-				log := logInt.(pb.Log)
-				if status, ok := status.FromError(svr.Send(&log)); ok {
-					switch status.Code() {
-					case codes.OK:
-						// noop
-					case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-						kg.Warnf("Failed to send a log=[%+v] err=[%s]", log, status.Err().Error())
-						return status.Err()
-					default:
-						return nil
-					}
+		case resp := <-conn:
+			if status, ok := status.FromError(svr.Send(resp)); ok {
+				switch status.Code() {
+				case codes.OK:
+					// noop
+				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+					kg.Warnf("Failed to send a log=[%+v] err=[%s]", resp, status.Err().Error())
+					return status.Err()
+				default:
+					return nil
 				}
-			} else {
-				time.Sleep(time.Second * 1)
 			}
 		}
 	}
@@ -338,17 +319,8 @@ func NewFeeder(node *tp.Node) *Feeder {
 	}
 	fd.Listener = listener
 
-	kaep := keepalive.EnforcementPolicy{
-		PermitWithoutStream: true,
-	}
-
-	kasp := keepalive.ServerParameters{
-		Time:    1 * time.Second,
-		Timeout: 1 * time.Second,
-	}
-
 	// create a log server
-	fd.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
+	fd.LogServer = grpc.NewServer()
 
 	// register a log service
 	logService := &LogService{}
@@ -529,7 +501,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 	defer MsgLock.Unlock()
 
 	for uid := range MsgStructs {
-		MsgStructs[uid].Queue.Push(pbMsg)
+		MsgStructs[uid].Broadcast <- &pbMsg
 	}
 }
 
@@ -602,7 +574,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Type = log.Type
 		pbAlert.Source = log.Source
 		pbAlert.Operation = log.Operation
-		pbAlert.Resource = log.Resource
+		pbAlert.Resource = strings.ToValidUTF8(log.Resource, "")
 
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
@@ -618,7 +590,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer AlertLock.Unlock()
 
 		for uid := range AlertStructs {
-			AlertStructs[uid].Queue.Push(pbAlert)
+			AlertStructs[uid].Broadcast <- &pbAlert
 		}
 	} else { // ContainerLog
 		pbLog := pb.Log{}
@@ -642,7 +614,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.Type = log.Type
 		pbLog.Source = log.Source
 		pbLog.Operation = log.Operation
-		pbLog.Resource = log.Resource
+		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
@@ -654,7 +626,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer LogLock.Unlock()
 
 		for uid := range LogStructs {
-			LogStructs[uid].Queue.Push(pbLog)
+			kg.Warn("trying to send event")
+			LogStructs[uid].Broadcast <- &pbLog
 		}
 	}
 }
