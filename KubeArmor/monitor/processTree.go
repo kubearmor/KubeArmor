@@ -151,13 +151,14 @@ func (mon *SystemMonitor) GetProcessName(containerID string, pid uint32) string 
 	return ""
 }
 
-func (mon *SystemMonitor) GetProcessPathFromProc(pid uint32) string {
+func (mon *SystemMonitor) GetProcessPathFromProc(pid uint32) (string, error) {
 	procPath := fmt.Sprintf("/proc/%d/exe", pid)
 	path, err := os.Readlink(procPath)
 	if err != nil {
-		mon.Logger.Errf("Failed to read proc file system: %s", err)
+		mon.Logger.Warnf("Failed to read proc file system: %s", err)
+		return "", err
 	}
-	return path
+	return path, err
 }
 
 // GetExecPathWithHostPID Function

@@ -116,7 +116,6 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	container.ContainerID = inspect.ID
 	container.ContainerName = strings.TrimLeft(inspect.Name, "/")
-	container.ContainerImage = inspect.Config.Image
 
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
@@ -130,7 +129,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 			container.EndPointName = val
 		}
 	}
-
+	container.ContainerImage, _ = K8s.GetContainerImage(container.NamespaceName, container.EndPointName, container.ContainerID)
 	container.AppArmorProfile = inspect.AppArmorProfile
 
 	container.MergedDir = inspect.GraphDriver.Data["MergedDir"]

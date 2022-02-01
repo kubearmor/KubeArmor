@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,6 +280,34 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 	}
 
 	return nil
+}
+
+func (kh *K8sHandler) GetContainerImage(namespaceName, podname, containerId string) (string, error) {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return "", nil
+	}
+
+	pod, err := kh.K8sClient.CoreV1().Pods(namespaceName).Get(context.Background(), podname, metav1.GetOptions{})
+
+	if err != nil {
+		return "", err
+	}
+
+	for i, v := range pod.Status.ContainerStatuses {
+		// k8s holds containerID in the form docker://ContianerId
+		if v.ContainerID == "docker://"+containerId {
+			return pod.Status.ContainerStatuses[i].Image + getSHA256ofImage(pod.Status.ContainerStatuses[i].ImageID), nil
+		}
+	}
+
+	return "", nil
+}
+
+func getSHA256ofImage(s string) string {
+	if idx := strings.Index(s, "@"); idx != -1 {
+		return s[idx:]
+	}
+	return s
 }
 
 // PatchDeploymentWithSELinuxAnnotations Function

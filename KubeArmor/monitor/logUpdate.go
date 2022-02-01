@@ -78,7 +78,12 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.ProcessPath = strings.Split(mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID), " ")[0]
 
 	if log.ParentProcessPath == "" {
-		log.ParentProcessPath = mon.GetProcessPathFromProc(msg.ContextSys.HostPPID)
+		path, err := mon.GetProcessPathFromProc(msg.ContextSys.HostPPID)
+		log.ParentProcessPath = path
+		if err != nil {
+			//  case where process exits before kuberarmor reads the proc file system
+			log.ParentProcessPath = ""
+		}
 	}
 
 	if log.Source == "" {
