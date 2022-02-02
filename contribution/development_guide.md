@@ -37,6 +37,9 @@
 
       Output will show up as ...
 
+      <details>
+      <summary>Click to expand!</summary>
+  
       ```text
       cd /home/gourav/KubeArmor/contribution/vagrant; NETNEXT=0 DLV_RPORT=2345 vagrant up; true
       Bringing machine 'kubearmor-dev' up with 'virtualbox' provider...
@@ -90,6 +93,7 @@
           kubearmor-dev: Running: /tmp/vagrant-shell20220202-55671-bn8u0f.sh
           ...
       ```
+      </details>
 
       To get into the vagrant VM
 
@@ -99,6 +103,9 @@
 
       Output will show up as ...
 
+      <details>
+      <summary>Click to expand!</summary>
+  
       ```text
       d /home/gourav/KubeArmor/contribution/vagrant; NETNEXT=0 DLV_RPORT=2345 vagrant ssh; true
       Welcome to Ubuntu 18.04.6 LTS (GNU/Linux 4.15.0-167-generic x86_64)
@@ -125,6 +132,7 @@
 
       vagrant@kubearmor-dev:~$
       ```
+      </details>
 
       To destroy the vagrant VM
 
