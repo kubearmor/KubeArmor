@@ -97,7 +97,7 @@
       ~/KubeArmor/KubeArmor$ make vagrant-ssh
       ```
 
-      The ouput will show as
+      Output will show up as ...
 
       ```text
       d /home/gourav/KubeArmor/contribution/vagrant; NETNEXT=0 DLV_RPORT=2345 vagrant ssh; true
