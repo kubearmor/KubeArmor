@@ -35,7 +35,7 @@
       ~/KubeArmor/KubeArmor$ make vagrant-up
       ```
 
-      The ouput will come as
+      Output will show up as ...
 
       ```text
       cd /home/gourav/KubeArmor/contribution/vagrant; NETNEXT=0 DLV_RPORT=2345 vagrant up; true
