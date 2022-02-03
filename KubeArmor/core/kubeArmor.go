@@ -374,13 +374,6 @@ func KubeArmor() {
 			}
 		}
 
-	} else {
-		kg.Warn("Neither K8s nor KVMAgent is configured")
-
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
-
-		return
 	}
 
 	// == //
