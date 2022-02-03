@@ -160,12 +160,13 @@
 
       You could skip vagrant step completely if you're directly compiling Kubearmor on any Linux distro, or using Virtualbox.
 
-      Please ensure that the steps to setup K8s is followed so as to resolve any open dependencies.
+      Please ensure that the steps to setup K8s are followed so as to resolve any open dependencies.
 
 2. Self-managed Kubernetes
    * Requirements
 
-     List of minimum requirements for self-managed Kubernetes.
+     Here is the list of minimum requirements for self-managed Kubernetes.
+
      ```text
      OS - Ubuntu 18.04
      Kubernetes - v1.19
