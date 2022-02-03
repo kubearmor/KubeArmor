@@ -67,7 +67,9 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
-	if nodeWatcher := K8s.WatchK8sNodes(); nodeWatcher != nil {
+	nodeWatcher := K8s.WatchK8sNodes()
+
+	if nodeWatcher != nil {
 		return
 	}
 
