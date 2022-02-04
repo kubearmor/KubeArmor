@@ -322,7 +322,7 @@ func GetExternalIPAddr() string {
 // IsK8sLocal Function
 func IsK8sLocal() bool {
 	k8sConfig := os.Getenv("KUBECONFIG")
-	if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
+	if _, err := os.Stat(filepath.Clean(k8sConfig)); k8sConfig != "" && err == nil {
 		return true
 	}
 
