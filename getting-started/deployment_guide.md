@@ -73,6 +73,12 @@ karmor log
 6. [microk8s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/microk8s)
 7. [minikube](https://github.com/kubearmor/KubeArmor/tree/main/deployments/minikube)
 
+---
+**NOTE**
+* "docker": KubeArmor deployment for self-managed k8s with docker (v18.09 and below).
+* "generic": KubeArmor deployment for self-managed k8s with containerd and docker (v18.09 and above).
+---
+
 ## K8s platforms tested
 1. Google Kubernetes Engine (GKE) Container Optimized OS (COS)
 2. GKE Ubuntu image
