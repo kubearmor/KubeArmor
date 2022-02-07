@@ -4,9 +4,25 @@ This recipe explains how to use KubeArmor directly on VM/Bare-Metal host and was
 
 ## Download and Install KubeArmor
 
-1. Install pre-requisites `sudo apt install bpfcc-tools linux-headers-$(uname -r)`
-2. Download the [latest release of KubeArmor](https://github.com/kubearmor/KubeArmor/releases)
-2. Install KubeArmor `sudo dpkg -i kubearmor_VER_linux-amd64.deb` ... where VER is the kubearmor release version
+1. Download the [latest release of KubeArmor](https://github.com/kubearmor/KubeArmor/releases)
+2. Install KubeArmor `sudo apt install ./kubearmor_${VER}_linux-amd64.deb` ... where VER is the kubearmor release version. This will automatically install the required dependencies.
+
+<details><summary>For distributions other than Ubuntu/Debian</summary>
+<p>
+
+1. Refer [Installing BCC](https://github.com/iovisor/bcc/blob/master/INSTALL.md#installing-bcc) to install pre-requisites.
+2. Download release tarball from KubeArmor releases for the version you want
+
+```
+wget https://github.com/daemon1024/KubeArmor/releases/download/v${VER}/kubearmor_${VER}_linux-amd64.tar.gz
+```
+3. Unpack the tarball to the root directory:
+```
+sudo tar --no-overwrite-dir -C / -xzf kubearmor_${VER}_linux-amd64.tar.gz
+sudo systemctl daemon-reload
+```
+</p>
+</details>
 
 ## Start KubeArmor
 
