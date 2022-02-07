@@ -37,26 +37,27 @@ message Alert {
 
   string ContainerID = 7;
   string ContainerName = 8;
+  string ContainerImage = 9;
 
-  int32 HostPID = 9;
-  int32 PPID = 10;
-  int32 PID = 11;
-  int32 UID = 12;
+  int32 HostPID = 10;
+  int32 PPID = 11;
+  int32 PID = 12;
+  int32 UID = 13;
 
-  string PolicyName = 13;
-  string Severity = 14;
+  string PolicyName = 14;
+  string Severity = 15;
 
-  string Tags = 15;
-  string Message = 16;
+  string Tags = 16;
+  string Message = 17;
 
-  string Type = 17;
-  string Source = 18;
-  string Operation = 19;
-  string Resource = 20;
-  string Data = 21;
+  string Type = 18;
+  string Source = 19;
+  string Operation = 20;
+  string Resource = 21;
+  string Data = 22;
 
-  string Action = 22;
-  string Result = 23;
+  string Action = 23;
+  string Result = 24;
 }
 
 // log struct
@@ -72,19 +73,20 @@ message Log {
 
   string ContainerID = 7;
   string ContainerName = 8;
+  string ContainerImage = 9;
 
-  int32 HostPID = 9;
-  int32 PPID = 10;
-  int32 PID = 11;
-  int32 UID = 12;
+  int32 HostPID = 10;
+  int32 PPID = 11;
+  int32 PID = 12;
+  int32 UID = 13;
 
-  string Type = 13;
-  string Source = 14;
-  string Operation = 15;
-  string Resource = 16;
-  string Data = 17;
+  string Type = 14;
+  string Source = 15;
+  string Operation = 16;
+  string Resource = 17;
+  string Data = 18;
 
-  string Result = 18;
+  string Result = 19;
 }
 
 // request message

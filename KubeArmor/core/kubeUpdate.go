@@ -199,6 +199,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container.NamespaceName = newPoint.NamespaceName
 			container.EndPointName = newPoint.EndPointName
 			container.ContainerName = pod.Containers[containerID]
+			container.ContainerImage = pod.ContainerImages[containerID]
 
 			container.PolicyEnabled = newPoint.PolicyEnabled
 
@@ -310,6 +311,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container.NamespaceName = newEndPoint.NamespaceName
 			container.EndPointName = newEndPoint.EndPointName
 			container.ContainerName = pod.Containers[containerID]
+			container.ContainerImage = pod.ContainerImages[containerID]
 
 			container.PolicyEnabled = newEndPoint.PolicyEnabled
 
@@ -427,14 +429,17 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				pod.Containers = map[string]string{}
+				pod.ContainerImages = map[string]string{}
 				for _, container := range event.Object.Status.ContainerStatuses {
 					if len(container.ContainerID) > 0 {
 						if strings.HasPrefix(container.ContainerID, "docker://") {
 							containerID := strings.TrimPrefix(container.ContainerID, "docker://")
 							pod.Containers[containerID] = container.Name
+							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
 						} else if strings.HasPrefix(container.ContainerID, "containerd://") {
 							containerID := strings.TrimPrefix(container.ContainerID, "containerd://")
 							pod.Containers[containerID] = container.Name
+							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
 						}
 					}
 				}
