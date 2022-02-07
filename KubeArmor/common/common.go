@@ -230,6 +230,14 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	return string(out), nil
 }
 
+// GetSHA256ofImage of the image
+func GetSHA256ofImage(s string) string {
+	if idx := strings.Index(s, "@"); idx != -1 {
+		return s[idx:]
+	}
+	return s
+}
+
 // GetCommandOutputWithoutErr Function
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	// #nosec

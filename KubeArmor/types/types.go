@@ -17,8 +17,9 @@ import (
 
 // Container Structure
 type Container struct {
-	ContainerID   string `json:"containerID"`
-	ContainerName string `json:"containerName"`
+	ContainerID    string `json:"containerID"`
+	ContainerName  string `json:"containerName"`
+	ContainerImage string `json:"containerImage"`
 
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
@@ -105,10 +106,11 @@ type K8sNodeEvent struct {
 
 // K8sPod Structure
 type K8sPod struct {
-	Metadata    map[string]string
-	Annotations map[string]string
-	Labels      map[string]string
-	Containers  map[string]string
+	Metadata        map[string]string
+	Annotations     map[string]string
+	Labels          map[string]string
+	Containers      map[string]string
+	ContainerImages map[string]string
 }
 
 // K8sPodEvent Structure
@@ -177,8 +179,9 @@ type Log struct {
 	PodName       string `json:"podName,omitempty"`
 
 	// container
-	ContainerID   string `json:"containerID,omitempty"`
-	ContainerName string `json:"containerName,omitempty"`
+	ContainerID    string `json:"containerID,omitempty"`
+	ContainerName  string `json:"containerName,omitempty"`
+	ContainerImage string `json:"containerImage,omitempty"`
 
 	// container merged directory
 	MergedDir string `json:"mergedDir,omitempty"`
