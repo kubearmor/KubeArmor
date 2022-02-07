@@ -12,7 +12,7 @@ import (
 
 	"github.com/clarketm/json"
 
-	deployments "github.com/kubearmor/KubeArmor/deployments/get"
+	dp "github.com/kubearmor/KubeArmor/deployments/get"
 	"sigs.k8s.io/yaml"
 
 	hsp "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/crd"
@@ -29,15 +29,15 @@ func main() {
 
 	for _, env := range envs {
 		v := []interface{}{
-			deployments.GetServiceAccount(namespace),
-			deployments.GetClusterRoleBinding(namespace),
-			deployments.GetRelayService(namespace),
-			deployments.GetRelayDeployment(namespace),
-			deployments.GenerateDaemonSet(strings.ToLower(env), namespace),
-			deployments.GetPolicyManagerService(namespace),
-			deployments.GetPolicyManagerDeployment(namespace),
-			deployments.GetHostPolicyManagerService(namespace),
-			deployments.GetHostPolicyManagerDeployment(namespace),
+			dp.GetServiceAccount(namespace),
+			dp.GetClusterRoleBinding(namespace),
+			dp.GetRelayService(namespace),
+			dp.GetRelayDeployment(namespace),
+			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
+			dp.GetPolicyManagerService(namespace),
+			dp.GetPolicyManagerDeployment(namespace),
+			dp.GetHostPolicyManagerService(namespace),
+			dp.GetHostPolicyManagerDeployment(namespace),
 			ksp.GetCRD(),
 			hsp.GetCRD()}
 
