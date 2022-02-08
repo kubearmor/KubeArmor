@@ -10,6 +10,10 @@ on:
       - 'tests/**'
       - 'protobuf/**'
 
+  create: 
+    branches:
+      - 'v*'
+
 name: Create KubeArmor release after testing the image
 
 jobs:
