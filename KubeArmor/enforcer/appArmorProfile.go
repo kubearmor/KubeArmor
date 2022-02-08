@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -815,15 +816,15 @@ func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList,
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	if len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
+	if len(processWhiteList) == 0 && len(fileWhiteList) == 0 && cfg.GlobalCfg.DefaultFilePosture != "block" {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if len(networkWhiteList) == 0 {
+	if len(networkWhiteList) == 0 && cfg.GlobalCfg.DefaultNetworkPosture != "block" {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if len(capabilityWhiteList) == 0 {
+	if len(capabilityWhiteList) == 0 && cfg.GlobalCfg.DefaultCapabilitiesPosture != "block" {
 		profileHead = profileHead + "  capability,\n"
 	}
 
