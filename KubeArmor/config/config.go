@@ -28,6 +28,7 @@ type KubearmorConfig struct {
 	Policy     bool // Enable/Disable policy enforcement
 	HostPolicy bool // Enable/Disable host policy enforcement
 	KVMAgent   bool // Enable/Disable KVM Agent
+	NonK8sEnv  bool // Is non-k8s env ?
 
 	CoverageTest bool // Enable/Disable Coverage Test
 }
@@ -68,6 +69,9 @@ const ConfigKubearmorVM string = "enableKubeArmorVm"
 // ConfigCoverageTest Coverage Test key
 const ConfigCoverageTest string = "coverageTest"
 
+// ConfigNonK8sEnv VM key
+const ConfigNonK8sEnv string = "non-k8s"
+
 func readCmdLineParams() {
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
 	hostStr := flag.String(ConfigHost, kl.GetHostName(), "host name")
@@ -82,6 +86,7 @@ func readCmdLineParams() {
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
+	nonK8sEnvB := flag.Bool(ConfigNonK8sEnv, false, "is non-k8s env?")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
@@ -100,6 +105,7 @@ func readCmdLineParams() {
 	viper.Set(ConfigKubearmorPolicy, *policyB)
 	viper.Set(ConfigKubearmorHostPolicy, *hostPolicyB)
 	viper.Set(ConfigKubearmorVM, *kvmAgentB)
+	viper.Set(ConfigNonK8sEnv, *nonK8sEnvB)
 
 	viper.Set(ConfigCoverageTest, *coverageTestB)
 }
@@ -144,9 +150,11 @@ func LoadConfig() error {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
 	}
+	GlobalCfg.NonK8sEnv = viper.GetBool(ConfigNonK8sEnv)
+	kl.IsNonK8sEnv = viper.GetBool(ConfigNonK8sEnv)
 
 	if GlobalCfg.HostVisibility == "" {
-		if GlobalCfg.KVMAgent {
+		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {
 			GlobalCfg.HostVisibility = "process,file,network,capabilities"
 		} else { // k8s
 			GlobalCfg.HostVisibility = "none"

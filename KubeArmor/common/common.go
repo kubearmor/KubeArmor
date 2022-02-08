@@ -23,6 +23,8 @@ import (
 // == Common == //
 // ============ //
 
+var IsNonK8sEnv bool
+
 // Clone Function
 func Clone(src, dst interface{}) error {
 	arr, _ := json.Marshal(src)
@@ -329,6 +331,10 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
+	if IsNonK8sEnv {
+		return false
+	}
+
 	k8sConfig := os.Getenv("KUBECONFIG")
 	if k8sConfig != "" {
 		if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
