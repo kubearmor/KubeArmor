@@ -628,7 +628,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer LogLock.Unlock()
 
 		for uid := range LogStructs {
-			kg.Warn("trying to send event")
 			LogStructs[uid].Broadcast <- &pbLog
 		}
 	}
