@@ -23,7 +23,7 @@ import (
 // == Common == //
 // ============ //
 
-// IsNonK8sEnv used for specifying non-k8s environment
+// IsK8SEnv used for specifying k8s environment
 var IsK8SEnv bool
 
 // Clone Function
