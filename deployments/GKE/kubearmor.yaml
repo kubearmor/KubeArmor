@@ -83,7 +83,7 @@ spec:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
         - -enableKubeArmorHostPolicy
-        image: kubearmor/kubearmor:latest
+        image: kubearmor/kubearmor:stable
         livenessProbe:
           exec:
             command:

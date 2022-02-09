@@ -494,7 +494,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 					Containers: []corev1.Container{
 						{
 							Name:  kubearmor,
-							Image: "kubearmor/kubearmor:latest",
+							Image: "kubearmor/kubearmor:stable",
 							//imagePullPolicy is Always since image has latest tag
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
