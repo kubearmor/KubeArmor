@@ -24,7 +24,7 @@ import (
 // ============ //
 
 // IsNonK8sEnv used for specifying non-k8s environment
-var IsNonK8sEnv bool
+var IsK8SEnv bool
 
 // Clone Function
 func Clone(src, dst interface{}) error {
@@ -332,7 +332,7 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
-	if IsNonK8sEnv {
+	if !IsK8SEnv {
 		return false
 	}
 
