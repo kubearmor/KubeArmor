@@ -8,7 +8,6 @@ import (
 
 	"flag"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
 )
@@ -73,8 +72,9 @@ const ConfigCoverageTest string = "coverageTest"
 const ConfigK8sEnv string = "k8s"
 
 func readCmdLineParams() {
+	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
-	hostStr := flag.String(ConfigHost, kl.GetHostName(), "host name")
+	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
@@ -151,7 +151,6 @@ func LoadConfig() error {
 		GlobalCfg.HostPolicy = true
 	}
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
-	kl.IsK8SEnv = viper.GetBool(ConfigK8sEnv)
 
 	if GlobalCfg.HostVisibility == "" {
 		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {

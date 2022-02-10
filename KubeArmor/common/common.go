@@ -16,15 +16,13 @@ import (
 	"strings"
 	"time"
 
+	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // ============ //
 // == Common == //
 // ============ //
-
-// IsK8SEnv used for specifying k8s environment
-var IsK8SEnv bool
 
 // Clone Function
 func Clone(src, dst interface{}) error {
@@ -332,7 +330,7 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
-	if !IsK8SEnv {
+	if !kc.GlobalCfg.K8sEnv {
 		return false
 	}
 
