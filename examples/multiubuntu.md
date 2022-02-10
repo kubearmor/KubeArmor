@@ -51,7 +51,7 @@
 
             ```text
             $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-2,container=ubuntu-5" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- bash
-            # cat cat /credentials/password
+            # cat /credentials/password
             (Permission Denied)
             ```
 
