@@ -8,7 +8,6 @@ import (
 
 	"flag"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
 )
@@ -28,6 +27,7 @@ type KubearmorConfig struct {
 	Policy     bool // Enable/Disable policy enforcement
 	HostPolicy bool // Enable/Disable host policy enforcement
 	KVMAgent   bool // Enable/Disable KVM Agent
+	K8sEnv     bool // Is k8s env ?
 
 	CoverageTest bool // Enable/Disable Coverage Test
 }
@@ -68,9 +68,13 @@ const ConfigKubearmorVM string = "enableKubeArmorVm"
 // ConfigCoverageTest Coverage Test key
 const ConfigCoverageTest string = "coverageTest"
 
+// ConfigK8sEnv VM key
+const ConfigK8sEnv string = "k8s"
+
 func readCmdLineParams() {
+	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
-	hostStr := flag.String(ConfigHost, kl.GetHostName(), "host name")
+	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
@@ -82,6 +86,7 @@ func readCmdLineParams() {
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
+	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
@@ -100,6 +105,7 @@ func readCmdLineParams() {
 	viper.Set(ConfigKubearmorPolicy, *policyB)
 	viper.Set(ConfigKubearmorHostPolicy, *hostPolicyB)
 	viper.Set(ConfigKubearmorVM, *kvmAgentB)
+	viper.Set(ConfigK8sEnv, *k8sEnvB)
 
 	viper.Set(ConfigCoverageTest, *coverageTestB)
 }
@@ -144,9 +150,10 @@ func LoadConfig() error {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
 	}
+	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
 
 	if GlobalCfg.HostVisibility == "" {
-		if GlobalCfg.KVMAgent {
+		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {
 			GlobalCfg.HostVisibility = "process,file,network,capabilities"
 		} else { // k8s
 			GlobalCfg.HostVisibility = "none"

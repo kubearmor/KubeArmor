@@ -321,7 +321,8 @@ func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
 
-	if cfg.GlobalCfg.KVMAgent {
+	// Enable KubeArmorHostPolicy for both VM and KVMAgent
+	if cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy {
 		dm.Node.NodeIP = kl.GetExternalIPAddr()
 
 		dm.Node.Annotations = map[string]string{}

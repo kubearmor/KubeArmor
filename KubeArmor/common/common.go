@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
@@ -329,9 +330,15 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
+	if !kc.GlobalCfg.K8sEnv {
+		return false
+	}
+
 	k8sConfig := os.Getenv("KUBECONFIG")
-	if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
-		return true
+	if k8sConfig != "" {
+		if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
+			return true
+		}
 	}
 
 	home := os.Getenv("HOME")
