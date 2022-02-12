@@ -673,6 +673,25 @@ func lastString(ss []string) string {
 	return ss[len(ss)-1]
 }
 
+// Update Log Fields based on default posture and visibility configuration and return false if no updates
+func setLogFields(action string, visibility bool, log *tp.Log) bool {
+	if action == "block" {
+		(*log).Type = "MatchedPolicy"
+		(*log).PolicyName = "DefaultPosture"
+		(*log).Action = "Block"
+		return true
+	} else if action == "audit" {
+		(*log).Type = "MatchedPolicy"
+		(*log).PolicyName = "DefaultPosture"
+		(*log).Action = "Audit"
+		return true
+	} else if visibility {
+		(*log).Type = "ContainerLog"
+		return true
+	}
+	return false
+}
+
 // UpdateMatchedPolicy Function
 func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	allowProcPolicy := ""
@@ -1008,18 +1027,22 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			}
 
-			if log.ProcessVisibilityEnabled && log.Operation == "Process" {
-				log.Type = "ContainerLog"
-				return log
-			} else if log.FileVisibilityEnabled && log.Operation == "File" {
-				log.Type = "ContainerLog"
-				return log
-			} else if log.NetworkVisibilityEnabled && log.Operation == "Network" {
-				log.Type = "ContainerLog"
-				return log
-			} else if log.CapabilitiesVisibilityEnabled && log.Operation == "Capabilities" {
-				log.Type = "ContainerLog"
-				return log
+			if log.Operation == "Process" {
+				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.ProcessVisibilityEnabled, &log) {
+					return log
+				}
+			} else if log.Operation == "File" {
+				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.FileVisibilityEnabled, &log) {
+					return log
+				}
+			} else if log.Operation == "Network" {
+				if setLogFields(cfg.GlobalCfg.DefaultNetworkPosture, log.NetworkVisibilityEnabled, &log) {
+					return log
+				}
+			} else if log.Operation == "Capabilities" {
+				if setLogFields(cfg.GlobalCfg.DefaultCapabilitiesPosture, log.CapabilitiesVisibilityEnabled, &log) {
+					return log
+				}
 			}
 		} else if log.Type == "MatchedPolicy" {
 			if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
