@@ -17,6 +17,7 @@ sudo rm -rf /tmp/build; mkdir -p /tmp/build; cd /tmp/build
 
 # download bcc
 git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
+sed -i 's/find_package(LibDebuginfod)//g' /tmp/build/bcc/CMakeLists.txt
 
 # install dependencies for bcc
 sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
