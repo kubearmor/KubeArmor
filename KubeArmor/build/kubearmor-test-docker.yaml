@@ -50,7 +50,7 @@ spec:
         imagePullPolicy: Never
         securityContext:
           privileged: true
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableKubeArmorHostPolicy"]
+        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log"]
         ports:
         - containerPort: 32767
         volumeMounts:
