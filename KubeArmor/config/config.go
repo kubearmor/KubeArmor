@@ -4,9 +4,8 @@
 package config
 
 import (
-	"os"
-
 	"flag"
+	"os"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
@@ -31,6 +30,9 @@ type KubearmorConfig struct {
 
 	CoverageTest bool // Enable/Disable Coverage Test
 }
+
+// PolicyDir policy dir path for host policies backup
+const PolicyDir string = "/opt/kubearmor/policies/"
 
 // GlobalCfg Global configuration for Kubearmor
 var GlobalCfg KubearmorConfig
@@ -65,11 +67,11 @@ const ConfigKubearmorHostPolicy string = "enableKubeArmorHostPolicy"
 // ConfigKubearmorVM Kubearmor VM key
 const ConfigKubearmorVM string = "enableKubeArmorVm"
 
-// ConfigCoverageTest Coverage Test key
-const ConfigCoverageTest string = "coverageTest"
-
 // ConfigK8sEnv VM key
 const ConfigK8sEnv string = "k8s"
+
+// ConfigCoverageTest Coverage Test key
+const ConfigCoverageTest string = "coverageTest"
 
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
@@ -151,6 +153,10 @@ func LoadConfig() error {
 		GlobalCfg.HostPolicy = true
 	}
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
+	if !GlobalCfg.K8sEnv {
+		GlobalCfg.Policy = false
+		GlobalCfg.HostPolicy = true
+	}
 
 	if GlobalCfg.HostVisibility == "" {
 		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {

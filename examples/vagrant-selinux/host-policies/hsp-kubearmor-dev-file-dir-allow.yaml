@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-dir-allow
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchDirectories:
+    - dir: /home/vagrant/selinux-test/matchDir/
+      fromSource:
+      - path: /home/vagrant/selinux-test/read
+  action:
+    Allow

@@ -322,7 +322,7 @@ func KubeArmor() {
 	dm := NewKubeArmorDaemon()
 
 	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
-	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
+	if cfg.GlobalCfg.KVMAgent || !cfg.GlobalCfg.K8sEnv {
 		dm.Node.NodeIP = kl.GetExternalIPAddr()
 
 		dm.Node.Annotations = map[string]string{}
@@ -332,9 +332,6 @@ func KubeArmor() {
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
 		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
-
-		cfg.GlobalCfg.Policy = false
-		cfg.GlobalCfg.HostPolicy = true
 
 		kg.Print("Updated the node information")
 
@@ -531,6 +528,13 @@ func KubeArmor() {
 	// == //
 
 	dm.Logger.Print("Initialized KubeArmor")
+
+	// == //
+
+	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy) {
+		// Restore and apply all kubearmor host security policies
+		dm.restoreKubeArmorHostPolicies()
+	}
 
 	// == //
 

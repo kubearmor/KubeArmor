@@ -1,0 +1,16 @@
+policy_module(karmor, 1.0.0)
+
+########################################
+
+require {
+    type unconfined_t;
+    type fs_t;
+}
+
+type karmor_block_t;
+
+# any others can execute B
+allow unconfined_t karmor_block_t:file { getattr execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom map }; # -execute
+allow karmor_block_t fs_t:filesystem { associate };
+
+########################################

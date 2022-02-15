@@ -35,7 +35,10 @@
         * Check audit logs
 
             ```text
-            $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-1,container=ubuntu-1" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- tail /tmp/kubearmor.log
+            $ karmor log --json
+
+            Run the above command in other terminal to see logs live.
+            To install karmor cli tool [refer](https://github.com/kubearmor/kubearmor-client).
             ```
 
     * Example 2 - Block a file access
@@ -58,5 +61,5 @@
         * Check audit logs
 
             ```text
-            $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-2,container=ubuntu-5" -o jsonpath='{.items[0].metadata.name}') && kubectl -n multiubuntu exec -it $POD_NAME -- tail /tmp/kubearmor.log
+            $ karmor log --json
             ```

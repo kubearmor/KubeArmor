@@ -1,7 +1,7 @@
 Vagrant.require_version ">= 2.0.0"
 
 if ENV['OS'] == "centos" then
-  VM_IMG = "generic/centos8"
+  VM_IMG = "bento/centos-8"
   VM_NAME = "kubearmor-dev"
 else # ubuntu
   if ENV['NETNEXT'] == "1" then
@@ -74,6 +74,9 @@ Vagrant.configure("2") do |config|
 
     # initialize Kubernetes
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
+
+    # enable SELinux
+    config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
   else # ubuntu
     if ENV['NETNEXT'] == "1" then
       # install the latest kernel

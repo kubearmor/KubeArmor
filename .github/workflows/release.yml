@@ -16,6 +16,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
       - name: Build bcc
         run: |
           set -x
@@ -29,13 +30,16 @@ jobs:
           make -j$(nproc)
           sudo make install
           popd
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.
+
       - name: Installing Karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
         working-directory: KubeArmor
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:

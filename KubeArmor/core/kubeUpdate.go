@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -1199,7 +1201,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 			if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 				secPolicies = append(secPolicies, policy)
 			}
-		} else { // KubeArmorVM
+		} else { // KubeArmorVM and KVMAgent
 			secPolicies = append(secPolicies, policy)
 		}
 	}
@@ -1582,6 +1584,11 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 
 	// apply security policies to a host
 	dm.UpdateHostSecurityPolicies()
+
+	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy) {
+		// backup HostSecurityPolicy to file
+		dm.backupKubeArmorHostPolicy(secPolicy)
+	}
 }
 
 // WatchHostSecurityPolicies Function
@@ -1614,6 +1621,59 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 
 				dm.ParseAndUpdateHostSecurityPolicy(event)
 			}
+		}
+	}
+}
+
+// ================================= //
+// == HostPolicy Backup & Restore == //
+// ================================= //
+
+// backupKubeArmorHostPolicy Function
+func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+			return
+		}
+	}
+
+	var file *os.File
+	var err error
+
+	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := json.Marshal(policy); err == nil {
+			if _, err = file.Write(policyBytes); err == nil {
+				if err := file.Close(); err != nil {
+					dm.Logger.Errf(err.Error())
+				}
+			}
+		}
+	}
+}
+
+func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		kg.Warn("Policies dir not found for restoration")
+		return
+	}
+
+	// List all policies files from "/opt/kubearmor/policies" path
+	if policyFiles, err := ioutil.ReadDir(cfg.PolicyDir); err == nil {
+		for _, file := range policyFiles {
+			if data, err := ioutil.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
+				var hostPolicy tp.HostSecurityPolicy
+				if err := json.Unmarshal(data, &hostPolicy); err == nil {
+					dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)
+				}
+			}
+		}
+
+		if len(policyFiles) != 0 {
+			dm.UpdateHostSecurityPolicies()
+		} else {
+			kg.Warn("No policies found for restoration")
 		}
 	}
 }

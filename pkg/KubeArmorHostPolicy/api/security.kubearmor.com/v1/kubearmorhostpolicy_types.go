@@ -15,10 +15,10 @@ type NodeSelectorType struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
-// +kubebuilder:validation:Pattern=^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+// +kubebuilder:validation:Pattern=^\/+.*[^\/]$
 type MatchPathType string
 
-// +kubebuilder:validation:Pattern=^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+// +kubebuilder:validation:Pattern=^\/$|^\/.*\/$
 type MatchDirectoryType string
 
 type MatchSourceType struct {

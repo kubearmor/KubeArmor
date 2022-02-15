@@ -1,0 +1,87 @@
+policy_module(karmorX, 1.0.0)
+
+########################################
+
+require {
+    role unconfined_r;
+    type unconfined_t, user_devpts_t;
+
+    class context { contains };
+    class dbus { acquire_svc send_msg };
+    class x_client { destroy getattr manage };
+    class x_gc { create destroy getattr setattr use };
+    class x_cursor { create destroy getattr read setattr use write };
+    class x_colormap { add_color create destroy getattr install read remove_color uninstall use write };
+    class x_device { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
+    class x_drawable { add_child blend create destroy get_property getattr hide list_child list_property manage override read receive remove_child send set_property setattr show write };
+    class x_keyboard { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
+    class x_pointer { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
+    class x_resource { read write };
+}
+
+type karmorX_t;
+type karmorX_exec_t;
+
+application_domain(karmorX_t, karmorX_exec_t)
+role unconfined_r types karmorX_t;
+
+unconfined_domtrans_to(karmorX_t, karmorX_exec_t)
+#permissive karmorX_t;
+
+allow karmorX_t karmorX_t:process { setpgid };
+allow karmorX_t karmorX_exec_t:file { getattr execute execute_no_trans ioctl lock open read };
+
+allow karmorX_t user_devpts_t:chr_file { read write };
+
+########################################
+
+require {
+    type fs_t;
+}
+
+type karmorX_allow_t;
+
+# A can execute B
+allow karmorX_t karmorX_allow_t:file { getattr execute execute_no_trans ioctl lock open read write link unlink map };
+
+# any others cannot execute B
+allow unconfined_t karmorX_allow_t:file { getattr execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom map }; # -execute
+allow karmorX_allow_t fs_t:filesystem { associate };
+
+type karmorX_block_t;
+
+# A cannot execute B
+allow karmorX_t karmorX_block_t:file { getattr execute_no_trans ioctl lock open read write link unlink }; # -execute
+
+# any others can execute B
+allow unconfined_t karmorX_block_t:file { getattr execute execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom map };
+allow karmorX_block_t fs_t:filesystem { associate };
+
+########################################
+
+type karmorX_read_t;
+files_type(karmorX_read_t)
+
+# A can read B only
+allow karmorX_t karmorX_read_t:file { getattr ioctl lock open read }; # -write, -append
+
+type karmorX_write_t;
+files_type(karmorX_write_t)
+
+# A can write B only
+allow karmorX_t karmorX_write_t:file { getattr ioctl lock open write append }; # -read
+
+type karmorX_file_t;
+files_type(karmorX_file_t)
+
+# A can access B
+allow karmorX_t karmorX_file_t:file { getattr ioctl lock open read write append };
+
+type karmorX_none_t;
+files_type(karmorX_none_t)
+
+# A cannot access B
+allow karmorX_t karmorX_none_t:file { getattr ioctl lock open }; # -read, -write, -append
+
+########################################
+
