@@ -242,7 +242,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 				case codes.OK:
 					// noop
 				case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
-					kg.Warnf("Failed to send a log=[%+v] err=[%s]", resp, status.Err().Error())
+					kg.Warnf("Failed to send a log=[%+v] err=[%s] CODE=%d", resp, status.Err().Error(), status.Code())
 					return status.Err()
 				default:
 					return nil
@@ -497,8 +497,8 @@ func (fd *Feeder) PushMessage(level, message string) {
 	pbMsg.Level = level
 	pbMsg.Message = message
 
-	MsgLock.Lock()
-	defer MsgLock.Unlock()
+	// MsgLock.Lock()
+	// defer MsgLock.Unlock()
 
 	for uid := range MsgStructs {
 		MsgStructs[uid].Broadcast <- &pbMsg
@@ -587,8 +587,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.Result = log.Result
 
-		AlertLock.Lock()
-		defer AlertLock.Unlock()
+		// AlertLock.Lock()
+		// defer AlertLock.Unlock()
 
 		for uid := range AlertStructs {
 			AlertStructs[uid].Broadcast <- &pbAlert
@@ -624,8 +624,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.Result = log.Result
 
-		LogLock.Lock()
-		defer LogLock.Unlock()
+		//		LogLock.Lock()
+		//		defer LogLock.Unlock()
 
 		for uid := range LogStructs {
 			LogStructs[uid].Broadcast <- &pbLog
