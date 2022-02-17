@@ -674,13 +674,13 @@ func lastString(ss []string) string {
 }
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
-func setLogFields(action string, visibility bool, log *tp.Log) bool {
-	if action == "block" {
+func setLogFields(action string, visibility bool, log *tp.Log, considerPosture bool) bool {
+	if considerPosture && action == "block" {
 		(*log).Type = "MatchedPolicy"
 		(*log).PolicyName = "DefaultPosture"
 		(*log).Action = "Block"
 		return true
-	} else if action == "audit" {
+	} else if considerPosture && action == "audit" {
 		(*log).Type = "MatchedPolicy"
 		(*log).PolicyName = "DefaultPosture"
 		(*log).Action = "Audit"
@@ -710,6 +710,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	allowNetworkMessage := ""
 
 	mightBeNative := false
+	considerFilePosture := false
+	considerNetworkPosture := false
 
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
@@ -870,6 +872,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							continue
 						}
 					}
+
+					if !matched {
+						if secPolicy.IsFromSource && secPolicy.Action == "Allow" {
+							considerFilePosture = true
+						}
+					}
 				}
 			case "Network":
 				if secPolicy.Operation == log.Operation {
@@ -891,6 +899,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							continue
 						}
+					}
+					if secPolicy.IsFromSource && secPolicy.Action == "Allow" {
+						considerNetworkPosture = true
 					}
 				}
 			}
@@ -1028,19 +1039,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			}
 
 			if log.Operation == "Process" {
-				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.ProcessVisibilityEnabled, &log) {
+				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.ProcessVisibilityEnabled, &log, considerFilePosture) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.FileVisibilityEnabled, &log) {
+				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.FileVisibilityEnabled, &log, considerFilePosture) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(cfg.GlobalCfg.DefaultNetworkPosture, log.NetworkVisibilityEnabled, &log) {
+				if setLogFields(cfg.GlobalCfg.DefaultNetworkPosture, log.NetworkVisibilityEnabled, &log, considerNetworkPosture) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(cfg.GlobalCfg.DefaultCapabilitiesPosture, log.CapabilitiesVisibilityEnabled, &log) {
+				if setLogFields(cfg.GlobalCfg.DefaultCapabilitiesPosture, log.CapabilitiesVisibilityEnabled, &log, true) {
 					return log
 				}
 			}
