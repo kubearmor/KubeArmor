@@ -816,17 +816,22 @@ func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList,
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	if len(processWhiteList) > 0 || len(fileWhiteList) > 0 || (!file && cfg.GlobalCfg.DefaultFilePosture == "block") {
+	// Block Access to Resource when
+	// -> Default Posture is Block
+	// AND
+	// -> Atleast one allow policy OR from source allow policy
+
+	if cfg.GlobalCfg.DefaultFilePosture == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
 	} else {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if len(networkWhiteList) > 0 || (!network && cfg.GlobalCfg.DefaultNetworkPosture == "block") {
+	if cfg.GlobalCfg.DefaultNetworkPosture == "block" && (len(networkWhiteList) > 0 || !network) {
 	} else {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if len(capabilityWhiteList) > 0 && (!capability && cfg.GlobalCfg.DefaultCapabilitiesPosture == "block") {
+	if cfg.GlobalCfg.DefaultCapabilitiesPosture == "block" && (len(capabilityWhiteList) > 0 || !capability) {
 	} else {
 		profileHead = profileHead + "  capability,\n"
 	}
