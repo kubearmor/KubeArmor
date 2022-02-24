@@ -83,6 +83,7 @@ spec:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
         image: kubearmor/kubearmor:stable
+        imagePullPolicy: Always
         livenessProbe:
           exec:
             command:

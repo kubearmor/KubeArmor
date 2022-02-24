@@ -84,6 +84,7 @@ spec:
         - -logPath=/tmp/kubearmor.log
         - -enableKubeArmorHostPolicy
         image: kubearmor/kubearmor:stable
+        imagePullPolicy: Always
         livenessProbe:
           exec:
             command:
