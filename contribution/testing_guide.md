@@ -56,45 +56,25 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
 
 ## 1.6. Check generated alerts
 
-- Log file
+- Log using [kArmor](https://github.com/kubearmor/kubearmor-client) cli tool
 
     ```text
-    $ tail (-f) /tmp/kubearmor.log
+    $ karmor log [flags]
     ```
-
-    If you changed the location of a log file, replace the default file path to your file.
+    
+    flags:
 
     ```text
-    $ tail (-f) [your log file path]
+        --gRPC string        gRPC server information
+    -h, --help               help for log
+        --json               Flag to print alerts and logs in the JSON format
+        --logFilter string   Filter for what kinds of alerts and logs to receive, {policy|system|all} (default "policy")
+        --logPath string     Output location for alerts and logs, {path|stdout|none} (default "stdout")
+        --msgPath string     Output location for messages, {path|stdout|none} (default "none")
     ```
-
-- Log client
-
-    Compile a log client
-
-    ```text
-    $ git clone https://github.com/kubearmor/kubearmor-log-client
-    $ cd kubearmor-log-client
-    ~/kubearmor-log-client$ make
-    ```
-
-    Run the log client
-
-    ```text
-    ~/kubearmor-log-client$ ./kubearmor-log-client (options...)
-    ```
-
-    Log client options:
-
-    ```text
-    -gRPC=[ipaddr:port]             gRPC server information (default: localhost:32767)
-    -msgPath={path|stdout|none}     Output location for KubeArmor's messages (default: none)
-    -logPath={path|stdout|none}     Output location for KubeArmor's alerts and logs (default: stdout)
-    -logFilter={policy|system|all}  Filter for what kinds of alerts and logs to receive (default: policy)
-    -json                           Flag to print messages, alerts, and logs in a JSON format
-    ```
-
-    Note that you will see the messages, alerts, and logs generated right after the log client runs, which means that the log client should be ran before any policy violations happen.
+    
+    Note: Messages, alerts, and logs will be generated right after the karmor runs logs, to avoid any kind of interference, run the above command in other terminal to see logs live and in an interactive way.
+    
 
 # 2.  Test KubeArmor using the auto-testing framework
 
