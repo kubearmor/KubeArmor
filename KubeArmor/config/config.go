@@ -32,6 +32,9 @@ type KubearmorConfig struct {
 	CoverageTest bool // Enable/Disable Coverage Test
 }
 
+// PolicyDir policy dir path for host policies backup
+const PolicyDir string = "/opt/kubearmor/policies/"
+
 // GlobalCfg Global configuration for Kubearmor
 var GlobalCfg KubearmorConfig
 

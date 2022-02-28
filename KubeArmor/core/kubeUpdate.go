@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -1199,7 +1200,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 			if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 				secPolicies = append(secPolicies, policy)
 			}
-		} else { // KubeArmorVM
+		} else { // KubeArmorVM and KVMAgent
 			secPolicies = append(secPolicies, policy)
 		}
 	}
@@ -1582,6 +1583,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 
 	// apply security policies to a host
 	dm.UpdateHostSecurityPolicies()
+
+	// backup HostSecurityPolicy to file
+	dm.backupKubeArmorHostPolicy(secPolicy)
 }
 
 // WatchHostSecurityPolicies Function
@@ -1613,6 +1617,28 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 				}
 
 				dm.ParseAndUpdateHostSecurityPolicy(event)
+			}
+		}
+	}
+}
+
+// backupKubeArmorHostPolicy Function
+func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
+	// List all policies files from "/opt/kubearmor/policies" path
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		dm.Logger.Errf(err.Error())
+		return
+	}
+
+	var file *os.File
+	var err error
+
+	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := json.Marshal(policy); err == nil {
+			if _, err = file.Write(policyBytes); err == nil {
+				if err := file.Close(); err != nil {
+					dm.Logger.Errf(err.Error())
+				}
 			}
 		}
 	}
