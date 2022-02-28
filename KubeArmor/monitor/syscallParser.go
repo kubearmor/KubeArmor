@@ -775,7 +775,7 @@ func getSyscallName(sc int32) string {
 		332: "SYS_STATX",
 
 		351: "DO_EXIT",
-		352: "CAP_CAPABLE",
+		352: "SECURITY_BPRM_CHECK",
 	}
 
 	var res string

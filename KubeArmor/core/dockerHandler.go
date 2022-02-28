@@ -138,13 +138,13 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 
 	pid := strconv.Itoa(inspect.State.Pid)
 
-	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/pid"}); err == nil {
+	if data, err := os.Readlink("/proc/" + pid + "/ns/pid"); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
 			kg.Warnf("Unable to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
 	}
 
-	if data, err := kl.GetCommandOutputWithErr("readlink", []string{"/proc/" + pid + "/ns/mnt"}); err == nil {
+	if data, err := os.Readlink("/proc/" + pid + "/ns/mnt"); err == nil {
 		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
 			kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 		}

@@ -61,6 +61,7 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 		log = mon.UpdateContainerInfoByContainerID(log)
 	}
 
+	log.HostPPID = int32(msg.ContextSys.HostPPID)
 	log.HostPID = int32(msg.ContextSys.HostPID)
 
 	log.PPID = int32(msg.ContextSys.PPID)
@@ -68,14 +69,30 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.UID = int32(msg.ContextSys.UID)
 
 	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PPID)
-	} else {
-		log.Source = mon.GetExecPath(msg.ContainerID, msg.ContextSys.PID)
+		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPPID)
+	} else { // otherwise
+		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
 	}
 
 	if log.Source == "" {
 		log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
 	}
+
+	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
+	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)
+
+	return log
+}
+
+// UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
+func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
+	source := mon.GetCommand(log.ContainerID, uint32(log.HostPPID))
+	if source != "" {
+		log.Source = source
+	}
+
+	log.ParentProcessName = mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
+	log.ProcessName = mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
 
 	return log
 }

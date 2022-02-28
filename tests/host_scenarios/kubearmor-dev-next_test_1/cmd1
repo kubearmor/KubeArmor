@@ -1,7 +1,7 @@
 source: kubearmor-dev-next
-cmd: screen -h
+cmd: diff -h
 result: failed
 ---
 operation: Process
-condition: screen
+condition: diff
 action: Block

@@ -187,10 +187,15 @@ type Log struct {
 	MergedDir string `json:"mergedDir,omitempty"`
 
 	// common
-	HostPID int32 `json:"hostPid"`
-	PPID    int32 `json:"ppid"`
-	PID     int32 `json:"pid"`
-	UID     int32 `json:"uid"`
+	HostPPID int32 `json:"hostPPid"`
+	HostPID  int32 `json:"hostPid"`
+	PPID     int32 `json:"ppid"`
+	PID      int32 `json:"pid"`
+	UID      int32 `json:"uid"`
+
+	// process
+	ParentProcessName string `json:"parentProcessName"`
+	ProcessName       string `json:"processName"`
 
 	// policy
 	PolicyName string `json:"policyName,omitempty"`
@@ -505,8 +510,8 @@ type PidNode struct {
 	PID  uint32
 	UID  uint32
 
-	Comm     string
 	ExecPath string
+	Args     string
 
 	Exited     bool
 	ExitedTime time.Time

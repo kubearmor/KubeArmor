@@ -42,7 +42,9 @@ const (
 
 	SysExecve   = 59
 	SysExecveAt = 322
-	DoExit      = 351
+
+	DoExit            = 351
+	SecurityBprmCheck = 352
 )
 
 // SystemMonitor Constant Values
@@ -118,8 +120,7 @@ type SystemMonitor struct {
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
 
-	// container id -> (host) pid
-	ActivePidMap     *map[string]tp.PidMap
+	// container id -> host pid
 	ActiveHostPidMap *map[string]tp.PidMap
 	ActivePidMapLock **sync.RWMutex
 
@@ -137,10 +138,6 @@ type SystemMonitor struct {
 	SyscallChannel     chan []byte
 	SyscallLostChannel chan uint64
 	SyscallPerfMap     *bcc.PerfMap
-
-	// host pid
-	ActiveHostMap     *map[uint32]tp.PidMap
-	ActiveHostMapLock **sync.RWMutex
 
 	// system monitor (for host)
 	HostBpfModule *bcc.Module
@@ -180,12 +177,8 @@ func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp
 	mon.Containers = containers
 	mon.ContainersLock = containersLock
 
-	mon.ActivePidMap = activePidMap
 	mon.ActiveHostPidMap = activeHostPidMap
 	mon.ActivePidMapLock = activePidMapLock
-
-	mon.ActiveHostMap = activeHostMap
-	mon.ActiveHostMapLock = activeHostMapLock
 
 	mon.NsMap = make(map[NsKey]string)
 	mon.NsMapLock = new(sync.RWMutex)
@@ -198,7 +191,7 @@ func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
 
-	mon.Ticker = time.NewTicker(time.Second * 1)
+	mon.Ticker = time.NewTicker(time.Second * 10)
 
 	mon.IsCOS = false
 
@@ -325,25 +318,16 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
-		kretp, err := mon.BpfModule.LoadKprobe("kretprobe_do_filp_open")
-		if err != nil {
-			return fmt.Errorf("error loading kprobe %s", "kretprobe_do_filp_open")
-		}
-		err = mon.BpfModule.AttachKretprobe("do_filp_open", kretp, -1)
-		if err != nil {
-			return fmt.Errorf("error attaching kprobe")
-		}
+		sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open"}
 
-		tracepoints := []string{"do_exit"}
-
-		for _, tracepoint := range tracepoints {
-			kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
+		for _, sysKprobe := range sysKprobes {
+			kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", sysKprobe))
 			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", tracepoint, err)
+				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
 			}
-			err = mon.BpfModule.AttachKprobe(tracepoint, kp, -1)
+			err = mon.BpfModule.AttachKprobe(sysKprobe, kp, -1)
 			if err != nil {
-				return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
+				return fmt.Errorf("error attaching kprobe %s: %v", sysKprobe, err)
 			}
 		}
 
@@ -391,25 +375,16 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
-		kretp, err := mon.HostBpfModule.LoadKprobe("kretprobe_do_filp_open")
-		if err != nil {
-			return fmt.Errorf("error loading kprobe %s", "kretprobe_do_filp_open")
-		}
-		err = mon.HostBpfModule.AttachKretprobe("do_filp_open", kretp, -1)
-		if err != nil {
-			return fmt.Errorf("error attaching kprobe")
-		}
+		sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open"}
 
-		tracepoints := []string{"do_exit"}
-
-		for _, tracepoint := range tracepoints {
-			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("trace_%s", tracepoint))
+		for _, sysKprobe := range sysKprobes {
+			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("trace_%s", sysKprobe))
 			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", tracepoint, err)
+				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
 			}
-			err = mon.HostBpfModule.AttachKprobe(tracepoint, kp, -1)
+			err = mon.HostBpfModule.AttachKprobe(sysKprobe, kp, -1)
 			if err != nil {
-				return fmt.Errorf("error attaching kprobe %s: %v", tracepoint, err)
+				return fmt.Errorf("error attaching kprobe %s: %v", sysKprobe, err)
 			}
 		}
 
@@ -559,6 +534,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 					// remove the log from the map
 					delete(execLogMap, ctx.HostPID)
 
+					// update the log again
+					if !strings.HasPrefix(log.Source, "/") {
+						log = mon.UpdateLogBase(ctx.EventID, log)
+					}
+
 					// get error message
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
@@ -623,6 +603,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 					// remove the log from the map
 					delete(execLogMap, ctx.HostPID)
 
+					// update the log again
+					if !strings.HasPrefix(log.Source, "/") {
+						log = mon.UpdateLogBase(ctx.EventID, log)
+					}
+
 					// get error message
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
@@ -644,6 +629,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			} else if ctx.EventID == DoExit {
 				mon.DeleteActivePid(containerID, ctx)
+				continue
+			} else if ctx.EventID == SecurityBprmCheck {
+				if val, ok := args[0].(string); ok {
+					mon.UpdateExecPath(containerID, ctx.HostPID, val)
+				}
 				continue
 			}
 
@@ -699,7 +689,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 				if len(args) == 2 { // enter
 					// build a pid node
 					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
-					mon.AddActiveHostPid(ctx.HostPID, pidNode)
+					mon.AddActivePid("", pidNode)
 
 					// generate a log with the base information
 					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
@@ -731,6 +721,11 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					// remove the log from the map
 					delete(execLogMap, ctx.HostPID)
 
+					// update the log again
+					if !strings.HasPrefix(log.Source, "/") {
+						log = mon.UpdateLogBase(ctx.EventID, log)
+					}
+
 					// get error message
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
@@ -754,7 +749,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 				if len(args) == 4 { // enter
 					// build a pid node
 					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
-					mon.AddActiveHostPid(ctx.HostPID, pidNode)
+					mon.AddActivePid("", pidNode)
 
 					// generate a log with the base information
 					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
@@ -795,6 +790,11 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					// remove the log from the map
 					delete(execLogMap, ctx.HostPID)
 
+					// update the log again
+					if !strings.HasPrefix(log.Source, "/") {
+						log = mon.UpdateLogBase(ctx.EventID, log)
+					}
+
 					// get error message
 					if ctx.Retval < 0 {
 						message := getErrorMessage(ctx.Retval)
@@ -815,7 +815,12 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 
 				continue
 			} else if ctx.EventID == DoExit {
-				mon.DeleteActiveHostPid(ctx.HostPID)
+				mon.DeleteActivePid("", ctx)
+				continue
+			} else if ctx.EventID == SecurityBprmCheck {
+				if val, ok := args[0].(string); ok {
+					mon.UpdateExecPath("", ctx.HostPID, val)
+				}
 				continue
 			}
 
