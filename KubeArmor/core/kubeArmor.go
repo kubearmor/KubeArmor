@@ -321,7 +321,7 @@ func GetOSSigChannel() chan os.Signal {
 func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
 	// List all policies files from "/opt/kubearmor/policies" path
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		if err = os.MkdirAll(cfg.PolicyDir, 600); err != nil {
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
 			kg.Warnf("%v", err.Error())
 			return
 		}
