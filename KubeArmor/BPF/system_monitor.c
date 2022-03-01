@@ -757,8 +757,9 @@ int trace_ret_execve(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    // skip if No such file or directory
-    if (context.retval == -2) {
+    // skip if No such file/directory or if there is an EINPROGRESS
+    // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
+    if (context.retval == -2 || context.retval == -115) {
         return 0;
     }
 
@@ -824,8 +825,9 @@ int trace_ret_execveat(struct pt_regs *ctx)
     context.argnum = 0;
     context.retval = PT_REGS_RC(ctx);
 
-    // skip if No such file or directory
-    if (context.retval == -2) {
+    // skip if No such file/directory or if there is an EINPROGRESS
+    // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
+    if (context.retval == -2 || context.retval == -115) {
         return 0;
     }
 
@@ -956,8 +958,9 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     context.argnum = get_arg_num(types);
     context.retval = PT_REGS_RC(ctx);
 
-    // skip if No such file or directory
-    if (context.retval == -2) {
+    // skip if No such file/directory or if there is an EINPROGRESS
+    // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
+    if (context.retval == -2 || context.retval == -115) {
         return 0;
     }
 
@@ -1056,8 +1059,9 @@ TRACEPOINT_PROBE(syscalls, sys_exit_openat)
     context.argnum = get_arg_num(types);
     context.retval = args->ret;
 
-    // TEMP: skip if No such file or directory
-    if (context.retval == -2) {
+    // skip if No such file/directory or if there is an EINPROGRESS
+    // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
+    if (context.retval == -2 || context.retval == -115) {
         return 0;
     }
 
