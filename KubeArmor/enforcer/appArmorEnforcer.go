@@ -448,7 +448,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 
 // UpdateAppArmorProfile Function
 func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
-	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies); ok {
+	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, endPoint.DefaultPosture, securityPolicies); ok {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open an AppArmor profile (%s, %s)", appArmorProfile, err.Error())
