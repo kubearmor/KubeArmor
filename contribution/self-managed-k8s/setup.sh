@@ -16,8 +16,7 @@ sudo apt-get update
 sudo rm -rf /tmp/build; mkdir -p /tmp/build; cd /tmp/build
 
 # download bcc
-tag=$(git ls-remote --tags --exit-code --refs https://github.com/iovisor/bcc.git | sed -E 's/^[[:xdigit:]]+[[:space:]]+refs\/tags\/(.+)/\1/g'| sort -V | tail -n1)
-git -C /tmp/build/ clone --branch "$tag" --depth 1 https://github.com/iovisor/bcc.git
+git -C /tmp/build/ clone --branch v0.24.0 --depth 1 https://github.com/iovisor/bcc.git
 
 # install dependencies for bcc
 sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
