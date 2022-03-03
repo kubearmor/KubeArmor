@@ -22,7 +22,7 @@ jobs:
           sudo apt-get update
           sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev
           pushd /tmp
-          git clone https://github.com/iovisor/bcc.git
+          git clone --branch v0.24.0 --depth 1 https://github.com/iovisor/bcc.git
           mkdir -p bcc/build; cd bcc/build
           sudo ln -s /usr/lib/llvm-9 /usr/local/llvm
           cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr
