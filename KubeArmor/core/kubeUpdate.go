@@ -1585,8 +1585,10 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	// apply security policies to a host
 	dm.UpdateHostSecurityPolicies()
 
-	// backup HostSecurityPolicy to file
-	dm.backupKubeArmorHostPolicy(secPolicy)
+	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy) {
+		// backup HostSecurityPolicy to file
+		dm.backupKubeArmorHostPolicy(secPolicy)
+	}
 }
 
 // WatchHostSecurityPolicies Function
