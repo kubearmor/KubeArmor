@@ -14,6 +14,7 @@ import (
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -1622,6 +1623,10 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 	}
 }
 
+// ================================= //
+// == HostPolicy Backup & Restore == //
+// ================================= //
+
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
 	// List all policies files from "/opt/kubearmor/policies" path
@@ -1640,6 +1645,31 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 					dm.Logger.Errf(err.Error())
 				}
 			}
+		}
+	}
+}
+
+func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
+	// List all policies files from "/opt/kubearmor/policies" path
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+			kg.Warnf("%v", err.Error())
+			return
+		}
+	}
+
+	if policyFiles, err := ioutil.ReadDir(cfg.PolicyDir); err == nil {
+		for _, file := range policyFiles {
+			if data, err := ioutil.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
+				var hostPolicy tp.HostSecurityPolicy
+				if err := json.Unmarshal(data, &hostPolicy); err == nil {
+					dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)
+				}
+			}
+		}
+
+		if len(policyFiles) != 0 {
+			dm.UpdateHostSecurityPolicies()
 		}
 	}
 }

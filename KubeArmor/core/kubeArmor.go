@@ -4,8 +4,6 @@
 package core
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -312,35 +310,6 @@ func GetOSSigChannel() chan os.Signal {
 		os.Interrupt)
 
 	return c
-}
-
-// ======================== //
-// == HostPolicy Restore == //
-// ======================== //
-
-func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
-	// List all policies files from "/opt/kubearmor/policies" path
-	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
-			kg.Warnf("%v", err.Error())
-			return
-		}
-	}
-
-	if policyFiles, err := ioutil.ReadDir(cfg.PolicyDir); err == nil {
-		for _, file := range policyFiles {
-			if data, err := ioutil.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
-				var hostPolicy tp.HostSecurityPolicy
-				if err := json.Unmarshal(data, &hostPolicy); err == nil {
-					dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)
-				}
-			}
-		}
-
-		if len(policyFiles) != 0 {
-			dm.UpdateHostSecurityPolicies()
-		}
-	}
 }
 
 // ========== //
