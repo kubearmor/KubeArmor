@@ -19,8 +19,8 @@ spec:
       - path: /bin/cat # /bin/vi /etc/passwd (logs)
     - path: /secret.txt # echo "test" >> /secret.txt (no logs)
     - path: /credentials/password # echo "test" >> /credentials/password (logs)
-      readOnly: true # /bin/vi /credentials/password (logs)
+      readOnly: true # /bin/cat /credentials/password (logs)
       fromSource: 
-      - path: /bin/vi # /bin/cat /credentials/password (logs)
+      - path: /bin/cat # /bin/cat /credentials/password (logs)
   action:
     Audit

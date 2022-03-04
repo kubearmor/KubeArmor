@@ -13,6 +13,6 @@ spec:
     matchPaths:
       - path: /secret.txt # /bin/cat /secret.txt (permission denied)
         fromSource: # head /secret.txt (success)
-        - path: /bin/cat #
+        - path: /bin/cat
   action:
     Block
