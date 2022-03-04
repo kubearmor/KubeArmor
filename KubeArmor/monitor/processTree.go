@@ -4,6 +4,8 @@
 package monitor
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -71,14 +73,16 @@ func (mon *SystemMonitor) BuildPidNode(ctx SyscallContext, execPath string, args
 	node.PID = ctx.PID
 	node.UID = ctx.UID
 
-	node.Comm = string(ctx.Comm[:])
 	node.ExecPath = execPath
+	node.Args = ""
 
 	for idx, arg := range args {
 		if idx == 0 {
 			continue
+		} else if idx == 1 {
+			node.Args = arg
 		} else {
-			node.ExecPath = node.ExecPath + " " + arg
+			node.Args = node.Args + " " + arg
 		}
 	}
 
@@ -89,21 +93,11 @@ func (mon *SystemMonitor) BuildPidNode(ctx SyscallContext, execPath string, args
 
 // AddActivePid Function
 func (mon *SystemMonitor) AddActivePid(containerID string, node tp.PidNode) {
-	ActivePidMap := *(mon.ActivePidMap)
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
 	ActivePidMapLock.Lock()
 	defer ActivePidMapLock.Unlock()
-
-	// add pid node to ActivePidMap
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		pidMap[node.PID] = node
-	} else {
-		newPidMap := tp.PidMap{node.PID: node}
-		ActivePidMap[containerID] = newPidMap
-	}
-
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 
 	// add pid node to ActiveHostPidMap
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
@@ -114,35 +108,84 @@ func (mon *SystemMonitor) AddActivePid(containerID string, node tp.PidNode) {
 	}
 }
 
-// GetExecPath Function
-func (mon *SystemMonitor) GetExecPath(containerID string, pid uint32) string {
-	ActivePidMap := *(mon.ActivePidMap)
+// UpdateExecPath Function
+func (mon *SystemMonitor) UpdateExecPath(containerID string, hostPid uint32, execPath string) {
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-	ActivePidMapLock.RLock()
-	defer ActivePidMapLock.RUnlock()
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
 
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		if node, ok := pidMap[pid]; ok {
-			return node.ExecPath
+	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			newNode := node
+			newNode.ExecPath = execPath
+			ActiveHostPidMap[containerID][hostPid] = newNode
 		}
 	}
-
-	return ""
 }
 
-// GetExecPathWithHostPID Function
-func (mon *SystemMonitor) GetExecPathWithHostPID(containerID string, hostPid uint32) string {
+// GetExecPath Function
+func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
 	ActivePidMapLock.RLock()
 	defer ActivePidMapLock.RUnlock()
 
+	// container side
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[hostPid]; ok {
 			return node.ExecPath
 		}
+	}
+
+	// host side or between host and container
+	if pidMap, ok := ActiveHostPidMap[""]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			return node.ExecPath
+		}
+	}
+
+	// just in case that it couldn't still get the full path
+	if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" {
+		return data
+	}
+
+	return ""
+}
+
+// GetCommand Function
+func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32) string {
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+
+	ActivePidMapLock.RLock()
+	defer ActivePidMapLock.RUnlock()
+
+	// container side
+	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			if node.Args != "" {
+				return node.ExecPath + " " + node.Args
+			}
+			return node.ExecPath
+		}
+	}
+
+	// host side or between host and container
+	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			if node.Args != "" {
+				return node.ExecPath + " " + node.Args
+			}
+			return node.ExecPath
+		}
+	}
+
+	// just in case that it couldn't still get the full path
+	if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" {
+		return data
 	}
 
 	return ""
@@ -152,21 +195,11 @@ func (mon *SystemMonitor) GetExecPathWithHostPID(containerID string, hostPid uin
 func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext) {
 	now := time.Now()
 
-	ActivePidMap := *(mon.ActivePidMap)
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
 	ActivePidMapLock.Lock()
 	defer ActivePidMapLock.Unlock()
-
-	// delete execve(at) pid
-	if pidMap, ok := ActivePidMap[containerID]; ok {
-		if node, ok := pidMap[ctx.PID]; ok {
-			node.Exited = true
-			node.ExitedTime = now
-		}
-	}
-
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 
 	// delete execve(at) host pid
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
@@ -182,26 +215,18 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 	for range mon.Ticker.C {
 		now := time.Now()
 
-		ActivePidMap := *(mon.ActivePidMap)
+		ActiveHostPidMap := *(mon.ActiveHostPidMap)
 		ActivePidMapLock := *(mon.ActivePidMapLock)
 
 		ActivePidMapLock.Lock()
 
-		for _, pidMap := range ActivePidMap {
-			for pid, pidNode := range pidMap {
-				if pidNode.Exited {
-					if now.After(pidNode.ExitedTime.Add(time.Second * 5)) {
-						delete(pidMap, pid)
-					}
-				}
-			}
-		}
-
-		ActiveHostPidMap := *(mon.ActiveHostPidMap)
-
 		for _, pidMap := range ActiveHostPidMap {
 			for pid, pidNode := range pidMap {
 				if pidNode.Exited {
+					if _, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(pidNode.HostPID), 10) + "/exe"); err == nil {
+						continue
+					}
+
 					if now.After(pidNode.ExitedTime.Add(time.Second * 5)) {
 						delete(pidMap, pid)
 					}
@@ -210,22 +235,5 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 		}
 
 		ActivePidMapLock.Unlock()
-
-		ActiveHostMap := *(mon.ActiveHostMap)
-		ActiveHostMapLock := *(mon.ActiveHostMapLock)
-
-		ActiveHostMapLock.Lock()
-
-		for _, pidMap := range ActiveHostMap {
-			for pid, pidNode := range pidMap {
-				if pidNode.Exited {
-					if now.After(pidNode.ExitedTime.Add(time.Second * 10)) {
-						delete(pidMap, pid)
-					}
-				}
-			}
-		}
-
-		ActiveHostMapLock.Unlock()
 	}
 }

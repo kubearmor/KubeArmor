@@ -556,6 +556,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.PID = log.PID
 		pbAlert.UID = log.UID
 
+		pbAlert.ParentProcessName = log.ParentProcessName
+		pbAlert.ProcessName = log.ProcessName
+
 		if len(log.PolicyName) > 0 {
 			pbAlert.PolicyName = log.PolicyName
 		}
@@ -613,6 +616,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.PID = log.PID
 		pbLog.UID = log.UID
 
+		pbLog.ParentProcessName = log.ParentProcessName
+		pbLog.ProcessName = log.ProcessName
+
 		pbLog.Type = log.Type
 		pbLog.Source = log.Source
 		pbLog.Operation = log.Operation
@@ -624,8 +630,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.Result = log.Result
 
-		//		LogLock.Lock()
-		//		defer LogLock.Unlock()
+		// LogLock.Lock()
+		// defer LogLock.Unlock()
 
 		for uid := range LogStructs {
 			LogStructs[uid].Broadcast <- &pbLog

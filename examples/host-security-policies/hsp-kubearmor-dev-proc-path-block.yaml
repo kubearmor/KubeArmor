@@ -9,6 +9,6 @@ spec:
   severity: 5
   process:
     matchPaths:
-    - path: /usr/bin/screen # try screen -h
+    - path: /usr/bin/diff # try diff -h
   action:
     Block

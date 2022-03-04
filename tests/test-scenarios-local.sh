@@ -109,8 +109,8 @@ function start_and_wait_for_kubearmor_initialization() {
         exit 1
     fi
 
-    PROXY=$(ps -ef | grep "kubectl proxy" | wc -l)
-    if [ $PROXY != 2 ]; then
+    PROXY=$(sudo netstat -ntlp | grep kubectl | grep 8001 | wc -l)
+    if [ $PROXY != 1 ]; then
         FAIL "Proxy is not running"
         exit 1
     fi
