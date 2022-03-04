@@ -95,22 +95,22 @@ func readCmdLineParams() {
 
 	flag.Parse()
 
-	viper.Set(ConfigCluster, *clusterStr)
-	viper.Set(ConfigHost, *hostStr)
+	viper.SetDefault(ConfigCluster, *clusterStr)
+	viper.SetDefault(ConfigHost, *hostStr)
 
-	viper.Set(ConfigGRPC, *grpcStr)
-	viper.Set(ConfigLogPath, *logStr)
-	viper.Set(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
+	viper.SetDefault(ConfigGRPC, *grpcStr)
+	viper.SetDefault(ConfigLogPath, *logStr)
+	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 
-	viper.Set(ConfigVisibility, *visStr)
-	viper.Set(ConfigHostVisibility, *hostVisStr)
+	viper.SetDefault(ConfigVisibility, *visStr)
+	viper.SetDefault(ConfigHostVisibility, *hostVisStr)
 
-	viper.Set(ConfigKubearmorPolicy, *policyB)
-	viper.Set(ConfigKubearmorHostPolicy, *hostPolicyB)
-	viper.Set(ConfigKubearmorVM, *kvmAgentB)
-	viper.Set(ConfigK8sEnv, *k8sEnvB)
+	viper.SetDefault(ConfigKubearmorPolicy, *policyB)
+	viper.SetDefault(ConfigKubearmorHostPolicy, *hostPolicyB)
+	viper.SetDefault(ConfigKubearmorVM, *kvmAgentB)
+	viper.SetDefault(ConfigK8sEnv, *k8sEnvB)
 
-	viper.Set(ConfigCoverageTest, *coverageTestB)
+	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 }
 
 // LoadConfig Load configuration
