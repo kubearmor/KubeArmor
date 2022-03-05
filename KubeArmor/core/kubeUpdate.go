@@ -1631,10 +1631,12 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
-	// List all policies files from "/opt/kubearmor/policies" path
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		dm.Logger.Errf(err.Error())
-		return
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+			kg.Warnf("No policies restored")
+			return
+		}
 	}
 
 	var file *os.File
@@ -1652,14 +1654,12 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 }
 
 func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
-	// List all policies files from "/opt/kubearmor/policies" path
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
-			kg.Warnf("%v", err.Error())
-			return
-		}
+		kg.Warn("Policies dir not found for restoration")
+		return
 	}
 
+	// List all policies files from "/opt/kubearmor/policies" path
 	if policyFiles, err := ioutil.ReadDir(cfg.PolicyDir); err == nil {
 		for _, file := range policyFiles {
 			if data, err := ioutil.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
@@ -1672,6 +1672,8 @@ func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
 
 		if len(policyFiles) != 0 {
 			dm.UpdateHostSecurityPolicies()
+		} else {
+			kg.Warn("No policies found for restoration")
 		}
 	}
 }
