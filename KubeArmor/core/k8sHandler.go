@@ -225,6 +225,8 @@ func (kh *K8sHandler) WatchK8sNodes() watch.Interface {
 					context.Background(),
 					metav1.ListOptions{},
 				)
+			defer watchNodes.Stop()
+
 			if err != nil {
 				return nil
 			}
@@ -243,6 +245,7 @@ func (kh *K8sHandler) WatchK8sNodes() watch.Interface {
 				context.Background(),
 				metav1.ListOptions{},
 			)
+		defer watchNodes.Stop()
 
 		if err != nil {
 			return nil
@@ -354,12 +357,12 @@ func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, repl
 // ========== //
 
 // WatchK8sPods Function
-func (kh *K8sHandler) WatchK8sPods() *http.Response {
+func (kh *K8sHandler) WatchK8sPods() watch.Interface {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
-	if kl.IsInK8sCluster() { // kube-apiserver
+	/*  if kl.IsInK8sCluster() { // kube-apiserver
 		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
 
 		req, err := http.NewRequest("GET", URL, nil)
@@ -375,46 +378,52 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 			return nil
 		}
 
-		return resp
+	return resp */
 
-		// kh.InitInclusterAPIClient()
+	if kl.IsInK8sCluster() { // kube-apiserver
+		if kh.InitInclusterAPIClient() {
 
-		// watchPods, err := kh.K8sClient.
-		// 	CoreV1().
-		// 	Pods().
-		// 	Watch(
-		// 		context.Background(),
-		// 		metav1.ListOptions{},
-		// 	)
-		// if err != nil {
-		// 	return nil
-		// }
+			watchPods, err := kh.K8sClient.
+				CoreV1().
+				Pods().
+				Watch(
+					context.Background(),
+					metav1.ListOptions{},
+				)
+			if err != nil {
+				return nil
+			}
+			defer watchPods.Stop()
 
-		// return watchPods
+			return watchPods
+		}
 	}
 
 	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
+	/*	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
-		return resp
+		// #nosec
+		if resp, err := http.Get(URL); err == nil {
+			return resp
+		}*/
+
+	// kube-proxy (local)
+	if kh.InitLocalAPIClient() {
+
+		watchPods, err := kh.K8sClient.
+			CoreV1().
+			Pods().
+			Watch(
+				context.Background(),
+				metav1.ListOptions{},
+			)
+		if err != nil {
+			return nil
+		}
+		defer watchPods.Stop()
+
+		return watchPods
 	}
-
-	// kh.InitlocalAPIClient()
-
-	// watchPods, err := kh.K8sClient.
-	// 	CoreV1().
-	// 	Pods().
-	// 	Watch(
-	// 		context.Background(),
-	// 		metav1.ListOptions{},
-	// 	)
-	// if err != nil {
-	// 	return nil
-	// }
-
-	// return watchPods
 
 	return nil
 }
@@ -486,21 +495,22 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		}
 
 		return resp
-
-		// kh.InitInclusterAPIClient()
-
-		// watchSecurityPolicies, err := kh.K8sClient.
-		// PolicyV1beta1().PodSecurityPolicies().
-		// 	Watch(
-		// 		context.Background(),
-		// 		metav1.ListOptions{},
-		// 	)
-		// if err != nil {
-		// 	return nil
-		// }
-
-		// return watchSecurityPolicies
 	}
+
+	/*if kl.IsInK8sCluster() { // kube-apiserver
+
+		watchSecurityPolicies, err := kh.K8sClient.
+			PolicyV1beta1().PodSecurityPolicies().
+			Watch(
+				context.Background(),
+				metav1.ListOptions{},
+			)
+		if err != nil {
+			return nil
+		}
+
+		return watchSecurityPolicies
+	}*/
 
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
@@ -510,19 +520,21 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 		return resp
 	}
 
-	// kh.InitLocalAPIClient()
+	// kube-proxy (local)
+	/*if kh.InitLocalAPIClient() {
 
-	// watchSecurityPolicies, err := kh.K8sClient.
-	// PolicyV1beta1().PodSecurityPolicies().
-	// 	Watch(
-	// 		context.Background(),
-	// 		metav1.ListOptions{},
-	// 	)
-	// if err != nil {
-	// 	return nil
-	// }
+		watchSecurityPolicies, err := kh.K8sClient.
+			PolicyV1beta1().PodSecurityPolicies().
+			Watch(
+				context.Background(),
+				metav1.ListOptions{},
+			)
+		if err != nil {
+			return nil
+		}
 
-	// return watchSecurityPolicies
+		return watchSecurityPolicies
+	}*/
 
 	return nil
 }
