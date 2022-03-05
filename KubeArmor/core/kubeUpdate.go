@@ -67,9 +67,7 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
-	nodeWatcher := K8s.WatchK8sNodes()
-
-	if nodeWatcher != nil {
+	if nodeWatcher := K8s.WatchK8sNodes(); nodeWatcher != nil {
 		return
 	}
 
@@ -83,47 +81,47 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 				continue
 			}
 
-			// node := tp.Node{}
+			node := tp.Node{}
 
-			// for _, address := range event.Object.Status.Addresses {
-			// 	if address.Type == "InternalIP" {
-			// 		node.NodeIP = address.Address
-			// 		break
-			// 	}
-			// }
+			for _, address := range event.Object.(*corev1.Node).Status.Addresses {
+				if address.Type == "InternalIP" {
+					node.NodeIP = address.Address
+					break
+				}
+			}
 
-			// node.Annotations = map[string]string{}
-			// node.Labels = map[string]string{}
-			// node.Identities = []string{}
+			node.Annotations = map[string]string{}
+			node.Labels = map[string]string{}
+			node.Identities = []string{}
 
-			// // update annotations
-			// for k, v := range event.Object.ObjectMeta.Annotations {
-			// 	node.Annotations[k] = v
-			// }
+			// update annotations
+			for k, v := range event.Object.(*corev1.Node).ObjectMeta.Annotations {
+				node.Annotations[k] = v
+			}
 
-			// // update labels and identities
-			// for k, v := range event.Object.ObjectMeta.Labels {
-			// 	node.Labels[k] = v
-			// 	node.Identities = append(node.Identities, k+"="+v)
-			// }
+			// update labels and identities
+			for k, v := range event.Object.(*corev1.Node).ObjectMeta.Labels {
+				node.Labels[k] = v
+				node.Identities = append(node.Identities, k+"="+v)
+			}
 
-			// sort.Slice(node.Identities, func(i, j int) bool {
-			// 	return node.Identities[i] < node.Identities[j]
-			// })
+			sort.Slice(node.Identities, func(i, j int) bool {
+				return node.Identities[i] < node.Identities[j]
+			})
 
-			// // node info
-			// node.Architecture = event.Object.Status.NodeInfo.Architecture
-			// node.OperatingSystem = event.Object.Status.NodeInfo.OperatingSystem
-			// node.OSImage = event.Object.Status.NodeInfo.OSImage
-			// node.KernelVersion = event.Object.Status.NodeInfo.KernelVersion
-			// node.KubeletVersion = event.Object.Status.NodeInfo.KubeletVersion
+			// node info
+			node.Architecture = event.Object.(*corev1.Node).Status.NodeInfo.Architecture
+			node.OperatingSystem = event.Object.(*corev1.Node).Status.NodeInfo.OperatingSystem
+			node.OSImage = event.Object.(*corev1.Node).Status.NodeInfo.OSImage
+			node.KernelVersion = event.Object.(*corev1.Node).Status.NodeInfo.KernelVersion
+			node.KubeletVersion = event.Object.(*corev1.Node).Status.NodeInfo.KubeletVersion
 
-			// // container runtime
-			// node.ContainerRuntimeVersion = event.Object.Status.NodeInfo.ContainerRuntimeVersion
+			// container runtime
+			node.ContainerRuntimeVersion = event.Object.(*corev1.Node).Status.NodeInfo.ContainerRuntimeVersion
 
-			// dm.HandleNodeAnnotations(&node)
+			dm.HandleNodeAnnotations(&node)
 
-			// dm.Node = node
+			dm.Node = node
 		}
 	}()
 	time.Sleep(time.Second * 1)
