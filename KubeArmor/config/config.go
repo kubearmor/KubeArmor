@@ -8,7 +8,6 @@ import (
 
 	"flag"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
 )
@@ -28,6 +27,7 @@ type KubearmorConfig struct {
 	Policy     bool // Enable/Disable policy enforcement
 	HostPolicy bool // Enable/Disable host policy enforcement
 	KVMAgent   bool // Enable/Disable KVM Agent
+	K8sEnv     bool // Is k8s env ?
 
 	CoverageTest bool // Enable/Disable Coverage Test
 }
@@ -68,40 +68,46 @@ const ConfigKubearmorVM string = "enableKubeArmorVm"
 // ConfigCoverageTest Coverage Test key
 const ConfigCoverageTest string = "coverageTest"
 
+// ConfigK8sEnv VM key
+const ConfigK8sEnv string = "k8s"
+
 func readCmdLineParams() {
+	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
-	hostStr := flag.String(ConfigHost, kl.GetHostName(), "host name")
+	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 
 	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
-	hostVisStr := flag.String(ConfigHostVisibility, "process,file,network,capabilities", "Host Visibility to use [process,file,network,capabilities,none]")
+	hostVisStr := flag.String(ConfigHostVisibility, "", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
+	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
 	flag.Parse()
 
-	viper.Set(ConfigCluster, *clusterStr)
-	viper.Set(ConfigHost, *hostStr)
+	viper.SetDefault(ConfigCluster, *clusterStr)
+	viper.SetDefault(ConfigHost, *hostStr)
 
-	viper.Set(ConfigGRPC, *grpcStr)
-	viper.Set(ConfigLogPath, *logStr)
-	viper.Set(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
+	viper.SetDefault(ConfigGRPC, *grpcStr)
+	viper.SetDefault(ConfigLogPath, *logStr)
+	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 
-	viper.Set(ConfigVisibility, *visStr)
-	viper.Set(ConfigHostVisibility, *hostVisStr)
+	viper.SetDefault(ConfigVisibility, *visStr)
+	viper.SetDefault(ConfigHostVisibility, *hostVisStr)
 
-	viper.Set(ConfigKubearmorPolicy, *policyB)
-	viper.Set(ConfigKubearmorHostPolicy, *hostPolicyB)
-	viper.Set(ConfigKubearmorVM, *kvmAgentB)
+	viper.SetDefault(ConfigKubearmorPolicy, *policyB)
+	viper.SetDefault(ConfigKubearmorHostPolicy, *hostPolicyB)
+	viper.SetDefault(ConfigKubearmorVM, *kvmAgentB)
+	viper.SetDefault(ConfigK8sEnv, *k8sEnvB)
 
-	viper.Set(ConfigCoverageTest, *coverageTestB)
+	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 }
 
 // LoadConfig Load configuration
@@ -143,6 +149,15 @@ func LoadConfig() error {
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
+	}
+	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
+
+	if GlobalCfg.HostVisibility == "" {
+		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {
+			GlobalCfg.HostVisibility = "process,file,network,capabilities"
+		} else { // k8s
+			GlobalCfg.HostVisibility = "none"
+		}
 	}
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)

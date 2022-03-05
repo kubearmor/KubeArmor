@@ -7,7 +7,7 @@ mkdir -p /tmp/build; cd /tmp/build
 
 # download bcc
 sudo dnf -y install git
-git -C /tmp/build/ clone https://github.com/iovisor/bcc.git
+git -C /tmp/build/ clone --branch v0.24.0 --depth 1 https://github.com/iovisor/bcc.git
 
 # install dependencies for bcc
 sudo dnf -y install gcc gcc-c++ make cmake bison flex ethtool iperf3 \

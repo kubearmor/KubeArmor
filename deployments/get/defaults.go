@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-package main
+package deployments
 
 import corev1 "k8s.io/api/core/v1"
 
@@ -17,6 +17,7 @@ var policyManagerDeploymentName = "kubearmor-policy-manager"
 var hostPolicyManagerServiceName = "kubearmor-host-policy-manager-metrics-service"
 var hostPolicyManagerDeploymentName = "kubearmor-host-policy-manager"
 
+// DaemonSetConfig Structure
 type DaemonSetConfig struct {
 	Args         []string
 	VolumeMounts []corev1.VolumeMount

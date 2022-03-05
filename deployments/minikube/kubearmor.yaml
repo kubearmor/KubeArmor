@@ -82,7 +82,8 @@ spec:
       - args:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
-        image: kubearmor/kubearmor:latest
+        image: kubearmor/kubearmor:stable
+        imagePullPolicy: Always
         livenessProbe:
           exec:
             command:
@@ -107,7 +108,7 @@ spec:
           readOnly: true
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
-        - mountPath: /sys/kernel/debug
+        - mountPath: /sys/kernel/security
           name: sys-kernel-security-path
         - mountPath: /sys/kernel/debug
           name: sys-kernel-debug-path
@@ -296,7 +297,7 @@ spec:
         - --enable-leader-election
         command:
         - /manager
-        image: kubearmor/kubearmor-policy-manager:latest
+        image: kubearmor/kubearmor-host-policy-manager:latest
         name: kubearmor-host-policy-manager
         resources:
           limits:

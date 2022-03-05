@@ -197,13 +197,14 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string)
 			ae.Logger.Warnf("Unable to register the AppArmor profile (%s) (out-of-control)", profileName)
 			return false
 		}
+	}
 
-		if _, ok := ae.AppArmorProfiles[profileName]; ok {
-			if !kl.ContainsElement(ae.AppArmorProfiles[profileName], podName) {
-				ae.AppArmorProfiles[profileName] = append(ae.AppArmorProfiles[profileName], podName)
-			}
-			return true
+	if _, ok := ae.AppArmorProfiles[profileName]; ok {
+		if !kl.ContainsElement(ae.AppArmorProfiles[profileName], podName) {
+			ae.AppArmorProfiles[profileName] = append(ae.AppArmorProfiles[profileName], podName)
+			ae.Logger.Printf("Added %s into the pod list of the AppArmor profile (%s, %d)", podName, profileName, len(ae.AppArmorProfiles[profileName]))
 		}
+		return true
 	}
 
 	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
@@ -246,8 +247,8 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
-	if _, ok := ae.AppArmorProfiles[profileName]; ok {
-		if kl.ContainsElement(ae.AppArmorProfiles[profileName], podName) {
+	if podName != "" {
+		if _, ok := ae.AppArmorProfiles[profileName]; ok {
 			for idx, registeredPodName := range ae.AppArmorProfiles[profileName] {
 				if registeredPodName == podName {
 					ae.AppArmorProfiles[profileName] = append(ae.AppArmorProfiles[profileName][:idx], ae.AppArmorProfiles[profileName][idx+1:]...)
@@ -256,8 +257,12 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 			}
 
 			if len(ae.AppArmorProfiles[profileName]) > 0 {
+				ae.Logger.Printf("Removed %s from the pod list of the AppArmor profile (%s, %d)", podName, profileName, len(ae.AppArmorProfiles[profileName]))
 				return true
 			}
+		} else {
+			ae.Logger.Warnf("Unable to find %s from the AppArmor profiles", profileName)
+			return false
 		}
 	}
 

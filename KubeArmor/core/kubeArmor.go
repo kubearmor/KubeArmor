@@ -321,7 +321,8 @@ func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
 
-	if cfg.GlobalCfg.KVMAgent {
+	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
+	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
 		dm.Node.NodeIP = kl.GetExternalIPAddr()
 
 		dm.Node.Annotations = map[string]string{}
@@ -374,13 +375,6 @@ func KubeArmor() {
 			}
 		}
 
-	} else {
-		kg.Warn("Neither K8s nor KVMAgent is configured")
-
-		// destroy the daemon
-		dm.DestroyKubeArmorDaemon()
-
-		return
 	}
 
 	// == //

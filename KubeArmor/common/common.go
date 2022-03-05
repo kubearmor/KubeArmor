@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
@@ -230,6 +231,14 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	return string(out), nil
 }
 
+// GetSHA256ofImage of the image
+func GetSHA256ofImage(s string) string {
+	if idx := strings.Index(s, "@"); idx != -1 {
+		return s[idx:]
+	}
+	return s
+}
+
 // GetCommandOutputWithoutErr Function
 func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	// #nosec
@@ -321,9 +330,15 @@ func GetExternalIPAddr() string {
 
 // IsK8sLocal Function
 func IsK8sLocal() bool {
+	if !kc.GlobalCfg.K8sEnv {
+		return false
+	}
+
 	k8sConfig := os.Getenv("KUBECONFIG")
-	if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
-		return true
+	if k8sConfig != "" {
+		if _, err := os.Stat(filepath.Clean(k8sConfig)); err == nil {
+			return true
+		}
 	}
 
 	home := os.Getenv("HOME")
