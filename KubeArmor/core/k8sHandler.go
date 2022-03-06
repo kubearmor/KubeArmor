@@ -385,7 +385,7 @@ func (kh *K8sHandler) WatchK8sPods() watch.Interface {
 
 			watchPods, err := kh.K8sClient.
 				CoreV1().
-				Pods().
+				Pods("").
 				Watch(
 					context.Background(),
 					metav1.ListOptions{},
@@ -412,7 +412,7 @@ func (kh *K8sHandler) WatchK8sPods() watch.Interface {
 
 		watchPods, err := kh.K8sClient.
 			CoreV1().
-			Pods().
+			Pods("").
 			Watch(
 				context.Background(),
 				metav1.ListOptions{},

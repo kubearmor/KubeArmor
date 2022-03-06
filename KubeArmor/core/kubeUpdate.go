@@ -69,63 +69,64 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 	if nodeWatcher := K8s.WatchK8sNodes(); nodeWatcher != nil {
-		return
-	}
+		defer nodeWatcher.Stop()
 
-	go func() {
-		for event := range nodeWatcher.ResultChan() {
+		go func() {
+			for event := range nodeWatcher.ResultChan() {
 
-			// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
-			// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
-			nodeName := strings.Split(event.Object.GetObjectKind().GroupVersionKind().String(), ".")
-			if nodeName[0] != cfg.GlobalCfg.Host {
-				continue
-			}
-
-			node := tp.Node{}
-
-			for _, address := range event.Object.(*corev1.Node).Status.Addresses {
-				if address.Type == "InternalIP" {
-					node.NodeIP = address.Address
-					break
+				// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
+				// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
+				nodeName := strings.Split(event.Object.GetObjectKind().GroupVersionKind().String(), ".")
+				if nodeName[0] != cfg.GlobalCfg.Host {
+					continue
 				}
+
+				node := tp.Node{}
+
+				for _, address := range event.Object.(*corev1.Node).Status.Addresses {
+					if address.Type == "InternalIP" {
+						node.NodeIP = address.Address
+						break
+					}
+				}
+
+				node.Annotations = map[string]string{}
+				node.Labels = map[string]string{}
+				node.Identities = []string{}
+
+				// update annotations
+				for k, v := range event.Object.(*corev1.Node).ObjectMeta.Annotations {
+					node.Annotations[k] = v
+				}
+
+				// update labels and identities
+				for k, v := range event.Object.(*corev1.Node).ObjectMeta.Labels {
+					node.Labels[k] = v
+					node.Identities = append(node.Identities, k+"="+v)
+				}
+
+				sort.Slice(node.Identities, func(i, j int) bool {
+					return node.Identities[i] < node.Identities[j]
+				})
+
+				// node info
+				node.Architecture = event.Object.(*corev1.Node).Status.NodeInfo.Architecture
+				node.OperatingSystem = event.Object.(*corev1.Node).Status.NodeInfo.OperatingSystem
+				node.OSImage = event.Object.(*corev1.Node).Status.NodeInfo.OSImage
+				node.KernelVersion = event.Object.(*corev1.Node).Status.NodeInfo.KernelVersion
+				node.KubeletVersion = event.Object.(*corev1.Node).Status.NodeInfo.KubeletVersion
+
+				// container runtime
+				node.ContainerRuntimeVersion = event.Object.(*corev1.Node).Status.NodeInfo.ContainerRuntimeVersion
+
+				dm.HandleNodeAnnotations(&node)
+
+				dm.Node = node
 			}
-
-			node.Annotations = map[string]string{}
-			node.Labels = map[string]string{}
-			node.Identities = []string{}
-
-			// update annotations
-			for k, v := range event.Object.(*corev1.Node).ObjectMeta.Annotations {
-				node.Annotations[k] = v
-			}
-
-			// update labels and identities
-			for k, v := range event.Object.(*corev1.Node).ObjectMeta.Labels {
-				node.Labels[k] = v
-				node.Identities = append(node.Identities, k+"="+v)
-			}
-
-			sort.Slice(node.Identities, func(i, j int) bool {
-				return node.Identities[i] < node.Identities[j]
-			})
-
-			// node info
-			node.Architecture = event.Object.(*corev1.Node).Status.NodeInfo.Architecture
-			node.OperatingSystem = event.Object.(*corev1.Node).Status.NodeInfo.OperatingSystem
-			node.OSImage = event.Object.(*corev1.Node).Status.NodeInfo.OSImage
-			node.KernelVersion = event.Object.(*corev1.Node).Status.NodeInfo.KernelVersion
-			node.KubeletVersion = event.Object.(*corev1.Node).Status.NodeInfo.KubeletVersion
-
-			// container runtime
-			node.ContainerRuntimeVersion = event.Object.(*corev1.Node).Status.NodeInfo.ContainerRuntimeVersion
-
-			dm.HandleNodeAnnotations(&node)
-
-			dm.Node = node
-		}
-	}()
-	time.Sleep(time.Second * 1)
+		}()
+	} else {
+		time.Sleep(time.Second * 1)
+	}
 }
 
 // ================ //
@@ -368,7 +369,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
 	if podWatcher := K8s.WatchK8sPods(); podWatcher != nil {
-		defer podWatcher.Close()
+		defer podWatcher.Stop()
 
 		go func() {
 			for event := range podWatcher.ResultChan() {
@@ -382,7 +383,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				pod := tp.K8sPod{}
 
 				pod.Metadata = map[string]string{}
-				pod.Metadata["namespaceName"] = event.Object.(*corev1.Pod).(*corev1.Pod).ObjectMeta.Namespace
+				pod.Metadata["namespaceName"] = event.Object.(*corev1.Pod).ObjectMeta.Namespace
 				pod.Metadata["podName"] = event.Object.(*corev1.Pod).ObjectMeta.Name
 
 				if len(event.Object.(*corev1.Pod).ObjectMeta.OwnerReferences) > 0 {
@@ -413,16 +414,16 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						continue
 					}
 					pod.Labels[k] = v
-				}
 
-				if k == "controller-revision-hash" {
-					continue
+					if k == "controller-revision-hash" {
+						continue
+					}
+					pod.Labels[k] = v
 				}
-				pod.Labels[k] = v
 
 				pod.Containers = map[string]string{}
 				pod.ContainerImages = map[string]string{}
-				for _, container := range event.Object.Status.ContainerStatuses {
+				for _, container := range event.Object.(*corev1.Pod).Status.ContainerStatuses {
 					if len(container.ContainerID) > 0 {
 						if strings.HasPrefix(container.ContainerID, "docker://") {
 							containerID := strings.TrimPrefix(container.ContainerID, "docker://")
@@ -684,11 +685,11 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					dm.Logger.Printf("Detected a Pod (patched/%s/%s)", pod.Metadata["namespaceName"], pod.Metadata["podName"])
 					continue
 				} else {
-					dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(event.Type), pod.Metadata["namespaceName"], pod.Metadata["podName"])
+					dm.Logger.Printf("Detected a Pod (%s/%s/%s)", strings.ToLower(string(event.Type)), pod.Metadata["namespaceName"], pod.Metadata["podName"])
 				}
 
 				// update a endpoint corresponding to the pod
-				dm.UpdateEndPointWithPod(event.Type, pod)
+				dm.UpdateEndPointWithPod(string(event.Type), pod)
 			}
 		}()
 
