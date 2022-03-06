@@ -1634,7 +1634,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
-			kg.Warnf("No policies restored")
+			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
 			return
 		}
 	}
