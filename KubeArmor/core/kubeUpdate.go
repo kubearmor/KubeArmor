@@ -14,6 +14,7 @@ import (
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // ================= //
