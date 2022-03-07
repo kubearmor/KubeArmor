@@ -70,7 +70,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -119,13 +119,13 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -162,7 +162,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -171,7 +171,7 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         readOnly:
                           type: boolean
@@ -250,7 +250,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -302,13 +302,13 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -343,7 +343,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -352,7 +352,7 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         severity:
                           maximum: 10
@@ -429,12 +429,12 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         message:
                           type: string
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         readOnly:
                           type: boolean
