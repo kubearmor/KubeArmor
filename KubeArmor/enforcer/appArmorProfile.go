@@ -23,8 +23,8 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *
 	copy(prunedProcessWhiteList, *processWhiteList)
 	numOfRemovedElements := 0
 
-	for index, line := range *processWhiteList {
-		for source := range fromSources {
+	for source := range fromSources {
+		for index, line := range *processWhiteList {
 			if strings.Contains(line, source) {
 				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
 
