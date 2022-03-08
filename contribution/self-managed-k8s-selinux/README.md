@@ -2,7 +2,7 @@
 
 * Requirements
 
-  CentOS 8 or above.
+  You can install Docker and Kubernetes on CentOS 8 or above.
 
 * Prerequisites
 

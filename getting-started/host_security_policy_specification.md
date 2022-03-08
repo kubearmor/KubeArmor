@@ -1,4 +1,4 @@
-# Security Policy Specification for Hosts
+# Specification of Host Security Policy for Nodes/VMs
 
 ## Policy Specification
 
