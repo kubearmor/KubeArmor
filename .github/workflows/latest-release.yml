@@ -10,7 +10,7 @@ on:
       - 'tests/**'
       - 'protobuf/**'
 
-  create: 
+  create:
     branches:
       - 'v*'
 
@@ -30,7 +30,7 @@ jobs:
         run: |
           if [ ${{ github.ref }} == "refs/heads/main" ]; then
             echo ::set-output name=tag::latest
-          else 
+          else
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
 

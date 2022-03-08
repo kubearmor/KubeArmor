@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
+# update repo
+sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Linux-*
+sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Linux-*
+
 # make a directory to build bcc
 mkdir -p /tmp/build; cd /tmp/build
 
@@ -24,6 +28,20 @@ fi
 
 # install dependencies for selinux
 sudo dnf -y install policycoreutils-devel setools-console
+
+if [[ $(hostname) = kubearmor-dev* ]]; then
+    echo >> /home/vagrant/.bashrc
+    echo "alias lz='ls -lZ'" >> /home/vagrant/.bashrc
+    echo >> /home/vagrant/.bashrc
+    mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go
+elif [ -z "$GOPATH" ]; then
+    echo >> ~/.bashrc
+    echo "alias lz='ls -lZ'" >> ~/.bashrc
+    echo >> ~/.bashrc
+fi
+
+# enable audit mode
+sudo semanage dontaudit off
 
 # install golang
 echo "Installing golang binaries..."
@@ -48,7 +66,7 @@ fi
 
 # download protoc
 mkdir -p /tmp/build/protoc; cd /tmp/build/protoc
-wget https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/protoc-3.14.0-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.14.0-linux-x86_64.zip
+wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/protoc-3.14.0-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.14.0-linux-x86_64.zip
 
 # install protoc
 unzip protoc-3.14.0-linux-x86_64.zip
