@@ -62,6 +62,8 @@ message Alert {
 
   string ParentProcessName = 25;
   string ProcessName = 26;
+
+  int32 HostPPID = 27;
 }
 
 // log struct
@@ -95,6 +97,8 @@ message Log {
 
   string ParentProcessName = 20;
   string ProcessName = 21;
+
+  int32 HostPPID = 22;
 }
 
 // request message
