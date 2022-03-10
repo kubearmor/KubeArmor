@@ -25,7 +25,7 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *
 
 	for index, line := range *processWhiteList {
 		for source := range fromSources {
-			if strings.Contains(line, source) && line[:len(source)] == source {
+			if strings.Split(line, " ")[0] == source {
 				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
 
 				// remove line from WhiteList
