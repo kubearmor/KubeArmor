@@ -117,6 +117,7 @@ func (ls *LogService) removeMsgStruct(uid string) {
 func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
 	uid := uuid.Must(uuid.NewRandom()).String()
 	conn := make(chan *pb.Message)
+	defer close(conn)
 	ls.addMsgStruct(uid, conn, req.Filter)
 	defer ls.removeMsgStruct(uid)
 
@@ -173,6 +174,7 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 		return nil
 	}
 	conn := make(chan *pb.Alert)
+	defer close(conn)
 	ls.addAlertStruct(uid, conn, req.Filter)
 	defer ls.removeAlertStruct(uid)
 
@@ -229,6 +231,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 		return nil
 	}
 	conn := make(chan *pb.Log)
+	defer close(conn)
 	ls.addLogStruct(uid, conn, req.Filter)
 	defer ls.removeLogStruct(uid)
 
@@ -497,11 +500,14 @@ func (fd *Feeder) PushMessage(level, message string) {
 	pbMsg.Level = level
 	pbMsg.Message = message
 
-	// MsgLock.Lock()
-	// defer MsgLock.Unlock()
+	MsgLock.Lock()
+	defer MsgLock.Unlock()
 
 	for uid := range MsgStructs {
-		MsgStructs[uid].Broadcast <- &pbMsg
+		select {
+		case MsgStructs[uid].Broadcast <- &pbMsg:
+		default:
+		}
 	}
 }
 
@@ -590,11 +596,14 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.Result = log.Result
 
-		// AlertLock.Lock()
-		// defer AlertLock.Unlock()
+		AlertLock.Lock()
+		defer AlertLock.Unlock()
 
 		for uid := range AlertStructs {
-			AlertStructs[uid].Broadcast <- &pbAlert
+			select {
+			case AlertStructs[uid].Broadcast <- &pbAlert:
+			default:
+			}
 		}
 	} else { // ContainerLog
 		pbLog := pb.Log{}
@@ -630,11 +639,14 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.Result = log.Result
 
-		// LogLock.Lock()
-		// defer LogLock.Unlock()
+		LogLock.Lock()
+		defer LogLock.Unlock()
 
 		for uid := range LogStructs {
-			LogStructs[uid].Broadcast <- &pbLog
+			select {
+			case LogStructs[uid].Broadcast <- &pbLog:
+			default:
+			}
 		}
 	}
 }
