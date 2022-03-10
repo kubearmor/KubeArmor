@@ -25,12 +25,13 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *
 
 	for index, line := range *processWhiteList {
 		for source := range fromSources {
-			if strings.Contains(line, source) {
+			if strings.Split(line, " ")[0] == source {
 				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
 
 				// remove line from WhiteList
 				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index-numOfRemovedElements)
 				numOfRemovedElements = numOfRemovedElements + 1
+				break
 			}
 		}
 	}
