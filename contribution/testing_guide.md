@@ -1,8 +1,8 @@
 # Testing Guide
 
-There are two ways to check the functionalities of KubeArmor: 1) testing kubeArmor in manual and 2) using the testing framework.
+There are two ways to check the functionalities of KubeArmor: 1) testing kubeArmor manually and 2) using the testing framework.
 
-# 1.  Test KubeArmor in manual
+# 1.  Test KubeArmor manually
 
 ## 1.1. Run 'kubectl proxy' in background
 
@@ -73,7 +73,7 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
         --msgPath string     Output location for messages, {path|stdout|none} (default "none")
     ```
     
-    Note that you will see alerts and logs generated right after `karmor` runs logs; thus, we recommend to run the above command in other terminal to see logs live and in an interactive way to avoid any kind of interference.
+    Note that you will see alerts and logs generated right after `karmor` runs logs; thus, we recommend to run the above command in other terminal to see logs live.
     
 
 # 2.  Test KubeArmor using the auto-testing framework
@@ -174,7 +174,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
 - The case that KubeArmor is running as a daemonset in Kubernetes
 
-    Run the auto-testing framework
+    Run the testing framework
 
     ```text
     $ cd KubeArmor/tests
