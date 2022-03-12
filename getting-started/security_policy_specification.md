@@ -1,4 +1,4 @@
-# Security Policy Specification for Containers
+# Specification of Security Policy for Containers
 
 ## Policy Specification
 

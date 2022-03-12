@@ -557,7 +557,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.ContainerName = log.ContainerName
 		pbAlert.ContainerImage = log.ContainerImage
 
+		pbAlert.HostPPID = log.HostPPID
 		pbAlert.HostPID = log.HostPID
+
 		pbAlert.PPID = log.PPID
 		pbAlert.PID = log.PID
 		pbAlert.UID = log.UID
@@ -620,7 +622,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.ContainerName = log.ContainerName
 		pbLog.ContainerImage = log.ContainerImage
 
+		pbLog.HostPPID = log.HostPPID
 		pbLog.HostPID = log.HostPID
+
 		pbLog.PPID = log.PPID
 		pbLog.PID = log.PID
 		pbLog.UID = log.UID

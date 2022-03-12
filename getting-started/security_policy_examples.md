@@ -1,4 +1,4 @@
-# Security Policy Examples
+# Examples of Security Policy
 
 Here, we demonstrate how to define security policies using our example microservice \(multiubuntu\).
 

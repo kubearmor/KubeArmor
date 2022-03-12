@@ -1,4 +1,4 @@
-# Security Policy Examples
+# Examples of Host Security Policy
 
 Here, we demonstrate how to define host security policies.
 

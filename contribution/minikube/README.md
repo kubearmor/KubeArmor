@@ -1,6 +1,6 @@
 # Minikube Installation
 
-KubeArmor basically requires LSMs. However, if you want to use Minikube instead of self-managed Kubernetes or MicroK8s, please run the following commands.
+If virtualbox and vagrant are not installed on your machine, please the following commands in advance.
 
 ```text
 $ cd KubeArmor/contribution/minikube

@@ -1,28 +1,34 @@
 # KubeArmor on VM/Bare-Metal
 
-This recipe explains how to use KubeArmor directly on VM/Bare-Metal host and was tested on Ubuntu hosts. The recipe installs `kubearmor` as systemd process and `karmor` cli tool to manage policies and show alerts/telemetry.
+This recipe explains how to use KubeArmor directly on a VM/Bare-Metal machine, and we tested the following steps on Ubuntu hosts.
+
+The recipe installs `kubearmor` as systemd process and `karmor` cli tool to manage policies and show alerts/telemetry.
 
 ## Download and Install KubeArmor
 
-1. Download the [latest release of KubeArmor](https://github.com/kubearmor/KubeArmor/releases)
-2. Install KubeArmor `sudo apt install ./kubearmor_${VER}_linux-amd64.deb` ... where VER is the kubearmor release version. This will automatically install the required dependencies.
+1. Download the [latest release](https://github.com/kubearmor/KubeArmor/releases) or KubeArmor.
+2. Install KubeArmor (VER is the kubearmor release version)
+  ```
+  sudo apt install ./kubearmor_${VER}_linux-amd64.deb
+  ```
 
-> Note: We automatically install `bpfcc-tools` with our package, your distribution might have an older version of BCC so consider installing BCC from [source](https://github.com/iovisor/bcc/blob/master/INSTALL.md#source) in case of errors.
+  > Note that the above automatically installs `bpfcc-tools` with our package, but your distribution might have an older version of BCC. In case of errors, consider installing `bcc` from [source](https://github.com/iovisor/bcc/blob/master/INSTALL.md#source).
 
 <details><summary>For distributions other than Ubuntu/Debian</summary>
 <p>
 
 1. Refer [Installing BCC](https://github.com/iovisor/bcc/blob/master/INSTALL.md#installing-bcc) to install pre-requisites.
-2. Download release tarball from KubeArmor releases for the version you want
 
-```
-wget https://github.com/daemon1024/KubeArmor/releases/download/v${VER}/kubearmor_${VER}_linux-amd64.tar.gz
-```
+2. Download release tarball from KubeArmor releases for the version you want
+  ```
+  wget https://github.com/KubeArmor/KubeArmor/releases/download/v${VER}/kubearmor_${VER}_linux-amd64.tar.gz
+  ```
+
 3. Unpack the tarball to the root directory:
-```
-sudo tar --no-overwrite-dir -C / -xzf kubearmor_${VER}_linux-amd64.tar.gz
-sudo systemctl daemon-reload
-```
+  ```
+  sudo tar --no-overwrite-dir -C / -xzf kubearmor_${VER}_linux-amd64.tar.gz
+  sudo systemctl daemon-reload
+  ```
 </p>
 </details>
 
@@ -32,7 +38,7 @@ sudo systemctl daemon-reload
 sudo systemctl start kubearmor
 ```
 
-Check kubearmor status using `sudo systemctl status kubearmor` or use `sudo journalctl -u kubearmor -f` to continuously monitor kubearmor logs.
+Check the status of KubeArmor using `sudo systemctl status kubearmor` or use `sudo journalctl -u kubearmor -f` to continuously monitor kubearmor logs.
 
 ## Apply sample policy
 
@@ -57,6 +63,8 @@ karmor vm policy add hostpolicy.yaml
 ```
 
 **Now if you run `sleep` command, the process would be denied execution.**
+
+> Note that `sleep` may not blocked if you run it in the same terminal where you apply the above policy. In that case, please open a new terminal and run `sleep` again to see if the command is blocked.
 
 ## Get Alerts for policies and telemetry
 
