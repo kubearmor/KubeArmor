@@ -364,12 +364,8 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		"-gRPC=" + strconv.Itoa(int(port)),
 		"-logPath=/tmp/kubearmor.log",
 	}
+
 	var volumeMounts = []corev1.VolumeMount{
-		{
-			Name:      "usr-src-path", //BPF (read-only)
-			MountPath: "/usr/src",
-			ReadOnly:  true,
-		},
 		{
 			Name:      "lib-modules-path", //BPF (read-only)
 			MountPath: "/lib/modules",
@@ -395,15 +391,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 
 	var volumes = []corev1.Volume{
-		{
-			Name: "usr-src-path",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/usr/src",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
 		{
 			Name: "lib-modules-path",
 			VolumeSource: corev1.VolumeSource{
