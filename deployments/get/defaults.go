@@ -29,6 +29,53 @@ var hostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 var hostPathFile = corev1.HostPathFile
 var hostPathSocket = corev1.HostPathSocket
 
+var gkeHostUsrVolMnt = corev1.VolumeMount{
+	Name:      "usr-src-path", // /usr -> /media/root/usr (read-only) check issue #579 for details
+	MountPath: "/media/root/usr",
+	ReadOnly:  true,
+}
+
+var gkeHostUsrVol = corev1.Volume{ // check #579 why GKE is handled separately
+	Name: "usr-src-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/usr",
+			Type: &hostPathDirectory,
+		},
+	},
+}
+
+var hostUsrVolMnt = corev1.VolumeMount{
+	Name:      "usr-src-path", // /usr/src (read-only)
+	MountPath: "/usr/src",
+	ReadOnly:  true,
+}
+
+var hostUsrVol = corev1.Volume{
+	Name: "usr-src-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/usr/src",
+			Type: &hostPathDirectory,
+		},
+	},
+}
+
+var apparmorVolMnt = corev1.VolumeMount{
+	Name:      "etc-apparmor-d-path",
+	MountPath: "/etc/apparmor.d",
+}
+
+var apparmorVol = corev1.Volume{
+	Name: "etc-apparmor-d-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/etc/apparmor.d",
+			Type: &hostPathDirectoryOrCreate,
+		},
+	},
+}
+
 // Environment Specific Daemonset Configuration
 var defaultConfigs = map[string]DaemonSetConfig{
 	"generic": {
@@ -36,10 +83,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			"-enableKubeArmorHostPolicy",
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			hostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
 				MountPath: "/var/run/containerd/containerd.sock",
@@ -57,15 +102,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			hostUsrVol,
+			apparmorVol,
 			{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -100,10 +138,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			"-enableKubeArmorHostPolicy",
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			hostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "docker-sock-path", // docker
 				MountPath: "/var/run/docker.sock",
@@ -116,15 +152,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			hostUsrVol,
+			apparmorVol,
 			{
 				Name: "docker-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -148,10 +177,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 	"minikube": {
 		Args: []string{},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			hostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "docker-sock-path", // docker
 				MountPath: "/var/run/docker.sock",
@@ -164,15 +191,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			hostUsrVol,
+			apparmorVol,
 			{
 				Name: "docker-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -198,10 +218,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			"-enableKubeArmorHostPolicy",
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			hostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
 				MountPath: "/var/snap/microk8s/common/run/containerd.sock",
@@ -214,15 +232,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			hostUsrVol,
+			apparmorVol,
 			{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -248,10 +259,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			"-enableKubeArmorHostPolicy",
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			hostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
 				MountPath: "/var/run/containerd/containerd.sock",
@@ -264,15 +273,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			hostUsrVol,
+			apparmorVol,
 			{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -298,10 +300,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			"-enableKubeArmorHostPolicy",
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			gkeHostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
 				MountPath: "/var/run/containerd/containerd.sock",
@@ -319,15 +319,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			gkeHostUsrVol,
+			apparmorVol,
 			{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{
@@ -362,10 +355,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			"-enableKubeArmorHostPolicy",
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "etc-apparmor-d-path",
-				MountPath: "/etc/apparmor.d",
-			},
+			hostUsrVolMnt,
+			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
 				MountPath: "/var/run/containerd/containerd.sock",
@@ -383,15 +374,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			{
-				Name: "etc-apparmor-d-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/etc/apparmor.d",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			hostUsrVol,
+			apparmorVol,
 			{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{

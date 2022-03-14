@@ -101,9 +101,6 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-        - mountPath: /usr/src
-          name: usr-src-path
-          readOnly: true
         - mountPath: /lib/modules
           name: lib-modules-path
           readOnly: true
@@ -115,6 +112,9 @@ spec:
           name: sys-kernel-debug-path
         - mountPath: /media/root/etc/os-release
           name: os-release-path
+          readOnly: true
+        - mountPath: /usr/src
+          name: usr-src-path
           readOnly: true
         - mountPath: /etc/apparmor.d
           name: etc-apparmor-d-path
@@ -136,10 +136,6 @@ spec:
       - operator: Exists
       volumes:
       - hostPath:
-          path: /usr/src
-          type: Directory
-        name: usr-src-path
-      - hostPath:
           path: /lib/modules
           type: Directory
         name: lib-modules-path
@@ -159,6 +155,10 @@ spec:
           path: /etc/os-release
           type: File
         name: os-release-path
+      - hostPath:
+          path: /usr/src
+          type: Directory
+        name: usr-src-path
       - hostPath:
           path: /etc/apparmor.d
           type: DirectoryOrCreate
