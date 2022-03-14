@@ -161,9 +161,6 @@ type SystemMonitor struct {
 
 	// ticker to clean up exited pids
 	Ticker *time.Ticker
-
-	// GKE
-	IsCOS bool
 }
 
 // NewSystemMonitor Function
@@ -200,8 +197,6 @@ func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp
 
 	mon.Ticker = time.NewTicker(time.Second * 1)
 
-	mon.IsCOS = false
-
 	return mon
 }
 
@@ -233,8 +228,20 @@ func (mon *SystemMonitor) InitBPF() error {
 
 				// just for safety
 				time.Sleep(time.Second * 1)
-
-				mon.IsCOS = true
+			} else {
+				// In case of GKE COS release >= 1.22, the base OS img does not
+				// contain /usr/src folder. Thus we now mount /usr folder to
+				// /media/root/usr folder in kubearmor for GKE. The following code
+				// checks whether the /media/root/usr/src/kernel-hdrs path exists
+				// and uses it for BCC kernel source, if present.
+				lklhdrpath := "/media/root/usr/src/linux-headers-" + mon.KernelVersion
+				mon.Logger.Printf("checking if kernel headers path (%s) exists", lklhdrpath)
+				if _, err := os.Stat(lklhdrpath); err == nil {
+					mon.Logger.Printf("using kernel headers from (%s)", lklhdrpath)
+					if err := os.Setenv("BCC_KERNEL_SOURCE", lklhdrpath); err != nil {
+						mon.Logger.Errf("setenv failed for [BCC_KERNEL_SOURCE=%s] Error=%s", lklhdrpath, err.Error())
+					}
+				}
 			}
 		}
 	}
