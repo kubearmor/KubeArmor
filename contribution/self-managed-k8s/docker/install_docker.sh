@@ -72,3 +72,22 @@ sudo chmod 666 /var/run/docker.sock
 # install docker-compose
 sudo curl -sL https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
+
+# Local docker registry
+if [ -z "${SKIP_LOCAL_REGISTRY}" ];
+then
+echo "Installing local registry"
+docker run -d -p 0.0.0.0:5000:5000 --restart=always --name registry registry:2
+REGIP=$(ip -o route get to 8.8.8.8 | sed -n 's/.*src \([0-9.]\+\).*/\1/p')
+sudo cat <<EOF > daemon.json
+{
+"insecure-registries" : ["$REGIP:5000"]
+}
+EOF
+sudo cp daemon.json /etc/docker/daemon.json
+sudo rm daemon.json
+sudo cat /etc/docker/daemon.json
+sudo systemctl restart docker.service
+else
+	echo "Skipping local registry"
+fi
