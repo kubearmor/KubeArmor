@@ -9,8 +9,14 @@ require {
 
 type karmor_block_t;
 
-# any others can execute B
+# anything cannot execute B
 allow unconfined_t karmor_block_t:file { getattr execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom map }; # -execute
 allow karmor_block_t fs_t:filesystem { associate };
+
+type karmor_none_t;
+
+# anything cannot access B
+allow unconfined_t karmor_none_t:file { getattr relabelto relabelfrom };
+allow karmor_none_t fs_t:filesystem { associate };
 
 ########################################

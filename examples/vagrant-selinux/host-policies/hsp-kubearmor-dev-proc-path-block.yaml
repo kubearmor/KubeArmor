@@ -12,3 +12,10 @@ spec:
     - path: /home/vagrant/selinux-test/read
   action:
     Block
+
+# test
+# (/home/vagrant/selinux-test/) $ ./read
+# -bash: ./read: Permission denied
+
+# expectation
+# - anyone cannot execute /home/vagrant/selinux-test/read

@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-proc-path-allow-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  process:
+    matchPaths:
+    - path: /home/vagrant/selinux-test/write
+      fromSource:
+      - path: /home/vagrant/selinux-test/bash
+  action:
+    Allow
+
+# test
+# (/home/vagrant/selinux-test/) $ ./write
+# -bash: ./write: Permission denied
+# (/home/vagrant/selinux-test/) $ ./bash -c ./write
+# Usage: ./write [file]
+
+# expectation
+# anyone cannot execute /home/vagrant/selinux-test/write
+# /home/vagrant/selinux-test/bash can execute /home/vagrant/selinux-test/write

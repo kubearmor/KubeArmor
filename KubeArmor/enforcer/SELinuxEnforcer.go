@@ -553,13 +553,8 @@ func (se *SELinuxEnforcer) RestoreSELinuxLabels(profilePath string) bool {
 			continue
 		}
 
-		// if err := kl.RunCommandAndWaitWithErr(se.SELinuxTemplatePath+"/restore.sh", []string{subjectPath, objectPath, directory, recursive}); err != nil {
-		// 	se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
-		// 	res = false
-		// }
-
-		if output, err := kl.GetCommandOutputWithErr(se.SELinuxTemplatePath+"/restore.sh", []string{subjectPath, objectPath, directory, recursive}); err != nil {
-			se.Logger.Warnf("Unable to restore the original label of %s:\n%s", objectPath, output)
+		if err := kl.RunCommandAndWaitWithErr(se.SELinuxTemplatePath+"/restore.sh", []string{subjectPath, objectPath, directory, recursive}); err != nil {
+			se.Logger.Warnf("Unable to restore the original label of %s", objectPath)
 			res = false
 		}
 	}
@@ -612,13 +607,8 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 			continue
 		}
 
-		// if err := kl.RunCommandAndWaitWithErr(se.SELinuxTemplatePath+"/update.sh", []string{subjectLabel, subjectPath, objectLabel, objectPath, directory, recursive}); err != nil {
-		// 	se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
-		// 	res = false
-		// }
-
-		if output, err := kl.GetCommandOutputWithErr(se.SELinuxTemplatePath+"/update.sh", []string{subjectLabel, subjectPath, objectLabel, objectPath, directory, recursive}); err != nil {
-			se.Logger.Warnf("Unable to update the SELinux label of %s:\n%s", objectPath, output)
+		if err := kl.RunCommandAndWaitWithErr(se.SELinuxTemplatePath+"/update.sh", []string{subjectLabel, subjectPath, objectLabel, objectPath, directory, recursive}); err != nil {
+			se.Logger.Warnf("Unable to update the SELinux label of %s", objectPath)
 			res = false
 		}
 	}

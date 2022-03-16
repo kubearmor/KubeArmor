@@ -21,7 +21,7 @@ The recipe installs `kubearmor` as systemd process and `karmor` cli tool to mana
 
 2. Download release tarball from KubeArmor releases for the version you want
   ```
-  wget https://github.com/daemon1024/KubeArmor/releases/download/v${VER}/kubearmor_${VER}_linux-amd64.tar.gz
+  wget https://github.com/KubeArmor/KubeArmor/releases/download/v${VER}/kubearmor_${VER}_linux-amd64.tar.gz
   ```
 
 3. Unpack the tarball to the root directory:

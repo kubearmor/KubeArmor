@@ -8,15 +8,16 @@ require {
 
     class context { contains };
     class dbus { acquire_svc send_msg };
+
+    class x_resource { read write };
     class x_client { destroy getattr manage };
     class x_gc { create destroy getattr setattr use };
     class x_cursor { create destroy getattr read setattr use write };
     class x_colormap { add_color create destroy getattr install read remove_color uninstall use write };
     class x_device { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
-    class x_drawable { add_child blend create destroy get_property getattr hide list_child list_property manage override read receive remove_child send set_property setattr show write };
-    class x_keyboard { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
     class x_pointer { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
-    class x_resource { read write };
+    class x_keyboard { add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write };
+    class x_drawable { add_child blend create destroy get_property getattr hide list_child list_property manage override read receive remove_child send set_property setattr show write };
 }
 
 type karmorX_t;
@@ -31,7 +32,7 @@ unconfined_domtrans_to(karmorX_t, karmorX_exec_t)
 allow karmorX_t karmorX_t:process { setpgid };
 allow karmorX_t karmorX_exec_t:file { getattr execute execute_no_trans ioctl lock open read };
 
-allow karmorX_t user_devpts_t:chr_file { read write };
+allow karmorX_t user_devpts_t:chr_file { getattr ioctl read write append };
 
 ########################################
 
@@ -60,22 +61,31 @@ allow karmorX_block_t fs_t:filesystem { associate };
 ########################################
 
 type karmorX_read_t;
-files_type(karmorX_read_t)
 
 # A can read B only
 allow karmorX_t karmorX_read_t:file { getattr ioctl lock open read }; # -write, -append
 
+# anything cannot access B
+allow unconfined_t karmorX_read_t:file { getattr relabelto relabelfrom };
+allow karmorX_read_t fs_t:filesystem { associate };
+
 type karmorX_write_t;
-files_type(karmorX_write_t)
 
 # A can write B only
 allow karmorX_t karmorX_write_t:file { getattr ioctl lock open write append }; # -read
 
+# anything cannot access B
+allow unconfined_t karmorX_write_t:file { getattr relabelto relabelfrom };
+allow karmorX_write_t fs_t:filesystem { associate };
+
 type karmorX_file_t;
-files_type(karmorX_file_t)
 
 # A can access B
 allow karmorX_t karmorX_file_t:file { getattr ioctl lock open read write append };
+
+# anything cannot access B
+allow unconfined_t karmorX_file_t:file { getattr relabelto relabelfrom };
+allow karmorX_file_t fs_t:filesystem { associate };
 
 type karmorX_none_t;
 files_type(karmorX_none_t)

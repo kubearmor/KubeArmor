@@ -153,10 +153,6 @@ func LoadConfig() error {
 		GlobalCfg.HostPolicy = true
 	}
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
-	if !GlobalCfg.K8sEnv {
-		GlobalCfg.Policy = false
-		GlobalCfg.HostPolicy = true
-	}
 
 	if GlobalCfg.HostVisibility == "" {
 		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {

@@ -40,6 +40,9 @@ elif [ -z "$GOPATH" ]; then
     echo >> ~/.bashrc
 fi
 
+# enable audit mode
+sudo semanage dontaudit off
+
 # install golang
 echo "Installing golang binaries..."
 goBinary=$(curl -s https://go.dev/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)

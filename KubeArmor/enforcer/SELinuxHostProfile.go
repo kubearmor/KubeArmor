@@ -19,505 +19,117 @@ import (
 
 // AllowedHostProcessMatchPaths Function
 func (se *SELinuxEnforcer) AllowedHostProcessMatchPaths(path tp.ProcessPathType, fromSources map[string][]tp.SELinuxRule) {
-	if len(path.FromSource) > 0 {
-		for _, src := range path.FromSource {
-			source := "*"
+	if len(path.FromSource) == 0 {
+		return
+	}
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
+	for _, src := range path.FromSource {
+		if len(src.Path) == 0 {
+			continue
+		}
 
-			if path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: path.Path} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !path.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: path.Path}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
 
-			}
+		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: path.Path}
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
 
 // AllowedHostProcessMatchDirectories Function
 func (se *SELinuxEnforcer) AllowedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, fromSources map[string][]tp.SELinuxRule) {
-	if len(dir.FromSource) > 0 {
-		for _, src := range dir.FromSource {
-			source := "*"
+	if len(dir.FromSource) == 0 {
+		return
+	}
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
+	for _, src := range dir.FromSource {
+		rule := tp.SELinuxRule{}
 
-			if dir.Recursive && dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if dir.Recursive && !dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if !dir.Recursive && dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: dir.Directory, Directory: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: dir.Directory, Directory: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
+
+		if dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else { // !dir.Recursive
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_allow_t", ObjectPath: dir.Directory, Directory: true}
+		}
+
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
 
 // AllowedHostFileMatchPaths Function
 func (se *SELinuxEnforcer) AllowedHostFileMatchPaths(path tp.FilePathType, fromSources map[string][]tp.SELinuxRule) {
-	if len(path.FromSource) > 0 {
-		for _, src := range path.FromSource {
-			source := "*"
+	if len(path.FromSource) == 0 {
+		return
+	}
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
+	for _, src := range path.FromSource {
+		rule := tp.SELinuxRule{}
 
-			if path.ReadOnly && path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if path.ReadOnly && !path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if !path.ReadOnly && path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
+
+		if path.ReadOnly {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path}
+		} else { // !path.ReadOnly
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path}
+		}
+
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
 
 // AllowedHostFileMatchDirectories Function
 func (se *SELinuxEnforcer) AllowedHostFileMatchDirectories(dir tp.FileDirectoryType, fromSources map[string][]tp.SELinuxRule) {
-	if len(dir.FromSource) > 0 {
-		for _, src := range dir.FromSource {
-			source := "*"
-
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
-
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			}
-		}
-	}
-}
-
-//
-
-// AuditedHostProcessMatchPaths Function
-func (se *SELinuxEnforcer) AuditedHostProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
-	if len(path.FromSource) == 0 {
-		if path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: path.Path, Permissive: true} // owner
-			if !kl.ContainsElement(*processAuditList, rule) {
-				*processAuditList = append(*processAuditList, rule)
-			}
-		} else { // !path.OwnerOnly
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: path.Path, Permissive: true}
-			if !kl.ContainsElement(*processAuditList, rule) {
-				*processAuditList = append(*processAuditList, rule)
-			}
-		}
-	} else {
-		for _, src := range path.FromSource {
-			source := "*"
-
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
-
-			if path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: path.Path, Permissive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !path.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: path.Path, Permissive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
-		}
-	}
-}
-
-// AuditedHostProcessMatchDirectories Function
-func (se *SELinuxEnforcer) AuditedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
 	if len(dir.FromSource) == 0 {
-		if dir.Recursive && dir.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true} // owner
-			if !kl.ContainsElement(*processAuditList, rule) {
-				*processAuditList = append(*processAuditList, rule)
-			}
-		} else if dir.Recursive && !dir.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true}
-			if !kl.ContainsElement(*processAuditList, rule) {
-				*processAuditList = append(*processAuditList, rule)
-			}
-		} else if !dir.Recursive && dir.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Permissive: true} // owner
-			if !kl.ContainsElement(*processAuditList, rule) {
-				*processAuditList = append(*processAuditList, rule)
-			}
-		} else { // !dir.Recursive && !dir.OwnerOnly
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Permissive: true}
-			if !kl.ContainsElement(*processAuditList, rule) {
-				*processAuditList = append(*processAuditList, rule)
-			}
-		}
-	} else {
-		for _, src := range dir.FromSource {
-			source := "*"
-
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
-
-			if dir.Recursive && dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if dir.Recursive && !dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if !dir.Recursive && dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Permissive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Permissive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
-		}
+		return
 	}
-}
 
-// AuditedHostProcessMatchPatterns Function
-func (se *SELinuxEnforcer) AuditedHostProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]tp.SELinuxRule) {
-	if pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: pat.Pattern, Pattern: true, Permissive: true} // owner
-		if !kl.ContainsElement(*processAuditList, rule) {
-			*processAuditList = append(*processAuditList, rule)
-		}
-	} else { // !pat.OwnerOnly
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: pat.Pattern, Pattern: true, Permissive: true}
-		if !kl.ContainsElement(*processAuditList, rule) {
-			*processAuditList = append(*processAuditList, rule)
-		}
-	}
-}
+	for _, src := range dir.FromSource {
+		rule := tp.SELinuxRule{}
 
-// AuditedHostFileMatchPaths Function
-func (se *SELinuxEnforcer) AuditedHostFileMatchPaths(path tp.FilePathType, fileAuditList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
-	if len(path.FromSource) == 0 {
-		if path.ReadOnly && path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: path.Path, Permissive: true} // owner
-			if !kl.ContainsElement(*fileAuditList, rule) {
-				*fileAuditList = append(*fileAuditList, rule)
-			}
-		} else if path.ReadOnly && !path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: path.Path, Permissive: true}
-			if !kl.ContainsElement(*fileAuditList, rule) {
-				*fileAuditList = append(*fileAuditList, rule)
-			}
-		} else if !path.ReadOnly && path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: path.Path, Permissive: true} // owner
-			if !kl.ContainsElement(*fileAuditList, rule) {
-				*fileAuditList = append(*fileAuditList, rule)
-			}
-		} else { // !path.ReadOnly && !path.OwnerOnly
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: path.Path, Permissive: true}
-			if !kl.ContainsElement(*fileAuditList, rule) {
-				*fileAuditList = append(*fileAuditList, rule)
-			}
+		if len(src.Path) == 0 {
+			continue
 		}
-	} else {
-		for _, src := range path.FromSource {
-			source := "*"
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
 
-			if path.ReadOnly && path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path, Permissive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if path.ReadOnly && !path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path, Permissive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if !path.ReadOnly && path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path, Permissive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path, Permissive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
+		if dir.ReadOnly && dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else if dir.ReadOnly && !dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true}
+		} else if !dir.ReadOnly && dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else { // !dir.ReadOnly && !dir.Recursive
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true}
 		}
-	}
-}
 
-// AuditedHostFileMatchDirectories Function
-func (se *SELinuxEnforcer) AuditedHostFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
-	if len(dir.FromSource) == 0 {
-		if dir.ReadOnly && dir.OwnerOnly {
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true} // owner
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Permissive: true} // owner
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			}
-		} else if dir.ReadOnly && !dir.OwnerOnly {
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true}
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Permissive: true}
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			}
-		} else if !dir.ReadOnly && dir.OwnerOnly {
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true} // owner
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Permissive: true} // owner
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			}
-		} else { // !dir.ReadOnly && !dir.OwnerOnly
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true}
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Permissive: true}
-				if !kl.ContainsElement(*fileAuditList, rule) {
-					*fileAuditList = append(*fileAuditList, rule)
-				}
-			}
-		}
-	} else {
-		for _, src := range dir.FromSource {
-			source := "*"
-
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
-
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Permissive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Permissive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Permissive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true, Permissive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Permissive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			}
-		}
-	}
-}
-
-// AuditedHostFileMatchPatterns Function
-func (se *SELinuxEnforcer) AuditedHostFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]tp.SELinuxRule) {
-	if pat.ReadOnly && pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: pat.Pattern, Pattern: true, Permissive: true} // owner
-		if !kl.ContainsElement(*fileAuditList, rule) {
-			*fileAuditList = append(*fileAuditList, rule)
-		}
-	} else if pat.ReadOnly && !pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: pat.Pattern, Pattern: true, Permissive: true}
-		if !kl.ContainsElement(*fileAuditList, rule) {
-			*fileAuditList = append(*fileAuditList, rule)
-		}
-	} else if !pat.ReadOnly && pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: pat.Pattern, Pattern: true, Permissive: true} // owner
-		if !kl.ContainsElement(*fileAuditList, rule) {
-			*fileAuditList = append(*fileAuditList, rule)
-		}
-	} else { // !pat.ReadOnly && !pat.OwnerOnly
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: pat.Pattern, Pattern: true, Permissive: true}
-		if !kl.ContainsElement(*fileAuditList, rule) {
-			*fileAuditList = append(*fileAuditList, rule)
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
@@ -527,41 +139,26 @@ func (se *SELinuxEnforcer) AuditedHostFileMatchPatterns(pat tp.FilePatternType, 
 // BlockedHostProcessMatchPaths Function
 func (se *SELinuxEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
 	if len(path.FromSource) == 0 {
-		if path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: path.Path} // owner
-			if !kl.ContainsElement(*processBlackList, rule) {
-				*processBlackList = append(*processBlackList, rule)
-			}
-		} else { // !path.OwnerOnly
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: path.Path}
-			if !kl.ContainsElement(*processBlackList, rule) {
-				*processBlackList = append(*processBlackList, rule)
-			}
+		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: path.Path}
+		if !kl.ContainsElement(*processBlackList, rule) {
+			*processBlackList = append(*processBlackList, rule)
 		}
-	} else {
-		for _, src := range path.FromSource {
-			source := "*"
+		return
+	}
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
+	for _, src := range path.FromSource {
+		if len(src.Path) == 0 {
+			continue
+		}
 
-			if path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: path.Path} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !path.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: path.Path}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
+
+		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: path.Path}
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
@@ -569,76 +166,41 @@ func (se *SELinuxEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType,
 // BlockedHostProcessMatchDirectories Function
 func (se *SELinuxEnforcer) BlockedHostProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
 	if len(dir.FromSource) == 0 {
-		if dir.Recursive && dir.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-			if !kl.ContainsElement(*processBlackList, rule) {
-				*processBlackList = append(*processBlackList, rule)
-			}
-		} else if dir.Recursive && !dir.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-			if !kl.ContainsElement(*processBlackList, rule) {
-				*processBlackList = append(*processBlackList, rule)
-			}
-		} else if !dir.Recursive && dir.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true} // owner
-			if !kl.ContainsElement(*processBlackList, rule) {
-				*processBlackList = append(*processBlackList, rule)
-			}
-		} else { // !dir.Recursive && !dir.OwnerOnly
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true}
-			if !kl.ContainsElement(*processBlackList, rule) {
-				*processBlackList = append(*processBlackList, rule)
-			}
-		}
-	} else {
-		for _, src := range dir.FromSource {
-			source := "*"
+		rule := tp.SELinuxRule{}
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
-
-			if dir.Recursive && dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if dir.Recursive && !dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if !dir.Recursive && dir.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
+		if dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else { // !dir.Recursive
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true}
 		}
+
+		if !kl.ContainsElement(*processBlackList, rule) {
+			*processBlackList = append(*processBlackList, rule)
+		}
+
+		return
 	}
-}
 
-// BlockedHostProcessMatchPatterns Function
-func (se *SELinuxEnforcer) BlockedHostProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]tp.SELinuxRule) {
-	if pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: pat.Pattern, Pattern: true} // owner
-		if !kl.ContainsElement(*processBlackList, rule) {
-			*processBlackList = append(*processBlackList, rule)
+	for _, src := range dir.FromSource {
+		rule := tp.SELinuxRule{}
+
+		if len(src.Path) == 0 {
+			continue
 		}
-	} else { // !path.OwnerOnly
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_block_t", ObjectPath: pat.Pattern, Pattern: true}
-		if !kl.ContainsElement(*processBlackList, rule) {
-			*processBlackList = append(*processBlackList, rule)
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
+
+		if dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else { // !dir.Recursive
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_block_t", ObjectPath: dir.Directory, Directory: true}
+		}
+
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
@@ -646,61 +208,41 @@ func (se *SELinuxEnforcer) BlockedHostProcessMatchPatterns(pat tp.ProcessPattern
 // BlockedHostFileMatchPaths Function
 func (se *SELinuxEnforcer) BlockedHostFileMatchPaths(path tp.FilePathType, fileBlackList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
 	if len(path.FromSource) == 0 {
-		if path.ReadOnly && path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: path.Path} // owner
-			if !kl.ContainsElement(*fileBlackList, rule) {
-				*fileBlackList = append(*fileBlackList, rule)
-			}
-		} else if path.ReadOnly && !path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: path.Path}
-			if !kl.ContainsElement(*fileBlackList, rule) {
-				*fileBlackList = append(*fileBlackList, rule)
-			}
-		} else if !path.ReadOnly && path.OwnerOnly {
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: path.Path} // owner
-			if !kl.ContainsElement(*fileBlackList, rule) {
-				*fileBlackList = append(*fileBlackList, rule)
-			}
-		} else { // !path.ReadOnly && !path.OwnerOnly
-			rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: path.Path}
-			if !kl.ContainsElement(*fileBlackList, rule) {
-				*fileBlackList = append(*fileBlackList, rule)
-			}
+		rule := tp.SELinuxRule{}
+
+		if path.ReadOnly {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: path.Path}
+		} else { // !path.ReadOnly
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_none_t", ObjectPath: path.Path}
 		}
-	} else {
-		for _, src := range path.FromSource {
-			source := "*"
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
+		if !kl.ContainsElement(*fileBlackList, rule) {
+			*fileBlackList = append(*fileBlackList, rule)
+		}
 
-			if path.ReadOnly && path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if path.ReadOnly && !path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else if !path.ReadOnly && path.OwnerOnly {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path} // owner
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: path.Path}
-				if !kl.ContainsElement(fromSources[source], rule) {
-					fromSources[source] = append(fromSources[source], rule)
-				}
-			}
+		return
+	}
+
+	for _, src := range path.FromSource {
+		rule := tp.SELinuxRule{}
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
+		}
+
+		if path.ReadOnly {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: path.Path}
+		} else { // !path.ReadOnly
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_none_t", ObjectPath: path.Path}
+		}
+
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
@@ -708,142 +250,49 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchPaths(path tp.FilePathType, fileB
 // BlockedHostFileMatchDirectories Function
 func (se *SELinuxEnforcer) BlockedHostFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
 	if len(dir.FromSource) == 0 {
-		if dir.ReadOnly && dir.OwnerOnly {
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true} // owner
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			}
-		} else if dir.ReadOnly && !dir.OwnerOnly {
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true}
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			}
-		} else if !dir.ReadOnly && dir.OwnerOnly {
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true} // owner
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			}
-		} else { // !dir.ReadOnly && !dir.OwnerOnly
-			if dir.Recursive {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			} else {
-				rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true}
-				if !kl.ContainsElement(*fileBlackList, rule) {
-					*fileBlackList = append(*fileBlackList, rule)
-				}
-			}
-		}
-	} else {
-		for _, src := range dir.FromSource {
-			source := "*"
+		rule := tp.SELinuxRule{}
 
-			if len(src.Path) > 0 {
-				source = src.Path
-				if _, ok := fromSources[source]; !ok {
-					fromSources[source] = []tp.SELinuxRule{}
-				}
-			} else {
-				continue
-			}
-
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true} // owner
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				} else {
-					rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_file_t", ObjectPath: dir.Directory, Directory: true}
-					if !kl.ContainsElement(fromSources[source], rule) {
-						fromSources[source] = append(fromSources[source], rule)
-					}
-				}
-			}
+		if dir.ReadOnly && dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else if dir.ReadOnly && !dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true}
+		} else if !dir.ReadOnly && dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_none_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else { // !dir.ReadOnly && !dir.Recursive
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_none_t", ObjectPath: dir.Directory, Directory: true}
 		}
+
+		if !kl.ContainsElement(*fileBlackList, rule) {
+			*fileBlackList = append(*fileBlackList, rule)
+		}
+
+		return
 	}
-}
 
-// BlockedHostFileMatchPatterns Function
-func (se *SELinuxEnforcer) BlockedHostFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]tp.SELinuxRule) {
-	if pat.ReadOnly && pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: pat.Pattern, Pattern: true} // owner
-		if !kl.ContainsElement(*fileBlackList, rule) {
-			*fileBlackList = append(*fileBlackList, rule)
+	for _, src := range dir.FromSource {
+		rule := tp.SELinuxRule{}
+
+		if len(src.Path) == 0 {
+			continue
 		}
-	} else if pat.ReadOnly && !pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_read_t", ObjectPath: pat.Pattern, Pattern: true}
-		if !kl.ContainsElement(*fileBlackList, rule) {
-			*fileBlackList = append(*fileBlackList, rule)
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []tp.SELinuxRule{}
 		}
-	} else if !pat.ReadOnly && pat.OwnerOnly {
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: pat.Pattern, Pattern: true} // owner
-		if !kl.ContainsElement(*fileBlackList, rule) {
-			*fileBlackList = append(*fileBlackList, rule)
+
+		if dir.ReadOnly && dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else if dir.ReadOnly && !dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_read_t", ObjectPath: dir.Directory, Directory: true}
+		} else if !dir.ReadOnly && dir.Recursive {
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_none_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+		} else { // !dir.ReadOnly && !dir.Recursive
+			rule = tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: source, ObjectLabel: "karmor_none_t", ObjectPath: dir.Directory, Directory: true}
 		}
-	} else { // !pat.ReadOnly && !pat.OwnerOnly
-		rule := tp.SELinuxRule{SubjectLabel: "karmor_exec_t", SubjectPath: "-", ObjectLabel: "karmor_file_t", ObjectPath: pat.Pattern, Pattern: true}
-		if !kl.ContainsElement(*fileBlackList, rule) {
-			*fileBlackList = append(*fileBlackList, rule)
+
+		if !kl.ContainsElement(fromSources[source], rule) {
+			fromSources[source] = append(fromSources[source], rule)
 		}
 	}
 }
@@ -854,14 +303,10 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchPatterns(pat tp.FilePatternType, 
 func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.HostSecurityPolicy) (int, string, []string, bool) {
 	count := 0
 
-	processAuditList := []tp.SELinuxRule{}
 	processBlackList := []tp.SELinuxRule{}
-
-	fileAuditList := []tp.SELinuxRule{}
 	fileBlackList := []tp.SELinuxRule{}
 
 	whiteListfromSources := map[string][]tp.SELinuxRule{}
-	auditListfromSources := map[string][]tp.SELinuxRule{}
 	blackListfromSources := map[string][]tp.SELinuxRule{}
 
 	// preparation
@@ -872,7 +317,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 				if path.Action == "Allow" {
 					se.AllowedHostProcessMatchPaths(path, whiteListfromSources)
 				} else if path.Action == "Audit" {
-					se.AuditedHostProcessMatchPaths(path, &processAuditList, auditListfromSources)
+					//
 				} else if path.Action == "Block" {
 					se.BlockedHostProcessMatchPaths(path, &processBlackList, blackListfromSources)
 				}
@@ -883,20 +328,9 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 				if dir.Action == "Allow" {
 					se.AllowedHostProcessMatchDirectories(dir, whiteListfromSources)
 				} else if dir.Action == "Audit" {
-					se.AuditedHostProcessMatchDirectories(dir, &processAuditList, auditListfromSources)
+					//
 				} else if dir.Action == "Block" {
 					se.BlockedHostProcessMatchDirectories(dir, &processBlackList, blackListfromSources)
-				}
-			}
-		}
-		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
-			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-				if pat.Action == "Allow" {
-					//
-				} else if pat.Action == "Audit" {
-					se.AuditedHostProcessMatchPatterns(pat, &processAuditList)
-				} else if pat.Action == "Block" {
-					se.BlockedHostProcessMatchPatterns(pat, &processBlackList)
 				}
 			}
 		}
@@ -906,7 +340,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 				if path.Action == "Allow" {
 					se.AllowedHostFileMatchPaths(path, whiteListfromSources)
 				} else if path.Action == "Audit" {
-					se.AuditedHostFileMatchPaths(path, &fileAuditList, auditListfromSources)
+					//
 				} else if path.Action == "Block" {
 					se.BlockedHostFileMatchPaths(path, &fileBlackList, blackListfromSources)
 				}
@@ -917,20 +351,9 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 				if dir.Action == "Allow" {
 					se.AllowedHostFileMatchDirectories(dir, whiteListfromSources)
 				} else if dir.Action == "Audit" {
-					se.AuditedHostFileMatchDirectories(dir, &fileAuditList, auditListfromSources)
+					//
 				} else if dir.Action == "Block" {
 					se.BlockedHostFileMatchDirectories(dir, &fileBlackList, blackListfromSources)
-				}
-			}
-		}
-		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
-			for _, pat := range secPolicy.Spec.File.MatchPatterns {
-				if pat.Action == "Allow" {
-					//
-				} else if pat.Action == "Audit" {
-					se.AuditedHostFileMatchPatterns(pat, &fileAuditList)
-				} else if pat.Action == "Block" {
-					se.BlockedHostFileMatchPatterns(pat, &fileBlackList)
 				}
 			}
 		}
@@ -965,43 +388,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 	}
 
 	for _, rules := range blackListfromSources {
-		for _, rule := range rules {
-			if _, ok := newRules[rule.SubjectPath]; !ok {
-				newRules[rule.SubjectPath] = []tp.SELinuxRule{}
-			}
-
-			if !se.ContainsElement(newRules[rule.SubjectPath], rule) {
-				newRules[rule.SubjectPath] = append(newRules[rule.SubjectPath], rule)
-				count = count + 1
-			}
-		}
-	}
-
-	// audit list
-
-	for _, rule := range processAuditList {
-		if _, ok := newRules[rule.SubjectPath]; !ok {
-			newRules[rule.SubjectPath] = []tp.SELinuxRule{}
-		}
-
-		if !se.ContainsElement(newRules[rule.SubjectPath], rule) {
-			newRules[rule.SubjectPath] = append(newRules[rule.SubjectPath], rule)
-			count = count + 1
-		}
-	}
-
-	for _, rule := range fileAuditList {
-		if _, ok := newRules[rule.SubjectPath]; !ok {
-			newRules[rule.SubjectPath] = []tp.SELinuxRule{}
-		}
-
-		if !se.ContainsElement(newRules[rule.SubjectPath], rule) {
-			newRules[rule.SubjectPath] = append(newRules[rule.SubjectPath], rule)
-			count = count + 1
-		}
-	}
-
-	for _, rules := range auditListfromSources {
 		for _, rule := range rules {
 			if _, ok := newRules[rule.SubjectPath]; !ok {
 				newRules[rule.SubjectPath] = []tp.SELinuxRule{}

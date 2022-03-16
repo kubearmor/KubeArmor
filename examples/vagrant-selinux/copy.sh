@@ -3,4 +3,4 @@
 # Copyright 2021 Authors of KubeArmor
 
 cp -r selinux-test ~
-
+cp -r host-policies ~/selinux-test/policies
