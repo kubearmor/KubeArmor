@@ -532,8 +532,8 @@ func KubeArmor() {
 	// == //
 
 	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
-		// Restore and apply all kubearmor host security policies
-		dm.restoreKubeArmorHostPolicies()
+	  // Restore and apply all kubearmor host security policies
+	  dm.restoreKubeArmorHostPolicies()
 	}
 
 	// == //
