@@ -19,6 +19,7 @@ name: Create KubeArmor release after testing the image
 jobs:
   build:
     name: Create KubeArmor Release
+    if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
     steps:
