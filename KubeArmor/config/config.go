@@ -156,7 +156,7 @@ func LoadConfig() error {
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
 
 	if GlobalCfg.HostVisibility == "" {
-		if GlobalCfg.KVMAgent || GlobalCfg.HostPolicy {
+		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
 			GlobalCfg.HostVisibility = "process,file,network,capabilities"
 		} else { // k8s
 			GlobalCfg.HostVisibility = "none"

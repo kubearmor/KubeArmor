@@ -5,7 +5,7 @@
 
 FROM golang:1.17.5-alpine3.15 as builder
 
-RUN apk update
+RUN apk --no-cache update
 RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev bcc-tools bcc-dev protobuf
 
 WORKDIR /usr/src/KubeArmor
@@ -21,11 +21,11 @@ RUN make
 
 FROM alpine:3.15
 
-RUN apk update
+RUN apk --no-cache update
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
-RUN apk update
+RUN apk --no-cache update
 RUN apk add bcc-tools bcc-dev
 RUN apk add bash curl procps
 RUN apk add apparmor@community apparmor-utils@community kubectl@testing
