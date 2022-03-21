@@ -1639,7 +1639,7 @@ func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
 	fname := cfg.PolicyDir + name + ".yaml"
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(fname); err != nil {
-		kg.Warnf("Backup policy [%v] not exist", fname)
+		kg.Printf("Backup policy [%v] not exist", fname)
 		return
 	}
 
