@@ -1586,8 +1586,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	dm.UpdateHostSecurityPolicies()
 
 	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy) {
-		// backup HostSecurityPolicy to file
-		dm.backupKubeArmorHostPolicy(secPolicy)
+		if event.Type == "ADDED" || event.Type == "MODIFIED" {
+			// backup HostSecurityPolicy to file
+			dm.backupKubeArmorHostPolicy(secPolicy)
+		} else if event.Type == "DELETED" {
+			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
+		}
 	}
 }
 
@@ -1628,6 +1632,21 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 // ================================= //
 // == HostPolicy Backup & Restore == //
 // ================================= //
+
+// removeBackUpPolicy Function
+func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
+
+	fname := cfg.PolicyDir + name + ".yaml"
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
+	if _, err := os.Stat(fname); err != nil {
+		kg.Warnf("Backup policy [%v] not exist", fname)
+		return
+	}
+
+	if err := os.Remove(fname); err != nil {
+		kg.Err(err.Error())
+	}
+}
 
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
