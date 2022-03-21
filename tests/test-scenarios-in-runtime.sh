@@ -208,7 +208,7 @@ function should_find_blocked_log() {
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
         if [[ $6 -eq 0 ]]; then
-            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2|DefaultPosture\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         else
             audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         fi
@@ -222,7 +222,7 @@ function should_find_blocked_log() {
         fi
     else # local
         if [[ $6 -eq 0 ]]; then
-            audit_log=$(grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+            audit_log=$(grep -E "$1.*policyName.*\"$2|DefaultPosture\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         else
             audit_log=$(grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
         fi
