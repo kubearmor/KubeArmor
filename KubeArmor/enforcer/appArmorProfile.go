@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -812,19 +813,27 @@ func (ae *AppArmorEnforcer) BlockedCapabilitiesMatchCapabilities(cap tp.Capabili
 // == //
 
 // GenerateProfileHead Function
-func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string) string {
+func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string, file, network, capability bool) string {
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	if len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
+	// Block Access to Resource when
+	// -> Default Posture is Block
+	// AND
+	// -> Atleast one allow policy OR from source allow policy
+
+	if cfg.GlobalCfg.DefaultFilePosture == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
+	} else {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if len(networkWhiteList) == 0 {
+	if cfg.GlobalCfg.DefaultNetworkPosture == "block" && (len(networkWhiteList) > 0 || !network) {
+	} else {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if len(capabilityWhiteList) == 0 {
+	if cfg.GlobalCfg.DefaultCapabilitiesPosture == "block" && (len(capabilityWhiteList) > 0 || !capability) {
+	} else {
 		profileHead = profileHead + "  capability,\n"
 	}
 
@@ -881,6 +890,10 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	nativeAppArmorRules := []string{}
 
 	fusionProcessWhiteList := []string{}
+
+	globalFile := true
+	globalNetwork := true
+	globalCapability := true
 
 	// preparation
 
@@ -985,10 +998,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	// Resolve conflicts
 	ae.ResolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
 
-	// head
-
-	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList) + "  ## == PRE END == ##\n\n"
-
 	// body
 
 	profileBody := ""
@@ -1087,11 +1096,13 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		for _, line := range lines {
 			if strings.Contains(line, "  network") {
 				network = false
+				globalNetwork = false
 				continue
 			}
 
 			if strings.Contains(line, "  capability") {
 				capability = false
+				globalCapability = false
 				continue
 			}
 
@@ -1104,17 +1115,21 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			}
 
 			file = false
+			globalFile = false
 		}
 
-		if file && len(processWhiteList) == 0 && len(fileWhiteList) == 0 {
+		if cfg.GlobalCfg.DefaultFilePosture == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
+		} else {
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if network && len(networkWhiteList) == 0 {
+		if cfg.GlobalCfg.DefaultNetworkPosture == "block" && (len(networkWhiteList) > 0 || !network) {
+		} else {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if capability && len(capabilityWhiteList) == 0 {
+		if cfg.GlobalCfg.DefaultCapabilitiesPosture == "block" && (len(capabilityWhiteList) > 0 || !capability) {
+		} else {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
@@ -1145,6 +1160,10 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	for _, source := range fromSources {
 		count = count + len(source)
 	}
+
+	// head
+
+	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList, globalFile, globalNetwork, globalCapability) + "  ## == PRE END == ##\n\n"
 
 	// body - together
 
