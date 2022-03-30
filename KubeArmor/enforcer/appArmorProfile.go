@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -813,7 +812,7 @@ func (ae *AppArmorEnforcer) BlockedCapabilitiesMatchCapabilities(cap tp.Capabili
 // == //
 
 // GenerateProfileHead Function
-func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string, file, network, capability bool) string {
+func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string, file, network, capability bool, defaultPosture tp.DefaultPosture) string {
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
@@ -822,17 +821,17 @@ func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList,
 	// AND
 	// -> Atleast one allow policy OR from source allow policy
 
-	if cfg.GlobalCfg.DefaultFilePosture == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
+	if defaultPosture.FileAction == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
 	} else {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if cfg.GlobalCfg.DefaultNetworkPosture == "block" && (len(networkWhiteList) > 0 || !network) {
+	if defaultPosture.NetworkAction == "block" && (len(networkWhiteList) > 0 || !network) {
 	} else {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if cfg.GlobalCfg.DefaultCapabilitiesPosture == "block" && (len(capabilityWhiteList) > 0 || !capability) {
+	if defaultPosture.CapabilitiesAction == "block" && (len(capabilityWhiteList) > 0 || !capability) {
 	} else {
 		profileHead = profileHead + "  capability,\n"
 	}
@@ -866,7 +865,7 @@ func (ae *AppArmorEnforcer) GenerateProfileFoot() string {
 // == //
 
 // GenerateProfileBody Function
-func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPolicy) (int, string) {
+func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture, securityPolicies []tp.SecurityPolicy) (int, string) {
 	// preparation
 
 	count := 0
@@ -1118,17 +1117,17 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			globalFile = false
 		}
 
-		if cfg.GlobalCfg.DefaultFilePosture == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
+		if defaultPosture.FileAction == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
 		} else {
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if cfg.GlobalCfg.DefaultNetworkPosture == "block" && (len(networkWhiteList) > 0 || !network) {
+		if defaultPosture.NetworkAction == "block" && (len(networkWhiteList) > 0 || !network) {
 		} else {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if cfg.GlobalCfg.DefaultCapabilitiesPosture == "block" && (len(capabilityWhiteList) > 0 || !capability) {
+		if defaultPosture.CapabilitiesAction == "block" && (len(capabilityWhiteList) > 0 || !capability) {
 		} else {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
@@ -1163,7 +1162,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 	// head
 
-	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList, globalFile, globalNetwork, globalCapability) + "  ## == PRE END == ##\n\n"
+	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList, globalFile, globalNetwork, globalCapability, defaultPosture) + "  ## == PRE END == ##\n\n"
 
 	// body - together
 
@@ -1193,7 +1192,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 // == //
 
 // GenerateAppArmorProfile Function
-func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
+func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, defaultPosture tp.DefaultPosture, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
 	// check apparmor profile
 
 	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + appArmorProfile)); os.IsNotExist(err) {
@@ -1210,7 +1209,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	// generate a profile body
 
-	count, newProfileBody := ae.GenerateProfileBody(securityPolicies)
+	count, newProfileBody := ae.GenerateProfileBody(defaultPosture, securityPolicies)
 
 	newProfile := "## == Managed by KubeArmor == ##\n" +
 		"\n" +
