@@ -28,6 +28,29 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 			log := mon.BuildLogBase(msg)
 
 			switch msg.ContextSys.EventID {
+
+			case Sys_link, Sys_unlink, Sys_symlink, Sys_readlink:
+				{
+
+					if len(msg.ContextArgs) != 2 {
+						continue
+					}
+
+					var fileName string
+					var fileOpenFlags string
+
+					if val, ok := msg.ContextArgs[0].(string); ok {
+						fileName = val
+					}
+					if val, ok := msg.ContextArgs[1].(string); ok {
+						fileOpenFlags = val
+					}
+
+					log.Operation = "Symbolic Link"
+					log.Resource = fileName
+					log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileOpenFlags
+
+				}
 			case SysOpen:
 				if len(msg.ContextArgs) != 2 {
 					continue
