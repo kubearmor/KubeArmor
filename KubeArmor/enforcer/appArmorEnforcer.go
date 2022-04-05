@@ -116,7 +116,8 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 	}
 
 	for _, file := range files {
-		if file.IsDir() {
+		if !file.Mode().IsRegular() {
+			ae.Logger.Printf("skipping /etc/apparmor.d/%s since not a regular file", file.Name())
 			continue
 		}
 
