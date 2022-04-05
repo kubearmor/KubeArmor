@@ -834,7 +834,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			// push the context to the channel for logging
 			mon.HostContextChan <- ContextCombined{ContainerID: "", ContextSys: ctx, ContextArgs: args}
 
-		case <-mon.SyscallLostChannel:
+		case <-mon.HostSyscallLostChannel:
 			continue
 		}
 	}
