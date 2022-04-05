@@ -206,6 +206,20 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 	return match
 }
 
+// UpdateDefaultPosture Function
+func (fd *Feeder) UpdateDefaultPosture(action string, namespace string, defaultPosture tp.DefaultPosture) {
+
+	fd.DefaultPosturesLock.Lock()
+	defer fd.DefaultPosturesLock.Unlock()
+
+	if action == "DELETED" {
+		delete(fd.DefaultPostures, namespace)
+	}
+
+	fd.DefaultPostures[namespace] = defaultPosture
+
+}
+
 // UpdateSecurityPolicies Function
 func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
@@ -1040,23 +1054,36 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			}
 
+			fd.DefaultPosturesLock.Lock()
+			defer fd.DefaultPosturesLock.Unlock()
+
+			if _, ok := fd.DefaultPostures[log.NamespaceName]; !ok {
+				globalDefaultPosture := tp.DefaultPosture{
+					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+				}
+				fd.DefaultPostures[log.NamespaceName] = globalDefaultPosture
+			}
+
 			if log.Operation == "Process" {
-				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.ProcessVisibilityEnabled, &log, considerFilePosture) {
+				if setLogFields(fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, &log, considerFilePosture) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(cfg.GlobalCfg.DefaultFilePosture, log.FileVisibilityEnabled, &log, considerFilePosture) {
+				if setLogFields(fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, &log, considerFilePosture) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(cfg.GlobalCfg.DefaultNetworkPosture, log.NetworkVisibilityEnabled, &log, considerNetworkPosture) {
+				if setLogFields(fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, &log, considerNetworkPosture) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(cfg.GlobalCfg.DefaultCapabilitiesPosture, log.CapabilitiesVisibilityEnabled, &log, false) {
+				if setLogFields(fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, &log, false) {
 					return log
 				}
 			}
+
 		} else if log.Type == "MatchedPolicy" {
 			if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 				if log.Action == "Block" {

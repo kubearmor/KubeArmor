@@ -66,6 +66,10 @@ type KubeArmorDaemon struct {
 	HostSecurityPolicies     []tp.HostSecurityPolicy
 	HostSecurityPoliciesLock *sync.RWMutex
 
+	//DefaultPosture (namespace -> postures)
+	DefaultPostures     map[string]tp.DefaultPosture
+	DefaultPosturesLock *sync.Mutex
+
 	// container id -> (host) pid
 	ActivePidMap     map[string]tp.PidMap
 	ActiveHostPidMap map[string]tp.PidMap
@@ -113,6 +117,9 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 	dm.HostSecurityPolicies = []tp.HostSecurityPolicy{}
 	dm.HostSecurityPoliciesLock = new(sync.RWMutex)
+
+	dm.DefaultPostures = map[string]tp.DefaultPosture{}
+	dm.DefaultPosturesLock = new(sync.Mutex)
 
 	dm.ActivePidMap = map[string]tp.PidMap{}
 	dm.ActiveHostPidMap = map[string]tp.PidMap{}
@@ -506,6 +513,10 @@ func KubeArmor() {
 		// watch security policies
 		go dm.WatchSecurityPolicies()
 		dm.Logger.Print("Started to monitor security policies")
+
+		// watch default posture
+		go dm.WatchDefaultPosture()
+		dm.Logger.Print("Started to monitor per-namespace default posture")
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
