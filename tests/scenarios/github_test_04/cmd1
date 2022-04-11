@@ -1,6 +1,6 @@
 source: ubuntu-1-deployment
-cmd: head /secret.txt 
-result: passed
+cmd: cat /secret.txt
+result: failed
 ---
 operation: File
 condition: /secret.txt

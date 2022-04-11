@@ -1,7 +1,7 @@
 source: ubuntu-1-deployment
-cmd: dash -c "sleep 1"
+cmd: dash -c "uname -r"
 result: passed
 ---
 operation: Process
-condition: sleep
+condition: uname
 action: Block

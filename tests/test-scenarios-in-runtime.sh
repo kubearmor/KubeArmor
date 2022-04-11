@@ -21,44 +21,90 @@ realpath() {
 
 TEST_HOME=`dirname $(realpath "$0")`
 
-SKIP_CONTAINER_POLICY=0
+LSM="none"
+
+cat /sys/kernel/security/lsm | grep selinux > /dev/null 2>&1
+if [ $? == 0 ]; then
+    LSM="selinux"
+fi
+
+cat /sys/kernel/security/lsm | grep apparmor > /dev/null 2>&1
+if [ $? == 0 ]; then
+    LSM="apparmor"
+fi
+
+SKIP_CONTAINER_POLICY=1
 SKIP_NATIVE_POLICY=1
 SKIP_HOST_POLICY=1
-SKIP_NATIVE_HOST_POLICY=1
 
 case $1 in
+    "-testPolicy")
+        if [ "$LSM" == "selinux" ]; then
+            echo "KubeArmor does not support container policies in SELinux-enabled environments"
+            exit
+        fi
+
+        SKIP_CONTAINER_POLICY=0
+        SKIP_NATIVE_POLICY=1
+        SKIP_HOST_POLICY=1
+
+        ARMOR_OPTIONS=${@:2}
+        ;;
+
     "-testHostPolicy")
         SKIP_CONTAINER_POLICY=1
+        SKIP_NATIVE_POLICY=1
         SKIP_HOST_POLICY=0
+
+        ARMOR_OPTIONS=${@:2}
+        ARMOR_OPTIONS=(${ARMOR_OPTIONS[@]} "-enableKubeArmorHostPolicy")
         ;;
+
     "-testNativePolicy")
+        if [ "$LSM" != "apparmor" ]; then
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+            exit
+        fi
+
         SKIP_CONTAINER_POLICY=1
         SKIP_NATIVE_POLICY=0
-        SKIP_NATIVE_HOST_POLICY=0
+        SKIP_HOST_POLICY=1
+
+        ARMOR_OPTIONS=${@:2}
         ;;
-    "-testAll")
-        SKIP_CONTAINER_POLICY=0
-        SKIP_HOST_POLICY=0
-        SKIP_NATIVE_POLICY=0
-        SKIP_NATIVE_HOST_POLICY=0
-        ;;
+
     *)
+        if [ "$LSM" == "selinux" ]; then
+            echo "KubeArmor only supports host policies in SELinux-enabled environments"
+
+            SKIP_CONTAINER_POLICY=1
+            SKIP_NATIVE_POLICY=1
+            SKIP_HOST_POLICY=0
+
+            ARMOR_OPTIONS=$@
+            ARMOR_OPTIONS=(${ARMOR_OPTIONS[@]} "-enableKubeArmorHostPolicy")
+
+        elif [ "$LSM" == "apparmor" ]; then
+            SKIP_CONTAINER_POLICY=0
+            SKIP_NATIVE_POLICY=0
+            SKIP_HOST_POLICY=0
+
+            ARMOR_OPTIONS=$@
+
+        else # none
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+
+            SKIP_CONTAINER_POLICY=0
+            SKIP_NATIVE_POLICY=1
+            SKIP_HOST_POLICY=0
+
+            ARMOR_OPTIONS=$@
+        fi
         ;;
 esac
 
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
-
-APPARMOR=0
-cat /sys/kernel/security/lsm | grep apparmor > /dev/null 2>&1
-if [ $? == 0 ]; then
-    APPARMOR=1
-fi
-
-MINIKUBE=$(kubectl get nodes -l kubernetes.io/hostname=minikube 2> /dev/null | wc -l)
-if [ $MINIKUBE == 2 ]; then
-    APPARMOR=0
-fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -140,7 +186,7 @@ function should_not_find_any_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -150,7 +196,7 @@ function should_not_find_any_log() {
             DBG "Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -171,7 +217,7 @@ function should_find_passed_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -181,7 +227,7 @@ function should_find_passed_log() {
             DBG "[INFO] Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -201,17 +247,8 @@ function should_find_blocked_log() {
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
-    match_type="MatchedPolicy"
-    if [[ $6 -eq 1 ]]; then
-        match_type="MatchedNativePolicy" 
-    fi
-
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        if [[ $6 -eq 0 ]]; then
-            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"$2|DefaultPosture\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        else
-            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        fi
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2|DefaultPosture.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -221,11 +258,7 @@ function should_find_blocked_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        if [[ $6 -eq 0 ]]; then
-            audit_log=$(grep -E "$1.*policyName.*\"$2|DefaultPosture\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        else
-            audit_log=$(grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        fi
+        audit_log=$(grep -E "$1.*policyName.*$2|DefaultPosture.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -246,7 +279,7 @@ function should_not_find_any_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -256,7 +289,7 @@ function should_not_find_any_host_log() {
             DBG "[INFO] Found no log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -277,7 +310,7 @@ function should_find_passed_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -287,7 +320,7 @@ function should_find_passed_host_log() {
             DBG "[INFO] Found the log from logs"
         fi    
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -307,17 +340,8 @@ function should_find_blocked_host_log() {
     NODE=$(hostname)
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
-    match_type="MatchedHostPolicy"
-    if [[ $5 -eq 1 ]]; then
-        match_type="MatchedNativePolicy" 
-    fi
-
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        if [[ $5 -eq 0 ]]; then
-            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        else
-            audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*\"NativePolicy\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        fi
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1|DefaultPosture.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -327,11 +351,7 @@ function should_find_blocked_host_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        if [[ $5 -eq 0 ]]; then
-            audit_log=$(grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        else
-            audit_log=$(grep -E "$HOST_NAME.*policyName.*\"NativePolicy\".*$match_type.*$2.*resource.*$3.*$4" $ARMOR_LOG | tail -n 1 | grep -v Passed)
-        fi
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1|DefaultPosture.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -347,51 +367,36 @@ function run_test_scenario() {
     cd $1
 
     YAML_FILE=$(ls *.yaml)
-    policy_type=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
+    POLICY_TYPE=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
     POLICY=$(grep "name:" $YAML_FILE | head -n1 | awk '{ print $2}')
-    NATIVE=0
+    NATIVE_POLICY=0
     HOST_POLICY=0
-    NATIVE_HOST=0
 
-    if [[ $policy_type == "ksp" ]]; then
+    if [[ $POLICY_TYPE == "ksp" ]]; then
         if [ $SKIP_CONTAINER_POLICY == 1 ]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
-    elif [[ $policy_type == "nsp" ]]; then
+    elif [[ $POLICY_TYPE == "nsp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
-        if [ $APPARMOR == 0 ]; then
+        if [ "$LSM" != "apparmor" ]; then
+            WARN "Skipped $3"
+            skipped_testcases+=("$3")
+            return
+        elif [ $SKIP_NATIVE_POLICY == 1 ]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
-        if [ $SKIP_NATIVE_POLICY == 1 ]; then
-            WARN "Skipped $3"
-            skipped_testcases+=("$3")
-            return
-        fi
-        NATIVE=1
-    elif [[ $policy_type == "hsp" ]]; then
+        NATIVE_POLICY=1
+    elif [[ $POLICY_TYPE == "hsp" ]]; then
         if [ $SKIP_HOST_POLICY == 1 ]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
         HOST_POLICY=1
-    elif [[ $policy_type == "nhp" ]]; then
-        # skip a policy with a native profile unless AppArmor is enabled
-        if [ $APPARMOR == 0 ]; then
-            WARN "Skipped $3"
-            skipped_testcases+=("$3")
-            return
-        fi
-        if [ $SKIP_NATIVE_HOST_POLICY == 1 ]; then
-            WARN "Skipped $3"
-            skipped_testcases+=("$3")
-            return
-        fi
-        NATIVE_HOST=1
     else
         WARN "Skipped unknown testcase $3"
         skipped_testcases+=("$3")
@@ -399,7 +404,7 @@ function run_test_scenario() {
     fi
 
     DBG "Applying $YAML_FILE into $2"
-    if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
+    if [[ $HOST_POLICY -eq 1 ]]; then
         kubectl apply -f $YAML_FILE
     else
         kubectl apply -n $2 -f $YAML_FILE
@@ -421,7 +426,7 @@ function run_test_scenario() {
 
         SOURCE=$(cat $cmd | grep "^source" | awk '{print $2}')
         POD=""
-        if [[ $HOST_POLICY -eq 0 ]] && [[ $NATIVE_HOST -eq 0 ]]; then
+        if [[ $HOST_POLICY -eq 0 ]]; then
             POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
         fi
         CMD=$(cat $cmd | grep "^cmd" | cut -d' ' -f2-)
@@ -431,8 +436,8 @@ function run_test_scenario() {
         COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
 
-        # if AppArmor is not enabled
-        if [ $APPARMOR == 0 ]; then
+        # if AppArmor and SELinux are not enabled
+        if [ "$LSM" == "none" ]; then
             # replace Block with Audit
             if [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "failed" ]; then
@@ -453,7 +458,7 @@ function run_test_scenario() {
         actual_res="passed"
 
         DBG "Running \"$CMD\""
-        if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
+        if [[ $HOST_POLICY -eq 1 ]]; then
             bash -c ''"${CMD}"''
         else
             echo kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
@@ -470,7 +475,7 @@ function run_test_scenario() {
                     should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
@@ -478,7 +483,7 @@ function run_test_scenario() {
                     should_find_passed_log $POD $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
@@ -486,7 +491,7 @@ function run_test_scenario() {
                     should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION
                 fi
             fi
         else
@@ -496,7 +501,7 @@ function run_test_scenario() {
                     should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
@@ -504,7 +509,7 @@ function run_test_scenario() {
                     should_find_passed_host_log $POLICY $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
@@ -512,7 +517,7 @@ function run_test_scenario() {
                     should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY $OP $COND $ACTION
                 fi
             fi
         fi
@@ -558,7 +563,7 @@ function run_test_scenario() {
     fi
 
     DBG "Deleting $YAML_FILE from $2"
-    if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
+    if [[ $HOST_POLICY -eq 1 ]]; then
         kubectl delete -f $YAML_FILE
     else
         kubectl delete -n $2 -f $YAML_FILE
@@ -577,7 +582,6 @@ function run_test_scenario() {
 
 if [[ ! "$(ps -f --pid $(pidof kubearmor) 2> /dev/null | cat | grep enableKubeArmorHostPolicy)" != "" ]]; then
     SKIP_HOST_POLICY=1
-    SKIP_NATIVE_HOST_POLICY=1
 fi
 
 total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -ld $TEST_HOME/host_scenarios/$(hostname)_* 2> /dev/null | grep ^d | wc -l))
@@ -701,7 +705,7 @@ fi
 HOST_NAME="$(hostname)"
 res_host=0
 
-if [[ $SKIP_HOST_POLICY -eq 0 || $SKIP_NATIVE_HOST_POLICY -eq 0 ]]; then
+if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
     INFO "Running Host Scenarios"
 
     cd $TEST_HOME/host_scenarios

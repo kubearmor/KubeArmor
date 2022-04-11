@@ -1,7 +1,7 @@
 source: ubuntu-1-deployment
-cmd: cat /credentials/password
+cmd: cat /credentials/keys/priv.key
 result: passed
 ---
 operation: File
-condition: /credentials/password
+condition: /credentials/keys/priv.key
 action: Audit
