@@ -59,8 +59,7 @@ type EndPoint struct {
 
 	// == //
 
-	PolicyEnabled int `json:"policyEnabled"`
-
+	PolicyEnabled  int            `json:"policyEnabled"`
 	DefaultPosture DefaultPosture `json:"defaultPosture"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
@@ -199,6 +198,9 @@ type Log struct {
 	ParentProcessName string `json:"parentProcessName"`
 	ProcessName       string `json:"processName"`
 
+	// enforcer
+	Enforcer string `json:"enforcer,omitempty"`
+
 	// policy
 	PolicyName string `json:"policyName,omitempty"`
 
@@ -242,6 +244,7 @@ type MatchPolicy struct {
 	IsFromSource bool
 	OwnerOnly    bool
 	ReadOnly     bool
+	Recursive    bool
 
 	Regexp *regexp.Regexp
 	Native bool
@@ -519,8 +522,11 @@ type PidNode struct {
 	PID  uint32
 	UID  uint32
 
-	ExecPath string
-	Args     string
+	ParentExecPath string
+	ExecPath       string
+
+	Source string
+	Args   string
 
 	Exited     bool
 	ExitedTime time.Time

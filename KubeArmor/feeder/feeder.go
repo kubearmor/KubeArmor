@@ -286,12 +286,15 @@ type Feeder struct {
 	SecurityPolicies     map[string]tp.MatchPolicies
 	SecurityPoliciesLock *sync.RWMutex
 
-	//DefaultPosture (namespace -> postures)
+	// DefaultPosture (namespace -> postures)
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
 
 	// GKE
 	IsGKE bool
+
+	// Activated Enforcer
+	Enforcer string
 }
 
 // NewFeeder Function
@@ -352,6 +355,7 @@ func NewFeeder(node *tp.Node) *Feeder {
 	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
 	fd.SecurityPoliciesLock = new(sync.RWMutex)
 
+	// initialize default postures
 	fd.DefaultPostures = map[string]tp.DefaultPosture{}
 	fd.DefaultPosturesLock = new(sync.Mutex)
 
@@ -364,6 +368,9 @@ func NewFeeder(node *tp.Node) *Feeder {
 			}
 		}
 	}
+
+	// default enforcer
+	fd.Enforcer = "eBPF Monitor"
 
 	return fd
 }
@@ -473,6 +480,15 @@ func (fd *Feeder) Warnf(message string, args ...interface{}) {
 	kg.Warnf(str)
 }
 
+// ===================== //
+// == Enforcer Update == //
+// ===================== //
+
+// UpdateEnforcer Function
+func (fd *Feeder) UpdateEnforcer(enforcer string) {
+	fd.Enforcer = enforcer
+}
+
 // =============== //
 // == Log Feeds == //
 // =============== //
@@ -549,7 +565,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "MatchedNativePolicy" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
 		pbAlert := pb.Alert{}
 
 		pbAlert.Timestamp = log.Timestamp
@@ -573,6 +589,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.ParentProcessName = log.ParentProcessName
 		pbAlert.ProcessName = log.ProcessName
+
+		if len(log.Enforcer) > 0 {
+			pbAlert.Enforcer = log.Enforcer
+		}
 
 		if len(log.PolicyName) > 0 {
 			pbAlert.PolicyName = log.PolicyName

@@ -242,7 +242,6 @@ func (mon *SystemMonitor) InitBPF() error {
 	bpfPath := homeDir + "/BPF/system_monitor.c"
 	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 		// go test
-
 		bpfPath = os.Getenv("PWD") + "/../BPF/system_monitor.c"
 		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 			return err
@@ -508,7 +507,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
+					pidNode := mon.BuildPidNode(containerID, ctx, args[0].(string), args[1].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
@@ -542,9 +541,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(execLogMap, ctx.HostPID)
 
 					// update the log again
-					if !strings.HasPrefix(log.Source, "/") {
-						log = mon.UpdateLogBase(ctx.EventID, log)
-					}
+					log = mon.UpdateLogBase(ctx.EventID, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -568,7 +565,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
+					pidNode := mon.BuildPidNode(containerID, ctx, args[1].(string), args[2].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
@@ -611,9 +608,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(execLogMap, ctx.HostPID)
 
 					// update the log again
-					if !strings.HasPrefix(log.Source, "/") {
-						log = mon.UpdateLogBase(ctx.EventID, log)
-					}
+					log = mon.UpdateLogBase(ctx.EventID, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -695,7 +690,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
+					pidNode := mon.BuildPidNode("", ctx, args[0].(string), args[1].([]string))
 					mon.AddActivePid("", pidNode)
 
 					// generate a log with the base information
@@ -755,7 +750,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
+					pidNode := mon.BuildPidNode("", ctx, args[1].(string), args[2].([]string))
 					mon.AddActivePid("", pidNode)
 
 					// generate a log with the base information

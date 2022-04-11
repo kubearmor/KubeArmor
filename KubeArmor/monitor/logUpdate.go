@@ -4,9 +4,9 @@
 package monitor
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -68,15 +68,7 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.PID = int32(msg.ContextSys.PID)
 	log.UID = int32(msg.ContextSys.UID)
 
-	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPPID)
-	} else { // otherwise
-		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
-	}
-
-	if log.Source == "" {
-		log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
-	}
+	log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
 
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
 	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)
@@ -86,13 +78,35 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 // UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
 func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
-	source := mon.GetCommand(log.ContainerID, uint32(log.HostPPID))
-	if source != "" {
-		log.Source = source
+	if log.ParentProcessName == "" || strings.HasPrefix(log.ParentProcessName, "/") {
+		parentProcessName := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
+		if parentProcessName != "" {
+			log.ParentProcessName = parentProcessName
+		}
 	}
 
-	log.ParentProcessName = mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
-	log.ProcessName = mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+	if log.ProcessName == "" || strings.HasPrefix(log.ProcessName, "/") {
+		processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+		if processName != "" {
+			log.ProcessName = processName
+		}
+	}
+
+	if log.Source == "" || strings.HasPrefix(log.Source, "/") {
+		source := mon.GetCommand(log.ContainerID, uint32(log.HostPID))
+		if source != "" {
+			log.Source = source
+		}
+	}
+
+	if !strings.HasPrefix(log.Resource, "/") {
+		resource := strings.Split(log.Resource, " ")
+		if len(resource) == 1 {
+			log.Resource = log.Source
+		} else {
+			log.Resource = log.Source + " " + strings.Join(resource[1:], " ")
+		}
+	}
 
 	return log
 }

@@ -62,26 +62,22 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 		if re.appArmorEnforcer != nil {
 			re.Logger.Print("Initialized AppArmor Enforcer")
 			re.EnforcerType = "AppArmor"
-		} else {
-			return nil
+			logger.UpdateEnforcer(re.EnforcerType)
+			return re
 		}
 	} else if strings.Contains(re.EnforcerType, "selinux") {
-		if kl.IsK8sLocal() {
+		if !kl.IsInK8sCluster() {
 			re.seLinuxEnforcer = NewSELinuxEnforcer(node, logger)
 			if re.seLinuxEnforcer != nil {
 				re.Logger.Print("Initialized SELinux Enforcer")
 				re.EnforcerType = "SELinux"
-			} else {
-				return nil
+				logger.UpdateEnforcer(re.EnforcerType)
+				return re
 			}
-		} else {
-			return nil
 		}
-	} else {
-		return nil
 	}
 
-	return re
+	return nil
 }
 
 // UpdateAppArmorProfiles Function

@@ -502,6 +502,13 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							pod.Annotations["kubearmor-policy"] = "audited"
 						}
 					}
+
+					if kl.IsInK8sCluster() && strings.Contains(string(lsm), "selinux") {
+						// exception: KubeArmor in a daemonset even though SELinux is enabled
+						if pod.Annotations["kubearmor-policy"] == "enabled" {
+							pod.Annotations["kubearmor-policy"] = "audited"
+						}
+					}
 				}
 
 				// == Exception == //
@@ -1665,21 +1672,6 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 // == HostPolicy Backup & Restore == //
 // ================================= //
 
-// removeBackUpPolicy Function
-func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
-
-	fname := cfg.PolicyDir + name + ".yaml"
-	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
-	if _, err := os.Stat(fname); err != nil {
-		kg.Printf("Backup policy [%v] not exist", fname)
-		return
-	}
-
-	if err := os.Remove(fname); err != nil {
-		kg.Errf("unable to delete file:%s err=%s", fname, err.Error())
-	}
-}
-
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
@@ -1729,30 +1721,24 @@ func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
 	}
 }
 
-// WatchDefaultPosture Function
-func (dm *KubeArmorDaemon) WatchDefaultPosture() {
-	nsWatcher, err := K8s.K8sClient.CoreV1().Namespaces().Watch(context.Background(), metav1.ListOptions{})
-	defer nsWatcher.Stop()
-	if err == nil {
-		for resp := range nsWatcher.ResultChan() {
-			if resp.Type == watch.Modified || resp.Type == watch.Added {
-				if ns, ok := resp.Object.(*corev1.Namespace); ok {
-					defaultPosture := tp.DefaultPosture{
-						FileAction:         validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture),
-						NetworkAction:      validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture),
-						CapabilitiesAction: validateDefaultPosture("kubearmor-capabilities-posture", ns, cfg.GlobalCfg.DefaultCapabilitiesPosture),
-					}
-					dm.UpdateDefaultPosture(string(resp.Type), ns.Name, defaultPosture)
+// removeBackUpPolicy Function
+func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
 
-				}
-			} else if resp.Type == watch.Deleted {
-				if ns, ok := resp.Object.(*corev1.Namespace); ok {
-					dm.UpdateDefaultPosture(string(resp.Type), ns.Name, tp.DefaultPosture{})
-				}
-			}
-		}
+	fname := cfg.PolicyDir + name + ".yaml"
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
+	if _, err := os.Stat(fname); err != nil {
+		kg.Printf("Backup policy [%v] not exist", fname)
+		return
+	}
+
+	if err := os.Remove(fname); err != nil {
+		kg.Errf("unable to delete file:%s err=%s", fname, err.Error())
 	}
 }
+
+// ===================== //
+// == Default Posture == //
+// ===================== //
 
 func validateDefaultPosture(key string, ns *corev1.Namespace, defaultPosture string) string {
 	if posture, ok := ns.Annotations[key]; ok {
@@ -1804,6 +1790,31 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 						// enforce security policies
 						dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
 					}
+				}
+			}
+		}
+	}
+}
+
+// WatchDefaultPosture Function
+func (dm *KubeArmorDaemon) WatchDefaultPosture() {
+	nsWatcher, err := K8s.K8sClient.CoreV1().Namespaces().Watch(context.Background(), metav1.ListOptions{})
+	defer nsWatcher.Stop()
+	if err == nil {
+		for resp := range nsWatcher.ResultChan() {
+			if resp.Type == watch.Modified || resp.Type == watch.Added {
+				if ns, ok := resp.Object.(*corev1.Namespace); ok {
+					defaultPosture := tp.DefaultPosture{
+						FileAction:         validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture),
+						NetworkAction:      validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture),
+						CapabilitiesAction: validateDefaultPosture("kubearmor-capabilities-posture", ns, cfg.GlobalCfg.DefaultCapabilitiesPosture),
+					}
+					dm.UpdateDefaultPosture(string(resp.Type), ns.Name, defaultPosture)
+
+				}
+			} else if resp.Type == watch.Deleted {
+				if ns, ok := resp.Object.(*corev1.Namespace); ok {
+					dm.UpdateDefaultPosture(string(resp.Type), ns.Name, tp.DefaultPosture{})
 				}
 			}
 		}

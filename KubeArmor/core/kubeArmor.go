@@ -338,50 +338,53 @@ func KubeArmor() {
 		dm.Node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
-		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
-
-		cfg.GlobalCfg.Policy = false
-		cfg.GlobalCfg.HostPolicy = true
-
 		kg.Print("Updated the node information")
 
-	} else if K8s.InitK8sClient() {
-		kg.Print("Initialized Kubernetes client")
+	} else if cfg.GlobalCfg.K8sEnv {
+		if K8s.InitK8sClient() {
+			kg.Print("Initialized Kubernetes client")
 
-		// set the flag
-		dm.K8sEnabled = true
+			// set the flag
+			dm.K8sEnabled = true
 
-		// watch k8s nodes
-		go dm.WatchK8sNodes()
-		kg.Print("Started to monitor node events")
+			// watch k8s nodes
+			go dm.WatchK8sNodes()
+			kg.Print("Started to monitor node events")
 
-		// == //
+			// == //
 
-		// wait for a while
-		time.Sleep(time.Second * 1)
+			// wait for a while
+			time.Sleep(time.Second * 1)
 
-		if dm.Node.NodeIP == "" {
-			for timeout := 0; timeout <= 60; timeout++ {
-				if dm.Node.NodeIP != "" {
-					break
+			if dm.Node.NodeIP == "" {
+				for timeout := 0; timeout <= 60; timeout++ {
+					if dm.Node.NodeIP != "" {
+						break
+					}
+
+					if dm.Node.NodeIP == "" && timeout == 60 {
+						kg.Print("The node information is not available, terminating KubeArmor")
+
+						// destroy the daemon
+						dm.DestroyKubeArmorDaemon()
+
+						return
+					}
+
+					kg.Print("The node information is not available")
+
+					// wait for a while
+					time.Sleep(time.Second * 1)
 				}
-
-				if dm.Node.NodeIP == "" && timeout == 60 {
-					kg.Print("The node information is not available, terminating KubeArmor")
-
-					// destroy the daemon
-					dm.DestroyKubeArmorDaemon()
-
-					return
-				}
-
-				kg.Print("The node information is not available")
-
-				// wait for a while
-				time.Sleep(time.Second * 1)
 			}
-		}
+		} else {
+			kg.Err("Failed to initialize Kubernetes client")
 
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
 	}
 
 	// == //
@@ -525,7 +528,7 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor host security policies")
 	}
 
-	if !dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
+	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy {
 		policyService := &policy.ServiceServer{}
 		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
 
@@ -545,7 +548,7 @@ func KubeArmor() {
 
 	// == //
 
-	if !cfg.GlobalCfg.K8sEnv && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.HostPolicy) {
+	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
 		// Restore and apply all kubearmor host security policies
 		dm.restoreKubeArmorHostPolicies()
 	}
