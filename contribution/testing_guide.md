@@ -163,7 +163,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-local.sh -testAll
+    ~/KubeArmor/tests$ ./test-scenarios-local.sh
     ```
 
     Check the test report
@@ -178,7 +178,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh -testAll
+    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh
     ```
 
     Check the test report
