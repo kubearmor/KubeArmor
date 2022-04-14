@@ -330,7 +330,7 @@ func NewFeeder(node *tp.Node) *Feeder {
 		}
 
 		port := fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port)
-		fd.Port = port
+		fd.Port = fmt.Sprintf(":%s", port)
 
 		_, err = pidFile.WriteString(port)
 		if err != nil {
