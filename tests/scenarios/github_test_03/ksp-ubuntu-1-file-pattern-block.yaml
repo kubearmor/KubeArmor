@@ -11,6 +11,6 @@ spec:
       container: ubuntu-1
   file:
     matchPatterns:
-    - pattern: /etc/*hado? # try open /etc/shadow or /etc/gshadow (permission denied)
+    - pattern: /etc/*hado?
   action:
     Block

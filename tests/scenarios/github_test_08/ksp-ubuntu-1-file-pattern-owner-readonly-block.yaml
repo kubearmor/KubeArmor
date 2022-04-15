@@ -10,9 +10,9 @@ spec:
     matchLabels:
       container: ubuntu-1
   file:
-    matchPatterns: # echo testroot >> /home/user1/secret_data1.txt (permission denied)
-    - pattern: /home/user1/secret_data* # su - user1 -c "echo test >> /home/user1/secret_data1.txt" (permission denied)
-      ownerOnly: true # cat /home/user1/secret_data1.txt (permission denied)
-      readOnly: true # su - user1 -c "cat /home/user1/secret_data1.txt" (success)
+    matchPatterns:
+    - pattern: /home/user1/secret_data*
+      ownerOnly: true
+      readOnly: true
   action:
     Block

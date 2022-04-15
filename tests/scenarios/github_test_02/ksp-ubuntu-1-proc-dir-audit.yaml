@@ -1,20 +1,17 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-ubuntu-1-proc-dir-allow
+  name: ksp-ubuntu-1-proc-dir-audit
   namespace: github
 spec:
   severity: 5
-  message: "allow credentials only"
+  message: "audit credentials"
   selector:
     matchLabels:
       container: ubuntu-1
-  process:
-    matchDirectories:
-    - dir: /bin/
   file:
     matchDirectories:
-    - dir: /credentials/ # allow accessing the files in this directory; otherwise, deny all
+    - dir: /credentials/
       recursive: true
   action:
     Audit

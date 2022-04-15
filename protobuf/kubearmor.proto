@@ -64,6 +64,8 @@ message Alert {
   string ProcessName = 26;
 
   int32 HostPPID = 27;
+
+  string Enforcer = 28;
 }
 
 // log struct

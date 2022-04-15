@@ -31,6 +31,7 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *
 				// remove line from WhiteList
 				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index-numOfRemovedElements)
 				numOfRemovedElements = numOfRemovedElements + 1
+
 				break
 			}
 		}
@@ -41,42 +42,51 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *
 
 // AllowedProcessMatchPaths Function
 func (ae *AppArmorEnforcer) AllowedProcessMatchPaths(path tp.ProcessPathType, processWhiteList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(path.FromSource) == 0 {
+		line := ""
+
 		if path.OwnerOnly {
 			line = fmt.Sprintf("  owner %s ix,\n", path.Path)
 		} else { // !path.OwnerOnly
 			line = fmt.Sprintf("  %s ix,\n", path.Path)
 		}
+
 		if !kl.ContainsElement(*processWhiteList, line) {
 			*processWhiteList = append(*processWhiteList, line)
 		}
-	} else {
-		for _, src := range path.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s ix,\n", path.Path)
-			} else { // !path.OwnerOnly
-				line = fmt.Sprintf("  %s ix,\n", path.Path)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		return
+	}
+
+	for _, src := range path.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if path.OwnerOnly {
+			line = fmt.Sprintf("  owner %s ix,\n", path.Path)
+		} else { // !path.OwnerOnly
+			line = fmt.Sprintf("  %s ix,\n", path.Path)
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // AllowedProcessMatchDirectories Function
 func (ae *AppArmorEnforcer) AllowedProcessMatchDirectories(dir tp.ProcessDirectoryType, processWhiteList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(dir.FromSource) == 0 {
+		line := ""
+
 		if dir.Recursive && dir.OwnerOnly {
 			line = fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
 		} else if dir.Recursive && !dir.OwnerOnly {
@@ -86,43 +96,52 @@ func (ae *AppArmorEnforcer) AllowedProcessMatchDirectories(dir tp.ProcessDirecto
 		} else { // !dir.Recursive && !dir.OwnerOnly
 			line = fmt.Sprintf("  %s* ix,\n", dir.Directory)
 		}
+
 		if !kl.ContainsElement(*processWhiteList, line) {
 			*processWhiteList = append(*processWhiteList, line)
 		}
-	} else {
-		for _, src := range dir.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if dir.Recursive && dir.OwnerOnly {
-				line = fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-			} else if dir.Recursive && !dir.OwnerOnly {
-				line = fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
-			} else if !dir.Recursive && dir.OwnerOnly {
-				line = fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				line = fmt.Sprintf("  %s* ix,\n", dir.Directory)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		return
+	}
+
+	for _, src := range dir.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if dir.Recursive && dir.OwnerOnly {
+			line = fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
+		} else if dir.Recursive && !dir.OwnerOnly {
+			line = fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
+		} else if !dir.Recursive && dir.OwnerOnly {
+			line = fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
+		} else { // !dir.Recursive && !dir.OwnerOnly
+			line = fmt.Sprintf("  %s* ix,\n", dir.Directory)
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // AllowedProcessMatchPatterns Function
 func (ae *AppArmorEnforcer) AllowedProcessMatchPatterns(pat tp.ProcessPatternType, processWhiteList *[]string) {
-	var line string
+	line := ""
+
 	if pat.OwnerOnly {
 		line = fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
 	} else { // !pat.OwnerOnly
 		line = fmt.Sprintf("  %s* ix,\n", pat.Pattern)
 	}
+
 	if !kl.ContainsElement(*processWhiteList, line) {
 		*processWhiteList = append(*processWhiteList, line)
 	}
@@ -130,8 +149,9 @@ func (ae *AppArmorEnforcer) AllowedProcessMatchPatterns(pat tp.ProcessPatternTyp
 
 // AllowedFileMatchPaths Function
 func (ae *AppArmorEnforcer) AllowedFileMatchPaths(path tp.FilePathType, fileWhiteList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(path.FromSource) == 0 {
+		line := ""
+
 		if path.ReadOnly && path.OwnerOnly {
 			line = fmt.Sprintf("  owner %s r,\n", path.Path)
 		} else if path.ReadOnly && !path.OwnerOnly {
@@ -141,39 +161,47 @@ func (ae *AppArmorEnforcer) AllowedFileMatchPaths(path tp.FilePathType, fileWhit
 		} else { // !path.ReadOnly && !path.OwnerOnly
 			line = fmt.Sprintf("  %s rw,\n", path.Path)
 		}
+
 		if !kl.ContainsElement(*fileWhiteList, line) {
 			*fileWhiteList = append(*fileWhiteList, line)
 		}
-	} else {
-		for _, src := range path.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if path.ReadOnly && path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s r,\n", path.Path)
-			} else if path.ReadOnly && !path.OwnerOnly {
-				line = fmt.Sprintf("  %s r,\n", path.Path)
-			} else if !path.ReadOnly && path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s rw,\n", path.Path)
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				line = fmt.Sprintf("  %s rw,\n", path.Path)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		return
+	}
+
+	for _, src := range path.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if path.ReadOnly && path.OwnerOnly {
+			line = fmt.Sprintf("  owner %s r,\n", path.Path)
+		} else if path.ReadOnly && !path.OwnerOnly {
+			line = fmt.Sprintf("  %s r,\n", path.Path)
+		} else if !path.ReadOnly && path.OwnerOnly {
+			line = fmt.Sprintf("  owner %s rw,\n", path.Path)
+		} else { // !path.ReadOnly && !path.OwnerOnly
+			line = fmt.Sprintf("  %s rw,\n", path.Path)
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // AllowedFileMatchDirectories Function
 func (ae *AppArmorEnforcer) AllowedFileMatchDirectories(dir tp.FileDirectoryType, fileWhiteList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(dir.FromSource) == 0 {
+		line := ""
+
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
 				line = fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
@@ -199,54 +227,62 @@ func (ae *AppArmorEnforcer) AllowedFileMatchDirectories(dir tp.FileDirectoryType
 				line = fmt.Sprintf("  %s* rw,\n", dir.Directory)
 			}
 		}
+
 		if !kl.ContainsElement(*fileWhiteList, line) {
 			*fileWhiteList = append(*fileWhiteList, line)
 		}
-	} else {
-		for _, src := range dir.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  %s* r,\n", dir.Directory)
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					line = fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  %s* rw,\n", dir.Directory)
-				}
+		return
+	}
+
+	for _, src := range dir.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if dir.ReadOnly && dir.OwnerOnly {
+			if dir.Recursive {
+				line = fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
+			} else {
+				line = fmt.Sprintf("  owner %s* r,\n", dir.Directory)
 			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
+		} else if dir.ReadOnly && !dir.OwnerOnly {
+			if dir.Recursive {
+				line = fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
+			} else {
+				line = fmt.Sprintf("  %s* r,\n", dir.Directory)
 			}
+		} else if !dir.ReadOnly && dir.OwnerOnly {
+			if dir.Recursive {
+				line = fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
+			} else {
+				line = fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
+			}
+		} else { // !dir.ReadOnly && !dir.OwnerOnly
+			if dir.Recursive {
+				line = fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
+			} else {
+				line = fmt.Sprintf("  %s* rw,\n", dir.Directory)
+			}
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // AllowedFileMatchPatterns Function
 func (ae *AppArmorEnforcer) AllowedFileMatchPatterns(pat tp.FilePatternType, fileWhiteList *[]string) {
-	var line string
+	line := ""
+
 	if pat.ReadOnly && pat.OwnerOnly {
 		line = fmt.Sprintf("  owner %s r,\n", pat.Pattern)
 	} else if pat.ReadOnly && !pat.OwnerOnly {
@@ -256,6 +292,7 @@ func (ae *AppArmorEnforcer) AllowedFileMatchPatterns(pat tp.FilePatternType, fil
 	} else { // !pat.ReadOnly && !pat.OwnerOnly
 		line = fmt.Sprintf("  %s rw,\n", pat.Pattern)
 	}
+
 	if !kl.ContainsElement(*fileWhiteList, line) {
 		*fileWhiteList = append(*fileWhiteList, line)
 	}
@@ -268,20 +305,22 @@ func (ae *AppArmorEnforcer) AllowedNetworkMatchProtocols(proto tp.NetworkProtoco
 		if !kl.ContainsElement(*networkWhiteList, line) {
 			*networkWhiteList = append(*networkWhiteList, line)
 		}
-	} else {
-		for _, src := range proto.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
+		return
+	}
 
-			line := fmt.Sprintf("  network %s,\n", proto.Protocol)
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+	for _, src := range proto.FromSource {
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		line := fmt.Sprintf("  network %s,\n", proto.Protocol)
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
@@ -293,245 +332,23 @@ func (ae *AppArmorEnforcer) AllowedCapabilitiesMatchCapabilities(cap tp.Capabili
 		if !kl.ContainsElement(*capabilityWhiteList, line) {
 			*capabilityWhiteList = append(*capabilityWhiteList, line)
 		}
-	} else {
-		for _, src := range cap.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
-
-			line := fmt.Sprintf("  capability %s,\n", cap.Capability)
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
-		}
+		return
 	}
-}
 
-//
+	for _, src := range cap.FromSource {
+		if len(src.Path) == 0 {
+			continue
+		}
 
-// AuditedProcessMatchPaths Function
-func (ae *AppArmorEnforcer) AuditedProcessMatchPaths(path tp.ProcessPathType, processAuditList *[]string, fromSources map[string][]string) {
-	var line string
-	if len(path.FromSource) == 0 {
-		if path.OwnerOnly {
-			line = fmt.Sprintf("  owner %s ix,\n", path.Path)
-		} else { // !path.OwnerOnly
-			line = fmt.Sprintf("  %s ix,\n", path.Path)
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
 		}
-		if !kl.ContainsElement(*processAuditList, line) {
-			*processAuditList = append(*processAuditList, line)
-		}
-	} else {
-		for _, src := range path.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s ix,\n", path.Path)
-			} else { // !path.OwnerOnly
-				line = fmt.Sprintf("  %s ix,\n", path.Path)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		line := fmt.Sprintf("  capability %s,\n", cap.Capability)
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
-	}
-}
-
-// AuditedProcessMatchDirectories Function
-func (ae *AppArmorEnforcer) AuditedProcessMatchDirectories(dir tp.ProcessDirectoryType, processAuditList *[]string, fromSources map[string][]string) {
-	var line string
-	if len(dir.FromSource) == 0 {
-		if dir.Recursive && dir.OwnerOnly {
-			line = fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-		} else if dir.Recursive && !dir.OwnerOnly {
-			line = fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
-		} else if !dir.Recursive && dir.OwnerOnly {
-			line = fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-		} else { // !dir.Recursive && !dir.OwnerOnly
-			line = fmt.Sprintf("  %s* ix,\n", dir.Directory)
-		}
-		if !kl.ContainsElement(*processAuditList, line) {
-			*processAuditList = append(*processAuditList, line)
-		}
-	} else {
-		for _, src := range dir.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
-
-			if dir.Recursive && dir.OwnerOnly {
-				line = fmt.Sprintf("  owner %s{*,**} ix,\n", dir.Directory)
-			} else if dir.Recursive && !dir.OwnerOnly {
-				line = fmt.Sprintf("  %s{*,**} ix,\n", dir.Directory)
-			} else if !dir.Recursive && dir.OwnerOnly {
-				line = fmt.Sprintf("  owner %s* ix,\n", dir.Directory)
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				line = fmt.Sprintf("  %s* ix,\n", dir.Directory)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
-		}
-	}
-}
-
-// AuditedProcessMatchPatterns Function
-func (ae *AppArmorEnforcer) AuditedProcessMatchPatterns(pat tp.ProcessPatternType, processAuditList *[]string) {
-	var line string
-	if pat.OwnerOnly {
-		line = fmt.Sprintf("  owner %s ix,\n", pat.Pattern)
-	} else { // !pat.OwnerOnly
-		line = fmt.Sprintf("  %s* ix,\n", pat.Pattern)
-	}
-	if !kl.ContainsElement(*processAuditList, line) {
-		*processAuditList = append(*processAuditList, line)
-	}
-}
-
-// AuditedFileMatchPaths Function
-func (ae *AppArmorEnforcer) AuditedFileMatchPaths(path tp.FilePathType, fileAuditList *[]string, fromSources map[string][]string) {
-	var line string
-	if len(path.FromSource) == 0 {
-		if path.ReadOnly && path.OwnerOnly {
-			line = fmt.Sprintf("  owner %s r,\n", path.Path)
-		} else if path.ReadOnly && !path.OwnerOnly {
-			line = fmt.Sprintf("  %s r,\n", path.Path)
-		} else if !path.ReadOnly && path.OwnerOnly {
-			line = fmt.Sprintf("  owner %s rw,\n", path.Path)
-		} else { // !path.ReadOnly && !path.OwnerOnly
-			line = fmt.Sprintf("  %s rw,\n", path.Path)
-		}
-		if !kl.ContainsElement(*fileAuditList, line) {
-			*fileAuditList = append(*fileAuditList, line)
-		}
-	} else {
-		for _, src := range path.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
-
-			if path.ReadOnly && path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s r,\n", path.Path)
-			} else if path.ReadOnly && !path.OwnerOnly {
-				line = fmt.Sprintf("  %s r,\n", path.Path)
-			} else if !path.ReadOnly && path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s rw,\n", path.Path)
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				line = fmt.Sprintf("  %s rw,\n", path.Path)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
-		}
-	}
-}
-
-// AuditedFileMatchDirectories Function
-func (ae *AppArmorEnforcer) AuditedFileMatchDirectories(dir tp.FileDirectoryType, fileAuditList *[]string, fromSources map[string][]string) {
-	var line string
-	if len(dir.FromSource) == 0 {
-		if dir.ReadOnly && dir.OwnerOnly {
-			if dir.Recursive {
-				line = fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-			} else {
-				line = fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-			}
-		} else if dir.ReadOnly && !dir.OwnerOnly {
-			if dir.Recursive {
-				line = fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
-			} else {
-				line = fmt.Sprintf("  %s* r,\n", dir.Directory)
-			}
-		} else if !dir.ReadOnly && dir.OwnerOnly {
-			if dir.Recursive {
-				line = fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-			} else {
-				line = fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-			}
-		} else { // !dir.ReadOnly && !dir.OwnerOnly
-			if dir.Recursive {
-				line = fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
-			} else {
-				line = fmt.Sprintf("  %s* rw,\n", dir.Directory)
-			}
-		}
-		if !kl.ContainsElement(*fileAuditList, line) {
-			*fileAuditList = append(*fileAuditList, line)
-		}
-	} else {
-		for _, src := range dir.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
-
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  owner %s{*,**} r,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  owner %s* r,\n", dir.Directory)
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  %s{*,**} r,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  %s* r,\n", dir.Directory)
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  owner %s{*,**} rw,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  owner %s* rw,\n", dir.Directory)
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					line = fmt.Sprintf("  %s{*,**} rw,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  %s* rw,\n", dir.Directory)
-				}
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
-		}
-	}
-}
-
-// AuditedFileMatchPatterns Function
-func (ae *AppArmorEnforcer) AuditedFileMatchPatterns(pat tp.FilePatternType, fileAuditList *[]string) {
-	var line string
-	if pat.ReadOnly && pat.OwnerOnly {
-		line = fmt.Sprintf("  owner %s r,\n", pat.Pattern)
-	} else if pat.ReadOnly && !pat.OwnerOnly {
-		line = fmt.Sprintf("  %s r,\n", pat.Pattern)
-	} else if !pat.ReadOnly && pat.OwnerOnly {
-		line = fmt.Sprintf("  owner %s rw,\n", pat.Pattern)
-	} else { // !pat.ReadOnly && !pat.OwnerOnly
-		line = fmt.Sprintf("  %s rw,\n", pat.Pattern)
-	}
-	if !kl.ContainsElement(*fileAuditList, line) {
-		*fileAuditList = append(*fileAuditList, line)
 	}
 }
 
@@ -539,42 +356,51 @@ func (ae *AppArmorEnforcer) AuditedFileMatchPatterns(pat tp.FilePatternType, fil
 
 // BlockedProcessMatchPaths Function
 func (ae *AppArmorEnforcer) BlockedProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(path.FromSource) == 0 {
+		line := ""
+
 		if path.OwnerOnly {
 			line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
 		} else { // !path.OwnerOnly
 			line = fmt.Sprintf("  deny %s x,\n", path.Path)
 		}
+
 		if !kl.ContainsElement(*processBlackList, line) {
 			*processBlackList = append(*processBlackList, line)
 		}
-	} else {
-		for _, src := range path.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
-			} else { // !path.OwnerOnly
-				line = fmt.Sprintf("  deny %s x,\n", path.Path)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		return
+	}
+
+	for _, src := range path.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if path.OwnerOnly {
+			line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
+		} else { // !path.OwnerOnly
+			line = fmt.Sprintf("  deny %s x,\n", path.Path)
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // BlockedProcessMatchDirectories Function
 func (ae *AppArmorEnforcer) BlockedProcessMatchDirectories(dir tp.ProcessDirectoryType, processBlackList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(dir.FromSource) == 0 {
+		line := ""
+
 		if dir.Recursive && dir.OwnerOnly {
 			line = fmt.Sprintf("  owner %s{*,**} ix,\n  deny other %s{*,**} x,\n", dir.Directory, dir.Directory)
 		} else if dir.Recursive && !dir.OwnerOnly {
@@ -584,43 +410,52 @@ func (ae *AppArmorEnforcer) BlockedProcessMatchDirectories(dir tp.ProcessDirecto
 		} else { // !dir.Recursive && !dir.OwnerOnly
 			line = fmt.Sprintf("  deny %s* x,\n", dir.Directory)
 		}
+
 		if !kl.ContainsElement(*processBlackList, line) {
 			*processBlackList = append(*processBlackList, line)
 		}
-	} else {
-		for _, src := range dir.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if dir.Recursive && dir.OwnerOnly {
-				line = fmt.Sprintf("  owner %s{*,**} ix,\n  deny other %s{*,**} x,\n", dir.Directory, dir.Directory)
-			} else if dir.Recursive && !dir.OwnerOnly {
-				line = fmt.Sprintf("  deny %s{*,**} x,\n", dir.Directory)
-			} else if !dir.Recursive && dir.OwnerOnly {
-				line = fmt.Sprintf("  owner %s* ix,\n  deny other %s* x,\n", dir.Directory, dir.Directory)
-			} else { // !dir.Recursive && !dir.OwnerOnly
-				line = fmt.Sprintf("  deny %s* x,\n", dir.Directory)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		return
+	}
+
+	for _, src := range dir.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if dir.Recursive && dir.OwnerOnly {
+			line = fmt.Sprintf("  owner %s{*,**} ix,\n  deny other %s{*,**} x,\n", dir.Directory, dir.Directory)
+		} else if dir.Recursive && !dir.OwnerOnly {
+			line = fmt.Sprintf("  deny %s{*,**} x,\n", dir.Directory)
+		} else if !dir.Recursive && dir.OwnerOnly {
+			line = fmt.Sprintf("  owner %s* ix,\n  deny other %s* x,\n", dir.Directory, dir.Directory)
+		} else { // !dir.Recursive && !dir.OwnerOnly
+			line = fmt.Sprintf("  deny %s* x,\n", dir.Directory)
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // BlockedProcessMatchPatterns Function
 func (ae *AppArmorEnforcer) BlockedProcessMatchPatterns(pat tp.ProcessPatternType, processBlackList *[]string) {
-	var line string
+	line := ""
+
 	if pat.OwnerOnly {
 		line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", pat.Pattern, pat.Pattern)
 	} else { // !path.OwnerOnly
 		line = fmt.Sprintf("  deny %s x,\n", pat.Pattern)
 	}
+
 	if !kl.ContainsElement(*processBlackList, line) {
 		*processBlackList = append(*processBlackList, line)
 	}
@@ -628,8 +463,9 @@ func (ae *AppArmorEnforcer) BlockedProcessMatchPatterns(pat tp.ProcessPatternTyp
 
 // BlockedFileMatchPaths Function
 func (ae *AppArmorEnforcer) BlockedFileMatchPaths(path tp.FilePathType, fileBlackList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(path.FromSource) == 0 {
+		line := ""
+
 		if path.ReadOnly && path.OwnerOnly {
 			line = fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
 		} else if path.ReadOnly && !path.OwnerOnly {
@@ -639,39 +475,47 @@ func (ae *AppArmorEnforcer) BlockedFileMatchPaths(path tp.FilePathType, fileBlac
 		} else { // !path.ReadOnly && !path.OwnerOnly
 			line = fmt.Sprintf("  deny %s rw,\n", path.Path)
 		}
+
 		if !kl.ContainsElement(*fileBlackList, line) {
 			*fileBlackList = append(*fileBlackList, line)
 		}
-	} else {
-		for _, src := range path.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if path.ReadOnly && path.OwnerOnly {
-				line = fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
-			} else if path.ReadOnly && !path.OwnerOnly {
-				line = fmt.Sprintf("  deny %s w,\n", path.Path)
-			} else if !path.ReadOnly && path.OwnerOnly {
-				line = fmt.Sprintf("  owner %s rw,\n  deny other %s rw,\n", path.Path, path.Path)
-			} else { // !path.ReadOnly && !path.OwnerOnly
-				line = fmt.Sprintf("  deny %s rw,\n", path.Path)
-			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+		return
+	}
+
+	for _, src := range path.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if path.ReadOnly && path.OwnerOnly {
+			line = fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", path.Path, path.Path)
+		} else if path.ReadOnly && !path.OwnerOnly {
+			line = fmt.Sprintf("  deny %s w,\n", path.Path)
+		} else if !path.ReadOnly && path.OwnerOnly {
+			line = fmt.Sprintf("  owner %s rw,\n  deny other %s rw,\n", path.Path, path.Path)
+		} else { // !path.ReadOnly && !path.OwnerOnly
+			line = fmt.Sprintf("  deny %s rw,\n", path.Path)
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // BlockedFileMatchDirectories Function
 func (ae *AppArmorEnforcer) BlockedFileMatchDirectories(dir tp.FileDirectoryType, fileBlackList *[]string, fromSources map[string][]string) {
-	var line string
 	if len(dir.FromSource) == 0 {
+		line := ""
+
 		if dir.ReadOnly && dir.OwnerOnly {
 			if dir.Recursive {
 				line = fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
@@ -697,54 +541,62 @@ func (ae *AppArmorEnforcer) BlockedFileMatchDirectories(dir tp.FileDirectoryType
 				line = fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
 			}
 		}
+
 		if !kl.ContainsElement(*fileBlackList, line) {
 			*fileBlackList = append(*fileBlackList, line)
 		}
-	} else {
-		for _, src := range dir.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
 
-			if dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
-				} else {
-					line = fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
-				}
-			} else if dir.ReadOnly && !dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  deny %s{*,**} w,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  deny %s* w,\n", dir.Directory)
-				}
-			} else if !dir.ReadOnly && dir.OwnerOnly {
-				if dir.Recursive {
-					line = fmt.Sprintf("  owner %s{*,**} rw,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
-				} else {
-					line = fmt.Sprintf("  owner %s* rw,\n  deny other %s* w,\n", dir.Directory, dir.Directory)
-				}
-			} else { // !dir.ReadOnly && !dir.OwnerOnly
-				if dir.Recursive {
-					line = fmt.Sprintf("  deny %s{*,**} rw,\n", dir.Directory)
-				} else {
-					line = fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
-				}
+		return
+	}
+
+	for _, src := range dir.FromSource {
+		line := ""
+
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		if dir.ReadOnly && dir.OwnerOnly {
+			if dir.Recursive {
+				line = fmt.Sprintf("  deny owner %s{*,**} w,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
+			} else {
+				line = fmt.Sprintf("  deny owner %s* w,\n  deny other %s* rw,\n", dir.Directory, dir.Directory)
 			}
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
+		} else if dir.ReadOnly && !dir.OwnerOnly {
+			if dir.Recursive {
+				line = fmt.Sprintf("  deny %s{*,**} w,\n", dir.Directory)
+			} else {
+				line = fmt.Sprintf("  deny %s* w,\n", dir.Directory)
 			}
+		} else if !dir.ReadOnly && dir.OwnerOnly {
+			if dir.Recursive {
+				line = fmt.Sprintf("  owner %s{*,**} rw,\n  deny other %s{*,**} rw,\n", dir.Directory, dir.Directory)
+			} else {
+				line = fmt.Sprintf("  owner %s* rw,\n  deny other %s* w,\n", dir.Directory, dir.Directory)
+			}
+		} else { // !dir.ReadOnly && !dir.OwnerOnly
+			if dir.Recursive {
+				line = fmt.Sprintf("  deny %s{*,**} rw,\n", dir.Directory)
+			} else {
+				line = fmt.Sprintf("  deny %s* rw,\n", dir.Directory)
+			}
+		}
+
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
 
 // BlockedFileMatchPatterns Function
 func (ae *AppArmorEnforcer) BlockedFileMatchPatterns(pat tp.FilePatternType, fileBlackList *[]string) {
-	var line string
+	line := ""
+
 	if pat.ReadOnly && pat.OwnerOnly {
 		line = fmt.Sprintf("  deny owner %s w,\n  deny other %s rw,\n", pat.Pattern, pat.Pattern)
 	} else if pat.ReadOnly && !pat.OwnerOnly {
@@ -754,6 +606,7 @@ func (ae *AppArmorEnforcer) BlockedFileMatchPatterns(pat tp.FilePatternType, fil
 	} else { // !pat.ReadOnly && !pat.OwnerOnly
 		line = fmt.Sprintf("  deny %s rw,\n", pat.Pattern)
 	}
+
 	if !kl.ContainsElement(*fileBlackList, line) {
 		*fileBlackList = append(*fileBlackList, line)
 	}
@@ -768,10 +621,12 @@ func (ae *AppArmorEnforcer) BlockedNetworkMatchProtocols(proto tp.NetworkProtoco
 		}
 		return
 	}
+
 	for _, src := range proto.FromSource {
-		if len(src.Path) <= 0 {
+		if len(src.Path) == 0 {
 			continue
 		}
+
 		source := src.Path
 		if _, ok := fromSources[source]; !ok {
 			fromSources[source] = []string{}
@@ -791,20 +646,22 @@ func (ae *AppArmorEnforcer) BlockedCapabilitiesMatchCapabilities(cap tp.Capabili
 		if !kl.ContainsElement(*capabilityBlackList, line) {
 			*capabilityBlackList = append(*capabilityBlackList, line)
 		}
-	} else {
-		for _, src := range cap.FromSource {
-			if len(src.Path) <= 0 {
-				continue
-			}
-			source := src.Path
-			if _, ok := fromSources[source]; !ok {
-				fromSources[source] = []string{}
-			}
+		return
+	}
 
-			line := fmt.Sprintf("  deny capability %s,\n", cap.Capability)
-			if !kl.ContainsElement(fromSources[source], line) {
-				fromSources[source] = append(fromSources[source], line)
-			}
+	for _, src := range cap.FromSource {
+		if len(src.Path) <= 0 {
+			continue
+		}
+
+		source := src.Path
+		if _, ok := fromSources[source]; !ok {
+			fromSources[source] = []string{}
+		}
+
+		line := fmt.Sprintf("  deny capability %s,\n", cap.Capability)
+		if !kl.ContainsElement(fromSources[source], line) {
+			fromSources[source] = append(fromSources[source], line)
 		}
 	}
 }
@@ -812,27 +669,19 @@ func (ae *AppArmorEnforcer) BlockedCapabilitiesMatchCapabilities(cap tp.Capabili
 // == //
 
 // GenerateProfileHead Function
-func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string, file, network, capability bool, defaultPosture tp.DefaultPosture) string {
+func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string, defaultPosture tp.DefaultPosture) string {
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	// Block Access to Resource when
-	// -> Default Posture is Block
-	// AND
-	// -> Atleast one allow policy OR from source allow policy
-
-	if defaultPosture.FileAction == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
-	} else {
+	if !(defaultPosture.FileAction == "block" && (len(processWhiteList) > 0 || len(fileWhiteList) > 0)) {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if defaultPosture.NetworkAction == "block" && (len(networkWhiteList) > 0 || !network) {
-	} else {
+	if !(defaultPosture.NetworkAction == "block" && len(networkWhiteList) > 0) {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if defaultPosture.CapabilitiesAction == "block" && (len(capabilityWhiteList) > 0 || !capability) {
-	} else {
+	if !(defaultPosture.CapabilitiesAction == "block" && len(capabilityWhiteList) > 0) {
 		profileHead = profileHead + "  capability,\n"
 	}
 
@@ -865,17 +714,15 @@ func (ae *AppArmorEnforcer) GenerateProfileFoot() string {
 // == //
 
 // GenerateProfileBody Function
-func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture, securityPolicies []tp.SecurityPolicy) (int, string) {
+func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) (int, string) {
 	// preparation
 
 	count := 0
 
 	processWhiteList := []string{}
-	processAuditList := []string{}
 	processBlackList := []string{}
 
 	fileWhiteList := []string{}
-	fileAuditList := []string{}
 	fileBlackList := []string{}
 
 	networkWhiteList := []string{}
@@ -889,10 +736,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 	nativeAppArmorRules := []string{}
 
 	fusionProcessWhiteList := []string{}
-
-	globalFile := true
-	globalNetwork := true
-	globalCapability := true
 
 	// preparation
 
@@ -910,7 +753,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 				if path.Action == "Allow" {
 					ae.AllowedProcessMatchPaths(path, &processWhiteList, fromSources)
 				} else if path.Action == "Audit" {
-					ae.AuditedProcessMatchPaths(path, &processAuditList, fromSources)
+					//
 				} else if path.Action == "Block" {
 					ae.BlockedProcessMatchPaths(path, &processBlackList, fromSources)
 				}
@@ -921,7 +764,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 				if dir.Action == "Allow" {
 					ae.AllowedProcessMatchDirectories(dir, &processWhiteList, fromSources)
 				} else if dir.Action == "Audit" {
-					ae.AuditedProcessMatchDirectories(dir, &processAuditList, fromSources)
+					//
 				} else if dir.Action == "Block" {
 					ae.BlockedProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
@@ -932,7 +775,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 				if pat.Action == "Allow" {
 					ae.AllowedProcessMatchPatterns(pat, &processWhiteList)
 				} else if pat.Action == "Audit" {
-					ae.AuditedProcessMatchPatterns(pat, &processAuditList)
+					//
 				} else if pat.Action == "Block" {
 					ae.BlockedProcessMatchPatterns(pat, &processBlackList)
 				}
@@ -944,7 +787,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 				if path.Action == "Allow" {
 					ae.AllowedFileMatchPaths(path, &fileWhiteList, fromSources)
 				} else if path.Action == "Audit" {
-					ae.AuditedFileMatchPaths(path, &fileAuditList, fromSources)
+					//
 				} else if path.Action == "Block" {
 					ae.BlockedFileMatchPaths(path, &fileBlackList, fromSources)
 				}
@@ -955,7 +798,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 				if dir.Action == "Allow" {
 					ae.AllowedFileMatchDirectories(dir, &fileWhiteList, fromSources)
 				} else if dir.Action == "Audit" {
-					ae.AuditedFileMatchDirectories(dir, &fileAuditList, fromSources)
+					//
 				} else if dir.Action == "Block" {
 					ae.BlockedFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
@@ -966,7 +809,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 				if pat.Action == "Allow" {
 					ae.AllowedFileMatchPatterns(pat, &fileWhiteList)
 				} else if pat.Action == "Audit" {
-					ae.AuditedFileMatchPatterns(pat, &fileAuditList)
+					//
 				} else if pat.Action == "Block" {
 					ae.BlockedFileMatchPatterns(pat, &fileBlackList)
 				}
@@ -1027,20 +870,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 
 	count = count + len(capabilityWhiteList)
 
-	// body - audit list
-
-	for _, line := range processAuditList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(processAuditList)
-
-	for _, line := range fileAuditList {
-		profileBody = profileBody + line
-	}
-
-	count = count + len(fileAuditList)
-
 	// body - black list
 
 	for _, line := range processBlackList {
@@ -1095,17 +924,15 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 		for _, line := range lines {
 			if strings.Contains(line, "  network") {
 				network = false
-				globalNetwork = false
 				continue
 			}
 
 			if strings.Contains(line, "  capability") {
 				capability = false
-				globalCapability = false
 				continue
 			}
 
-			if strings.Contains(line, "  owner") {
+			if strings.Contains(line, "  owner") && strings.Contains(line, "deny") {
 				continue
 			}
 
@@ -1114,7 +941,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 			}
 
 			file = false
-			globalFile = false
 		}
 
 		if defaultPosture.FileAction == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
@@ -1162,7 +988,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 
 	// head
 
-	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList, globalFile, globalNetwork, globalCapability, defaultPosture) + "  ## == PRE END == ##\n\n"
+	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList, defaultPosture) + "  ## == PRE END == ##\n\n"
 
 	// body - together
 
@@ -1192,7 +1018,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(defaultPosture tp.DefaultPosture
 // == //
 
 // GenerateAppArmorProfile Function
-func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, defaultPosture tp.DefaultPosture, securityPolicies []tp.SecurityPolicy) (int, string, bool) {
+func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) (int, string, bool) {
 	// check apparmor profile
 
 	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + appArmorProfile)); os.IsNotExist(err) {
@@ -1209,7 +1035,7 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, defa
 
 	// generate a profile body
 
-	count, newProfileBody := ae.GenerateProfileBody(defaultPosture, securityPolicies)
+	count, newProfileBody := ae.GenerateProfileBody(securityPolicies, defaultPosture)
 
 	newProfile := "## == Managed by KubeArmor == ##\n" +
 		"\n" +

@@ -33,13 +33,13 @@ run: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=true -enableKubeArmorHostPolicy=true
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=true -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
 
 .PHONY: run-host-only
 run-host-only: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
 
 .PHONY: test
 test:
@@ -69,7 +69,8 @@ ifeq (, $(shell which golint))
 	GOLINT_TMP_DIR=$$(mktemp -d) ;\
 	cd $$GOLINT_TMP_DIR ;\
 	go mod init tmp ;\
-	go get -u golang.org/x/lint/golint ;\
+	go get golang.org/x/lint/golint ;\
+	go install golang.org/x/lint/golint ;\
 	rm -rf $$GOLINT_TMP_DIR ;\
 	}
 endif
@@ -83,7 +84,8 @@ ifeq (, $(shell which gosec))
 	GOSEC_TMP_DIR=$$(mktemp -d) ;\
 	cd $$GOSEC_TMP_DIR ;\
 	go mod init tmp ;\
-	go get -u github.com/securego/gosec/v2/cmd/gosec ;\
+	go get github.com/securego/gosec/v2/cmd/gosec ;\
+	go install github.com/securego/gosec/v2/cmd/gosec ;\
 	rm -rf $$GOSEC_TMP_DIR ;\
 	}
 endif

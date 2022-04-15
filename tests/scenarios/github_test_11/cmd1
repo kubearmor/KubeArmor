@@ -3,5 +3,5 @@ cmd: cat /etc/shells
 result: failed
 ---
 operation: File
-condition: "/etc/shells"
+condition: /etc/shells
 action: Block

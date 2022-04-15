@@ -121,15 +121,14 @@ typedef struct args {
 } args_t;
 
 BPF_HASH(args_map, u64, args_t);
-BPF_HASH(exec_map, u64, struct path);
 BPF_HASH(file_map, u64, struct path);
 
 typedef struct buffers {
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 2);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 2);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 3);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 3);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -199,7 +198,7 @@ static __always_inline u32 get_task_ns_pid(struct task_struct *task)
 
 static __always_inline u32 get_task_ppid(struct task_struct *task)
 {
-    return task->real_parent->pid;
+    return task->parent->pid;
 }
 
 // == Pid NS Management == //
@@ -546,37 +545,29 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p, in
 	return true;
 }
 
-static __always_inline struct path* load_file_p(int buf_type)
+static __always_inline struct path* load_file_p()
 {
     u64	pid_tgid = bpf_get_current_pid_tgid();
-
-    if (buf_type == EXEC_BUF_TYPE) {
-        struct path *p = exec_map.lookup(&pid_tgid);
-        exec_map.delete(&pid_tgid);
-        return p;
-    }
-
-    // FILE_BUF_TYPE
     struct path *p = file_map.lookup(&pid_tgid);
     file_map.delete(&pid_tgid);
     return p;
 }
 
-static __always_inline int save_file_to_buffer(bufs_t *bufs_p, int buf_type)
+static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-	struct path *path = load_file_p(buf_type);
+	struct path *path = load_file_p();
 
-	bufs_t *string_p = get_buffer(buf_type);
+	bufs_t *string_p = get_buffer(FILE_BUF_TYPE);
 	if (string_p == NULL)
-		return -1;
+		return save_str_to_buffer(bufs_p, ptr);
 
-	if (!prepend_path(path, string_p, buf_type)) {
-        return -1;
+	if (!prepend_path(path, string_p, FILE_BUF_TYPE)) {
+        return save_str_to_buffer(bufs_p, ptr);
     }
 
-	u32 *off = get_buffer_offset(buf_type);
+	u32 *off = get_buffer_offset(FILE_BUF_TYPE);
 	if (off == NULL)
-		return -1;
+		return save_str_to_buffer(bufs_p, ptr);
 
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
@@ -673,8 +664,8 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
             save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
             break;
         case FILE_TYPE_T:
-            if (!save_file_to_buffer(bufs_p, FILE_BUF_TYPE))
-                break;
+            save_file_to_buffer(bufs_p, (void *)args->args[i]);
+            break;
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;

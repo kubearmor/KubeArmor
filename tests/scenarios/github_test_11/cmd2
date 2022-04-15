@@ -3,5 +3,5 @@ cmd: cat /etc/hostname
 result: failed
 ---
 operation: File
-condition: "/etc/hostname"
+condition: /etc/hostname
 action: Block

@@ -449,7 +449,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 
 // UpdateAppArmorProfile Function
 func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
-	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, endPoint.DefaultPosture, securityPolicies); ok {
+	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture); ok {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open an AppArmor profile (%s, %s)", appArmorProfile, err.Error())
@@ -526,7 +526,13 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 // UpdateAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecurityPolicy) {
-	if policyCount, newProfile, ok := ae.GenerateAppArmorHostProfile(secPolicies); ok {
+	globalDefaultPosture := tp.DefaultPosture{
+		FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+		NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+		CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+	}
+
+	if policyCount, newProfile, ok := ae.GenerateAppArmorHostProfile(secPolicies, globalDefaultPosture); ok {
 		newfile, err := os.Create(filepath.Clean(appArmorHostFile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
