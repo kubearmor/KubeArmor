@@ -1,5 +1,5 @@
-source: kubearmor-dev-next
-cmd: diff -h
+source: kubearmor-dev
+cmd: diff --help
 result: failed
 ---
 operation: Process

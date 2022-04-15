@@ -1,0 +1,29 @@
+# kubearmor-dev_test_08
+
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-dir-allow-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchDirectories:
+    - dir: /etc/dhcp/
+      recursive: true
+      fromSource:
+      - path: /usr/bin/head
+  action:
+    Allow
+
+# test
+# $ head /etc/dhcp/dhclient.conf
+# Configuration file for /sbin/dhclient...
+# $ head /etc/hostname
+# head: /etc/hostname: Permission denied
+
+# expectation
+# /usr/bin/head can only access /etc/dhcp/*
+# /usr/bin/head cannot access any others

@@ -1,0 +1,31 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-path-block-fromsource-readonly
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchPaths:
+    - path: /home/vagrant/selinux-test/file.txt
+      readOnly: true
+      fromSource:
+      - path: /home/vagrant/selinux-test/readwrite
+  action:
+    Block
+
+# test
+# (/home/vagrant/selinux-test/) $ ./readwrite -r file.txt
+# h
+# (/home/vagrant/selinux-test/) $ ./readwrite -r matchDir/test1
+# t
+# (/home/vagrant/selinux-test/) $ ./readwrite -w file.txt
+# Error!
+# (/home/vagrant/selinux-test/) $ ./readwrite -w matchDir/test1
+# [no output]
+
+# expectation
+# /home/vagrant/selinux-test/readwrite can read /home/vagrant/selinux-test/file.txt and write something in any others
+# /home/vagrant/selinux-test/readwrite cannot write something in /home/vagrant/selinux-test/file.txt

@@ -1,0 +1,7 @@
+source: kubearmor-dev
+cmd: head -n 1 /etc/dhcp/dhclient.conf
+result: passed
+---
+operation: File
+condition: /etc/dhcp/dhclient.conf
+action: Allow

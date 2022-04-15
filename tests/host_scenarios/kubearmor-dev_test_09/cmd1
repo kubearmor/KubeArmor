@@ -1,0 +1,7 @@
+source: kubearmor-dev
+cmd: head -n 1 /etc/cron.d/mdadm
+result: failed
+---
+operation: File
+condition: /etc/cron.d/mdadm
+action: Block

@@ -1,7 +1,7 @@
 source: kubearmor-dev
-cmd: cat /etc/passwd
+cmd: head -n 1 /etc/passwd
 result: passed 
 ---
 operation: File
-condition: passwd
+condition: /etc/passwd
 action: Audit

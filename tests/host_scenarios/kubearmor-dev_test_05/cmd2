@@ -1,7 +1,7 @@
 source: kubearmor-dev
-cmd: diff -h
+cmd: bash -c ls
 result: failed
 ---
 operation: Process
-condition: diff
-action: Block
+condition: ls
+action: Allow

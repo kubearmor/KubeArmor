@@ -1,9 +1,9 @@
-# kubearmor-dev_test_02
+# kubearmor-dev_test_03
 
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
-  name: hsp-kubearmor-dev-file-path-audit
+  name: hsp-kubearmor-dev-file-path-block
 spec:
   nodeSelector:
     matchLabels:
@@ -11,15 +11,13 @@ spec:
   severity: 5
   file:
     matchPaths:
-    - path: /etc/passwd
+    - path: /etc/hostname
   action:
-    Audit
+    Block
 
 # test
-# $ cat /etc/passwd
-# ...
-# $ head /etc/passwd
-# ...
+# $ cat /etc/hostname
+# cat: /etc/hostname: Permission denied
 
 # expectation
-# anyone can access /etc/passwd, but the access would be audited
+# anyone cannot access /etc/hostname

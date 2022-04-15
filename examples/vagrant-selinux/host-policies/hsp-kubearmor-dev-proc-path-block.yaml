@@ -1,5 +1,3 @@
-# kubearmor-dev_test_01
-
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
@@ -11,13 +9,13 @@ spec:
   severity: 5
   process:
     matchPaths:
-    - path: /usr/bin/diff
+    - path: /home/vagrant/selinux-test/read
   action:
     Block
 
 # test
-# $ diff --help
-# -bash: /usr/bin/diff: Permission denied
+# (/home/vagrant/selinux-test/) $ ./read
+# -bash: ./read: Permission denied
 
 # expectation
-# anyone cannot execute /usr/bin/diff
+# anyone cannot execute /home/vagrant/selinux-test/read
