@@ -11,7 +11,7 @@ spec:
   severity: 5
   file:
     matchDirectories:
-    - dir: /etc/dhcp/
+    - dir: /etc/default/
       recursive: true
       fromSource:
       - path: /usr/bin/head
@@ -19,11 +19,11 @@ spec:
     Allow
 
 # test
-# $ head /etc/dhcp/dhclient.conf
-# Configuration file for /sbin/dhclient...
+# $ head /etc/default/useradd
+# Default values for useradd(8) ...
 # $ head /etc/hostname
 # head: /etc/hostname: Permission denied
 
 # expectation
-# /usr/bin/head can only access /etc/dhcp/*
+# /usr/bin/head can only access /etc/default/*
 # /usr/bin/head cannot access any others

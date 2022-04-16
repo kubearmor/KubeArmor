@@ -11,7 +11,7 @@ spec:
   severity: 5
   file:
     matchDirectories:
-    - dir: /etc/cron.d/
+    - dir: /etc/default/
       fromSource:
       - path: /usr/bin/head
   action:
@@ -19,11 +19,11 @@ spec:
 
 # test
 
-# $ head /etc/cron.d/mdadm
-# cat: mdadm: Permission denied
+# $ head /etc/default/useradd
+# head: useradd: Permission denied
 # $ head /etc/hostname
 # kubearmor-dev
 
 # expectation
-# /usr/bin/head cannot access /etc/cron.d/*
+# /usr/bin/head cannot access /etc/default/*
 # /usr/bin/head can access any others

@@ -1,7 +1,7 @@
 source: kubearmor-dev
-cmd: head -n 1 /etc/dhcp/dhclient.conf
+cmd: head -n 1 /etc/default/useradd
 result: passed
 ---
 operation: File
-condition: /etc/dhcp/dhclient.conf
+condition: /etc/default/useradd
 action: Allow
