@@ -11,19 +11,17 @@ spec:
   selector:
     matchLabels:
       container: ubuntu-3
-  process:
-    matchDirectories:
-    - dir: /bin/ # need some exectuables to test
   file:
-    matchPaths:
-    - path: /dev/tty
-      readOnly: false
     matchDirectories:
-    - dir: /credentials/ # /bin/cat >> /credentials/password (permission denied)
-      readOnly: true  # /bin/cat /credentials/password (success)
-      fromSource: # head /credentials/password (permission denied)
-      - path: /bin/cat # /bin/cat >> /credentials/password (permission denied)
-    - dir: /dev/pts/
-      recursive: true
+    - dir: /credentials/
+      readOnly: true
+      fromSource:
+      - path: /readwrite
   action:
     Allow
+
+# test
+# $ ./readwrite -r /credentials/password
+# p
+# $ ./readwrite -w /credentials/password
+# Error! (permission denied)

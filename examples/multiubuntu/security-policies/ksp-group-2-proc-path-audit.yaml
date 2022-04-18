@@ -10,6 +10,12 @@ spec:
       group: group-2
   process:
     matchPaths:
-    - path: /bin/sleep # try sleep 1
+    - path: /bin/sleep
   action:
     Audit
+
+# multiubuntu_test_02
+
+# test
+# $ sleep 1
+# ... sleep ... (audit)

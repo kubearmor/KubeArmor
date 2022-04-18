@@ -13,9 +13,19 @@ spec:
       container: ubuntu-2
   file:
     matchDirectories: 
-    - dir: /credentials/ # cat /credentials/password (logs)
-      recursive: true # head /credentials/keys/priv.key (no logs)
-      fromSource: # head /credentials/password (no logs)
-      - path: /bin/cat # cat /credentials/keys/priv.key (logs)
+    - dir: /credentials/
+      recursive: true
+      fromSource:
+      - path: /bin/cat
   action:
     Audit
+
+# test
+# $ cat /credentials/password
+# password file (audit)
+# $ cat /credentials/keys/priv.key
+# key file (audit)
+# $ head /credentials/password
+# password file (no log)
+# $ head /credentials/keys/priv.key
+# key file (no log)

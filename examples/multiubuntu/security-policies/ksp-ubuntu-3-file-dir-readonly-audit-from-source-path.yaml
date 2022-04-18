@@ -13,9 +13,15 @@ spec:
       container: ubuntu-3
   file:
     matchDirectories: 
-    - dir: /credentials/ # cat secret.txt >> /credentials/password (logs)
-      readOnly: true # cat /credentials/password (logs)
-      fromSource: # head /credentials/password (no logs)
-      - path: /bin/cat # cat secret.txt >> /credentials/keys/priv.key (no logs)
+    - dir: /credentials/
+      readOnly: true
+      fromSource:
+      - path: /readwrite
   action:
     Audit
+
+# test
+# $ ./readwrite -r /credentials/password
+# p (audit)
+# $ ./readwrite -r /credentials/password
+# (nothing is displayed) (no log)

@@ -13,8 +13,16 @@ spec:
       container: ubuntu-1
   file:
     matchPaths:
-    - path: /etc/passwd # cat /etc/passwd (permission denied)
-    - path: /secret.txt # echo "test" >> /secret.txt (permission denied)
-    - path: /credentials/password # echo "test" >> /credentials/password (permission denied)
+    - path: /etc/passwd
+    - path: /secret.txt
+    - path: /credentials/password
   action:
     Block
+
+# test
+# $ cat /etc/passwd
+# cat: /etc/passwd: Permission denied
+# echo "test" >> /secret.txt
+# bash: /secret.txt: Permission denied
+# echo "test" >> /credentials/password
+# bash: /credentials/password: Permission denied

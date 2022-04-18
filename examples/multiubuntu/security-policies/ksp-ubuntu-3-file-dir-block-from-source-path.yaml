@@ -13,8 +13,14 @@ spec:
       container: ubuntu-3
   file:
     matchDirectories: 
-    - dir: /credentials/ # cat /credentials/password (permission denied)
-      fromSource: # head /credentials/password (success)
-      - path: /bin/cat # cat /credentials/keys/priv.key (success)
+    - dir: /credentials/
+      fromSource:
+      - path: /bin/cat
   action:
     Block
+
+# test
+# $ cat /credentials/password
+# cat: /credentials/password: Permission denied
+# $ cat /etc/hostname
+# ubuntu-3-deployment-754698b646-nt99p

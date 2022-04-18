@@ -1,5 +1,5 @@
 source: ubuntu-4-deployment
-cmd: head /secret.txt 
+cmd: head /secret.txt
 result: passed
 ---
 operation: File

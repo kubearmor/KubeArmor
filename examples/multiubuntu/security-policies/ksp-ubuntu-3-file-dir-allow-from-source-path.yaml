@@ -11,18 +11,16 @@ spec:
   selector:
     matchLabels:
       container: ubuntu-3
-  process:
-    matchDirectories:
-    - dir: /bin/ # need some exectuables to test
   file:
-    matchPaths:
-    - path: /dev/tty
-      readOnly: false
     matchDirectories:
-    - dir: /credentials/ # cat /credentials/password (success)
-      fromSource: # head /credentials/password (permission denied)
-      - path: /bin/cat # head /credentials/keys/priv.key (permission denied)
-    - dir: /dev/pts/
-      recursive: true
+    - dir: /credentials/
+      fromSource:
+      - path: /bin/cat
   action:
     Allow
+
+# test
+# $ cat /credentials/password
+# password file
+# $ cat /etc/hostname
+# cat: /etc/hostname: Permission denied

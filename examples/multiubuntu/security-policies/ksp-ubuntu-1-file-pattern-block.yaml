@@ -11,6 +11,14 @@ spec:
       container: ubuntu-1
   file:
     matchPatterns:
-    - pattern: /etc/*hado? # try open /etc/shadow or /etc/gshadow (permission denied)
+    - pattern: /etc/*hado?
   action:
     Block
+
+# multiubuntu_test_11
+
+# test
+# $ cat /etc/shadow
+# cat: /etc/shadow: Permission denied
+# $ cat /etc/gshadow
+# cat: /etc/gshadow: Permission denied

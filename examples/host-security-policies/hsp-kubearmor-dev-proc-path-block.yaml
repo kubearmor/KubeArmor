@@ -1,5 +1,3 @@
-# kubearmor-dev_test_01
-
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
@@ -14,6 +12,8 @@ spec:
     - path: /usr/bin/diff
   action:
     Block
+
+# kubearmor-dev_test_01
 
 # test
 # $ diff --help

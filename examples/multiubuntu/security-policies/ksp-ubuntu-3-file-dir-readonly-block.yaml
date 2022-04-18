@@ -12,8 +12,14 @@ spec:
     matchLabels:
       container: ubuntu-3
   file:
-    matchDirectories: # echo "new password" > /credentials/password (permission denied)
-    - dir: /credentials/ # cat /credentials/password (success)
-      readOnly: true # cat /credentials/keys/priv.key (success)
+    matchDirectories:
+    - dir: /credentials/
+      readOnly: true
   action:
     Block
+
+# test
+# $ cat /credentials/password
+# password file
+# $ echo "password" > /credentials/password
+# bash: /credentials/password: Permission denied

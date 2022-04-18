@@ -1,6 +1,6 @@
 source: ubuntu-4-deployment
-cmd: cat /credentials/password
-result: passed
+cmd: echo "test" >> /credentials/password
+result: failed
 ---
 operation: File
 condition: /credentials/password

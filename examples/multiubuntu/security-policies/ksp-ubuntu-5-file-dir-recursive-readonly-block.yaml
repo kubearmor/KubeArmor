@@ -12,9 +12,19 @@ spec:
     matchLabels:
       container: ubuntu-5
   file:
-    matchDirectories: # cat /credentials/keys/priv.key (success)
-    - dir: /credentials/ # cat /credentials/password (success)
-      recursive: true # echo test >> /credentials/keys/priv.key (permission denied)
-      readOnly: true # echo test >> /credentials/password (permission denied)
+    matchDirectories:
+    - dir: /credentials/
+      recursive: true
+      readOnly: true
   action:
     Block
+
+# test
+# $ cat /credentials/keys/priv.key
+# key file
+# $ cat /credentials/password
+# password file
+# $ echo test >> /credentials/keys/priv.key
+# bash: /credentials/keys/priv.key: Permission denied
+# $ echo test >> /credentials/password
+# bash: /credentials/password: Permission denied

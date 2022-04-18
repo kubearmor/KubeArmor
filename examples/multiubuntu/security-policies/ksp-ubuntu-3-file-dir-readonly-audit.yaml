@@ -12,8 +12,14 @@ spec:
     matchLabels:
       container: ubuntu-3
   file:
-    matchDirectories: # echo "new password" > /credentials/password (logs)
-    - dir: /credentials/ # cat /credentials/password (no logs)
-      readOnly: true # cat /credentials/keys/priv.key (no logs)
+    matchDirectories:
+    - dir: /credentials/
+      readOnly: true
   action:
     Audit
+
+# test
+# $ cat /credentials/password
+# password file (audit)
+# $ echo "new password" > /credentials/password
+# (nothing is displayed) (no log)

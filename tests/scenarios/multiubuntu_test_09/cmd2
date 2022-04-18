@@ -3,5 +3,5 @@ cmd: echo test >> /credentials/password
 result: failed
 ---
 operation: File
-condition: password
+condition: /credentials/password
 action: Allow

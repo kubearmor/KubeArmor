@@ -12,9 +12,23 @@ spec:
     matchDirectories:
     - dir: /run/secrets/kubernetes.io/serviceaccount/
       recursive: true
-
-      # cat /run/secrets/kubernetes.io/serviceaccount/token
-      # curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
-
   action:
     Block
+
+# multiubuntu_test_13
+
+# test
+# $ cat /run/secrets/kubernetes.io/serviceaccount/token
+# cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
+# $ curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
+# cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
+# {
+#   "kind": "Status",
+#   "apiVersion": "v1",
+#   "metadata": {},
+#   "status": "Failure",
+#   "message": "forbidden: User \"system:anonymous\" cannot get path \"/api\"",
+#   "reason": "Forbidden",
+#   "details": {},
+#   "code": 403
+# }

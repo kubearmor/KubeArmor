@@ -11,6 +11,12 @@ spec:
       container: ubuntu-1
   file:
     matchPatterns:
-    - pattern: /etc/*hado? # try open /etc/shadow or /etc/gshadow (logs)
+    - pattern: /etc/*hado?
   action:
     Audit
+
+# test
+# $ cat /etc/shadow
+# root:*:18900:0:99999:7::: (audit)
+# $ cat /etc/gshadow
+# root:*:: (audit)

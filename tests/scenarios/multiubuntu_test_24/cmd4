@@ -1,5 +1,5 @@
 source: ubuntu-5-deployment
-cmd: /readwrite -r /home/user1/secret_data1.txt
+cmd: /readwrite -w /home/user1/secret_data1.txt
 result: failed
 ---
 operation: File

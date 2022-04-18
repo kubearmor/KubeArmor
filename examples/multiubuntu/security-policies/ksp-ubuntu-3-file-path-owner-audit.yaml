@@ -14,3 +14,9 @@ spec:
       ownerOnly: true
   action:
     Audit
+
+# test
+# $ cat /home/user1/secret_data1.txt
+# secret file user1 (no log)
+# $ su - user1 -c "cat /home/user1/secret_data1.txt"
+# secret file user1 (audit)

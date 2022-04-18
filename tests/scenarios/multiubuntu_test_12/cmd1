@@ -1,7 +1,7 @@
 source: ubuntu-2-deployment
-cmd: dash -c "sleep 1"
-result: passed
+cmd: dash -c "ls"
+result: failed
 ---
 operation: Process
-condition: sleep
+condition: ls
 action: Block

@@ -1,7 +1,7 @@
 source: ubuntu-2-deployment
-cmd: dash -c "ls"
-result: failed
+cmd: dash -c "cat /etc/hostname"
+result: passed
 ---
 operation: Process
-condition: ls
+condition: cat
 action: Block

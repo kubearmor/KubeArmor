@@ -13,12 +13,18 @@ spec:
       container: ubuntu-4
   file:
     matchPaths:
-    - path: /etc/passwd # cat /etc/passwd (no log)
+    - path: /etc/passwd
       readOnly: true
-    - path: /etc/nsswitch.conf
+    - path: /secret.txt
       readOnly: true
-    - path: /secret.txt # echo "test" >> /secret.txt (no log)
-    - path: /credentials/password # echo "test" >> /credentials/password (log, write op)
-      readOnly: true # cat /credentials/password (no log, read op)
+    - path: /credentials/password
   action:
     Audit
+
+# test
+# $ head /etc/passwd
+# root:x:0:0:root:/root:/bin/bash (audit)
+# $ echo "test" >> /secret.txt
+# (nothing is displayed) (no log)
+# $ cat /credentials/password
+# password file (audit)

@@ -14,8 +14,18 @@ spec:
   file:
     matchPaths:
     - path: /credentials/password
-      readOnly: true # ./readwrite -r /credentials/password (success)
-      fromSource: # ./readwrite -w /credentials/password (permission denied)
-      - path: /readwrite # /bin/cat /credentials/password (success)
+      readOnly: true
+      fromSource:
+      - path: /readwrite
   action:
     Block
+
+# multiubuntu_test_20
+
+# test
+# $ ./readwrite -r /credentials/password
+# p
+# $ ./readwrite -w /credentials/password
+# Error! (permission denied)
+# $ ./readwrite -r /secret.txt
+# s
