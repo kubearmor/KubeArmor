@@ -1,0 +1,27 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-path-allow-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchPaths:
+    - path: /home/vagrant/selinux-test/file.txt
+      fromSource:
+      - path: /home/vagrant/selinux-test/read
+  action:
+    Allow
+
+# test
+# (/home/vagrant/selinux-test/) $ ./read file.txt
+# read hello
+#  from file.txt
+# (/home/vagrant/selinux-test/) $ ./read read.c
+# failed to open read.c with the WRITE mode
+
+# expectation
+# /home/vagrant/selinux-test/read can access /home/vagrant/selinux-test/file.txt
+# /home/vagrant/selinux-test/read cannot access any others

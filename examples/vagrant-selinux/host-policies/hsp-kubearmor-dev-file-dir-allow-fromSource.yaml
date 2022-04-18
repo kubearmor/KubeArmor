@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-dir-allow-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchDirectories:
+    - dir: /home/vagrant/selinux-test/matchDir/
+      recursive: true
+      fromSource:
+      - path: /home/vagrant/selinux-test/read
+  action:
+    Allow
+
+# test
+# (/home/vagrant/selinux-test/) $ ./read matchDir/test1 (test2 test3 test4 test5)
+# read test1
+#  from matchDir/test1
+# (/home/vagrant/selinux-test/) $ ./read file.txt
+# failed to open file.txt with the READONLY mode
+
+# expectation
+# /home/vagrant/selinux-test/read can access /home/vagrant/selinux-test/matchDir/*
+# /home/vagrant/selinux-test/read cannot access any others

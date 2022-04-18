@@ -1,0 +1,28 @@
+policy_module(karmorG, 1.0.0)
+
+########################################
+
+require {
+    type unconfined_t;
+    type fs_t;
+}
+
+type karmorG_block_t;
+
+# anyone cannot execute B
+allow unconfined_t karmorG_block_t:file { getattr execute_no_trans ioctl lock open read write link unlink relabelto relabelfrom map }; # -execute
+allow karmorG_block_t fs_t:filesystem { associate };
+
+type karmorG_nowrite_t;
+
+# anyone can read B, but it cannot write something in B
+allow unconfined_t karmorG_nowrite_t:file { getattr ioctl lock open read relabelto relabelfrom }; # -write, -append
+allow karmorG_nowrite_t fs_t:filesystem { associate };
+
+type karmorG_none_t;
+
+# anyone cannot access B
+allow unconfined_t karmorG_none_t:file { getattr relabelto relabelfrom };
+allow karmorG_none_t fs_t:filesystem { associate };
+
+########################################

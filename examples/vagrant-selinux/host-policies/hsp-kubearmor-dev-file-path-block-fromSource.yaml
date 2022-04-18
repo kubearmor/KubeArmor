@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-path-block-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchPaths:
+    - path: /home/vagrant/selinux-test/file.txt
+      fromSource:
+      - path: /home/vagrant/selinux-test/read
+  action:
+    Block
+
+# test
+# (/home/vagrant/selinux-test/) $ ./read file.txt
+# failed to open file.txt with the READONLY mode
+# (/home/vagrant/selinux-test/) $ ./read read.c
+# ...
+
+# expectation
+# /home/vagrant/selinux-test/read cannot access /home/vagrant/selinux-test/file.txt
+# /home/vagrant/selinux-test/read can access any others
