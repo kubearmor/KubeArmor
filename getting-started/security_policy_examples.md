@@ -85,7 +85,7 @@ Here, we demonstrate how to define security policies using our example microserv
       severity: 10
       message: "a critical directory was accessed"
       tags:
-      - WARNNING
+      - WARNING
       selector:
         matchLabels:
           container: ubuntu-3
@@ -158,7 +158,7 @@ Here, we demonstrate how to define security policies using our example microserv
       severity: 10
       message: "a critical file was accessed"
       tags:
-      - WARNNING
+      - WARNING
       selector:
         matchLabels:
           container: ubuntu-4
