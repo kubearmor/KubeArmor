@@ -1,7 +1,7 @@
 source: ubuntu-2-deployment
-cmd: whoami
+cmd: env
 result: failed
 ---
 operation: Process
-condition: whoami
+condition: env
 action: Block

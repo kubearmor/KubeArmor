@@ -7,15 +7,23 @@ spec:
   severity: 10
   message: "a critical directory was accessed"
   tags:
-  - WARNNING
+  - WARNING
   selector:
     matchLabels:
       container: ubuntu-2
   file:
     matchDirectories: 
-    - dir: /credentials/ # cat /credentials/password (permission denied)
-      recursive: true # head /credentials/keys/priv.key (success)
-      fromSource: # head /credentials/password (success)
-      - path: /bin/cat # cat /credentials/keys/priv.key (permission denied)
+    - dir: /credentials/
+      recursive: true
+      fromSource:
+      - path: /bin/cat
   action:
     Block
+
+# test
+# $ cat /credentials/password
+# cat: /credentials/password: Permission denied
+# $ cat /credentials/keys/priv.key
+# cat: /credentials/keys/priv.key: Permission denied
+# $ cat /etc/hostname
+# ubuntu-2-deployment-7664649b7d-h28wb

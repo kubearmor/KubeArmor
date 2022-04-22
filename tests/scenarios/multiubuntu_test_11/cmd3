@@ -1,6 +1,6 @@
-source: ubuntu-3-deployment
+source: ubuntu-1-deployment
 cmd: cat /etc/hostname
-result: failed
+result: passed
 ---
 operation: File
 condition: /etc/hostname

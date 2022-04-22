@@ -4,4 +4,4 @@ result: failed
 ---
 operation: File
 condition: /etc/hostname
-action: Block
+action: Allow

@@ -5,12 +5,18 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 5
-  message: "block the sleep command"
+  message: "block /bin/sleep"
   selector:
     matchLabels:
       group: group-1
   process:
     matchPaths:
-    - path: /bin/sleep # try sleep 1 (permission denied)
+    - path: /bin/sleep
   action:
     Block
+
+# multiubuntu_test_01
+
+# test
+# $ sleep 1
+# bash: /bin/sleep: Permission denied

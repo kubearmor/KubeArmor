@@ -1,5 +1,5 @@
 source: ubuntu-4-deployment
-cmd: /readwrite -w /credentials/password 
+cmd: /readwrite -w /credentials/password
 result: failed
 ---
 operation: File

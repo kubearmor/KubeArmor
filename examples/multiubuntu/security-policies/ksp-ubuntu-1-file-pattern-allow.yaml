@@ -11,9 +11,20 @@ spec:
       container: ubuntu-1
   process:
     matchDirectories:
-      - dir: /bin/
+    - dir: /bin/
   file:
-    matchPatterns: # cat /etc/hosts (permission denied)
-    - pattern: /etc/*hado? # try open /etc/shadow or /etc/gshadow (success)
+    matchPaths:
+    - path: /root/.bashrc
+    - path: /root/.bash_history
+    matchPatterns:
+    - pattern: /etc/*hado?
   action:
     Allow
+
+# test
+# $ cat /etc/hosts
+# cat: /etc/hosts: Permission denied
+# $ cat /etc/shadow
+# root:*:18900:0:99999:7::: ...
+# $ cat /etc/gshadow
+# root:*:: ...

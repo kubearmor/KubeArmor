@@ -7,12 +7,18 @@ spec:
   severity: 10
   message: "a critical directory was accessed"
   tags:
-  - WARNNING
+  - WARNING
   selector:
     matchLabels:
       container: ubuntu-4
   file:
-    matchDirectories: # cat /credentials/keys/priv.key (no logs)
-    - dir: /credentials/ # cat /credentials/password (logs, Audit(Block))
+    matchDirectories:
+    - dir: /credentials/
   action:
     Audit
+
+# test
+# $ cat /credentials/password
+# password file (audit)
+# $ cat /credentials/keys/priv.key
+# key file (no log)

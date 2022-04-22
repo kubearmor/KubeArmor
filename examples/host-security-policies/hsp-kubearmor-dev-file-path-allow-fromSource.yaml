@@ -1,5 +1,3 @@
-# kubearmor-dev_test_07
-
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
@@ -16,6 +14,8 @@ spec:
       - path: /usr/bin/head
   action:
     Allow
+
+# kubearmor-dev_test_07
 
 # test
 # $ head /etc/hostname

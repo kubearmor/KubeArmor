@@ -1,5 +1,3 @@
-# kubearmor-dev_test_08
-
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
@@ -17,6 +15,8 @@ spec:
       - path: /usr/bin/head
   action:
     Allow
+
+# kubearmor-dev_test_08
 
 # test
 # $ head /etc/default/useradd

@@ -1,5 +1,3 @@
-# kubearmor-dev_test_04
-
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
@@ -19,6 +17,8 @@ spec:
       - path: /usr/bin/bash # centos
   action:
     Block
+
+# kubearmor-dev_test_04
 
 # test
 # (/home/vagrant/selinux-test/) $ bash -c date

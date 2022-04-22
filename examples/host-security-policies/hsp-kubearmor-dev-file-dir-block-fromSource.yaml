@@ -1,5 +1,3 @@
-# kubearmor-dev_test_09
-
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorHostPolicy
 metadata:
@@ -17,8 +15,9 @@ spec:
   action:
     Block
 
-# test
+# kubearmor-dev_test_09
 
+# test
 # $ head /etc/default/useradd
 # head: useradd: Permission denied
 # $ head /etc/hostname
