@@ -215,7 +215,7 @@ func (dm *KubeArmorDaemon) CloseLogger() bool {
 
 // InitSystemMonitor Function
 func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
-	dm.SystemMonitor = mon.NewSystemMonitor(dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock,
+	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock,
 		&dm.ActivePidMap, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.ActiveHostMap, &dm.ActiveHostMapLock)
 	if dm.SystemMonitor == nil {
 		return false
@@ -330,6 +330,7 @@ func KubeArmor() {
 
 	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
 	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
+		dm.Node.NodeName = cfg.GlobalCfg.Host
 		dm.Node.NodeIP = kl.GetExternalIPAddr()
 
 		dm.Node.Annotations = map[string]string{}

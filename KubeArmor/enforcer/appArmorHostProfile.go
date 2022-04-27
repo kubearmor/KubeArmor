@@ -575,8 +575,6 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
 					ae.AllowedHostProcessMatchPaths(path, fromSources)
-				} else if path.Action == "Audit" {
-					//
 				} else if path.Action == "Block" {
 					ae.BlockedHostProcessMatchPaths(path, &processBlackList, fromSources)
 				}
@@ -586,8 +584,6 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
 					ae.AllowedHostProcessMatchDirectories(dir, fromSources)
-				} else if dir.Action == "Audit" {
-					//
 				} else if dir.Action == "Block" {
 					ae.BlockedHostProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
@@ -595,9 +591,7 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 		}
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-				if pat.Action == "Audit" {
-					//
-				} else if pat.Action == "Block" {
+				if pat.Action == "Block" {
 					ae.BlockedHostProcessMatchPatterns(pat, &processBlackList)
 				}
 			}
@@ -607,8 +601,6 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
 					ae.AllowedHostFileMatchPaths(path, fromSources)
-				} else if path.Action == "Audit" {
-					//
 				} else if path.Action == "Block" {
 					ae.BlockedHostFileMatchPaths(path, &fileBlackList, fromSources)
 				}
@@ -618,8 +610,6 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
 					ae.AllowedHostFileMatchDirectories(dir, fromSources)
-				} else if dir.Action == "Audit" {
-					//
 				} else if dir.Action == "Block" {
 					ae.BlockedHostFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
@@ -627,9 +617,7 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 		}
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
-				if pat.Action == "Audit" {
-					//
-				} else if pat.Action == "Block" {
+				if pat.Action == "Block" {
 					ae.BlockedHostFileMatchPatterns(pat, &fileBlackList)
 				}
 			}
@@ -718,15 +706,15 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 			file = false
 		}
 
-		if defaultPosture.FileAction != "block" && file {
+		if file {
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if defaultPosture.FileAction != "block" && network {
+		if network {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if defaultPosture.CapabilitiesAction != "block" && capability {
+		if capability {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
