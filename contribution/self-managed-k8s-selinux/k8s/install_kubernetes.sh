@@ -31,7 +31,7 @@ EOF
 sudo mv kubernetes.repo /etc/yum.repos.d/
 
 # install k8s
-sudo dnf install -y kubeadm kubelet kubectl iproute-tc
+sudo dnf install -y kubeadm kubelet kubectl
 sudo systemctl enable kubelet
 
 # disable rp_filter
