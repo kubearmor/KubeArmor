@@ -23,6 +23,7 @@
      ```text
      $ cd KubeArmor/contribution/vagrant
      ~/KubeArmor/contribution/vagrant$ ./setup.sh
+     ~/KubeArmor/contribution/vagrant$ sudo reboot
      ```
 
     * VM Setup using Vagrant
@@ -142,9 +143,9 @@
       ~/KubeArmor/KubeArmor$ make vagrant-destroy
       ```
 
-    * VM Setup using the latest Linux kernel (v5.13)
+    * VM Setup using Vagrant with Ubuntu 21.10 (v5.13)
 
-      To use the latest linux kernel for dev env you can run `make` with the `NETNEXT` flag set to `1` for the respective make option.
+      To use the recent Linux kernel v5.13 for dev env, you can run `make` with the `NETNEXT` flag set to `1` for the respective make option.
 
       ```text
       ~/KubeArmor/KubeArmor$ make vagrant-up NETNEXT=1
@@ -158,7 +159,7 @@
 
     * Please Note:
 
-      You could skip the steps for the vagrant setup completely if you're directly compiling Kubearmor on any Linux distro, or using Virtualbox.
+      You can skip the steps for the vagrant setup completely if you're directly compiling KubeArmor on any Linux distro.
 
       Please ensure that the steps to setup K8s are followed so as to resolve any open dependencies.
 
@@ -250,8 +251,10 @@ Here, we briefly give you an overview of KubeArmor's directories.
     core                 - The main body (start point) of KubeArmor
     enforcer             - Runtime policy enforcer (enforcing security policies into LSMs)
     feeder               - gRPC-based feeder (sending audit/system logs to a log server)
+    kvmAgent             - KubeArmor VM agent
     log                  - Message logger (stdout)
     monitor              - eBPF-based system monitor (mapping process IDs to container IDs)
+    policy               - gRPC service to manage Host Policies for VM environments
     types                - Type definitions
   protobuf/              - Protocol buffer
   ```

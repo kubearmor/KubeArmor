@@ -94,7 +94,7 @@ To make a contribution, please follow the steps below.
 
 8. DCO Signoffs
 
-   To ensure that contributors are only submitting work that they have rights to, we are requiring everyone to acknowledge this by signing their work. Any copyright notices in this repos should specify the authors as "The KubeArmor authors".
+   To ensure that contributors are only submitting work that they have rights to, we are requiring everyone to acknowledge this by signing their work. Any copyright notices in this repo should specify the authors as "KubeArmor authors".
 
    To sign your work, just add a line like this at the end of your commit message:
 
@@ -104,4 +104,4 @@ To make a contribution, please follow the steps below.
 
    This can easily be done with the `-s` or `--signoff` option to `git commit`.
 
-   By doing this you state that you can certify the following (from https://developercertificate.org/):
+   By doing this, you state that the source code being submitted originated from you (see https://developercertificate.org).
