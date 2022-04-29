@@ -204,6 +204,13 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			container.NamespaceName = newPoint.NamespaceName
 			container.EndPointName = newPoint.EndPointName
+
+			labels := []string{}
+			for k, v := range newPoint.Labels {
+				labels = append(labels, k+"="+v)
+			}
+			container.Labels = strings.Join(labels, ",")
+
 			container.ContainerName = pod.Containers[containerID]
 			container.ContainerImage = pod.ContainerImages[containerID]
 
@@ -330,6 +337,13 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 			container.NamespaceName = newEndPoint.NamespaceName
 			container.EndPointName = newEndPoint.EndPointName
+
+			labels := []string{}
+			for k, v := range newEndPoint.Labels {
+				labels = append(labels, k+"="+v)
+			}
+			container.Labels = strings.Join(labels, ",")
+
 			container.ContainerName = pod.Containers[containerID]
 			container.ContainerImage = pod.ContainerImages[containerID]
 

@@ -23,6 +23,7 @@ type Container struct {
 
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
+	Labels        string `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
 
@@ -178,6 +179,7 @@ type Log struct {
 	// k8s
 	NamespaceName string `json:"namespaceName,omitempty"`
 	PodName       string `json:"podName,omitempty"`
+	Labels        string `json:"labels,omitempty"`
 
 	// container
 	ContainerID    string `json:"containerID,omitempty"`
