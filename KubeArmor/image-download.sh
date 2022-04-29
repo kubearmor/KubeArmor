@@ -310,6 +310,17 @@ PREFIX="$OWNER/$REPO"
 log_prefix() {
         echo "$PREFIX"
 }
+case `uname` in
+  Linux )
+     LINUX=1
+     which yum > /dev/null && PKG=".rpm"
+     which apt-get > /dev/null && PKG=".deb"
+     ;;
+  * )
+     echo "OS package not supported"
+     return
+     ;;
+esac
 OS=$(uname_os)
 ARCH=$(uname_arch)
 GITHUB_DOWNLOAD=https://github.com/${OWNER}/${REPO}/releases/download
@@ -327,8 +338,8 @@ tag_to_version
 log_info "found version ${VERSION} for ${TAG}/${OS}/${ARCH}"
 
 NAME=${BINARY}_v${VERSION}_${OS}_${ARCH}
-NAME=`echo $NAME | sed 's/v//'`.deb
-NAME=`echo $NAME | sed 's/_amd64/-amd64/'`
+NAME=`echo $NAME | sed 's/v//'`
+NAME=`echo $NAME | sed 's/_amd64/-amd64/'`.$PKG
 
 # adjust binary name based on OS
 adjust_binary
