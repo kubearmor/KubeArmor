@@ -313,8 +313,8 @@ log_prefix() {
 case `uname` in
   Linux )
      LINUX=1
-     which yum > /dev/null && PKG=".rpm"
-     which apt-get > /dev/null && PKG=".deb"
+     which yum > /dev/null && PKG="rpm"
+     which apt-get > /dev/null && PKG="deb"
      ;;
   * )
      echo "OS package not supported"
