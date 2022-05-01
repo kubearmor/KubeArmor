@@ -27,6 +27,8 @@ func getProtocolFromName(proto string) string {
 		return "protocol=TCP"
 	case "udp":
 		return "protocol=UDP"
+	case "raw":
+		return "type=SOCK_RAW"
 	case "icmp":
 		return "protocol=ICMP"
 	default:

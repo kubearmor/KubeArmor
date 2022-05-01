@@ -173,7 +173,7 @@ type FileType struct {
 	Action ActionType `json:"action,omitempty"`
 }
 
-// +kubebuilder:validation:Pattern=(icmp|ICMP|tcp|TCP|udp|UDP)$
+// +kubebuilder:validation:Pattern=(icmp|ICMP|tcp|TCP|udp|UDP|raw|RAW)$
 type MatchNetworkProtocolStringType string
 
 type MatchNetworkProtocolType struct {

@@ -386,7 +386,7 @@ spec:
                         message:
                           type: string
                         protocol:
-                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP|raw|RAW)$
                           type: string
                         severity:
                           maximum: 10
@@ -878,7 +878,7 @@ spec:
                         message:
                           type: string
                         protocol:
-                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP|raw|RAW)$
                           type: string
                         severity:
                           maximum: 10
