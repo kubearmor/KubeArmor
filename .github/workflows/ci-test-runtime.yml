@@ -1,0 +1,84 @@
+name: ci-test-runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test.yml"
+
+jobs:
+  build:
+    name: Auto-testing Framework Runtime
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kernel version
+        run: uname -r
+
+      - name: Check Docker Version
+        run: docker --version
+
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Install Compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential pkgconf clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev
+          for tool in "clang" "llc" "llvm-strip"
+          do
+            sudo rm -f /usr/bin/$tool
+            sudo ln -s /usr/bin/$tool-9 /usr/bin/$tool
+          done
+
+      - name: Setup Enviroment
+        id: vars
+        run: |
+          echo ::set-output name=tag::test
+
+          ./contribution/k3s/install_k3s.sh
+
+          cd KubeArmor/BPF/
+          make -C libbpf/src
+
+      - name: Generate KubeArmor artifacts
+        run: |
+            GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+
+      - name: Run KubeArmor
+        run: |
+            kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml && kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+            kubectl get pods -A
+
+      - name: Test KubeArmor
+        run: |
+            ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
+
+      - name: Capture KubeArmor logs
+        if: ${{ failure() }}
+        run: kubectl exec -n kube-system daemonset/kubearmor -- cat /tmp/kubearmor.log > /tmp/kubearmor.log
+            
+      
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor.test
+            /tmp/kubearmor.log
+            /tmp/kubearmor.msg
+
+      - name: Check Results
+        if: ${{ always() }}
+        run: cat /tmp/kubearmor.test
