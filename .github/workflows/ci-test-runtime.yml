@@ -44,7 +44,7 @@ jobs:
       - name: Setup Enviroment
         id: vars
         run: |
-          echo ::set-output name=tag::test
+          echo ::set-output name=tag::latest
 
           ./contribution/k3s/install_k3s.sh
 

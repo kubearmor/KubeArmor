@@ -232,7 +232,12 @@ func (mon *SystemMonitor) InitBPF() error {
 
 		bpfPath = os.Getenv("PWD") + "/../BPF/"
 		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-			return err
+			// container
+
+			bpfPath = "/opt/kubearmor/BPF/"
+			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+				return err
+			}
 		}
 	}
 

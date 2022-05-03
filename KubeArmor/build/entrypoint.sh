@@ -20,11 +20,8 @@ case $1 in
     ARMOR_OPTIONS=${@:2}
     ;;
 *) ;;
-
 esac
 
-cd /KubeArmor/BPF
-make
 /KubeArmor/kubearmor ${ARMOR_OPTIONS[@]}
 ERROR_CODE=$?
 
