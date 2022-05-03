@@ -33,6 +33,9 @@
 #include <linux/un.h>
 #include <net/inet_sock.h>
 
+#include <bpf_helpers.h>
+#include <bpf_tracing.h>
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 #error Minimal required kernel version is 4.14
 #endif
@@ -45,6 +48,8 @@
 	})
 
 // == Structures == //
+
+#define TASK_COMM_LEN	 16
 
 #define MAX_BUFFER_SIZE   32768
 #define MAX_STRING_SIZE   4096
@@ -71,6 +76,8 @@
 #define ARG_TYPE4(type)        ENC_ARG_TYPE(4, type)
 #define ARG_TYPE5(type)        ENC_ARG_TYPE(5, type)
 #define DEC_ARG_TYPE(n, type)  ((type>>(8*n))&0xFF)
+#define PT_REGS_PARM6(x) ((x)->r9)
+#define GET_FIELD_ADDR(field) &field
 
 enum {
     // file
@@ -114,7 +121,41 @@ typedef struct __attribute__((__packed__)) sys_context {
     char comm[TASK_COMM_LEN];
 } sys_context_t;
 
+#define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
+struct bpf_map_def SEC("maps") _name = { \
+  .type = _type, \
+  .key_size = sizeof(_key_type), \
+  .value_size = sizeof(_value_type), \
+  .max_entries = _max_entries, \
+};
+
+#define BPF_HASH(_name, _key_type, _value_type) \
+BPF_MAP(_name, BPF_MAP_TYPE_HASH, _key_type, _value_type, 10240)
+
+#define BPF_LRU_HASH(_name, _key_type, _value_type) \
+BPF_MAP(_name, BPF_MAP_TYPE_LRU_HASH, _key_type, _value_type, 10240)
+
+#define BPF_ARRAY(_name, _value_type, _max_entries) \
+BPF_MAP(_name, BPF_MAP_TYPE_ARRAY, u32, _value_type, _max_entries)
+
+#define BPF_PERCPU_ARRAY(_name, _value_type, _max_entries) \
+BPF_MAP(_name, BPF_MAP_TYPE_PERCPU_ARRAY, u32, _value_type, _max_entries)
+
+#define BPF_PROG_ARRAY(_name, _max_entries) \
+BPF_MAP(_name, BPF_MAP_TYPE_PROG_ARRAY, u32, u32, _max_entries)
+
+#define BPF_PERF_OUTPUT(_name) \
+BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
+
 BPF_HASH(pid_ns_map, u32, u32);
+
+#define READ_KERN(ptr)                                                  \
+    ({                                                                  \
+        typeof(ptr) _val;                                               \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
+        bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
+        _val;                                                           \
+    })
 
 typedef struct args {
     unsigned long args[6];
@@ -134,9 +175,10 @@ BPF_PERF_OUTPUT(sys_events);
 
 // == Kernel Helpers == //
 
-static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
+static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
 {
-    return task->nsproxy->pid_ns_for_children->ns.inum;
+    struct pid_namespace* pidns = READ_KERN(ns->pid_ns_for_children);
+    return READ_KERN(pidns->ns.inum);
 }
 
 struct mnt_namespace {
@@ -145,6 +187,12 @@ struct mnt_namespace {
     #endif
     struct ns_common ns;
 };
+
+static __always_inline u32 get_mnt_ns_id(struct nsproxy *ns)
+{
+    struct mnt_namespace* mntns = READ_KERN(ns->mnt_ns);
+    return READ_KERN(mntns->ns.inum);
+}
 
 struct mount {
 	struct hlist_node mnt_hash;
@@ -158,47 +206,65 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 	return container_of(mnt, struct mount, mnt);
 }
 
+static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
+{
+    return get_pid_ns_id(READ_KERN(task->nsproxy));
+}
+
 static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
 {
-    return task->nsproxy->mnt_ns->ns.inum;
+    return get_mnt_ns_id(READ_KERN(task->nsproxy));
 }
 
 static __always_inline u32 get_task_ns_ppid(struct task_struct *task)
 {
-    unsigned int level = task->real_parent->nsproxy->pid_ns_for_children->level;
+    struct task_struct *real_parent = READ_KERN(task->real_parent);
+    struct nsproxy *namespaceproxy = READ_KERN(real_parent->nsproxy);
+    struct pid_namespace *pid_ns_children = READ_KERN(namespaceproxy->pid_ns_for_children);
+    unsigned int level = READ_KERN(pid_ns_children->level);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0)
-    return task->real_parent->pids[PIDTYPE_PID].pid->numbers[level].nr;
+    struct pid *tpid = READ_KERN(real_parent->pids[PIDTYPE_PID].pid);
 #else
-    return task->real_parent->thread_pid->numbers[level].nr;
+    struct pid *tpid = READ_KERN(real_parent->thread_pid);
 #endif
+    return READ_KERN(tpid->numbers[level].nr);
 }
 
 static __always_inline u32 get_task_ns_tgid(struct task_struct *task)
 {
-    unsigned int level = task->nsproxy->pid_ns_for_children->level;
+    struct nsproxy *namespaceproxy = READ_KERN(task->nsproxy);
+    struct pid_namespace *pid_ns_children = READ_KERN(namespaceproxy->pid_ns_for_children);
+    unsigned int level = READ_KERN(pid_ns_children->level);
+    struct task_struct *group_leader = READ_KERN(task->group_leader);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0)
-    return task->group_leader->pids[PIDTYPE_PID].pid->numbers[level].nr;
+    struct pid *tpid = READ_KERN(group_leader->pids[PIDTYPE_PID].pid);
 #else
-    return task->group_leader->thread_pid->numbers[level].nr;
+    struct pid *tpid = READ_KERN(group_leader->thread_pid);
 #endif
+    return READ_KERN(tpid->numbers[level].nr);
 }
 
 static __always_inline u32 get_task_ns_pid(struct task_struct *task)
 {
-    unsigned int level = task->nsproxy->pid_ns_for_children->level;
+    struct nsproxy *namespaceproxy = READ_KERN(task->nsproxy);
+    struct pid_namespace *pid_ns_children = READ_KERN(namespaceproxy->pid_ns_for_children);
+    unsigned int level = READ_KERN(pid_ns_children->level);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0)
-    return task->pids[PIDTYPE_PID].pid->numbers[level].nr;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
+    struct pid *tpid = READ_KERN(task->pids[PIDTYPE_PID].pid);
 #else
-    return task->thread_pid->numbers[level].nr;
+    struct pid *tpid = READ_KERN(task->thread_pid);
 #endif
+    return READ_KERN(tpid->numbers[level].nr);
 }
 
 static __always_inline u32 get_task_ppid(struct task_struct *task)
 {
-    return task->parent->pid;
+    struct task_struct *parent = READ_KERN(task->parent);
+    return READ_KERN(parent->pid);
+
 }
 
 // == Pid NS Management == //
@@ -216,11 +282,11 @@ static __always_inline u32 add_pid_ns()
     }
 
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns_map.lookup(&pid) != 0) {
+    if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
         return pid;
     }
 
-    pid_ns_map.update(&pid, &one);
+    bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
     return pid;
 
 #else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
@@ -228,18 +294,18 @@ static __always_inline u32 add_pid_ns()
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (pid_ns_map.lookup(&pid) != 0) {
+        if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
             return pid;
         }
 
-        pid_ns_map.update(&pid, &one);
+        bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
         return pid;
     } else { // container
-        if (pid_ns_map.lookup(&pid_ns) != 0) {
+        if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) != 0) {
             return pid_ns;
         }
 
-        pid_ns_map.update(&pid_ns, &one);
+        bpf_map_update_elem(&pid_ns_map, &pid_ns, &one, BPF_ANY);
         return pid_ns;
     }
 
@@ -258,8 +324,8 @@ static __always_inline u32 remove_pid_ns()
     }
 
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns_map.lookup(&pid) != 0) {
-        pid_ns_map.delete(&pid);
+    if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
+        bpf_map_delete_elem(&pid_ns_map,&pid);
         return 0;
     }
 
@@ -268,13 +334,13 @@ static __always_inline u32 remove_pid_ns()
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (pid_ns_map.lookup(&pid) != 0) {
-            pid_ns_map.delete(&pid);
+        if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
+            bpf_map_delete_elem(&pid_ns_map,&pid);
             return 0;
         }
     } else { // container
         if (get_task_ns_pid(task) == 1) {
-            pid_ns_map.delete(&pid_ns);
+            bpf_map_delete_elem(&pid_ns_map,&pid_ns);
             return 0;
         }
     }
@@ -296,7 +362,7 @@ static __always_inline u32 skip_syscall()
     }
 
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns_map.lookup(&pid) != 0) {
+    if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
         return 0;
     }
 
@@ -316,11 +382,11 @@ static __always_inline u32 skip_syscall()
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (pid_ns_map.lookup(&pid) != 0) {
+        if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
             return 0;
         }
     } else { // container
-        if (pid_ns_map.lookup(&pid_ns) != 0) {
+        if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) != 0) {
             return 0;
         }
     }
@@ -383,17 +449,17 @@ static __always_inline u32 init_context(sys_context_t *context)
 
 static __always_inline bufs_t* get_buffer(int buf_type)
 {
-    return bufs.lookup(&buf_type);
+    return bpf_map_lookup_elem(&bufs, &buf_type);
 }
 
 static __always_inline void set_buffer_offset(int buf_type, u32 off)
 {
-    bufs_offset.update(&buf_type, &off);
+    bpf_map_update_elem(&bufs_offset, &buf_type, &off, BPF_ANY);
 }
 
 static __always_inline u32* get_buffer_offset(int buf_type)
 {
-    return bufs_offset.lookup(&buf_type);
+    return bpf_map_lookup_elem(&bufs_offset, &buf_type);
 }
 
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
@@ -407,7 +473,9 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 {
+
     u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+
     if (off == NULL) {
         return -1;
     }
@@ -418,12 +486,13 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 
     u8 type = STR_T;
     bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE-1)]), 1, &type);
-
+    
     *off += 1;
 
     if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
         return 0; // no enough space
     }
+
 
     int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
     if (sz > 0) {
@@ -515,8 +584,9 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p, in
 static __always_inline struct path* load_file_p()
 {
     u64	pid_tgid = bpf_get_current_pid_tgid();
-    struct path *p = file_map.lookup(&pid_tgid);
-    file_map.delete(&pid_tgid);
+
+    struct path *p = bpf_map_lookup_elem(&file_map,&pid_tgid);
+    bpf_map_delete_elem(&file_map,&pid_tgid);
     return p;
 }
 
@@ -680,23 +750,26 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
     void *data = bufs_p->buf;
     int size = *off & (MAX_BUFFER_SIZE-1);
 
-    return sys_events.perf_submit(ctx, data, size);
+    return bpf_perf_event_output(ctx, &sys_events, BPF_F_CURRENT_CPU, data, size);
 }
 
 // == Full Path == //
 
-int trace_security_bprm_check(struct pt_regs *ctx, struct linux_binprm *bprm)
+SEC("kprobe/security_bprm_check")
+int kprobe__security_bprm_check(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
     //
 
-    struct file *f = bprm->file;
+    struct linux_binprm *bprm = (struct linux_binprm *)PT_REGS_PARM1(ctx);
+
+    struct file *f = READ_KERN(bprm->file);
     if (f == NULL)
         return 0;
 
 	struct path p;
-	bpf_probe_read(&p, sizeof(struct path), &f->f_path);
+    bpf_probe_read(&p, sizeof(struct path), GET_FIELD_ADDR(f->f_path));
 
 	bufs_t *string_p = get_buffer(EXEC_BUF_TYPE);
 	if (string_p == NULL)
@@ -732,33 +805,44 @@ int trace_security_bprm_check(struct pt_regs *ctx, struct linux_binprm *bprm)
     return 0;
 }
 
-int trace_security_file_open(struct pt_regs *ctx, struct file *file)
+SEC("kprobe/security_file_open")
+int kprobe__security_file_open(struct pt_regs *ctx)
 {
 	if (skip_syscall())
 		return 0;
 
-	struct path p;
-	bpf_probe_read(&p, sizeof(struct path), &file->f_path);
+    struct file *f = (struct file *)PT_REGS_PARM1(ctx);
+
+	struct path p = READ_KERN(f->f_path);
 
 	u64	tgid = bpf_get_current_pid_tgid();
-	file_map.update(&tgid, &p);
+	bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
 
 	return 0;
 }
 
 // == Syscall Hooks (Process) == //
 
-int syscall__execve(struct pt_regs *ctx,
-    const char __user *filename,
-    const char __user *const __user *__argv,
-    const char __user *const __user *__envp)
+SEC("kprobe/__x64_sys_execve")
+int kprobe__execve(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
+    char *filename = (char *)PT_REGS_PARM1(ctx);
+    unsigned long argv = PT_REGS_PARM2(ctx);
+#else
+    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);  
+    char *filename = (char *)READ_KERN(PT_REGS_PARM1(ctx2));
+    unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
+#endif
+
     if (!add_pid_ns())
         return 0;
+    
 
     init_context(&context);
+
 
     context.event_id = _SYS_EXECVE;
     context.argnum = 2;
@@ -772,15 +856,16 @@ int syscall__execve(struct pt_regs *ctx,
 
     save_context_to_buffer(bufs_p, (void*)&context);
 
-    save_str_to_buffer(bufs_p, (void *)filename);
-    save_str_arr_to_buffer(bufs_p, __argv);
+    save_str_to_buffer(bufs_p, filename);
+    save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
 
     events_perf_submit(ctx);
 
     return 0;
 }
 
-int trace_ret_execve(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_execve")
+int kretprobe__execve(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
@@ -809,14 +894,32 @@ int trace_ret_execve(struct pt_regs *ctx)
     return 0;
 }
 
-int syscall__execveat(struct pt_regs *ctx,
-    const int dirfd,
-    const char __user *pathname,
-    const char __user *const __user *__argv,
-    const char __user *const __user *__envp,
-    const int flags)
+SEC("kprobe/__x64_sys_execveat")
+int kprobe__execveat(struct pt_regs *ctx)
 {
     sys_context_t context = {};
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
+    
+    const int dirfd = PT_REGS_PARM1(ctx);
+
+    const char __user *pathname = (void *)&PT_REGS_PARM2(ctx);
+
+    unsigned long argv = PT_REGS_PARM3(ctx);
+
+    int flags = (int)PT_REGS_PARM5(ctx);
+
+#else
+    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);  
+    
+    const int dirfd = READ_KERN(PT_REGS_PARM1(ctx2));
+
+    const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM2(ctx2));
+
+    unsigned long argv = READ_KERN(PT_REGS_PARM3(ctx2));
+
+    int flags = (int)READ_KERN(PT_REGS_PARM5(ctx2));
+#endif
 
     if (!add_pid_ns())
         return 0;
@@ -835,17 +938,18 @@ int syscall__execveat(struct pt_regs *ctx,
 
     save_context_to_buffer(bufs_p, (void*)&context);
 
-    save_to_buffer(bufs_p, (void*)&dirfd, sizeof(int), INT_T);
+    save_to_buffer(bufs_p, (void *)&dirfd, sizeof(int), INT_T);
     save_str_to_buffer(bufs_p, (void *)pathname);
-    save_str_arr_to_buffer(bufs_p, __argv);
-    save_to_buffer(bufs_p, (void*)&flags, sizeof(int), EXEC_FLAGS_T);
+    save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
+    save_to_buffer(bufs_p, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
 
     events_perf_submit(ctx);
 
     return 0;
 }
 
-int trace_ret_execveat(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_execveat")
+int kretprobe__execveat(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
@@ -874,9 +978,12 @@ int trace_ret_execveat(struct pt_regs *ctx)
     return 0;
 }
 
-int trace_do_exit(struct pt_regs *ctx, long code)
+SEC("kprobe/do_exit")
+int kprobe__do_exit(struct pt_regs *ctx)
 {
     sys_context_t context = {};
+
+    const long code = PT_REGS_PARM1(ctx);
 
     init_context(&context);
 
@@ -904,7 +1011,7 @@ int trace_do_exit(struct pt_regs *ctx, long code)
 static __always_inline int save_args(u32 event_id, struct pt_regs *ctx)
 {
     args_t args = {};
-
+  
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
     args.args[0] = PT_REGS_PARM1(ctx);
     args.args[1] = PT_REGS_PARM2(ctx);
@@ -913,19 +1020,19 @@ static __always_inline int save_args(u32 event_id, struct pt_regs *ctx)
     args.args[4] = PT_REGS_PARM5(ctx);
     args.args[5] = PT_REGS_PARM6(ctx);
 #else
-    struct pt_regs * ctx2 = (struct pt_regs *)ctx->di;
-    bpf_probe_read(&args.args[0], sizeof(args.args[0]), &ctx2->di);
-    bpf_probe_read(&args.args[1], sizeof(args.args[1]), &ctx2->si);
-    bpf_probe_read(&args.args[2], sizeof(args.args[2]), &ctx2->dx);
-    bpf_probe_read(&args.args[3], sizeof(args.args[3]), &ctx2->r10);
-    bpf_probe_read(&args.args[4], sizeof(args.args[4]), &ctx2->r8);
-    bpf_probe_read(&args.args[5], sizeof(args.args[5]), &ctx2->r9);
+    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);  
+    bpf_probe_read(&args.args[0], sizeof(args.args[0]), &PT_REGS_PARM1(ctx2));
+    bpf_probe_read(&args.args[1], sizeof(args.args[1]), &PT_REGS_PARM2(ctx2));
+    bpf_probe_read(&args.args[2], sizeof(args.args[2]), &PT_REGS_PARM3(ctx2));
+    bpf_probe_read(&args.args[3], sizeof(args.args[3]), &PT_REGS_PARM4_SYSCALL(ctx2));
+    bpf_probe_read(&args.args[4], sizeof(args.args[4]), &PT_REGS_PARM5(ctx2));
+    bpf_probe_read(&args.args[5], sizeof(args.args[5]), &PT_REGS_PARM6(ctx2));
 #endif
 
     u32 tgid = bpf_get_current_pid_tgid();
     u64 id = ((u64)event_id << 32) | tgid;
 
-    args_map.update(&id, &args);
+    bpf_map_update_elem(&args_map, &id, &args, BPF_ANY);
 
     return 0;
 }
@@ -935,7 +1042,7 @@ static __always_inline int load_args(u32 event_id, args_t *args)
     u32 tgid = bpf_get_current_pid_tgid();
     u64 id = ((u64)event_id << 32) | tgid;
 
-    args_t *saved_args = args_map.lookup(&id);
+    args_t *saved_args = bpf_map_lookup_elem(&args_map,&id);
     if (saved_args == 0) {
         return -1; // missed entry or not a container
     }
@@ -947,7 +1054,7 @@ static __always_inline int load_args(u32 event_id, args_t *args)
     args->args[4] = saved_args->args[4];
     args->args[5] = saved_args->args[5];
 
-    args_map.delete(&id);
+    bpf_map_delete_elem(&args_map,&id);
 
     return 0;
 }
@@ -1005,7 +1112,8 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     return 0;
 }
 
-int syscall__open(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_open")
+int kprobe__open(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1013,12 +1121,14 @@ int syscall__open(struct pt_regs *ctx)
     return save_args(_SYS_OPEN, ctx);
 }
 
-int trace_ret_open(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_open")
+int kretprobe__open(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(OPEN_FLAGS_T));
 }
 
-int syscall__openat(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_openat")
+int kprobe__openat(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1026,12 +1136,14 @@ int syscall__openat(struct pt_regs *ctx)
     return save_args(_SYS_OPENAT, ctx);
 }
 
-int trace_ret_openat(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_openat")
+int kretprobe__openat(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(OPEN_FLAGS_T));
 }
 
-int syscall__close(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_close")
+int kprobe__close(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1039,12 +1151,24 @@ int syscall__close(struct pt_regs *ctx)
     return save_args(_SYS_CLOSE, ctx);
 }
 
-int trace_ret_close(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_close")
+int kretprobe__close(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T));
 }
 
-TRACEPOINT_PROBE(syscalls, sys_exit_openat)
+struct tracepoint_syscalls_sys_exit_t {
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+
+    int __syscall_ret;
+    long ret;
+};
+
+SEC("tracepoint/syscalls/sys_exit_openat")
+int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
 {
     u32 id = _SYS_OPENAT;
     u64 types = ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(OPEN_FLAGS_T);
@@ -1089,7 +1213,8 @@ TRACEPOINT_PROBE(syscalls, sys_exit_openat)
 
 // == Syscall Hooks (Network) == //
 
-int syscall__socket(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_socket")
+int kprobe__socket(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1097,12 +1222,14 @@ int syscall__socket(struct pt_regs *ctx)
     return save_args(_SYS_SOCKET, ctx);
 }
 
-int trace_ret_socket(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_socket")
+int kretprobe__socket(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_SOCKET, ctx, ARG_TYPE0(SOCK_DOM_T)|ARG_TYPE1(SOCK_TYPE_T)|ARG_TYPE2(INT_T));
 }
 
-int syscall__connect(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_connect")
+int kprobe__connect(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1110,12 +1237,15 @@ int syscall__connect(struct pt_regs *ctx)
     return save_args(_SYS_CONNECT, ctx);
 }
 
-int trace_ret_connect(struct pt_regs *ctx)
+
+SEC("kretprobe/__x64_sys_connect")
+int kretprobe__connect(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_CONNECT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
 }
 
-int syscall__accept(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_accept")
+int kprobe__accept(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1123,12 +1253,14 @@ int syscall__accept(struct pt_regs *ctx)
     return save_args(_SYS_ACCEPT, ctx);
 }
 
-int trace_ret_accept(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_accept")
+int kretprobe__accept(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_ACCEPT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
 }
 
-int syscall__bind(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_bind")
+int kprobe__bind(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1136,12 +1268,14 @@ int syscall__bind(struct pt_regs *ctx)
     return save_args(_SYS_BIND, ctx);
 }
 
-int trace_ret_bind(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_bind")
+int kretprobe__bind(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_BIND, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
 }
 
-int syscall__listen(struct pt_regs *ctx)
+SEC("kprobe/__x64_sys_listen")
+int kprobe__listen(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
@@ -1149,7 +1283,10 @@ int syscall__listen(struct pt_regs *ctx)
     return save_args(_SYS_LISTEN, ctx);
 }
 
-int trace_ret_listen(struct pt_regs *ctx)
+SEC("kretprobe/__x64_sys_listen")
+int kretprobe__listen(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));
 }
+
+char LICENSE[] SEC("license") = "Dual BSD/GPL";
