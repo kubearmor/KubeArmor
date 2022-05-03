@@ -14,7 +14,6 @@ KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 .PHONY: build
 build: protobuf
-	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
 ifneq (, $(shell which bpftool))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
@@ -30,7 +29,6 @@ protobuf:
 
 .PHONY: build-test
 build-test: testall
-	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
 
@@ -60,6 +58,7 @@ testall:
 	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/enforcer; go mod tidy
 	cd $(CURDIR)/enforcer; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
+	cd $(CURDIR)/BPF; make
 	cd $(CURDIR)/monitor; go mod tidy
 	cd $(CURDIR)/monitor; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 
