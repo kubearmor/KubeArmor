@@ -62,6 +62,15 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 	if log.ContainerID != "" {
 		log = mon.UpdateContainerInfoByContainerID(log)
+	} else {
+		// update host policy flag
+		log.PolicyEnabled = mon.Node.PolicyEnabled
+
+		// update host visibility flags
+		log.ProcessVisibilityEnabled = mon.Node.ProcessVisibilityEnabled
+		log.FileVisibilityEnabled = mon.Node.FileVisibilityEnabled
+		log.NetworkVisibilityEnabled = mon.Node.NetworkVisibilityEnabled
+		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
 	}
 
 	log.HostPPID = int32(msg.ContextSys.HostPPID)
@@ -194,7 +203,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				var sockDomain string
 				var sockType string
-				var sockProtocol string
+				var sockProtocol int32
 
 				if val, ok := msg.ContextArgs[0].(string); ok {
 					sockDomain = val
@@ -203,11 +212,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 					sockType = val
 				}
 				if val, ok := msg.ContextArgs[2].(int32); ok {
-					sockProtocol = strconv.Itoa(int(val))
+					sockProtocol = val
 				}
 
 				log.Operation = "Network"
-				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
+				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + getProtocol(sockProtocol)
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
 
 			case SysConnect: // fd, sockaddr

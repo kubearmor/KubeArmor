@@ -30,6 +30,12 @@ spec:
       recursive: true
     - dir: /proc/ # required to change root to user1 (coarse-grained way)
       recursive: true
+    - dir: /lib/ # used by root and user1
+      recursive: true
+    - dir: /sys/ # used by root and user1
+      recursive: true
+    - dir: /pts/ # used by root and user1
+      recursive: true
   action:
     Allow
 

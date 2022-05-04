@@ -538,7 +538,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 func (fd *Feeder) PushLog(log tp.Log) {
 	log = fd.UpdateMatchedPolicy(log)
 
-	if log.UpdatedTime == "" {
+	if log.Source == "" {
 		return
 	}
 
@@ -571,8 +571,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Timestamp = log.Timestamp
 		pbAlert.UpdatedTime = log.UpdatedTime
 
-		pbAlert.ClusterName = cfg.GlobalCfg.Cluster
-		pbAlert.HostName = cfg.GlobalCfg.Host
+		pbAlert.ClusterName = fd.Node.ClusterName
+		pbAlert.HostName = fd.Node.NodeName
 
 		pbAlert.NamespaceName = log.NamespaceName
 		pbAlert.PodName = log.PodName
@@ -636,14 +636,14 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			default:
 			}
 		}
-	} else { // ContainerLog
+	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}
 
 		pbLog.Timestamp = log.Timestamp
 		pbLog.UpdatedTime = log.UpdatedTime
 
-		pbLog.ClusterName = cfg.GlobalCfg.Cluster
-		pbLog.HostName = cfg.GlobalCfg.Host
+		pbLog.ClusterName = fd.Node.ClusterName
+		pbLog.HostName = fd.Node.NodeName
 
 		pbLog.NamespaceName = log.NamespaceName
 		pbLog.PodName = log.PodName

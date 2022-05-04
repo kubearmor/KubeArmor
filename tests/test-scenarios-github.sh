@@ -43,60 +43,35 @@ SKIP_HOST_POLICY=1
 
 case $1 in
     "-testPolicy")
-        if [ "$LSM" == "selinux" ]; then
-            echo "KubeArmor does not support container policies in SELinux-enabled environments"
-            exit
-        fi
-
         SKIP_CONTAINER_POLICY=0
-        SKIP_NATIVE_POLICY=1
-        SKIP_HOST_POLICY=1
-
         ARMOR_OPTIONS=${@:2}
         ;;
-
     "-testHostPolicy")
         echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
         exit
         ;;
-
     "-testNativePolicy")
         if [ "$LSM" != "apparmor" ]; then
             echo "KubeArmor does not support native policies if AppArmor is not enabled"
             exit
         fi
-
-        SKIP_CONTAINER_POLICY=1
         SKIP_NATIVE_POLICY=0
-        SKIP_HOST_POLICY=1
-
         ARMOR_OPTIONS=${@:2}
         ;;
-
     *)
         if [ "$LSM" == "selinux" ]; then
-            echo "KubeArmor only supports host policies in SELinux-enabled environments"
             echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
-            exit
-
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+            SKIP_CONTAINER_POLICY=0
         elif [ "$LSM" == "apparmor" ]; then
             echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
-
             SKIP_CONTAINER_POLICY=0
             SKIP_NATIVE_POLICY=0
-            SKIP_HOST_POLICY=1
-
-            ARMOR_OPTIONS=$@
-
         else # none
             echo "KubeArmor does not support native policies if AppArmor is not enabled"
-
             SKIP_CONTAINER_POLICY=0
-            SKIP_NATIVE_POLICY=1
-            SKIP_HOST_POLICY=0
-
-            ARMOR_OPTIONS=$@
         fi
+        ARMOR_OPTIONS=$@
         ;;
 esac
 
@@ -288,7 +263,7 @@ function should_find_passed_log() {
         res_cmd=1
     else
         echo $audit_log
-        DBG "[INFO] Found the log from logs"
+        DBG "Found the log from logs"
     fi
 }
 
@@ -320,7 +295,7 @@ function should_not_find_any_host_log() {
         res_cmd=1
     else
         audit_log="<No Log>"
-        DBG "[INFO] Found no log from logs"
+        DBG "Found no log from logs"
     fi
 }
 
@@ -336,7 +311,7 @@ function should_find_passed_host_log() {
         res_cmd=1
     else
         echo $audit_log
-        DBG "[INFO] Found the log from logs"
+        DBG "Found the log from logs"
     fi
 }
 
@@ -428,6 +403,23 @@ function run_test_scenario() {
         OP=$(cat $cmd | grep "^operation" | awk '{print $2}')
         COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
+
+        # if SELinux is enabled but a test policy not for hosts
+        if [[ "$LSM" == "selinux" ]] && [[ $HOST_POLICY -eq 0 ]]; then
+            # replace Block with Audit
+            if [ "$ACTION" == "Block" ]; then
+                if [ "$RESULT" == "failed" ]; then
+                    ACTION="Audit"
+                    RESULT="passed"
+                fi
+            # replace Allow with "failed" to Audit with "passed"
+            elif [ "$ACTION" == "Allow" ]; then
+                if [ "$RESULT" == "failed" ]; then
+                    ACTION="Audit"
+                    RESULT="passed"
+                fi
+            fi
+        fi
 
         # if AppArmor and SELinux are not enabled
         if [ "$LSM" == "none" ]; then

@@ -752,8 +752,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
 					ae.AllowedProcessMatchPaths(path, &processWhiteList, fromSources)
-				} else if path.Action == "Audit" {
-					//
 				} else if path.Action == "Block" {
 					ae.BlockedProcessMatchPaths(path, &processBlackList, fromSources)
 				}
@@ -763,8 +761,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
 					ae.AllowedProcessMatchDirectories(dir, &processWhiteList, fromSources)
-				} else if dir.Action == "Audit" {
-					//
 				} else if dir.Action == "Block" {
 					ae.BlockedProcessMatchDirectories(dir, &processBlackList, fromSources)
 				}
@@ -774,8 +770,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Allow" {
 					ae.AllowedProcessMatchPatterns(pat, &processWhiteList)
-				} else if pat.Action == "Audit" {
-					//
 				} else if pat.Action == "Block" {
 					ae.BlockedProcessMatchPatterns(pat, &processBlackList)
 				}
@@ -786,8 +780,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
 					ae.AllowedFileMatchPaths(path, &fileWhiteList, fromSources)
-				} else if path.Action == "Audit" {
-					//
 				} else if path.Action == "Block" {
 					ae.BlockedFileMatchPaths(path, &fileBlackList, fromSources)
 				}
@@ -797,8 +789,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
 					ae.AllowedFileMatchDirectories(dir, &fileWhiteList, fromSources)
-				} else if dir.Action == "Audit" {
-					//
 				} else if dir.Action == "Block" {
 					ae.BlockedFileMatchDirectories(dir, &fileBlackList, fromSources)
 				}
@@ -808,8 +798,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Allow" {
 					ae.AllowedFileMatchPatterns(pat, &fileWhiteList)
-				} else if pat.Action == "Audit" {
-					//
 				} else if pat.Action == "Block" {
 					ae.BlockedFileMatchPatterns(pat, &fileBlackList)
 				}

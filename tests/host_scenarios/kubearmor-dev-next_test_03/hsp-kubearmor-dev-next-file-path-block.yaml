@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-next-file-path-block
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev-next
+  severity: 5
+  file:
+    matchPaths:
+    - path: /etc/hostname
+  action:
+    Block
+
+# kubearmor-dev-next_test_03
+
+# test
+# $ cat /etc/hostname
+# cat: /etc/hostname: Permission denied
+
+# expectation
+# anyone cannot access /etc/hostname

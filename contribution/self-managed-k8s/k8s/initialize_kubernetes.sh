@@ -2,8 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
-if [ ! -z $1 ] && [ "$1" == "help" ]; then
-    echo "Usage: $0 [ flannel | weave | calico | cilium ] (master)"
+# set default
+if [ "$CNI" == "" ]; then
+    CNI=cilium
+fi
+
+# check supported CNI
+if [ "$CNI" != "flannel" ] && [ "$CNI" != "weave" ] && [ "$CNI" != "calico" ] && [ "$CNI" != "cilium" ]; then
+    echo "Usage: CNI={flannel|weave|calico|cilium} MASTER={true|false} $0"
     exit
 fi
 
@@ -18,18 +24,11 @@ sudo modprobe br_netfilter
 sudo bash -c "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
 sudo bash -c "echo 'net.bridge.bridge-nf-call-iptables=1' >> /etc/sysctl.conf"
 
-if [ ! -z $1 ] && [ "$1" == "weave" ]; then
-    # initialize the master node (weave)
-    sudo kubeadm init | tee -a ~/k8s_init.log
-elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
-    # initialize the master node (flannel)
+# initialize the master node
+if [ "$CNI" == "calico" ]; then
+    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
+else # weave, flannel, cilium
     sudo kubeadm init --pod-network-cidr=10.244.0.0/16 | tee -a ~/k8s_init.log
-elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
-    # initialize the master node (calico)
-    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
-else
-    # initialize the master node (cilium)
-    sudo kubeadm init --pod-network-cidr=192.168.0.0/16 | tee -a ~/k8s_init.log
 fi
 
 # make kubectl work for non-root user
@@ -47,25 +46,26 @@ else
     echo "export KUBECONFIG=$HOME/.kube/config" | tee -a ~/.bashrc
 fi
 
-if [ ! -z $1 ] && [ "$1" == "weave" ]; then
+if [ "$CNI" == "flannel" ]; then
+    # install a pod network (flannel)
+    kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/v0.17.0/Documentation/kube-flannel.yml
+elif [ "$CNI" == "weave" ]; then
     # install a pod network (weave)
     export kubever=$(kubectl version | base64 | tr -d '\n')
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$kubever"
-elif [ ! -z $1 ] && [ "$1" == "flannel" ]; then
-    # install a pod network (flannel)
-    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/v0.13.0/Documentation/kube-flannel.yml
-elif [ ! -z $1 ] && [ "$1" == "calico" ]; then
+elif [ "$CNI" == "calico" ]; then
     # install a pod network (calico)
-    kubectl apply -f https://docs.projectcalico.org/v3.6/manifests/calico.yaml
-else
+    kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
+elif [ "$CNI" == "cilium" ]; then
     # install a pod network (cilium)
-    kubectl create -f https://raw.githubusercontent.com/cilium/cilium/v1.9/install/kubernetes/quick-install.yaml
+    curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz{,.sha256sum}
+    sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
+    sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+    rm cilium-linux-amd64.tar.gz{,.sha256sum}
+    /usr/local/bin/cilium install
 fi
 
-if [ ! -z $2 ] && [ "$2" == "master" ]; then
+if [ "$MASTER" == "true" ]; then
     # disable master isolation (due to the lack of resources)
-    kubectl taint nodes --all node-role.kubernetes.io/master-
-elif [ -z $1 ]; then
-    # disable master isolation (due to the lack of resources) by default
     kubectl taint nodes --all node-role.kubernetes.io/master-
 fi
