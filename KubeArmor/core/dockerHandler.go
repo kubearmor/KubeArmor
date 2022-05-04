@@ -203,7 +203,10 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 					container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
 					container.EndPointName = dm.Containers[container.ContainerID].EndPointName
+					container.Labels = dm.Containers[container.ContainerID].Labels
+
 					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+					container.ContainerImage = dm.Containers[container.ContainerID].ContainerImage
 
 					container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
 
@@ -280,7 +283,10 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 			container.NamespaceName = dm.Containers[containerID].NamespaceName
 			container.EndPointName = dm.Containers[containerID].EndPointName
+			container.Labels = dm.Containers[containerID].Labels
+
 			container.ContainerName = dm.Containers[containerID].ContainerName
+			container.ContainerImage = dm.Containers[containerID].ContainerImage
 
 			container.PolicyEnabled = dm.Containers[containerID].PolicyEnabled
 

@@ -576,6 +576,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.NamespaceName = log.NamespaceName
 		pbAlert.PodName = log.PodName
+		pbAlert.Labels = log.Labels
+
 		pbAlert.ContainerID = log.ContainerID
 		pbAlert.ContainerName = log.ContainerName
 		pbAlert.ContainerImage = log.ContainerImage
@@ -645,6 +647,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.NamespaceName = log.NamespaceName
 		pbLog.PodName = log.PodName
+		pbLog.Labels = log.Labels
+
 		pbLog.ContainerID = log.ContainerID
 		pbLog.ContainerName = log.ContainerName
 		pbLog.ContainerImage = log.ContainerImage

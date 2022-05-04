@@ -25,9 +25,12 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 	defer ContainersLock.RUnlock()
 
 	if val, ok := Containers[log.ContainerID]; ok {
-		// update container info
+		// update pod info
 		log.NamespaceName = val.NamespaceName
 		log.PodName = val.EndPointName
+		log.Labels = val.Labels
+
+		// update container info
 		log.ContainerName = val.ContainerName
 		log.ContainerImage = val.ContainerImage
 
