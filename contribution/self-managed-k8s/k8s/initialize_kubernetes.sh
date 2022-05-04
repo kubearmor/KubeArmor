@@ -62,7 +62,7 @@ elif [ "$CNI" == "cilium" ]; then
     sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
     sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
     rm cilium-linux-amd64.tar.gz{,.sha256sum}
-    cilium install
+    /usr/local/bin/cilium install
 fi
 
 if [ "$MASTER" == "true" ]; then
