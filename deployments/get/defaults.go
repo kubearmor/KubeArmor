@@ -123,7 +123,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
@@ -160,7 +159,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "crio-sock-path", // crio socket
@@ -174,7 +172,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "crio-sock-path",
@@ -202,7 +199,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "docker-sock-path", // docker
@@ -216,7 +212,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "docker-sock-path",
@@ -242,7 +237,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "docker-sock-path", // docker
@@ -256,7 +250,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "docker-sock-path",
@@ -284,7 +277,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
@@ -298,7 +290,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
@@ -326,7 +317,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
@@ -340,7 +330,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
@@ -368,7 +357,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			gkeHostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
@@ -387,7 +375,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			gkeHostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
@@ -424,7 +411,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
@@ -443,7 +429,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
@@ -481,7 +466,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
@@ -500,7 +484,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
@@ -537,7 +520,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
@@ -556,7 +538,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 		Volumes: []corev1.Volume{
-			hostUsrVol,
 			apparmorVol,
 			{
 				Name: "containerd-sock-path",
