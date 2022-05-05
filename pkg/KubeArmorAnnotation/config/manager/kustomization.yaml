@@ -8,9 +8,10 @@ configMapGenerator:
 - files:
   - controller_manager_config.yaml
   name: manager-config
+
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: kubearmor/annotations-controller
-  newTag: v0.1
+  newName: kubearmor/kubearmor-annotation-manager
+  newTag: latest
