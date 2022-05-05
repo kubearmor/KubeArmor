@@ -4,5 +4,7 @@
 
 set -e
 
+make -C /opt/kubearmor/BPF/
+
 /bin/systemctl daemon-reload
 /bin/systemctl start kubearmor.service

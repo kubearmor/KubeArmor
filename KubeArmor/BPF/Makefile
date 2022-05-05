@@ -13,14 +13,11 @@ ifeq ($(V),1)
 endif
 
 # shamelessly copied from kernel's samples/bpf/Makefile
-KF = -nostdinc -isystem /usr/lib/gcc/x86_64-linux-gnu/9/include \
-	 -I$(KRNDIR)/arch/x86/include -I$(KRNDIR)/arch/x86/include/generated  \
+KF = -I$(KRNDIR)/arch/x86/include -I$(KRNDIR)/arch/x86/include/generated  \
 	 -I$(KRNDIR)/include -I$(KRNDIR)/arch/x86/include/uapi \
 	 -I$(KRNDIR)/arch/x86/include/generated/uapi -I$(KRNDIR)/include/uapi \
 	 -I$(KRNDIR)/include/generated/uapi \
 	 -I$(LIBBPF)/src \
-	 -I/usr/lib/gcc/x86_64-alpine-linux-musl/10.3.1/include \
-	 -I/usr/lib/gcc/x86_64-linux-gnu/7/include \
 	 -include $(KRNDIR)/include/linux/kconfig.h \
 	 -D__KERNEL__ -D__BPF_TRACING__ -Wno-unused-value -Wno-pointer-sign \
 	 -D__TARGET_ARCH_x86 -Wno-compare-distinct-pointer-types \

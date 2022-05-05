@@ -17,6 +17,9 @@ contribution/vagrant/*.log
 *.rpm
 .coverprofile
 
+#Object files
+*.o
+
 # protobuf
 protobuf/go.sum
 

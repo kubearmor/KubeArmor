@@ -18,7 +18,9 @@ build: protobuf
 ifneq (, $(shell which bpftool))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
 ifneq (, $(shell which llvm-strip))
-	cd $(CURDIR); go generate ./...
+	if grep -q bpf '/sys/kernel/security/lsm'; then \
+    cd $(CURDIR); go generate ./... || true; \
+	fi
 endif
 endif
 	cd $(CURDIR); go build -o kubearmor main.go
@@ -104,8 +106,9 @@ ifeq (, $(shell which goreleaser))
 	go install github.com/goreleaser/goreleaser@latest
 	}
 endif
+	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR); curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sh -s -- -b .
-	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate --snapshot
 
 .PHONY: clean
 clean:

@@ -28,8 +28,9 @@ contents:
   - src: ./packaging/kubearmor.service
     dst: /usr/lib/systemd/system/kubearmor.service
     type: config
-  - src: ./BPF/*
+  - src: ./BPF/
     dst: /opt/kubearmor/BPF/
+    type: dir
   - src: ./templates/*
     dst: /opt/kubearmor/templates/
 scripts:
@@ -37,8 +38,6 @@ scripts:
 overrides:
   deb:
     depends:
-      - bpfcc-tools
+      - clang
+      - llvm
       - linux-headers-generic | linux-headers-generic-pae | linux-headers-lowlatency | linux-headers-lowlatency-pae
-  rpm:
-    depends:
-      - bcc-tools
