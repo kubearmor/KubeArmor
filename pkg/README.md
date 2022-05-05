@@ -32,8 +32,10 @@ KubeArmorAnnotation provides the admission controller that automatically adds th
 
 ```
 cd KubeArmorAnnotation
-make              # compile the kubearmor-annotation-manager
-make docker-build # create a local image for the kubearmor-annotation-manager
-make deploy       # deploy the created local image for testing
-make delete       # delete the controller deployed for testing
+make                     # compile the kubearmor-annotation-manager
+make docker-build        # create a local image for the kubearmor-annotation-manager
+make deploy-cert-manager # deploy cert-manager
+make deploy              # deploy the created local image for testing
+make delete              # delete the controller deployed for testing
+make delete-cert-manager # delete cert-manager
 ```
