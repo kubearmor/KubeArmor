@@ -21,7 +21,7 @@ git -C /tmp/build/ clone --branch v0.24.0 --depth 1 https://github.com/iovisor/b
 # install dependencies for bcc
 sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
                         clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                        arping netperf iperf3
+                        arping netperf iperf3 net-tools
 
 # install bcc
 mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build

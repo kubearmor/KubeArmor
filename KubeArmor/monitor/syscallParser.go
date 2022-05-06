@@ -378,6 +378,26 @@ func getSocketType(st uint32) string {
 	return strings.Join(f, "|")
 }
 
+var protocols = map[int32]string{
+	1:  "ICMP",
+	6:  "TCP",
+	17: "UDP",
+	58: "ICMPv6",
+}
+
+// getProtocol Function
+func getProtocol(proto int32) string {
+	var res string
+
+	if protoName, ok := protocols[proto]; ok {
+		res = protoName
+	} else {
+		res = strconv.Itoa(int(proto))
+	}
+
+	return res
+}
+
 var capabilities = map[int32]string{
 	0:  "CAP_CHOWN",
 	1:  "CAP_DAC_OVERRIDE",

@@ -8,17 +8,26 @@
 
 4. If the issue involves code changes you need to install development env using this [Development Guide](contribution/development_guide.md).
 
-# Scope of contribution
+# Scope of Contribution
 
-Contributions are not necessarily in the form of code changes. Kubearmor community can benefit from contributions such as:
+Contributions are not necessarily in the form of code changes. KubeArmor community can benefit from contributions such as:
 
-1. [Policy-Templates](https://github.com/kubearmor/policy-templates): Users are welcome to contribute policy-templates for their workloads. The workloads have to be generic enough such that it benefits the wider community. E.g., if someone brings up a system policy restricting access to nginx process that would be useful in multiple scenarios and for the wider community then come up with a policy-template that is specific to your proprietary application.
+1. [Policy-Templates](https://github.com/kubearmor/policy-templates)
+
+   Users are welcome to contribute policy-templates for their workloads. The workloads have to be generic enough such that it benefits the wider community. E.g., if someone brings up a system policy restricting access to nginx process that would be useful in multiple scenarios and for the wider community then come up with a policy-template that is specific to your proprietary application.
 
 2. Blogs
-   a. explaining feature use (KVMService, Event Auditor, Visibility, etc)
-   b. How to use Kubearmor to protect your workload? Specific use-cases you may have. Please do not shy away from getting as technical as you can.
-   c. ... put your topic of interest here ...
 
-3. Feedback to the community. Just helping advance any discussion on KubeArmor Slack, Community meetings, office hours will make a big difference.
+   a. Explain The use of KubeArmor's features (KVMService, Event Auditor, Visibility, etc)
 
-4. Talking about Kubearmor in meetups. We would certainly encourage users or devs of kubearmor to talk about it in open/closed forums. The community can help with logistics such as compiling/feedback on slide-decks, technical diagrams, etc.
+   b. Describe How to use KubeArmor to protect your workload with specific use-cases you may have. Please do not shy away from getting as technical as you can.
+
+   c. Put your topic of interest
+
+3. Feedback to the community
+
+   Just helping advance any discussion on KubeArmor Slack, Community meetings, office hours will make a big difference.
+
+4. Talking about KubeArmor in meetups
+
+   We would certainly encourage users or devs of KubeArmor to talk about it in open/closed forums. The community can help with logistics such as compiling/feedback on slide-decks, technical diagrams, etc.

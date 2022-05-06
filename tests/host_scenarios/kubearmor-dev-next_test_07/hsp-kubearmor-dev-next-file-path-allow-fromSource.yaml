@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-next-file-path-allow-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev-next
+  severity: 5
+  file:
+    matchPaths:
+    - path: /etc/hostname
+      fromSource:
+      - path: /usr/bin/head
+  action:
+    Allow
+
+# kubearmor-dev-next_test_07
+
+# test
+# $ head /etc/hostname
+# kubearmor-dev
+# $ head /etc/hosts
+# head: /etc/hosts: Permission denied
+
+# expectation
+# /usr/bin/head can only access /etc/hostname
+# /usr/bin/head cannot access any others

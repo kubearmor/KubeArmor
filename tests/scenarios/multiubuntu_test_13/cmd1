@@ -3,5 +3,5 @@ cmd: cat /run/secrets/kubernetes.io/serviceaccount/token
 result: failed
 ---
 operation: File
-condition: serviceaccount/token
+condition: serviceaccount
 action: Block

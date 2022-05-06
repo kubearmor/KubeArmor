@@ -5,13 +5,12 @@ if ENV['OS'] == "centos" then
   VM_NAME = "kubearmor-dev"
 else # ubuntu
   if ENV['NETNEXT'] == "1" then
-    VM_IMG = "ubuntu/impish64"
+    # VM_IMG = "ubuntu/jammy64" # 5.15
+    VM_IMG = "ubuntu/impish64" # 5.13
     VM_NAME = "kubearmor-dev-next"
-  elsif ENV['NETNEXT'] == "2" then
-    VM_IMG = "ubuntu/focal64"
-    VM_NAME = "kubearmor-dev-next-2"
   else
-    VM_IMG = "ubuntu/bionic64"
+    # VM_IMG = "ubuntu/focal64" # 5.4
+    VM_IMG = "ubuntu/bionic64" # 4.15
     VM_NAME = "kubearmor-dev"
   end
 end
@@ -67,36 +66,35 @@ Vagrant.configure("2") do |config|
   config.vm.provision :file, source: "~/.gitconfig", destination: "$HOME/.gitconfig"
 
   if ENV['OS'] == "centos" then
-    # provision bash scripts
+    # install base dependencies
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/setup.sh"
+
+    # install Docker
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/docker/install_docker.sh"
+
+    # install Kubernetes
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
 
     # initialize Kubernetes
-    config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
+    config.vm.provision :shell, :inline => "MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
 
     # enable SELinux
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
   else # ubuntu
-    if ENV['NETNEXT'] == "1" then
-      # install the latest kernel
-      config.vm.provision :shell, path: kubearmor_home + "/contribution/vagrant/dist-upgrade.sh"
-
-      # reboot
-      config.vm.provision :reload
-    end
-
-    # provision bash scripts
+    # install base dependencies
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/setup.sh"
+
     if ENV['RUNTIME'] == "containerd" then
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/containerd/install-containerd.sh"
     else # default == 'docker'
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/docker/install_docker.sh"
     end
+
+    # install Kubernetes
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
 
     # initialize Kubernetes
-    config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
+    config.vm.provision :shell, :inline => "MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
   end
 
   # install karmor

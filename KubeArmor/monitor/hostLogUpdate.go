@@ -92,7 +92,7 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 
 				var sockDomain string
 				var sockType string
-				var sockProtocol string
+				var sockProtocol int32
 
 				if val, ok := msg.ContextArgs[0].(string); ok {
 					sockDomain = val
@@ -101,11 +101,11 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 					sockType = val
 				}
 				if val, ok := msg.ContextArgs[2].(int32); ok {
-					sockProtocol = strconv.Itoa(int(val))
+					sockProtocol = val
 				}
 
 				log.Operation = "Network"
-				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
+				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + getProtocol(sockProtocol)
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
 
 			case SysConnect: // fd, sockaddr
