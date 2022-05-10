@@ -10,6 +10,6 @@ spec:
       container: ubuntu-1
   network:
     matchProtocols:
-    - protocol: raw # try 'ping 8.8.8.8'
+    - protocol: raw
   action:
     Audit
