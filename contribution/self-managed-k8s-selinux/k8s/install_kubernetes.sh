@@ -30,8 +30,12 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cl
 EOF
 sudo mv kubernetes.repo /etc/yum.repos.d/
 
-# install k8s
-sudo dnf install -y kubeadm kubelet kubectl iproute-tc
+# install kubernetes
+if [ "$RUNTIME" == "containerd" ]; then
+    sudo dnf install -y kubeadm kubelet kubectl iproute-tc
+else # docker
+    sudo dnf install -y kubeadm-1.23.0 kubelet-1.23.0 kubectl-1.23.0 iproute-tc
+fi
 sudo systemctl enable kubelet
 
 # disable rp_filter

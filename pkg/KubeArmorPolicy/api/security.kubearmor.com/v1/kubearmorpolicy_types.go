@@ -280,8 +280,7 @@ type KubeArmorPolicySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 
-	AppArmor string      `json:"apparmor,omitempty"`
-	SELinux  SELinuxType `json:"selinux,omitempty"`
+	AppArmor string `json:"apparmor,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

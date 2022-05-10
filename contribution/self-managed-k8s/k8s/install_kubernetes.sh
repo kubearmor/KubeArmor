@@ -18,7 +18,11 @@ echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https:/
 sudo apt-get update
 
 # install kubernetes
-sudo apt-get install -y kubeadm kubelet kubectl
+if [ "$RUNTIME" == "containerd" ]; then
+    sudo apt-get install -y kubeadm kubelet kubectl
+else # docker
+    sudo apt-get install -y kubeadm=1.23.0-00 kubelet=1.23.0-00 kubectl=1.23.0-00
+fi
 
 # exclude kubernetes packages from updates
 sudo apt-mark hold kubeadm kubelet kubectl
