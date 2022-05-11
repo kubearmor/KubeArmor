@@ -329,7 +329,9 @@ func NewFeeder(node *tp.Node) *Feeder {
 			return nil
 		}
 
-		defer pidFile.Close()
+		defer func() {
+			pidFile.Close()
+		}()
 
 		port := fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port)
 		fd.Port = fmt.Sprintf(":%s", port)
