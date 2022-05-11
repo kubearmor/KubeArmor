@@ -4,13 +4,14 @@
 package main
 
 import (
-	"KubeArmorAnnotation/controllers"
-	"KubeArmorAnnotation/handlers"
 	"flag"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorAnnotation/controllers"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorAnnotation/handlers"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -105,6 +106,8 @@ func main() {
 
 // detect the enforcer on the node
 func detectEnforcer(logger logr.Logger) string {
+	// assumption: all nodes have the same OSes
+
 	lsm := []byte{}
 	lsmPath := "/sys/kernel/security/lsm"
 
@@ -125,6 +128,7 @@ func detectEnforcer(logger logr.Logger) string {
 		logger.Info("Detected SELinux as the cluster Enforcer")
 		return "SELinux"
 	}
+
 	logger.Info("No enforcer was detected")
 	return ""
 }
