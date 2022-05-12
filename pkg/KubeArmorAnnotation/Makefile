@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
+CURDIR := $(shell pwd)
+
 # Image URL to use all building/pushing image targets
-IMG ?= kubearmor/kubearmor-annotation-manager:latest
+IMG ?= kubearmor/kubearmor-annotation-manager
+# Image Tag to use all building/pushing image targets
+TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
@@ -40,10 +44,10 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	go mod tidy; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go mod tidy; $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 fmt: ## Run go fmt against code.
 	go fmt ./...
@@ -65,32 +69,38 @@ build: generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+docker-build: build ## Build docker image with the manager.
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
 
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker push ${IMG}:${TAG}
+	docker push ${IMG}:latest
 
 ##@ Deployment
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+deploy-cert-manager: ## Deploy cert-manager before deploying the admission controller
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
+	kubectl wait pods --for=condition=ready -n cert-manager -l app=cert-manager
 
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+delete-cert-manager: ## Delete cert-manager when deleting the admission controller
+	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
 
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
+	cd $(CURDIR); $(KUSTOMIZE) build config/default | sed 's/latest/${TAG}/g' | kubectl apply -f -
 
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+delete: delete-cert-manager ## Delete controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+deployment: manifests kustomize
+	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
+	cd $(CURDIR); $(KUSTOMIZE) build config/default > ../../deployments/annotations/kubearmor-annotation-manager.yaml
+
+CONTROLLER_GEN = $(GOBIN)/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+KUSTOMIZE = /usr/local/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
@@ -103,7 +113,12 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+go mod tidy ;\
+go get $(2) ;\
+go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
+
+clean:
+	rm -rf bin testbin go.sum cover.out /tmp/KubeArmorAnnotation.yaml

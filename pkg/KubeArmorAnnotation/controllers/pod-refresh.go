@@ -23,8 +23,8 @@ type PodRefresherReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;list;create;update;delete
 
 func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
 	log := log.FromContext(ctx)
+
 	time.Sleep(2 * time.Second)
 
 	var podList corev1.PodList
@@ -39,7 +39,7 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 {
 				log.Info("Deleting pod " + pod.Name + "in namespace " + pod.Namespace + " as it is managed")
 				if err := r.Delete(ctx, &pod); err != nil {
-					log.Error(err, "Could'nt delete pod "+pod.Name+" in namespace "+pod.Namespace)
+					log.Error(err, "Could not delete pod "+pod.Name+" in namespace "+pod.Namespace)
 				}
 			} else {
 				// single pods
@@ -49,15 +49,15 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				if err := r.Delete(ctx, &pod, client.GracePeriodSeconds(0)); err != nil {
 					log.Error(err, "Could'nt delete pod "+pod.Name+" in namespace "+pod.Namespace)
 				}
+
 				// clean the pre-polutated attributes
 				pod.ResourceVersion = ""
 
 				// re-create the pod
 				if err := r.Create(ctx, &pod); err != nil {
-					log.Error(err, "Could'nt create pod "+pod.Name+" in namespace "+pod.Namespace)
+					log.Error(err, "Could not create pod "+pod.Name+" in namespace "+pod.Namespace)
 				}
 			}
-
 		}
 	}
 

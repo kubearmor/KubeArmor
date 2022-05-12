@@ -2,7 +2,7 @@
 # Copyright 2021 Authors of KubeArmor
 
 # Build the manager binary
-FROM golang:1.13 as builder
+FROM golang:1.17 as builder
 
 WORKDIR /workspace
 
