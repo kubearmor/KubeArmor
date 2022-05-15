@@ -35,6 +35,13 @@ jobs:
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
           ./contribution/k3s/install_k3s.sh
+      
+      - name: Install annotation controller
+        run: |
+          kubectl apply -f deployments/annotations/cert-manager.yaml
+          kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
+          kubectl apply -f deployments/annotations/kubearmor-annotation-manager.yaml
+          kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=annotation-manager
 
       - name: Generate KubeArmor artifacts
         run: |

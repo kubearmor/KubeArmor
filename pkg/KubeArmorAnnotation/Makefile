@@ -80,7 +80,7 @@ docker-push: ## Push docker image with the manager.
 
 deploy-cert-manager: ## Deploy cert-manager before deploying the admission controller
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
-	kubectl wait pods --for=condition=ready -n cert-manager -l app=cert-manager
+	kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
 
 delete-cert-manager: ## Delete cert-manager when deleting the admission controller
 	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
@@ -94,7 +94,9 @@ delete: delete-cert-manager ## Delete controller from the K8s cluster specified 
 
 deployment: manifests kustomize
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
-	cd $(CURDIR); $(KUSTOMIZE) build config/default > ../../deployments/annotations/kubearmor-annotation-manager.yaml
+	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
+		sed 's/control-plane: controller-manager/kubearmor-app: annotation-manager/g' | \
+		sed -e "1,7d" > ../../deployments/annotations/kubearmor-annotation-manager.yaml
 
 CONTROLLER_GEN = $(GOBIN)/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
