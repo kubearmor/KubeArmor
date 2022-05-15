@@ -32,8 +32,6 @@ If you want to try KubeArmor directly on the host without k8s, [run KubeArmor in
 </details>
 
 
-1. To set up KubeArmor using MiniKube cluster, follow this [steps](https://github.com/kubearmor/KubeArmor/tree/main/contribution/minikube).
-
 ## Deployment Steps
 
 ### 1. Download and install karmor cli-tool
