@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -40,6 +41,8 @@ type KubearmorConfig struct {
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
 	CoverageTest bool // Enable/Disable Coverage Test
+
+	CRISocket string // The container runtime endpoint to use
 }
 
 // PolicyDir policy dir path for host policies backup
@@ -105,6 +108,9 @@ const ConfigCoverageTest string = "coverageTest"
 // ConfigK8sEnv VM key
 const ConfigK8sEnv string = "k8s"
 
+// ConfigCRISocket key
+const ConfigCRISocket string = "criSocket"
+
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
@@ -131,6 +137,8 @@ func readCmdLineParams() {
 	hostDefaultCapabilitiesPosture := flag.String(ConfigHostDefaultCapabilitiesPosture, "block", "configuring default enforcement action in global capability context {allow|audit|block}")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
+
+	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket. Format: unix:///path/to/file.sock. If empty kubearmor will try to auto-detect this.")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -165,6 +173,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHostDefaultCapabilitiesPosture, *hostDefaultCapabilitiesPosture)
 
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
+
+	viper.SetDefault(ConfigCRISocket, *criSocket)
 }
 
 // LoadConfig Load configuration
@@ -212,6 +222,16 @@ func LoadConfig() error {
 	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
 	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
 	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
+
+	// read CRI_SOCKET env variable. If empty, check criSocket flag
+	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
+	if GlobalCfg.CRISocket == "" {
+		GlobalCfg.CRISocket = viper.GetString(ConfigCRISocket)
+	}
+
+	if GlobalCfg.CRISocket != "" && !strings.HasPrefix(GlobalCfg.CRISocket, "unix://") {
+		return errors.New(fmt.Sprintf("%s is invalid. CRI socket must start with unix://", GlobalCfg.CRISocket))
+	}
 
 	kg.Printf("Configuration [%+v]", GlobalCfg)
 

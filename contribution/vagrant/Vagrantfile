@@ -76,6 +76,13 @@ Vagrant.configure("2") do |config|
       # install Kubernetes
       config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
 
+    elsif ENV['RUNTIME'] == "crio" then
+      # install CRI-O
+      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/crio/install_crio.sh"
+
+      # install Kubernetes
+      config.vm.provision :shell, :inline => "RUNTIME=crio /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
+
     else # default == 'docker'
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/docker/install_docker.sh"
@@ -107,6 +114,13 @@ Vagrant.configure("2") do |config|
 
       # install Kubernetes
       config.vm.provision :shell, :inline => "RUNTIME=containerd /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
+
+    elsif ENV['RUNTIME'] == "crio" then
+      # install CRI-O
+      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/crio/install-crio.sh"
+
+      # install Kubernetes
+      config.vm.provision :shell, :inline => "CRI_SOCKET=unix:///var/run/crio/crio.sock /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
 
     else # default == 'docker'
       # install Docker

@@ -29,11 +29,6 @@ import (
 // Docker Handler
 var Docker *DockerHandler
 
-// init Function
-func init() {
-	Docker = NewDockerHandler()
-}
-
 // DockerVersion Structure
 type DockerVersion struct {
 	APIVersion string `json:"ApiVersion"`
@@ -52,7 +47,7 @@ func NewDockerHandler() *DockerHandler {
 	// specify the docker api version that we want to use
 	// Versioned API: https://docs.docker.com/engine/api/
 
-	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--silent", "--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
+	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--silent", "--unix-socket", strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://"), "http://localhost/version"})
 	if err != nil {
 		return nil
 	}
@@ -380,6 +375,8 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
+
+	Docker = NewDockerHandler()
 
 	// check if Docker exists
 	if Docker == nil {
