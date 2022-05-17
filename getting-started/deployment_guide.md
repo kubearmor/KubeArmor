@@ -97,3 +97,26 @@ karmor log
 3. [Minikube](../contribution/minikube#minikube-installation)
 4. [Self-managed K8s](../contribution/self-managed-k8s)
 5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
+6. Setting Environment for KubeArmor
+
+<details>
+  <summary>To set up KubeArmor using K3s cluster</summary>
+
+If you want to use K3s to set up Kubernetes, please run the following command.
+
+```text
+$ cd KubeArmor/contribution/k3s
+~/KubeArmor/contribution/k3s$ ./install_k3s.sh
+```
+</details>
+
+<details>
+  <summary>To set up KubeArmor using MicroK8s cluster</summary>
+
+If you want to use MicroK8s to set up Kubernetes, please run the following command.
+
+```text
+$ cd KubeArmor/contribution/microk8s
+~/KubeArmor/contribution/microk8s$ ./install_microk8s.sh
+```
+</details>
