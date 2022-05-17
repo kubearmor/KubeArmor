@@ -77,7 +77,7 @@ func (mon *SystemMonitor) BuildPidNode(containerID string, ctx SyscallContext, e
 	node.ParentExecPath = mon.GetExecPath(containerID, ctx.HostPPID)
 	node.ExecPath = execPath
 
-	node.Source = execPath
+	node.Source = node.ParentExecPath
 	node.Args = ""
 
 	for idx, arg := range args {
@@ -167,6 +167,23 @@ func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32) string
 
 // GetCommand Function
 func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32) string {
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
+
+	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			return node.Source
+		}
+	}
+
+	return ""
+}
+
+// GetCommandWithArgs Function
+func (mon *SystemMonitor) GetCommandWithArgs(containerID string, hostPid uint32) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
