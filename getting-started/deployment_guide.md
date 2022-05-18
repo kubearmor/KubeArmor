@@ -92,12 +92,7 @@ karmor log
 5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS)
 
 ## Prerequisites
-1. [K3s](../deployments/k3s)
-2. [MicroK8s](../contribution/microk8s)
-3. [Minikube](../contribution/minikube#minikube-installation)
-4. [Self-managed K8s](../contribution/self-managed-k8s)
-5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
-6. Setting Environment for KubeArmor
+Setting alternative environments for KubeArmor
 
 <details>
   <summary>To set up KubeArmor using K3s cluster</summary>
@@ -120,3 +115,7 @@ $ cd KubeArmor/contribution/microk8s
 ~/KubeArmor/contribution/microk8s$ ./install_microk8s.sh
 ```
 </details>
+
+3. [Minikube](../contribution/minikube#minikube-installation)
+4. [Self-managed K8s](../contribution/self-managed-k8s)
+5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
