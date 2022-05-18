@@ -188,6 +188,11 @@ func LoadConfig() error {
 		}
 	}
 
+	if GlobalCfg.HostPolicy && !GlobalCfg.K8sEnv {
+		GlobalCfg.Policy = false
+		GlobalCfg.Visibility = "none"
+	}
+
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
 
 	kg.Printf("config [%+v]", GlobalCfg)
