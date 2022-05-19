@@ -12,10 +12,7 @@ spec:
   selector:
     kubearmor-app: kubearmor-relay
 {{- end }}
-
-
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -30,10 +27,7 @@ spec:
     targetPort: https
   selector:
     kubearmor-app: kubearmor-policy-manager
-
-
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -48,4 +42,3 @@ spec:
     targetPort: https
   selector:
     kubearmor-app: kubearmor-host-policy-manager
-    

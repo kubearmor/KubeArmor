@@ -75,5 +75,3 @@ spec:
       {{- else }} # generic
         {{- toYaml .Values.kubearmor.volumesGeneric | nindent 8 }}
       {{- end }}
-      
-     

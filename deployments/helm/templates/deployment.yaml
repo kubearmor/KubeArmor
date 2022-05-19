@@ -27,9 +27,7 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: kubearmor
 {{- end }}
-
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -83,10 +81,7 @@ spec:
             memory: 20Mi
       serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 10
-
-
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
