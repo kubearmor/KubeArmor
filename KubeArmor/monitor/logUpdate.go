@@ -51,7 +51,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 }
 
 // BuildLogBase Function
-func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
+func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Log {
 	log := tp.Log{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
@@ -80,7 +80,11 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.PID = int32(msg.ContextSys.PID)
 	log.UID = int32(msg.ContextSys.UID)
 
-	log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
+	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
+		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys.HostPID)
+	} else {
+		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
+	}
 
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
 	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)
@@ -90,33 +94,24 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 // UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
 func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
-	if log.ParentProcessName == "" || strings.HasPrefix(log.ParentProcessName, "/") {
-		parentProcessName := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
+	if log.ParentProcessName == "" || !strings.HasPrefix(log.ParentProcessName, "/") {
+		parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID))
 		if parentProcessName != "" {
 			log.ParentProcessName = parentProcessName
 		}
 	}
 
-	if log.ProcessName == "" || strings.HasPrefix(log.ProcessName, "/") {
+	if log.ProcessName == "" || !strings.HasPrefix(log.ProcessName, "/") {
 		processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
 		if processName != "" {
 			log.ProcessName = processName
 		}
 	}
 
-	if log.Source == "" || strings.HasPrefix(log.Source, "/") {
-		source := mon.GetCommand(log.ContainerID, uint32(log.HostPID))
+	if log.Source == "" || !strings.HasPrefix(log.Source, "/") {
+		source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
 		if source != "" {
 			log.Source = source
-		}
-	}
-
-	if !strings.HasPrefix(log.Resource, "/") {
-		resource := strings.Split(log.Resource, " ")
-		if len(resource) == 1 {
-			log.Resource = log.Source
-		} else {
-			log.Resource = log.Source + " " + strings.Join(resource[1:], " ")
 		}
 	}
 
@@ -136,7 +131,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 
 			// generate a log
-			log := mon.BuildLogBase(msg)
+			log := mon.BuildLogBase(msg.ContextSys.EventID, msg)
 
 			switch msg.ContextSys.EventID {
 			case SysOpen:
