@@ -448,6 +448,11 @@ func KubeArmor() {
 
 	// == //
 
+	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
+		dm.GetAlreadyDeployedDockerContainers()
+		go dm.MonitorDockerEvents()
+	}
+
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		// check if the CRI socket set while executing kubearmor exists
 		if cfg.GlobalCfg.CRISocket != "" {
@@ -577,8 +582,9 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor host security policies")
 	}
 
+	policyService := &policy.ServiceServer{}
+
 	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy {
-		policyService := &policy.ServiceServer{}
 		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
 		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 
@@ -586,6 +592,13 @@ func KubeArmor() {
 		reflection.Register(dm.Logger.LogServer)
 
 		dm.Logger.Print("Started to monitor host security policies on gRPC")
+
+	}
+
+	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
+		policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
+
+		dm.Logger.Print("Started to monitor container security policies on gRPC")
 	}
 
 	// serve log feeds

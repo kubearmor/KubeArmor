@@ -237,6 +237,18 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					continue
 				}
 
+				// check for unorchestrated docker containers
+				if !dm.K8sEnabled {
+					dm.ContainersLock.Lock()
+					container.ProcessVisibilityEnabled = true
+					container.FileVisibilityEnabled = true
+					container.NetworkVisibilityEnabled = true
+					container.CapabilitiesVisibilityEnabled = true
+
+					dm.Containers[container.ContainerID] = container
+					dm.ContainersLock.Unlock()
+				}
+
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
@@ -316,6 +328,19 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		} else {
 			dm.ContainersLock.Unlock()
 			return
+		}
+
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			container.ProcessVisibilityEnabled = true
+			container.FileVisibilityEnabled = true
+			container.NetworkVisibilityEnabled = true
+			container.CapabilitiesVisibilityEnabled = true
+			container.EndPointName = container.ContainerName
+			container.NamespaceName = "container_namespace"
+
+			dm.Containers[container.ContainerID] = container
+			dm.ContainersLock.Unlock()
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {

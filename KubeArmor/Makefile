@@ -45,6 +45,11 @@ run: build
 	cd $(CURDIR)/BPF; make
 	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=true -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
 
+.PHONY: run-container
+run-container: build
+	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy -enableKubeArmorPolicy -k8s=false
+
 .PHONY: run-host-only
 run-host-only: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml

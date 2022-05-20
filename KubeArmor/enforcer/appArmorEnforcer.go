@@ -201,7 +201,6 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string)
 			return false
 		}
 	}
-
 	if _, ok := ae.AppArmorProfiles[profileName]; ok {
 		if !kl.ContainsElement(ae.AppArmorProfiles[profileName], podName) {
 			ae.AppArmorProfiles[profileName] = append(ae.AppArmorProfiles[profileName], podName)

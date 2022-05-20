@@ -414,7 +414,7 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 		return false
 	}
 
-	// if super identities not include indentity, return false
+	// if super identities not include identity, return false
 	for _, identity := range identities {
 		if !ContainsElement(superIdentities, identity) {
 			matched = false
