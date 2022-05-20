@@ -34,7 +34,6 @@ jobs:
           else
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
-
           ./contribution/k3s/install_k3s.sh
 
       - name: Generate KubeArmor artifacts
@@ -43,9 +42,9 @@ jobs:
 
       - name: Run KubeArmor
         run: |
-            sed -i 's|kubearmor/kubearmor:latest|kubearmor/kubearmor:'${{ steps.vars.outputs.tag }}'|' ./KubeArmor/build/kubearmor-test-k3s.yaml
-            kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml && kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
-            kubectl get pods -A
+            sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-k3s.yaml
+            kubectl apply -f ./KubeArmor/build/kubearmor-test-k3s.yaml
+            kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
 
       - name: Test KubeArmor
         run: |
