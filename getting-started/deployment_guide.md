@@ -4,8 +4,6 @@ If you do not have a k8s cluster, check the [pre-requisites](#prerequisites) to 
 
 If you want to try KubeArmor directly on the host without k8s, [run KubeArmor in systemd mode](kubearmor_vm.md).
 
-
-
 ## Deployment Steps
 
 ### 1. Download and install karmor cli-tool
