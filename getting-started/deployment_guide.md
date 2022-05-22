@@ -94,27 +94,26 @@ karmor log
 ## Prerequisites
 Setting alternative environments for KubeArmor
 
-<details>
-  <summary>To set up KubeArmor using K3s cluster</summary>
+* <details>
+    <summary>K3s</summary>
 
-If you want to use K3s to set up Kubernetes, please run the following command.
+  If you want to use K3s to set up Kubernetes, please run the following command.
 
-```text
-$ cd KubeArmor/contribution/k3s
-~/KubeArmor/contribution/k3s$ ./install_k3s.sh
-```
-</details>
+  ```text
+  $ cd KubeArmor/contribution/k3s
+  ~/KubeArmor/contribution/k3s$ ./install_k3s.sh
+  ```
+  </details>
+* <details>
+    <summary>MicroK8s</summary>
 
-<details>
-  <summary>To set up KubeArmor using MicroK8s cluster</summary>
+  If you want to use MicroK8s to set up Kubernetes, please run the following command.
 
-If you want to use MicroK8s to set up Kubernetes, please run the following command.
-
-```text
-$ cd KubeArmor/contribution/microk8s
-~/KubeArmor/contribution/microk8s$ ./install_microk8s.sh
-```
-</details>
+  ```text
+  $ cd KubeArmor/contribution/microk8s
+  ~/KubeArmor/contribution/microk8s$ ./install_microk8s.sh
+  ```
+  </details>
 
 3. [Minikube](../contribution/minikube#minikube-installation)
 4. [Self-managed K8s](../contribution/self-managed-k8s)
