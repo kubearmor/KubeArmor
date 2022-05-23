@@ -274,18 +274,6 @@ func RunCommandAndWaitWithErr(cmd string, args []string) error {
 	return nil
 }
 
-// ========== //
-// == Host == //
-// ========== //
-
-// GetHostName Function
-func GetHostName() string {
-	if res, err := os.Hostname(); err == nil {
-		return res
-	}
-	return ""
-}
-
 // ============= //
 // == Network == //
 // ============= //

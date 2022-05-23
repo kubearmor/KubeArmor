@@ -335,6 +335,14 @@ func KubeArmor() {
 		dm.Node.Annotations = map[string]string{}
 		dm.HandleNodeAnnotations(&dm.Node)
 
+		hostInfo := kl.GetCommandOutputWithoutErr("hostnamectl", []string{})
+		for _, line := range strings.Split(hostInfo, "\n") {
+			if strings.Contains(line, "Operating System") {
+				dm.Node.OSImage = strings.Split(line, ": ")[1]
+				break
+			}
+		}
+
 		dm.Node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
@@ -382,6 +390,19 @@ func KubeArmor() {
 			}
 		}
 
+	}
+
+	kg.Printf("Node Name: %s", dm.Node.NodeName)
+	kg.Printf("Node IP: %s", dm.Node.NodeIP)
+	if dm.K8sEnabled {
+		kg.Printf("Node Annotations: %v", dm.Node.Annotations)
+	}
+
+	kg.Printf("OS Image: %s", dm.Node.OSImage)
+	kg.Printf("Kernel Version: %s", dm.Node.KernelVersion)
+	if dm.K8sEnabled {
+		kg.Printf("Kubelet Version: %s", dm.Node.KubeletVersion)
+		kg.Printf("Container Runtime: %s", dm.Node.ContainerRuntimeVersion)
 	}
 
 	// == //
@@ -436,8 +457,6 @@ func KubeArmor() {
 	// == //
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		dm.Logger.Printf("Container Runtime: %s", dm.Node.ContainerRuntimeVersion)
-
 		if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "docker") {
 			sockFile := false
 

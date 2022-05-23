@@ -87,8 +87,8 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 				// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
 				// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
-				nodeName := strings.Split(event.Object.ObjectMeta.Name, ".")
-				if nodeName[0] != cfg.GlobalCfg.Host {
+				nodeName := strings.Split(event.Object.ObjectMeta.Name, ".")[0]
+				if nodeName != cfg.GlobalCfg.Host {
 					continue
 				}
 

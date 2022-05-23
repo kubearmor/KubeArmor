@@ -83,6 +83,8 @@ func NewDockerHandler() *DockerHandler {
 	}
 	docker.DockerClient = DockerClient
 
+	kg.Printf("Initialized Docker Handler (version: %s)", docker.Version.APIVersion)
+
 	return docker
 }
 
