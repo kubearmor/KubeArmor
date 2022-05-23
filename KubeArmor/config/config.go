@@ -4,6 +4,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -47,7 +48,7 @@ var GlobalCfg KubearmorConfig
 const ConfigCluster string = "cluster"
 
 // ConfigHost Host name key
-const ConfigHost string = "localhost"
+const ConfigHost string = "host"
 
 // ConfigGRPC GRPC Port key
 const ConfigGRPC string = "gRPC"
@@ -98,7 +99,7 @@ func readCmdLineParams() {
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 
 	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
-	hostVisStr := flag.String(ConfigHostVisibility, "", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
+	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
@@ -110,6 +111,13 @@ func readCmdLineParams() {
 	defaultCapabilitiesPosture := flag.String(ConfigDefaultCapabilitiesPosture, "block", "configuring default enforcement action in global capability context [audit,block]")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
+
+	flags := []string{}
+	flag.VisitAll(func(f *flag.Flag) {
+		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
+		flags = append(flags, kv)
+	})
+	kg.Printf("Arguments [%s]", strings.Join(flags, " "))
 
 	flag.Parse()
 
@@ -171,17 +179,20 @@ func LoadConfig() error {
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
-	if GlobalCfg.KVMAgent {
-		GlobalCfg.Policy = false
-		GlobalCfg.HostPolicy = true
-	}
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
 
 	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
 	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
 	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
 
-	if GlobalCfg.HostVisibility == "" {
+	kg.Printf("Configuration [%+v]", GlobalCfg)
+
+	if GlobalCfg.KVMAgent {
+		GlobalCfg.Policy = false
+		GlobalCfg.HostPolicy = true
+	}
+
+	if GlobalCfg.HostVisibility == "default" {
 		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
 			GlobalCfg.HostVisibility = "process,file,network,capabilities"
 		} else { // k8s
@@ -191,7 +202,7 @@ func LoadConfig() error {
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
 
-	kg.Printf("config [%+v]", GlobalCfg)
+	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
 	return nil
 }
