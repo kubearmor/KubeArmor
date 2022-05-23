@@ -330,7 +330,10 @@ func NewFeeder(node *tp.Node) *Feeder {
 		}
 
 		defer func() {
-			pidFile.Close()
+			err := pidFile.Close()
+			if err != nil {
+				kg.Errf("Failed to close file %s", cfg.PIDFilePath)
+			}
 		}()
 
 		port := fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port)
