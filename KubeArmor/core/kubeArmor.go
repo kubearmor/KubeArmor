@@ -70,14 +70,9 @@ type KubeArmorDaemon struct {
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
 
-	// container id -> (host) pid
-	ActivePidMap     map[string]tp.PidMap
+	// pid map
 	ActiveHostPidMap map[string]tp.PidMap
 	ActivePidMapLock *sync.RWMutex
-
-	// host pid
-	ActiveHostMap     map[uint32]tp.PidMap
-	ActiveHostMapLock *sync.RWMutex
 
 	// logger
 	Logger *fd.Feeder
@@ -121,12 +116,8 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.DefaultPostures = map[string]tp.DefaultPosture{}
 	dm.DefaultPosturesLock = new(sync.Mutex)
 
-	dm.ActivePidMap = map[string]tp.PidMap{}
 	dm.ActiveHostPidMap = map[string]tp.PidMap{}
 	dm.ActivePidMapLock = new(sync.RWMutex)
-
-	dm.ActiveHostMap = map[uint32]tp.PidMap{}
-	dm.ActiveHostMapLock = new(sync.RWMutex)
 
 	dm.Logger = nil
 	dm.SystemMonitor = nil
@@ -215,8 +206,7 @@ func (dm *KubeArmorDaemon) CloseLogger() bool {
 
 // InitSystemMonitor Function
 func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
-	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock,
-		&dm.ActivePidMap, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.ActiveHostMap, &dm.ActiveHostMapLock)
+	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock)
 	if dm.SystemMonitor == nil {
 		return false
 	}
@@ -234,17 +224,9 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
-	if cfg.GlobalCfg.Policy {
+	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		go dm.SystemMonitor.TraceSyscall()
 		go dm.SystemMonitor.UpdateLogs()
-	}
-
-	if cfg.GlobalCfg.HostPolicy {
-		go dm.SystemMonitor.TraceHostSyscall()
-		go dm.SystemMonitor.UpdateHostLogs()
-	}
-
-	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		go dm.SystemMonitor.CleanUpExitedHostPids()
 	}
 }

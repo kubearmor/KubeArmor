@@ -22,14 +22,9 @@ func TestSystemMonitor(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := new(sync.RWMutex)
 
-	// container id -> (host) pid
-	ActivePidMap := map[string]tp.PidMap{}
+	// pid map
 	ActiveHostPidMap := map[string]tp.PidMap{}
 	ActivePidMapLock := new(sync.RWMutex)
-
-	// host pid
-	ActiveHostMap := map[uint32]tp.PidMap{}
-	ActiveHostMapLock := new(sync.RWMutex)
 
 	// node
 	node := tp.Node{}
@@ -55,8 +50,7 @@ func TestSystemMonitor(t *testing.T) {
 	t.Log("[PASS] Created logger")
 
 	// Create System Monitor
-	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock,
-		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
+	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 
@@ -97,14 +91,9 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := new(sync.RWMutex)
 
-	// container id -> (host) pid
-	ActivePidMap := map[string]tp.PidMap{}
+	// pid map
 	ActiveHostPidMap := map[string]tp.PidMap{}
 	ActivePidMapLock := new(sync.RWMutex)
-
-	// host pid
-	ActiveHostMap := map[uint32]tp.PidMap{}
-	ActiveHostMapLock := new(sync.RWMutex)
 
 	// node
 	node := tp.Node{}
@@ -124,8 +113,7 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	t.Log("[PASS] Created logger")
 
 	// Create System Monitor
-	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock,
-		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
+	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 
@@ -200,14 +188,9 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	Containers := map[string]tp.Container{}
 	ContainersLock := new(sync.RWMutex)
 
-	// container id -> (host) pid
-	ActivePidMap := map[string]tp.PidMap{}
+	// pid map
 	ActiveHostPidMap := map[string]tp.PidMap{}
 	ActivePidMapLock := new(sync.RWMutex)
-
-	// host pid
-	ActiveHostMap := map[uint32]tp.PidMap{}
-	ActiveHostMapLock := new(sync.RWMutex)
 
 	// node
 	node := tp.Node{}
@@ -227,8 +210,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	t.Log("[PASS] Created logger")
 
 	// Create System Monitor
-	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock,
-		&ActivePidMap, &ActiveHostPidMap, &ActivePidMapLock, &ActiveHostMap, &ActiveHostMapLock)
+	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 
@@ -269,7 +251,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	time.Sleep(time.Second * 1)
 
 	// Start to trace syscalls for host
-	go systemMonitor.TraceHostSyscall()
+	go systemMonitor.TraceSyscall()
 	t.Log("[PASS] Started to trace syscalls")
 
 	// wait for a while
