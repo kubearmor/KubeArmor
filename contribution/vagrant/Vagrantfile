@@ -80,12 +80,19 @@ Vagrant.configure("2") do |config|
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/docker/install_docker.sh"
 
-      # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
+      if ENV['RUNTIME'] == "k3s" then
+        # install k3s
+        config.vm.provision :shell, path: kubearmor_home + "/contribution/k3s/install_k3s.sh"
+      else
+        # install Kubernetes
+        config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
+      end
     end
 
-    # initialize Kubernetes
-    config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
+    if ENV['RUNTIME'] != "k3s" then
+      # initialize Kubernetes
+      config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
+    end
 
     # enable SELinux
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
@@ -105,12 +112,19 @@ Vagrant.configure("2") do |config|
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/docker/install_docker.sh"
 
-      # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
+      if ENV['RUNTIME'] == "k3s" then
+        # install k3s
+        config.vm.provision :shell, path: kubearmor_home + "/contribution/k3s/install_k3s.sh"
+      else
+        # install Kubernetes
+        config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
+      end
     end
 
-    # initialize Kubernetes
-    config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
+    if ENV['RUNTIME'] != "k3s" then
+      # initialize Kubernetes
+      config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
+    end
   end
 
   # install karmor

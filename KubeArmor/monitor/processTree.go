@@ -141,6 +141,34 @@ func (mon *SystemMonitor) UpdateExecPath(containerID string, hostPid uint32, exe
 	}
 }
 
+// GetParentExecPath Function
+func (mon *SystemMonitor) GetParentExecPath(containerID string, hostPid uint32) string {
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+
+	ActivePidMapLock.Lock()
+	defer ActivePidMapLock.Unlock()
+
+	ppid := uint32(0)
+
+	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
+		if node, ok := pidMap[hostPid]; ok {
+			if node.ParentExecPath != "/" && strings.HasPrefix(node.ParentExecPath, "/") {
+				return node.ParentExecPath
+			}
+		}
+	}
+
+	if ppid > 0 {
+		// just in case that it couldn't still get the full path
+		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(ppid), 10) + "/exe"); err == nil && data != "" && data != "/" {
+			return data
+		}
+	}
+
+	return ""
+}
+
 // GetExecPath Function
 func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
@@ -180,6 +208,11 @@ func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32) string 
 			}
 			return node.Source
 		}
+	}
+
+	// just in case that it couldn't still get the full path
+	if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
+		return data
 	}
 
 	return ""

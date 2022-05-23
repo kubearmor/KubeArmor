@@ -5,6 +5,7 @@ package config
 
 import (
 	"os"
+	"strings"
 
 	"flag"
 
@@ -90,7 +91,7 @@ const ConfigK8sEnv string = "k8s"
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
-	hostStr := flag.String(ConfigHost, hostname, "host name")
+	hostStr := flag.String(ConfigHost, strings.Split(hostname, ".")[0], "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")

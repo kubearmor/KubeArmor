@@ -25,7 +25,7 @@ func (mon *SystemMonitor) UpdateHostLogs() {
 			}
 
 			// generate a log
-			log := mon.BuildLogBase(msg)
+			log := mon.BuildLogBase(msg.ContextSys.EventID, msg)
 
 			switch msg.ContextSys.EventID {
 			case SysOpen:

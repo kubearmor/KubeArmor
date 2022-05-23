@@ -508,7 +508,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
 					// add arguments
 					if val, ok := args[0].(string); ok {
@@ -566,7 +566,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
 					fd := ""
 					procExecFlag := ""
@@ -691,7 +691,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					mon.AddActivePid("", pidNode)
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					// add arguments
 					if val, ok := args[0].(string); ok {
@@ -751,7 +751,7 @@ func (mon *SystemMonitor) TraceHostSyscall() {
 					mon.AddActivePid("", pidNode)
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: "", ContextSys: ctx})
 
 					fd := ""
 					procExecFlag := ""
