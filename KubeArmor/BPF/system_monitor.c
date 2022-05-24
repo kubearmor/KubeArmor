@@ -223,7 +223,7 @@ static __always_inline u32 add_pid_ns()
     pid_ns_map.update(&pid, &one);
     return pid;
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
@@ -243,23 +243,7 @@ static __always_inline u32 add_pid_ns()
         return pid_ns;
     }
 
-#else /* MONITOR_CONTAINER */
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) {
-        return 0;
-    }
-
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
-        return pid_ns;
-    }
-
-    pid_ns_map.update(&pid_ns, &one);
-    return pid_ns;
-
-    return 0;
-
-#endif /* MONITOR_HOST || MONITOR_CONTAINER */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 }
 
 static __always_inline u32 remove_pid_ns()
@@ -279,7 +263,7 @@ static __always_inline u32 remove_pid_ns()
         return 0;
     }
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
@@ -295,19 +279,7 @@ static __always_inline u32 remove_pid_ns()
         }
     }
 
-#else /* !MONITOR_HOST */
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) {
-        return 0;
-    }
-
-    if (get_task_ns_pid(task) == 1) {
-        pid_ns_map.delete(&pid_ns);
-        return 0;
-    }
-
-#endif /* !MONITOR_HOST */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     return 0;
 }
@@ -328,7 +300,18 @@ static __always_inline u32 skip_syscall()
         return 0;
     }
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#elif defined(MONITOR_CONTAINER)
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == PROC_PID_INIT_INO) {
+        return 1;
+    }
+
+    if (pid_ns_map.lookup(&pid_ns) != 0) {
+        return 0;
+    }
+
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
@@ -337,20 +320,12 @@ static __always_inline u32 skip_syscall()
             return 0;
         }
     } else { // container
-        u32 pid_ns = get_task_pid_ns_id(task);
         if (pid_ns_map.lookup(&pid_ns) != 0) {
             return 0;
         }
     }
 
-#else /* !MONITOR_HOST */
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
-        return 0;
-    }
-
-#endif /* !MONITOR_HOST */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     return 1;
 }
@@ -374,7 +349,7 @@ static __always_inline u32 init_context(sys_context_t *context)
     context->ppid = get_task_ppid(task);
     context->pid = bpf_get_current_pid_tgid() >> 32;
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid) { // host
@@ -391,15 +366,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         context->pid = pid;
     }
 
-#else /* !MONITOR_HOST */
-
-    context->pid_id = get_task_pid_ns_id(task);
-    context->mnt_id = get_task_mnt_ns_id(task);
-
-    context->ppid = get_task_ns_ppid(task);
-    context->pid = get_task_ns_tgid(task);
-
-#endif /* !MONITOR_HOST */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     context->uid = bpf_get_current_uid_gid();
 
@@ -722,9 +689,6 @@ int trace_security_bprm_check(struct pt_regs *ctx, struct linux_binprm *bprm)
 {
     sys_context_t context = {};
 
-	if (skip_syscall())
-		return 0;
-
     //
 
     struct file *f = bprm->file;
@@ -820,9 +784,6 @@ int trace_ret_execve(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
-    if (skip_syscall())
-        return 0;
-
     init_context(&context);
 
     context.event_id = _SYS_EXECVE;
@@ -888,9 +849,6 @@ int trace_ret_execveat(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
-    if (skip_syscall())
-        return 0;
-
     init_context(&context);
 
     context.event_id = _SYS_EXECVEAT;
@@ -919,9 +877,6 @@ int trace_ret_execveat(struct pt_regs *ctx)
 int trace_do_exit(struct pt_regs *ctx, long code)
 {
     sys_context_t context = {};
-
-    if (skip_syscall())
-        return 0;
 
     init_context(&context);
 
