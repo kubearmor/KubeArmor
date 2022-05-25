@@ -11,7 +11,7 @@ name: KubeArmor stable release
 
 jobs:
   build:
-    name: Create KubeArmor Release - 18.04
+    name: Create KubeArmor stable release - 18.04
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
