@@ -6,6 +6,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"syscall"
+	"time"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
@@ -29,8 +31,12 @@ func main() {
 		return
 	}
 
-	err = cfg.LoadConfig()
-	if err != nil {
+	if finfo, err := os.Stat(os.Args[0]); err == nil {
+		stat := finfo.Sys().(*syscall.Stat_t)
+		kg.Printf("Build Time: %v", time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec)))
+	}
+
+	if err := cfg.LoadConfig(); err != nil {
 		kg.Err(err.Error())
 		return
 	}
