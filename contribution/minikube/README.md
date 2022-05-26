@@ -1,6 +1,6 @@
 # Minikube Installation
 
-If virtualbox and vagrant are not installed on your machine, please the following commands in advance.
+If virtualbox and vagrant are not installed on your machine, please run the following commands in advance.
 
 ```text
 $ cd KubeArmor/contribution/minikube
