@@ -116,6 +116,8 @@ func NewContainerdHandler() *ContainerdHandler {
 	// active containers
 	ch.containers = map[string]context.Context{}
 
+	kg.Print("Initialized Containerd Handler")
+
 	return ch
 }
 

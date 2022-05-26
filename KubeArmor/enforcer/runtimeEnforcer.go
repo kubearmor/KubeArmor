@@ -23,9 +23,11 @@ type RuntimeEnforcer struct {
 	// LSM type
 	EnforcerType string
 
-	// LSMs
+	// LSM - AppArmor
 	appArmorEnforcer *AppArmorEnforcer
-	seLinuxEnforcer  *SELinuxEnforcer
+
+	// LSM - SELinux
+	seLinuxEnforcer *SELinuxEnforcer
 }
 
 // NewRuntimeEnforcer Function
@@ -55,9 +57,10 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 		}
 	}
 
-	re.EnforcerType = string(lsm)
+	lsms := string(lsm)
+	re.Logger.Printf("Supported LSMs: %s", lsms)
 
-	if strings.Contains(re.EnforcerType, "apparmor") {
+	if strings.Contains(lsms, "apparmor") {
 		re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
 		if re.appArmorEnforcer != nil {
 			re.Logger.Print("Initialized AppArmor Enforcer")
@@ -65,8 +68,8 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 		} else {
 			return nil
 		}
-	} else if strings.Contains(re.EnforcerType, "selinux") {
-		if kl.IsK8sLocal() {
+	} else if strings.Contains(lsms, "selinux") {
+		if !kl.IsInK8sCluster() {
 			re.seLinuxEnforcer = NewSELinuxEnforcer(node, logger)
 			if re.seLinuxEnforcer != nil {
 				re.Logger.Print("Initialized SELinux Enforcer")

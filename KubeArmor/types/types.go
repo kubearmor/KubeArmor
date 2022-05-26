@@ -71,7 +71,8 @@ type EndPoint struct {
 
 // Node Structure
 type Node struct {
-	NodeIP string `json:"nodeIP"`
+	NodeName string `json:"nodeName"`
+	NodeIP   string `json:"nodeIP"`
 
 	Annotations map[string]string `json:"annotations"`
 	Labels      map[string]string `json:"labels"`
