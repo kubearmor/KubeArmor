@@ -231,32 +231,42 @@ func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext
 	// delete execve(at) host pid
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
-			node.Exited = true
-			node.ExitedTime = now
+			newNode := node
+			newNode.Exited = true
+			newNode.ExitedTime = now
+			pidMap[ctx.HostPID] = newNode
 		}
 	}
 }
 
 // CleanUpExitedHostPids Function
 func (mon *SystemMonitor) CleanUpExitedHostPids() {
-	for range mon.Ticker.C {
-		now := time.Now()
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-		ActiveHostPidMap := *(mon.ActiveHostPidMap)
-		ActivePidMapLock := *(mon.ActivePidMapLock)
+	for {
+		now := time.Now()
 
 		ActivePidMapLock.Lock()
 
-		for _, pidMap := range ActiveHostPidMap {
+		for containerID, pidMap := range ActiveHostPidMap {
 			for pid, pidNode := range pidMap {
-				if pidNode.Exited {
-					if now.After(pidNode.ExitedTime.Add(time.Second * 5)) {
-						delete(pidMap, pid)
-					}
+				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
+					delete(pidMap, pid)
 				}
+			}
+
+			if len(pidMap) == 0 {
+				delete(ActiveHostPidMap, containerID)
 			}
 		}
 
 		ActivePidMapLock.Unlock()
+
+		if !mon.Status {
+			break
+		}
+
+		time.Sleep(10 * time.Second)
 	}
 }
