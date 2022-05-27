@@ -141,11 +141,9 @@ type SystemMonitor struct {
 	// lists to skip
 	UntrackedNamespaces []string
 
+	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
-
-	// ticker to clean up exited pids
-	Ticker *time.Ticker
 }
 
 // NewSystemMonitor Function
@@ -169,10 +167,9 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 
 	mon.UntrackedNamespaces = []string{"kube-system", "kubearmor"}
 
+	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = bcc.GetHostByteOrder()
-
-	mon.Ticker = time.NewTicker(time.Second * 10)
 
 	return mon
 }
@@ -324,6 +321,8 @@ func (mon *SystemMonitor) InitBPF() error {
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
+	mon.Status = false
+
 	if mon.SyscallPerfMap != nil {
 		mon.SyscallPerfMap.Stop()
 	}
@@ -335,8 +334,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 	if mon.ContextChan != nil {
 		close(mon.ContextChan)
 	}
-
-	mon.Ticker.Stop()
 
 	return nil
 }
