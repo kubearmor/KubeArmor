@@ -21,18 +21,20 @@ import (
 func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(processWhiteList *[]string, fromSources map[string][]string, fusionProcessWhiteList *[]string) {
 	prunedProcessWhiteList := make([]string, len(*processWhiteList))
 	copy(prunedProcessWhiteList, *processWhiteList)
-	numOfRemovedElements := 0
 
-	for index, line := range *processWhiteList {
-		for source := range fromSources {
-			if strings.Split(line, " ")[0] == source {
-				*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
+	for source := range fromSources {
+		for _, line := range *processWhiteList {
+			if source == strings.Split(strings.TrimSpace(line), " ")[0] {
+				if !kl.ContainsElement(*fusionProcessWhiteList, source) {
+					*fusionProcessWhiteList = append(*fusionProcessWhiteList, source)
 
-				// remove line from WhiteList
-				prunedProcessWhiteList = kl.RemoveStringElement(prunedProcessWhiteList, index-numOfRemovedElements)
-				numOfRemovedElements = numOfRemovedElements + 1
-
-				break
+					for idx, line := range prunedProcessWhiteList {
+						if source == strings.Split(strings.TrimSpace(line), " ")[0] {
+							prunedProcessWhiteList = append(prunedProcessWhiteList[:idx], prunedProcessWhiteList[idx+1:]...)
+							break
+						}
+					}
+				}
 			}
 		}
 	}
@@ -669,19 +671,25 @@ func (ae *AppArmorEnforcer) BlockedCapabilitiesMatchCapabilities(cap tp.Capabili
 // == //
 
 // GenerateProfileHead Function
-func (ae *AppArmorEnforcer) GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList []string, defaultPosture tp.DefaultPosture) string {
+func (ae *AppArmorEnforcer) GenerateProfileHead(numProcessWhiteList, numFileWhiteList, numNetworkWhiteList, numCapabilityWhiteList int, fromSourceFile, fromSourceNetwork, fromSourceCapability bool, defaultPosture tp.DefaultPosture) string {
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	if !(defaultPosture.FileAction == "block" && (len(processWhiteList) > 0 || len(fileWhiteList) > 0)) {
+	if defaultPosture.FileAction == "block" && !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !fromSourceFile) {
+		profileHead = profileHead + "  file,\n"
+	} else if numProcessWhiteList == 0 && numFileWhiteList == 0 {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if !(defaultPosture.NetworkAction == "block" && len(networkWhiteList) > 0) {
+	if defaultPosture.NetworkAction == "block" && !(numNetworkWhiteList > 0 || !fromSourceNetwork) {
+		profileHead = profileHead + "  network,\n"
+	} else if numNetworkWhiteList == 0 {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if !(defaultPosture.CapabilitiesAction == "block" && len(capabilityWhiteList) > 0) {
+	if defaultPosture.CapabilitiesAction == "block" && !(numCapabilityWhiteList > 0 || !fromSourceCapability) {
+		profileHead = profileHead + "  capability,\n"
+	} else if numCapabilityWhiteList == 0 {
 		profileHead = profileHead + "  capability,\n"
 	}
 
@@ -736,6 +744,10 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	nativeAppArmorRules := []string{}
 
 	fusionProcessWhiteList := []string{}
+
+	fromSourceFile := true
+	fromSourceNetwork := true
+	fromSourceCapability := true
 
 	// preparation
 
@@ -825,6 +837,16 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		}
 	}
 
+	// Count the number of global security rules
+
+	numProcessWhiteList := len(processWhiteList)
+	numFileWhiteList := len(fileWhiteList)
+	numNetworkWhiteList := len(networkWhiteList)
+	numCapabilityWhiteList := len(capabilityWhiteList)
+
+	count = count + numProcessWhiteList + numFileWhiteList + numNetworkWhiteList + numCapabilityWhiteList
+	count = count + len(processBlackList) + len(fileBlackList) + len(networkBlackList) + len(capabilityBlackList)
+
 	// Resolve conflicts
 	ae.ResolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
 
@@ -838,25 +860,17 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		profileBody = profileBody + line
 	}
 
-	count = count + len(processWhiteList)
-
 	for _, line := range fileWhiteList {
 		profileBody = profileBody + line
 	}
-
-	count = count + len(fileWhiteList)
 
 	for _, line := range networkWhiteList {
 		profileBody = profileBody + line
 	}
 
-	count = count + len(networkWhiteList)
-
 	for _, line := range capabilityWhiteList {
 		profileBody = profileBody + line
 	}
-
-	count = count + len(capabilityWhiteList)
 
 	// body - black list
 
@@ -864,25 +878,17 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		profileBody = profileBody + line
 	}
 
-	count = count + len(processBlackList)
-
 	for _, line := range fileBlackList {
 		profileBody = profileBody + line
 	}
-
-	count = count + len(fileBlackList)
 
 	for _, line := range networkBlackList {
 		profileBody = profileBody + line
 	}
 
-	count = count + len(networkBlackList)
-
 	for _, line := range capabilityBlackList {
 		profileBody = profileBody + line
 	}
-
-	count = count + len(capabilityBlackList)
 
 	// body - from source
 
@@ -912,11 +918,13 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		for _, line := range lines {
 			if strings.Contains(line, "  network") {
 				network = false
+				fromSourceNetwork = false
 				continue
 			}
 
 			if strings.Contains(line, "  capability") {
 				capability = false
+				fromSourceCapability = false
 				continue
 			}
 
@@ -929,20 +937,24 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			}
 
 			file = false
+			fromSourceFile = false
 		}
 
-		if defaultPosture.FileAction == "block" && ((len(processWhiteList) > 0 || len(fileWhiteList) > 0) || !file) {
-		} else {
+		if defaultPosture.FileAction == "block" && !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !file) {
+			bodyFromSource = bodyFromSource + "    file,\n"
+		} else if file {
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if defaultPosture.NetworkAction == "block" && (len(networkWhiteList) > 0 || !network) {
-		} else {
+		if defaultPosture.NetworkAction == "block" && !(numNetworkWhiteList > 0 || !network) {
+			bodyFromSource = bodyFromSource + "    network,\n"
+		} else if network {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if defaultPosture.CapabilitiesAction == "block" && (len(capabilityWhiteList) > 0 || !capability) {
-		} else {
+		if defaultPosture.CapabilitiesAction == "block" && !(numCapabilityWhiteList > 0 || !capability) {
+			bodyFromSource = bodyFromSource + "    capability,\n"
+		} else if capability {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
@@ -976,7 +988,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 	// head
 
-	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(processWhiteList, fileWhiteList, networkWhiteList, capabilityWhiteList, defaultPosture) + "  ## == PRE END == ##\n\n"
+	profileHead := "  ## == PRE START == ##\n" + ae.GenerateProfileHead(numProcessWhiteList, numFileWhiteList, numNetworkWhiteList, numCapabilityWhiteList, fromSourceFile, fromSourceNetwork, fromSourceCapability, defaultPosture) + "  ## == PRE END == ##\n\n"
 
 	// body - together
 
