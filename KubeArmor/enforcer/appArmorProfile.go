@@ -675,21 +675,20 @@ func (ae *AppArmorEnforcer) GenerateProfileHead(numProcessWhiteList, numFileWhit
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	if defaultPosture.FileAction == "block" && !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !fromSourceFile) {
-		profileHead = profileHead + "  file,\n"
-	} else if numProcessWhiteList == 0 && numFileWhiteList == 0 {
+	// Allow Access to Resource when
+	// -> Default Posture is not Block
+	// OR
+	// -> No allow policy AND No from source allow policy
+
+	if !(defaultPosture.FileAction == "block") || !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !fromSourceFile) {
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if defaultPosture.NetworkAction == "block" && !(numNetworkWhiteList > 0 || !fromSourceNetwork) {
-		profileHead = profileHead + "  network,\n"
-	} else if numNetworkWhiteList == 0 {
+	if !(defaultPosture.NetworkAction == "block") || !(numNetworkWhiteList > 0 || !fromSourceNetwork) {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if defaultPosture.CapabilitiesAction == "block" && !(numCapabilityWhiteList > 0 || !fromSourceCapability) {
-		profileHead = profileHead + "  capability,\n"
-	} else if numCapabilityWhiteList == 0 {
+	if !(defaultPosture.CapabilitiesAction == "block") || !(numCapabilityWhiteList > 0 || !fromSourceCapability) {
 		profileHead = profileHead + "  capability,\n"
 	}
 
@@ -845,7 +844,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	numCapabilityWhiteList := len(capabilityWhiteList)
 
 	count = count + numProcessWhiteList + numFileWhiteList + numNetworkWhiteList + numCapabilityWhiteList
-	count = count + len(processBlackList) + len(fileBlackList) + len(networkBlackList) + len(capabilityBlackList)
 
 	// Resolve conflicts
 	ae.ResolvedProcessWhiteListConflicts(&processWhiteList, fromSources, &fusionProcessWhiteList)
@@ -940,21 +938,15 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			fromSourceFile = false
 		}
 
-		if defaultPosture.FileAction == "block" && !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !file) {
-			bodyFromSource = bodyFromSource + "    file,\n"
-		} else if file {
+		if !(defaultPosture.FileAction == "block") || !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !file) {
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if defaultPosture.NetworkAction == "block" && !(numNetworkWhiteList > 0 || !network) {
-			bodyFromSource = bodyFromSource + "    network,\n"
-		} else if network {
+		if !(defaultPosture.NetworkAction == "block") || !(numNetworkWhiteList > 0 || !network) {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if defaultPosture.CapabilitiesAction == "block" && !(numCapabilityWhiteList > 0 || !capability) {
-			bodyFromSource = bodyFromSource + "    capability,\n"
-		} else if capability {
+		if !(defaultPosture.CapabilitiesAction == "block") || !(numCapabilityWhiteList > 0 || !capability) {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 
