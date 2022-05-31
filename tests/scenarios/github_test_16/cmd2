@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: cat /secret.txt
+result: passed
+---
+operation: File
+condition: /secret.txt
+action: Allow

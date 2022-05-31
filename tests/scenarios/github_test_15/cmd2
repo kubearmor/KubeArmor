@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: bash -c 'ls'
+result: failed
+---
+operation: File
+condition: ls
+action: Block

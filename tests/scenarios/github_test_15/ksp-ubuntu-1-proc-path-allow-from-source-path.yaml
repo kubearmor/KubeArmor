@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-proc-path-allow-from-source-path
+  namespace: github
+spec:
+  severity: 5
+  message: "allow only exec of /bin/sleep from only /bin/bash"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPaths:
+    - path: /bin/sleep
+      fromSource:
+      - path: /bin/bash
+  action:
+    Allow

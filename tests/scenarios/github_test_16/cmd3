@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: cat /plain.txt
+result: failed
+---
+operation: File
+condition: /plain.txt
+action: Allow

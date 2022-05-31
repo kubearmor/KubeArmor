@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-file-path-allow-from-source-path
+  namespace: github
+spec:
+  severity: 5
+  message: "allow only /bin/cat to access /secret.txt only"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchPaths:
+    - path: /secret.txt
+      fromSource:
+      - path: /bin/cat
+  action:
+    Allow
+
+# github_test_16
+
+# test
+# $ head /secret.txt
+# head: Permission denied
+# $ cat /secret.txt
+# secret file
+# $ cat /plain.txt
+# cat: /plain.txt: Permission denied
