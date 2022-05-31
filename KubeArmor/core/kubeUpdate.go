@@ -1704,14 +1704,14 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 
 	dm.DefaultPostures[namespace] = defaultPosture
 
+	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
+
 	for idx, endPoint := range dm.EndPoints {
 		// update a security policy
 		if namespace == endPoint.NamespaceName {
 			if dm.EndPoints[idx].DefaultPosture == defaultPosture {
 				continue
 			}
-
-			dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
 
 			dm.EndPoints[idx].DefaultPosture = defaultPosture
 			dm.Logger.Printf("Updating default posture for %s with %v/%v", endPoint.EndPointName, dm.EndPoints[idx].DefaultPosture, dm.DefaultPostures[namespace])

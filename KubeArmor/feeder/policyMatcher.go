@@ -691,7 +691,7 @@ func (fd *Feeder) UpdateDefaultPosture(action string, namespace string, defaultP
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
 func setLogFields(log *tp.Log, action string, considerPosture, visibility, containerLog bool) bool {
-	if considerPosture && action == "block" {
+	if considerPosture && action == "block" && ((*log).Result == "Operation not permitted" || (*log).Result == "Permission denied") {
 		if containerLog {
 			(*log).Type = "MatchedPolicy"
 		} else {
@@ -708,6 +708,7 @@ func setLogFields(log *tp.Log, action string, considerPosture, visibility, conta
 		}
 		(*log).PolicyName = "DefaultPosture"
 		(*log).Action = "Audit"
+		(*log).Enforcer = "eBPF Monitor"
 		return true
 	} else if visibility {
 		if containerLog {
@@ -962,6 +963,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							}
 						}
 					}
+
+					if !matched {
+						if secPolicy.Action == "Allow" {
+							considerFilePosture = true
+						}
+					}
 				}
 			case "Network":
 				if secPolicy.Operation == log.Operation {
@@ -994,6 +1001,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								continue
 							}
 						}
+					}
+
+					if secPolicy.Action == "Allow" {
+						considerNetworkPosture = true
 					}
 				}
 			}
