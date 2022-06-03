@@ -405,4 +405,59 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 	},
+	"aks": {
+		Args: []string{
+			"-enableKubeArmorHostPolicy",
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			hostUsrVolMnt,
+			apparmorVolMnt,
+			{
+				Name:      "containerd-sock-path", // containerd
+				MountPath: "/var/run/containerd/containerd.sock",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "containerd-storage-path", // containerd storage
+				MountPath: "/run/containerd",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "docker-storage-path", // docker storage
+				MountPath: "/var/lib/docker",
+				ReadOnly:  true,
+			},
+		},
+		Volumes: []corev1.Volume{
+			hostUsrVol,
+			apparmorVol,
+			{
+				Name: "containerd-sock-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/run/containerd/containerd.sock",
+						Type: &hostPathSocket,
+					},
+				},
+			},
+			{
+				Name: "containerd-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/run/containerd",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+			{
+				Name: "docker-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/lib/docker",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+		},
+	},
 }
