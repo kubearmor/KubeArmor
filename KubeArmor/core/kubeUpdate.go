@@ -515,15 +515,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				// exception: kubernetes app
 				if pod.Metadata["namespaceName"] == "kube-system" {
-					if _, ok := pod.Labels["k8s-app"]; ok {
-						pod.Annotations["kubearmor-policy"] = "audited"
-					}
-
-					if value, ok := pod.Labels["component"]; ok {
-						if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" {
-							pod.Annotations["kubearmor-policy"] = "audited"
-						}
-					}
+					pod.Annotations["kubearmor-policy"] = "audited"
 				}
 
 				// exception: cilium-operator
@@ -1704,14 +1696,14 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 
 	dm.DefaultPostures[namespace] = defaultPosture
 
+	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
+
 	for idx, endPoint := range dm.EndPoints {
 		// update a security policy
 		if namespace == endPoint.NamespaceName {
 			if dm.EndPoints[idx].DefaultPosture == defaultPosture {
 				continue
 			}
-
-			dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
 
 			dm.EndPoints[idx].DefaultPosture = defaultPosture
 			dm.Logger.Printf("Updating default posture for %s with %v/%v", endPoint.EndPointName, dm.EndPoints[idx].DefaultPosture, dm.DefaultPostures[namespace])

@@ -21,6 +21,7 @@ if [[ $(hostname) = kubearmor-dev* ]]; then
     mkdir -p /home/vagrant/.kube
     sudo cp /etc/rancher/k3s/k3s.yaml /home/vagrant/.kube/config
     sudo chown -R vagrant:vagrant /home/vagrant/.kube
+    echo "export KUBECONFIG=/home/vagrant/.kube/config" | tee -a /home/vagrant/.bashrc
 else
     KUBEDIR=$HOME/.kube
     KUBECONFIG=$KUBEDIR/config
@@ -31,6 +32,7 @@ else
     fi
     sudo cp /etc/rancher/k3s/k3s.yaml $KUBECONFIG
     sudo chown $USER:$USER $KUBECONFIG
+    echo "export KUBECONFIG=$KUBECONFIG" | tee -a ~/.bashrc
 fi
 
 echo "wait for initialization"
@@ -38,10 +40,10 @@ sleep 15
 
 for (( ; ; ))
 do
-    status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
+    status=$(/usr/local/bin/kubectl get pods -A -o jsonpath={.items[*].status.phase})
     [[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break
     echo "wait for initialization"
     sleep 1
 done
 
-kubectl get pods -A
+/usr/local/bin/kubectl get pods -A

@@ -1,7 +1,7 @@
 source: ubuntu-4-deployment
 cmd: echo test >> /credentials/password
-result: failed
+result: default
 ---
 operation: File
 condition: /credentials/password
-action: Allow
+action: default

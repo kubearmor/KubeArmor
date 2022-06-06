@@ -1,15 +1,15 @@
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: ksp-ubuntu-1-net-icmp-audit
+  name: ksp-ubuntu-1-cap-net-raw-block
   namespace: github
 spec:
-  severity: 8
+  severity: 1
   selector:
     matchLabels:
       container: ubuntu-1
-  network:
-    matchProtocols:
-    - protocol: icmp # try 'ping 8.8.8.8'
+  capabilities:
+    matchCapabilities:
+    - capability: net_raw
   action:
-    Audit
+    Block

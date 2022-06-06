@@ -685,36 +685,46 @@ func (ae *AppArmorEnforcer) GenerateHostProfileBody(securityPolicies []tp.HostSe
 		capability := true
 
 		for _, line := range lines {
-			if strings.Contains(line, "  network") {
+			if strings.Contains(line, "  network") { // matchProtocols + allow
 				network = false
 				continue
 			}
 
-			if strings.Contains(line, "  capability") {
+			if strings.Contains(line, "  capability") { // matchCapabilities + allow
 				capability = false
 				continue
 			}
 
-			if strings.Contains(line, "  owner") && strings.Contains(line, "deny") {
+			if strings.Contains(line, "  owner") && strings.Contains(line, "deny") { // ownerOnly + block
 				continue
 			}
 
-			if strings.Contains(line, "  deny") {
+			if strings.Contains(line, "  deny") { // block
 				continue
 			}
 
-			file = false
+			file = false // matchPaths or matchDirectories + allow
 		}
 
-		if file {
+		if defaultPosture.FileAction == "block" && file {
+			// if defaultPosture == block and there is at least one fromSource-based allow policy, block others (by the same source)
+			// hoever, if defaultPosture == block and there is no fromSource-based allow policy, allow others as usual
+			bodyFromSource = bodyFromSource + "    file,\n"
+		} else if defaultPosture.FileAction != "block" {
+			// if defaultPosture == audit, audit others (= allow others) (by the same source)
+			// if defaultPosture == allow, skip (ignore) allow policies while still enforcing block policies
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if network {
+		if defaultPosture.NetworkAction == "block" && network {
+			bodyFromSource = bodyFromSource + "    network,\n"
+		} else if defaultPosture.NetworkAction != "block" {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if capability {
+		if defaultPosture.CapabilitiesAction == "block" && capability {
+			bodyFromSource = bodyFromSource + "    capability,\n"
+		} else if defaultPosture.CapabilitiesAction != "block" {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -24,11 +23,11 @@ import (
 func getProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
-		return "protocol=TCP"
+		return "protocol=TCP,type=SOCK_STREAM"
 	case "udp":
-		return "protocol=UDP"
+		return "protocol=UDP,type=SOCK_DGRAM"
 	case "icmp":
-		return "protocol=ICMP"
+		return "protocol=ICMP,type=SOCK_RAW"
 	case "raw":
 		return "type=SOCK_RAW"
 	default:
@@ -690,33 +689,31 @@ func (fd *Feeder) UpdateDefaultPosture(action string, namespace string, defaultP
 }
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
-func setLogFields(log *tp.Log, action string, considerPosture, visibility, containerLog bool) bool {
-	if considerPosture && action == "block" {
-		if containerLog {
+func setLogFields(log *tp.Log, defaultPosture string, visibility, containerEvent bool) bool {
+	if defaultPosture == "audit" && (*log).Result == "Passed" {
+		if containerEvent {
 			(*log).Type = "MatchedPolicy"
 		} else {
 			(*log).Type = "MatchedHostPolicy"
 		}
+
 		(*log).PolicyName = "DefaultPosture"
-		(*log).Action = "Block"
-		return true
-	} else if considerPosture && action == "audit" {
-		if containerLog {
-			(*log).Type = "MatchedPolicy"
-		} else {
-			(*log).Type = "MatchedHostPolicy"
-		}
-		(*log).PolicyName = "DefaultPosture"
+		(*log).Enforcer = "eBPF Monitor"
 		(*log).Action = "Audit"
+
 		return true
-	} else if visibility {
-		if containerLog {
+	}
+
+	if visibility {
+		if containerEvent {
 			(*log).Type = "ContainerLog"
 		} else {
 			(*log).Type = "HostLog"
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -725,33 +722,15 @@ func setLogFields(log *tp.Log, action string, considerPosture, visibility, conta
 // ==================== //
 
 func getDirectoryPart(path string) string {
-	dirs := strings.Split(path, "/")
-	if len(dirs) > 1 {
-		return strings.Join(dirs[0:len(dirs)-2], "/")
+	dir := filepath.Dir(path)
+	if strings.HasPrefix(dir, "/") {
+		return dir + "/"
 	}
-	return "__no_directory__"
+	return "__not_absolute_path__"
 }
 
 // UpdateMatchedPolicy Function
 func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
-	allowProcPolicy := ""
-	allowProcPolicySeverity := ""
-	allowProcTags := []string{}
-	allowProcMessage := ""
-
-	allowFilePolicy := ""
-	allowFilePolicySeverity := ""
-	allowFileTags := []string{}
-	allowFileMessage := ""
-
-	allowNetworkPolicy := ""
-	allowNetworkPolicySeverity := ""
-	allowNetworkTags := []string{}
-	allowNetworkMessage := ""
-
-	considerFilePosture := false
-	considerNetworkPosture := false
-
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
@@ -763,213 +742,235 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
-			firstLogSource := strings.Replace(strings.Split(log.Source, " ")[0], "./", "", 1)
-			firstLogResource := strings.Replace(strings.Split(log.Resource, " ")[0], "./", "", 1)
-
-			if strings.Contains(secPolicy.Action, "Allow") {
-				if secPolicy.Source == "" || (secPolicy.IsFromSource &&
-					((secPolicy.Operation == "Process" && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) || // ./bash -> xxx || ./bash -c xxx
-						(secPolicy.Operation != "Process" && (secPolicy.Source == log.ProcessName || strings.Contains(secPolicy.Source, firstLogSource))))) {
-
-					if secPolicy.Operation == "Process" {
-						if allowProcPolicy == "" {
-							allowProcPolicy = secPolicy.PolicyName
-							allowProcPolicySeverity = secPolicy.Severity
-
-							for _, tag := range secPolicy.Tags {
-								if !kl.ContainsElement(allowProcTags, tag) {
-									allowProcTags = append(allowProcTags, tag)
-								}
-							}
-
-							allowProcMessage = secPolicy.Message
-						} else if !strings.Contains(allowProcPolicy, secPolicy.PolicyName) {
-							allowProcPolicy = allowProcPolicy + "," + secPolicy.PolicyName
-							allowProcPolicySeverity = allowProcPolicySeverity + "," + secPolicy.Severity
-
-							for _, tag := range secPolicy.Tags {
-								if !kl.ContainsElement(allowProcTags, tag) {
-									allowProcTags = append(allowProcTags, tag)
-								}
-							}
-
-							allowProcMessage = allowProcMessage + "," + secPolicy.Message
-						}
-					} else if secPolicy.Operation == "File" {
-						if allowFilePolicy == "" {
-							allowFilePolicy = secPolicy.PolicyName
-							allowFilePolicySeverity = secPolicy.Severity
-
-							for _, tag := range secPolicy.Tags {
-								if !kl.ContainsElement(allowFileTags, tag) {
-									allowFileTags = append(allowFileTags, tag)
-								}
-							}
-
-							allowFileMessage = secPolicy.Message
-						} else if !strings.Contains(allowFilePolicy, secPolicy.PolicyName) {
-							allowFilePolicy = allowFilePolicy + "," + secPolicy.PolicyName
-							allowFilePolicySeverity = allowFilePolicySeverity + "," + secPolicy.Severity
-
-							for _, tag := range secPolicy.Tags {
-								if !kl.ContainsElement(allowFileTags, tag) {
-									allowFileTags = append(allowFileTags, tag)
-								}
-							}
-
-							allowFileMessage = allowFileMessage + "," + secPolicy.Message
-						}
-					} else if secPolicy.Operation == "Network" {
-						if allowNetworkPolicy == "" {
-							allowNetworkPolicy = secPolicy.PolicyName
-							allowNetworkPolicySeverity = secPolicy.Severity
-
-							for _, tag := range secPolicy.Tags {
-								if !kl.ContainsElement(allowNetworkTags, tag) {
-									allowNetworkTags = append(allowNetworkTags, tag)
-								}
-							}
-
-							allowNetworkMessage = secPolicy.Message
-						} else if !strings.Contains(allowNetworkPolicy, secPolicy.PolicyName) {
-							allowNetworkPolicy = allowNetworkPolicy + "," + secPolicy.PolicyName
-							allowNetworkPolicySeverity = allowNetworkPolicySeverity + "," + secPolicy.Severity
-
-							for _, tag := range secPolicy.Tags {
-								if !kl.ContainsElement(allowNetworkTags, tag) {
-									allowNetworkTags = append(allowNetworkTags, tag)
-								}
-							}
-
-							allowNetworkMessage = allowNetworkMessage + "," + secPolicy.Message
-						}
-					}
-				}
+			if fd.DefaultPostures[log.NamespaceName].FileAction == "allow" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") {
+				continue
 			}
+
+			firstLogResource := strings.Split(log.Resource, " ")[0]
+			firstLogResourceDir := getDirectoryPart(firstLogResource)
+			firstLogResourceDirCount := strings.Count(firstLogResourceDir, "/")
 
 			switch log.Operation {
 			case "Process", "File":
-				if secPolicy.Operation == log.Operation {
-					matched := false
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+
+				// match sources
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+					matchedRegex := false
 
 					switch secPolicy.ResourceType {
 					case "Glob":
 						// Match using a globbing syntax very similar to the AppArmor's
-						matched, _ = filepath.Match(secPolicy.Resource, log.Resource) // pattern (secPolicy.Resource) -> string (log.Resource)
+						matchedRegex, _ = filepath.Match(secPolicy.Resource, log.Resource) // pattern (secPolicy.Resource) -> string (log.Resource)
 					case "Regexp":
 						if secPolicy.Regexp != nil {
 							// Match using compiled regular expression
-							matched = secPolicy.Regexp.MatchString(log.Resource) // regexp (secPolicy.Regexp) -> string (log.Resource)
+							matchedRegex = secPolicy.Regexp.MatchString(log.Resource) // regexp (secPolicy.Regexp) -> string (log.Resource)
 						}
 					}
 
-					if secPolicy.Source == "" || (secPolicy.IsFromSource &&
-						((secPolicy.Operation == "Process" && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) || // ./bash -> xxx || ./bash -c xxx
-							(secPolicy.Operation == "File" && (secPolicy.Source == log.ProcessName || strings.Contains(secPolicy.Source, firstLogSource))))) {
+					// match resources
+					if matchedRegex || (secPolicy.ResourceType == "Path" && secPolicy.Resource == firstLogResource) ||
+						(secPolicy.ResourceType == "Directory" && strings.HasPrefix(firstLogResourceDir, secPolicy.Resource) &&
+							((!secPolicy.Recursive && firstLogResourceDirCount == strings.Count(secPolicy.Resource, "/")) ||
+								(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) {
 
-						if matched ||
-							(secPolicy.ResourceType == "Path" && secPolicy.Resource == log.Resource) || // exact path match
-							(secPolicy.ResourceType == "Path" && strings.HasSuffix(secPolicy.Resource, firstLogResource)) || // file name match
-							(secPolicy.ResourceType == "Directory" && strings.HasPrefix(log.Resource, secPolicy.Resource)) || // exact directory match (non-recursive and recursive)
-							(secPolicy.ResourceType == "Directory" && strings.HasSuffix(secPolicy.Resource, getDirectoryPart(firstLogResource))) { // surffix match (non-recurisve)
+						matchedFlags := false
 
-							matchedFlags := false
-
-							if (secPolicy.Action == "Audit" && log.Result == "Passed") || (log.PolicyEnabled == tp.KubeArmorPolicyAudited && strings.Contains(secPolicy.Action, "Allow")) {
-								if secPolicy.ReadOnly && log.Resource != "" && secPolicy.OwnerOnly && log.MergedDir != "" {
-									// read only && owner only
-									if strings.Contains(log.Data, "O_RDONLY") && strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
-										matchedFlags = true
-									}
-								} else if secPolicy.ReadOnly && log.Resource != "" {
-									// read only
-									if strings.Contains(log.Data, "O_RDONLY") {
-										matchedFlags = true
-									}
-								} else if secPolicy.OwnerOnly && log.MergedDir != "" {
-									// owner only
-									if strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
-										matchedFlags = true
-									}
-								} else {
-									// ! read only && ! owner only
-									matchedFlags = true
-								}
-
-							} else if log.PolicyEnabled == tp.KubeArmorPolicyAudited && strings.Contains(secPolicy.Action, "Block") {
-								if secPolicy.ReadOnly && log.Resource != "" && secPolicy.OwnerOnly && log.MergedDir != "" {
-									// read only && owner only
-									if strings.Contains(log.Data, "O_RDONLY") && strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
-										matchedFlags = true
-									}
-								} else if secPolicy.ReadOnly && log.Resource != "" {
-									// read only
-									if strings.Contains(log.Data, "O_RDONLY") {
-										matchedFlags = true
-									}
-								} else if secPolicy.OwnerOnly && log.MergedDir != "" {
-									// owner only
-									if strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
-										matchedFlags = true
-									}
-								}
-								// otherwise, being supposed to be blocked
+						if secPolicy.ReadOnly && log.Resource != "" && secPolicy.OwnerOnly && log.MergedDir != "" {
+							// read only && owner only
+							if strings.Contains(log.Data, "O_RDONLY") && strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
+								matchedFlags = true
 							}
-
-							if (matchedFlags && secPolicy.Action == "Audit" && log.Result == "Passed") || (!matchedFlags && log.PolicyEnabled == tp.KubeArmorPolicyAudited && (strings.Contains(secPolicy.Action, "Allow") || strings.Contains(secPolicy.Action, "Block"))) {
-								log.Type = "MatchedPolicy"
-
-								log.PolicyName = secPolicy.PolicyName
-								log.Severity = secPolicy.Severity
-
-								if len(secPolicy.Tags) > 0 {
-									log.Tags = strings.Join(secPolicy.Tags[:], ",")
-								}
-
-								if len(secPolicy.Message) > 0 {
-									log.Message = secPolicy.Message
-								}
-
-								if secPolicy.Action == "Audit" || log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-									log.Enforcer = "eBPF Monitor"
-								} else {
-									log.Enforcer = fd.Enforcer
-								}
-
-								log.Action = secPolicy.Action
-
-								continue
+						} else if secPolicy.ReadOnly && log.Resource != "" {
+							// read only
+							if strings.Contains(log.Data, "O_RDONLY") {
+								matchedFlags = true
 							}
-
-							if log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result != "Passed" {
-								log.Type = "MatchedPolicy"
-
-								log.PolicyName = secPolicy.PolicyName
-								log.Severity = secPolicy.Severity
-
-								if len(secPolicy.Tags) > 0 {
-									log.Tags = strings.Join(secPolicy.Tags[:], ",")
-								}
-
-								if len(secPolicy.Message) > 0 {
-									log.Message = secPolicy.Message
-								}
-
-								log.Enforcer = fd.Enforcer
-								log.Action = secPolicy.Action
-
-								continue
+						} else if secPolicy.OwnerOnly && log.MergedDir != "" {
+							// owner only
+							if strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
+								matchedFlags = true
 							}
+						} else {
+							// ! read only && ! owner only
+							matchedFlags = true
 						}
+
+						if matchedFlags && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+							// allow policy or allow policy with audit mode
+							// matched source + matched resource + matched flags + matched action + expected result -> going to be skipped
+
+							log.Type = "MatchedPolicy"
+
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								log.Enforcer = "eBPF Monitor"
+							} else {
+								log.Enforcer = fd.Enforcer
+							}
+
+							log.Action = "Allow"
+
+							continue
+						}
+
+						if matchedFlags && secPolicy.Action == "Audit" && log.Result == "Passed" {
+							// audit policy
+							// matched source + matched resource + matched flags + matched action + expected result -> alert (audit log)
+
+							log.Type = "MatchedPolicy"
+
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							log.Enforcer = "eBPF Monitor"
+							log.Action = secPolicy.Action
+
+							continue
+						}
+
+						if (secPolicy.Action == "Block" && log.Result != "Passed") ||
+							(matchedFlags && (!secPolicy.OwnerOnly && !secPolicy.ReadOnly) && secPolicy.Action == "Audit (Block)" && log.Result == "Passed") ||
+							(!matchedFlags && (secPolicy.OwnerOnly || secPolicy.ReadOnly) && secPolicy.Action == "Audit (Block)" && log.Result == "Passed") {
+							// block policy or block policy with audit mode
+							// matched source + matched resource + matched action + expected result -> alert
+
+							log.Type = "MatchedPolicy"
+
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								log.Enforcer = "eBPF Monitor"
+							} else {
+								log.Enforcer = fd.Enforcer
+							}
+
+							log.Action = secPolicy.Action
+
+							continue
+						}
+					}
+
+					if secPolicy.Action == "Allow" && log.Result != "Passed" {
+						// matched source + !(matched resource) + action = allow + result = blocked -> default posture / allow policy violation
+
+						log.Type = "MatchedPolicy"
+
+						log.PolicyName = "DefaultPosture"
+
+						log.Severity = ""
+						log.Tags = ""
+						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
+						log.Action = "Block"
+
+						continue
+					}
+
+					if secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+						// matched source + !(matched resource) + action = audit (allow) + result = passed -> default posture / allow policy violation (audit mode)
+
+						log.Type = "MatchedPolicy"
+
+						log.PolicyName = "DefaultPosture"
+
+						log.Severity = ""
+						log.Tags = ""
+						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
+
+						if fd.DefaultPostures[log.NamespaceName].FileAction == "block" {
+							log.Action = "Audit (Block)"
+						} else { // fd.DefaultPostures[log.NamespaceName].FileAction == "audit"
+							log.Action = "Audit"
+						}
+
+						continue
 					}
 				}
+
+				if fd.DefaultPostures[log.NamespaceName].FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+					// defaultPosture = block + audit mode
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit (Block)"
+				}
+
+				if fd.DefaultPostures[log.NamespaceName].FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+					// defaultPosture = audit
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit"
+				}
+
 			case "Network":
-				if secPolicy.Operation == log.Operation {
-					if secPolicy.Source == "" || (secPolicy.IsFromSource && (secPolicy.Source == log.ProcessName || strings.Contains(secPolicy.Source, firstLogSource))) {
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
 
-						if strings.Contains(log.Resource, secPolicy.Resource) {
+				// match sources
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+					skip := false
 
-							if (log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result != "Passed") || (secPolicy.Action == "Audit" && log.Result == "Passed") || (log.PolicyEnabled == tp.KubeArmorPolicyAudited && strings.Contains(secPolicy.Action, "Block")) {
+					for _, matchProtocol := range strings.Split(secPolicy.Resource, ",") {
+						if skip {
+							break
+						}
+
+						// match resources
+						if strings.Contains(log.Resource, matchProtocol) {
+							if (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+								// allow policy or allow policy with audit mode
+								// matched source + matched resource + matched action + expected result -> going to be skipped
+
 								log.Type = "MatchedPolicy"
 
 								log.PolicyName = secPolicy.PolicyName
@@ -983,7 +984,61 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 									log.Message = secPolicy.Message
 								}
 
-								if secPolicy.Action == "Audit" || log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+									log.Enforcer = "eBPF Monitor"
+								} else {
+									log.Enforcer = fd.Enforcer
+								}
+
+								log.Action = "Allow"
+
+								skip = true
+								continue
+							}
+
+							if secPolicy.Action == "Audit" && log.Result == "Passed" {
+								// audit policy
+								// matched source + matched resource + matched action + expected result -> alert (audit log)
+
+								log.Type = "MatchedPolicy"
+
+								log.PolicyName = secPolicy.PolicyName
+								log.Severity = secPolicy.Severity
+
+								if len(secPolicy.Tags) > 0 {
+									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								}
+
+								if len(secPolicy.Message) > 0 {
+									log.Message = secPolicy.Message
+								}
+
+								log.Enforcer = "eBPF Monitor"
+								log.Action = secPolicy.Action
+
+								skip = true
+								continue
+							}
+
+							if (secPolicy.Action == "Block" && log.Result != "Passed") ||
+								(secPolicy.Action == "Audit (Block)" && log.Result == "Passed") {
+								// block policy or block policy with audit mode
+								// matched source + matched resource + matched action + expected result -> alert
+
+								log.Type = "MatchedPolicy"
+
+								log.PolicyName = secPolicy.PolicyName
+								log.Severity = secPolicy.Severity
+
+								if len(secPolicy.Tags) > 0 {
+									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								}
+
+								if len(secPolicy.Message) > 0 {
+									log.Message = secPolicy.Message
+								}
+
+								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
 									log.Enforcer = "eBPF Monitor"
 								} else {
 									log.Enforcer = fd.Enforcer
@@ -991,106 +1046,112 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 								log.Action = secPolicy.Action
 
+								skip = true
 								continue
 							}
 						}
 					}
+
+					if skip {
+						continue
+					}
+
+					if secPolicy.Action == "Allow" && log.Result != "Passed" {
+						// matched source + !(matched resource) + action = allow + result = blocked -> allow policy violation
+
+						log.Type = "MatchedPolicy"
+
+						log.PolicyName = "DefaultPosture"
+
+						log.Severity = ""
+						log.Tags = ""
+						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
+						log.Action = "Block"
+
+						continue
+					}
+
+					if secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+						// matched source + !(matched resource) + action = audit (allow) + result = passed -> allow policy violation (audit mode)
+
+						log.Type = "MatchedPolicy"
+
+						log.PolicyName = "DefaultPosture"
+
+						log.Severity = ""
+						log.Tags = ""
+						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
+
+						if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" {
+							log.Action = "Audit (Block)"
+						} else { // fd.DefaultPostures[log.NamespaceName].NetworkAction == "audit"
+							log.Action = "Audit"
+						}
+
+						continue
+					}
+				}
+
+				if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+					// defaultPosture = block + audit mode
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit (Block)"
+				}
+
+				if fd.DefaultPostures[log.NamespaceName].NetworkAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+					// defaultPosture = audit
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit"
 				}
 			}
 		}
 
 		fd.SecurityPoliciesLock.RUnlock()
 
-		if log.Result == "Operation not permitted" || log.Result == "Permission denied" {
-			if log.Operation == "Process" && allowProcPolicy == "" {
-				considerFilePosture = true
-			} else if log.Operation == "File" && allowFilePolicy == "" {
-				considerFilePosture = true
-			} else if log.Operation == "Network" && allowNetworkPolicy == "" {
-				considerNetworkPosture = true
-			}
+		if log.PolicyName == "" && log.Result != "Passed" {
+			// default posture (block) or native policy
+			// no matched policy, but result = blocked -> default posture
+
+			log.Type = "MatchedPolicy"
+
+			log.PolicyName = "DefaultPosture"
+
+			log.Severity = ""
+			log.Tags = ""
+			log.Message = ""
+
+			log.Enforcer = fd.Enforcer
+			log.Action = "Block"
 		}
 	}
 
 	if log.ContainerID != "" { // container
 		if log.Type == "" {
-			if (log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result != "Passed") || (log.PolicyEnabled == tp.KubeArmorPolicyAudited) {
-				if log.Operation == "Process" && allowProcPolicy != "" {
-					log.Type = "MatchedPolicy"
-
-					log.PolicyName = allowProcPolicy
-					log.Severity = allowProcPolicySeverity
-
-					if len(allowProcTags) > 0 {
-						log.Tags = strings.Join(allowProcTags[:], ",")
-					}
-
-					if len(allowProcMessage) > 0 {
-						log.Message = allowProcMessage
-					}
-
-					if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-						log.Enforcer = "eBPF Monitor"
-						log.Action = "Audit (Allow)"
-					} else {
-						log.Enforcer = fd.Enforcer
-						log.Action = "Allow"
-					}
-
-					return log
-
-				} else if log.Operation == "File" && allowFilePolicy != "" {
-					log.Type = "MatchedPolicy"
-
-					log.PolicyName = allowFilePolicy
-					log.Severity = allowFilePolicySeverity
-
-					if len(allowFileTags) > 0 {
-						log.Tags = strings.Join(allowFileTags[:], ",")
-					}
-
-					if len(allowFileMessage) > 0 {
-						log.Message = allowFileMessage
-					}
-
-					if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-						log.Enforcer = "eBPF Monitor"
-						log.Action = "Audit (Allow)"
-					} else {
-						log.Enforcer = fd.Enforcer
-						log.Action = "Allow"
-					}
-
-					return log
-
-				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
-					log.Type = "MatchedPolicy"
-
-					log.PolicyName = allowNetworkPolicy
-					log.Severity = allowNetworkPolicySeverity
-
-					if len(allowNetworkTags) > 0 {
-						log.Tags = strings.Join(allowNetworkTags[:], ",")
-					}
-
-					if len(allowNetworkMessage) > 0 {
-						log.Message = allowNetworkMessage
-					}
-
-					if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-						log.Enforcer = "eBPF Monitor"
-						log.Action = "Audit (Allow)"
-					} else {
-						log.Enforcer = fd.Enforcer
-						log.Action = "Allow"
-					}
-
-					return log
-				}
-			}
+			// defaultPosture (audit) or container log
 
 			fd.DefaultPosturesLock.Lock()
-			defer fd.DefaultPosturesLock.Unlock()
 
 			if _, ok := fd.DefaultPostures[log.NamespaceName]; !ok {
 				globalDefaultPosture := tp.DefaultPosture{
@@ -1101,20 +1162,22 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				fd.DefaultPostures[log.NamespaceName] = globalDefaultPosture
 			}
 
+			fd.DefaultPosturesLock.Unlock()
+
 			if log.Operation == "Process" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].FileAction, considerFilePosture, log.ProcessVisibilityEnabled, true) {
+				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].FileAction, considerFilePosture, log.FileVisibilityEnabled, true) {
+				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].NetworkAction, considerNetworkPosture, log.NetworkVisibilityEnabled, true) {
+				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, false, log.CapabilitiesVisibilityEnabled, true) {
+				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
 					return log
 				}
 			}
@@ -1123,109 +1186,27 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
 			}
+
 			return log
 		}
 	} else { // host
 		if log.Type == "" {
-			if (log.PolicyEnabled == tp.KubeArmorPolicyEnabled && log.Result != "Passed") || (log.PolicyEnabled == tp.KubeArmorPolicyAudited) {
-				if log.Operation == "Process" && allowProcPolicy != "" {
-					log.Type = "MatchedHostPolicy"
-
-					log.PolicyName = allowProcPolicy
-					log.Severity = allowProcPolicySeverity
-
-					if len(allowProcTags) > 0 {
-						log.Tags = strings.Join(allowProcTags[:], ",")
-					}
-
-					if len(allowProcMessage) > 0 {
-						log.Message = allowProcMessage
-					}
-
-					if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-						log.Enforcer = "eBPF Monitor"
-						log.Action = "Audit (Allow)"
-					} else {
-						log.Enforcer = fd.Enforcer
-						log.Action = "Allow"
-					}
-
-					return log
-
-				} else if log.Operation == "File" && allowFilePolicy != "" {
-					log.Type = "MatchedHostPolicy"
-
-					log.PolicyName = allowFilePolicy
-					log.Severity = allowFilePolicySeverity
-
-					if len(allowFileTags) > 0 {
-						log.Tags = strings.Join(allowFileTags[:], ",")
-					}
-
-					if len(allowFileMessage) > 0 {
-						log.Message = allowFileMessage
-					}
-
-					if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-						log.Enforcer = "eBPF Monitor"
-						log.Action = "Audit (Allow)"
-					} else {
-						log.Enforcer = fd.Enforcer
-						log.Action = "Allow"
-					}
-
-					return log
-
-				} else if log.Operation == "Network" && allowNetworkPolicy != "" {
-					log.Type = "MatchedHostPolicy"
-
-					log.PolicyName = allowNetworkPolicy
-					log.Severity = allowNetworkPolicySeverity
-
-					if len(allowNetworkTags) > 0 {
-						log.Tags = strings.Join(allowNetworkTags[:], ",")
-					}
-
-					if len(allowNetworkMessage) > 0 {
-						log.Message = allowNetworkMessage
-					}
-
-					if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-						log.Enforcer = "eBPF Monitor"
-						log.Action = "Audit (Allow)"
-					} else {
-						log.Enforcer = fd.Enforcer
-						log.Action = "Allow"
-					}
-
-					return log
-				}
-			}
-
-			if log.Result == "Operation not permitted" || log.Result == "Permission denied" {
-				if log.Operation == "Process" && allowProcPolicy == "" {
-					considerFilePosture = true
-				} else if log.Operation == "File" && allowFilePolicy == "" {
-					considerFilePosture = true
-				} else if log.Operation == "Network" && allowNetworkPolicy == "" {
-					considerNetworkPosture = true
-				}
-			}
+			// host log
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, "block", considerFilePosture, fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, "allow", fd.Node.ProcessVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, "block", considerFilePosture, fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, "allow", fd.Node.FileVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, "block", considerNetworkPosture, fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, "allow", fd.Node.NetworkVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, "block", false, fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
 			}

@@ -675,21 +675,25 @@ func (ae *AppArmorEnforcer) GenerateProfileHead(numProcessWhiteList, numFileWhit
 	profileHead := "  #include <abstractions/base>\n"
 	profileHead = profileHead + "  umount,\n"
 
-	if defaultPosture.FileAction == "block" && !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !fromSourceFile) {
+	if defaultPosture.FileAction == "block" && (numProcessWhiteList+numFileWhiteList == 0 && fromSourceFile) {
+		// if defaultPosture == block and there is at least one (fromSource-based) allow policy, block others
+		// hoever, if defaultPosture == block and there is no (fromSource-based) allow policy, allow others as usual
 		profileHead = profileHead + "  file,\n"
-	} else if numProcessWhiteList == 0 && numFileWhiteList == 0 {
+	} else if defaultPosture.FileAction != "block" {
+		// if defaultPosture == audit, audit others (= allow others)
+		// if defaultPosture == allow, skip (ignore) allow policies while still enforcing block policies
 		profileHead = profileHead + "  file,\n"
 	}
 
-	if defaultPosture.NetworkAction == "block" && !(numNetworkWhiteList > 0 || !fromSourceNetwork) {
+	if defaultPosture.NetworkAction == "block" && (numNetworkWhiteList == 0 && fromSourceNetwork) {
 		profileHead = profileHead + "  network,\n"
-	} else if numNetworkWhiteList == 0 {
+	} else if defaultPosture.NetworkAction != "block" {
 		profileHead = profileHead + "  network,\n"
 	}
 
-	if defaultPosture.CapabilitiesAction == "block" && !(numCapabilityWhiteList > 0 || !fromSourceCapability) {
+	if defaultPosture.CapabilitiesAction == "block" && (numCapabilityWhiteList == 0 && fromSourceCapability) {
 		profileHead = profileHead + "  capability,\n"
-	} else if numCapabilityWhiteList == 0 {
+	} else if defaultPosture.CapabilitiesAction != "block" {
 		profileHead = profileHead + "  capability,\n"
 	}
 
@@ -762,7 +766,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
-				if path.Action == "Allow" {
+				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
 					ae.AllowedProcessMatchPaths(path, &processWhiteList, fromSources)
 				} else if path.Action == "Block" {
 					ae.BlockedProcessMatchPaths(path, &processBlackList, fromSources)
@@ -771,7 +775,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		}
 		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-				if dir.Action == "Allow" {
+				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
 					ae.AllowedProcessMatchDirectories(dir, &processWhiteList, fromSources)
 				} else if dir.Action == "Block" {
 					ae.BlockedProcessMatchDirectories(dir, &processBlackList, fromSources)
@@ -780,7 +784,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		}
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-				if pat.Action == "Allow" {
+				if pat.Action == "Allow" && defaultPosture.FileAction == "block" {
 					ae.AllowedProcessMatchPatterns(pat, &processWhiteList)
 				} else if pat.Action == "Block" {
 					ae.BlockedProcessMatchPatterns(pat, &processBlackList)
@@ -790,7 +794,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 		if len(secPolicy.Spec.File.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.File.MatchPaths {
-				if path.Action == "Allow" {
+				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
 					ae.AllowedFileMatchPaths(path, &fileWhiteList, fromSources)
 				} else if path.Action == "Block" {
 					ae.BlockedFileMatchPaths(path, &fileBlackList, fromSources)
@@ -799,7 +803,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		}
 		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
-				if dir.Action == "Allow" {
+				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
 					ae.AllowedFileMatchDirectories(dir, &fileWhiteList, fromSources)
 				} else if dir.Action == "Block" {
 					ae.BlockedFileMatchDirectories(dir, &fileBlackList, fromSources)
@@ -808,7 +812,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		}
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
-				if pat.Action == "Allow" {
+				if pat.Action == "Allow" && defaultPosture.FileAction == "block" {
 					ae.AllowedFileMatchPatterns(pat, &fileWhiteList)
 				} else if pat.Action == "Block" {
 					ae.BlockedFileMatchPatterns(pat, &fileBlackList)
@@ -818,7 +822,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-				if proto.Action == "Allow" {
+				if proto.Action == "Allow" && defaultPosture.NetworkAction == "block" {
 					ae.AllowedNetworkMatchProtocols(proto, &networkWhiteList, fromSources)
 				} else if proto.Action == "Block" {
 					ae.BlockedNetworkMatchProtocols(proto, &networkBlackList, fromSources)
@@ -828,7 +832,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-				if cap.Action == "Allow" {
+				if cap.Action == "Allow" && defaultPosture.CapabilitiesAction == "block" {
 					ae.AllowedCapabilitiesMatchCapabilities(cap, &capabilityWhiteList, fromSources)
 				} else if cap.Action == "Block" {
 					ae.BlockedCapabilitiesMatchCapabilities(cap, &capabilityBlackList, fromSources)
@@ -916,45 +920,49 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		capability := true
 
 		for _, line := range lines {
-			if strings.Contains(line, "  network") {
+			if strings.Contains(line, "  network") { // matchProtocols + allow
 				network = false
 				fromSourceNetwork = false
 				continue
 			}
 
-			if strings.Contains(line, "  capability") {
+			if strings.Contains(line, "  capability") { // matchCapabilities + allow
 				capability = false
 				fromSourceCapability = false
 				continue
 			}
 
-			if strings.Contains(line, "  owner") && strings.Contains(line, "deny") {
+			if strings.Contains(line, "  owner") && strings.Contains(line, "deny") { // ownerOnly + block
 				continue
 			}
 
-			if strings.Contains(line, "  deny") {
+			if strings.Contains(line, "  deny") { // block
 				continue
 			}
 
-			file = false
+			file = false // matchPaths or matchDirectories + allow
 			fromSourceFile = false
 		}
 
-		if defaultPosture.FileAction == "block" && !(numProcessWhiteList > 0 || numFileWhiteList > 0 || !file) {
+		if defaultPosture.FileAction == "block" && (numProcessWhiteList == 0 && numFileWhiteList == 0 && file) {
+			// if defaultPosture == block and there is at least one (fromSource-based) allow policy, block others
+			// hoever, if defaultPosture == block and there is no (fromSource-based) allow policy, allow others as usual
 			bodyFromSource = bodyFromSource + "    file,\n"
-		} else if file {
+		} else if defaultPosture.FileAction != "block" {
+			// if defaultPosture == audit, audit others (= allow others)
+			// if defaultPosture == allow, skip (ignore) allow policies while still enforcing block policies
 			bodyFromSource = bodyFromSource + "    file,\n"
 		}
 
-		if defaultPosture.NetworkAction == "block" && !(numNetworkWhiteList > 0 || !network) {
+		if defaultPosture.NetworkAction == "block" && (numNetworkWhiteList == 0 && network) {
 			bodyFromSource = bodyFromSource + "    network,\n"
-		} else if network {
+		} else if defaultPosture.NetworkAction != "block" {
 			bodyFromSource = bodyFromSource + "    network,\n"
 		}
 
-		if defaultPosture.CapabilitiesAction == "block" && !(numCapabilityWhiteList > 0 || !capability) {
+		if defaultPosture.CapabilitiesAction == "block" && (numCapabilityWhiteList == 0 && capability) {
 			bodyFromSource = bodyFromSource + "    capability,\n"
-		} else if capability {
+		} else if defaultPosture.CapabilitiesAction != "block" {
 			bodyFromSource = bodyFromSource + "    capability,\n"
 		}
 

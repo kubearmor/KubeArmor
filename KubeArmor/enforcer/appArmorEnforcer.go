@@ -527,9 +527,9 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 // UpdateAppArmorHostProfile Function
 func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecurityPolicy) {
 	globalDefaultPosture := tp.DefaultPosture{
-		FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-		NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-		CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+		FileAction:         cfg.GlobalCfg.HostDefaultFilePosture,
+		NetworkAction:      cfg.GlobalCfg.HostDefaultNetworkPosture,
+		CapabilitiesAction: cfg.GlobalCfg.HostDefaultCapabilitiesPosture,
 	}
 
 	if policyCount, newProfile, ok := ae.GenerateAppArmorHostProfile(secPolicies, globalDefaultPosture); ok {
