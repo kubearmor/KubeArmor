@@ -30,18 +30,15 @@ import (
 
 // System Call Numbers
 const (
-	SysOpen      = 2
-	SysOpenAt    = 257
-	SysClose     = 3
-	Sys_link     = 85
-	Sys_unlink   = 86
-	Sys_symlink  = 87
-	Sys_readlink = 88
-	SysSocket    = 41
-	SysConnect   = 42
-	SysAccept    = 43
-	SysBind      = 49
-	SysListen    = 50
+	SysOpen   = 2
+	SysOpenAt = 257
+	SysClose  = 3
+
+	SysSocket  = 41
+	SysConnect = 42
+	SysAccept  = 43
+	SysBind    = 49
+	SysListen  = 50
 
 	SysExecve   = 59
 	SysExecveAt = 322
