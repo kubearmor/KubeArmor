@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: cat /credentials/keys/priv.key
+result: passed
+---
+operation: File
+condition: /credentials/keys/priv.key
+action: Audit

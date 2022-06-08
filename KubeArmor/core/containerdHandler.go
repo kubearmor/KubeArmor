@@ -116,6 +116,8 @@ func NewContainerdHandler() *ContainerdHandler {
 	// active containers
 	ch.containers = map[string]context.Context{}
 
+	kg.Print("Initialized Containerd Handler")
+
 	return ch
 }
 
@@ -287,7 +289,10 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
 			container.EndPointName = dm.Containers[container.ContainerID].EndPointName
+			container.Labels = dm.Containers[container.ContainerID].Labels
+
 			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+			container.ContainerImage = dm.Containers[container.ContainerID].ContainerImage
 
 			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
 

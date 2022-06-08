@@ -34,14 +34,20 @@ message Alert {
 
   string NamespaceName = 5;
   string PodName = 6;
+  string Labels = 29;
 
   string ContainerID = 7;
   string ContainerName = 8;
+  string ContainerImage = 24;
 
+  int32 HostPPID = 27;
   int32 HostPID = 9;
   int32 PPID = 10;
   int32 PID = 11;
   int32 UID = 12;
+
+  string ParentProcessName = 25;
+  string ProcessName = 26;
 
   string PolicyName = 13;
   string Severity = 14;
@@ -55,15 +61,9 @@ message Alert {
   string Resource = 20;
   string Data = 21;
 
+  string Enforcer = 28;
   string Action = 22;
   string Result = 23;
-
-  string ContainerImage = 24;
-
-  string ParentProcessName = 25;
-  string ProcessName = 26;
-
-  int32 HostPPID = 27;
 }
 
 // log struct
@@ -76,10 +76,16 @@ message Log {
 
   string NamespaceName = 5;
   string PodName = 6;
+  string Labels = 23;
 
   string ContainerID = 7;
   string ContainerName = 8;
+  string ContainerImage = 19;
 
+  string ParentProcessName = 20;
+  string ProcessName = 21;
+
+  int32 HostPPID = 22;
   int32 HostPID = 9;
   int32 PPID = 10;
   int32 PID = 11;
@@ -92,13 +98,6 @@ message Log {
   string Data = 17;
 
   string Result = 18;
-
-  string ContainerImage = 19;
-
-  string ParentProcessName = 20;
-  string ProcessName = 21;
-
-  int32 HostPPID = 22;
 }
 
 // request message

@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-path-block-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchPaths:
+    - path: /etc/hostname
+      fromSource:
+      - path: /usr/bin/head
+  action:
+    Block
+
+# kubearmor-dev_test_06
+
+# test
+# $ head /etc/hostname
+# head: cannot open '/etc/hostname' for reading: Permission denied
+# $ head /etc/hosts
+# ...
+
+# expectation
+# /usr/bin/head cannot access /etc/hostname
+# /usr/bin/head can access any others

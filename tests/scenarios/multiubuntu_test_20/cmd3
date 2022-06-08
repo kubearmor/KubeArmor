@@ -1,7 +1,7 @@
 source: ubuntu-4-deployment
-cmd: head /credentials/password 
+cmd: /readwrite -r /secret.txt
 result: passed
 ---
 operation: File
-condition: /credentials/password
+condition: /secret.txt
 action: Block

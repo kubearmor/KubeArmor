@@ -1,5 +1,5 @@
 source: ubuntu-1-deployment
-cmd: su - user1 -c "/bin/cat /home/user1/secret_data1.txt"
+cmd: su - user1 -c "cat /home/user1/secret_data1.txt"
 result: passed
 ---
 operation: File

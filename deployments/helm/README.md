@@ -1,21 +1,27 @@
-## Install KubeArmor using helm
-* Install kubearmor via helm, enable/disable kuberarmor relay by specifying either true or false.
-* Specify the namespace.
-* Specify environment depends on your environment like { docker, microk8s, minikube, k3s and generic (GKE, EKS)} by default it is generic.
+## Install KubeArmor
+
+Install KubeArmor using helm
 
 ```
 helm upgrade --install kubearmor . \
     --set kubearmorrelay.enabled=true \
-    --set environment.name=<environment> \
-    --set namespace.name=<namespace>
-
+    --set namespace.name=<namespace> \
+    --set environment.name=<environment>
 ```
-Check if all the pods are up and running.
+* kubearmorrelay.enabled = {true | false} (default: true)
+* namespace.name = [namespace name] (default: kube-system)
+* environment.name = {generic | docker | microk8s | minikube | k3s} (default: generic) / use 'generic' for GKE and EKS
+
+Check if all the pods are up and running
+
 ```
 kubectl get all -n <namespace>
 ```
 
-## To uninstall KubeArmor using helm
+## Remove KubeArmor
+
+Uninstall KubeArmor using helm
+
 ```
 helm uninstall kubearmor
 ```

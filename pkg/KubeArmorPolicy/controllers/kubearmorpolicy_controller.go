@@ -65,11 +65,9 @@ func (r *KubeArmorPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 POLICYERROR:
 	if policyErr != nil {
 		// Update PolicyStatus
-		policy.Status.PolicyStatus = "Not OK"
+		policy.Status.PolicyStatus = "Invalid"
 		err := r.Status().Update(ctx, policy)
-		log.Info("Invalid KubeArmorPolicy")
-		// delete the invalid KubeArmorPolicy
-		// err := r.Delete(ctx, policy)
+		log.Info("Failed to fetch KubeArmorPolicy")
 		return ctrl.Result{}, err
 	}
 

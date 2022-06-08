@@ -77,6 +77,7 @@ karmor log
 5. [minikube](https://github.com/kubearmor/KubeArmor/tree/main/deployments/minikube)
 6. [GKE](https://github.com/kubearmor/KubeArmor/tree/main/deployments/GKE)
 7. [EKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/EKS)
+8. [AKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/AKS)
 
 ---
 **NOTE**
@@ -90,10 +91,12 @@ karmor log
 3. Google Kubernetes Engine (GKE) with Container Optimized OS (COS)
 4. GKE with Ubuntu image
 5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS)
+6. [Azure Kubernetes Service (AKS)](../deployments/AKS)
 
 ## Prerequisites
 1. [K3s](../deployments/k3s)
 2. [MicroK8s](../contribution/microk8s)
-3. [Minikube](../contribution/minikube#minikube-installation)
+3. [Minikube](../contribution/minikube)
 4. [Self-managed K8s](../contribution/self-managed-k8s)
 5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
+

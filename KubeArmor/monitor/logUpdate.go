@@ -4,9 +4,9 @@
 package monitor
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -25,9 +25,12 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 	defer ContainersLock.RUnlock()
 
 	if val, ok := Containers[log.ContainerID]; ok {
-		// update container info
+		// update pod info
 		log.NamespaceName = val.NamespaceName
 		log.PodName = val.EndPointName
+		log.Labels = val.Labels
+
+		// update container info
 		log.ContainerName = val.ContainerName
 		log.ContainerImage = val.ContainerImage
 
@@ -48,7 +51,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 }
 
 // BuildLogBase Function
-func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
+func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Log {
 	log := tp.Log{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
@@ -59,6 +62,15 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 	if log.ContainerID != "" {
 		log = mon.UpdateContainerInfoByContainerID(log)
+	} else {
+		// update host policy flag
+		log.PolicyEnabled = mon.Node.PolicyEnabled
+
+		// update host visibility flags
+		log.ProcessVisibilityEnabled = mon.Node.ProcessVisibilityEnabled
+		log.FileVisibilityEnabled = mon.Node.FileVisibilityEnabled
+		log.NetworkVisibilityEnabled = mon.Node.NetworkVisibilityEnabled
+		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
 	}
 
 	log.HostPPID = int32(msg.ContextSys.HostPPID)
@@ -69,13 +81,9 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 	log.UID = int32(msg.ContextSys.UID)
 
 	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPPID)
-	} else { // otherwise
+		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys.HostPID)
+	} else {
 		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
-	}
-
-	if log.Source == "" {
-		log.Source = string(msg.ContextSys.Comm[:bytes.IndexByte(msg.ContextSys.Comm[:], 0)])
 	}
 
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
@@ -86,13 +94,26 @@ func (mon *SystemMonitor) BuildLogBase(msg ContextCombined) tp.Log {
 
 // UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
 func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
-	source := mon.GetCommand(log.ContainerID, uint32(log.HostPPID))
-	if source != "" {
-		log.Source = source
+	if log.ParentProcessName == "" || !strings.HasPrefix(log.ParentProcessName, "/") {
+		parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID))
+		if parentProcessName != "" {
+			log.ParentProcessName = parentProcessName
+		}
 	}
 
-	log.ParentProcessName = mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
-	log.ProcessName = mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+	if log.ProcessName == "" || !strings.HasPrefix(log.ProcessName, "/") {
+		processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+		if processName != "" {
+			log.ProcessName = processName
+		}
+	}
+
+	if log.Source == "" || !strings.HasPrefix(log.Source, "/") {
+		source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
+		if source != "" {
+			log.Source = source
+		}
+	}
 
 	return log
 }
@@ -110,7 +131,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 
 			// generate a log
-			log := mon.BuildLogBase(msg)
+			log := mon.BuildLogBase(msg.ContextSys.EventID, msg)
 
 			switch msg.ContextSys.EventID {
 			case SysOpen:
@@ -177,7 +198,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				var sockDomain string
 				var sockType string
-				var sockProtocol string
+				var sockProtocol int32
 
 				if val, ok := msg.ContextArgs[0].(string); ok {
 					sockDomain = val
@@ -186,11 +207,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 					sockType = val
 				}
 				if val, ok := msg.ContextArgs[2].(int32); ok {
-					sockProtocol = strconv.Itoa(int(val))
+					sockProtocol = val
 				}
 
 				log.Operation = "Network"
-				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + sockProtocol
+				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + getProtocol(sockProtocol)
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
 
 			case SysConnect: // fd, sockaddr

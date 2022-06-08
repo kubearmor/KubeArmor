@@ -121,15 +121,14 @@ typedef struct args {
 } args_t;
 
 BPF_HASH(args_map, u64, args_t);
-BPF_HASH(exec_map, u64, struct path);
 BPF_HASH(file_map, u64, struct path);
 
 typedef struct buffers {
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 2);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 2);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 3);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 3);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -199,7 +198,7 @@ static __always_inline u32 get_task_ns_pid(struct task_struct *task)
 
 static __always_inline u32 get_task_ppid(struct task_struct *task)
 {
-    return task->real_parent->pid;
+    return task->parent->pid;
 }
 
 // == Pid NS Management == //
@@ -224,7 +223,7 @@ static __always_inline u32 add_pid_ns()
     pid_ns_map.update(&pid, &one);
     return pid;
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
@@ -244,23 +243,7 @@ static __always_inline u32 add_pid_ns()
         return pid_ns;
     }
 
-#else /* MONITOR_CONTAINER */
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) {
-        return 0;
-    }
-
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
-        return pid_ns;
-    }
-
-    pid_ns_map.update(&pid_ns, &one);
-    return pid_ns;
-
-    return 0;
-
-#endif /* MONITOR_HOST || MONITOR_CONTAINER */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 }
 
 static __always_inline u32 remove_pid_ns()
@@ -280,7 +263,7 @@ static __always_inline u32 remove_pid_ns()
         return 0;
     }
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
@@ -296,19 +279,7 @@ static __always_inline u32 remove_pid_ns()
         }
     }
 
-#else /* !MONITOR_HOST */
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) {
-        return 0;
-    }
-
-    if (get_task_ns_pid(task) == 1) {
-        pid_ns_map.delete(&pid_ns);
-        return 0;
-    }
-
-#endif /* !MONITOR_HOST */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     return 0;
 }
@@ -329,7 +300,18 @@ static __always_inline u32 skip_syscall()
         return 0;
     }
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#elif defined(MONITOR_CONTAINER)
+
+    u32 pid_ns = get_task_pid_ns_id(task);
+    if (pid_ns == PROC_PID_INIT_INO) {
+        return 1;
+    }
+
+    if (pid_ns_map.lookup(&pid_ns) != 0) {
+        return 0;
+    }
+
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
     if (pid_ns == PROC_PID_INIT_INO) { // host
@@ -338,20 +320,12 @@ static __always_inline u32 skip_syscall()
             return 0;
         }
     } else { // container
-        u32 pid_ns = get_task_pid_ns_id(task);
         if (pid_ns_map.lookup(&pid_ns) != 0) {
             return 0;
         }
     }
 
-#else /* !MONITOR_HOST */
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
-        return 0;
-    }
-
-#endif /* !MONITOR_HOST */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     return 1;
 }
@@ -375,7 +349,7 @@ static __always_inline u32 init_context(sys_context_t *context)
     context->ppid = get_task_ppid(task);
     context->pid = bpf_get_current_pid_tgid() >> 32;
 
-#elif defined(MONITOR_HOST_AND_CONTAINER)
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid) { // host
@@ -392,15 +366,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         context->pid = pid;
     }
 
-#else /* !MONITOR_HOST */
-
-    context->pid_id = get_task_pid_ns_id(task);
-    context->mnt_id = get_task_mnt_ns_id(task);
-
-    context->ppid = get_task_ns_ppid(task);
-    context->pid = get_task_ns_tgid(task);
-
-#endif /* !MONITOR_HOST */
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     context->uid = bpf_get_current_uid_gid();
 
@@ -546,37 +512,29 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p, in
 	return true;
 }
 
-static __always_inline struct path* load_file_p(int buf_type)
+static __always_inline struct path* load_file_p()
 {
     u64	pid_tgid = bpf_get_current_pid_tgid();
-
-    if (buf_type == EXEC_BUF_TYPE) {
-        struct path *p = exec_map.lookup(&pid_tgid);
-        exec_map.delete(&pid_tgid);
-        return p;
-    }
-
-    // FILE_BUF_TYPE
     struct path *p = file_map.lookup(&pid_tgid);
     file_map.delete(&pid_tgid);
     return p;
 }
 
-static __always_inline int save_file_to_buffer(bufs_t *bufs_p, int buf_type)
+static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-	struct path *path = load_file_p(buf_type);
+	struct path *path = load_file_p();
 
-	bufs_t *string_p = get_buffer(buf_type);
+	bufs_t *string_p = get_buffer(FILE_BUF_TYPE);
 	if (string_p == NULL)
-		return -1;
+		return save_str_to_buffer(bufs_p, ptr);
 
-	if (!prepend_path(path, string_p, buf_type)) {
-        return -1;
+	if (!prepend_path(path, string_p, FILE_BUF_TYPE)) {
+        return save_str_to_buffer(bufs_p, ptr);
     }
 
-	u32 *off = get_buffer_offset(buf_type);
+	u32 *off = get_buffer_offset(FILE_BUF_TYPE);
 	if (off == NULL)
-		return -1;
+		return save_str_to_buffer(bufs_p, ptr);
 
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
@@ -673,8 +631,8 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
             save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
             break;
         case FILE_TYPE_T:
-            if (!save_file_to_buffer(bufs_p, FILE_BUF_TYPE))
-                break;
+            save_file_to_buffer(bufs_p, (void *)args->args[i]);
+            break;
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;
@@ -730,9 +688,6 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
 int trace_security_bprm_check(struct pt_regs *ctx, struct linux_binprm *bprm)
 {
     sys_context_t context = {};
-
-	if (skip_syscall())
-		return 0;
 
     //
 
@@ -829,9 +784,6 @@ int trace_ret_execve(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
-    if (skip_syscall())
-        return 0;
-
     init_context(&context);
 
     context.event_id = _SYS_EXECVE;
@@ -897,9 +849,6 @@ int trace_ret_execveat(struct pt_regs *ctx)
 {
     sys_context_t context = {};
 
-    if (skip_syscall())
-        return 0;
-
     init_context(&context);
 
     context.event_id = _SYS_EXECVEAT;
@@ -928,9 +877,6 @@ int trace_ret_execveat(struct pt_regs *ctx)
 int trace_do_exit(struct pt_regs *ctx, long code)
 {
     sys_context_t context = {};
-
-    if (skip_syscall())
-        return 0;
 
     init_context(&context);
 

@@ -217,7 +217,6 @@ func (in *KubeArmorPolicySpec) DeepCopyInto(out *KubeArmorPolicySpec) {
 	in.File.DeepCopyInto(&out.File)
 	in.Network.DeepCopyInto(&out.Network)
 	in.Capabilities.DeepCopyInto(&out.Capabilities)
-	in.SELinux.DeepCopyInto(&out.SELinux)
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
 		*out = make([]string, len(*in))

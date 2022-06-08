@@ -10,7 +10,13 @@ spec:
       container: ubuntu-5
   file:
     matchDirectories:
-    - dir: /credentials/ # try 'cat /credentials/password' (permission denied)
+    - dir: /credentials/
       recursive: true
   action:
     Block
+
+# multiubuntu_test_06
+
+# test
+# $ cat /credentials/password
+# cat: /credentials/password: Permission denied

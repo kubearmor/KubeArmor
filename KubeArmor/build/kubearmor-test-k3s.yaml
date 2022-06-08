@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -8,6 +9,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: kubearmor
+  namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -17,125 +19,123 @@ subjects:
   name: kubearmor
   namespace: kube-system
 ---
-
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kubearmor
-  namespace: kube-system
   labels:
     kubearmor-app: kubearmor
+  name: kubearmor
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
       kubearmor-app: kubearmor
   template:
     metadata:
-      labels:
-        kubearmor-app: kubearmor
       annotations:
         container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+      labels:
+        kubearmor-app: kubearmor
     spec:
-      serviceAccountName: kubearmor
-      nodeSelector:
-        kubernetes.io/os: linux
-      tolerations:
-      - operator: Exists
-      hostPID: true
-      hostNetwork: true
-      restartPolicy: Always
-      dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: kubearmor
+      - args:
+        - -gRPC=32767
+        - -logPath=/tmp/kubearmor.log
+        - -enableKubeArmorHostPolicy
         image: kubearmor/kubearmor:latest
         imagePullPolicy: Never
-        securityContext:
-          privileged: true
-        args: ["-gRPC=32767", "-logPath=/tmp/kubearmor.log", "-enableKubeArmorHostPolicy"]
-        ports:
-        - containerPort: 32767
-        volumeMounts:
-        - name: docker-sock-path # docker (read-only)
-          mountPath: /var/run/docker.sock
-          readOnly: true 
-        - name: docker-storage-path # docker storage (read-only)
-          mountPath: /var/lib/docker
-          readOnly: true 
-        - name: usr-src-path # BPF (read-only)
-          mountPath: /usr/src
-          readOnly: true
-        - name: lib-modules-path # BPF (read-only)
-          mountPath: /lib/modules
-          readOnly: true
-        - name: sys-fs-bpf-path # BPF (read-write)
-          mountPath: /sys/fs/bpf
-        - name: sys-kernel-debug-path # BPF (read-write)
-          mountPath: /sys/kernel/debug
-        - name: sys-kernel-security-path # LSM (read-write)
-          mountPath: /sys/kernel/security
-        - name: etc-apparmor-d-path # AppArmor (read-write)
-          mountPath: /etc/apparmor.d
-        - name: os-release-path # OS (read-only)
-          mountPath: /media/root/etc/os-release
-          readOnly: true
         livenessProbe:
           exec:
             command:
             - /bin/bash
             - -c
-            - |
-              if [ -z $(pgrep kubearmor) ]; then
-                exit 1;
-              fi;
+            - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
           initialDelaySeconds: 60
           periodSeconds: 10
-        terminationMessagePolicy: File
+        name: kubearmor
+        ports:
+        - containerPort: 32767
+        securityContext:
+          privileged: true
         terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
+        - mountPath: /sys/fs/bpf
+          name: sys-fs-bpf-path
+        - mountPath: /sys/kernel/security
+          name: sys-kernel-security-path
+        - mountPath: /sys/kernel/debug
+          name: sys-kernel-debug-path
+        - mountPath: /media/root/etc/os-release
+          name: os-release-path
+          readOnly: true
+        - mountPath: /usr/src
+          name: usr-src-path
+          readOnly: true
+        - mountPath: /etc/apparmor.d
+          name: etc-apparmor-d-path
+        - mountPath: /var/run/docker.sock
+          name: docker-sock-path
+          readOnly: true
+        - mountPath: /var/lib/docker
+          name: docker-storage-path
+          readOnly: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: Always
+      serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 30
+      tolerations:
+      - operator: Exists
       volumes:
-      - name: docker-sock-path # docker
-        hostPath:
-          path: /var/run/docker.sock
-          type: Socket
-      - name: docker-storage-path # docker
-        hostPath:
-          path: /var/lib/docker
-          type: Directory
-      - name: usr-src-path # BPF
-        hostPath:
-          path: /usr/src
-          type: Directory
-      - name: lib-modules-path # BPF
-        hostPath:
+      - hostPath:
           path: /lib/modules
           type: Directory
-      - name: sys-fs-bpf-path # BPF
-        hostPath:
+        name: lib-modules-path
+      - hostPath:
           path: /sys/fs/bpf
           type: Directory
-      - name: sys-kernel-debug-path # BPF
-        hostPath:
-          path: /sys/kernel/debug
-          type: Directory
-      - name: sys-kernel-security-path # LSM
-        hostPath:
+        name: sys-fs-bpf-path
+      - hostPath:
           path: /sys/kernel/security
           type: Directory
-      - name: etc-apparmor-d-path # AppArmor
-        hostPath:
-          path: /etc/apparmor.d
-          type: DirectoryOrCreate
-      - name: os-release-path # OS
-        hostPath:
+        name: sys-kernel-security-path
+      - hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+        name: sys-kernel-debug-path
+      - hostPath:
           path: /etc/os-release
           type: File
+        name: os-release-path
+      - hostPath:
+          path: /usr/src
+          type: Directory
+        name: usr-src-path
+      - hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
+        name: etc-apparmor-d-path
+      - hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+        name: docker-sock-path
+      - hostPath:
+          path: /var/lib/docker
+          type: DirectoryOrCreate
+        name: docker-storage-path
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.4.1
   name: kubearmorpolicies.security.kubearmor.com
 spec:
   group: security.kubearmor.com
@@ -200,7 +200,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -249,13 +249,13 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -292,7 +292,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -301,7 +301,7 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         readOnly:
                           type: boolean
@@ -380,14 +380,14 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
                         message:
                           type: string
                         protocol:
-                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP|raw|RAW)$
                           type: string
                         severity:
                           maximum: 10
@@ -432,13 +432,13 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -473,7 +473,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -482,7 +482,7 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         severity:
                           maximum: 10
@@ -541,56 +541,6 @@ spec:
                       type: string
                     type: object
                 type: object
-              selinux:
-                properties:
-                  action:
-                    enum:
-                    - Allow
-                    - Audit
-                    - Block
-                    type: string
-                  matchVolumeMounts:
-                    items:
-                      properties:
-                        action:
-                          enum:
-                          - Allow
-                          - Audit
-                          - Block
-                          type: string
-                        dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
-                          type: string
-                        message:
-                          type: string
-                        path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
-                          type: string
-                        readOnly:
-                          type: boolean
-                        severity:
-                          maximum: 10
-                          minimum: 1
-                          type: integer
-                        tags:
-                          items:
-                            type: string
-                          type: array
-                      type: object
-                    type: array
-                  message:
-                    type: string
-                  severity:
-                    maximum: 10
-                    minimum: 1
-                    type: integer
-                  tags:
-                    items:
-                      type: string
-                    type: array
-                required:
-                - matchVolumeMounts
-                type: object
               severity:
                 maximum: 10
                 minimum: 1
@@ -613,19 +563,12 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.4.1
   name: kubearmorhostpolicies.security.kubearmor.com
 spec:
   group: security.kubearmor.com
@@ -691,7 +634,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -741,13 +684,13 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -784,7 +727,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -793,7 +736,7 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         readOnly:
                           type: boolean
@@ -872,14 +815,14 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
                         message:
                           type: string
                         protocol:
-                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP)$
+                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP|raw|RAW)$
                           type: string
                         severity:
                           maximum: 10
@@ -932,13 +875,13 @@ spec:
                           - Block
                           type: string
                         dir:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)+\/$
+                          pattern: ^\/$|^\/.*\/$
                           type: string
                         fromSource:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -973,7 +916,7 @@ spec:
                           items:
                             properties:
                               path:
-                                pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                                pattern: ^\/+.*[^\/]$
                                 type: string
                             type: object
                           type: array
@@ -982,7 +925,7 @@ spec:
                         ownerOnly:
                           type: boolean
                         path:
-                          pattern: ^\/([A-z0-9-_.]+\/)*([A-z0-9-_.]+)$
+                          pattern: ^\/+.*[^\/]$
                           type: string
                         severity:
                           maximum: 10
@@ -1056,10 +999,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
-

@@ -7,29 +7,25 @@ spec:
   severity: 10
   message: "a critical file was accessed"
   tags:
-  - WARNNING
+  - WARNING
   selector:
     matchLabels:
       container: ubuntu-4
-  process:
-    matchDirectories:
-    - dir: /bin/ # need some exectuables to test
-    - dir: /usr/bin/
   file:
-    matchDirectories:
-    - dir: /dev/pts/
-      recursive: true
     matchPaths:
-    - path: /dev/tty
-      readOnly: false
-    - path: /etc/passwd
-      readOnly: true # ./readwrite -r /etc/passwd (success)
-      fromSource: # head /etc/passwd (permission denied)
-      - path: /readwrite # ./readwrite -w /etc/passwd (permission denied)
-    - path: /secret.txt # echo "test" >> /secret.txt (success)
-    - path: /credentials/password # echo "test" >> /credentials/password (permission denied)
-      readOnly: true # ./readwrite -r /credentials/password (success)
-      fromSource: # cat /credentials/password (permission denied)
-      - path: /readwrite # ./readwrite -w /credentials/password (permission denied)
+    - path: /credentials/password
+      readOnly: true
+      fromSource:
+      - path: /readwrite
   action:
     Allow
+
+# multiubuntu_test_19
+
+# test
+# $ ./readwrite -r /credentials/password
+# p
+# $ ./readwrite -w /credentials/password
+# Error! (permission denied)
+# $ ./readwrite -r /secret.txt
+# Error! (permission denied)

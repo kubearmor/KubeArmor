@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: arping -c 1 127.0.0.1
+result: passed
+---
+operation: Network
+condition: SOCK_RAW
+action: Audit

@@ -99,7 +99,7 @@ Now, we will briefly explain how to define a security policy.
 
 * Tags
 
-  The tags part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
+  The tags part is optional. You can define multiple tags (e.g., WARNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
 
   ```text
   tags: ["tag1", ..., "tagN"]

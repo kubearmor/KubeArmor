@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-proc-path-block
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  process:
+    matchPaths:
+    - path: /home/vagrant/selinux-test/read
+  action:
+    Block
+
+# test
+# (/home/vagrant/selinux-test/) $ ./read
+# -bash: ./read: Permission denied
+
+# expectation
+# anyone cannot execute /home/vagrant/selinux-test/read

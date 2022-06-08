@@ -12,6 +12,12 @@ spec:
   file:
     matchPatterns:
     - pattern: /home/user1/secret_data* 
-      ownerOnly: true # cat /home/user1/secret_data1.txt (permission denied)
+      ownerOnly: true
   action:
     Block
+
+# test
+# $ cat /home/user1/secret_data1.txt
+# cat: /home/user1/secret_data1.txt: Permission denied
+# $ su - user1 -c "cat /home/user1/secret_data1.txt"
+# secret file user1

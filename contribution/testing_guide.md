@@ -1,6 +1,6 @@
 # Testing Guide
 
-There are two ways to check the functionalities of KubeArmor: 1) testing kubeArmor manually and 2) using the testing framework.
+There are two ways to check the functionalities of KubeArmor: 1) testing KubeArmor manually and 2) using the testing framework.
 
 # 1.  Test KubeArmor manually
 
@@ -21,9 +21,9 @@ $ cd KubeArmor/KubeArmor
 
 ```text
 ~/KubeArmor/KubeArmor$ sudo -E ./kubearmor -gRPC=[gRPC port number]
-                                            -logPath=[log file path]
-                                            -enableKubeArmorPolicy=[true|false]
-                                            -enableKubeArmorHostPolicy=[true|false]
+                                           -logPath=[log file path]
+                                           -enableKubeArmorPolicy=[true|false]
+                                           -enableKubeArmorHostPolicy=[true|false]
 ```
 
 ## 1.4. Apply security policies into Kubernetes
@@ -56,7 +56,7 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
 
 ## 1.6. Check generated alerts
 
-- Watch alerts using [kArmor](https://github.com/kubearmor/kubearmor-client) cli tool
+- Watch alerts using [karmor](https://github.com/kubearmor/kubearmor-client) cli tool
 
     ```text
     $ karmor log [flags]
@@ -65,12 +65,12 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
     flags:
 
     ```text
-        --gRPC string        gRPC server information
-    -h, --help               help for log
-        --json               Flag to print alerts and logs in the JSON format
-        --logFilter string   Filter for what kinds of alerts and logs to receive, {policy|system|all} (default "policy")
-        --logPath string     Output location for alerts and logs, {path|stdout|none} (default "stdout")
-        --msgPath string     Output location for messages, {path|stdout|none} (default "none")
+    --gRPC string        gRPC server information
+    --help               help for log
+    --json               Flag to print alerts and logs in the JSON format
+    --logFilter string   What kinds of alerts and logs to receive, {policy|system|all} (default "policy")
+    --logPath string     Output location for alerts and logs, {path|stdout|none} (default "stdout")
+    --msgPath string     Output location for messages, {path|stdout|none} (default "none")
     ```
     
     Note that you will see alerts and logs generated right after `karmor` runs logs; thus, we recommend to run the above command in other terminal to see logs live.
@@ -78,9 +78,9 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
 
 # 2.  Test KubeArmor using the auto-testing framework
 
-## 2.1. Prepare microservices and testcases
+## 2.1. Prepare microservices and test scenarios
 
-The auto-testing framework operates based on two things: microservices and testcases for each microservice.
+The auto-testing framework operates based on two things: microservices and test scenarios for each microservice.
 
 - Microservices
 
@@ -100,26 +100,26 @@ The auto-testing framework operates based on two things: microservices and testc
 
     As an example, we created 'multiubuntu' in [microservices](../tests/microservices) and defined 'multiubuntu-deployment.yaml' in [multiubuntu](../examples/multiubuntu).
 
-- Testcases
+- Test scenarios
 
-    Create a directory whose name is like '[microservice name]_[testcase name]' in [scenarios](../tests/scenarios)
+    Create a directory whose name is like '[microservice name]_[scenario name]' in [scenarios](../tests/scenarios)
     
     ```text
     $ cd KubeArmor/tests/scenarios
-    ~/KubeArmor/tests/scenarios$ mkdir [microservice name]_[testcase name]
+    ~/KubeArmor/tests/scenarios$ mkdir [microservice name]_[scenario name]
     ```
     
     Then, define a YAML file for a test policy in the directory
     
     ```text
-    ~/KubeArmor/tests/scenarios$ cd [microservice name]_[testcase name]
-    .../[microservice name]_[testcase name]$ vi [policy name].yaml
+    ~/KubeArmor/tests/scenarios$ cd [microservice name]_[scenario name]
+    .../[microservice name]_[scenario name]$ vi [policy name].yaml
     ```
 
     Create cmd files whose names are like 'cmd#'
     
     ```text
-    .../[microservice name]_[testcase name]$ vi cmd1 / cmd2 / ...
+    .../[microservice name]_[scenario name]$ vi cmd1 / cmd2 / ...
     ```
     
     Here is a template for a cmd file.
@@ -134,7 +134,7 @@ The auto-testing framework operates based on two things: microservices and testc
     action: [action in a policy] { Allow | Audit | Block }
     ```
 
-    This is an example of a testcase.
+    This is a cmd example of a test scenario.
 
     ```text
     source: ubuntu-1-deployment
@@ -163,7 +163,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-local.sh -testAll
+    ~/KubeArmor/tests$ ./test-scenarios-local.sh
     ```
 
     Check the test report
@@ -178,7 +178,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh -testAll
+    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh
     ```
 
     Check the test report

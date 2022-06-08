@@ -10,6 +10,15 @@ spec:
       container: ubuntu-3
   process:
     matchPaths:
-      - path: /home/user1/hello
-        ownerOnly: true
-  action: Block
+    - path: /home/user1/hello
+      ownerOnly: true
+  action:
+    Block
+
+# multiubuntu_test_15
+
+# test
+# $ /home/user1/hello
+# bash: /home/user1/hello: Permission denied
+# $ su - user1 -c "/home/user1/hello"
+# helloworld

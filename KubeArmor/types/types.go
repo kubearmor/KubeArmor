@@ -23,6 +23,7 @@ type Container struct {
 
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
+	Labels        string `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
 
@@ -59,7 +60,8 @@ type EndPoint struct {
 
 	// == //
 
-	PolicyEnabled int `json:"policyEnabled"`
+	PolicyEnabled  int            `json:"policyEnabled"`
+	DefaultPosture DefaultPosture `json:"defaultPosture"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
@@ -69,7 +71,9 @@ type EndPoint struct {
 
 // Node Structure
 type Node struct {
-	NodeIP string `json:"nodeIP"`
+	ClusterName string `json:"clusterName"`
+	NodeName    string `json:"nodeName"`
+	NodeIP      string `json:"nodeIP"`
 
 	Annotations map[string]string `json:"annotations"`
 	Labels      map[string]string `json:"labels"`
@@ -177,6 +181,7 @@ type Log struct {
 	// k8s
 	NamespaceName string `json:"namespaceName,omitempty"`
 	PodName       string `json:"podName,omitempty"`
+	Labels        string `json:"labels,omitempty"`
 
 	// container
 	ContainerID    string `json:"containerID,omitempty"`
@@ -196,6 +201,9 @@ type Log struct {
 	// process
 	ParentProcessName string `json:"parentProcessName"`
 	ProcessName       string `json:"processName"`
+
+	// enforcer
+	Enforcer string `json:"enforcer,omitempty"`
 
 	// policy
 	PolicyName string `json:"policyName,omitempty"`
@@ -240,6 +248,7 @@ type MatchPolicy struct {
 	IsFromSource bool
 	OwnerOnly    bool
 	ReadOnly     bool
+	Recursive    bool
 
 	Regexp *regexp.Regexp
 	Native bool
@@ -471,6 +480,13 @@ type HostSecurityPolicy struct {
 	Spec     HostSecuritySpec  `json:"spec"`
 }
 
+// DefaultPosture Structure
+type DefaultPosture struct {
+	FileAction         string `json:"file,omitempty"`
+	NetworkAction      string `json:"network,omitempty"`
+	CapabilitiesAction string `json:"capabilties,omitempty"`
+}
+
 // ================== //
 // == SELinux Rule == //
 // ================== //
@@ -510,8 +526,11 @@ type PidNode struct {
 	PID  uint32
 	UID  uint32
 
-	ExecPath string
-	Args     string
+	ParentExecPath string
+	ExecPath       string
+
+	Source string
+	Args   string
 
 	Exited     bool
 	ExitedTime time.Time

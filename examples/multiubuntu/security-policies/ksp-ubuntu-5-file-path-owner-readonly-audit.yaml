@@ -15,6 +15,16 @@ spec:
     matchPaths:
     - path: /home/user1/secret_data1.txt
       readOnly: true
-      ownerOnly: true # su - user1 -c echo "test" >> /home/user1/secret_data1.txt (log)
+      ownerOnly: true
   action:
     Audit
+
+# test
+# $ cat /home/user1/secret_data1.txt
+# secret file user1 (no log)
+# $ su - user1 -c "cat /home/user1/secret_data1.txt"
+# secret file user1 (audit)
+# $ su - user1 -c "echo test >> /home/user1/secret_data1.txt"
+# (nothing is displayed) (no log)
+# $ su - user1 -c "cat /home/user1/otherfile.txt"
+# other file (no log)

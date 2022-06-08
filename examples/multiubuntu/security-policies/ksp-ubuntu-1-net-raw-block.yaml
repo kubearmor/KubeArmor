@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-net-raw-block
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  network:
+    matchProtocols:
+    - protocol: raw
+  action:
+    Block
+
+# multiubuntu_test_28
+
+# test
+# $ ping -c 1 127.0.0.1
+# ping: can't create raw socket: Permission denied

@@ -11,18 +11,22 @@ spec:
   selector:
     matchLabels:
       container: ubuntu-5
-  process:
-    matchPaths:
-    - path: /readwrite
-    matchDirectories:
-    - dir: /bin/
-    - dir: /usr/bin/
   file:
     matchPaths:
     - path: /home/user1/secret_data1.txt
-      readOnly: true # su - user1 -c "./readwrite -r /home/user1/secret_data1.txt" (success)
-      ownerOnly: true # su - user1 -c "./readwrite -w /home/user1/secret_data1.txt" (permission denied)
-      fromSource: # ./readwrite -r /home/user1/secret_data1.txt (permission denied)
-      - path: /readwrite # ./readwrite -w /home/user1/secret_data1.txt (permission denied)
+      readOnly: true
+      ownerOnly: true
+      fromSource:
+      - path: /readwrite
   action:
     Allow
+
+# test
+# $ ./readwrite -r /home/user1/secret_data1.txt
+# Error! (permission denied)
+# $ ./readwrite -w /home/user1/secret_data1.txt
+# Error! (permission denied)
+# $ su - user1 -c "./readwrite -r /home/user1/secret_data1.txt"
+# s
+# $ su - user1 -c "./readwrite -w /home/user1/secret_data1.txt"
+# (nothing is displayed)

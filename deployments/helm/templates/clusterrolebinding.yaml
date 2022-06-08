@@ -11,5 +11,3 @@ subjects:
 - kind: ServiceAccount
   name: kubearmor
   namespace: {{ .Values.namespace.name }}
-
-    

@@ -21,7 +21,7 @@ git -C /tmp/build/ clone --branch v0.24.0 --depth 1 https://github.com/iovisor/b
 # install dependencies for bcc
 sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
                         clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                        arping netperf iperf3
+                        arping netperf iperf3 net-tools
 
 # install bcc
 mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
@@ -63,10 +63,10 @@ sudo apt-get install -y unzip
 
 # download protoc
 mkdir -p /tmp/build/protoc; cd /tmp/build/protoc
-wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/protoc-3.14.0-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.14.0-linux-x86_64.zip
+wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.19.4-linux-x86_64.zip
 
 # install protoc
-unzip protoc-3.14.0-linux-x86_64.zip
+unzip protoc-3.19.4-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
 sudo chmod 755 /usr/local/bin/protoc
 
@@ -82,8 +82,8 @@ elif [ -z "$GOPATH" ]; then
 fi
 
 # download protoc-gen-go
-go get -u google.golang.org/grpc
-go get -u github.com/golang/protobuf/protoc-gen-go
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # install kubebuilder
 wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_amd64 -O /tmp/build/kubebuilder

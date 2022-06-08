@@ -10,7 +10,15 @@ spec:
       container: ubuntu-2
   process:
     matchDirectories:
-    - dir: /usr/ # try env or whoami (permission denied)
+    - dir: /usr/
       recursive: true
   action:
     Block
+
+# multiubuntu_test_05
+
+# test
+# $ env
+# bash: /usr/bin/env: Permission denied
+# $ whoami
+# bash: /usr/bin/whoami: Permission denied

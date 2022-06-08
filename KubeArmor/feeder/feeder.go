@@ -286,8 +286,15 @@ type Feeder struct {
 	SecurityPolicies     map[string]tp.MatchPolicies
 	SecurityPoliciesLock *sync.RWMutex
 
+	// DefaultPosture (namespace -> postures)
+	DefaultPostures     map[string]tp.DefaultPosture
+	DefaultPosturesLock *sync.Mutex
+
 	// GKE
 	IsGKE bool
+
+	// Activated Enforcer
+	Enforcer string
 }
 
 // NewFeeder Function
@@ -348,6 +355,10 @@ func NewFeeder(node *tp.Node) *Feeder {
 	fd.SecurityPolicies = map[string]tp.MatchPolicies{}
 	fd.SecurityPoliciesLock = new(sync.RWMutex)
 
+	// initialize default postures
+	fd.DefaultPostures = map[string]tp.DefaultPosture{}
+	fd.DefaultPosturesLock = new(sync.Mutex)
+
 	// check if GKE
 	if kl.IsInK8sCluster() {
 		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
@@ -357,6 +368,9 @@ func NewFeeder(node *tp.Node) *Feeder {
 			}
 		}
 	}
+
+	// default enforcer
+	fd.Enforcer = "eBPF Monitor"
 
 	return fd
 }
@@ -466,6 +480,15 @@ func (fd *Feeder) Warnf(message string, args ...interface{}) {
 	kg.Warnf(str)
 }
 
+// ===================== //
+// == Enforcer Update == //
+// ===================== //
+
+// UpdateEnforcer Function
+func (fd *Feeder) UpdateEnforcer(enforcer string) {
+	fd.Enforcer = enforcer
+}
+
 // =============== //
 // == Log Feeds == //
 // =============== //
@@ -515,7 +538,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 func (fd *Feeder) PushLog(log tp.Log) {
 	log = fd.UpdateMatchedPolicy(log)
 
-	if log.UpdatedTime == "" {
+	if log.Source == "" {
 		return
 	}
 
@@ -542,17 +565,19 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "MatchedNativePolicy" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
 		pbAlert := pb.Alert{}
 
 		pbAlert.Timestamp = log.Timestamp
 		pbAlert.UpdatedTime = log.UpdatedTime
 
-		pbAlert.ClusterName = cfg.GlobalCfg.Cluster
-		pbAlert.HostName = cfg.GlobalCfg.Host
+		pbAlert.ClusterName = fd.Node.ClusterName
+		pbAlert.HostName = fd.Node.NodeName
 
 		pbAlert.NamespaceName = log.NamespaceName
 		pbAlert.PodName = log.PodName
+		pbAlert.Labels = log.Labels
+
 		pbAlert.ContainerID = log.ContainerID
 		pbAlert.ContainerName = log.ContainerName
 		pbAlert.ContainerImage = log.ContainerImage
@@ -566,6 +591,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.ParentProcessName = log.ParentProcessName
 		pbAlert.ProcessName = log.ProcessName
+
+		if len(log.Enforcer) > 0 {
+			pbAlert.Enforcer = log.Enforcer
+		}
 
 		if len(log.PolicyName) > 0 {
 			pbAlert.PolicyName = log.PolicyName
@@ -607,17 +636,19 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			default:
 			}
 		}
-	} else { // ContainerLog
+	} else { // ContainerLog || HostLog
 		pbLog := pb.Log{}
 
 		pbLog.Timestamp = log.Timestamp
 		pbLog.UpdatedTime = log.UpdatedTime
 
-		pbLog.ClusterName = cfg.GlobalCfg.Cluster
-		pbLog.HostName = cfg.GlobalCfg.Host
+		pbLog.ClusterName = fd.Node.ClusterName
+		pbLog.HostName = fd.Node.NodeName
 
 		pbLog.NamespaceName = log.NamespaceName
 		pbLog.PodName = log.PodName
+		pbLog.Labels = log.Labels
+
 		pbLog.ContainerID = log.ContainerID
 		pbLog.ContainerName = log.ContainerName
 		pbLog.ContainerImage = log.ContainerImage

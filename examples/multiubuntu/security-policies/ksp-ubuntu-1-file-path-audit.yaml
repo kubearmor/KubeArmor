@@ -13,8 +13,16 @@ spec:
       container: ubuntu-1
   file:
     matchPaths:
-    - path: /etc/passwd # cat /etc/passwd
-    - path: /secret.txt # echo "test" >> /secret.txt
-    - path: /credentials/password # echo "test" >> /credentials/password
+    - path: /etc/passwd
+    - path: /secret.txt
+    - path: /credentials/password
   action:
     Audit
+
+# test
+# $ cat /etc/passwd
+# root:x:0:0:root:/root:/bin/bash (audit)
+# $ echo "test" >> /secret.txt
+# (nothing is displayed) (audit)
+# $ echo "test" >> /credentials/password
+# (nothing is displayed) (audit)
