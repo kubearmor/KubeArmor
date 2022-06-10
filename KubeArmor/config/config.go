@@ -35,6 +35,10 @@ type KubearmorConfig struct {
 	DefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	DefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
+	HostDefaultFilePosture         string // Default Enforcement Action in Global File Context
+	HostDefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
+	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
+
 	CoverageTest bool // Enable/Disable Coverage Test
 }
 
@@ -83,6 +87,15 @@ const ConfigDefaultNetworkPosture string = "defaultNetworkPosture"
 // ConfigDefaultCapabilitiesPosture KubeArmor Default Global Capabilities Posture key
 const ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 
+// ConfigHostDefaultFilePosture KubeArmor Default Global File Posture key
+const ConfigHostDefaultFilePosture string = "hostDefaultFilePosture"
+
+// ConfigHostDefaultNetworkPosture KubeArmor Default Global Network Posture key
+const ConfigHostDefaultNetworkPosture string = "hostDefaultNetworkPosture"
+
+// ConfigHostDefaultCapabilitiesPosture KubeArmor Default Global Capabilities Posture key
+const ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
+
 // ConfigCoverageTest Coverage Test key
 const ConfigCoverageTest string = "coverageTest"
 
@@ -106,9 +119,13 @@ func readCmdLineParams() {
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
 
-	defaultFilePosture := flag.String(ConfigDefaultFilePosture, "block", "configuring default enforcement action in global file context [audit,block]")
-	defaultNetworkPosture := flag.String(ConfigDefaultNetworkPosture, "block", "configuring default enforcement action in global network context [audit,block]")
-	defaultCapabilitiesPosture := flag.String(ConfigDefaultCapabilitiesPosture, "block", "configuring default enforcement action in global capability context [audit,block]")
+	defaultFilePosture := flag.String(ConfigDefaultFilePosture, "block", "configuring default enforcement action in global file context {allow|audit|block}")
+	defaultNetworkPosture := flag.String(ConfigDefaultNetworkPosture, "block", "configuring default enforcement action in global network context {allow|audit|block}")
+	defaultCapabilitiesPosture := flag.String(ConfigDefaultCapabilitiesPosture, "block", "configuring default enforcement action in global capability context {allow|audit|block}")
+
+	hostDefaultFilePosture := flag.String(ConfigHostDefaultFilePosture, "block", "configuring default enforcement action in global file context {allow|audit|block}")
+	hostDefaultNetworkPosture := flag.String(ConfigHostDefaultNetworkPosture, "block", "configuring default enforcement action in global network context {allow|audit|block}")
+	hostDefaultCapabilitiesPosture := flag.String(ConfigHostDefaultCapabilitiesPosture, "block", "configuring default enforcement action in global capability context {allow|audit|block}")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
@@ -139,6 +156,10 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigDefaultFilePosture, *defaultFilePosture)
 	viper.SetDefault(ConfigDefaultNetworkPosture, *defaultNetworkPosture)
 	viper.SetDefault(ConfigDefaultCapabilitiesPosture, *defaultCapabilitiesPosture)
+
+	viper.SetDefault(ConfigHostDefaultFilePosture, *hostDefaultFilePosture)
+	viper.SetDefault(ConfigHostDefaultNetworkPosture, *hostDefaultNetworkPosture)
+	viper.SetDefault(ConfigHostDefaultCapabilitiesPosture, *hostDefaultCapabilitiesPosture)
 
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 }
@@ -184,6 +205,10 @@ func LoadConfig() error {
 	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
 	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
 	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
+
+	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
+	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
+	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
 
 	kg.Printf("Configuration [%+v]", GlobalCfg)
 

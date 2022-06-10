@@ -33,6 +33,10 @@ if [ $? == 0 ]; then
     LSM="apparmor"
 fi
 
+if [ "$DEFAULT_POSTURE" == "" ]; then
+    DEFAULT_POSTURE="block"
+fi
+
 SKIP_CONTAINER_POLICY=1
 SKIP_NATIVE_POLICY=1
 SKIP_HOST_POLICY=1
@@ -55,19 +59,13 @@ case $1 in
         ARMOR_OPTIONS=${@:2}
         ;;
     *)
-        if [ "$LSM" == "selinux" ]; then
-            echo "KubeArmor does not support native policies if AppArmor is not enabled"
-            SKIP_CONTAINER_POLICY=0
-            SKIP_HOST_POLICY=0
-        elif [ "$LSM" == "apparmor" ]; then
-            SKIP_CONTAINER_POLICY=0
+        if [ "$LSM" == "apparmor" ]; then
             SKIP_NATIVE_POLICY=0
-            SKIP_HOST_POLICY=0
-        else # none
+        else
             echo "KubeArmor does not support native policies if AppArmor is not enabled"
-            SKIP_CONTAINER_POLICY=0
-            SKIP_HOST_POLICY=0
         fi
+        SKIP_CONTAINER_POLICY=0
+        SKIP_HOST_POLICY=0
         ARMOR_OPTIONS=$@
         ;;
 esac
@@ -217,7 +215,7 @@ function should_find_blocked_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2|DefaultPosture.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -227,7 +225,7 @@ function should_find_blocked_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$1.*policyName.*$2|DefaultPosture.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -310,7 +308,7 @@ function should_find_blocked_host_log() {
     KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1|DefaultPosture.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -320,7 +318,7 @@ function should_find_blocked_host_log() {
             DBG "Found the log from logs"
         fi
     else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1|DefaultPosture.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -338,11 +336,17 @@ function run_test_scenario() {
     YAML_FILE=$(ls *.yaml)
     POLICY_TYPE=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
     POLICY=$(grep "name:" $YAML_FILE | head -n1 | awk '{ print $2}')
+    POLICY_ACTION=$(cat $YAML_FILE | grep "^action" | awk '{print $2}')
     NATIVE_POLICY=0
     HOST_POLICY=0
 
     if [[ $POLICY_TYPE == "ksp" ]]; then
         if [ $SKIP_CONTAINER_POLICY == 1 ]; then
+            WARN "Skipped $3"
+            skipped_testcases+=("$3")
+            return
+        fi
+        if [[ "$DEFAULT_POSTURE" == "allow" ]] && [[ "$POLICY_ACTION" == "Allow" ]]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
@@ -401,11 +405,33 @@ function run_test_scenario() {
         CMD=$(cat $cmd | grep "^cmd" | cut -d' ' -f2-)
         RESULT=$(cat $cmd | grep "^result" | awk '{print $2}')
 
+        POLICY_NAME=$POLICY
         OP=$(cat $cmd | grep "^operation" | awk '{print $2}')
         COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
 
-        # if SELinux is enabled but a test policy not for hosts
+        if [[ $HOST_POLICY -eq 0 ]] && [[ "$RESULT" == "default" ]]; then
+            if [ "$ACTION" == "default" ]; then # default posture
+                if [ "$DEFAULT_POSTURE" == "block" ]; then
+                    RESULT="failed"
+                    POLICY_NAME="DefaultPosture"
+                    ACTION="Block"
+                elif [ "$DEFAULT_POSTURE" == "audit" ]; then
+                    RESULT="passed"
+                    POLICY_NAME="DefaultPosture"
+                    ACTION="Audit"
+                elif [ "$DEFAULT_POSTURE" == "allow" ]; then
+                    RESULT="passed"
+                    POLICY_NAME="DefaultPosture"
+                    ACTION="Allow"
+                fi
+            elif [ "$ACTION" == "Block" ]; then # native policy
+                RESULT="failed"
+                POLICY_NAME="DefaultPosture"
+            fi
+        fi
+
+        # if SELinux is enabled but a test policy is not for hosts
         if [[ "$LSM" == "selinux" ]] && [[ $HOST_POLICY -eq 0 ]]; then
             # replace Block with Audit
             if [ "$ACTION" == "Block" ]; then
@@ -458,52 +484,52 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_log $POD $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION
+                    should_find_blocked_log $POD $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_log $POD $POLICY $OP $COND $ACTION
+                    should_find_passed_log $POD $POLICY_NAME $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION
+                    should_find_blocked_log $POD $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_log $POD $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION
+                    should_find_blocked_log $POD $POLICY_NAME $OP $COND $ACTION
                 fi
             fi
         else
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_host_log $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION
+                    should_find_blocked_host_log $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_host_log $POLICY $OP $COND $ACTION
+                    should_find_passed_host_log $POLICY_NAME $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION
+                    should_find_blocked_host_log $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_host_log $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION
+                    should_find_blocked_host_log $POLICY_NAME $OP $COND $ACTION
                 fi
             fi
         fi
@@ -538,6 +564,8 @@ function run_test_scenario() {
         fi
 
         sleep 1
+
+        # read -p "Press enter to continue"
     done
 
     if [ $res_case != 0 ]; then
