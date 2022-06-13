@@ -20,6 +20,7 @@ var hostPolicyManagerDeploymentName = "kubearmor-host-policy-manager"
 // DaemonSetConfig Structure
 type DaemonSetConfig struct {
 	Args         []string
+	Envs         []corev1.EnvVar
 	VolumeMounts []corev1.VolumeMount
 	Volumes      []corev1.Volume
 }
@@ -76,12 +77,24 @@ var apparmorVol = corev1.Volume{
 	},
 }
 
+var envVar = []corev1.EnvVar{
+	{
+		Name: "KUBEARMOR_NODENAME",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "spec.nodeName",
+			},
+		},
+	},
+}
+
 // Environment Specific Daemonset Configuration
 var defaultConfigs = map[string]DaemonSetConfig{
 	"generic": {
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,
@@ -137,6 +150,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,
@@ -176,6 +190,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 	},
 	"minikube": {
 		Args: []string{},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,
@@ -217,6 +232,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,
@@ -258,6 +274,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,
@@ -299,6 +316,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			gkeHostUsrVolMnt,
 			apparmorVolMnt,
@@ -354,6 +372,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,
@@ -409,6 +428,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},
+		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
 			apparmorVolMnt,

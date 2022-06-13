@@ -77,8 +77,18 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	}
 }
 
+func matchHost(hostName string) bool {
+	envName := os.Getenv("KUBEARMOR_NODENAME")
+	if envName != "" {
+		return envName == hostName
+	}
+	nodeName := strings.Split(hostName, ".")[0]
+	return nodeName == cfg.GlobalCfg.Host
+}
+
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
+	kg.Printf("GlobalCfg.Host=%s, KUBEARMOR_NODENAME=%s", cfg.GlobalCfg.Host, os.Getenv("KUBEARMOR_NODENAME"))
 	for {
 		if resp := K8s.WatchK8sNodes(); resp != nil {
 			defer resp.Body.Close()
@@ -94,8 +104,13 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 				// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
 				// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
+				/* Keeping this past code for near-future ref purpose. Jun-13-2022
 				nodeName := strings.Split(event.Object.ObjectMeta.Name, ".")[0]
 				if nodeName != cfg.GlobalCfg.Host {
+					continue
+				}
+				*/
+				if !matchHost(event.Object.ObjectMeta.Name) {
 					continue
 				}
 

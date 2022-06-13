@@ -82,6 +82,11 @@ spec:
       - args:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
+        env:
+        - name: KUBEARMOR_NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         image: kubearmor/kubearmor:stable
         imagePullPolicy: Always
         livenessProbe:

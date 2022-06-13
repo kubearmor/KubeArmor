@@ -439,6 +439,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 
 	args = append(args, defaultConfigs[env].Args...)
+	envs := defaultConfigs[env].Envs
 
 	volumeMounts = append(volumeMounts, defaultConfigs[env].VolumeMounts...)
 	volumes = append(volumes, defaultConfigs[env].Volumes...)
@@ -487,6 +488,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 								Privileged: &privileged,
 							},
 							Args: args,
+							Env:  envs,
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: port,
