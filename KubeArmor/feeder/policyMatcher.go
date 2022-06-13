@@ -689,8 +689,8 @@ func (fd *Feeder) UpdateDefaultPosture(action string, namespace string, defaultP
 }
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
-func setLogFields(log *tp.Log, defaultPosture string, visibility, containerEvent bool) bool {
-	if defaultPosture == "audit" && (*log).Result == "Passed" {
+func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, visibility, containerEvent bool) bool {
+	if existAllowPolicy && defaultPosture == "audit" && (*log).Result == "Passed" {
 		if containerEvent {
 			(*log).Type = "MatchedPolicy"
 		} else {
@@ -731,6 +731,10 @@ func getDirectoryPart(path string) string {
 
 // UpdateMatchedPolicy Function
 func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
+	existFileAllowPolicy := false
+	existNetworkAllowPolicy := false
+	existCapabilitiesAllowPolicy := false
+
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
@@ -742,8 +746,18 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		secPolicies := fd.SecurityPolicies[key].Policies
 		for _, secPolicy := range secPolicies {
-			if fd.DefaultPostures[log.NamespaceName].FileAction == "allow" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") {
-				continue
+			if secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)" {
+				if secPolicy.Operation == "Process" || secPolicy.Operation == "File" {
+					existFileAllowPolicy = true
+				} else if secPolicy.Operation == "Network" {
+					existNetworkAllowPolicy = true
+				} else if secPolicy.Operation == "Capabilities" {
+					existCapabilitiesAllowPolicy = true
+				}
+
+				if fd.DefaultPostures[log.NamespaceName].FileAction == "allow" {
+					continue
+				}
 			}
 
 			firstLogResource := strings.Split(log.Resource, " ")[0]
@@ -1165,19 +1179,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			fd.DefaultPosturesLock.Unlock()
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
+				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
+				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
+				if setLogFields(&log, existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
 					return log
 				}
 			}
@@ -1194,19 +1208,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			// host log
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, "allow", fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, "allow", fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, "allow", fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
 			}
