@@ -17,17 +17,9 @@
 
 #ifdef asm_volatile_goto
 #undef asm_volatile_goto
-#endif
 #define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
 #pragma clang diagnostic ignored "-Wunused-label"
-
-#ifdef RHEL_RELEASE_CODE
-#if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
-#define RHEL_RELEASE_GT_8_0
 #endif
-#endif
-
-#include <linux/version.h>
 
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
@@ -39,8 +31,17 @@
 #include <linux/un.h>
 #include <net/inet_sock.h>
 
+#include <linux/bpf.h>
+#include <linux/version.h>
+
 #include <bpf_helpers.h>
 #include <bpf_tracing.h>
+
+#ifdef RHEL_RELEASE_CODE
+#if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
+#define RHEL_RELEASE_GT_8_0
+#endif
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 #error Minimal required kernel version is 4.14
@@ -258,7 +259,7 @@ static __always_inline u32 get_task_ns_pid(struct task_struct *task)
     struct pid_namespace *pid_ns_children = READ_KERN(namespaceproxy->pid_ns_for_children);
     unsigned int level = READ_KERN(pid_ns_children->level);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0)
     struct pid *tpid = READ_KERN(task->pids[PIDTYPE_PID].pid);
 #else
     struct pid *tpid = READ_KERN(task->thread_pid);

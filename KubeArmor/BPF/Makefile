@@ -1,6 +1,10 @@
 ifeq (,$(KRNDIR))
 KRNVER = $(shell uname -r)
-KRNDIR = /usr/src/linux-headers-$(KRNVER)
+ifneq (,$(wildcard /etc/redhat-release))
+	KRNDIR = /usr/src/$(KRNVER)
+else
+	KRNDIR = /usr/src/linux-headers-$(KRNVER)
+endif
 endif
 LIBBPF = $(CURDIR)/libbpf
 
@@ -19,21 +23,30 @@ KF = -I$(KRNDIR)/arch/x86/include -I$(KRNDIR)/arch/x86/include/generated  \
 	 -I$(KRNDIR)/include/generated/uapi \
 	 -I$(LIBBPF)/src \
 	 -include $(KRNDIR)/include/linux/kconfig.h \
-	 -D__KERNEL__ -D__BPF_TRACING__ -Wno-unused-value -Wno-pointer-sign \
-	 -D__TARGET_ARCH_x86 -Wno-compare-distinct-pointer-types \
+	 -D__KERNEL__ \
+	 -D__BPF_TRACING__ \
+	 -D__TARGET_ARCH_x86 \
+	 -Wunused \
+	 -Wno-frame-address \
+	 -Wno-unused-value \
+	 -Wno-unknown-warning-option \
+	 -Wno-pragma-once-outside-header \
+	 -Wno-pointer-sign \
 	 -Wno-gnu-variable-sized-type-not-at-end \
-	 -Wno-address-of-packed-member -Wno-tautological-compare \
-	 -Wno-unknown-warning-option  \
+	 -Wno-deprecated-declarations \
+	 -Wno-compare-distinct-pointer-types \
+	 -Wno-address-of-packed-member \
 	 -fno-stack-protector \
-	 -O2 -emit-llvm
+	 -fno-jump-tables \
+	 -fno-unwind-tables \
+	 -fno-asynchronous-unwind-tables \
+	 -xc -O2 -g -emit-llvm
 
 SRCDIR=$(CURDIR)
 
 SRCS_KERN:=$(wildcard $(SRCDIR)/*.c)
 SRCN:=$(notdir $(SRCS_KERN))
 SYSMONITOR = $(CURDIR)/system_monitor.c
-
-# vpath %.c $(SRCDIR)
 
 RED=\033[0;31m
 GREEN=\033[0;32m
@@ -48,6 +61,9 @@ chkdir:
 ifeq (,$(wildcard $(KRNDIR)/Kconfig))
 	@echo "Your kernel path[$(RED)$(KRNDIR)$(NC)] is incorrect. Use 'make KRNDIR=[KERNEL-SRC-PATH]'."
 	Quitting abnormally
+endif
+ifeq (,$(wildcard $(LIBBPF)/src/libbpf.c))
+	git submodule update --init --recursive
 endif
 ifeq (,$(wildcard $(LIBBPF)/src/libbpf.a))
 	make -C $(LIBBPF)/src
