@@ -175,7 +175,7 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	// delete pid file
 	if _, err := os.Stat(cfg.PIDFilePath); err == nil {
 		kg.Print("Deleting PID file")
-		
+
 		err := os.Remove(cfg.PIDFilePath)
 		if err != nil {
 			kg.Errf("Failed to delete PID file")
