@@ -87,7 +87,10 @@ delete-cert-manager: ## Delete cert-manager when deleting the admission controll
 
 deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
-	cd $(CURDIR); $(KUSTOMIZE) build config/default | sed 's/latest/${TAG}/g' | kubectl apply -f -
+	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-annotation-manager/g' | \
+		sed 's/kubearmor-annotation-controller-manager/kubearmor-annotation-manager/g' | \
+		sed -e "1,7d" | kubectl apply -f -
 
 delete: delete-cert-manager ## Delete controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
@@ -95,7 +98,8 @@ delete: delete-cert-manager ## Delete controller from the K8s cluster specified 
 deployment: manifests kustomize
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: annotation-manager/g' | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-annotation-manager/g' | \
+		sed 's/kubearmor-annotation-controller-manager/kubearmor-annotation-manager/g' | \
 		sed -e "1,7d" > ../../deployments/annotations/kubearmor-annotation-manager.yaml
 
 CONTROLLER_GEN = $(GOBIN)/controller-gen
