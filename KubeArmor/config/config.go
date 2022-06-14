@@ -45,6 +45,9 @@ type KubearmorConfig struct {
 // PolicyDir policy dir path for host policies backup
 const PolicyDir string = "/opt/kubearmor/policies/"
 
+// PIDFilePath for pid file path
+const PIDFilePath string = "/opt/kubearmor/kubearmor.pid"
+
 // GlobalCfg Global configuration for Kubearmor
 var GlobalCfg KubearmorConfig
 

@@ -329,6 +329,30 @@ func NewFeeder(node *tp.Node) *Feeder {
 	}
 	fd.Listener = listener
 
+	if cfg.GlobalCfg.GRPC == "0" {
+		pidFile, err := os.Create(cfg.PIDFilePath)
+		if err != nil {
+			kg.Errf("Failed to create file %s", cfg.PIDFilePath)
+			return nil
+		}
+
+		defer func() {
+			err := pidFile.Close()
+			if err != nil {
+				kg.Errf("Failed to close file %s", cfg.PIDFilePath)
+			}
+		}()
+
+		port := fmt.Sprintf("%d", listener.Addr().(*net.TCPAddr).Port)
+		fd.Port = fmt.Sprintf(":%s", port)
+
+		_, err = pidFile.WriteString(port)
+		if err != nil {
+			kg.Errf("Failed to write file %s", cfg.PIDFilePath)
+			return nil
+		}
+	}
+
 	// create a log server
 	fd.LogServer = grpc.NewServer()
 
