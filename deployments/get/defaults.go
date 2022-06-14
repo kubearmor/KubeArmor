@@ -3,7 +3,10 @@
 
 package deployments
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	admissionregistration "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
+)
 
 var kubearmor = "kubearmor"
 var port int32 = 32767
@@ -16,6 +19,17 @@ var policyManagerServiceName = "kubearmor-policy-manager-metrics-service"
 var policyManagerDeploymentName = "kubearmor-policy-manager"
 var hostPolicyManagerServiceName = "kubearmor-host-policy-manager-metrics-service"
 var hostPolicyManagerDeploymentName = "kubearmor-host-policy-manager"
+var AnnotationsControllerDeploymentName = "kubearmor-annotation-controller"
+var AnnotationsControllerServiceName = AnnotationsControllerDeploymentName
+var annotationsControllerDeploymentReplicas = int32(2)
+var annotationsControllerDeploymentLabels = map[string]string{
+	"kubearmor-app": AnnotationsControllerDeploymentName,
+}
+var annotationsControllerAllowPrivilegeEscalation = false
+var annotationsControllerMutationFullName = "annotation.kubearmor.com"
+var annotationsControllerMutationSideEffect = admissionregistration.SideEffectClassNoneOnDryRun
+var annotationsControllerPodMutationPath = "/mutate-pods"
+var annotationsControllerPodMutationFailurePolicy = admissionregistration.Ignore
 
 // DaemonSetConfig Structure
 type DaemonSetConfig struct {
@@ -478,6 +492,28 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					},
 				},
 			},
+		},
+	},
+}
+
+var annotationsControllerCertVolumeDefaultMode = int32(420)
+var AnnotationsControllerSecretName = "kubearmor-webhook-server-cert"
+var annotationsControllerCertVolume = corev1.Volume{
+	Name: "cert",
+	VolumeSource: corev1.VolumeSource{
+		Secret: &corev1.SecretVolumeSource{
+			SecretName:  AnnotationsControllerSecretName,
+			DefaultMode: &annotationsControllerCertVolumeDefaultMode,
+		},
+	},
+}
+
+var annotationsControllerHostPathVolume = corev1.Volume{
+	Name: "sys-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/sys/kernel/security",
+			Type: &hostPathDirectory,
 		},
 	},
 }

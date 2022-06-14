@@ -6,6 +6,7 @@ package deployments
 import (
 	"strconv"
 
+	admissionregistration "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -517,5 +518,224 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 				},
 			},
 		},
+	}
+}
+
+// GetAnnotationsControllerDeployment Function
+func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AnnotationsControllerDeploymentName,
+			Labels:    annotationsControllerDeploymentLabels,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &annotationsControllerDeploymentReplicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: annotationsControllerDeploymentLabels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubearmor-policy": "audited",
+						"container.apparmor.security.beta.kubernetes.io/manager": "unconfined",
+					},
+					Labels: annotationsControllerDeploymentLabels,
+				},
+				Spec: corev1.PodSpec{
+					PriorityClassName:  "system-node-critical",
+					ServiceAccountName: kubearmor,
+					Volumes: []corev1.Volume{
+						annotationsControllerCertVolume,
+						annotationsControllerHostPathVolume,
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "kube-rbac-proxy",
+							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+							Args: []string{
+								"--secure-listen-address=0.0.0.0:8443",
+								"--upstream=http://127.0.0.1:8080/",
+								"--logtostderr=true",
+								"--v=10",
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 8443,
+									Name:          "https",
+								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("40Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("20Mi"),
+								},
+							},
+						},
+						{
+							Name:  "manager",
+							Image: "kubearmor/kubearmor-annotation-manager:latest",
+							Args: []string{
+								"--metrics-bind-address=127.0.0.1:8080",
+								"--leader-elect",
+								"--health-probe-bind-address=:8081",
+							},
+							Command: []string{"/manager"},
+							Ports: []corev1.ContainerPort{
+								corev1.ContainerPort{
+									ContainerPort: int32(9443),
+									Name:          "webhook-server",
+									Protocol:      corev1.ProtocolTCP,
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								corev1.VolumeMount{
+									Name:      annotationsControllerCertVolume.Name,
+									ReadOnly:  true,
+									MountPath: "/tmp/k8s-webhook-server/serving-certs",
+								},
+								corev1.VolumeMount{
+									Name:      annotationsControllerHostPathVolume.Name,
+									ReadOnly:  true,
+									MountPath: "/sys/kernel/security",
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: &annotationsControllerAllowPrivilegeEscalation,
+							},
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(15),
+								PeriodSeconds:       int32(20),
+							},
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/readyz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(5),
+								PeriodSeconds:       int32(10),
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("30Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("20Mi"),
+								},
+							},
+						},
+					},
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+				},
+			},
+		},
+	}
+}
+
+// GetAnnotationsControllerService Function
+func GetAnnotationsControllerService(namespace string) *corev1.Service {
+
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AnnotationsControllerServiceName,
+			Labels:    annotationsControllerDeploymentLabels,
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: annotationsControllerDeploymentLabels,
+			Ports: []corev1.ServicePort{
+				corev1.ServicePort{
+					Name:       "https",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       int32(443),
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+}
+
+// GetAnnotationsControllerMutationAdmissionConfiguration Function
+func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistration.MutatingWebhookConfiguration {
+	return &admissionregistration.MutatingWebhookConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "MutatingWebhookConfiguration",
+			APIVersion: "admissionregistration.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AnnotationsControllerServiceName,
+			Namespace: namespace,
+		},
+		Webhooks: []admissionregistration.MutatingWebhook{
+			admissionregistration.MutatingWebhook{
+				Name:                    annotationsControllerMutationFullName,
+				AdmissionReviewVersions: []string{"v1"},
+				ClientConfig: admissionregistration.WebhookClientConfig{
+					Service: &admissionregistration.ServiceReference{
+						Namespace: namespace,
+						Name:      AnnotationsControllerServiceName,
+						Path:      &annotationsControllerPodMutationPath,
+					},
+					CABundle: caCert,
+				},
+				FailurePolicy: &annotationsControllerPodMutationFailurePolicy,
+				Rules: []admissionregistration.RuleWithOperations{
+					admissionregistration.RuleWithOperations{
+						Rule: admissionregistration.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"pods"},
+						},
+						Operations: []admissionregistration.OperationType{
+							admissionregistration.Create,
+							admissionregistration.Update,
+						},
+					},
+				},
+				SideEffects: &annotationsControllerMutationSideEffect,
+			},
+		},
+	}
+}
+
+func GetAnnotationsControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
+	data := make(map[string]string)
+	data["ca.crt"] = caCert
+	data["tls.crt"] = tlsCrt
+	data["tls.key"] = tlsKey
+	return &corev1.Secret{
+		Type: corev1.SecretTypeTLS,
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AnnotationsControllerSecretName,
+			Namespace: namespace,
+			Labels:    annotationsControllerDeploymentLabels,
+		},
+		StringData: data,
 	}
 }
