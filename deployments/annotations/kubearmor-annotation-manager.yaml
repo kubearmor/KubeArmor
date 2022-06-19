@@ -292,7 +292,7 @@ webhooks:
       name: kubearmor-annotation-webhook-service
       namespace: kube-system
       path: /mutate-pods
-  failurePolicy: Fail
+  failurePolicy: Ignore
   name: annotation.kubearmor.com
   rules:
   - apiGroups:
