@@ -25,7 +25,7 @@ type PodAnnotator struct {
 const k8sVisibility = "process,file,network,capabilities"
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 
-// +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Fail,groups="",resources=pods,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
+// +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Ignore,groups="",resources=pods,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 
 func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pod := &corev1.Pod{}
