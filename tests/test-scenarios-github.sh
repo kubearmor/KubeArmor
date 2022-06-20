@@ -22,6 +22,14 @@ realpath() {
 TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
+IGN_FILE=$TEST_HOME/tests.ignore
+
+# skip tests that don't work with some runtimes
+if [ "$RUNTIME" == "crio" ]; then
+	# see #697
+	echo "github_test_13" | tee -a $IGN_FILE
+	echo "github_test_09" | tee -a $IGN_FILE
+fi
 
 LSM="none"
 
@@ -620,6 +628,16 @@ INFO "Started KubeArmor"
 
 res_microservice=0
 
+is_test_ignored()
+{
+    [[ ! -f $IGN_FILE ]] && return 0
+    for line in `grep "^[a-zA-Z].*" $IGN_FILE`; do
+        echo $testcase | grep $line >/dev/null
+        [[ $? -eq 0 ]] && echo "matched ignore pattern [$line]" && return 1
+    done
+    return 0
+}
+
 if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
     INFO "Running Container Scenarios"
 
@@ -642,6 +660,9 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
 
     for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
     do
+        is_test_ignored
+        [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue
+
         res_case=0
 
         INFO "Testing $testcase"

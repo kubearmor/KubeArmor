@@ -18,18 +18,18 @@ on:
 
 jobs:
   build:
-    name: Auto-testing Framework / ${{ matrix.os }}
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
     runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-18.04]
+        runtime: ["containerd", "docker", "crio"]
     steps:
       - name: Kernel version
         run: uname -r
-
-      - name: Check Docker Version
-        run: docker --version
 
       - uses: actions/checkout@v2
 
@@ -54,7 +54,11 @@ jobs:
 
       - name: Setup Enviroment
         run: |
-          RUNTIME=docker ./contribution/k3s/install_k3s.sh
+          if [ "$RUNTIME" == "crio" ]; then
+            ./contribution/self-managed-k8s/crio/install-crio.sh
+            crio --version
+          fi
+          RUNTIME=$RUNTIME ./contribution/k3s/install_k3s.sh
 
       - name: Install annotation controller
         run: |
@@ -67,7 +71,7 @@ jobs:
         run: kubectl proxy &
 
       - name: Test KubeArmor
-        run: ./tests/test-scenarios-github.sh
+        run: RUNTIME=$RUNTIME ./tests/test-scenarios-github.sh
         timeout-minutes: 15
 
       - name: Archive log artifacts
