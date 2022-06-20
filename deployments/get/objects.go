@@ -6,7 +6,7 @@ package deployments
 import (
 	"strconv"
 
-	admissionregistration "k8s.io/api/admissionregistration/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -521,6 +521,61 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 }
 
+var annotationsControllerDeploymentLabels = map[string]string{
+	"kubearmor-app": "kubearmor-annotation-manager",
+}
+
+// GetAnnotationsControllerService Function
+func GetAnnotationsControllerService(namespace string) *corev1.Service {
+
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      AnnotationsControllerServiceName,
+			Labels:    annotationsControllerDeploymentLabels,
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: annotationsControllerDeploymentLabels,
+			Ports: []corev1.ServicePort{
+				corev1.ServicePort{
+					Name:       "https",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       int32(443),
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+}
+
+var annotationsControllerCertVolumeDefaultMode = int32(420)
+
+var annotationsControllerCertVolume = corev1.Volume{
+	Name: "cert",
+	VolumeSource: corev1.VolumeSource{
+		Secret: &corev1.SecretVolumeSource{
+			SecretName:  AnnotationsControllerSecretName,
+			DefaultMode: &annotationsControllerCertVolumeDefaultMode,
+		},
+	},
+}
+
+var annotationsControllerHostPathVolume = corev1.Volume{
+	Name: "sys-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/sys/kernel/security",
+			Type: &hostPathDirectory,
+		},
+	},
+}
+
+var annotationsControllerAllowPrivilegeEscalation = false
+
 // GetAnnotationsControllerDeployment Function
 func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
@@ -534,7 +589,7 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 			Namespace: namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &annotationsControllerDeploymentReplicas,
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: annotationsControllerDeploymentLabels,
 			},
@@ -650,36 +705,14 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 	}
 }
 
-// GetAnnotationsControllerService Function
-func GetAnnotationsControllerService(namespace string) *corev1.Service {
-
-	return &corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      AnnotationsControllerServiceName,
-			Labels:    annotationsControllerDeploymentLabels,
-			Namespace: namespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Selector: annotationsControllerDeploymentLabels,
-			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
-					Name:       "https",
-					Protocol:   corev1.ProtocolTCP,
-					Port:       int32(443),
-					TargetPort: intstr.FromInt(9443),
-				},
-			},
-		},
-	}
-}
+var annotationsControllerMutationFullName = "annotation.kubearmor.com"
+var annotationsControllerPodMutationPath = "/mutate-pods"
+var annotationsControllerPodMutationFailurePolicy = admissionregistrationv1.Ignore
+var annotationsControllerMutationSideEffect = admissionregistrationv1.SideEffectClassNoneOnDryRun
 
 // GetAnnotationsControllerMutationAdmissionConfiguration Function
-func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistration.MutatingWebhookConfiguration {
-	return &admissionregistration.MutatingWebhookConfiguration{
+func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistrationv1.MutatingWebhookConfiguration {
+	return &admissionregistrationv1.MutatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "MutatingWebhookConfiguration",
 			APIVersion: "admissionregistration.k8s.io/v1",
@@ -688,12 +721,12 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 			Name:      AnnotationsControllerServiceName,
 			Namespace: namespace,
 		},
-		Webhooks: []admissionregistration.MutatingWebhook{
-			admissionregistration.MutatingWebhook{
+		Webhooks: []admissionregistrationv1.MutatingWebhook{
+			admissionregistrationv1.MutatingWebhook{
 				Name:                    annotationsControllerMutationFullName,
 				AdmissionReviewVersions: []string{"v1"},
-				ClientConfig: admissionregistration.WebhookClientConfig{
-					Service: &admissionregistration.ServiceReference{
+				ClientConfig: admissionregistrationv1.WebhookClientConfig{
+					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: namespace,
 						Name:      AnnotationsControllerServiceName,
 						Path:      &annotationsControllerPodMutationPath,
@@ -701,16 +734,16 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 					CABundle: caCert,
 				},
 				FailurePolicy: &annotationsControllerPodMutationFailurePolicy,
-				Rules: []admissionregistration.RuleWithOperations{
-					admissionregistration.RuleWithOperations{
-						Rule: admissionregistration.Rule{
+				Rules: []admissionregistrationv1.RuleWithOperations{
+					admissionregistrationv1.RuleWithOperations{
+						Rule: admissionregistrationv1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
 							Resources:   []string{"pods"},
 						},
-						Operations: []admissionregistration.OperationType{
-							admissionregistration.Create,
-							admissionregistration.Update,
+						Operations: []admissionregistrationv1.OperationType{
+							admissionregistrationv1.Create,
+							admissionregistrationv1.Update,
 						},
 					},
 				},
@@ -719,6 +752,8 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 		},
 	}
 }
+
+var AnnotationsControllerSecretName = "kubearmor-webhook-server-cert"
 
 func GetAnnotationsControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
 	data := make(map[string]string)

@@ -5,7 +5,7 @@ go 1.17
 replace (
 	github.com/kubearmor/KubeArmor => ../
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy => ../pkg/KubeArmorHostPolicy
-//	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy => ../pkg/KubeArmorPolicy
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy => ../pkg/KubeArmorPolicy
 )
 
 require (

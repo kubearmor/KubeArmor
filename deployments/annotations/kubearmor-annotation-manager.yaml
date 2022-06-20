@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kubearmor-annotation-controller-manager
+  name: kubearmor-annotation-manager
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -99,7 +99,7 @@ roleRef:
   name: kubearmor-annotation-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor-annotation-controller-manager
+  name: kubearmor-annotation-manager
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -112,7 +112,7 @@ roleRef:
   name: kubearmor-annotation-manager-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor-annotation-controller-manager
+  name: kubearmor-annotation-manager
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -125,7 +125,7 @@ roleRef:
   name: kubearmor-annotation-proxy-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor-annotation-controller-manager
+  name: kubearmor-annotation-manager
   namespace: kube-system
 ---
 apiVersion: v1
@@ -151,8 +151,8 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    kubearmor-app: annotation-manager
-  name: kubearmor-annotation-controller-manager-metrics-service
+    kubearmor-app: kubearmor-annotation-manager
+  name: kubearmor-annotation-manager-metrics-service
   namespace: kube-system
 spec:
   ports:
@@ -160,7 +160,7 @@ spec:
     port: 8443
     targetPort: https
   selector:
-    kubearmor-app: annotation-manager
+    kubearmor-app: kubearmor-annotation-manager
 ---
 apiVersion: v1
 kind: Service
@@ -173,26 +173,26 @@ spec:
     protocol: TCP
     targetPort: 9443
   selector:
-    kubearmor-app: annotation-manager
+    kubearmor-app: kubearmor-annotation-manager
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    kubearmor-app: annotation-manager
-  name: kubearmor-annotation-controller-manager
+    kubearmor-app: kubearmor-annotation-manager
+  name: kubearmor-annotation-manager
   namespace: kube-system
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      kubearmor-app: annotation-manager
+      kubearmor-app: kubearmor-annotation-manager
   template:
     metadata:
       annotations:
         container.apparmor.security.beta.kubernetes.io/manager: unconfined
       labels:
-        kubearmor-app: annotation-manager
+        kubearmor-app: kubearmor-annotation-manager
     spec:
       containers:
       - args:
@@ -244,7 +244,7 @@ spec:
         ports:
         - containerPort: 8443
           name: https
-      serviceAccountName: kubearmor-annotation-controller-manager
+      serviceAccountName: kubearmor-annotation-manager
       terminationGracePeriodSeconds: 10
       volumes:
       - name: cert
@@ -292,7 +292,7 @@ webhooks:
       name: kubearmor-annotation-webhook-service
       namespace: kube-system
       path: /mutate-pods
-  failurePolicy: Fail
+  failurePolicy: Ignore
   name: annotation.kubearmor.com
   rules:
   - apiGroups:

@@ -61,7 +61,7 @@ jobs:
           kubectl apply -f deployments/annotations/cert-manager.yaml
           kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
           kubectl apply -f deployments/annotations/kubearmor-annotation-manager.yaml
-          kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=annotation-manager
+          kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=kubearmor-annotation-manager
 
       - name: Run kubectl proxy
         run: kubectl proxy &

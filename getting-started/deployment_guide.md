@@ -101,4 +101,3 @@ karmor log
 3. [Minikube](../contribution/minikube)
 4. [Self-managed K8s](../contribution/self-managed-k8s)
 5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
-
