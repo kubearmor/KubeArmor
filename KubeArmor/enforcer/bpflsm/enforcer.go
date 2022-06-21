@@ -97,6 +97,9 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 		return err
 	}
 
+	be.ContainerMapLock.Lock()
+	defer be.ContainerMapLock.Unlock()
+
 	if be.BPFContainerMap != nil {
 		if err := be.BPFContainerMap.Unpin(); err != nil {
 			return err
