@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	be "github.com/kubearmor/KubeArmor/KubeArmor/enforcer/bpflsm"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -22,6 +23,9 @@ type RuntimeEnforcer struct {
 
 	// LSM type
 	EnforcerType string
+
+	// LSM - BPFLSM
+	bpfEnforcer *be.BPFEnforcer
 
 	// LSM - AppArmor
 	appArmorEnforcer *AppArmorEnforcer
@@ -60,6 +64,18 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	lsms := string(lsm)
 	re.Logger.Printf("Supported LSMs: %s", lsms)
 
+	// TODO Discuss priority order
+	if strings.Contains(lsms, "bpf") {
+		re.bpfEnforcer = be.NewBPFEnforcer(node, logger)
+		if re.bpfEnforcer != nil {
+			re.Logger.Print("Initialized BPF LSM Enforcer")
+			re.EnforcerType = "BPFLSM"
+			logger.UpdateEnforcer(re.EnforcerType)
+			return re
+		}
+	}
+
+	// Fallback to Other LSMs if failure during BPF Enforcer initialisation
 	if strings.Contains(lsms, "apparmor") {
 		re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
 		if re.appArmorEnforcer != nil {
@@ -142,7 +158,16 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 
 	errorLSM := false
 
-	if re.EnforcerType == "AppArmor" {
+	if re.EnforcerType == "BPFLSM" {
+		if re.bpfEnforcer != nil {
+			if err := re.bpfEnforcer.DestroyBPFEnforcer(); err != nil {
+				re.Logger.Err(err.Error())
+				errorLSM = true
+			} else {
+				re.Logger.Print("Destroyed BPFLSM Enforcer")
+			}
+		}
+	} else if re.EnforcerType == "AppArmor" {
 		if re.appArmorEnforcer != nil {
 			if err := re.appArmorEnforcer.DestroyAppArmorEnforcer(); err != nil {
 				re.Logger.Err(err.Error())
