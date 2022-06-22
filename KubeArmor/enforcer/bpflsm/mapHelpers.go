@@ -3,11 +3,17 @@
 
 package bpflsm
 
-import "github.com/cilium/ebpf"
+import (
+	"errors"
+	"os"
+
+	"github.com/cilium/ebpf"
+)
 
 type ContainerKV struct {
-	Key NsKey
-	Map *ebpf.Map
+	Key   NsKey
+	Map   *ebpf.Map
+	Rules RuleList
 }
 
 // NsKey Structure
@@ -29,7 +35,12 @@ func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns uint
 		return
 	}
 
-	be.ContainerMap[containerID] = ContainerKV{Key: key, Map: im}
+	var rules RuleList
+	rules.ProcessBlackList = make(map[uint32][8]byte)
+	rules.ProcessWhiteList = make(map[uint32][8]byte)
+	rules.ProcWhiteListPosture = false
+
+	be.ContainerMap[containerID] = ContainerKV{Key: key, Map: im, Rules: rules}
 	if err := be.BPFContainerMap.Put(key, im); err != nil {
 		be.Logger.Errf("error adding container %s to outer map: %s", containerID, err)
 	}
@@ -41,7 +52,9 @@ func (be *BPFEnforcer) DeleteContainerIDFromMap(containerID string) {
 	be.ContainerMapLock.Lock()
 	defer be.ContainerMapLock.Unlock()
 	if err := be.BPFContainerMap.Delete(be.ContainerMap[containerID].Key); err != nil {
-		be.Logger.Errf("error deleting container %s from outer map: %s", containerID, err)
+		if !errors.Is(err, os.ErrNotExist) {
+			be.Logger.Errf("error deleting container %s from outer map: %s", containerID, err.Error())
+		}
 	}
 	if err := be.ContainerMap[containerID].Map.Close(); err != nil {
 		be.Logger.Errf("error closing container map for %s: %s", containerID, err)

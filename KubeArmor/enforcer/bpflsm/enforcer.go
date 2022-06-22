@@ -96,7 +96,7 @@ func (be *BPFEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 	for _, cid := range endPoint.Containers {
 		be.Logger.Printf("Updating container rules for %s", cid)
-		be.UpdateContainerRules(cid, endPoint.SecurityPolicies)
+		be.UpdateContainerRules(cid, endPoint.SecurityPolicies, endPoint.DefaultPosture)
 	}
 
 }
