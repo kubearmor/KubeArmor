@@ -149,7 +149,9 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 		return
 	}
 
-	if re.EnforcerType == "AppArmor" {
+	if re.EnforcerType == "BPFLSM" {
+		re.bpfEnforcer.UpdateSecurityPolicies(endPoint)
+	} else if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
 	} else if re.EnforcerType == "SELinux" {
 		// do nothing

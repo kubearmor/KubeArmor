@@ -35,6 +35,11 @@ static struct file *get_task_file(struct task_struct *task) {
   return BPF_CORE_READ(task, mm, exe_file);
 }
 
+static u64 cb_check_path(struct bpf_map *map, u32 *key, char *path, int t) {
+  bpf_printk("Found key %u", *key);
+  return 0;
+}
+
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
@@ -53,6 +58,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   }
 
   bpf_printk("monitoring %u,%u", okey.pid_ns, okey.mnt_ns);
+
+  bpf_for_each_map_elem(inner, cb_check_path, 0, 0);
 
   return ret;
 }

@@ -88,6 +88,19 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 	return be
 }
 
+func (be *BPFEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
+	// skip if BPFEnforcer is not active
+	if be == nil {
+		return
+	}
+
+	for _, cid := range endPoint.Containers {
+		be.Logger.Printf("Updating container rules for %s", cid)
+		be.UpdateContainerRules(cid, endPoint.SecurityPolicies)
+	}
+
+}
+
 func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 	if be == nil {
 		return nil
