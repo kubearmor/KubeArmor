@@ -498,6 +498,10 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							containerID := strings.TrimPrefix(container.ContainerID, "containerd://")
 							pod.Containers[containerID] = container.Name
 							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
+						} else if strings.HasPrefix(container.ContainerID, "cri-o://") {
+							containerID := strings.TrimPrefix(container.ContainerID, "cri-o://")
+							pod.Containers[containerID] = container.Name
+							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
 						}
 					}
 				}

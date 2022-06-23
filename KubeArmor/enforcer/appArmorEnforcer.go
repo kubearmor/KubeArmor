@@ -500,7 +500,7 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	appArmorProfiles := []string{}
 
 	for _, appArmorProfile := range endPoint.AppArmorProfiles {
-		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", ""}, appArmorProfile) {
+		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", "crio-default", ""}, appArmorProfile) {
 			continue
 		}
 

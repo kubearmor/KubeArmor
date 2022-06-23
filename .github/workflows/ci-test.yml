@@ -54,7 +54,7 @@ jobs:
 
       - name: Setup Enviroment
         run: |
-          ./contribution/k3s/install_k3s.sh
+          RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
       - name: Install annotation controller
         run: |
