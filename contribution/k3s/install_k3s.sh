@@ -43,10 +43,10 @@ sleep 15
 
 for (( ; ; ))
 do
-    status=$(/usr/local/bin/kubectl get pods -A -o jsonpath={.items[*].status.phase})
+    status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
     [[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break
     echo "wait for initialization"
     sleep 1
 done
 
-/usr/local/bin/kubectl get pods -A
+kubectl get pods -A
