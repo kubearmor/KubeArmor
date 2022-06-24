@@ -10,7 +10,7 @@ Check the [KubeArmor support matrix](support_matrix.md) to verify if your platfo
 
 ### 1. Download and install karmor cli-tool
 ```
-curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b /usr/local/bin
+curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
 ```
 
 ### 2. Install KubeArmor
