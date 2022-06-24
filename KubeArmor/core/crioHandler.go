@@ -205,7 +205,6 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		// get container info from client
 		container, err := Crio.GetContainerInfo(ctx, containerID)
 		if err != nil {
-			kg.Warnf(err.Error())
 			return false
 		}
 

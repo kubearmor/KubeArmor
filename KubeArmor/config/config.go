@@ -4,7 +4,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -230,7 +229,7 @@ func LoadConfig() error {
 	}
 
 	if GlobalCfg.CRISocket != "" && !strings.HasPrefix(GlobalCfg.CRISocket, "unix://") {
-		return errors.New(fmt.Sprintf("%s is invalid. CRI socket must start with unix://", GlobalCfg.CRISocket))
+		return fmt.Errorf("%s is invalid. CRI socket must start with unix://", GlobalCfg.CRISocket)
 	}
 
 	kg.Printf("Configuration [%+v]", GlobalCfg)
