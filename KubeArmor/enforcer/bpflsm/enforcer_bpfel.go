@@ -54,6 +54,8 @@ type enforcerSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerProgramSpecs struct {
+	EnforceFile *ebpf.ProgramSpec `ebpf:"enforce_file"`
+	EnforceNet  *ebpf.ProgramSpec `ebpf:"enforce_net"`
 	EnforceProc *ebpf.ProgramSpec `ebpf:"enforce_proc"`
 }
 
@@ -96,11 +98,15 @@ func (m *enforcerMaps) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerPrograms struct {
+	EnforceFile *ebpf.Program `ebpf:"enforce_file"`
+	EnforceNet  *ebpf.Program `ebpf:"enforce_net"`
 	EnforceProc *ebpf.Program `ebpf:"enforce_proc"`
 }
 
 func (p *enforcerPrograms) Close() error {
 	return _EnforcerClose(
+		p.EnforceFile,
+		p.EnforceNet,
 		p.EnforceProc,
 	)
 }

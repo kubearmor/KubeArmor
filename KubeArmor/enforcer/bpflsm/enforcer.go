@@ -85,6 +85,18 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 		return nil
 	}
 
+	be.Probes[be.obj.EnforceFile.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceFile})
+	if err != nil {
+		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceFile.String(), err)
+		return nil
+	}
+
+	be.Probes[be.obj.EnforceNet.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNet})
+	if err != nil {
+		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceNet.String(), err)
+		return nil
+	}
+
 	return be
 }
 

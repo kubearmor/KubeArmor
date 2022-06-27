@@ -36,9 +36,18 @@ func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns uint
 	}
 
 	var rules RuleList
+
 	rules.ProcessBlackList = make(map[uint32][8]byte)
 	rules.ProcessWhiteList = make(map[uint32][8]byte)
 	rules.ProcWhiteListPosture = false
+
+	rules.FileBlackList = make(map[uint32][8]byte)
+	rules.FileWhiteList = make(map[uint32][8]byte)
+	rules.FileWhiteListPosture = false
+
+	rules.NetworkBlackList = make(map[uint32][8]byte)
+	rules.NetworkWhiteList = make(map[uint32][8]byte)
+	rules.NetWhiteListPosture = false
 
 	be.ContainerMap[containerID] = ContainerKV{Key: key, Map: im, Rules: rules}
 	if err := be.BPFContainerMap.Put(key, im); err != nil {
