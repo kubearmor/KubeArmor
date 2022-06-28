@@ -4,6 +4,8 @@
 package deployments
 
 import (
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -150,6 +152,62 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 	},
+	"crio": {
+		Args: []string{
+			"-enableKubeArmorHostPolicy",
+		},
+		Envs: envVar,
+		VolumeMounts: []corev1.VolumeMount{
+			hostUsrVolMnt,
+			apparmorVolMnt,
+			{
+				Name:      "crio-sock-path", // crio socket
+				MountPath: common.GetCRISocket("crio"),
+				ReadOnly:  true,
+			},
+			{
+				Name:      "crio-storage-path", // crio storage - stores all of its data, including containers images, in this directory.
+				MountPath: "/var/lib/containers/storage",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "crio-state-storage-path", // crio storage -  stores all of its state in this directory.
+				MountPath: "/var/run/containers/storage",
+				ReadOnly:  true,
+			}
+		},
+		Volumes: []corev1.Volume{
+			hostUsrVol,
+			apparmorVol,
+			{
+				Name: "crio-sock-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: common.GetCRISocket("crio"),
+						Type: &hostPathSocket,
+					},
+				},
+			},
+			{
+				Name: "crio-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/lib/containers/storage",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+			{
+				Name: "crio-state-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/run/containers/storage",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+		},
+	},
 	"docker": {
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
@@ -235,7 +293,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 	"microk8s": {
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
-		},
+		}, 
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			hostUsrVolMnt,
