@@ -45,9 +45,9 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
-		KeySize:    4,
+		KeySize:    8192,
 		ValueSize:  8,
-		MaxEntries: 1024,
+		MaxEntries: 128,
 	}
 
 	be.BPFContainerMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{

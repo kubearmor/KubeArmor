@@ -22,6 +22,12 @@ type NsKey struct {
 	MntNS uint32
 }
 
+// NsKey Structure
+type InnerKey struct {
+	Path   [4096]byte
+	Source [4096]byte
+}
+
 // AddContainerIDToMap adds container metadata to Outer eBPF container Map for initialising enforcement tracking and initiates an InnerMap to store the container specific rules
 func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns uint32) {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
@@ -37,16 +43,16 @@ func (be *BPFEnforcer) AddContainerIDToMap(containerID string, pidns, mntns uint
 
 	var rules RuleList
 
-	rules.ProcessBlackList = make(map[uint32][8]byte)
-	rules.ProcessWhiteList = make(map[uint32][8]byte)
+	rules.ProcessBlackList = make(map[InnerKey][8]byte)
+	rules.ProcessWhiteList = make(map[InnerKey][8]byte)
 	rules.ProcWhiteListPosture = false
 
-	rules.FileBlackList = make(map[uint32][8]byte)
-	rules.FileWhiteList = make(map[uint32][8]byte)
+	rules.FileBlackList = make(map[InnerKey][8]byte)
+	rules.FileWhiteList = make(map[InnerKey][8]byte)
 	rules.FileWhiteListPosture = false
 
-	rules.NetworkBlackList = make(map[uint32][8]byte)
-	rules.NetworkWhiteList = make(map[uint32][8]byte)
+	rules.NetworkBlackList = make(map[InnerKey][8]byte)
+	rules.NetworkWhiteList = make(map[InnerKey][8]byte)
 	rules.NetWhiteListPosture = false
 
 	be.ContainerMap[containerID] = ContainerKV{Key: key, Map: im, Rules: rules}

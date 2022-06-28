@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/cilium/ebpf"
-	cm "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -29,20 +28,20 @@ const (
 	NETWHITELIST  uint32 = 103
 )
 
-var protocols = map[string]uint32{
-	"ICMP":   1,
-	"TCP":    6,
-	"UDP":    17,
-	"ICMPv6": 58,
-}
+// var protocols = map[string]uint32{
+// 	"ICMP":   1,
+// 	"TCP":    6,
+// 	"UDP":    17,
+// 	"ICMPv6": 58,
+// }
 
 type RuleList struct {
-	ProcessWhiteList     map[uint32][8]byte
-	ProcessBlackList     map[uint32][8]byte
-	FileWhiteList        map[uint32][8]byte
-	FileBlackList        map[uint32][8]byte
-	NetworkWhiteList     map[uint32][8]byte
-	NetworkBlackList     map[uint32][8]byte
+	ProcessWhiteList     map[InnerKey][8]byte
+	ProcessBlackList     map[InnerKey][8]byte
+	FileWhiteList        map[InnerKey][8]byte
+	FileBlackList        map[InnerKey][8]byte
+	NetworkWhiteList     map[InnerKey][8]byte
+	NetworkBlackList     map[InnerKey][8]byte
 	ProcWhiteListPosture bool
 	FileWhiteListPosture bool
 	NetWhiteListPosture  bool
@@ -52,21 +51,24 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	var newrules RuleList
 
-	newrules.ProcessBlackList = make(map[uint32][8]byte)
-	newrules.ProcessWhiteList = make(map[uint32][8]byte)
+	newrules.ProcessBlackList = make(map[InnerKey][8]byte)
+	newrules.ProcessWhiteList = make(map[InnerKey][8]byte)
 	newrules.ProcWhiteListPosture = false
 
-	newrules.FileBlackList = make(map[uint32][8]byte)
-	newrules.FileWhiteList = make(map[uint32][8]byte)
+	newrules.FileBlackList = make(map[InnerKey][8]byte)
+	newrules.FileWhiteList = make(map[InnerKey][8]byte)
 	newrules.FileWhiteListPosture = false
 
-	newrules.NetworkBlackList = make(map[uint32][8]byte)
-	newrules.NetworkWhiteList = make(map[uint32][8]byte)
+	newrules.NetworkBlackList = make(map[InnerKey][8]byte)
+	newrules.NetworkWhiteList = make(map[InnerKey][8]byte)
 	newrules.NetWhiteListPosture = false
 
 	// Generate Fresh Rule Set based on Updated Security Policies
 	for _, secPolicy := range securityPolicies {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
+			var key InnerKey
+			copy(key.Path[:], []byte(path.Path))
+
 			var val [8]byte
 			val[EXEC] = 1
 			if path.OwnerOnly {
@@ -74,9 +76,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if path.Action == "Allow" && defaultPosture.FileAction == "block" {
 				newrules.ProcWhiteListPosture = true
-				newrules.ProcessWhiteList[cm.JHash([]byte(path.Path), 0)] = val
+				newrules.ProcessWhiteList[key] = val
 			} else if path.Action == "Block" && !newrules.ProcWhiteListPosture {
-				newrules.ProcessBlackList[cm.JHash([]byte(path.Path), 0)] = val
+				newrules.ProcessBlackList[key] = val
 			}
 		}
 
@@ -98,6 +100,8 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 
 		for _, path := range secPolicy.Spec.File.MatchPaths {
+			var key InnerKey
+			copy(key.Path[:], []byte(path.Path))
 			var val [8]byte
 			val[READ] = 1
 			if path.OwnerOnly {
@@ -108,9 +112,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if path.Action == "Allow" && defaultPosture.FileAction == "block" {
 				newrules.FileWhiteListPosture = true
-				newrules.FileWhiteList[cm.JHash([]byte(path.Path), 0)] = val
+				newrules.FileWhiteList[key] = val
 			} else if path.Action == "Block" && !newrules.FileWhiteListPosture {
-				newrules.FileBlackList[cm.JHash([]byte(path.Path), 0)] = val
+				newrules.FileBlackList[key] = val
 			}
 		}
 
@@ -134,16 +138,16 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 		}
 
-		for _, net := range secPolicy.Spec.Network.MatchProtocols {
-			var val [8]byte
-			var key uint32 = 0xdeadbeef + protocols[strings.ToUpper(net.Protocol)]
-			if net.Action == "Allow" && defaultPosture.FileAction == "block" {
-				newrules.NetWhiteListPosture = true
-				newrules.NetworkWhiteList[key] = val
-			} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
-				newrules.NetworkBlackList[key] = val
-			}
-		}
+		// for _, net := range secPolicy.Spec.Network.MatchProtocols {
+		// 	var val [8]byte
+		// 	var key uint32 = 0xdeadbeef + protocols[strings.ToUpper(net.Protocol)]
+		// 	if net.Action == "Allow" && defaultPosture.FileAction == "block" {
+		// 		newrules.NetWhiteListPosture = true
+		// 		newrules.NetworkWhiteList[key] = val
+		// 	} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
+		// 		newrules.NetworkBlackList[key] = val
+		// 	}
+		// }
 	}
 
 	// Check for differences in Fresh Rules Set and Existing Ruleset
@@ -206,7 +210,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 }
 
-func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackList, oldBlackList, newWhiteList, oldWhiteList map[uint32][8]byte, cmap *ebpf.Map) {
+func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackList, oldBlackList, newWhiteList, oldWhiteList map[InnerKey][8]byte, cmap *ebpf.Map) {
 	// No change in default posture, we delete existing elements which are not in the fresh rule set
 	if newPosture == oldPosture {
 		if newPosture {
@@ -238,7 +242,7 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackLis
 
 	// Change in default posture, We batch delete all the elements
 	if newPosture != oldPosture {
-		var keys []uint32
+		var keys []InnerKey
 		if newPosture {
 			for key := range oldBlackList {
 				keys = append(keys, key)
@@ -260,16 +264,20 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackLis
 	}
 }
 
-func dirtoMap(p string, m map[uint32][8]byte, val [8]byte) {
+func dirtoMap(p string, m map[InnerKey][8]byte, val [8]byte) {
+	var key InnerKey
+	copy(key.Path[:], []byte(p))
 	paths := strings.Split(p, "/")
 	val[DIR] = 1
-	m[cm.JHash([]byte(p), 0)] = val
+	m[key] = val
 
 	val[DIR] = 0
 
 	for i := 1; i < len(paths)-1; i++ {
+		var key InnerKey
 		val[HINT] = 1
 		var hint string = strings.Join(paths[0:i], "/") + "/"
-		m[cm.JHash([]byte(hint), 0)] = val
+		copy(key.Path[:], []byte(hint))
+		m[key] = val
 	}
 }
