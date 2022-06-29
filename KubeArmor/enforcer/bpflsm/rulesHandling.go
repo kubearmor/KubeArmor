@@ -13,6 +13,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
+// Array Keys for Map Rule Data
 const (
 	OWNER     uint8 = 0
 	READ      uint8 = 1
@@ -23,19 +24,34 @@ const (
 	HINT      uint8 = 6
 )
 
+// Map Key Identifiers for Whitelist/Posture
 var (
-	PROCWHITELIST InnerKey = InnerKey{Path: [4096]byte{101}}
-	FILEWHITELIST InnerKey = InnerKey{Path: [4096]byte{102}}
-	NETWHITELIST  InnerKey = InnerKey{Path: [4096]byte{103}}
+	PROCWHITELIST = InnerKey{Path: [4096]byte{101}}
+	FILEWHITELIST = InnerKey{Path: [4096]byte{102}}
+	NETWHITELIST  = InnerKey{Path: [4096]byte{103}}
 )
 
-// var protocols = map[string]uint32{
-// 	"ICMP":   1,
-// 	"TCP":    6,
-// 	"UDP":    17,
-// 	"ICMPv6": 58,
-// }
+// Protocol Identifiers for Network Rules
+var protocols = map[string]uint8{
+	"ICMP":   1,
+	"TCP":    6,
+	"UDP":    17,
+	"ICMPv6": 58,
+}
 
+// Socket Type Identifiers for Network Rules
+var netType = map[string]uint8{
+	"RAW": 3,
+}
+
+// Array Keys for Network Rule Keys
+const (
+	FAMILY   uint8 = 1
+	TYPE     uint8 = 2
+	PROTOCOL uint8 = 3
+)
+
+// RuleList Structure contains all the data required to set rules for a particular container
 type RuleList struct {
 	ProcessWhiteList     map[InnerKey][8]byte
 	ProcessBlackList     map[InnerKey][8]byte
@@ -48,6 +64,7 @@ type RuleList struct {
 	NetWhiteListPosture  bool
 }
 
+// UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
 func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) {
 
 	var newrules RuleList
@@ -189,16 +206,37 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 		}
 
-		// for _, net := range secPolicy.Spec.Network.MatchProtocols {
-		// 	var val [8]byte
-		// 	var key uint32 = 0xdeadbeef + protocols[strings.ToUpper(net.Protocol)]
-		// 	if net.Action == "Allow" && defaultPosture.FileAction == "block" {
-		// 		newrules.NetWhiteListPosture = true
-		// 		newrules.NetworkWhiteList[key] = val
-		// 	} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
-		// 		newrules.NetworkBlackList[key] = val
-		// 	}
-		// }
+		for _, net := range secPolicy.Spec.Network.MatchProtocols {
+			var val [8]byte
+			var key = InnerKey{Path: [4096]byte{}}
+			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
+				key.Path[0] = PROTOCOL
+				key.Path[1] = val
+			} else if val, ok := netType[strings.ToUpper(net.Protocol)]; ok {
+				key.Path[0] = TYPE
+				key.Path[1] = val
+			}
+
+			if len(net.FromSource) == 0 {
+				if net.Action == "Allow" && defaultPosture.FileAction == "block" {
+					newrules.NetWhiteListPosture = true
+					newrules.NetworkWhiteList[key] = val
+				} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
+					newrules.NetworkBlackList[key] = val
+				}
+			} else {
+				for _, src := range net.FromSource {
+					copy(key.Source[:], []byte(src.Path))
+					if net.Action == "Allow" && defaultPosture.FileAction == "block" {
+						newrules.NetWhiteListPosture = true
+						newrules.NetworkWhiteList[key] = val
+					} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
+						newrules.NetworkBlackList[key] = val
+					}
+
+				}
+			}
+		}
 	}
 
 	// Check for differences in Fresh Rules Set and Existing Ruleset
@@ -207,10 +245,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	be.resolveConflicts(newrules.NetWhiteListPosture, be.ContainerMap[id].Rules.NetWhiteListPosture, newrules.NetworkBlackList, be.ContainerMap[id].Rules.NetworkBlackList, newrules.NetworkWhiteList, be.ContainerMap[id].Rules.NetworkWhiteList, be.ContainerMap[id].Map)
 
 	if newrules.ProcWhiteListPosture {
-		be.ContainerMap[id].Map.Put(PROCWHITELIST, [8]byte{})
+		if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [8]byte{}); err != nil {
+			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+		}
 		for key, val := range newrules.ProcessWhiteList {
 			be.ContainerMap[id].Rules.ProcessWhiteList[key] = val
-			be.ContainerMap[id].Map.Put(key, val)
+			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			}
 		}
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(PROCWHITELIST); err != nil {
@@ -220,15 +262,21 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 		for key, val := range newrules.ProcessBlackList {
 			be.ContainerMap[id].Rules.ProcessBlackList[key] = val
-			be.ContainerMap[id].Map.Put(key, val)
+			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			}
 		}
 	}
 
 	if newrules.FileWhiteListPosture {
-		be.ContainerMap[id].Map.Put(FILEWHITELIST, [8]byte{})
+		if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [8]byte{}); err != nil {
+			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+		}
 		for key, val := range newrules.FileWhiteList {
 			be.ContainerMap[id].Rules.FileWhiteList[key] = val
-			be.ContainerMap[id].Map.Put(key, val)
+			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			}
 		}
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(FILEWHITELIST); err != nil {
@@ -238,7 +286,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 		for key, val := range newrules.FileBlackList {
 			be.ContainerMap[id].Rules.FileBlackList[key] = val
-			be.ContainerMap[id].Map.Put(key, val)
+			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			}
 			var i uint32
 			err := be.BPFContainerMap.Lookup(be.ContainerMap[id].Key, &i)
 			if err != nil {
@@ -249,10 +299,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 
 	if newrules.NetWhiteListPosture {
-		be.ContainerMap[id].Map.Put(NETWHITELIST, [8]byte{})
+		if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [8]byte{}); err != nil {
+			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+		}
 		for key, val := range newrules.NetworkWhiteList {
 			be.ContainerMap[id].Rules.NetworkWhiteList[key] = val
-			be.ContainerMap[id].Map.Put(key, val)
+			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			}
 		}
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(NETWHITELIST); err != nil {
@@ -262,7 +316,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		}
 		for key, val := range newrules.NetworkBlackList {
 			be.ContainerMap[id].Rules.NetworkBlackList[key] = val
-			be.ContainerMap[id].Map.Put(key, val)
+			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+			}
 		}
 	}
 }
@@ -297,7 +353,7 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackLis
 		}
 	}
 
-	// Change in default posture, We batch delete all the elements
+	// Change in default posture, We batch delete all existing elements
 	if newPosture != oldPosture {
 		var keys []InnerKey
 		if newPosture {
@@ -321,6 +377,7 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackLis
 	}
 }
 
+// dirtoMap extracts parent directories from the Path Key and adds it as hints in the Container Rule Map
 func dirtoMap(p, src string, m map[InnerKey][8]byte, val [8]byte) {
 	var key InnerKey
 	copy(key.Path[:], []byte(p))
@@ -336,7 +393,7 @@ func dirtoMap(p, src string, m map[InnerKey][8]byte, val [8]byte) {
 	for i := 1; i < len(paths)-1; i++ {
 		var key InnerKey
 		val[HINT] = 1
-		var hint string = strings.Join(paths[0:i], "/") + "/"
+		var hint = strings.Join(paths[0:i], "/") + "/"
 		copy(key.Path[:], []byte(hint))
 		if src != "" {
 			copy(key.Source[:], []byte(src))

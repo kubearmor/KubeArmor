@@ -98,6 +98,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	return nil
 }
 
+// RegisterContainer registers container identifiers to BPFEnforcer Map
 func (re *RuntimeEnforcer) RegisterContainer(containerID string, pidns, mntns uint32) {
 	// skip if runtime enforcer is not active
 	if re == nil {
@@ -109,6 +110,7 @@ func (re *RuntimeEnforcer) RegisterContainer(containerID string, pidns, mntns ui
 	}
 }
 
+// UnregisterContainer removes container identifiers from BPFEnforcer Map
 func (re *RuntimeEnforcer) UnregisterContainer(containerID string) {
 	// skip if runtime enforcer is not active
 	if re == nil {

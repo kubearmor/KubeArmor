@@ -524,50 +524,109 @@ decision:
 SEC("lsm/socket_connect")
 int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
              int addrlen) {
-  // struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
-  // bool match = false;
+  bool match = false;
 
-  // struct outer_key okey = {.pid_ns = get_task_pid_ns_id(t),
-  //                          .mnt_ns = get_task_mnt_ns_id(t)};
+  struct outer_key okey = {.pid_ns = get_task_pid_ns_id(t),
+                           .mnt_ns = get_task_mnt_ns_id(t)};
 
-  // if (okey.pid_ns == PROC_PID_INIT_INO) {
-  //   return 0;
-  // }
+  if (okey.pid_ns == PROC_PID_INIT_INO) {
+    return 0;
+  }
 
-  // u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
-  // if (!inner) {
-  //   return 0;
-  // }
+  if (!inner) {
+    return 0;
+  }
 
-  // u32 k;
+  u32 zero = 0;
+  u32 one = 1;
+  bufs_k *p = bpf_map_lookup_elem(&bufk, &zero);
+  if (p == NULL)
+    return 0;
 
-  // k = 0xdeadbeef + sock->sk->sk_protocol;
+  bufs_k *z = bpf_map_lookup_elem(&bufk, &one);
+  if (z == NULL)
+    return 0;
 
-  // if (bpf_map_lookup_elem(inner, &k)) {
-  //   match = true;
-  // }
+  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
 
-  // u32 ank = 103;
-  // struct data_t *allow = bpf_map_lookup_elem(inner, &ank);
+  p->path[0] = 3; // Protocol Check
+  p->path[1] = sock->sk->sk_protocol;
 
-  // if (allow) {
-  //   if (!match) {
-  //     bpf_printk("denying sock type %d, family %d, protocol %d due to not
-  //     in
-  //     "
-  //                "allowlist \n",
-  //                sock->type, address->sa_family, sock->sk->sk_protocol);
-  //     return -EPERM;
-  //   }
-  // } else {
-  //   if (match) {
-  //     bpf_printk(
-  //         "denying sock type %d, family %d, protocol %d due to in blacklist
-  //         \n", sock->type, address->sa_family, sock->sk->sk_protocol);
-  //     return -EPERM;
-  //   }
-  // }
+  struct data_t *val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    return 0;
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    return 0;
+  struct path f_src = BPF_CORE_READ(file_p, f_path);
+  if (!prepend_path(&f_src, src_buf))
+    return 0;
+
+  u32 *src_offset = get_buf_off(PATH_BUFFER);
+  if (src_offset == NULL)
+    return 0;
+
+  void *ptr = &src_buf->buf[*src_offset];
+  bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
+
+  p->path[0] = 2; // Type Check
+  p->path[1] = sock->type;
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+decision:
+
+  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
+  p->path[0] = 102;
+  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+
+  if (allow) {
+    if (!match) {
+      bpf_printk("denying sock type %d, family %d, protocol %d due to not in "
+                 "allowlist \n",
+                 sock->type, address->sa_family, sock->sk->sk_protocol);
+      return -EPERM;
+    }
+  } else {
+    if (match) {
+      bpf_printk("denying sock type %d, family %d, protocol %d due to in "
+                 "blacklist \n",
+                 sock->type, address->sa_family, sock->sk->sk_protocol);
+      return -EPERM;
+    }
+  }
   return 0;
 }

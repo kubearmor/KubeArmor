@@ -15,6 +15,11 @@ import (
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/bpf -O2 -g
 
+// ===================== //
+// == BPFLSM Enforcer == //
+// ===================== //
+
+// BPFEnforcer structure to maintains relevant objects for BPF LSM Enforcement
 type BPFEnforcer struct {
 	Logger *fd.Feeder
 
@@ -30,6 +35,7 @@ type BPFEnforcer struct {
 	Probes map[string]link.Link
 }
 
+// NewBPFEnforcer instantiates a objects for setting up BPF LSM Enforcement
 func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 
 	be := &BPFEnforcer{}
@@ -100,6 +106,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 	return be
 }
 
+// UpdateSecurityPolicies loops through containers present in the input endpoint and updates rules for each container
 func (be *BPFEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	// skip if BPFEnforcer is not active
 	if be == nil {
@@ -113,6 +120,7 @@ func (be *BPFEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 }
 
+// DestroyBPFEnforcer cleans up the objects for BPF LSM Enforcer
 func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 	if be == nil {
 		return nil

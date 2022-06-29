@@ -10,19 +10,20 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+// ContainerKV contains Keys for individual container eBPF Map and the Map itself
 type ContainerKV struct {
 	Key   NsKey
 	Map   *ebpf.Map
 	Rules RuleList
 }
 
-// NsKey Structure
+// NsKey Structure acts as an Identifier for containers
 type NsKey struct {
 	PidNS uint32
 	MntNS uint32
 }
 
-// NsKey Structure
+// InnerKey Structure contains Map Rule Identifier
 type InnerKey struct {
 	Path   [4096]byte
 	Source [4096]byte
