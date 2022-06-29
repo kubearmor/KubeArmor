@@ -13,6 +13,13 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type enforcerBufsK struct {
+	Path   [4096]int8
+	Source [4096]int8
+}
+
+type enforcerBufsT struct{ Buf [32768]int8 }
+
 // loadEnforcer returns the embedded CollectionSpec for enforcer.
 func loadEnforcer() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_EnforcerBytes)
@@ -63,6 +70,9 @@ type enforcerProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerMapSpecs struct {
+	Bufk                *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff             *ebpf.MapSpec `ebpf:"bufs_off"`
 	KubearmorContainers *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 }
 
@@ -85,11 +95,17 @@ func (o *enforcerObjects) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerMaps struct {
+	Bufk                *ebpf.Map `ebpf:"bufk"`
+	Bufs                *ebpf.Map `ebpf:"bufs"`
+	BufsOff             *ebpf.Map `ebpf:"bufs_off"`
 	KubearmorContainers *ebpf.Map `ebpf:"kubearmor_containers"`
 }
 
 func (m *enforcerMaps) Close() error {
 	return _EnforcerClose(
+		m.Bufk,
+		m.Bufs,
+		m.BufsOff,
 		m.KubearmorContainers,
 	)
 }

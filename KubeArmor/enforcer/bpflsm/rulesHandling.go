@@ -5,6 +5,7 @@ package bpflsm
 
 import (
 	"errors"
+	"log"
 	"os"
 	"strings"
 
@@ -22,10 +23,10 @@ const (
 	HINT      uint8 = 6
 )
 
-const (
-	PROCWHITELIST uint32 = 101
-	FILEWHITELIST uint32 = 102
-	NETWHITELIST  uint32 = 103
+var (
+	PROCWHITELIST InnerKey = InnerKey{Path: [4096]byte{101}}
+	FILEWHITELIST InnerKey = InnerKey{Path: [4096]byte{102}}
+	NETWHITELIST  InnerKey = InnerKey{Path: [4096]byte{103}}
 )
 
 // var protocols = map[string]uint32{
@@ -66,19 +67,33 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	// Generate Fresh Rule Set based on Updated Security Policies
 	for _, secPolicy := range securityPolicies {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
-			var key InnerKey
-			copy(key.Path[:], []byte(path.Path))
 
 			var val [8]byte
 			val[EXEC] = 1
 			if path.OwnerOnly {
 				val[OWNER] = 1
 			}
-			if path.Action == "Allow" && defaultPosture.FileAction == "block" {
-				newrules.ProcWhiteListPosture = true
-				newrules.ProcessWhiteList[key] = val
-			} else if path.Action == "Block" && !newrules.ProcWhiteListPosture {
-				newrules.ProcessBlackList[key] = val
+			if len(path.FromSource) == 0 {
+				var key InnerKey
+				copy(key.Path[:], []byte(path.Path))
+				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+					newrules.ProcWhiteListPosture = true
+					newrules.ProcessWhiteList[key] = val
+				} else if path.Action == "Block" && !newrules.ProcWhiteListPosture {
+					newrules.ProcessBlackList[key] = val
+				}
+			} else {
+				for _, src := range path.FromSource {
+					var key InnerKey
+					copy(key.Path[:], []byte(path.Path))
+					copy(key.Source[:], []byte(src.Path))
+					if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+						newrules.ProcWhiteListPosture = true
+						newrules.ProcessWhiteList[key] = val
+					} else if path.Action == "Block" && !newrules.ProcWhiteListPosture {
+						newrules.ProcessBlackList[key] = val
+					}
+				}
 			}
 		}
 
@@ -91,17 +106,26 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if dir.Recursive {
 				val[RECURSIVE] = 1
 			}
-			if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
-				newrules.ProcWhiteListPosture = true
-				dirtoMap(dir.Directory, newrules.ProcessWhiteList, val)
-			} else if dir.Action == "Block" && !newrules.ProcWhiteListPosture {
-				dirtoMap(dir.Directory, newrules.ProcessBlackList, val)
+			if len(dir.FromSource) == 0 {
+				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+					newrules.ProcWhiteListPosture = true
+					dirtoMap(dir.Directory, "", newrules.ProcessWhiteList, val)
+				} else if dir.Action == "Block" && !newrules.ProcWhiteListPosture {
+					dirtoMap(dir.Directory, "", newrules.ProcessBlackList, val)
+				}
+			} else {
+				for _, src := range dir.FromSource {
+					if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+						newrules.ProcWhiteListPosture = true
+						dirtoMap(dir.Directory, src.Path, newrules.ProcessWhiteList, val)
+					} else if dir.Action == "Block" && !newrules.ProcWhiteListPosture {
+						dirtoMap(dir.Directory, src.Path, newrules.ProcessBlackList, val)
+					}
+				}
 			}
 		}
 
 		for _, path := range secPolicy.Spec.File.MatchPaths {
-			var key InnerKey
-			copy(key.Path[:], []byte(path.Path))
 			var val [8]byte
 			val[READ] = 1
 			if path.OwnerOnly {
@@ -110,11 +134,27 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if !path.ReadOnly {
 				val[WRITE] = 1
 			}
-			if path.Action == "Allow" && defaultPosture.FileAction == "block" {
-				newrules.FileWhiteListPosture = true
-				newrules.FileWhiteList[key] = val
-			} else if path.Action == "Block" && !newrules.FileWhiteListPosture {
-				newrules.FileBlackList[key] = val
+			if len(path.FromSource) == 0 {
+				var key InnerKey
+				copy(key.Path[:], []byte(path.Path))
+				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+					newrules.FileWhiteListPosture = true
+					newrules.FileWhiteList[key] = val
+				} else if path.Action == "Block" && !newrules.FileWhiteListPosture {
+					newrules.FileBlackList[key] = val
+				}
+			} else {
+				for _, src := range path.FromSource {
+					var key InnerKey
+					copy(key.Path[:], []byte(path.Path))
+					copy(key.Source[:], []byte(src.Path))
+					if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+						newrules.FileWhiteListPosture = true
+						newrules.FileWhiteList[key] = val
+					} else if path.Action == "Block" && !newrules.FileWhiteListPosture {
+						newrules.FileBlackList[key] = val
+					}
+				}
 			}
 		}
 
@@ -130,11 +170,22 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if dir.Recursive {
 				val[RECURSIVE] = 1
 			}
-			if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
-				newrules.FileWhiteListPosture = true
-				dirtoMap(dir.Directory, newrules.FileWhiteList, val)
-			} else if dir.Action == "Block" && !newrules.FileWhiteListPosture {
-				dirtoMap(dir.Directory, newrules.FileBlackList, val)
+			if len(dir.FromSource) == 0 {
+				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+					newrules.FileWhiteListPosture = true
+					dirtoMap(dir.Directory, "", newrules.FileWhiteList, val)
+				} else if dir.Action == "Block" && !newrules.FileWhiteListPosture {
+					dirtoMap(dir.Directory, "", newrules.FileBlackList, val)
+				}
+			} else {
+				for _, src := range dir.FromSource {
+					if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+						newrules.FileWhiteListPosture = true
+						dirtoMap(dir.Directory, src.Path, newrules.FileWhiteList, val)
+					} else if dir.Action == "Block" && !newrules.FileWhiteListPosture {
+						dirtoMap(dir.Directory, src.Path, newrules.FileBlackList, val)
+					}
+				}
 			}
 		}
 
@@ -188,6 +239,12 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		for key, val := range newrules.FileBlackList {
 			be.ContainerMap[id].Rules.FileBlackList[key] = val
 			be.ContainerMap[id].Map.Put(key, val)
+			var i uint32
+			err := be.BPFContainerMap.Lookup(be.ContainerMap[id].Key, &i)
+			if err != nil {
+				log.Fatalf("error looking map: %s", err)
+			}
+			log.Println(i)
 		}
 	}
 
@@ -264,9 +321,12 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackLis
 	}
 }
 
-func dirtoMap(p string, m map[InnerKey][8]byte, val [8]byte) {
+func dirtoMap(p, src string, m map[InnerKey][8]byte, val [8]byte) {
 	var key InnerKey
 	copy(key.Path[:], []byte(p))
+	if src != "" {
+		copy(key.Source[:], []byte(src))
+	}
 	paths := strings.Split(p, "/")
 	val[DIR] = 1
 	m[key] = val
@@ -278,6 +338,9 @@ func dirtoMap(p string, m map[InnerKey][8]byte, val [8]byte) {
 		val[HINT] = 1
 		var hint string = strings.Join(paths[0:i], "/") + "/"
 		copy(key.Path[:], []byte(hint))
+		if src != "" {
+			copy(key.Source[:], []byte(src))
+		}
 		m[key] = val
 	}
 }
