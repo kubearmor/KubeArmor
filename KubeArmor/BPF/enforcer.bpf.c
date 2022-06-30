@@ -9,7 +9,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define EPERM 1
 
 #define MAX_BUFFER_SIZE 32768
-#define MAX_STRING_SIZE 4096
+#define MAX_STRING_SIZE 256
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0
 
@@ -66,7 +66,7 @@ struct data_t {
 
 struct outer_hash {
   __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
-  __uint(max_entries, 1024);
+  __uint(max_entries, 256);
   __uint(key_size, sizeof(struct outer_key));
   __uint(value_size, sizeof(u32));
   __uint(pinning, LIBBPF_PIN_BY_NAME);
@@ -212,6 +212,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
 
+  u32 two = 2;
+  bufs_k *dir = bpf_map_lookup_elem(&bufk, &two);
+  if (dir == NULL)
+    return 0;
+
   bufs_t *path_buf = get_buf(PATH_BUFFER);
   if (path_buf == NULL)
     return 0;
@@ -228,7 +233,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   struct data_t *val = bpf_map_lookup_elem(inner, p);
 
-  if (val && val->read) {
+  if (val && val->exec) {
     match = true;
     goto decision;
   }
@@ -253,15 +258,10 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   val = bpf_map_lookup_elem(inner, p);
 
-  if (val && val->read) {
+  if (val && val->exec) {
     match = true;
     goto decision;
   }
-
-  u32 two = 2;
-  bufs_k *dir = bpf_map_lookup_elem(&bufk, &two);
-  if (dir == NULL)
-    return 0;
 
 #pragma unroll
   for (int i = 0; i < 64; i++) {
@@ -296,8 +296,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
         if (val) {
           if (val->dir && val->exec) {
             match = true;
-            bpf_printk("dir match %s with recursive %d \n", dir,
-                       val->recursive);
+            bpf_printk("dir match %s with recursive %d and from source %S \n",
+                       dir->path, val->recursive, dir->source);
             if (val->recursive) {
               goto decision;
             } else {
@@ -329,9 +329,9 @@ decision:
     }
   }
 
-  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
-  p->path[0] = 101;
-  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  dir->path[0] = 101;
+  struct data_t *allow = bpf_map_lookup_elem(inner, dir);
 
   if (allow) {
     if (!match) {
@@ -383,6 +383,11 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 
   bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
 
+  u32 two = 2;
+  bufs_k *dir = bpf_map_lookup_elem(&bufk, &two);
+  if (dir == NULL)
+    return 0;
+
   bufs_t *path_buf = get_buf(PATH_BUFFER);
   if (path_buf == NULL)
     return 0;
@@ -428,11 +433,6 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
     goto decision;
   }
 
-  u32 two = 2;
-  bufs_k *dir = bpf_map_lookup_elem(&bufk, &two);
-  if (dir == NULL)
-    return 0;
-
 #pragma unroll
   for (int i = 0; i < 64; i++) {
     if (p->path[i] == '\0')
@@ -444,7 +444,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
       match = false;
 
       bpf_probe_read_str(dir->path, i + 2, p->path);
-      bpf_printk("file access of %s", dir->path);
+      // bpf_printk("file access of %s", dir->path);
       val = bpf_map_lookup_elem(inner, dir);
       if (val) {
         if (val->dir && val->read) {
@@ -463,14 +463,14 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
       } else {
         // Check Subdir with From Source
         bpf_probe_read_str(dir->source, MAX_STRING_SIZE, p->source);
-        bpf_printk("file access from %s", dir->source);
+        // bpf_printk("file access from %s", dir->source);
 
         val = bpf_map_lookup_elem(inner, dir);
         if (val) {
           if (val->dir && val->read) {
             match = true;
-            bpf_printk("dir match %s with recursive %d \n", dir,
-                       val->recursive);
+            bpf_printk("dir match %s with recursive %d and from source %S \n",
+                       dir->path, val->recursive, dir->source);
             if (val->recursive) {
               goto decision;
             } else {
@@ -502,9 +502,9 @@ decision:
     }
   }
 
-  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
-  p->path[0] = 102;
-  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  dir->path[0] = 102;
+  struct data_t *allow = bpf_map_lookup_elem(inner, dir);
 
   if (allow) {
     if (!match) {

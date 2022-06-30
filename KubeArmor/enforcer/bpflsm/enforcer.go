@@ -51,7 +51,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
-		KeySize:    8192,
+		KeySize:    512,
 		ValueSize:  8,
 		MaxEntries: 128,
 	}
@@ -60,7 +60,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 		Type:       ebpf.HashOfMaps,
 		KeySize:    8,
 		ValueSize:  4,
-		MaxEntries: 1024,
+		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
 		InnerMap:   be.InnerMapSpec,
 		Name:       "kubearmor_containers",

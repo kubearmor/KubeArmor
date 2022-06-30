@@ -25,8 +25,8 @@ type NsKey struct {
 
 // InnerKey Structure contains Map Rule Identifier
 type InnerKey struct {
-	Path   [4096]byte
-	Source [4096]byte
+	Path   [256]byte
+	Source [256]byte
 }
 
 // AddContainerIDToMap adds container metadata to Outer eBPF container Map for initialising enforcement tracking and initiates an InnerMap to store the container specific rules

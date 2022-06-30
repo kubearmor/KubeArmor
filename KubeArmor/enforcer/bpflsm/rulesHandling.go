@@ -26,9 +26,9 @@ const (
 
 // Map Key Identifiers for Whitelist/Posture
 var (
-	PROCWHITELIST = InnerKey{Path: [4096]byte{101}}
-	FILEWHITELIST = InnerKey{Path: [4096]byte{102}}
-	NETWHITELIST  = InnerKey{Path: [4096]byte{103}}
+	PROCWHITELIST = InnerKey{Path: [256]byte{101}}
+	FILEWHITELIST = InnerKey{Path: [256]byte{102}}
+	NETWHITELIST  = InnerKey{Path: [256]byte{103}}
 )
 
 // Protocol Identifiers for Network Rules
@@ -208,7 +208,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 		for _, net := range secPolicy.Spec.Network.MatchProtocols {
 			var val [8]byte
-			var key = InnerKey{Path: [4096]byte{}}
+			var key = InnerKey{Path: [256]byte{}}
 			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = PROTOCOL
 				key.Path[1] = val

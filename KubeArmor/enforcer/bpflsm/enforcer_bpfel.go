@@ -14,8 +14,8 @@ import (
 )
 
 type enforcerBufsK struct {
-	Path   [4096]int8
-	Source [4096]int8
+	Path   [256]int8
+	Source [256]int8
 }
 
 type enforcerBufsT struct{ Buf [32768]int8 }
