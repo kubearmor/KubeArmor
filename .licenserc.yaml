@@ -14,6 +14,7 @@ header:
 
   paths-ignore:
     - "KubeArmor/BPF/*"
+    - "KubeArmor/**/*bpf*.go"
     - "protobuf/*"
 
   comment: on-failure
