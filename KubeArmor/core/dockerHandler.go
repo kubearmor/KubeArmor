@@ -172,9 +172,9 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 
 // GetAlreadyDeployedDockerContainers Function
 func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
-	// check if Docker exists
+	// check if Docker exists else instantiate
 	if Docker == nil {
-		return
+		Docker = NewDockerHandler()
 	}
 
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
@@ -376,11 +376,9 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
-	Docker = NewDockerHandler()
-
-	// check if Docker exists
+	// check if Docker exists else instantiate
 	if Docker == nil {
-		return
+		Docker = NewDockerHandler()
 	}
 
 	dm.Logger.Print("Started to monitor Docker events")
