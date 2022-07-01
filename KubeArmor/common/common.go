@@ -20,22 +20,6 @@ import (
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
-// ContainerRuntimeSocketMap lists all sockets that are auto-detected for each
-// supported runtime
-var ContainerRuntimeSocketMap = map[string][]string{
-	"docker": {
-		"/var/run/docker.sock",
-	},
-	"containerd": {
-		"/var/snap/microk8s/common/run/containerd.sock",
-		"/run/k3s/containerd/containerd.sock",
-		"/var/run/containerd/containerd.sock",
-	},
-	"crio": {
-		"/var/run/crio/crio.sock",
-	},
-}
-
 // ============ //
 // == Common == //
 // ============ //
@@ -381,8 +365,22 @@ func IsK8sEnv() bool {
 	return false
 }
 
-// GetCRISocket Function validates and returns the socket for each compatible
-// runtime
+// ContainerRuntimeSocketMap Structure
+var ContainerRuntimeSocketMap = map[string][]string{
+	"docker": {
+		"/var/run/docker.sock",
+	},
+	"containerd": {
+		"/var/snap/microk8s/common/run/containerd.sock",
+		"/run/k3s/containerd/containerd.sock",
+		"/var/run/containerd/containerd.sock",
+	},
+	"crio": {
+		"/var/run/crio/crio.sock",
+	},
+}
+
+// GetCRISocket Function
 func GetCRISocket(ContainerRuntime string) string {
 	for _, candidate := range ContainerRuntimeSocketMap[ContainerRuntime] {
 		if _, err := os.Stat(candidate); err == nil {

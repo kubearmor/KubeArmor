@@ -22,6 +22,7 @@ type KubearmorConfig struct {
 	GRPC              string // gRPC Port to use
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
+	CRISocket         string // Container runtime to use
 
 	Visibility     string // Container visibility to use
 	HostVisibility string // Host visibility to use
@@ -40,8 +41,6 @@ type KubearmorConfig struct {
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
 	CoverageTest bool // Enable/Disable Coverage Test
-
-	CRISocket string // The container runtime endpoint to use
 }
 
 // PolicyDir policy dir path for host policies backup
@@ -67,6 +66,9 @@ const ConfigLogPath string = "logPath"
 
 // ConfigSELinuxProfileDir SELinux Profile Directory key
 const ConfigSELinuxProfileDir string = "seLinuxProfileDir"
+
+// ConfigCRISocket key
+const ConfigCRISocket string = "criSocket"
 
 // ConfigVisibility Container visibility key
 const ConfigVisibility string = "visibility"
@@ -107,9 +109,6 @@ const ConfigCoverageTest string = "coverageTest"
 // ConfigK8sEnv VM key
 const ConfigK8sEnv string = "k8s"
 
-// ConfigCRISocket key
-const ConfigCRISocket string = "criSocket"
-
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
@@ -118,6 +117,7 @@ func readCmdLineParams() {
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	logStr := flag.String(ConfigLogPath, "/tmp/kubearmor.log", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
+	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
 
 	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
 	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
@@ -137,8 +137,6 @@ func readCmdLineParams() {
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
-	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket. Format: unix:///path/to/file.sock. If empty kubearmor will try to auto-detect this.")
-
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
 		kv := fmt.Sprintf("%s:%v", f.Name, f.Value)
@@ -154,6 +152,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigGRPC, *grpcStr)
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
+	viper.SetDefault(ConfigCRISocket, *criSocket)
 
 	viper.SetDefault(ConfigVisibility, *visStr)
 	viper.SetDefault(ConfigHostVisibility, *hostVisStr)
@@ -172,8 +171,6 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHostDefaultCapabilitiesPosture, *hostDefaultCapabilitiesPosture)
 
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
-
-	viper.SetDefault(ConfigCRISocket, *criSocket)
 }
 
 // LoadConfig Load configuration
@@ -206,6 +203,15 @@ func LoadConfig() error {
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
+	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
+	if GlobalCfg.CRISocket == "" {
+		GlobalCfg.CRISocket = viper.GetString(ConfigCRISocket)
+	}
+
+	if GlobalCfg.CRISocket != "" && !strings.HasPrefix(GlobalCfg.CRISocket, "unix://") {
+		return fmt.Errorf("CRI socket must start with 'unix://' (%s is invalid)", GlobalCfg.CRISocket)
+	}
+
 	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
 
@@ -221,16 +227,6 @@ func LoadConfig() error {
 	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
 	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
 	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
-
-	// read CRI_SOCKET env variable. If empty, check criSocket flag
-	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
-	if GlobalCfg.CRISocket == "" {
-		GlobalCfg.CRISocket = viper.GetString(ConfigCRISocket)
-	}
-
-	if GlobalCfg.CRISocket != "" && !strings.HasPrefix(GlobalCfg.CRISocket, "unix://") {
-		return fmt.Errorf("%s is invalid. CRI socket must start with unix://", GlobalCfg.CRISocket)
-	}
 
 	kg.Printf("Configuration [%+v]", GlobalCfg)
 

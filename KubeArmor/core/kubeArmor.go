@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -467,12 +466,12 @@ func KubeArmor() {
 				dm.GetAlreadyDeployedDockerContainers()
 				// monitor docker events
 				go dm.MonitorDockerEvents()
-			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "crio") {
-				// monitor crio events
-				go dm.MonitorCrioEvents()
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// monitor containerd events
 				go dm.MonitorContainerdEvents()
+			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "crio") {
+				// monitor crio events
+				go dm.MonitorCrioEvents()
 			} else {
 				dm.Logger.Errf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
 				// destroy the daemon
@@ -486,7 +485,7 @@ func KubeArmor() {
 			dm.Logger.Print("CRI socket not set. Trying to detect.")
 
 			if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "docker") {
-				socketFile := common.GetCRISocket("docker")
+				socketFile := kl.GetCRISocket("docker")
 
 				if socketFile != "" {
 					cfg.GlobalCfg.CRISocket = "unix://" + socketFile
@@ -499,7 +498,7 @@ func KubeArmor() {
 				} else {
 					// we might have to use containerd's socket as docker's socket is not
 					// available
-					socketFile := common.GetCRISocket("containerd")
+					socketFile := kl.GetCRISocket("containerd")
 
 					if socketFile != "" {
 						cfg.GlobalCfg.CRISocket = "unix://" + socketFile
@@ -515,24 +514,8 @@ func KubeArmor() {
 						return
 					}
 				}
-			} else if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "cri-o") { // cri-o
-				socketFile := common.GetCRISocket("crio")
-
-				if socketFile != "" {
-					cfg.GlobalCfg.CRISocket = "unix://" + socketFile
-
-					// monitor cri-o events
-					go dm.MonitorCrioEvents()
-				} else {
-					dm.Logger.Err("Failed to monitor containers (CRI-O socket file is not accessible)")
-
-					// destroy the daemon
-					dm.DestroyKubeArmorDaemon()
-
-					return
-				}
-			} else { // containerd
-				socketFile := common.GetCRISocket("containerd")
+			} else if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "containerd") { // containerd
+				socketFile := kl.GetCRISocket("containerd")
 
 				if socketFile != "" {
 					cfg.GlobalCfg.CRISocket = "unix://" + socketFile
@@ -541,6 +524,22 @@ func KubeArmor() {
 					go dm.MonitorContainerdEvents()
 				} else {
 					dm.Logger.Err("Failed to monitor containers (Containerd socket file is not accessible)")
+
+					// destroy the daemon
+					dm.DestroyKubeArmorDaemon()
+
+					return
+				}
+			} else if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "cri-o") { // cri-o
+				socketFile := kl.GetCRISocket("crio")
+
+				if socketFile != "" {
+					cfg.GlobalCfg.CRISocket = "unix://" + socketFile
+
+					// monitor cri-o events
+					go dm.MonitorCrioEvents()
+				} else {
+					dm.Logger.Err("Failed to monitor containers (CRI-O socket file is not accessible)")
 
 					// destroy the daemon
 					dm.DestroyKubeArmorDaemon()
