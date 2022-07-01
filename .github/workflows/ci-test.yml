@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-18.04]
-        runtime: ["containerd", "docker", "crio"]
+        runtime: ["docker", "containerd", "crio"]
     steps:
       - name: Kernel version
         run: uname -r
@@ -54,11 +54,15 @@ jobs:
 
       - name: Setup Enviroment
         run: |
-          if [ "$RUNTIME" == "crio" ]; then
-            ./contribution/self-managed-k8s/crio/install-crio.sh
+          echo "RUNTIME="$RUNTIME
+          if [ "$RUNTIME" == "docker" ]; then
+            ./contribution/self-managed-k8s/docker/install_docker.sh
+            docker --version
+          elif [ "$RUNTIME" == "crio" ]; then
+            ./contribution/self-managed-k8s/crio/install_crio.sh
             crio --version
           fi
-          RUNTIME=$RUNTIME ./contribution/k3s/install_k3s.sh
+          ./contribution/k3s/install_k3s.sh
 
       - name: Install annotation controller
         run: |
@@ -71,7 +75,7 @@ jobs:
         run: kubectl proxy &
 
       - name: Test KubeArmor
-        run: RUNTIME=$RUNTIME ./tests/test-scenarios-github.sh
+        run: ./tests/test-scenarios-github.sh
         timeout-minutes: 15
 
       - name: Archive log artifacts

@@ -34,8 +34,7 @@ jobs:
           else
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
-          # use docker because image build script uses docker
-          RUNTIME="docker" ./contribution/k3s/install_k3s.sh
+          ./contribution/k3s/install_k3s.sh
 
       - name: Install annotation controller
         run: |
