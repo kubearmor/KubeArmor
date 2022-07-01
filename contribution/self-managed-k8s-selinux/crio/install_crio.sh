@@ -4,8 +4,8 @@
 
 . /etc/os-release
 
-if [ "$ID" != "centos" ]; then
-    echo "Supports CentOS"
+if [[ "$NAME" != "CentOS Linux" ] || [ "$VERSION" != "8" ]]; then
+    echo "Support CentOS 8"
     exit
 fi
 
@@ -13,7 +13,7 @@ OS="CentOS_${VERSION_ID}"
 VERSION=1.19
 
 if [ "$NAME" == "CentOS Stream" ]; then
-	OS="${OS}_Stream"
+    OS="${OS}_Stream"
 fi
 
 # remove podman

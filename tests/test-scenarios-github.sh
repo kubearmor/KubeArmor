@@ -22,14 +22,6 @@ realpath() {
 TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
-IGN_FILE=$TEST_HOME/tests.ignore
-
-# skip tests that don't work with some runtimes
-if [ "$RUNTIME" == "crio" ]; then
-	# see #697
-	echo "github_test_13" | tee -a $IGN_FILE
-	echo "github_test_09" | tee -a $IGN_FILE
-fi
 
 LSM="none"
 
@@ -630,12 +622,35 @@ res_microservice=0
 
 is_test_ignored()
 {
+    IGN_FILE=$TEST_HOME/tests.ignore
+
+    # skip tests that don't work with some runtimes
+    if [ "$RUNTIME" == "crio" ]; then
+        # skip tests for net_raw capability (see #697)
+        echo "github_test_09" | tee -a $IGN_FILE
+        echo "github_test_13" | tee -a $IGN_FILE
+    fi
+
     [[ ! -f $IGN_FILE ]] && return 0
     for line in `grep "^[a-zA-Z].*" $IGN_FILE`; do
         echo $testcase | grep $line >/dev/null
         [[ $? -eq 0 ]] && echo "matched ignore pattern [$line]" && return 1
     done
     return 0
+}
+
+is_test_allowed()
+{
+    cnt=0
+    ALLOW_FILE=$TEST_HOME/tests.allow
+    [[ ! -f $ALLOW_FILE ]] && return 1
+    for line in `grep "^[a-zA-Z].*" $ALLOW_FILE`; do
+        echo $testcase | grep $line >/dev/null
+        [[ $? -eq 0 ]] && echo "does not match ignore pattern [$line]" && return 1
+        ((cnt++))
+    done
+    [[ $cnt -gt 0 ]] && echo "Testcase does not match any allowed pattern in [$ALLOW_FILE]" && return 0
+    return 1
 }
 
 if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
@@ -662,6 +677,9 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
     do
         is_test_ignored
         [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue
+
+        is_test_allowed
+        [[ $? -eq 0 ]] && WARN "Testcase $testcase disallowed" && continue
 
         res_case=0
 

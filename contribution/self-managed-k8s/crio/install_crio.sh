@@ -27,7 +27,7 @@ sudo apt-get install cri-o cri-o-runc
 
 # this option is not supported in ubuntu 18.04
 if [ "$VERSION_ID" == "18.04" ]; then
-	sudo sed -i 's/,metacopy=on//g' /etc/containers/storage.conf
+    sudo sed -i 's/,metacopy=on//g' /etc/containers/storage.conf
 fi
 
 sudo systemctl daemon-reload
