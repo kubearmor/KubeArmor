@@ -70,6 +70,18 @@ jobs:
       - name: Run kubectl proxy
         run: kubectl proxy &
 
+      - name: Run kubearmor in local process mode
+        run: |
+          pwd
+          make -C KubeArmor/ run 2>&1 > /tmp/kubearmor.msg &
+        timeout-minutes: 5
+
+      - name: ginkgo kubearmor tests
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/
+        timeout-minutes: 5
+
       - name: Test KubeArmor
         run: RUNTIME=$RUNTIME ./tests/test-scenarios-github.sh
         timeout-minutes: 15
