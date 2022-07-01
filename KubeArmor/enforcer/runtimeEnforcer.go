@@ -105,28 +105,6 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profil
 	}
 }
 
-// UpdateSELinuxProfiles Function
-func (re *RuntimeEnforcer) UpdateSELinuxProfiles(podName, action string, profiles map[string]string) {
-	// skip if runtime enforcer is not active
-	if re == nil {
-		return
-	}
-
-	if re.EnforcerType == "SELinux" {
-		for _, profile := range profiles {
-			if profile == "unconfined" {
-				continue
-			}
-
-			if action == "ADDED" {
-				re.seLinuxEnforcer.RegisterSELinuxProfile(podName, profile)
-			} else if action == "DELETED" {
-				re.seLinuxEnforcer.UnregisterSELinuxProfile(podName, profile)
-			}
-		}
-	}
-}
-
 // UpdateSecurityPolicies Function
 func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	// skip if runtime enforcer is not active
@@ -137,7 +115,7 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
 	} else if re.EnforcerType == "SELinux" {
-		re.seLinuxEnforcer.UpdateSecurityPolicies(endPoint)
+		// do nothing
 	}
 }
 

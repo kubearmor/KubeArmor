@@ -1,7 +1,7 @@
 source: kubearmor-dev
 cmd: bash -c ls
-result: failed
+result: default
 ---
 operation: Process
 condition: ls
-action: Allow
+action: default
