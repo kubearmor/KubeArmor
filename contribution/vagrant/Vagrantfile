@@ -79,7 +79,7 @@ Vagrant.configure("2") do |config|
 
     if ENV['K8S'] == "kubeadm" then
       # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=crio /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
+      config.vm.provision :shell, :inline => "/home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
 
       # initialize Kubernetes
       config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
@@ -108,7 +108,7 @@ Vagrant.configure("2") do |config|
 
     if ENV['K8S'] == "kubeadm" then
       # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=containerd /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
+      config.vm.provision :shell, :inline => "/home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
 
       # initialize Kubernetes
       config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"

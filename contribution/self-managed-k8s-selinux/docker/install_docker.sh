@@ -5,7 +5,7 @@
 DOCKER_INSTALL=`dirname $(realpath "$0")`
 
 # remove podman
-sudo yum remove buildah skopeo podman containers-common atomic-registries docker container-tools
+sudo yum remove -y buildah skopeo podman containers-common atomic-registries docker container-tools
 
 # remove left-over files
 sudo rm -rf /etc/containers/* /var/lib/containers/* /etc/docker /etc/subuid* /etc/subgid*

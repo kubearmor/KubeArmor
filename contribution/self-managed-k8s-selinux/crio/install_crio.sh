@@ -4,20 +4,13 @@
 
 . /etc/os-release
 
-if [[ "$NAME" != "CentOS Linux" ] || [ "$VERSION" != "8" ]]; then
+if [ "$NAME" != "CentOS Linux" ] && [ "$VERSION" != "8" ]; then
     echo "Support CentOS 8"
     exit
 fi
 
-OS="CentOS_${VERSION_ID}"
-VERSION=1.19
-
-if [ "$NAME" == "CentOS Stream" ]; then
-    OS="${OS}_Stream"
-fi
-
 # remove podman
-sudo yum remove buildah skopeo podman containers-common atomic-registries docker container-tools
+sudo yum remove -y buildah skopeo podman containers-common atomic-registries docker container-tools
 
 # remove left-over files
 sudo rm -rf /etc/containers/* /var/lib/containers/* /etc/docker /etc/subuid* /etc/subgid*
@@ -27,10 +20,12 @@ cd ~ && rm -rf /.local/share/containers/
 sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 
 # setup repo
-sudo curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:kubic:libcontainers:stable.repo
-sudo curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:$VERSION/$OS/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
-
-sudo yum install cri-o containernetworking-plugins
+VERSION=1.22
+sudo dnf -y install 'dnf-command(copr)'
+sudo dnf -y copr enable rhcontainerbot/container-selinux
+sudo curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/CentOS_8/devel:kubic:libcontainers:stable.repo
+sudo curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:${VERSION}.repo https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:${VERSION}/CentOS_8/devel:kubic:libcontainers:stable:cri-o:${VERSION}.repo
+sudo yum install -y cri-o cri-tools containernetworking-plugins
 
 sudo systemctl daemon-reload
-sudo systemctl start crio.service
+sudo systemctl enable --now crio
