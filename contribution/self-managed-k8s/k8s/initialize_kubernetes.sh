@@ -9,11 +9,11 @@ fi
 
 # use docker as default CRI
 if [ "$CRI_SOCKET" == "" ]; then
-    if [ -f /var/run/docker.sock ]; then
+    if [ -S /var/run/docker.sock ]; then
         CRI_SOCKET=unix:///var/run/docker.sock
-    elif [ -f /var/run/containerd/containerd.sock ]; then
+    elif [ -S /var/run/containerd/containerd.sock ]; then
         CRI_SOCKET=unix:///var/run/containerd/containerd.sock
-    elif [ -f /var/run/crio/crio.sock ]; then
+    elif [ -S /var/run/crio/crio.sock ]; then
         CRI_SOCKET=unix:///var/run/crio/crio.sock
     fi
 fi

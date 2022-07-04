@@ -3,9 +3,9 @@
 # Copyright 2021 Authors of KubeArmor
 
 if [ "$RUNTIME" == "" ]; then
-    if [ -f /var/run/docker.sock ]; then
+    if [ -S /var/run/docker.sock ]; then
         RUNTIME="docker"
-    elif [ -f /var/run/crio/crio.sock ]; then
+    elif [ -S /var/run/crio/crio.sock ]; then
         RUNTIME="crio"
     else # default
         RUNTIME="containerd"
