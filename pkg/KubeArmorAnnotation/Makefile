@@ -78,9 +78,31 @@ docker-push: ## Push docker image with the manager.
 
 ##@ Deployment
 
-deploy-cert-manager: ## Deploy cert-manager before deploying the admission controller
+deploy-cert-manager: ensure-cmctl ## Deploy cert-manager before deploying the admission controller
 	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
 	kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
+	@echo "Waiting for cert manager to inject CA bundle, this can take up to 5 minutes"
+	$(CMCTL) check api  --wait 300s
+
+CMCTL = /usr/local/bin/cmctl
+ensure-cmctl:
+	$(call get-cmctl,$(CMCTL))
+
+define get-cmctl 
+@[ -f $(1) ] || { \
+OS=$$(go env GOOS) ;\
+ARCH=$$(go env GOARCH) ;\
+echo "Downloading cmctl" ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+curl -sSL -o cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/download/v1.7.2/cmctl-$$OS-$$ARCH.tar.gz ;\
+echo "Installing ..." ;\
+tar xzf cmctl.tar.gz ;\
+sudo mv cmctl $(1) ;\
+rm -rf $$TMP_DIR ;\
+echo "cmctl is now under $(1)" ;\
+}
+endef
 
 delete-cert-manager: ## Delete cert-manager when deleting the admission controller
 	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
@@ -92,8 +114,14 @@ deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s 
 		sed 's/kubearmor-annotation-controller-manager/kubearmor-annotation-manager/g' | \
 		sed -e "1,7d" | kubectl apply -f -
 
-delete: delete-cert-manager ## Delete controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+delete-annotation-controller:  ## Delete controller from the K8s cluster specified in ~/.kube/config.
+	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-annotation-manager/g' | \
+		sed 's/kubearmor-annotation-controller-manager/kubearmor-annotation-manager/g' | \
+		sed -e "1,7d" | kubectl delete -f -
+
+delete: delete-annotation-controller delete-cert-manager ## Delete annotation controller and cert manager from the K8s cluster specified in ~/.kube/config.
+	
 
 deployment: manifests kustomize
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
