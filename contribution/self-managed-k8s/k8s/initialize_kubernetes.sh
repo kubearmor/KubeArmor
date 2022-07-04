@@ -9,18 +9,18 @@ fi
 
 # use docker as default CRI
 if [ "$CRI_SOCKET" == "" ]; then
-	if [ -f /var/run/docker.sock ]; then
-		CRI_SOCKET=unix:///var/run/docker.sock
-	elif [ -f /var/run/containerd/containerd.sock ]; then
-		CRI_SOCKET=unix:///var/run/containerd/containerd.sock
-	elif [ -f /var/run/crio/crio.sock ]; then
-		CRI_SOCKET=unix:///var/run/crio/crio.sock
-	fi
+    if [ -f /var/run/docker.sock ]; then
+        CRI_SOCKET=unix:///var/run/docker.sock
+    elif [ -f /var/run/containerd/containerd.sock ]; then
+        CRI_SOCKET=unix:///var/run/containerd/containerd.sock
+    elif [ -f /var/run/crio/crio.sock ]; then
+        CRI_SOCKET=unix:///var/run/crio/crio.sock
+    fi
 fi
 
 # check supported CNI
 if [ "$CNI" != "flannel" ] && [ "$CNI" != "weave" ] && [ "$CNI" != "calico" ] && [ "$CNI" != "cilium" ]; then
-    echo "Usage: CNI={flannel|weave|calico|cilium} CRI_SOCKET="unix:///path/to/socket_file" MASTER={true|false} $0"
+    echo "Usage: CNI={flannel|weave|calico|cilium} CRI_SOCKET=unix:///path/to/socket_file MASTER={true|false} $0"
     exit
 fi
 

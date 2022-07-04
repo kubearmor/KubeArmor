@@ -5,7 +5,7 @@
 DOCKER_INSTALL=`dirname $(realpath "$0")`
 
 # remove podman
-sudo yum remove buildah skopeo podman containers-common atomic-registries docker container-tools
+sudo yum remove -y buildah skopeo podman containers-common atomic-registries docker container-tools
 
 # remove left-over files
 sudo rm -rf /etc/containers/* /var/lib/containers/* /etc/docker /etc/subuid* /etc/subgid*
@@ -25,13 +25,13 @@ sudo dnf -y install docker-ce docker-ce-cli containerd.io
 sudo mkdir -p /etc/docker
 cat <<EOF | sudo tee /etc/docker/daemon.json
 {
-  "exec-opts": ["native.cgroupdriver=systemd"],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "100m"
-  },
-  "storage-driver": "overlay2",
-  "selinux-enabled": true
+    "exec-opts": ["native.cgroupdriver=systemd"],
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "100m"
+    },
+    "storage-driver": "overlay2",
+    "selinux-enabled": true
 }
 EOF
 

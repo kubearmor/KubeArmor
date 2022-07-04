@@ -69,40 +69,27 @@ Vagrant.configure("2") do |config|
     # install base dependencies
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/setup.sh"
 
-    if ENV['RUNTIME'] == "containerd" then # TODO: still use docker / need to support containerd
-      # install Docker
-      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/docker/install_docker.sh"
-
-      # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
-
-    elsif ENV['RUNTIME'] == "crio" then
+    if ENV['RUNTIME'] == "crio" then
       # install CRI-O
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/crio/install_crio.sh"
-
-      # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=crio /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
-
     else # default == 'docker'
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/docker/install_docker.sh"
-
-      if ENV['RUNTIME'] == "k3s" then
-        # install k3s
-        config.vm.provision :shell, path: kubearmor_home + "/contribution/k3s/install_k3s.sh"
-      else
-        # install Kubernetes
-        config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
-      end
     end
 
-    if ENV['RUNTIME'] != "k3s" then
+    if ENV['K8S'] == "kubeadm" then
+      # install Kubernetes
+      config.vm.provision :shell, :inline => "/home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/install_kubernetes.sh"
+
       # initialize Kubernetes
       config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s-selinux/k8s/initialize_kubernetes.sh"
-
-      # enable SELinux
-      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
+    else # k3s by default
+      # install k3s
+      config.vm.provision :shell, path: kubearmor_home + "/contribution/k3s/install_k3s.sh"
     end
+
+    # enable SELinux
+    config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
 
   else # ubuntu
     # install base dependencies
@@ -110,34 +97,24 @@ Vagrant.configure("2") do |config|
 
     if ENV['RUNTIME'] == "containerd" then
       # install Containerd
-      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/containerd/install-containerd.sh"
-
-      # install Kubernetes
-      config.vm.provision :shell, :inline => "RUNTIME=containerd /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
-
+      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/containerd/install_containerd.sh"
     elsif ENV['RUNTIME'] == "crio" then
       # install CRI-O
-      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/crio/install-crio.sh"
-
-      # install Kubernetes
-      config.vm.provision :shell, :inline => "CRI_SOCKET=unix:///var/run/crio/crio.sock /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
-
+      config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/crio/install_crio.sh"
     else # default == 'docker'
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/docker/install_docker.sh"
-
-      if ENV['RUNTIME'] == "k3s" then
-        # install k3s
-        config.vm.provision :shell, path: kubearmor_home + "/contribution/k3s/install_k3s.sh"
-      else
-        # install Kubernetes
-        config.vm.provision :shell, :inline => "RUNTIME=docker /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
-      end
     end
 
-    if ENV['RUNTIME'] != "k3s" then
+    if ENV['K8S'] == "kubeadm" then
+      # install Kubernetes
+      config.vm.provision :shell, :inline => "/home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/install_kubernetes.sh"
+
       # initialize Kubernetes
       config.vm.provision :shell, :inline => "CNI=cilium MASTER=true /home/vagrant/KubeArmor/contribution/self-managed-k8s/k8s/initialize_kubernetes.sh"
+    else # k3s by default
+      # install k3s
+      config.vm.provision :shell, path: kubearmor_home + "/contribution/k3s/install_k3s.sh"
     end
   end
 

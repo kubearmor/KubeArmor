@@ -2,6 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
+if [ "$RUNTIME" == "" ]; then
+    if [ -f /var/run/docker.sock ]; then
+        RUNTIME="docker"
+    elif [ -f /var/run/crio/crio.sock ]; then
+        RUNTIME="crio"
+    else # default
+        RUNTIME="containerd"
+    fi
+fi
+
 # create a single-node K3s cluster
 if [ "$RUNTIME" == "docker" ]; then # docker
     CGROUP_SYSTEMD=$(docker info 2> /dev/null | grep -i cgroup | grep systemd | wc -l)

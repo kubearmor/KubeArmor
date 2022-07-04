@@ -309,14 +309,15 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 // MonitorCrioEvents Function
 func (dm *KubeArmorDaemon) MonitorCrioEvents() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
 	Crio = NewCrioHandler()
+
 	// check if Crio exists
 	if Crio == nil {
 		return
 	}
-
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
 
 	dm.Logger.Print("Started to monitor CRI-O events")
 

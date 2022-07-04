@@ -364,15 +364,15 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 // MonitorContainerdEvents Function
 func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
 	Containerd = NewContainerdHandler()
 
 	// check if Containerd exists
 	if Containerd == nil {
 		return
 	}
-
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
 
 	dm.Logger.Print("Started to monitor Containerd events")
 
