@@ -5,7 +5,6 @@ package bpflsm
 
 import (
 	"errors"
-	"log"
 	"os"
 	"strings"
 
@@ -87,6 +86,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 			var val [8]byte
 			val[EXEC] = 1
+			val[READ] = 1 // Exec needs to pass through file open so need to provide this
 			if path.OwnerOnly {
 				val[OWNER] = 1
 			}
@@ -117,6 +117,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 			var val [8]byte
 			val[EXEC] = 1
+			val[READ] = 1 // Exec needs to pass through file open so need to provide this
 			if dir.OwnerOnly {
 				val[OWNER] = 1
 			}
@@ -218,7 +219,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 
 			if len(net.FromSource) == 0 {
-				if net.Action == "Allow" && defaultPosture.FileAction == "block" {
+				if net.Action == "Allow" && defaultPosture.NetworkAction == "block" {
 					newrules.NetWhiteListPosture = true
 					newrules.NetworkWhiteList[key] = val
 				} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
@@ -227,7 +228,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else {
 				for _, src := range net.FromSource {
 					copy(key.Source[:], []byte(src.Path))
-					if net.Action == "Allow" && defaultPosture.FileAction == "block" {
+					if net.Action == "Allow" && defaultPosture.NetworkAction == "block" {
 						newrules.NetWhiteListPosture = true
 						newrules.NetworkWhiteList[key] = val
 					} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
@@ -243,6 +244,15 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	be.resolveConflicts(newrules.ProcWhiteListPosture, be.ContainerMap[id].Rules.ProcWhiteListPosture, newrules.ProcessBlackList, be.ContainerMap[id].Rules.ProcessBlackList, newrules.ProcessWhiteList, be.ContainerMap[id].Rules.ProcessWhiteList, be.ContainerMap[id].Map)
 	be.resolveConflicts(newrules.FileWhiteListPosture, be.ContainerMap[id].Rules.FileWhiteListPosture, newrules.FileBlackList, be.ContainerMap[id].Rules.FileBlackList, newrules.FileWhiteList, be.ContainerMap[id].Rules.FileWhiteList, be.ContainerMap[id].Map)
 	be.resolveConflicts(newrules.NetWhiteListPosture, be.ContainerMap[id].Rules.NetWhiteListPosture, newrules.NetworkBlackList, be.ContainerMap[id].Rules.NetworkBlackList, newrules.NetworkWhiteList, be.ContainerMap[id].Rules.NetworkWhiteList, be.ContainerMap[id].Map)
+
+	// Update Posture
+	if list, ok := be.ContainerMap[id]; ok {
+		list.Rules.ProcWhiteListPosture = newrules.ProcWhiteListPosture
+		list.Rules.FileWhiteListPosture = newrules.FileWhiteListPosture
+		list.Rules.NetWhiteListPosture = newrules.NetWhiteListPosture
+
+		be.ContainerMap[id] = list
+	}
 
 	if newrules.ProcWhiteListPosture {
 		if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [8]byte{}); err != nil {
@@ -289,12 +299,6 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
 				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
 			}
-			var i uint32
-			err := be.BPFContainerMap.Lookup(be.ContainerMap[id].Key, &i)
-			if err != nil {
-				log.Fatalf("error looking map: %s", err)
-			}
-			log.Println(i)
 		}
 	}
 

@@ -335,7 +335,8 @@ decision:
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying proc %s due to not in allowlist \n", p->path);
+      bpf_printk("denying proc %s due to not in allowlist, source -> %s \n",
+                 p->path, p->source);
       return -EPERM;
     }
   } else {
@@ -469,7 +470,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
         if (val) {
           if (val->dir && val->read) {
             match = true;
-            bpf_printk("dir match %s with recursive %d and from source %S \n",
+            bpf_printk("dir match %s with recursive %d and from source %s \n",
                        dir->path, val->recursive, dir->source);
             if (val->recursive) {
               goto decision;
@@ -508,7 +509,8 @@ decision:
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying file %s due to not in allowlist \n", p);
+      bpf_printk("denying file %s due to not in allowlist, source -> %s \n",
+                 p->path, p->source);
       return -EPERM;
     }
   } else {
@@ -610,7 +612,7 @@ int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
 decision:
 
   bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
-  p->path[0] = 102;
+  p->path[0] = 103;
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
 
   if (allow) {
