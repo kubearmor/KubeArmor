@@ -2,6 +2,21 @@
 
 There are two ways to check the functionalities of KubeArmor: 1) testing KubeArmor manually and 2) using the testing framework.
 
+# 0. Make sure that the annotation controller is installed on the cluster (Applicable for Steps 1 and 2)
+
+- To install the controller from KubeArmor docker repository to your cluster run
+
+```text
+$ cd KubeArmor/pkg/KubeArmorAnnotation
+~/KubeArmor/pkg/KubeArmorAnnotation$ make deploy
+```
+- To install the controller (local version) to your cluster run
+
+```text
+$ cd KubeArmor/pkg/KubeArmorAnnotation
+~/KubeArmor/pkg/KubeArmorAnnotation$ make docker-build deploy
+```
+
 # 1.  Test KubeArmor manually
 
 ## 1.1. Run 'kubectl proxy' in background
