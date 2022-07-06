@@ -6,7 +6,7 @@
 #include <bpf/bpf_tracing.h>
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
-#define EPERM 1
+#define EPERM 13
 
 #define MAX_BUFFER_SIZE 32768
 #define MAX_STRING_SIZE 256
