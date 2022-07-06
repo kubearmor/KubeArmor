@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	envs := []string{"generic", "docker", "minikube", "microk8s", "k3s", "GKE", "EKS", "AKS"}
+	envs := []string{"generic", "docker", "minikube", "microk8s", "k3s", "GKE", "EKS", "BottleRocket", "AKS"}
 	nsPtr := flag.String("namespace", "kube-system", "Namespace")
 
 	flag.Parse()

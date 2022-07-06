@@ -10,16 +10,20 @@ import (
 var kubearmor = "kubearmor"
 var port int32 = 32767
 
-var serviceAccountName = kubearmor
-var clusterRoleBindingName = kubearmor
-var relayServiceName = kubearmor
-var relayDeploymentName = "kubearmor-relay"
-var policyManagerServiceName = "kubearmor-policy-manager-metrics-service"
-var policyManagerDeploymentName = "kubearmor-policy-manager"
-var hostPolicyManagerServiceName = "kubearmor-host-policy-manager-metrics-service"
-var hostPolicyManagerDeploymentName = "kubearmor-host-policy-manager"
-var AnnotationsControllerServiceName = "kubearmor-annotation-manager-metrics-service"
-var AnnotationsControllerDeploymentName = "kubearmor-annotation-manager"
+// K8s Object Name Defaults
+var (
+	serviceAccountName                  = kubearmor
+	clusterRoleBindingName              = kubearmor
+	relayServiceName                    = kubearmor
+	relayDeploymentName                 = "kubearmor-relay"
+	policyManagerServiceName            = "kubearmor-policy-manager-metrics-service"
+	policyManagerDeploymentName         = "kubearmor-policy-manager"
+	hostPolicyManagerServiceName        = "kubearmor-host-policy-manager-metrics-service"
+	hostPolicyManagerDeploymentName     = "kubearmor-host-policy-manager"
+	AnnotationsControllerServiceName    = "kubearmor-annotation-manager-metrics-service"
+	AnnotationsControllerDeploymentName = "kubearmor-annotation-manager"
+	AnnotationsControllerSecretName     = "kubearmor-webhook-server-cert"
+)
 
 // DaemonSetConfig Structure
 type DaemonSetConfig struct {
@@ -404,6 +408,63 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/containerd/containerd.sock",
+						Type: &hostPathSocket,
+					},
+				},
+			},
+			{
+				Name: "containerd-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/run/containerd",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+			{
+				Name: "docker-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/lib/docker",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+		},
+	},
+	"bottlerocket": {
+		Args: []string{
+			"-enableKubeArmorHostPolicy",
+			"-criSocket=unix:///run/dockershim.sock",
+		},
+		Envs: envVar,
+		VolumeMounts: []corev1.VolumeMount{
+			hostUsrVolMnt,
+			apparmorVolMnt,
+			{
+				Name:      "containerd-sock-path", // containerd
+				MountPath: "/run/dockershim.sock",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "containerd-storage-path", // containerd storage
+				MountPath: "/run/containerd",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "docker-storage-path", // docker storage
+				MountPath: "/var/lib/docker",
+				ReadOnly:  true,
+			},
+		},
+		Volumes: []corev1.Volume{
+			hostUsrVol,
+			apparmorVol,
+			{
+				Name: "containerd-sock-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/run/dockershim.sock",
 						Type: &hostPathSocket,
 					},
 				},
