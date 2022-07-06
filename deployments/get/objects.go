@@ -527,7 +527,6 @@ var annotationsControllerDeploymentLabels = map[string]string{
 
 // GetAnnotationsControllerService Function
 func GetAnnotationsControllerService(namespace string) *corev1.Service {
-
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
@@ -541,7 +540,7 @@ func GetAnnotationsControllerService(namespace string) *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Selector: annotationsControllerDeploymentLabels,
 			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Name:       "https",
 					Protocol:   corev1.ProtocolTCP,
 					Port:       int32(443),
@@ -645,19 +644,19 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 							},
 							Command: []string{"/manager"},
 							Ports: []corev1.ContainerPort{
-								corev1.ContainerPort{
+								{
 									ContainerPort: int32(9443),
 									Name:          "webhook-server",
 									Protocol:      corev1.ProtocolTCP,
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
-								corev1.VolumeMount{
+								{
 									Name:      annotationsControllerCertVolume.Name,
 									ReadOnly:  true,
 									MountPath: "/tmp/k8s-webhook-server/serving-certs",
 								},
-								corev1.VolumeMount{
+								{
 									Name:      annotationsControllerHostPathVolume.Name,
 									ReadOnly:  true,
 									MountPath: "/sys/kernel/security",
@@ -722,7 +721,7 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 			Namespace: namespace,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
-			admissionregistrationv1.MutatingWebhook{
+			{
 				Name:                    annotationsControllerMutationFullName,
 				AdmissionReviewVersions: []string{"v1"},
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
@@ -735,7 +734,7 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 				},
 				FailurePolicy: &annotationsControllerPodMutationFailurePolicy,
 				Rules: []admissionregistrationv1.RuleWithOperations{
-					admissionregistrationv1.RuleWithOperations{
+					{
 						Rule: admissionregistrationv1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
@@ -753,8 +752,7 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 	}
 }
 
-var AnnotationsControllerSecretName = "kubearmor-webhook-server-cert"
-
+// GetAnnotationsControllerTLSSecret Functionn
 func GetAnnotationsControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
 	data := make(map[string]string)
 	data["ca.crt"] = caCert

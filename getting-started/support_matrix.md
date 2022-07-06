@@ -10,8 +10,9 @@ KubeArmor supports following types of workloads:
 | [Google GKE](https://cloud.google.com/kubernetes-engine) | [Container Optimized OS](https://cloud.google.com/container-optimized-os/docs/concepts/features-and-benefits) | Yes | Supported across Stable/Regular/Rapid/ release channels |
 | [Google GKE](https://cloud.google.com/kubernetes-engine) | Ubuntu | Yes | Supported across Stable/Regular/Rapid/ release channels |
 | [Microsoft Azure](https://azure.microsoft.com/) | Ubuntu | Yes |
-| [AWS EKS](https://aws.amazon.com/eks/) | Amazon Linux 2 | Partial | Observability/Audit mode is supported, Enforcement node is supported for nodes/hosts only (not for k8s pods). |
+| [AWS EKS](https://aws.amazon.com/eks/) | Amazon Linux 2 | Partial | Observability/Audit mode is supported, Enforcement mode is supported for nodes/hosts only (not for k8s pods). |
 | [AWS EKS](https://aws.amazon.com/eks/) | Ubuntu | Yes |
+| [AWS EKS](https://aws.amazon.com/eks/) | [Bottlerocket OS](https://github.com/bottlerocket-os/bottlerocket#bottlerocket-os) | Yes | Support leveraging [BPF LSM](https://github.com/kubearmor/KubeArmor/issues/484)
 | RedHat OpenShift | * | TBD |
 | VMWare Tanzu | * | TBD |
 | Rancher RKE | * | TBD |
