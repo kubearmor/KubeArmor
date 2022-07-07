@@ -154,6 +154,48 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 	},
+	"oke": {
+		Args: []string{
+			"-enableKubeArmorHostPolicy",
+		},
+		Envs: envVar,
+		VolumeMounts: []corev1.VolumeMount{
+			hostUsrVolMnt,
+			apparmorVolMnt,
+			{
+				Name:      "crio-sock-path", // crio socket
+				MountPath: "/var/run/crio/crio.sock",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "crio-storage-path", // crio storage - stores all of its data, including containers images, in this directory.
+				MountPath: "/var/lib/containers/storage",
+				ReadOnly:  true,
+			},
+		},
+		Volumes: []corev1.Volume{
+			hostUsrVol,
+			apparmorVol,
+			{
+				Name: "crio-sock-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/run/crio/crio.sock",
+						Type: &hostPathSocket,
+					},
+				},
+			},
+			{
+				Name: "crio-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/lib/containers/storage",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+		},
+	},
 	"docker": {
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
