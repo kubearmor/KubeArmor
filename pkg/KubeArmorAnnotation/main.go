@@ -121,7 +121,10 @@ func detectEnforcer(logger logr.Logger) string {
 
 	enforcer := string(lsm)
 
-	if strings.Contains(enforcer, "apparmor") {
+	if strings.Contains(enforcer, "bpf") {
+		logger.Info("Detected BPFLSM as the cluster Enforcer")
+		return "BPFLSM"
+	} else if strings.Contains(enforcer, "apparmor") {
 		logger.Info("Detected AppArmor as the cluster Enforcer")
 		return "AppArmor"
 	} else if strings.Contains(enforcer, "selinux") {
