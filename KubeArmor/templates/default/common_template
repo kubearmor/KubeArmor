@@ -1,0 +1,7 @@
+
+require {
+    type chkpwd_t;
+    type user_devpts_t;
+}
+
+allow chkpwd_t user_devpts_t:chr_file { append create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink write audit_access entrypoint execute_no_trans execmod open };

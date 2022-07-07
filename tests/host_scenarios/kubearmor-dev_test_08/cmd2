@@ -1,7 +1,7 @@
 source: kubearmor-dev
 cmd: head -n 1 /etc/hostname
-result: failed
+result: default
 ---
 operation: File
 condition: /etc/hostname
-action: Allow
+action: default

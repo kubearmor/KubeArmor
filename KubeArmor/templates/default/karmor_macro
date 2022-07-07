@@ -1,0 +1,166 @@
+
+# karmor macros
+
+define(`configure_domain', `
+    require {
+        role unconfined_r;
+    }
+
+    application_domain($1, $2)
+    role unconfined_r types $1;
+
+    unconfined_domtrans_to($1, $2)
+    #permissive $1;
+
+    allow $1 $1:capability { karmor_capability_permissions };
+    allow $1 $1:capability2 { karmor_capability2_permissions };
+')
+
+# karmor_process_execution -> karmor_file_permissions
+define(`karmor_process_execution', `{ karmor_file_permissions map }')
+
+# karmor_no_process_execution -> karmor_file_permissions - execute
+define(`karmor_no_process_execution', `{ append create getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink write audit_access entrypoint execute_no_trans execmod open map }')
+
+define(`allow_process_execution', `
+    allow $1 $1:process { setpgid setcap };
+    allow $1 $2:file { karmor_process_execution };
+')
+
+define(`allow_child_process_execution', `
+    require {
+        type fs_t;
+    }
+
+    allow $1 $2:file { karmor_process_execution };
+    allow $2 fs_t:filesystem { associate };
+')
+
+define(`allow_no_child_process_execution', `
+    require {
+        type fs_t;
+    }
+
+    allow $1 $2:file { karmor_no_process_execution };
+    allow $2 fs_t:filesystem { associate };
+')
+
+# karmor_file_access -> karmor_file_permissions
+define(`karmor_file_access', `{ karmor_file_permissions map }')
+
+# karmor_readonly_file_access -> karmor_file_permissions - append - write
+define(`karmor_readonly_file_access', `{ create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink audit_access entrypoint execute_no_trans execmod open map }')
+
+# karmor_no_file_access -> karmor_file_permissions - append - read - write
+define(`karmor_no_file_access', `{ create execute getattr ioctl link lock mounton quotaon relabelfrom relabelto rename setattr swapon unlink audit_access entrypoint execute_no_trans execmod open map }')
+
+# karmor_lnk_file_access -> karmor_lnk_file_permissions
+define(`karmor_lnk_file_access', `{ karmor_lnk_file_permissions map }')
+
+# karmor_readonly_lnk_file_access -> karmor_lnk_file_permissions - append - write
+define(`karmor_readonly_lnk_file_access', `{ create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_no_lnk_file_access -> karmor_lnk_file_permissions - append - read - write
+define(`karmor_no_lnk_file_access', `{ create execute getattr ioctl link lock mounton quotaon relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_chr_file_access -> karmor_chr_file_permissions
+define(`karmor_chr_file_access', `{ karmor_chr_file_permissions map }')
+
+# karmor_readonly_chr_file_access -> karmor_chr_file_permissions - append - write
+define(`karmor_readonly_chr_file_access', `{ create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink audit_access entrypoint execute_no_trans execmod open map }')
+
+# karmor_no_chr_file_access -> karmor_chr_file_permissions - append - read - write
+define(`karmor_no_chr_file_access', `{ create execute getattr ioctl link lock mounton quotaon relabelfrom relabelto rename setattr swapon unlink audit_access entrypoint execute_no_trans execmod open map }')
+
+# karmor_blk_file_access -> karmor_blk_file_permissions
+define(`karmor_blk_file_access', `{ karmor_blk_file_permissions map }')
+
+# karmor_readonly_blk_file_access -> karmor_blk_file_permissions - append - write
+define(`karmor_readonly_blk_file_access', `{ create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_no_blk_file_access -> karmor_blk_file_permissions - append - read - write
+define(`karmor_no_blk_file_access', `{ create execute getattr ioctl link lock mounton quotaon relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_sock_file_access -> karmor_sock_file_permissions
+define(`karmor_sock_file_access', `{ karmor_sock_file_permissions map }')
+
+# karmor_readonly_sock_file_access -> karmor_sock_file_permissions - append - write
+define(`karmor_readonly_sock_file_access', `{ create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_no_sock_file_access -> karmor_sock_file_permissions - append - read - write
+define(`karmor_no_sock_file_access', `{ create execute getattr ioctl link lock mounton quotaon relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_fifo_file_access -> karmor_fifo_file_permissions
+define(`karmor_fifo_file_access', `{ karmor_fifo_file_permissions map }')
+
+# karmor_readonly_fifo_file_access -> karmor_fifo_file_permissions - append - write
+define(`karmor_readonly_fifo_file_access', `{ create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+# karmor_no_fifo_file_access -> karmor_fifo_file_permissions - append - read - write
+define(`karmor_no_fifo_file_access', `{ create execute getattr ioctl link lock mounton quotaon relabelfrom relabelto rename setattr swapon unlink audit_access execmod open map }')
+
+define(`allow_dir_access', `
+    allow $1 $2:dir { karmor_dir_permissions };
+')
+
+define(`allow_file_access', `
+    allow $1 $2:file { karmor_file_access };
+    allow $1 $2:lnk_file { karmor_lnk_file_access };
+    allow $1 $2:chr_file { karmor_chr_file_access };
+    allow $1 $2:blk_file { karmor_blk_file_access };
+    allow $1 $2:sock_file { karmor_sock_file_access };
+    allow $1 $2:fifo_file { karmor_fifo_file_access };
+')
+
+define(`allow_readonly_file_access', `
+    allow $1 $2:file { karmor_readonly_file_access };
+    allow $1 $2:lnk_file { karmor_readonly_lnk_file_access };
+    allow $1 $2:chr_file { karmor_readonly_chr_file_access };
+    allow $1 $2:blk_file { karmor_readonly_blk_file_access };
+    allow $1 $2:sock_file { karmor_readonly_sock_file_access };
+    allow $1 $2:fifo_file { karmor_readonly_fifo_file_access };
+')
+
+define(`allow_no_file_access', `
+    allow $1 $2:file { karmor_no_file_access };
+    allow $1 $2:lnk_file { karmor_no_lnk_file_access };
+    allow $1 $2:chr_file { karmor_no_chr_file_access };
+    allow $1 $2:blk_file { karmor_no_blk_file_access };
+    allow $1 $2:sock_file { karmor_no_sock_file_access };
+    allow $1 $2:fifo_file { karmor_no_fifo_file_access };
+')
+
+define(`allow_common_network_operation', `
+    allow $1 $1:node { karmor_node_permissions };
+    allow $1 $1:netif { karmor_netif_permissions };
+    allow $1 $1:socket { karmor_socket_permissions };
+    allow $1 $1:packet_socket { karmor_packet_socket_permissions };
+    allow $1 $1:tun_socket { karmor_tun_socket_permissions };
+    allow $1 $1:unix_stream_socket { karmor_unix_stream_socket_permissions };
+    allow $1 $1:unix_dgram_socket { karmor_unix_dgram_socket_permissions };
+    allow $1 $1:netlink_socket { karmor_netlink_socket_permissions };
+    allow $1 $1:netlink_route_socket { karmor_netlink_route_socket_permissions };
+
+    require {
+        type net_conf_t;
+    }
+
+    allow $1 net_conf_t:file { read open getattr };
+')
+
+define(`allow_tcp_network_operation', `
+    allow $1 $1:tcp_socket { karmor_tcp_socket_permissions };
+')
+
+define(`allow_udp_network_operation', `
+    allow $1 $1:udp_socket { karmor_udp_socket_permissions };
+')
+
+define(`allow_icmp_network_operation', `
+    allow $1 $1:icmp_socket { karmor_icmp_socket_permissions };
+')
+
+define(`allow_raw_network_operation', `
+    allow $1 $1:rawip_socket { karmor_rawip_socket_permissions };
+    allow $1 $1:netlink_route_socket { karmor_netlink_route_socket_permissions };
+')

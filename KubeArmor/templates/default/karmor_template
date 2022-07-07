@@ -1,0 +1,50 @@
+
+type karmor_t; # domain
+
+type karmor_exec_t; # parent process
+type karmor_allow_t; # child process
+type karmor_block_t; # child process
+
+# unconfined -> karmor_exec_t
+configure_domain(karmor_t, karmor_exec_t)
+allow_process_execution(karmor_t, karmor_exec_t)
+
+# karmor_t -> karmor_allow_t
+allow_child_process_execution(karmor_t, karmor_allow_t)
+allow_file_access(unconfined_t, karmor_allow_t)
+
+# karmor_t -> karmor_block_t
+allow_no_child_process_execution(karmor_t, karmor_block_t)
+allow_file_access(unconfined_t, karmor_block_t)
+
+type karmor_read_t;
+files_type(karmor_read_t)
+
+type karmor_file_t;
+files_type(karmor_file_t)
+
+type karmor_none_t;
+files_type(karmor_none_t)
+
+# karmor_t -> karmor_read_t
+allow_readonly_file_access(karmor_t, karmor_read_t)
+allow_file_access(unconfined_t, karmor_read_t)
+
+# karmor_t -> karmor_file_t
+allow_file_access(karmor_t, karmor_file_t)
+allow_file_access(unconfined_t, karmor_file_t)
+
+# karmor_t -> karmor_none_t
+allow_no_file_access(karmor_t, karmor_none_t)
+allow_file_access(unconfined_t, karmor_none_t)
+
+# karmor_t -> basic network operation
+allow_common_network_operation(karmor_t)
+
+# karmor_t -> per-protocol network operation
+
+require {
+    type user_devpts_t;
+}
+
+allow karmor_t user_devpts_t:chr_file { append create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink write audit_access entrypoint execute_no_trans execmod open };

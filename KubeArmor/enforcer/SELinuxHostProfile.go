@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -32,7 +33,7 @@ func (se *SELinuxEnforcer) AllowedHostProcessMatchPaths(path tp.ProcessPathType,
 			fromSources[source] = []tp.SELinuxRule{}
 		}
 
-		rule := tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_allow_t", ObjectPath: path.Path}
+		rule := tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "allow_t", ObjectPath: path.Path}
 		if !kl.ContainsElement(fromSources[source], rule) {
 			fromSources[source] = append(fromSources[source], rule)
 		}
@@ -58,9 +59,9 @@ func (se *SELinuxEnforcer) AllowedHostProcessMatchDirectories(dir tp.ProcessDire
 		}
 
 		if dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_allow_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "allow_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else { // !dir.Recursive
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_allow_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "allow_t", ObjectPath: dir.Directory, Directory: true}
 		}
 
 		if !kl.ContainsElement(fromSources[source], rule) {
@@ -88,9 +89,9 @@ func (se *SELinuxEnforcer) AllowedHostFileMatchPaths(path tp.FilePathType, fromS
 		}
 
 		if path.ReadOnly {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_read_t", ObjectPath: path.Path}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "read_t", ObjectPath: path.Path}
 		} else { // !path.ReadOnly
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_file_t", ObjectPath: path.Path}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "file_t", ObjectPath: path.Path}
 		}
 
 		if !kl.ContainsElement(fromSources[source], rule) {
@@ -118,13 +119,13 @@ func (se *SELinuxEnforcer) AllowedHostFileMatchDirectories(dir tp.FileDirectoryT
 		}
 
 		if dir.ReadOnly && dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else if dir.ReadOnly && !dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_read_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "read_t", ObjectPath: dir.Directory, Directory: true}
 		} else if !dir.ReadOnly && dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "file_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else { // !dir.ReadOnly && !dir.Recursive
-			rule = tp.SELinuxRule{SubjectLabel: "karmorA_exec_t", SubjectPath: source, ObjectLabel: "karmorA_file_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "file_t", ObjectPath: dir.Directory, Directory: true}
 		}
 
 		if !kl.ContainsElement(fromSources[source], rule) {
@@ -133,12 +134,44 @@ func (se *SELinuxEnforcer) AllowedHostFileMatchDirectories(dir tp.FileDirectoryT
 	}
 }
 
+// AllowedHostNetworkMatchProtocols Function
+func (se *SELinuxEnforcer) AllowedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, networkFromSources map[string]string) {
+	if len(proto.FromSource) == 0 {
+		return
+	}
+
+	for _, src := range proto.FromSource {
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		tcp := "n"
+		udp := "n"
+		icmp := "n"
+		raw := "n"
+
+		for _, proto := range strings.Split(proto.Protocol, ",") {
+			if proto == "tcp" {
+				tcp = "t"
+			} else if proto == "udp" {
+				udp = "u"
+			} else if proto == "icmp" {
+				icmp = "i"
+			} else if proto == "raw" {
+				raw = "r"
+			}
+		}
+
+		networkFromSources[src.Path] = tcp + udp + icmp + raw
+	}
+}
+
 //
 
 // BlockedHostProcessMatchPaths Function
 func (se *SELinuxEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]tp.SELinuxRule, fromSources map[string][]tp.SELinuxRule) {
 	if len(path.FromSource) == 0 {
-		rule := tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_block_t", ObjectPath: path.Path}
+		rule := tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "block_t", ObjectPath: path.Path}
 		if !kl.ContainsElement(*processBlackList, rule) {
 			*processBlackList = append(*processBlackList, rule)
 		}
@@ -155,7 +188,7 @@ func (se *SELinuxEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType,
 			fromSources[source] = []tp.SELinuxRule{}
 		}
 
-		rule := tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_block_t", ObjectPath: path.Path}
+		rule := tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "block_t", ObjectPath: path.Path}
 		if !kl.ContainsElement(fromSources[source], rule) {
 			fromSources[source] = append(fromSources[source], rule)
 		}
@@ -168,9 +201,9 @@ func (se *SELinuxEnforcer) BlockedHostProcessMatchDirectories(dir tp.ProcessDire
 		rule := tp.SELinuxRule{}
 
 		if dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else { // !dir.Recursive
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_block_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "block_t", ObjectPath: dir.Directory, Directory: true}
 		}
 
 		if !kl.ContainsElement(*processBlackList, rule) {
@@ -193,9 +226,9 @@ func (se *SELinuxEnforcer) BlockedHostProcessMatchDirectories(dir tp.ProcessDire
 		}
 
 		if dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "block_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else { // !dir.Recursive
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_block_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "block_t", ObjectPath: dir.Directory, Directory: true}
 		}
 
 		if !kl.ContainsElement(fromSources[source], rule) {
@@ -210,9 +243,9 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchPaths(path tp.FilePathType, fileB
 		rule := tp.SELinuxRule{}
 
 		if path.ReadOnly {
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_nowrite_t", ObjectPath: path.Path}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "read_t", ObjectPath: path.Path}
 		} else { // !path.ReadOnly
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_none_t", ObjectPath: path.Path}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "none_t", ObjectPath: path.Path}
 		}
 
 		if !kl.ContainsElement(*fileBlackList, rule) {
@@ -235,9 +268,9 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchPaths(path tp.FilePathType, fileB
 		}
 
 		if path.ReadOnly {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_nowrite_t", ObjectPath: path.Path}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "read_t", ObjectPath: path.Path}
 		} else { // !path.ReadOnly
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_none_t", ObjectPath: path.Path}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "none_t", ObjectPath: path.Path}
 		}
 
 		if !kl.ContainsElement(fromSources[source], rule) {
@@ -252,13 +285,13 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchDirectories(dir tp.FileDirectoryT
 		rule := tp.SELinuxRule{}
 
 		if dir.ReadOnly && dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_nowrite_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else if dir.ReadOnly && !dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_nowrite_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "read_t", ObjectPath: dir.Directory, Directory: true}
 		} else if !dir.ReadOnly && dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_none_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "none_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else { // !dir.ReadOnly && !dir.Recursive
-			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "karmorG_none_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "-", SubjectPath: "-", ObjectLabel: "none_t", ObjectPath: dir.Directory, Directory: true}
 		}
 
 		if !kl.ContainsElement(*fileBlackList, rule) {
@@ -281,13 +314,13 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchDirectories(dir tp.FileDirectoryT
 		}
 
 		if dir.ReadOnly && dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_nowrite_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "read_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else if dir.ReadOnly && !dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_nowrite_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "read_t", ObjectPath: dir.Directory, Directory: true}
 		} else if !dir.ReadOnly && dir.Recursive {
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_none_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "none_t", ObjectPath: dir.Directory, Directory: true, Recursive: true}
 		} else { // !dir.ReadOnly && !dir.Recursive
-			rule = tp.SELinuxRule{SubjectLabel: "karmorB_exec_t", SubjectPath: source, ObjectLabel: "karmorB_none_t", ObjectPath: dir.Directory, Directory: true}
+			rule = tp.SELinuxRule{SubjectLabel: "exec_t", SubjectPath: source, ObjectLabel: "none_t", ObjectPath: dir.Directory, Directory: true}
 		}
 
 		if !kl.ContainsElement(fromSources[source], rule) {
@@ -296,10 +329,42 @@ func (se *SELinuxEnforcer) BlockedHostFileMatchDirectories(dir tp.FileDirectoryT
 	}
 }
 
+// BlockedHostNetworkMatchProtocols Function
+func (se *SELinuxEnforcer) BlockedHostNetworkMatchProtocols(proto tp.NetworkProtocolType, networkFromSources map[string]string) {
+	if len(proto.FromSource) == 0 {
+		return
+	}
+
+	for _, src := range proto.FromSource {
+		if len(src.Path) == 0 {
+			continue
+		}
+
+		tcp := "t"
+		udp := "u"
+		icmp := "r"
+		raw := "i"
+
+		for _, proto := range strings.Split(proto.Protocol, ",") {
+			if proto == "tcp" {
+				tcp = "n"
+			} else if proto == "udp" {
+				udp = "n"
+			} else if proto == "icmp" {
+				icmp = "n"
+			} else if proto == "raw" {
+				raw = "n"
+			}
+		}
+
+		networkFromSources[src.Path] = tcp + udp + icmp + raw
+	}
+}
+
 // == //
 
 // GenerateSELinuxHostProfile Function
-func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.HostSecurityPolicy) (int, string, bool) {
+func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.HostSecurityPolicy, defaultPosture tp.DefaultPosture) (int, string, bool) {
 	count := 0
 
 	processBlackList := []tp.SELinuxRule{}
@@ -308,6 +373,8 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 	whiteListfromSources := map[string][]tp.SELinuxRule{}
 	blackListfromSources := map[string][]tp.SELinuxRule{}
 
+	networkFromSources := map[string]string{}
+
 	// preparation
 
 	for _, secPolicy := range securityPolicies {
@@ -315,8 +382,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
 					se.AllowedHostProcessMatchPaths(path, whiteListfromSources)
-				} else if path.Action == "Audit" {
-					//
 				} else if path.Action == "Block" {
 					se.BlockedHostProcessMatchPaths(path, &processBlackList, blackListfromSources)
 				}
@@ -326,8 +391,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
 					se.AllowedHostProcessMatchDirectories(dir, whiteListfromSources)
-				} else if dir.Action == "Audit" {
-					//
 				} else if dir.Action == "Block" {
 					se.BlockedHostProcessMatchDirectories(dir, &processBlackList, blackListfromSources)
 				}
@@ -338,8 +401,6 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
 					se.AllowedHostFileMatchPaths(path, whiteListfromSources)
-				} else if path.Action == "Audit" {
-					//
 				} else if path.Action == "Block" {
 					se.BlockedHostFileMatchPaths(path, &fileBlackList, blackListfromSources)
 				}
@@ -349,10 +410,18 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
 					se.AllowedHostFileMatchDirectories(dir, whiteListfromSources)
-				} else if dir.Action == "Audit" {
-					//
 				} else if dir.Action == "Block" {
 					se.BlockedHostFileMatchDirectories(dir, &fileBlackList, blackListfromSources)
+				}
+			}
+		}
+
+		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
+			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
+				if proto.Action == "Allow" {
+					se.AllowedHostNetworkMatchProtocols(proto, networkFromSources)
+				} else if proto.Action == "Block" {
+					se.BlockedHostNetworkMatchProtocols(proto, networkFromSources)
 				}
 			}
 		}
@@ -432,9 +501,16 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 	newProfile := ""
 
 	for _, rule := range localRules {
+		netFlags := "tuir"
+		if _, ok := networkFromSources[rule.SubjectPath]; ok {
+			netFlags = networkFromSources[rule.SubjectPath]
+		}
+
 		// make a string
-		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%t\t%t\t%t\n",
-			rule.SubjectLabel, rule.SubjectPath, rule.ObjectLabel, rule.ObjectPath, rule.Permissive, rule.Directory, rule.Recursive)
+		line := fmt.Sprintf("karmor_%s_%s_%s\t%s\tkarmor_%s_%s_%s\t%s\t%t\t%t\t%t\n",
+			defaultPosture.FileAction, netFlags, rule.SubjectLabel, rule.SubjectPath,
+			defaultPosture.FileAction, netFlags, rule.ObjectLabel, rule.ObjectPath,
+			rule.Permissive, rule.Directory, rule.Recursive)
 
 		// add the string
 		newProfile = newProfile + line
@@ -442,8 +518,9 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 
 	for _, rule := range globalRules {
 		// make a string
-		line := fmt.Sprintf("%s\t%s\t%s\t%s\t%t\t%t\t%t\n",
-			rule.SubjectLabel, rule.SubjectPath, rule.ObjectLabel, rule.ObjectPath, rule.Permissive, rule.Directory, rule.Recursive)
+		line := fmt.Sprintf("%s\t%s\tkarmor_global_%s\t%s\t%t\t%t\t%t\n",
+			rule.SubjectLabel, rule.SubjectPath, rule.ObjectLabel, rule.ObjectPath,
+			rule.Permissive, rule.Directory, rule.Recursive)
 
 		// add the string
 		newProfile = newProfile + line
