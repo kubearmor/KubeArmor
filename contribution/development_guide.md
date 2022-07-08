@@ -2,7 +2,11 @@
 
 ## Development
 
-1. Vagrant Environment (Recommended)
+### 1. Vagrant Environment (Recommended)
+
+   > **Note** Skip the steps for the vagrant setup if you're directly compiling KubeArmor on the Linux host.
+    Proceed [here](#2-self-managed-kubernetes) to setup K8s on the same host by resolving any dependencies.
+
    * Requirements
 
      Here is the list of requirements for a Vagrant environment
@@ -26,7 +30,7 @@
      ~/KubeArmor/contribution/vagrant$ sudo reboot
      ```
 
-    * VM Setup using Vagrant
+  * VM Setup using Vagrant
 
       Now, it is time to prepare a VM for development.
 
@@ -157,13 +161,7 @@
       ~/KubeArmor/KubeArmor$ vi Makefile
       ```
 
-    * Please Note:
-
-      You can skip the steps for the vagrant setup completely if you're directly compiling KubeArmor on any Linux distro.
-
-      Please ensure that the steps to setup K8s are followed so as to resolve any open dependencies.
-
-2. Self-managed Kubernetes
+### 2. Self-managed Kubernetes
    * Requirements
 
      Here is the list of minimum requirements for self-managed Kubernetes.
@@ -176,19 +174,19 @@
      LSM - AppArmor
      ```
 
-     KubeArmor is designed for Kubernetes, which means that Kubernetes should be ready in your environment. If Kubernetes is not prepared yet, please refer to [Kubernetes installation guide](self-managed-k8s/README.md). KubeArmor also requires either Docker or Containerd since it internally uses its APIs. KubeArmor requires LSMs to operate properly; thus, please make sure that your environment supports LSMs \(at least, AppArmor\). Otherwise, KubeArmor will work as Audit-Mode with no container behavior restriction.
+     KubeArmor is designed for Kubernetes environment. If Kubernetes is not setup yet, please refer to [Kubernetes installation guide](self-managed-k8s/README.md).
+     KubeArmor leverages CRI (Container Runtime Interfaces) APIs and works with Docker or Containerd or CRIO based container runtimes. KubeArmor uses LSMs for policy enforcement; thus, please make sure that your environment supports LSMs \(either AppArmor or bpf-lsm\). Otherwise, KubeArmor will operate in Audit-Mode with no policy "enforcement" support.
 
-      * Alternative Setup - Minikube
-
-        MiniKube does not support LSMs by default; thus, we provide the custom ISO image for testing KubeArmor on Minikube.  
-        Please follow the instructions in [Minikube installation guide](minikube/README.md).
-
-      * Alternative Setup - K3s
+        #### Alternative Setup
+        You can try the following alternative if you face any difficulty in the above Kubernetes (kubeadm) setup.
+        
+        > **Note** Please make sure to set up the alternative k8s environment on the same host where the KubeArmor development environment is running. 
+      * K3s
 
         You can also develop and test KubeArmor on K3s instead of the self-managed Kubernetes.  
         Please follow the instructions in [K3s installation guide](k3s/README.md).
 
-      * Alternative Setup - MicroK8s
+      * MicroK8s
 
         You can also develop and test KubeArmor on MicroK8s instead of the self-managed Kubernetes.  
         Please follow the instructions in [MicroK8s installation guide](microk8s/README.md).
@@ -210,8 +208,8 @@
 
      Now, you are ready to develop any code for KubeArmor. Enjoy your journey with KubeArmor.
 
-3.  Environment Check
-    * Compilation
+### 3.  Environment Check
+   * Compilation
 
         Check if KubeArmor can be compiled on your environment without any problems.
 
@@ -222,7 +220,7 @@
 
         If you see any error messages, please let us know the issue with the full error messages through KubeArmor's slack.
 
-    * Execution
+   * Execution
 
         In order to directly run KubeArmor in a host (not as a container), you need to run a local proxy in advance.
 
