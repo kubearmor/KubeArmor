@@ -24,16 +24,17 @@ import (
 
 // Data Types
 const (
-	intT       uint8 = 1
-	strT       uint8 = 10
-	strArrT    uint8 = 11
-	sockAddrT  uint8 = 12
-	openFlagsT uint8 = 13
-	execFlagsT uint8 = 14
-	sockDomT   uint8 = 15
-	sockTypeT  uint8 = 16
-	capT       uint8 = 17
-	syscallT   uint8 = 18
+	intT          uint8 = 1
+	strT          uint8 = 10
+	strArrT       uint8 = 11
+	sockAddrT     uint8 = 12
+	openFlagsT    uint8 = 13
+	execFlagsT    uint8 = 14
+	sockDomT      uint8 = 15
+	sockTypeT     uint8 = 16
+	capT          uint8 = 17
+	syscallT      uint8 = 18
+	unlinkAtFlagT uint8 = 19
 )
 
 // ======================= //
@@ -188,8 +189,41 @@ func readSockaddrFromBuff(buff io.Reader) (map[string]string, error) {
 			return nil, fmt.Errorf("error parsing sockaddr_in: %v", err)
 		}
 		res["sin_addr"] = readUint32IP(addr)
+	case 10: // AF_INET6
+		// https://man7.org/linux/man-pages/man7/ipv6.7.html
+		port, err := readUInt16BigendFromBuff(buff)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing sockaddr_in: %v", err)
+		}
+
+		res["sin_port"] = strconv.Itoa(int(port))
+		_, err = readUInt32BigendFromBuff(buff)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing IPv6 flow information: %v", err)
+		}
+		addr, err := readByteSliceFromBuff(buff, 16)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing IPv6 IP: %v", err)
+		}
+		ipv6 := net.IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		n := copy(ipv6, addr)
+		if n != 16 {
+			return nil, fmt.Errorf("error Converting bytes to IPv6, copied only %d bytes out of 16", n)
+		}
+		res["sin_addr"] = ipv6.String()
 	}
 	return res, nil
+}
+
+// getUnlinkAtFlag Function
+func getUnlinkAtFlag(flag uint32) string {
+	var f = ""
+
+	if flag == 0x200 {
+		f = "AT_REMOVEDIR"
+	}
+
+	return f
 }
 
 // getOpenFlags Function
@@ -1029,6 +1063,12 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 			return nil, err
 		}
 		res = getOpenFlags(flags)
+	case unlinkAtFlagT:
+		flag, err := readUInt32FromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
+		res = getUnlinkAtFlag(flag)
 	case execFlagsT:
 		flags, err := readUInt32FromBuff(dataBuff)
 		if err != nil {

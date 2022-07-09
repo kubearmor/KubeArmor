@@ -110,4 +110,4 @@ CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
 clean:
-	rm -rf bin go.sum cover.out /tmp/kubearmor-policy-manager.yaml
+	rm -rf bin cover.out /tmp/kubearmor-policy-manager.yaml

@@ -28,6 +28,10 @@ spec:
         args:
         - --enable-leader-election
         image: kubearmor/kubearmor-host-policy-manager:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
         name: manager
         resources:
           limits:

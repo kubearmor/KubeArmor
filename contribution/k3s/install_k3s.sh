@@ -16,10 +16,10 @@ fi
 if [ "$RUNTIME" == "docker" ]; then # docker
     CGROUP_SYSTEMD=$(docker info 2> /dev/null | grep -i cgroup | grep systemd | wc -l)
     if [ $CGROUP_SYSTEMD == 1 ]; then
-        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --kubelet-arg cgroup-driver=systemd" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.23.9+k3s1" K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker --kubelet-arg cgroup-driver=systemd" sh -
         [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
     else # cgroupfs
-        curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker" sh -
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.23.9+k3s1" K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker" sh -
         [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
     fi
 elif [ "$RUNTIME" == "crio" ]; then # cri-o
@@ -35,6 +35,7 @@ if [[ $(hostname) = kubearmor-dev* ]]; then
     sudo cp /etc/rancher/k3s/k3s.yaml /home/vagrant/.kube/config
     sudo chown -R vagrant:vagrant /home/vagrant/.kube
     echo "export KUBECONFIG=/home/vagrant/.kube/config" | tee -a /home/vagrant/.bashrc
+    PATH=$PATH:/bin:/usr/bin:/usr/local/bin
 else
     KUBEDIR=$HOME/.kube
     KUBECONFIG=$KUBEDIR/config
@@ -51,7 +52,10 @@ fi
 echo "wait for initialization"
 sleep 15
 
-for (( ; ; ))
+runtime="15 minute"
+endtime=$(date -ud "$runtime" +%s)
+
+while [[ $(date -u +%s) -le $endtime ]]
 do
     status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
     [[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break

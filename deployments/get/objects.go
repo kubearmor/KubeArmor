@@ -235,6 +235,16 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
 							},
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(15),
+								PeriodSeconds:       int32(20),
+							},
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -344,6 +354,16 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
 							},
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(15),
+								PeriodSeconds:       int32(20),
+							},
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -366,7 +386,11 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		"-logPath=/tmp/kubearmor.log",
 	}
 
-	var volumeMounts = []corev1.VolumeMount{
+	var containerVolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "bpf",
+			MountPath: "/opt/kubearmor/BPF",
+		},
 		{
 			Name:      "lib-modules-path", //BPF (read-only)
 			MountPath: "/lib/modules",
@@ -392,6 +416,12 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 
 	var volumes = []corev1.Volume{
+		{
+			Name: "bpf",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 		{
 			Name: "lib-modules-path",
 			VolumeSource: corev1.VolumeSource{
@@ -439,10 +469,18 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		},
 	}
 
+	if env == "gke" {
+		containerVolumeMounts = append(containerVolumeMounts, gkeHostUsrVolMnt)
+		volumes = append(volumes, gkeHostUsrVol)
+	} else {
+		containerVolumeMounts = append(containerVolumeMounts, hostUsrVolMnt)
+		volumes = append(volumes, hostUsrVol)
+	}
+
 	args = append(args, defaultConfigs[env].Args...)
 	envs := defaultConfigs[env].Envs
 
-	volumeMounts = append(volumeMounts, defaultConfigs[env].VolumeMounts...)
+	volumeMounts := append(containerVolumeMounts, defaultConfigs[env].VolumeMounts...)
 	volumes = append(volumes, defaultConfigs[env].Volumes...)
 
 	return &appsv1.DaemonSet{
@@ -480,6 +518,16 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 					HostNetwork:   true,
 					RestartPolicy: "Always",
 					DNSPolicy:     "ClusterFirstWithHostNet",
+					InitContainers: []corev1.Container{
+						{
+							Name:  "init",
+							Image: "kubearmor/kubearmor-init:latest",
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: &privileged,
+							},
+							VolumeMounts: containerVolumeMounts,
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:            kubearmor,

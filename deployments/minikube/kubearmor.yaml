@@ -105,6 +105,8 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
+        - mountPath: /opt/kubearmor/BPF
+          name: bpf
         - mountPath: /lib/modules
           name: lib-modules-path
           readOnly: true
@@ -131,6 +133,29 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
+      initContainers:
+      - image: kubearmor/kubearmor-init:latest
+        name: init
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /opt/kubearmor/BPF
+          name: bpf
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
+        - mountPath: /sys/fs/bpf
+          name: sys-fs-bpf-path
+        - mountPath: /sys/kernel/security
+          name: sys-kernel-security-path
+        - mountPath: /sys/kernel/debug
+          name: sys-kernel-debug-path
+        - mountPath: /media/root/etc/os-release
+          name: os-release-path
+          readOnly: true
+        - mountPath: /usr/src
+          name: usr-src-path
+          readOnly: true
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always
@@ -139,6 +164,8 @@ spec:
       tolerations:
       - operator: Exists
       volumes:
+      - emptyDir: {}
+        name: bpf
       - hostPath:
           path: /lib/modules
           type: Directory
@@ -234,6 +261,22 @@ spec:
         command:
         - /manager
         image: kubearmor/kubearmor-policy-manager:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+<<<<<<< HEAD
+<<<<<<< HEAD
+          initialDelaySeconds: 15
+          periodSeconds: 20
+=======
+          initialDelaySeconds: 3
+          periodSeconds: 3
+>>>>>>> 51f8c59 (update yaml to include probes)
+=======
+          initialDelaySeconds: 15
+          periodSeconds: 20
+>>>>>>> 329ec6a (update deployment yamls)
         name: kubearmor-policy-manager
         resources:
           limits:
@@ -303,6 +346,22 @@ spec:
         command:
         - /manager
         image: kubearmor/kubearmor-host-policy-manager:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+<<<<<<< HEAD
+<<<<<<< HEAD
+          initialDelaySeconds: 15
+          periodSeconds: 20
+=======
+          initialDelaySeconds: 3
+          periodSeconds: 3
+>>>>>>> 51f8c59 (update yaml to include probes)
+=======
+          initialDelaySeconds: 15
+          periodSeconds: 20
+>>>>>>> 329ec6a (update deployment yamls)
         name: kubearmor-host-policy-manager
         resources:
           limits:

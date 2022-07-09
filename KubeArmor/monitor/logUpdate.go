@@ -176,6 +176,39 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
 
+			case SysUnlink:
+				if len(msg.ContextArgs) != 2 {
+					continue
+				}
+
+				var fileName string
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					fileName = val
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+
+			case SysUnlinkAt:
+				if len(msg.ContextArgs) != 3 {
+					continue
+				}
+
+				var fileName string
+				var fileUnlinkAtFlags string
+
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					fileName = val
+				}
+				if val, ok := msg.ContextArgs[2].(string); ok {
+					fileUnlinkAtFlags = val
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileUnlinkAtFlags
+
 			case SysClose:
 				if len(msg.ContextArgs) != 1 {
 					continue
@@ -213,6 +246,29 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Operation = "Network"
 				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + getProtocol(sockProtocol)
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+
+			case TCPConnect, TCPConnectv6, TCPAccept, TCPAcceptv6:
+				if len(msg.ContextArgs) != 2 {
+					continue
+				}
+				var sockAddr map[string]string
+				var protocol string
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					protocol = val
+				}
+
+				if val, ok := msg.ContextArgs[1].(map[string]string); ok {
+					sockAddr = val
+				}
+
+				log.Operation = "Network"
+				log.Resource = "remoteip=" + sockAddr["sin_addr"] + " port=" + sockAddr["sin_port"] + " protocol=" + protocol
+				if msg.ContextSys.EventID == TCPConnect || msg.ContextSys.EventID == TCPConnectv6 {
+					log.Data = "kprobe=tcp_connect"
+				} else {
+					log.Data = "kprobe=tcp_accept"
+				}
+				log.Data = log.Data + " domain=" + sockAddr["sa_family"]
 
 			case SysConnect: // fd, sockaddr
 				if len(msg.ContextArgs) != 2 {

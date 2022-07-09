@@ -1,0 +1,56 @@
+name: ci-test-systemd
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-systemd.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-systemd.yml"
+
+jobs:
+  build:
+    name: Test KubeArmor in Systemd Mode
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-18.04]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: v1.18
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          install-only: true
+
+      - name: Build Systemd Release
+        run: make local-release
+        working-directory: KubeArmor
+
+      - name: Install KubeArmor
+        run: sudo apt install -y ./dist/kubearmor*.deb
+        working-directory: KubeArmor
+
+      - name: Check journalctl
+        run: sudo journalctl -u kubearmor --no-pager

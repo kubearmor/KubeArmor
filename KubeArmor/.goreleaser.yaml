@@ -67,10 +67,23 @@ nfpms:
     overrides:
       deb:
         dependencies:
-          - bpfcc-tools
-          - linux-headers-generic | linux-headers-generic-pae | linux-headers-lowlatency | linux-headers-lowlatency-pae
+          - make
+          - libelf-dev
+<<<<<<< HEAD
+=======
+          - clang
+          - llvm
+>>>>>>> 6e4b676 (update .goreleaser.yaml)
+          - linux-headers-generic
       rpm:
         dependencies:
-          - bcc-tools
+          - make
+          - elfutils-libelf-devel
+<<<<<<< HEAD
+=======
+          - clang
+          - llvm
+>>>>>>> 6e4b676 (update .goreleaser.yaml)
+          - kernel-devel
           - policycoreutils-devel
           - setools-console

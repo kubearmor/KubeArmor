@@ -18,6 +18,7 @@ import (
 
 	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ============ //
@@ -388,6 +389,16 @@ func GetCRISocket(ContainerRuntime string) string {
 		}
 	}
 	return ""
+}
+
+// GetControllingPodOwner Function returns the pod's Controlling OnwerReference
+func GetControllingPodOwner(ownerRefs []metav1.OwnerReference) *metav1.OwnerReference {
+	for _, ownerRef := range ownerRefs {
+		if *ownerRef.Controller {
+			return &ownerRef
+		}
+	}
+	return nil
 }
 
 // ==================== //

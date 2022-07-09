@@ -17,4 +17,12 @@ docker push $REPO:$VERSION
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO:$VERSION"
+
+# push $REPO-init
+echo "[INFO] Pushing $REPO-init:$VERSION"
+docker push $REPO-init:$VERSION
+
+[[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
+echo "[PASSED] Pushed $REPO-init:$VERSION"
+
 exit 0
