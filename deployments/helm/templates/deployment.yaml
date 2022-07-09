@@ -72,6 +72,12 @@ spec:
         - /manager
         image: "{{ .Values.kubearmorPolicyManager.image.repository }}:{{ .Values.kubearmorPolicyManager.image.tag }}"
         name: kubearmor-policy-manager
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 3
+          periodSeconds: 3
         resources:
           limits:
             cpu: 100m
@@ -126,6 +132,12 @@ spec:
         - /manager
         image: "{{ .Values.kubearmorHostPolicyManager.image.repository }}:{{ .Values.kubearmorHostPolicyManager.image.tag }}"
         name: kubearmor-host-policy-manager
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 3
+          periodSeconds: 3
         resources:
           limits:
             cpu: 100m

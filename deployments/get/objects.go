@@ -235,6 +235,16 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
 							},
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(15),
+								PeriodSeconds:       int32(20),
+							},
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -343,6 +353,16 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceCPU:    resource.MustParse("100m"),
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
+							},
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(15),
+								PeriodSeconds:       int32(20),
 							},
 						},
 					},
