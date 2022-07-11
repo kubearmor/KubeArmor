@@ -234,6 +234,12 @@ spec:
         command:
         - /manager
         image: kubearmor/kubearmor-policy-manager:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 3
+          periodSeconds: 3
         name: kubearmor-policy-manager
         resources:
           limits:
@@ -303,6 +309,12 @@ spec:
         command:
         - /manager
         image: kubearmor/kubearmor-host-policy-manager:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 3
+          periodSeconds: 3
         name: kubearmor-host-policy-manager
         resources:
           limits:
