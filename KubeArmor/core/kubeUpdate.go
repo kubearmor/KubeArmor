@@ -1536,10 +1536,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	}
 
 	for idx, policy := range newPoint.SecurityPolicies {
-		if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-			event.Type = "MODIFIED"
-			// Policy already exists so it will be modified
-			newPoint.SecurityPolicies[idx] = secPolicy
+		if event.Type != "DELETED" {
+			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				event.Type = "MODIFIED"
+				// Policy already exists so it will be modified
+				newPoint.SecurityPolicies[idx] = secPolicy
+			}
 		}
 	}
 
