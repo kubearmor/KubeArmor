@@ -16,6 +16,12 @@ KUBEARMOR_PID    = $(shell pgrep kubearmor)
 build: protobuf
 	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
+ifneq (, $(shell which bpftool))
+	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h
+ifneq (, $(shell which llvm-strip))
+	cd $(CURDIR); go generate ./...
+endif
+endif
 	cd $(CURDIR); go build -o kubearmor main.go
 
 .PHONY: protobuf
