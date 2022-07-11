@@ -4,6 +4,7 @@
 package bpflsm
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -36,7 +37,7 @@ type BPFEnforcer struct {
 }
 
 // NewBPFEnforcer instantiates a objects for setting up BPF LSM Enforcement
-func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
+func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 
 	be := &BPFEnforcer{}
 
@@ -46,8 +47,12 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 
 	if err := rlimit.RemoveMemlock(); err != nil {
 		be.Logger.Errf("Error removing rlimit %v", err)
-		return nil
+		return nil, nil // Doesn't require clean up so not returning err
 	}
+
+	be.Probes = make(map[string]link.Link)
+	be.ContainerMap = make(map[string]ContainerKV)
+	be.ContainerMapLock = new(sync.RWMutex)
 
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
@@ -69,7 +74,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_containers map: %s", err)
-		return nil
+		return be, err
 	}
 
 	if err := loadEnforcerObjects(&be.obj, &ebpf.CollectionOptions{
@@ -78,32 +83,28 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) *BPFEnforcer {
 		},
 	}); err != nil {
 		be.Logger.Errf("error loading BPF LSM objects: %v", err)
-		return nil
+		return be, err
 	}
-
-	be.Probes = make(map[string]link.Link)
-	be.ContainerMap = make(map[string]ContainerKV)
-	be.ContainerMapLock = new(sync.RWMutex)
 
 	be.Probes[be.obj.EnforceProc.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceProc})
 	if err != nil {
 		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceProc.String(), err)
-		return nil
+		return be, err
 	}
 
 	be.Probes[be.obj.EnforceFile.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceFile})
 	if err != nil {
 		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceFile.String(), err)
-		return nil
+		return be, err
 	}
 
 	be.Probes[be.obj.EnforceNet.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNet})
 	if err != nil {
 		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceNet.String(), err)
-		return nil
+		return be, err
 	}
 
-	return be
+	return be, nil
 }
 
 // UpdateSecurityPolicies loops through containers present in the input endpoint and updates rules for each container
@@ -126,8 +127,18 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 		return nil
 	}
 
+	errBPFCleanUp := false
+
 	if err := be.obj.Close(); err != nil {
-		return err
+		be.Logger.Err(err.Error())
+		errBPFCleanUp = true
+	}
+
+	for _, link := range be.Probes {
+		if err := link.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = true
+		}
 	}
 
 	be.ContainerMapLock.Lock()
@@ -135,17 +146,19 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 
 	if be.BPFContainerMap != nil {
 		if err := be.BPFContainerMap.Unpin(); err != nil {
-			return err
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = true
 		}
 		if err := be.BPFContainerMap.Close(); err != nil {
-			return err
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = true
 		}
 	}
 
-	for _, link := range be.Probes {
-		if err := link.Close(); err != nil {
-			return err
-		}
+	if errBPFCleanUp {
+		return errors.New("error cleaning up BPF LSM Enforcer Objects")
 	}
+
+	be = nil
 	return nil
 }
