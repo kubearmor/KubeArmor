@@ -1535,11 +1535,23 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		}
 	}
 
+	globalDefaultPosture := tp.DefaultPosture{
+		FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+		NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+		CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+	}
+	newPoint.DefaultPosture = globalDefaultPosture
+
 	for idx, policy := range newPoint.SecurityPolicies {
-		if event.Type != "DELETED" {
+		if event.Type == "DELETED" {
+			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				newPoint.SecurityPolicies = append(newPoint.SecurityPolicies[:idx], newPoint.SecurityPolicies[idx+1:]...)
+				break
+			}
+		} else {
 			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 				event.Type = "MODIFIED"
-				// Policy already exists so it will be modified
+				// Policy already exists so modify
 				newPoint.SecurityPolicies[idx] = secPolicy
 			}
 		}
@@ -1590,21 +1602,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 			}
 		}
-	} else {
-		// update security policies
+	} else { // DELETED
+		// update security policies after policy deletion
 		dm.Logger.UpdateSecurityPolicies("DELETED", newPoint)
 
-		dm.RuntimeEnforcer.UpdateAppArmorProfiles(containername, "DELETED", appArmorAnnotations)
-
-		dm.EndPointsLock.Lock()
-		for idx, endPoint := range dm.EndPoints {
-			if secPolicy.Metadata["namespaceName"] == endPoint.NamespaceName && secPolicy.Metadata["podName"] == endPoint.EndPointName {
-				// remove endpoint
-				dm.EndPoints = append(dm.EndPoints[:idx], dm.EndPoints[idx+1:]...)
-				break
-			}
-		}
-		dm.EndPointsLock.Unlock()
+		dm.EndPoints[i] = newPoint
+		dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 	}
 }
 
