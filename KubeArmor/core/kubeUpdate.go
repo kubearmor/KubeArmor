@@ -6,6 +6,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -452,17 +453,27 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				pod := tp.K8sPod{}
 
+				// need this for apparmor profile
+				var podOwnerName string
+
 				pod.Metadata = map[string]string{}
 				pod.Metadata["namespaceName"] = event.Object.ObjectMeta.Namespace
 				pod.Metadata["podName"] = event.Object.ObjectMeta.Name
 
-				if len(event.Object.ObjectMeta.OwnerReferences) > 0 {
-					if event.Object.ObjectMeta.OwnerReferences[0].Kind == "ReplicaSet" {
-						deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], event.Object.ObjectMeta.OwnerReferences[0].Name)
+				ownerRef := kl.GetControllingPodOwner(event.Object.ObjectMeta.OwnerReferences)
+				if ownerRef != nil {
+					podOwnerName = ownerRef.Name
+					if ownerRef.Kind == "ReplicaSet" {
+						deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], podOwnerName)
 						if deploymentName != "" {
 							pod.Metadata["deploymentName"] = deploymentName
 						}
+						// if it belongs to a replicaset, we also remove the pod template hash
+						podOwnerName = strings.TrimSuffix(podOwnerName, fmt.Sprintf("-%s", event.Object.ObjectMeta.Labels["pod-template-hash"]))
 					}
+				} else {
+					// static pod
+					podOwnerName = event.Object.ObjectMeta.Name
 				}
 
 				pod.Annotations = map[string]string{}
@@ -592,7 +603,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 					for _, container := range event.Object.Spec.Containers {
 						if _, ok := appArmorAnnotations[container.Name]; !ok {
-							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + container.Name
+							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
 							updateAppArmor = true
 						}
 					}
