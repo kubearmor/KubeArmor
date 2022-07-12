@@ -10,6 +10,8 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
+
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -104,6 +106,10 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		return be, err
 	}
 
+	if cfg.GlobalCfg.HostPolicy {
+		be.AddHostToMap()
+	}
+
 	return be, nil
 }
 
@@ -118,6 +124,18 @@ func (be *BPFEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 		be.Logger.Printf("Updating container rules for %s", cid)
 		be.UpdateContainerRules(cid, endPoint.SecurityPolicies, endPoint.DefaultPosture)
 	}
+
+}
+
+// UpdateHostSecurityPolicies updates rules for the host
+func (be *BPFEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecurityPolicy) {
+	// skip if BPFEnforcer is not active
+	if be == nil {
+		return
+	}
+
+	be.Logger.Print("Updating host rules")
+	be.UpdateHostRules(secPolicies)
 
 }
 

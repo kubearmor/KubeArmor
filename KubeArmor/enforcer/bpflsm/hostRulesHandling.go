@@ -8,78 +8,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cilium/ebpf"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-// Array Keys for Map Rule Data
-const (
-	OWNER     uint8 = 0
-	READ      uint8 = 1
-	WRITE     uint8 = 2
-	EXEC      uint8 = 3
-	DIR       uint8 = 4
-	RECURSIVE uint8 = 5
-	HINT      uint8 = 6
-)
-
-// Map Key Identifiers for Whitelist/Posture
-var (
-	PROCWHITELIST = InnerKey{Path: [256]byte{101}}
-	FILEWHITELIST = InnerKey{Path: [256]byte{102}}
-	NETWHITELIST  = InnerKey{Path: [256]byte{103}}
-)
-
-// Protocol Identifiers for Network Rules
-var protocols = map[string]uint8{
-	"ICMP":   1,
-	"TCP":    6,
-	"UDP":    17,
-	"ICMPv6": 58,
-}
-
-// Socket Type Identifiers for Network Rules
-var netType = map[string]uint8{
-	"RAW": 3,
-}
-
-// Array Keys for Network Rule Keys
-const (
-	FAMILY   uint8 = 1
-	TYPE     uint8 = 2
-	PROTOCOL uint8 = 3
-)
-
-// RuleList Structure contains all the data required to set rules for a particular container
-type RuleList struct {
-	ProcessWhiteList     map[InnerKey][8]byte
-	ProcessBlackList     map[InnerKey][8]byte
-	FileWhiteList        map[InnerKey][8]byte
-	FileBlackList        map[InnerKey][8]byte
-	NetworkWhiteList     map[InnerKey][8]byte
-	NetworkBlackList     map[InnerKey][8]byte
-	ProcWhiteListPosture bool
-	FileWhiteListPosture bool
-	NetWhiteListPosture  bool
-}
-
-// Init prepares the RuleList object
-func (r *RuleList) Init() {
-	r.ProcessBlackList = make(map[InnerKey][8]byte)
-	r.ProcessWhiteList = make(map[InnerKey][8]byte)
-	r.ProcWhiteListPosture = false
-
-	r.FileBlackList = make(map[InnerKey][8]byte)
-	r.FileWhiteList = make(map[InnerKey][8]byte)
-	r.FileWhiteListPosture = false
-
-	r.NetworkBlackList = make(map[InnerKey][8]byte)
-	r.NetworkWhiteList = make(map[InnerKey][8]byte)
-	r.NetWhiteListPosture = false
-}
-
-// UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
-func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) {
+// UpdateHostRules updates host rules map with new rules and resolves conflicting rules
+func (be *BPFEnforcer) UpdateHostRules(securityPolicies []tp.HostSecurityPolicy) {
+	id := "host"
 
 	var newrules RuleList
 
@@ -98,7 +33,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if len(path.FromSource) == 0 {
 				var key InnerKey
 				copy(key.Path[:], []byte(path.Path))
-				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+				if path.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 					newrules.ProcWhiteListPosture = true
 					newrules.ProcessWhiteList[key] = val
 				} else if path.Action == "Block" && !newrules.ProcWhiteListPosture {
@@ -109,7 +44,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					var key InnerKey
 					copy(key.Path[:], []byte(path.Path))
 					copy(key.Source[:], []byte(src.Path))
-					if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+					if path.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 						newrules.ProcWhiteListPosture = true
 						newrules.ProcessWhiteList[key] = val
 					} else if path.Action == "Block" && !newrules.ProcWhiteListPosture {
@@ -130,7 +65,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				val[RECURSIVE] = 1
 			}
 			if len(dir.FromSource) == 0 {
-				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+				if dir.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 					newrules.ProcWhiteListPosture = true
 					dirtoMap(dir.Directory, "", newrules.ProcessWhiteList, val)
 				} else if dir.Action == "Block" && !newrules.ProcWhiteListPosture {
@@ -138,7 +73,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			} else {
 				for _, src := range dir.FromSource {
-					if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+					if dir.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 						newrules.ProcWhiteListPosture = true
 						dirtoMap(dir.Directory, src.Path, newrules.ProcessWhiteList, val)
 					} else if dir.Action == "Block" && !newrules.ProcWhiteListPosture {
@@ -160,7 +95,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if len(path.FromSource) == 0 {
 				var key InnerKey
 				copy(key.Path[:], []byte(path.Path))
-				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+				if path.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 					newrules.FileWhiteListPosture = true
 					newrules.FileWhiteList[key] = val
 				} else if path.Action == "Block" && !newrules.FileWhiteListPosture {
@@ -171,7 +106,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					var key InnerKey
 					copy(key.Path[:], []byte(path.Path))
 					copy(key.Source[:], []byte(src.Path))
-					if path.Action == "Allow" && defaultPosture.FileAction == "block" {
+					if path.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 						newrules.FileWhiteListPosture = true
 						newrules.FileWhiteList[key] = val
 					} else if path.Action == "Block" && !newrules.FileWhiteListPosture {
@@ -194,7 +129,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				val[RECURSIVE] = 1
 			}
 			if len(dir.FromSource) == 0 {
-				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+				if dir.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 					newrules.FileWhiteListPosture = true
 					dirtoMap(dir.Directory, "", newrules.FileWhiteList, val)
 				} else if dir.Action == "Block" && !newrules.FileWhiteListPosture {
@@ -202,7 +137,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			} else {
 				for _, src := range dir.FromSource {
-					if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
+					if dir.Action == "Allow" && cfg.GlobalCfg.HostDefaultFilePosture == "block" {
 						newrules.FileWhiteListPosture = true
 						dirtoMap(dir.Directory, src.Path, newrules.FileWhiteList, val)
 					} else if dir.Action == "Block" && !newrules.FileWhiteListPosture {
@@ -224,7 +159,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 
 			if len(net.FromSource) == 0 {
-				if net.Action == "Allow" && defaultPosture.NetworkAction == "block" {
+				if net.Action == "Allow" && cfg.GlobalCfg.HostDefaultNetworkPosture == "block" {
 					newrules.NetWhiteListPosture = true
 					newrules.NetworkWhiteList[key] = val
 				} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
@@ -233,7 +168,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else {
 				for _, src := range net.FromSource {
 					copy(key.Source[:], []byte(src.Path))
-					if net.Action == "Allow" && defaultPosture.NetworkAction == "block" {
+					if net.Action == "Allow" && cfg.GlobalCfg.HostDefaultNetworkPosture == "block" {
 						newrules.NetWhiteListPosture = true
 						newrules.NetworkWhiteList[key] = val
 					} else if net.Action == "Block" && !newrules.NetWhiteListPosture {
@@ -339,84 +274,5 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
 			}
 		}
-	}
-}
-
-func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newBlackList, oldBlackList, newWhiteList, oldWhiteList map[InnerKey][8]byte, cmap *ebpf.Map) {
-	// No change in default posture, we delete existing elements which are not in the fresh rule set
-	if newPosture == oldPosture {
-		if newPosture {
-			for key := range oldWhiteList {
-				if _, ok := newWhiteList[key]; !ok {
-					// Delete Element from Container Map
-					if err := cmap.Delete(key); err != nil {
-						if !errors.Is(err, os.ErrNotExist) {
-							be.Logger.Err(err.Error())
-						}
-					}
-					delete(oldBlackList, key)
-				}
-			}
-		} else {
-			for key := range oldBlackList {
-				if _, ok := newBlackList[key]; !ok {
-					// Delete Element from Container Map
-					if err := cmap.Delete(key); err != nil {
-						if !errors.Is(err, os.ErrNotExist) {
-							be.Logger.Err(err.Error())
-						}
-					}
-					delete(oldWhiteList, key)
-				}
-			}
-		}
-	}
-
-	// Change in default posture, We batch delete all existing elements
-	if newPosture != oldPosture {
-		var keys []InnerKey
-		if newPosture {
-			for key := range oldBlackList {
-				keys = append(keys, key)
-				delete(oldBlackList, key)
-			}
-		} else {
-			for key := range oldWhiteList {
-				keys = append(keys, key)
-				delete(oldWhiteList, key)
-			}
-		}
-		count, err := cmap.BatchDelete(keys, nil)
-		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				be.Logger.Err(err.Error())
-			}
-		}
-		be.Logger.Printf("Batch deleted due to change in posture %d", count)
-	}
-}
-
-// dirtoMap extracts parent directories from the Path Key and adds it as hints in the Container Rule Map
-func dirtoMap(p, src string, m map[InnerKey][8]byte, val [8]byte) {
-	var key InnerKey
-	copy(key.Path[:], []byte(p))
-	if src != "" {
-		copy(key.Source[:], []byte(src))
-	}
-	paths := strings.Split(p, "/")
-	val[DIR] = 1
-	m[key] = val
-
-	val[DIR] = 0
-
-	for i := 1; i < len(paths)-1; i++ {
-		var key InnerKey
-		val[HINT] = 1
-		var hint = strings.Join(paths[0:i], "/") + "/"
-		copy(key.Path[:], []byte(hint))
-		if src != "" {
-			copy(key.Source[:], []byte(src))
-		}
-		m[key] = val
 	}
 }

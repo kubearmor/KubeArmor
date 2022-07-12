@@ -191,7 +191,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
                            .mnt_ns = get_task_mnt_ns_id(t)};
 
   if (okey.pid_ns == PROC_PID_INIT_INO) {
-    return 0;
+    okey.pid_ns = 0;
+    okey.mnt_ns = 0;
   }
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
@@ -359,7 +360,8 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
                            .mnt_ns = get_task_mnt_ns_id(t)};
 
   if (okey.pid_ns == PROC_PID_INIT_INO) {
-    return 0;
+    okey.pid_ns = 0;
+    okey.mnt_ns = 0;
   }
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
@@ -534,7 +536,8 @@ int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
                            .mnt_ns = get_task_mnt_ns_id(t)};
 
   if (okey.pid_ns == PROC_PID_INIT_INO) {
-    return 0;
+    okey.pid_ns = 0;
+    okey.mnt_ns = 0;
   }
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
