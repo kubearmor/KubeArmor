@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	be "github.com/kubearmor/KubeArmor/KubeArmor/enforcer/bpflsm"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
@@ -22,6 +23,9 @@ type RuntimeEnforcer struct {
 
 	// LSM type
 	EnforcerType string
+
+	// LSM - BPFLSM
+	bpfEnforcer *be.BPFEnforcer
 
 	// LSM - AppArmor
 	appArmorEnforcer *AppArmorEnforcer
@@ -60,6 +64,28 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	lsms := string(lsm)
 	re.Logger.Printf("Supported LSMs: %s", lsms)
 
+	if strings.Contains(lsms, "bpf") {
+		var err error
+		re.bpfEnforcer, err = be.NewBPFEnforcer(node, logger)
+		if re.bpfEnforcer != nil {
+			if err != nil {
+				re.Logger.Print("Error Initialising BPF LSM Enforcer, Cleaning Up")
+				if err := re.bpfEnforcer.DestroyBPFEnforcer(); err != nil {
+					re.Logger.Err(err.Error())
+				} else {
+					re.Logger.Print("Destroyed BPFLSM Enforcer")
+				}
+			} else {
+				re.Logger.Print("Initialized BPF LSM Enforcer")
+				re.EnforcerType = "BPFLSM"
+				logger.UpdateEnforcer(re.EnforcerType)
+				return re
+			}
+		}
+
+	}
+
+	// Fallback to Other LSMs if failure during BPF Enforcer initialisation
 	if strings.Contains(lsms, "apparmor") {
 		re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
 		if re.appArmorEnforcer != nil {
@@ -81,6 +107,30 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	}
 
 	return nil
+}
+
+// RegisterContainer registers container identifiers to BPFEnforcer Map
+func (re *RuntimeEnforcer) RegisterContainer(containerID string, pidns, mntns uint32) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
+	if re.EnforcerType == "BPFLSM" {
+		re.bpfEnforcer.AddContainerIDToMap(containerID, pidns, mntns)
+	}
+}
+
+// UnregisterContainer removes container identifiers from BPFEnforcer Map
+func (re *RuntimeEnforcer) UnregisterContainer(containerID string) {
+	// skip if runtime enforcer is not active
+	if re == nil {
+		return
+	}
+
+	if re.EnforcerType == "BPFLSM" {
+		re.bpfEnforcer.DeleteContainerIDFromMap(containerID)
+	}
 }
 
 // UpdateAppArmorProfiles Function
@@ -112,7 +162,9 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 		return
 	}
 
-	if re.EnforcerType == "AppArmor" {
+	if re.EnforcerType == "BPFLSM" {
+		re.bpfEnforcer.UpdateSecurityPolicies(endPoint)
+	} else if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
 	} else if re.EnforcerType == "SELinux" {
 		// do nothing
@@ -126,7 +178,9 @@ func (re *RuntimeEnforcer) UpdateHostSecurityPolicies(secPolicies []tp.HostSecur
 		return
 	}
 
-	if re.EnforcerType == "AppArmor" {
+	if re.EnforcerType == "BPFLSM" {
+		re.bpfEnforcer.UpdateHostSecurityPolicies(secPolicies)
+	} else if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateHostSecurityPolicies(secPolicies)
 	} else if re.EnforcerType == "SELinux" {
 		re.seLinuxEnforcer.UpdateHostSecurityPolicies(secPolicies)
@@ -142,7 +196,16 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 
 	errorLSM := false
 
-	if re.EnforcerType == "AppArmor" {
+	if re.EnforcerType == "BPFLSM" {
+		if re.bpfEnforcer != nil {
+			if err := re.bpfEnforcer.DestroyBPFEnforcer(); err != nil {
+				re.Logger.Err(err.Error())
+				errorLSM = true
+			} else {
+				re.Logger.Print("Destroyed BPFLSM Enforcer")
+			}
+		}
+	} else if re.EnforcerType == "AppArmor" {
 		if re.appArmorEnforcer != nil {
 			if err := re.appArmorEnforcer.DestroyAppArmorEnforcer(); err != nil {
 				re.Logger.Err(err.Error())
@@ -166,5 +229,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 		return fmt.Errorf("failed to destroy RuntimeEnforcer (%s)", re.EnforcerType)
 	}
 
+	// Reset Enforcer to nil if no errors during clean up
+	re = nil
 	return nil
 }

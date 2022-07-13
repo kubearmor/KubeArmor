@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
+// PodAnnotator Structure
 type PodAnnotator struct {
 	Client   client.Client
 	decoder  *admission.Decoder
@@ -28,6 +29,7 @@ const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 
 // +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Ignore,groups="",resources=pods,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 
+// Handle Pod Annotation
 func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pod := &corev1.Pod{}
 
@@ -56,11 +58,9 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 
 	// == LSM == //
 
-	if a.Enforcer == "" {
+	if a.Enforcer == "" || a.Enforcer == "SELinux" {
 		pod.Annotations["kubearmor-policy"] = "audited"
-	} else if a.Enforcer == "SELinux" {
-		pod.Annotations["kubearmor-policy"] = "audited"
-	} else { // AppArmor
+	} else if a.Enforcer == "AppArmor" {
 		appArmorAnnotator(pod)
 	}
 
@@ -105,7 +105,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
 }
 
-// to get a decoder injected for us
+// InjectDecoder gets a decoder injected for us
 func (a *PodAnnotator) InjectDecoder(d *admission.Decoder) error {
 	a.decoder = d
 	return nil

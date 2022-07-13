@@ -313,6 +313,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
 		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
@@ -354,6 +355,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])

@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/KubeArmor
 
-go 1.15
+go 1.16
 
 replace (
 	github.com/kubearmor/KubeArmor => ../../
@@ -9,6 +9,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/core => ./core
 	github.com/kubearmor/KubeArmor/KubeArmor/discover => ./discovery
 	github.com/kubearmor/KubeArmor/KubeArmor/enforcer => ./enforcer
+	github.com/kubearmor/KubeArmor/KubeArmor/enforcer/bpflsm => ./enforcer/bpflsm
 	github.com/kubearmor/KubeArmor/KubeArmor/feeder => ./feeder
 	github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent => ./kvmAgent
 	github.com/kubearmor/KubeArmor/KubeArmor/log => ./log
@@ -19,6 +20,7 @@ replace (
 )
 
 require (
+	github.com/cilium/ebpf v0.9.0
 	github.com/containerd/containerd v1.5.13
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.7+incompatible
@@ -33,8 +35,6 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/spf13/viper v1.4.0
 	go.uber.org/zap v1.18.1
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/tools v0.1.10 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/grpc v1.47.0
 	k8s.io/api v0.21.2

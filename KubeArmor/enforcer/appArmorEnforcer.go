@@ -173,6 +173,8 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 		ae.UnregisterAppArmorHostProfile()
 	}
 
+	ae = nil
+
 	return nil
 }
 

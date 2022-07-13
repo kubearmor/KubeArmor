@@ -92,6 +92,12 @@ Vagrant.configure("2") do |config|
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
 
   else # ubuntu
+    if ENV['NETNEXT'] == "1" then
+      config.vm.provision :shell, :inline => "sed -i 's/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"lsm=apparmor,bpf\"/g' /etc/default/grub"
+      config.vm.provision :shell, :inline => "update-grub"
+      config.vm.provision :reload
+    end
+
     # install base dependencies
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/setup.sh"
 
