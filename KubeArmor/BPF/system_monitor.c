@@ -136,7 +136,15 @@ BPF_PERF_OUTPUT(sys_events);
 
 static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
 {
-    return task->nsproxy->pid_ns_for_children->ns.inum;
+    struct pid *pid = NULL;
+
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0))
+    pid = task->pids[PIDTYPE_PID].pid;
+    #else
+    pid = task->thread_pid;
+    #endif
+
+    return pid->numbers[pid->level].ns.inum;
 }
 
 struct mnt_namespace {
