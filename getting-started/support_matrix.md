@@ -14,7 +14,7 @@ KubeArmor supports following types of workloads:
 | [AWS EKS](https://aws.amazon.com/eks/) | Amazon Linux 2 (kernel version >5.7) | Yes | Support leveraging [BPF LSM](https://github.com/kubearmor/KubeArmor/issues/484) |
 | [AWS EKS](https://aws.amazon.com/eks/) | Ubuntu | Yes |
 | [AWS EKS](https://aws.amazon.com/eks/) | [Bottlerocket OS](https://github.com/bottlerocket-os/bottlerocket#bottlerocket-os) | Yes | Support leveraging [BPF LSM](https://github.com/kubearmor/KubeArmor/issues/484)
-| RedHat OpenShift | * | TBD |
+| RedHat OpenShift | Red Hat Enterprise Linux release 8.4 | Partial | Observability/Audit mode is supported, Enforcement mode is not supported. (Kernel Version: 4.18.0-305.45.1.el8_4.x86_64, Openshift Version: 4.10.14)
 | VMWare Tanzu | * | TBD |
 | Rancher RKE | * | TBD |
 
