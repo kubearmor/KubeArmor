@@ -238,8 +238,8 @@ spec:
           httpGet:
             path: /healthz
             port: 8081
-          initialDelaySeconds: 3
-          periodSeconds: 3
+          initialDelaySeconds: 15
+          periodSeconds: 20
         name: kubearmor-policy-manager
         resources:
           limits:
@@ -313,8 +313,8 @@ spec:
           httpGet:
             path: /healthz
             port: 8081
-          initialDelaySeconds: 3
-          periodSeconds: 3
+          initialDelaySeconds: 15
+          periodSeconds: 20
         name: kubearmor-host-policy-manager
         resources:
           limits:
