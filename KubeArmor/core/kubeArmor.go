@@ -634,7 +634,8 @@ func KubeArmor() {
 
 	dm.Logger.Print("Initialized KubeArmor")
 
-	// == //
+	kd := SetKarmorData(dm)
+	KarmorDataToFile(kd, "/tmp/karmorProbeData.cfg")
 
 	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
 		// Restore and apply all kubearmor host security policies
