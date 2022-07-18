@@ -10,6 +10,7 @@ RUN apk --no-cache update && \
     apk --no-cache add llvm clang make gcc
 
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
+COPY ./GKE /KubeArmor/GKE/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
 
 ENTRYPOINT ["/KubeArmor/compile.sh"]

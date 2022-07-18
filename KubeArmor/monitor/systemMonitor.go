@@ -8,13 +8,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
-	"time"
 
 	cle "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -185,45 +182,6 @@ func (mon *SystemMonitor) InitBPF() error {
 	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		return err
-	}
-
-	if kl.IsInK8sCluster() {
-		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
-			s := string(b)
-			if strings.Contains(s, "Container-Optimized OS") {
-				mon.Logger.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
-
-				// check and download kernel headers
-				if err := kl.RunCommandAndWaitWithErr(homeDir+"/GKE/download_cos_kernel_headers.sh", []string{}); err != nil {
-					mon.Logger.Errf("Failed to download COS kernel headers (%s)", err.Error())
-					return err
-				}
-
-				mon.Logger.Printf("Downloaded kernel headers (%s)", mon.Node.KernelVersion)
-
-				// set a new location for kernel headers
-				if err := os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.Node.KernelVersion); err != nil {
-					mon.Logger.Err(err.Error())
-				}
-
-				// just for safety
-				time.Sleep(time.Second * 1)
-			} else {
-				// In case of GKE COS release >= 1.22, the base OS img does not
-				// contain /usr/src folder. Thus we now mount /usr folder to
-				// /media/root/usr folder in kubearmor for GKE. The following code
-				// checks whether the /media/root/usr/src/kernel-hdrs path exists
-				// and uses it for BCC kernel source, if present.
-				lklhdrpath := "/media/root/usr/src/linux-headers-" + mon.Node.KernelVersion
-				mon.Logger.Printf("checking if kernel headers path (%s) exists", lklhdrpath)
-				if _, err := os.Stat(lklhdrpath); err == nil {
-					mon.Logger.Printf("using kernel headers from (%s)", lklhdrpath)
-					if err := os.Setenv("BCC_KERNEL_SOURCE", lklhdrpath); err != nil {
-						mon.Logger.Errf("setenv failed for [BCC_KERNEL_SOURCE=%s] Error=%s", lklhdrpath, err.Error())
-					}
-				}
-			}
-		}
 	}
 
 	bpfPath := homeDir + "/BPF/"
