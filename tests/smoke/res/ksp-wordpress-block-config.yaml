@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-block-config
+  namespace: wordpress-mysql
+spec:
+  severity: 10
+  message: "blocked access to wordpress configuration file"
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchPaths:
+    - path: /var/www/html/wp-config.php
+      fromSource:
+      - path: /bin/cat
+
+      # http://[NodeIP]:30080
+      # cat /var/www/html/wp-config.php
+ 
+  action:
+    Block
