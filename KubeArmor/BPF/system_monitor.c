@@ -380,7 +380,7 @@ static __always_inline u32 skip_syscall()
         return 1;
     }
 
-    if (pid_ns_map.lookup(&pid_ns) != 0) {
+    if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) != 0) {
         return 0;
     }
 

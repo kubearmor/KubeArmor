@@ -18,7 +18,7 @@ contribution/vagrant/*.log
 .coverprofile
 
 #Object files
-*.o
+**/BPF/*.o
 
 # protobuf
 protobuf/go.sum

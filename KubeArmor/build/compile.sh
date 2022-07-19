@@ -16,6 +16,7 @@ if [ -f "$FILE" ]; then
 fi
 
 cd /KubeArmor/BPF
+make clean
 
 if [[ -n "$KRNDIR" ]]; then
     make KRNDIR=$KRNDIR

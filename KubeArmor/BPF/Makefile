@@ -1,6 +1,10 @@
 ifeq (,$(KRNDIR))
 KRNVER = $(shell uname -r)
-ifneq (,$(wildcard /etc/redhat-release))
+ifneq (,$(wildcard /lib/modules/$(KRNVER)/build/Kconfig))
+	KRNDIR = /lib/modules/$(KRNVER)/build
+else ifneq (,$(wildcard /lib/modules/$(KRNVER)/source/Kconfig))
+	KRNDIR = /lib/modules/$(KRNVER)/source
+else ifneq (,$(wildcard /etc/redhat-release))
 	KRNDIR = /usr/src/$(KRNVER)
 else
 	KRNDIR = /usr/src/linux-headers-$(KRNVER)
@@ -60,7 +64,9 @@ all: chkdir system_monitor.bpf.o system_monitor.container.bpf.o system_monitor.h
 chkdir:
 ifeq (,$(wildcard $(KRNDIR)/Kconfig))
 	@echo "Your kernel path[$(RED)$(KRNDIR)$(NC)] is incorrect. Use 'make KRNDIR=[KERNEL-SRC-PATH]'."
-	Quitting abnormally
+	Quitting 
+else
+	@echo "Using kernel path[$(GREEN)$(KRNDIR)$(NC)]"
 endif
 ifeq (,$(wildcard $(LIBBPF)/src/libbpf.c))
 	git submodule update --init --recursive
@@ -75,7 +81,7 @@ system_monitor.bpf.o: $(SYSMONITOR)
 
 system_monitor.container.bpf.o: $(SYSMONITOR)
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
-	$(Q)$(CL) $(KF) -c $< -o -| llc -march=bpf -mcpu=probe -filetype=obj -o $@
+	$(Q)$(CL) $(KF) -DMONITOR_CONTAINER -c $< -o -| llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
 system_monitor.host.bpf.o: $(SYSMONITOR)
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."

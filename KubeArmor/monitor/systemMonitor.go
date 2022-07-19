@@ -199,7 +199,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
-	mon.Logger.Print("Initializing an eBPF program")
+	mon.Logger.Print("Initializing eBPF system monitor")
 
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -207,23 +207,19 @@ func (mon *SystemMonitor) InitBPF() error {
 	}
 
 	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-		mon.BpfModule, err = cle.LoadCollection(bpfPath + "system_monitor.container.bpf.o")
-		if err != nil {
-			return fmt.Errorf("bpf module is nil %v", err)
-		}
+		bpfPath = bpfPath + "system_monitor.container.bpf.o"
 	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-		mon.BpfModule, err = cle.LoadCollection(bpfPath + "system_monitor.host.bpf.o")
-		if err != nil {
-			return fmt.Errorf("bpf module is nil %v", err)
-		}
+		bpfPath = bpfPath + "system_monitor.host.bpf.o"
 	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-		mon.BpfModule, err = cle.LoadCollection(bpfPath + "system_monitor.bpf.o")
-		if err != nil {
-			return fmt.Errorf("bpf module is nil %v", err)
-		}
+		bpfPath = bpfPath + "system_monitor.bpf.o"
+	}
+	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
+	mon.BpfModule, err = cle.LoadCollection(bpfPath)
+	if err != nil {
+		return fmt.Errorf("bpf module is nil %v", err)
 	}
 
-	mon.Logger.Print("Initialized the eBPF program")
+	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
