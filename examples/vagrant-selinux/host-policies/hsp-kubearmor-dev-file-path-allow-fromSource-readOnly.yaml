@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-path-allow-fromsource-readonly
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchPaths:
+    - path: /home/vagrant/selinux-test/file.txt
+      readOnly: true
+      fromSource:
+      - path: /home/vagrant/selinux-test/readwrite
+  action:
+    Allow
+
+# test
+# (/home/vagrant/selinux-test/) $ ./readwrite -r file.txt
+# hello
+# (/home/vagrant/selinux-test/) $ ./readwrite matchDir/test1
+# Error!
+# (/home/vagrant/selinux-test/) $ ./readwrite -w file.txt
+# Error!
+
+# expectation
+# /home/vagrant/selinux-test/readwrite can only read /home/vagrant/selinux-test/file.txt

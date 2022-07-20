@@ -1,4 +1,4 @@
-# Security Policy Specification for Containers
+# Specification of Security Policy for Containers
 
 ## Policy Specification
 
@@ -77,7 +77,7 @@ For better understanding, you can check [the KubeArmorPolicy spec diagram](../.g
 
 Now, we will briefly explain how to define a security policy.
 
-* Common
+### Common
 
   A security policy starts with the base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you want to apply the policy.
 
@@ -89,7 +89,7 @@ Now, we will briefly explain how to define a security policy.
       namespace: [namespace name]
   ```
 
-* Severity
+### Severity
 
   The severity part is somewhat important. You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts when policy violations happen.
 
@@ -97,15 +97,15 @@ Now, we will briefly explain how to define a security policy.
   severity: [1-10]
   ```
 
-* Tags
+### Tags
 
-  The tags part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
+  The tags part is optional. You can define multiple tags (e.g., WARNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
 
   ```text
   tags: ["tag1", ..., "tagN"]
   ```
 
-* Message
+### Message
 
   The message part is optional. You can add an alert message, and then the message will be presented in alert logs.
 
@@ -113,7 +113,7 @@ Now, we will briefly explain how to define a security policy.
   message: [message]
   ```
 
-* Selector
+### Selector
 
   The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify \(a group of\) pods based on labels.
 
@@ -124,7 +124,7 @@ Now, we will briefly explain how to define a security policy.
         [keyN]: [valueN]
   ```
 
-* Process
+### Process
 
   In the process section, there are three types of matches: matchPaths, matchDirectories, and matchPatterns. You can define specific executables using matchPaths or all executables in specific directories using matchDirectories. In the case of matchPatterns, advanced operators may be able to determine particular patterns for executables by using regular expressions. However, the coverage of regular expressions is highly dependent on AppArmor \([Policy Core Reference](https://gitlab.com/apparmor/apparmor/-/wikis/AppArmor_Core_Policy_Reference)\). Thus, we generally do not recommend using this match.
 
@@ -168,7 +168,7 @@ Now, we will briefly explain how to define a security policy.
           - path: /bin/bash
     ```
 
-* File
+### File
 
   The file section is quite similar to the process section.
 
@@ -199,7 +199,7 @@ Now, we will briefly explain how to define a security policy.
 
     If this is enabled, the read operation will be only allowed, and any other operations \(e.g., write\) will be blocked.  
 
-* Network
+### Network
 
   In the case of network, there is currently one match type: matchProtocols. You can define specific protocols among TCP, UDP, and ICMP.
 
@@ -211,7 +211,7 @@ Now, we will briefly explain how to define a security policy.
         - path: [absolute file path]
   ```
 
-* Capabilities
+### Capabilities
 
   In the case of capabilities, there is currently one match type: matchCapabilities. You can define specific capability names to allow or block using matchCapabilities. You can check available capabilities in [Capability List](supported_capability_list.md).
 

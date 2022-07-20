@@ -1,6 +1,6 @@
 source: ubuntu-5-deployment
-cmd: echo test >> /home/user1/secret_data1.txt
-result: failed
+cmd: su - user1 -c "cat /home/user1/secret_data1.txt"
+result: passed
 ---
 operation: File
 condition: /home/user1/secret_data1.txt

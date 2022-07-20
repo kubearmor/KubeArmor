@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -42,8 +42,6 @@ func init() {
 
 	typeurl.Register(&specs.Spec{}, prefix, "opencontainers/runtime-spec", major, "Spec")
 	typeurl.Register(&specs.Process{}, prefix, "opencontainers/runtime-spec", major, "Process")
-
-	Containerd = NewContainerdHandler()
 }
 
 // ContainerdHandler Structure
@@ -72,29 +70,15 @@ type ContainerdHandler struct {
 func NewContainerdHandler() *ContainerdHandler {
 	ch := &ContainerdHandler{}
 
-	sockFile := "unix://"
-
-	for idx, candidate := range []string{"/var/run/containerd/containerd.sock", "/var/snap/microk8s/common/run/containerd.sock", "/run/k3s/containerd/containerd.sock"} {
-		if _, err := os.Stat(filepath.Clean(candidate)); err == nil {
-			sockFile = sockFile + candidate
-
-			if idx == 0 { // containerd
-				ch.StoragePath = "/run/containerd"
-			} else if idx == 1 { // microk8s
-				ch.StoragePath = "/var/snap/microk8s/common/run/containerd"
-			} else if idx == 2 { // k3s
-				ch.StoragePath = "/run/k3s/containerd"
-			}
-
-			break
-		}
+	if strings.Contains(cfg.GlobalCfg.CRISocket, "microk8s") { // microk8s
+		ch.StoragePath = "/var/snap/microk8s/common/run/containerd"
+	} else if strings.Contains(cfg.GlobalCfg.CRISocket, "k3s") { // k3s
+		ch.StoragePath = "/run/k3s/containerd"
+	} else { // vanilla containerd
+		ch.StoragePath = "/run/containerd"
 	}
 
-	if sockFile == "unix://" {
-		return nil
-	}
-
-	conn, err := grpc.Dial(sockFile, grpc.WithInsecure())
+	conn, err := grpc.Dial(cfg.GlobalCfg.CRISocket, grpc.WithInsecure())
 	if err != nil {
 		return nil
 	}
@@ -115,6 +99,8 @@ func NewContainerdHandler() *ContainerdHandler {
 
 	// active containers
 	ch.containers = map[string]context.Context{}
+
+	kg.Print("Initialized Containerd Handler")
 
 	return ch
 }
@@ -287,7 +273,10 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 			container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
 			container.EndPointName = dm.Containers[container.ContainerID].EndPointName
+			container.Labels = dm.Containers[container.ContainerID].Labels
+
 			container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+			container.ContainerImage = dm.Containers[container.ContainerID].ContainerImage
 
 			container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
 
@@ -324,6 +313,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
 		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
@@ -365,6 +355,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
@@ -375,13 +366,15 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 // MonitorContainerdEvents Function
 func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
+	dm.WgDaemon.Add(1)
+	defer dm.WgDaemon.Done()
+
+	Containerd = NewContainerdHandler()
+
 	// check if Containerd exists
 	if Containerd == nil {
 		return
 	}
-
-	dm.WgDaemon.Add(1)
-	defer dm.WgDaemon.Done()
 
 	dm.Logger.Print("Started to monitor Containerd events")
 

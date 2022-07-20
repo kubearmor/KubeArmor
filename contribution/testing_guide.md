@@ -1,8 +1,23 @@
 # Testing Guide
 
-In order to check the functionalities of KubeArmor, there are two options: testing kubeArmor in manual and running the auto-testing framework.
+There are two ways to check the functionalities of KubeArmor: 1) testing KubeArmor manually and 2) using the testing framework.
 
-# 1.  Test KubeArmor in manual
+# 0. Make sure that the annotation controller is installed on the cluster (Applicable for Steps 1 and 2)
+
+- To install the controller from KubeArmor docker repository to your cluster run
+
+```text
+$ cd KubeArmor/pkg/KubeArmorAnnotation
+~/KubeArmor/pkg/KubeArmorAnnotation$ make deploy
+```
+- To install the controller (local version) to your cluster run
+
+```text
+$ cd KubeArmor/pkg/KubeArmorAnnotation
+~/KubeArmor/pkg/KubeArmorAnnotation$ make docker-build deploy
+```
+
+# 1.  Test KubeArmor manually
 
 ## 1.1. Run 'kubectl proxy' in background
 
@@ -21,9 +36,9 @@ $ cd KubeArmor/KubeArmor
 
 ```text
 ~/KubeArmor/KubeArmor$ sudo -E ./kubearmor -gRPC=[gRPC port number]
-                                            -logPath=[log file path]
-                                            -enableKubeArmorPolicy=[true|false]
-                                            -enableKubeArmorHostPolicy=[true|false]
+                                           -logPath=[log file path]
+                                           -enableKubeArmorPolicy=[true|false]
+                                           -enableKubeArmorHostPolicy=[true|false]
 ```
 
 ## 1.4. Apply security policies into Kubernetes
@@ -56,51 +71,31 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
 
 ## 1.6. Check generated alerts
 
-- Log file
+- Watch alerts using [karmor](https://github.com/kubearmor/kubearmor-client) cli tool
 
     ```text
-    $ tail (-f) /tmp/kubearmor.log
+    $ karmor log [flags]
     ```
-
-    If you changed the location of a log file, replace the default file path to your file.
+    
+    flags:
 
     ```text
-    $ tail (-f) [your log file path]
+    --gRPC string        gRPC server information
+    --help               help for log
+    --json               Flag to print alerts and logs in the JSON format
+    --logFilter string   What kinds of alerts and logs to receive, {policy|system|all} (default "policy")
+    --logPath string     Output location for alerts and logs, {path|stdout|none} (default "stdout")
+    --msgPath string     Output location for messages, {path|stdout|none} (default "none")
     ```
-
-- Log client
-
-    Compile a log client
-
-    ```text
-    $ git clone https://github.com/kubearmor/kubearmor-log-client
-    $ cd kubearmor-log-client
-    ~/kubearmor-log-client$ make
-    ```
-
-    Run the log client
-
-    ```text
-    ~/kubearmor-log-client$ ./kubearmor-log-client (options...)
-    ```
-
-    Log client options:
-
-    ```text
-    -gRPC=[ipaddr:port]             gRPC server information (default: localhost:32767)
-    -msgPath={path|stdout|none}     Output location for KubeArmor's messages (default: none)
-    -logPath={path|stdout|none}     Output location for KubeArmor's alerts and logs (default: stdout)
-    -logFilter={policy|system|all}  Filter for what kinds of alerts and logs to receive (default: policy)
-    -json                           Flag to print messages, alerts, and logs in a JSON format
-    ```
-
-    Note that you will see the messages, alerts, and logs generated right after the log client runs, which means that the log client should be ran before any policy violations happen.
+    
+    Note that you will see alerts and logs generated right after `karmor` runs logs; thus, we recommend to run the above command in other terminal to see logs live.
+    
 
 # 2.  Test KubeArmor using the auto-testing framework
 
-## 2.1. Prepare microservices and testcases
+## 2.1. Prepare microservices and test scenarios
 
-The auto-testing framework operates based on two things: microservices and testcases for each microservice.
+The auto-testing framework operates based on two things: microservices and test scenarios for each microservice.
 
 - Microservices
 
@@ -120,26 +115,26 @@ The auto-testing framework operates based on two things: microservices and testc
 
     As an example, we created 'multiubuntu' in [microservices](../tests/microservices) and defined 'multiubuntu-deployment.yaml' in [multiubuntu](../examples/multiubuntu).
 
-- Testcases
+- Test scenarios
 
-    Create a directory whose name is like '[microservice name]_[testcase name]' in [scenarios](../tests/scenarios)
+    Create a directory whose name is like '[microservice name]_[scenario name]' in [scenarios](../tests/scenarios)
     
     ```text
     $ cd KubeArmor/tests/scenarios
-    ~/KubeArmor/tests/scenarios$ mkdir [microservice name]_[testcase name]
+    ~/KubeArmor/tests/scenarios$ mkdir [microservice name]_[scenario name]
     ```
     
     Then, define a YAML file for a test policy in the directory
     
     ```text
-    ~/KubeArmor/tests/scenarios$ cd [microservice name]_[testcase name]
-    .../[microservice name]_[testcase name]$ vi [policy name].yaml
+    ~/KubeArmor/tests/scenarios$ cd [microservice name]_[scenario name]
+    .../[microservice name]_[scenario name]$ vi [policy name].yaml
     ```
 
     Create cmd files whose names are like 'cmd#'
     
     ```text
-    .../[microservice name]_[testcase name]$ vi cmd1 / cmd2 / ...
+    .../[microservice name]_[scenario name]$ vi cmd1 / cmd2 / ...
     ```
     
     Here is a template for a cmd file.
@@ -154,7 +149,7 @@ The auto-testing framework operates based on two things: microservices and testc
     action: [action in a policy] { Allow | Audit | Block }
     ```
 
-    This is an example of a testcase.
+    This is a cmd example of a test scenario.
 
     ```text
     source: ubuntu-1-deployment
@@ -170,7 +165,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
 ## 2.2. Test KubeArmor
     
-- KubeArmor running in a host
+- The case that KubeArmor is directly running in a host
 
     Compile KubeArmor
 
@@ -183,7 +178,7 @@ The auto-testing framework operates based on two things: microservices and testc
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-local.sh -testAll
+    ~/KubeArmor/tests$ ./test-scenarios-local.sh
     ```
 
     Check the test report
@@ -192,13 +187,13 @@ The auto-testing framework operates based on two things: microservices and testc
     ~/KubeArmor/tests$ cat /tmp/kubearmor.test
     ```
 
-- KubeArmor running as a daemonset
+- The case that KubeArmor is running as a daemonset in Kubernetes
 
-    Run the auto-testing framework
+    Run the testing framework
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh -testAll
+    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh
     ```
 
     Check the test report

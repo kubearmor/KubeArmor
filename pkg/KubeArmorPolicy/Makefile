@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
+CURDIR := $(shell pwd)
+
 # Image URL to use all building/pushing image targets
-IMG ?= kubearmor/kubearmor-policy-manager:latest
+IMG ?= kubearmor/kubearmor-policy-manager
+# Image Tag to use all building/pushing image targets
+TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:crdVersions=v1"
 
@@ -37,8 +41,12 @@ uninstall: manifests
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/default | kubectl apply -f -
+	cd config/manager; kustomize edit set image controller=${IMG}:latest
+	cd $(CURDIR); kustomize build config/default | sed 's/latest/${TAG}/g' | kubectl apply -f -
+
+# Delete controller from the K8s cluster specified in ~/.kube/config.
+delete: manifests
+	kustomize build config/default | kubectl delete -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
@@ -48,8 +56,8 @@ manifests: controller-gen
 
 # Generate deployments
 deployment: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/default > /tmp/KubeArmorPolicy.yaml
+	cd config/manager; kustomize edit set image controller=${IMG}:latest
+	cd $(CURDIR); kustomize build config/default > /tmp/kubearmor-policy-manager.yaml
 
 # Run go fmt against code
 fmt:
@@ -61,16 +69,16 @@ vet:
 
 # Generate code
 generate: controller-gen
-	go mod tidy
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	go mod tidy; $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
 docker-build:
-	docker build . -t ${IMG}
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+	docker push ${IMG}:${TAG}
+	docker push ${IMG}:latest
 
 client/gen:
 	@echo "--> Running code-generator to generate clients"
@@ -83,7 +91,6 @@ client/gen:
 	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/* ./client/
 	@rm -rf ./github.com ./tmp/code-generator
 
-
 # find or download controller-gen
 # download controller-gen if necessary
 controller-gen:
@@ -93,7 +100,8 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1 ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
@@ -102,4 +110,4 @@ CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
 clean:
-	rm -rf bin go.sum cover.out /tmp/KubeArmorPolicy.yaml
+	rm -rf bin go.sum cover.out /tmp/kubearmor-policy-manager.yaml

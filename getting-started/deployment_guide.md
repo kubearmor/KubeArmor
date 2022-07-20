@@ -1,14 +1,16 @@
 # Getting Started Guide
 
-If you do not already have a k8s cluster, check the [pre-requisites](#prerequisites) to setup one.
+If you do not have a k8s cluster, check the [pre-requisites](#prerequisites) to setup one.
 
-If you want to try KubeArmor directly on the host without k8s, [use kubearmor in systemd mode](kubearmor_vm.md).
+If you want to try KubeArmor directly on the host without k8s, [run KubeArmor in systemd mode](kubearmor_vm.md).
+
+Check the [KubeArmor support matrix](support_matrix.md) to verify if your platform is supported.
 
 ## Deployment Steps
 
 ### 1. Download and install karmor cli-tool
 ```
-curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b /usr/local/bin
+curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
 ```
 
 ### 2. Install KubeArmor
@@ -70,13 +72,14 @@ karmor log
 ```
 
 ## Manual YAML based [KubeArmor deployment](https://github.com/kubearmor/KubeArmor/tree/main/deployments)
-1. [EKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/EKS)
-2. [GKE](https://github.com/kubearmor/KubeArmor/tree/main/deployments/GKE)
-3. [docker](https://github.com/kubearmor/KubeArmor/tree/main/deployments/docker)
-4. [generic](https://github.com/kubearmor/KubeArmor/tree/main/deployments/generic)
-5. [k3s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/k3s)
-6. [microk8s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/microk8s)
-7. [minikube](https://github.com/kubearmor/KubeArmor/tree/main/deployments/minikube)
+1. [generic](https://github.com/kubearmor/KubeArmor/tree/main/deployments/generic)
+2. [docker](https://github.com/kubearmor/KubeArmor/tree/main/deployments/docker)
+3. [k3s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/k3s)
+4. [microk8s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/microk8s)
+5. [minikube](https://github.com/kubearmor/KubeArmor/tree/main/deployments/minikube)
+6. [GKE](https://github.com/kubearmor/KubeArmor/tree/main/deployments/GKE)
+7. [EKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/EKS)
+8. [AKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/AKS)
 
 ---
 **NOTE**
@@ -85,13 +88,16 @@ karmor log
 ---
 
 ## K8s platforms tested
-1. Google Kubernetes Engine (GKE) with Container Optimized OS (COS)
-2. GKE with Ubuntu image
-3. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS)
-4. Self-managed (on-prem) k8s
-5. Local k8s engines (k3s, microk8s, and minikube)
+1. Self-managed (on-prem) k8s
+2. Local k8s engines (k3s, microk8s, and minikube)
+3. Google Kubernetes Engine (GKE) with Container Optimized OS (COS)
+4. GKE with Ubuntu image
+5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS)
+6. [Azure Kubernetes Service (AKS)](../deployments/AKS)
 
 ## Prerequisites
-1. [k3s](../deployments/k3s)
-2. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
-3. [Minikube](../contribution/minikube#minikube-installation)
+1. [K3s](../deployments/k3s)
+2. [MicroK8s](../contribution/microk8s)
+3. [Minikube](../contribution/minikube)
+4. [Self-managed K8s](../contribution/self-managed-k8s)
+5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)

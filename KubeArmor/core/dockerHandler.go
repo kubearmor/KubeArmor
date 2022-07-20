@@ -29,11 +29,6 @@ import (
 // Docker Handler
 var Docker *DockerHandler
 
-// init Function
-func init() {
-	Docker = NewDockerHandler()
-}
-
 // DockerVersion Structure
 type DockerVersion struct {
 	APIVersion string `json:"ApiVersion"`
@@ -52,7 +47,7 @@ func NewDockerHandler() *DockerHandler {
 	// specify the docker api version that we want to use
 	// Versioned API: https://docs.docker.com/engine/api/
 
-	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--silent", "--unix-socket", "/var/run/docker.sock", "http://localhost/version"})
+	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--silent", "--unix-socket", strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://"), "http://localhost/version"})
 	if err != nil {
 		return nil
 	}
@@ -82,6 +77,8 @@ func NewDockerHandler() *DockerHandler {
 		return nil
 	}
 	docker.DockerClient = DockerClient
+
+	kg.Printf("Initialized Docker Handler (version: %s)", docker.Version.APIVersion)
 
 	return docker
 }
@@ -175,9 +172,9 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 
 // GetAlreadyDeployedDockerContainers Function
 func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
-	// check if Docker exists
+	// check if Docker exists else instantiate
 	if Docker == nil {
-		return
+		Docker = NewDockerHandler()
 	}
 
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
@@ -203,7 +200,10 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 					container.NamespaceName = dm.Containers[container.ContainerID].NamespaceName
 					container.EndPointName = dm.Containers[container.ContainerID].EndPointName
+					container.Labels = dm.Containers[container.ContainerID].Labels
+
 					container.ContainerName = dm.Containers[container.ContainerID].ContainerName
+					container.ContainerImage = dm.Containers[container.ContainerID].ContainerImage
 
 					container.PolicyEnabled = dm.Containers[container.ContainerID].PolicyEnabled
 
@@ -240,6 +240,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.PidNS, container.MntNS)
+					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 				}
 
 				dm.Logger.Printf("Detected a container (added/%s)", container.ContainerID[:12])
@@ -280,7 +281,10 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 			container.NamespaceName = dm.Containers[containerID].NamespaceName
 			container.EndPointName = dm.Containers[containerID].EndPointName
+			container.Labels = dm.Containers[containerID].Labels
+
 			container.ContainerName = dm.Containers[containerID].ContainerName
+			container.ContainerImage = dm.Containers[containerID].ContainerImage
 
 			container.PolicyEnabled = dm.Containers[containerID].PolicyEnabled
 
@@ -317,6 +321,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
 		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
@@ -362,6 +367,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
@@ -373,9 +379,9 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
 
-	// check if Docker exists
+	// check if Docker exists else instantiate
 	if Docker == nil {
-		return
+		Docker = NewDockerHandler()
 	}
 
 	dm.Logger.Print("Started to monitor Docker events")

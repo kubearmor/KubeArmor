@@ -17,5 +17,11 @@ contribution/vagrant/*.log
 *.rpm
 .coverprofile
 
+#Object files
+**/BPF/*.o
+
 # protobuf
 protobuf/go.sum
+
+#header
+vmlinux.h

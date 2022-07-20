@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: wget --tries=1 142.250.193.46
+result: default
+---
+operation: Network
+condition: SOCK_STREAM
+action: default

@@ -1,5 +1,5 @@
 source: ubuntu-4-deployment
-cmd: cat /secret.txt 
+cmd: cat /secret.txt
 result: failed
 ---
 operation: File

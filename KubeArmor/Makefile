@@ -14,8 +14,15 @@ KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 .PHONY: build
 build: protobuf
-	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
+ifneq (, $(shell which bpftool))
+	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
+ifneq (, $(shell which llvm-strip))
+	if grep -q bpf '/sys/kernel/security/lsm'; then \
+    cd $(CURDIR); go generate ./... || true; \
+	fi
+endif
+endif
 	cd $(CURDIR); go build -o kubearmor main.go
 
 .PHONY: protobuf
@@ -24,7 +31,6 @@ protobuf:
 
 .PHONY: build-test
 build-test: testall
-	$(CURDIR)/patch.sh
 	cd $(CURDIR); go mod tidy
 	cd $(CURDIR); sudo -E $(GO_EXEC) test -covermode=atomic -coverpkg=./... -c . -o kubearmor
 
@@ -33,13 +39,15 @@ run: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=true -enableKubeArmorHostPolicy=true
+	cd $(CURDIR)/BPF; make clean
+	cd $(CURDIR)/BPF; make
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=true -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
 
 .PHONY: run-host-only
 run-host-only: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true
+	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
 
 .PHONY: test
 test:
@@ -54,6 +62,7 @@ testall:
 	cd $(CURDIR)/feeder; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 	cd $(CURDIR)/enforcer; go mod tidy
 	cd $(CURDIR)/enforcer; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
+	cd $(CURDIR)/BPF; make
 	cd $(CURDIR)/monitor; go mod tidy
 	cd $(CURDIR)/monitor; sudo -E $(GO_EXEC) clean -testcache .; sudo -E $(GO_EXEC) test -v -coverprofile=.coverprofile .
 
@@ -69,7 +78,8 @@ ifeq (, $(shell which golint))
 	GOLINT_TMP_DIR=$$(mktemp -d) ;\
 	cd $$GOLINT_TMP_DIR ;\
 	go mod init tmp ;\
-	go get -u golang.org/x/lint/golint ;\
+	go get golang.org/x/lint/golint ;\
+	go install golang.org/x/lint/golint ;\
 	rm -rf $$GOLINT_TMP_DIR ;\
 	}
 endif
@@ -83,7 +93,8 @@ ifeq (, $(shell which gosec))
 	GOSEC_TMP_DIR=$$(mktemp -d) ;\
 	cd $$GOSEC_TMP_DIR ;\
 	go mod init tmp ;\
-	go get -u github.com/securego/gosec/v2/cmd/gosec ;\
+	go get github.com/securego/gosec/v2/cmd/gosec ;\
+	go install github.com/securego/gosec/v2/cmd/gosec ;\
 	rm -rf $$GOSEC_TMP_DIR ;\
 	}
 endif
@@ -97,8 +108,9 @@ ifeq (, $(shell which goreleaser))
 	go install github.com/goreleaser/goreleaser@latest
 	}
 endif
+	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR); curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sh -s -- -b .
-	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate --snapshot
 
 .PHONY: clean
 clean:

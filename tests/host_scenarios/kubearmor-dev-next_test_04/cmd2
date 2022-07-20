@@ -1,0 +1,7 @@
+source: kubearmor-dev
+cmd: bash -c ls
+result: passed
+---
+operation: Process
+condition: ls
+action: Block

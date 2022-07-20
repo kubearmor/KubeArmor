@@ -23,35 +23,56 @@ TEST_HOME=`dirname $(realpath "$0")`
 CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
 ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 
+LSM="none"
+
+cat /sys/kernel/security/lsm | grep selinux > /dev/null 2>&1
+if [ $? == 0 ]; then
+    LSM="selinux"
+fi
+
+cat /sys/kernel/security/lsm | grep apparmor > /dev/null 2>&1
+if [ $? == 0 ]; then
+    LSM="apparmor"
+fi
+
+if [ "$DEFAULT_POSTURE" == "" ]; then
+    DEFAULT_POSTURE="block"
+fi
+
 ARMOR_OPTIONS=()
 
-SKIP_CONTAINER_POLICY=0
-SKIP_NATIVE_POLICY=0
+SKIP_CONTAINER_POLICY=1
+SKIP_NATIVE_POLICY=1
 SKIP_HOST_POLICY=1
-SKIP_NATIVE_HOST_POLICY=1
 
 case $1 in
-    "-testHostPolicy")
-        SKIP_CONTAINER_POLICY=1
-        SKIP_HOST_POLICY=0
+    "-testPolicy")
+        SKIP_CONTAINER_POLICY=0
         ARMOR_OPTIONS=${@:2}
-        ARMOR_OPTIONS=(${ARMOR_OPTIONS[@]} "-enableKubeArmorHostPolicy")
+        ;;
+    "-testHostPolicy")
+        echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
+        exit
         ;;
     "-testNativePolicy")
-        SKIP_CONTAINER_POLICY=1
+        if [ "$LSM" != "apparmor" ]; then
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+            exit
+        fi
         SKIP_NATIVE_POLICY=0
-        SKIP_NATIVE_HOST_POLICY=0
         ARMOR_OPTIONS=${@:2}
-        ;;
-    "-testAll")
-        SKIP_CONTAINER_POLICY=0
-        SKIP_HOST_POLICY=0
-        SKIP_NATIVE_POLICY=0
-        SKIP_NATIVE_HOST_POLICY=0
-        ARMOR_OPTIONS=${@:2}
-        ARMOR_OPTIONS=(${ARMOR_OPTIONS[@]} "-enableKubeArmorHostPolicy")
         ;;
     *)
+        if [ "$LSM" == "selinux" ]; then
+            echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+        elif [ "$LSM" == "apparmor" ]; then
+            echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
+            SKIP_NATIVE_POLICY=0
+        else # none
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+        fi
+        SKIP_CONTAINER_POLICY=0
         ARMOR_OPTIONS=$@
         ;;
 esac
@@ -59,12 +80,6 @@ esac
 ARMOR_MSG=/tmp/kubearmor.msg
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
-
-APPARMOR=0
-cat /sys/kernel/security/lsm | grep apparmor > /dev/null 2>&1
-if [ $? == 0 ]; then
-    APPARMOR=1
-fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -114,7 +129,6 @@ function start_and_wait_for_kubearmor_initialization() {
     echo "Options: -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]}"
     if [[ ! " ${ARMOR_OPTIONS[@]} " =~ "-enableKubeArmorHostPolicy" ]]; then
         SKIP_HOST_POLICY=1
-        SKIP_NATIVE_HOST_POLICY=1
     fi
 
     ka_podname=`kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o custom-columns=":metadata.name" --no-headers`
@@ -228,7 +242,7 @@ function should_not_find_any_log() {
 
     sleep 5
 
-    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*\"$6\".*$3.*resource.*$4.*$5" | tail -n 1 | grep -v Passed)
+    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" | grep -v grep | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
@@ -244,14 +258,14 @@ function should_find_passed_log() {
 
     sleep 5
 
-    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*\"$2\".*MatchedPolicy.*$3.*resource.*$4.*$5" | tail -n 1 | grep Passed)
+    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" | grep -v grep | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
         echo $audit_log
-        DBG "[INFO] Found the log from logs"
+        DBG "Found the log from logs"
     fi
 }
 
@@ -260,16 +274,7 @@ function should_find_blocked_log() {
 
     sleep 5
 
-    match_type="MatchedPolicy"
-    if [[ $6 -eq 1 ]]; then
-        match_type="MatchedNativePolicy" 
-    fi
-
-    if [[ $6 -eq 0 ]]; then
-        audit_log=$($CAT_LOG | grep -E "$1.*policyName.*\"$2\".*$match_type.*$3.*resource.*$4.*$5" | tail -n 1 | grep -v Passed)
-    else
-        audit_log=$($CAT_LOG | grep -E "$1.*policyName.*\"NativePolicy\".*$match_type.*$3.*resource.*$4.*$5" | tail -n 1 | grep -v Passed)
-    fi
+    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" | grep -v grep | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -285,14 +290,14 @@ function should_not_find_any_host_log() {
 
     sleep 5
 
-    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*\"$5\".*$2.*resource.*$3.*$4" | tail -n 1 | grep -v Passed)
+    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" | grep -v grep | tail -n 1 | grep -v Passed)
     if [ $? == 0 ]; then
         echo $audit_log
         FAIL "Found the log from logs"
         res_cmd=1
     else
         audit_log="<No Log>"
-        DBG "[INFO] Found no log from logs"
+        DBG "Found no log from logs"
     fi
 }
 
@@ -301,14 +306,14 @@ function should_find_passed_host_log() {
 
     sleep 5
 
-    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*\"$1\".*MatchedHostPolicy.*$2.*resource.*$3.*$4" | tail -n 1 | grep Passed)
+    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" | grep -v grep | tail -n 1 | grep Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
         res_cmd=1
     else
         echo $audit_log
-        DBG "[INFO] Found the log from logs"
+        DBG "Found the log from logs"
     fi
 }
 
@@ -317,16 +322,7 @@ function should_find_blocked_host_log() {
 
     sleep 5
 
-    match_type="MatchedHostPolicy"
-    if [[ $5 -eq 1 ]]; then
-        match_type="MatchedNativePolicy" 
-    fi
-
-    if [[ $5 -eq 0 ]]; then
-        audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*\"$1\".*$match_type.*$2.*resource.*$3.*$4" | tail -n 1 | grep -v Passed)
-    else
-        audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*\"NativePolicy\".*$match_type.*$2.*resource.*$3.*$4" | tail -n 1 | grep -v Passed)
-    fi
+    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" | grep -v grep | tail -n 1 | grep -v Passed)
     if [ $? != 0 ]; then
         audit_log="<No Log>"
         FAIL "Failed to find the log from logs"
@@ -341,51 +337,42 @@ function run_test_scenario() {
     cd $1
 
     YAML_FILE=$(ls *.yaml)
-    policy_type=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
+    POLICY_TYPE=$(echo $YAML_FILE | awk '{split($0,a,"-"); print a[1]}')
     POLICY=$(grep "name:" $YAML_FILE | head -n1 | awk '{ print $2}')
-    NATIVE=0
+    POLICY_ACTION=$(cat $YAML_FILE | grep "^action" | awk '{print $2}')
+    NATIVE_POLICY=0
     HOST_POLICY=0
-    NATIVE_HOST=0
 
-    if [[ $policy_type == "ksp" ]]; then
+    if [[ $POLICY_TYPE == "ksp" ]]; then
         if [ $SKIP_CONTAINER_POLICY == 1 ]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
-    elif [[ $policy_type == "nsp" ]]; then
+        if [[ "$DEFAULT_POSTURE" == "allow" ]] && [[ "$POLICY_ACTION" == "Allow" ]]; then
+            WARN "Skipped $3"
+            skipped_testcases+=("$3")
+            return
+        fi
+    elif [[ $POLICY_TYPE == "nsp" ]]; then
         # skip a policy with a native profile unless AppArmor is enabled
-        if [ $APPARMOR == 0 ]; then
+        if [ "$LSM" != "apparmor" ]; then
+            WARN "Skipped $3"
+            skipped_testcases+=("$3")
+            return
+        elif [ $SKIP_NATIVE_POLICY == 1 ]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
-        if [ $SKIP_NATIVE_POLICY == 1 ]; then
-            WARN "Skipped $3"
-            skipped_testcases+=("$3")
-            return
-        fi
-        NATIVE=1
-    elif [[ $policy_type == "hsp" ]]; then
+        NATIVE_POLICY=1
+    elif [[ $POLICY_TYPE == "hsp" ]]; then
         if [ $SKIP_HOST_POLICY == 1 ]; then
             WARN "Skipped $3"
             skipped_testcases+=("$3")
             return
         fi
         HOST_POLICY=1
-    elif [[ $policy_type == "nhp" ]]; then
-        # skip a policy with a native profile unless AppArmor is enabled
-        if [ $APPARMOR == 0 ]; then
-            WARN "Skipped $3"
-            skipped_testcases+=("$3")
-            return
-        fi
-        if [ $SKIP_NATIVE_HOST_POLICY == 1 ]; then
-            WARN "Skipped $3"
-            skipped_testcases+=("$3")
-            return
-        fi
-        NATIVE_HOST=1
     else
         WARN "Skipped unknown testcase $3"
         skipped_testcases+=("$3")
@@ -393,7 +380,7 @@ function run_test_scenario() {
     fi
 
     DBG "Applying $YAML_FILE into $2"
-    if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
+    if [[ $HOST_POLICY -eq 1 ]]; then
         kubectl apply -f $YAML_FILE
     else
         kubectl apply -n $2 -f $YAML_FILE
@@ -415,18 +402,57 @@ function run_test_scenario() {
 
         SOURCE=$(cat $cmd | grep "^source" | awk '{print $2}')
         POD=""
-        if [[ $HOST_POLICY -eq 0 ]] && [[ $NATIVE_HOST -eq 0 ]]; then
+        if [[ $HOST_POLICY -eq 0 ]]; then
             POD=$(kubectl get pods -n $2 | grep $SOURCE | awk '{print $1}')
         fi
         CMD=$(cat $cmd | grep "^cmd" | cut -d' ' -f2-)
         RESULT=$(cat $cmd | grep "^result" | awk '{print $2}')
 
+        POLICY_NAME=$POLICY
         OP=$(cat $cmd | grep "^operation" | awk '{print $2}')
         COND=$(cat $cmd | grep "^condition" | cut -d' ' -f2-)
         ACTION=$(cat $cmd | grep "^action" | awk '{print $2}')
 
-        # if AppArmor is not enabled
-        if [ $APPARMOR == 0 ]; then
+        if [[ $HOST_POLICY -eq 0 ]] && [[ "$RESULT" == "default" ]]; then
+            if [ "$ACTION" == "default" ]; then # default posture
+                if [ "$DEFAULT_POSTURE" == "block" ]; then
+                    RESULT="failed"
+                    POLICY_NAME="DefaultPosture"
+                    ACTION="Block"
+                elif [ "$DEFAULT_POSTURE" == "audit" ]; then
+                    RESULT="passed"
+                    POLICY_NAME="DefaultPosture"
+                    ACTION="Audit"
+                elif [ "$DEFAULT_POSTURE" == "allow" ]; then
+                    RESULT="passed"
+                    POLICY_NAME="DefaultPosture"
+                    ACTION="Allow"
+                fi
+            elif [ "$ACTION" == "Block" ]; then # native policy
+                RESULT="failed"
+                POLICY_NAME="DefaultPosture"
+            fi
+        fi
+
+        # if SELinux is enabled but a test policy is not for hosts
+        if [[ "$LSM" == "selinux" ]] && [[ $HOST_POLICY -eq 0 ]]; then
+            # replace Block with Audit
+            if [ "$ACTION" == "Block" ]; then
+                if [ "$RESULT" == "failed" ]; then
+                    ACTION="Audit"
+                    RESULT="passed"
+                fi
+            # replace Allow with "failed" to Audit with "passed"
+            elif [ "$ACTION" == "Allow" ]; then
+                if [ "$RESULT" == "failed" ]; then
+                    ACTION="Audit"
+                    RESULT="passed"
+                fi
+            fi
+        fi
+
+        # if AppArmor and SELinux are not enabled
+        if [ "$LSM" == "none" ]; then
             # replace Block with Audit
             if [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "failed" ]; then
@@ -447,7 +473,7 @@ function run_test_scenario() {
         actual_res="passed"
 
         DBG "Running \"$CMD\""
-        if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
+        if [[ $HOST_POLICY -eq 1 ]]; then
             bash -c ''"${CMD}"''
         else
             echo kubectl exec -n $2 $POD -- bash -c ''"${CMD}"''
@@ -461,52 +487,52 @@ function run_test_scenario() {
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_log $POD $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_log $POD $POLICY $OP $COND $ACTION
+                    should_find_passed_log $POD $POLICY_NAME $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_log $POD $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_log $POD $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_log $POD $POLICY $OP $COND $ACTION $NATIVE
+                    should_find_blocked_log $POD $POLICY_NAME $OP $COND $ACTION
                 fi
             fi
         else
             if [ "$ACTION" == "Allow" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_host_log $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Audit" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, and the command should be passed"
-                    should_find_passed_host_log $POLICY $OP $COND $ACTION
+                    should_find_passed_host_log $POLICY_NAME $OP $COND $ACTION
                 else
                     DBG "$ACTION action, but the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY_NAME $OP $COND $ACTION
                 fi
             elif [ "$ACTION" == "Block" ]; then
                 if [ "$RESULT" == "passed" ]; then
                     DBG "$ACTION action, but the command should be passed"
-                    should_not_find_any_host_log $POLICY $OP $COND $ACTION $CMD
+                    should_not_find_any_host_log $POLICY_NAME $OP $COND $ACTION $CMD
                 else
                     DBG "$ACTION action, and the command should be failed"
-                    should_find_blocked_host_log $POLICY $OP $COND $ACTION $NATIVE_HOST
+                    should_find_blocked_host_log $POLICY_NAME $OP $COND $ACTION
                 fi
             fi
         fi
@@ -552,7 +578,7 @@ function run_test_scenario() {
     fi
 
     DBG "Deleting $YAML_FILE from $2"
-    if [[ $HOST_POLICY -eq 1 ]] || [[ $NATIVE_HOST -eq 1 ]]; then
+    if [[ $HOST_POLICY -eq 1 ]]; then
         kubectl delete -f $YAML_FILE
     else
         kubectl delete -n $2 -f $YAML_FILE
@@ -594,6 +620,39 @@ INFO "Started KubeArmor"
 
 res_microservice=0
 
+is_test_ignored()
+{
+    IGN_FILE=$TEST_HOME/tests.ignore
+
+    # skip tests that don't work with some runtimes
+    if [ "$RUNTIME" == "crio" ]; then
+        # skip tests for net_raw capability (see #697)
+        echo "github_test_09" | tee -a $IGN_FILE
+        echo "github_test_13" | tee -a $IGN_FILE
+    fi
+
+    [[ ! -f $IGN_FILE ]] && return 0
+    for line in `grep "^[a-zA-Z].*" $IGN_FILE`; do
+        echo $testcase | grep $line >/dev/null
+        [[ $? -eq 0 ]] && echo "matched ignore pattern [$line]" && return 1
+    done
+    return 0
+}
+
+is_test_allowed()
+{
+    cnt=0
+    ALLOW_FILE=$TEST_HOME/tests.allow
+    [[ ! -f $ALLOW_FILE ]] && return 1
+    for line in `grep "^[a-zA-Z].*" $ALLOW_FILE`; do
+        echo $testcase | grep $line >/dev/null
+        [[ $? -eq 0 ]] && echo "does not match ignore pattern [$line]" && return 1
+        ((cnt++))
+    done
+    [[ $cnt -gt 0 ]] && echo "Testcase does not match any allowed pattern in [$ALLOW_FILE]" && return 0
+    return 1
+}
+
 if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
     INFO "Running Container Scenarios"
 
@@ -616,6 +675,12 @@ if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
 
     for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
     do
+        is_test_ignored
+        [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue
+
+        is_test_allowed
+        [[ $? -eq 0 ]] && WARN "Testcase $testcase disallowed" && continue
+
         res_case=0
 
         INFO "Testing $testcase"
@@ -655,7 +720,7 @@ fi
 HOST_NAME=$(hostname)
 res_host=0
 
-if [[ $SKIP_HOST_POLICY -eq 0 || $SKIP_NATIVE_HOST_POLICY -eq 0 ]]; then
+if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
     INFO "Running Host Scenarios"
 
     cd $TEST_HOME/host_scenarios

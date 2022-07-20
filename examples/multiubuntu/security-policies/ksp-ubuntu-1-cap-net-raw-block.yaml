@@ -10,6 +10,12 @@ spec:
       container: ubuntu-1
   capabilities:
     matchCapabilities:
-    - capability: net_raw # try 'ping 8.8.8.8' (operation not permitted) and 'curl www.kubearmor.com' (success)
+    - capability: net_raw
   action:
     Block
+
+# multiubuntu_test_03
+
+# test
+# $ arping -c 1 127.0.0.1
+# arping: libnet_init(LIBNET_LINK, <null>): libnet_open_link(): UID/EUID 0 or capability CAP_NET_RAW required

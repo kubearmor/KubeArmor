@@ -1,4 +1,4 @@
-# Security Policy Specification for Hosts
+# Specification of Host Security Policy for Nodes/VMs
 
 ## Policy Specification
 
@@ -100,7 +100,7 @@ Now, we will briefly explain how to define a host security policy.
 
 * Tags
 
-  The tags part is optional. You can define multiple tags (e.g., WARNNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
+  The tags part is optional. You can define multiple tags (e.g., WARNING, SENSITIVE, MITRE, STIG, etc.) to categorize security policies.
 
   ```text
   tags: ["tag1", ..., "tagN"]

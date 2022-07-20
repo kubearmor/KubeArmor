@@ -8,15 +8,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/iovisor/gobpf/bcc"
+	cle "github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/rlimit"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -109,9 +109,8 @@ func init() {
 
 // SystemMonitor Structure
 type SystemMonitor struct {
-	// host
-	HostName      string
-	KernelVersion string
+	// node
+	Node *tp.Node
 
 	// logs
 	Logger *fd.Feeder
@@ -129,49 +128,33 @@ type SystemMonitor struct {
 	NsMapLock *sync.RWMutex
 
 	// system monitor (for container)
-	BpfModule *bcc.Module
+	BpfModule *cle.Collection
 
-	// context + args (for container)
+	// Probes Links
+	Probes map[string]link.Link
+
+	// context + args
 	ContextChan chan ContextCombined
 
-	// process + file (for container)
+	// system events
 	SyscallChannel     chan []byte
 	SyscallLostChannel chan uint64
-	SyscallPerfMap     *bcc.PerfMap
-
-	// system monitor (for host)
-	HostBpfModule *bcc.Module
-
-	// context + args (for host)
-	HostContextChan chan ContextCombined
-
-	// process + file (for host)
-	HostSyscallChannel     chan []byte
-	HostSyscallLostChannel chan uint64
-	HostSyscallPerfMap     *bcc.PerfMap
+	SyscallPerfMap     *perf.Reader
 
 	// lists to skip
 	UntrackedNamespaces []string
 
+	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
-
-	// ticker to clean up exited pids
-	Ticker *time.Ticker
-
-	// GKE
-	IsCOS bool
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
-	activePidMap *map[string]tp.PidMap, activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex,
-	activeHostMap *map[uint32]tp.PidMap, activeHostMapLock **sync.RWMutex) *SystemMonitor {
+func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
+	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
-	mon.HostName = cfg.GlobalCfg.Host
-	mon.KernelVersion = node.KernelVersion
-
+	mon.Node = node
 	mon.Logger = logger
 
 	mon.Containers = containers
@@ -184,16 +167,12 @@ func NewSystemMonitor(node tp.Node, logger *fd.Feeder, containers *map[string]tp
 	mon.NsMapLock = new(sync.RWMutex)
 
 	mon.ContextChan = make(chan ContextCombined, 4096)
-	mon.HostContextChan = make(chan ContextCombined, 4096)
 
 	mon.UntrackedNamespaces = []string{"kube-system", "kubearmor"}
 
+	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
-	mon.HostByteOrder = bcc.GetHostByteOrder()
-
-	mon.Ticker = time.NewTicker(time.Second * 10)
-
-	mon.IsCOS = false
+	mon.HostByteOrder = binary.LittleEndian
 
 	return mon
 }
@@ -205,194 +184,84 @@ func (mon *SystemMonitor) InitBPF() error {
 		return err
 	}
 
-	if kl.IsInK8sCluster() {
-		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
-			s := string(b)
-			if strings.Contains(s, "Container-Optimized OS") {
-				mon.Logger.Print("Detected Container-Optimized OS, started to download kernel headers for COS")
-
-				// check and download kernel headers
-				if err := kl.RunCommandAndWaitWithErr(homeDir+"/GKE/download_cos_kernel_headers.sh", []string{}); err != nil {
-					mon.Logger.Errf("Failed to download COS kernel headers (%s)", err.Error())
-					return err
-				}
-
-				mon.Logger.Printf("Downloaded kernel headers (%s)", mon.KernelVersion)
-
-				// set a new location for kernel headers
-				if err := os.Setenv("BCC_KERNEL_SOURCE", homeDir+"/GKE/kernel/usr/src/linux-headers-"+mon.KernelVersion); err != nil {
-					mon.Logger.Err(err.Error())
-				}
-
-				// just for safety
-				time.Sleep(time.Second * 1)
-
-				mon.IsCOS = true
-			}
-		}
-	}
-
-	bpfPath := homeDir + "/BPF/system_monitor.c"
+	bpfPath := homeDir + "/BPF/"
 	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
 		// go test
 
-		bpfPath = os.Getenv("PWD") + "/../BPF/system_monitor.c"
+		bpfPath = os.Getenv("PWD") + "/../BPF/"
 		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-			return err
+			// container
+
+			bpfPath = "/opt/kubearmor/BPF/"
+			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+				return err
+			}
 		}
 	}
 
-	content, err := ioutil.ReadFile(filepath.Clean(bpfPath))
-	if err != nil {
-		return err
-	}
-	bpfSource := string(content)
+	mon.Logger.Print("Initializing eBPF system monitor")
 
-	mon.Logger.Print("Initializing an eBPF program")
+	// Allow the current process to lock memory for eBPF resources.
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return fmt.Errorf("error removing memlock %v", err)
+	}
 
 	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-		mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
-		if mon.BpfModule == nil {
-			return errors.New("bpf module is nil")
-		}
+		bpfPath = bpfPath + "system_monitor.container.bpf.o"
 	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-		mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
-		if mon.HostBpfModule == nil {
-			return errors.New("bpf module is nil")
-		}
+		bpfPath = bpfPath + "system_monitor.host.bpf.o"
 	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-		if strings.HasPrefix(mon.KernelVersion, "4.") { // 4.x
-			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST_AND_CONTAINER"})
-			if mon.BpfModule == nil {
-				return errors.New("bpf module is nil")
-			}
-		} else { // 5.x
-			mon.BpfModule = bcc.NewModule(bpfSource, []string{"-O2"})
-			if mon.BpfModule == nil {
-				return errors.New("bpf module is nil")
-			}
-
-			mon.HostBpfModule = bcc.NewModule(bpfSource, []string{"-O2", "-DMONITOR_HOST"})
-			if mon.HostBpfModule == nil {
-				return errors.New("bpf module is nil")
-			}
-		}
+		bpfPath = bpfPath + "system_monitor.bpf.o"
+	}
+	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
+	mon.BpfModule, err = cle.LoadCollection(bpfPath)
+	if err != nil {
+		return fmt.Errorf("bpf module is nil %v", err)
 	}
 
-	mon.Logger.Print("Initialized the eBPF program")
+	mon.Logger.Print("Initialized the eBPF system monitor")
 
-	sysPrefix := bcc.GetSyscallPrefix()
+	// sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen"}
+	// {category, event}
+	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open"}
 
 	if mon.BpfModule != nil {
+
+		mon.Probes = make(map[string]link.Link)
+
 		for _, syscallName := range systemCalls {
-			kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
+			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
 			}
-			err = mon.BpfModule.AttachKprobe(sysPrefix+syscallName, kp, -1)
+
+			mon.Probes["kretprobe__"+syscallName], err = link.Kretprobe("sys_"+syscallName, mon.BpfModule.Programs["kretprobe__"+syscallName], nil)
 			if err != nil {
-				return fmt.Errorf("error attaching kprobe %s: %v", syscallName, err)
+				return fmt.Errorf("error loading kretprobe %s: %v", syscallName, err)
 			}
-			kp, err = mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallName))
-			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
-			}
-			err = mon.BpfModule.AttachKretprobe(sysPrefix+syscallName, kp, -1)
-			if err != nil {
-				return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
-			}
+
 		}
 
-		// {category, event}
-		sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-
 		for _, sysTracepoint := range sysTracepoints {
-			rtp, err := mon.BpfModule.LoadTracepoint(fmt.Sprintf("tracepoint__%s__%s", sysTracepoint[0], sysTracepoint[1]))
+			mon.Probes[sysTracepoint[1]], err = link.Tracepoint(sysTracepoint[0], sysTracepoint[1], mon.BpfModule.Programs[sysTracepoint[1]], nil)
 			if err != nil {
 				return fmt.Errorf("error:%s: %v", sysTracepoint, err)
 			}
-			err = mon.BpfModule.AttachTracepoint(fmt.Sprintf("%s:%s", sysTracepoint[0], sysTracepoint[1]), rtp)
-			if err != nil {
-				return fmt.Errorf("error attaching tracepoint probe %s: %v", sysTracepoint, err)
-			}
 		}
 
-		sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open"}
-
 		for _, sysKprobe := range sysKprobes {
-			kp, err := mon.BpfModule.LoadKprobe(fmt.Sprintf("trace_%s", sysKprobe))
+			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
 			}
-			err = mon.BpfModule.AttachKprobe(sysKprobe, kp, -1)
-			if err != nil {
-				return fmt.Errorf("error attaching kprobe %s: %v", sysKprobe, err)
-			}
 		}
 
-		eventsTable := bcc.NewTable(mon.BpfModule.TableId("sys_events"), mon.BpfModule)
 		mon.SyscallChannel = make(chan []byte, 8192)
 		mon.SyscallLostChannel = make(chan uint64)
 
-		mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
-		if err != nil {
-			return fmt.Errorf("error initializing events perf map: %v", err)
-		}
-	}
-
-	if mon.HostBpfModule != nil {
-		for _, syscallName := range systemCalls {
-			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("syscall__%s", syscallName))
-			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
-			}
-			err = mon.HostBpfModule.AttachKprobe(sysPrefix+syscallName, kp, -1)
-			if err != nil {
-				return fmt.Errorf("error attaching kprobe %s: %v", syscallName, err)
-			}
-			kp, err = mon.HostBpfModule.LoadKprobe(fmt.Sprintf("trace_ret_%s", syscallName))
-			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
-			}
-			err = mon.HostBpfModule.AttachKretprobe(sysPrefix+syscallName, kp, -1)
-			if err != nil {
-				return fmt.Errorf("error attaching kretprobe %s: %v", syscallName, err)
-			}
-		}
-
-		// {category, event}
-		sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-
-		for _, sysTracepoint := range sysTracepoints {
-			rtp, err := mon.HostBpfModule.LoadTracepoint(fmt.Sprintf("tracepoint__%s__%s", sysTracepoint[0], sysTracepoint[1]))
-			if err != nil {
-				return fmt.Errorf("error:%s: %v", sysTracepoint, err)
-			}
-			err = mon.HostBpfModule.AttachTracepoint(fmt.Sprintf("%s:%s", sysTracepoint[0], sysTracepoint[1]), rtp)
-			if err != nil {
-				return fmt.Errorf("error attaching tracepoint probe %s: %v", sysTracepoint, err)
-			}
-		}
-
-		sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open"}
-
-		for _, sysKprobe := range sysKprobes {
-			kp, err := mon.HostBpfModule.LoadKprobe(fmt.Sprintf("trace_%s", sysKprobe))
-			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
-			}
-			err = mon.HostBpfModule.AttachKprobe(sysKprobe, kp, -1)
-			if err != nil {
-				return fmt.Errorf("error attaching kprobe %s: %v", sysKprobe, err)
-			}
-		}
-
-		hostEventsTable := bcc.NewTable(mon.HostBpfModule.TableId("sys_events"), mon.HostBpfModule)
-		mon.HostSyscallChannel = make(chan []byte, 8192)
-		mon.HostSyscallLostChannel = make(chan uint64)
-
-		mon.HostSyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(hostEventsTable, mon.HostSyscallChannel, mon.HostSyscallLostChannel, 64)
+		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize())
 		if err != nil {
 			return fmt.Errorf("error initializing events perf map: %v", err)
 		}
@@ -403,8 +272,12 @@ func (mon *SystemMonitor) InitBPF() error {
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
+	mon.Status = false
+
 	if mon.SyscallPerfMap != nil {
-		mon.SyscallPerfMap.Stop()
+		if err := mon.SyscallPerfMap.Close(); err != nil {
+			return err
+		}
 	}
 
 	if mon.BpfModule != nil {
@@ -415,19 +288,11 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		close(mon.ContextChan)
 	}
 
-	if mon.HostSyscallPerfMap != nil {
-		mon.HostSyscallPerfMap.Stop()
+	for _, link := range mon.Probes {
+		if err := link.Close(); err != nil {
+			return err
+		}
 	}
-
-	if mon.HostBpfModule != nil {
-		mon.HostBpfModule.Close()
-	}
-
-	if mon.HostContextChan != nil {
-		close(mon.HostContextChan)
-	}
-
-	mon.Ticker.Stop()
 
 	return nil
 }
@@ -439,7 +304,25 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 // TraceSyscall Function
 func (mon *SystemMonitor) TraceSyscall() {
 	if mon.SyscallPerfMap != nil {
-		mon.SyscallPerfMap.Start()
+		go func() {
+			for {
+				record, err := mon.SyscallPerfMap.Read()
+				if err != nil {
+					if errors.Is(err, perf.ErrClosed) {
+						return
+					}
+					continue
+				}
+
+				if record.LostSamples != 0 {
+					mon.SyscallLostChannel <- record.LostSamples
+					continue
+				}
+
+				mon.SyscallChannel <- record.RawSample
+
+			}
+		}()
 	} else {
 		return
 	}
@@ -501,11 +384,21 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
+					pidNode := mon.BuildPidNode(containerID, ctx, args[0].(string), args[1].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
+					// if Policy is not set
+					if !cfg.GlobalCfg.Policy && containerID != "" {
+						continue
+					}
+
+					// if HostPolicy is not set
+					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
+						continue
+					}
+
 					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
 					// add arguments
 					if val, ok := args[0].(string); ok {
@@ -528,6 +421,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 					execLogMap[ctx.HostPID] = log
 
 				} else if len(args) == 0 { // return
+					// if Policy is not set
+					if !cfg.GlobalCfg.Policy && containerID != "" {
+						continue
+					}
+
+					// if HostPolicy is not set
+					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
+						continue
+					}
+
 					// get the stored log
 					log := execLogMap[ctx.HostPID]
 
@@ -535,9 +438,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(execLogMap, ctx.HostPID)
 
 					// update the log again
-					if !strings.HasPrefix(log.Source, "/") {
-						log = mon.UpdateLogBase(ctx.EventID, log)
-					}
+					log = mon.UpdateLogBase(ctx.EventID, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -561,11 +462,21 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
+					pidNode := mon.BuildPidNode(containerID, ctx, args[1].(string), args[2].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
+					// if Policy is not set
+					if !cfg.GlobalCfg.Policy && containerID != "" {
+						continue
+					}
+
+					// if HostPolicy is not set
+					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
+						continue
+					}
+
 					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: containerID, ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
 					fd := ""
 					procExecFlag := ""
@@ -597,6 +508,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 					execLogMap[ctx.HostPID] = log
 
 				} else if len(args) == 0 { // return
+					// if Policy is not set
+					if !cfg.GlobalCfg.Policy && containerID != "" {
+						continue
+					}
+
+					// if HostPolicy is not set
+					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
+						continue
+					}
+
 					// get the stored log
 					log := execLogMap[ctx.HostPID]
 
@@ -604,9 +525,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(execLogMap, ctx.HostPID)
 
 					// update the log again
-					if !strings.HasPrefix(log.Source, "/") {
-						log = mon.UpdateLogBase(ctx.EventID, log)
-					}
+					log = mon.UpdateLogBase(ctx.EventID, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -637,195 +556,18 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
+			// if Policy is not set
+			if !cfg.GlobalCfg.Policy && containerID != "" {
+				continue
+			}
+
+			// if HostPolicy is not set
+			if !cfg.GlobalCfg.HostPolicy && containerID == "" {
+				continue
+			}
+
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
-
-		case <-mon.SyscallLostChannel:
-			continue
-		}
-	}
-}
-
-// TraceHostSyscall Function
-func (mon *SystemMonitor) TraceHostSyscall() {
-	if mon.HostSyscallPerfMap != nil {
-		mon.HostSyscallPerfMap.Start()
-	} else {
-		return
-	}
-
-	execLogMap := map[uint32]tp.Log{}
-
-	for {
-		select {
-		case <-StopChan:
-			return
-
-		case dataRaw, valid := <-mon.HostSyscallChannel:
-			if !valid {
-				continue
-			}
-
-			dataBuff := bytes.NewBuffer(dataRaw)
-			ctx, err := readContextFromBuff(dataBuff)
-			if err != nil {
-				continue
-			}
-
-			args, err := GetArgs(dataBuff, ctx.Argnum)
-			if err != nil {
-				continue
-			}
-
-			if ctx.EventID == SysOpen {
-				if len(args) != 2 {
-					continue
-				}
-			} else if ctx.EventID == SysOpenAt {
-				if len(args) != 3 {
-					continue
-				}
-			} else if ctx.EventID == SysExecve {
-				if len(args) == 2 { // enter
-					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[0].(string), args[1].([]string))
-					mon.AddActivePid("", pidNode)
-
-					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
-
-					// add arguments
-					if val, ok := args[0].(string); ok {
-						log.Resource = val // procExecPath
-					}
-					if val, ok := args[1].([]string); ok {
-						for idx, arg := range val { // procArgs
-							if idx == 0 {
-								continue
-							} else {
-								log.Resource = log.Resource + " " + arg
-							}
-						}
-					}
-
-					log.Operation = "Process"
-					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
-
-					// store the log in the map
-					execLogMap[ctx.HostPID] = log
-
-				} else if len(args) == 0 { // return
-					// get the stored log
-					log := execLogMap[ctx.HostPID]
-
-					// remove the log from the map
-					delete(execLogMap, ctx.HostPID)
-
-					// update the log again
-					if !strings.HasPrefix(log.Source, "/") {
-						log = mon.UpdateLogBase(ctx.EventID, log)
-					}
-
-					// get error message
-					if ctx.Retval < 0 {
-						message := getErrorMessage(ctx.Retval)
-						if message != "" {
-							log.Result = message
-						} else {
-							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
-						}
-					} else {
-						log.Result = "Passed"
-					}
-
-					// push the generated log
-					if mon.Logger != nil {
-						go mon.Logger.PushLog(log)
-					}
-				}
-
-				continue
-			} else if ctx.EventID == SysExecveAt {
-				if len(args) == 4 { // enter
-					// build a pid node
-					pidNode := mon.BuildPidNode(ctx, args[1].(string), args[2].([]string))
-					mon.AddActivePid("", pidNode)
-
-					// generate a log with the base information
-					log := mon.BuildLogBase(ContextCombined{ContainerID: "", ContextSys: ctx})
-
-					fd := ""
-					procExecFlag := ""
-
-					// add arguments
-					if val, ok := args[0].(int32); ok {
-						fd = strconv.Itoa(int(val))
-					}
-					if val, ok := args[1].(string); ok {
-						log.Resource = val // procExecPath
-					}
-					if val, ok := args[2].([]string); ok {
-						for idx, arg := range val { // procArgs
-							if idx == 0 {
-								continue
-							} else {
-								log.Resource = log.Resource + " " + arg
-							}
-						}
-					}
-					if val, ok := args[3].(string); ok {
-						procExecFlag = val
-					}
-
-					log.Operation = "Process"
-					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
-
-					// store the log in the map
-					execLogMap[ctx.HostPID] = log
-
-				} else if len(args) == 0 { // return
-					// get the stored log
-					log := execLogMap[ctx.HostPID]
-
-					// remove the log from the map
-					delete(execLogMap, ctx.HostPID)
-
-					// update the log again
-					if !strings.HasPrefix(log.Source, "/") {
-						log = mon.UpdateLogBase(ctx.EventID, log)
-					}
-
-					// get error message
-					if ctx.Retval < 0 {
-						message := getErrorMessage(ctx.Retval)
-						if message != "" {
-							log.Result = message
-						} else {
-							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
-						}
-					} else {
-						log.Result = "Passed"
-					}
-
-					// push the generated log
-					if mon.Logger != nil {
-						go mon.Logger.PushLog(log)
-					}
-				}
-
-				continue
-			} else if ctx.EventID == DoExit {
-				mon.DeleteActivePid("", ctx)
-				continue
-			} else if ctx.EventID == SecurityBprmCheck {
-				if val, ok := args[0].(string); ok {
-					mon.UpdateExecPath("", ctx.HostPID, val)
-				}
-				continue
-			}
-
-			// push the context to the channel for logging
-			mon.HostContextChan <- ContextCombined{ContainerID: "", ContextSys: ctx, ContextArgs: args}
 
 		case <-mon.SyscallLostChannel:
 			continue

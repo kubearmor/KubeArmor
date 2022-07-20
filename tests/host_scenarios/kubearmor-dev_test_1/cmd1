@@ -1,7 +1,0 @@
-source: kubearmor-dev
-cmd: diff -h
-result: failed
----
-operation: Process
-condition: diff
-action: Block

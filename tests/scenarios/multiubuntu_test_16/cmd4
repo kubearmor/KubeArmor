@@ -1,7 +1,0 @@
-source: ubuntu-4-deployment
-cmd: cat /etc/hosts
-result: passed
----
-operation: File
-condition: /etc/hosts
-action: Block

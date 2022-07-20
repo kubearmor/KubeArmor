@@ -1,0 +1,7 @@
+source: kubearmor-dev
+cmd: head -n 1 /etc/hostname
+result: default
+---
+operation: File
+condition: /etc/hostname
+action: default

@@ -1,0 +1,29 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-dir-allow-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubernetes.io/hostname: kubearmor-dev
+  severity: 5
+  file:
+    matchDirectories:
+    - dir: /etc/default/
+      recursive: true
+      fromSource:
+      - path: /usr/bin/head
+  action:
+    Allow
+
+# kubearmor-dev_test_08
+
+# test
+# $ head /etc/default/useradd
+# Default values for useradd(8) ...
+# $ head /etc/hostname
+# head: /etc/hostname: Permission denied
+
+# expectation
+# /usr/bin/head can only access /etc/default/*
+# /usr/bin/head cannot access any others

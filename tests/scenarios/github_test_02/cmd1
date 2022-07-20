@@ -3,5 +3,5 @@ cmd: cat /credentials/password
 result: passed
 ---
 operation: File
-condition: password
+condition: /credentials/password
 action: Audit

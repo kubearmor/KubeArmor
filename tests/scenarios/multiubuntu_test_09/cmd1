@@ -1,7 +1,7 @@
 source: ubuntu-4-deployment
-cmd: echo test >> /secret.txt
+cmd: cat /credentials/password
 result: passed
 ---
 operation: File
-condition: secret.txt
+condition: /credentials/password
 action: Allow

@@ -10,6 +10,6 @@ spec:
       container: ubuntu-1
   capabilities:
     matchCapabilities:
-    - capability: net_raw # try 'ping 8.8.8.8' (operation not permitted) and 'curl www.kubearmor.com' (success)
+    - capability: net_raw
   action:
     Block

@@ -1,7 +1,7 @@
 source: ubuntu-1-deployment
 cmd: cat /etc/shells
-result: failed
+result: default
 ---
 operation: File
-condition: "/etc/shells"
+condition: /etc/shells
 action: Block

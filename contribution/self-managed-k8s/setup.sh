@@ -9,27 +9,28 @@ if [ "$NAME" != "Ubuntu" ]; then
     exit
 fi
 
+# make a temp build directory
+sudo rm -rf /tmp/build
+mkdir -p /tmp/build
+cd /tmp/build
+
 # update repo
 sudo apt-get update
 
-# make a directory to build bcc
-sudo rm -rf /tmp/build; mkdir -p /tmp/build; cd /tmp/build
+export DEBIAN_FRONTEND=noninteractive
+echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
-# download bcc
-git -C /tmp/build/ clone --branch v0.24.0 --depth 1 https://github.com/iovisor/bcc.git
-
-# install dependencies for bcc
+# install dependencies and llvm--toolchain
 sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
                         clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                        arping netperf iperf3
-
-# install bcc
-mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
-cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr && make -j$(nproc) && sudo make install
-if [ $? != 0 ]; then
-    echo "Failed to install bcc"
-    exit 1
-fi
+                        arping netperf iperf3 net-tools
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 12
+for tool in "clang" "llc" "llvm-strip"; do
+    sudo rm -f /usr/bin/$tool
+    sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+done
 
 # install golang
 echo "Installing golang binaries..."
@@ -38,18 +39,19 @@ wget --quiet https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
 sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
 if [[ $(hostname) = kubearmor-dev* ]]; then
-    echo >> /home/vagrant/.bashrc
-    echo "export GOPATH=\$HOME/go" >> /home/vagrant/.bashrc
-    echo "export GOROOT=/usr/local/go" >> /home/vagrant/.bashrc
-    echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> /home/vagrant/.bashrc
-    echo >> /home/vagrant/.bashrc
-    mkdir -p /home/vagrant/go; chown -R vagrant:vagrant /home/vagrant/go
+    echo >>/home/vagrant/.bashrc
+    echo "export GOPATH=\$HOME/go" >>/home/vagrant/.bashrc
+    echo "export GOROOT=/usr/local/go" >>/home/vagrant/.bashrc
+    echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >>/home/vagrant/.bashrc
+    echo >>/home/vagrant/.bashrc
+    mkdir -p /home/vagrant/go
+    chown -R vagrant:vagrant /home/vagrant/go
 elif [ -z "$GOPATH" ]; then
-    echo >> ~/.bashrc
-    echo "export GOPATH=\$HOME/go" >> ~/.bashrc
-    echo "export GOROOT=/usr/local/go" >> ~/.bashrc
-    echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >> ~/.bashrc
-    echo >> ~/.bashrc
+    echo >>~/.bashrc
+    echo "export GOPATH=\$HOME/go" >>~/.bashrc
+    echo "export GOROOT=/usr/local/go" >>~/.bashrc
+    echo "export PATH=\$PATH:/usr/local/go/bin:\$HOME/go/bin" >>~/.bashrc
+    echo >>~/.bashrc
 fi
 
 # install apparmor and audit
@@ -62,11 +64,12 @@ sudo systemctl enable auditd && sudo systemctl start auditd
 sudo apt-get install -y unzip
 
 # download protoc
-mkdir -p /tmp/build/protoc; cd /tmp/build/protoc
-wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/protoc-3.14.0-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.14.0-linux-x86_64.zip
+mkdir -p /tmp/build/protoc
+cd /tmp/build/protoc
+wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.19.4-linux-x86_64.zip
 
 # install protoc
-unzip protoc-3.14.0-linux-x86_64.zip
+unzip protoc-3.19.4-linux-x86_64.zip
 sudo mv bin/protoc /usr/local/bin/
 sudo chmod 755 /usr/local/bin/protoc
 
@@ -82,25 +85,27 @@ elif [ -z "$GOPATH" ]; then
 fi
 
 # download protoc-gen-go
-go get -u google.golang.org/grpc
-go get -u github.com/golang/protobuf/protoc-gen-go
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # install kubebuilder
 wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_amd64 -O /tmp/build/kubebuilder
-chmod +x /tmp/build/kubebuilder; sudo mv /tmp/build/kubebuilder /usr/local/bin
+chmod +x /tmp/build/kubebuilder
+sudo mv /tmp/build/kubebuilder /usr/local/bin
 
 if [[ $(hostname) = kubearmor-dev* ]]; then
-    echo >> /home/vagrant/.bashrc
-    echo 'export PATH=$PATH:/usr/local/kubebuilder/bin' >> /home/vagrant/.bashrc
+    echo >>/home/vagrant/.bashrc
+    echo 'export PATH=$PATH:/usr/local/kubebuilder/bin' >>/home/vagrant/.bashrc
 elif [ -z "$GOPATH" ]; then
-    echo >> ~/.bashrc
-    echo 'export PATH=$PATH:/usr/local/kubebuilder/bin' >> ~/.bashrc
+    echo >>~/.bashrc
+    echo 'export PATH=$PATH:/usr/local/kubebuilder/bin' >>~/.bashrc
 fi
 
 # install kustomize
 cd /tmp/build/
-curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
 sudo mv kustomize /usr/local/bin
 
 # remove downloaded files
-cd; sudo rm -rf /tmp/build
+cd
+sudo rm -rf /tmp/build

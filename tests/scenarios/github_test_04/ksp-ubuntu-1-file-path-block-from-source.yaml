@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubutnu-1-file-path-block-from-source
+  namespace: github
+spec:
+  severity: 5
+  message: "block /bin/cat from accessing /secret.txt"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchPaths:
+      - path: /secret.txt
+        fromSource:
+        - path: /bin/cat
+  action:
+    Block

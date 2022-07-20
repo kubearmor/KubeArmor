@@ -14,3 +14,9 @@ spec:
       ownerOnly: true
   action:
     Block
+
+# test
+# $ cat /home/user1/secret_data1.txt
+# secret file user1 // NEED-TO-FIX //
+# $ su - user1 -c "cat /home/user1/secret_data1.txt"
+# secret file user1

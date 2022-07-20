@@ -4,7 +4,6 @@ header:
     copyright-owner: KubeArmor
     content: |
       SPDX-License-Identifier: Apache-2.0
-      Copyright 2021 Authors of KubeArmor
 
   paths:
     - "**/*.go"
@@ -14,6 +13,7 @@ header:
 
   paths-ignore:
     - "KubeArmor/BPF/*"
+    - "KubeArmor/**/*bpf*.go"
     - "protobuf/*"
 
   comment: on-failure

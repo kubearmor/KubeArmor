@@ -12,7 +12,7 @@ if [[ -d /KubeArmor/GKE/kernel ]]; then
 fi
 
 # download kernel headers
-wget https://accuknox.kr/cos/$BUILD_ID/kernel-headers.tgz
+wget https://storage.googleapis.com/cos-tools/$BUILD_ID/kernel-headers.tgz
 
 # make a directory
 mkdir kernel

@@ -1,4 +1,4 @@
-# Security Policy Examples
+# Examples of Host Security Policy
 
 Here, we demonstrate how to define host security policies.
 
@@ -14,16 +14,17 @@ Here, we demonstrate how to define host security policies.
       nodeSelector:
         matchLabels:
           kubernetes.io/hostname: kubearmor-dev
+      severity: 5
       process:
         matchPaths:
-        - path: /usr/bin/sleep # try sleep 1
+        - path: /usr/bin/diff
       action:
         Block
     ```
 
-    * Explanation: The purpose of this policy is to block the execution of '/bin/sleep' in a host whose host name is 'kubearmor-dev'. For this, we define 'kubernetes.io/hostname: kubearmor-dev' in nodeSelector -&gt; matchLabels and the specific path \('/bin/sleep'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
+    * Explanation: The purpose of this policy is to block the execution of '/usr/bin/diff' in a host whose host name is 'kubearmor-dev'. For this, we define 'kubernetes.io/hostname: kubearmor-dev' in nodeSelector -&gt; matchLabels and the specific path \('/usr/bin/diff'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
 
-    * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run '/bin/sleep'. You will see that /bin/sleep is blocked.
+    * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run '/usr/bin/diff'. You will see that /usr/bin/diff is blocked.
 
     ---
     **NOTE**
@@ -46,13 +47,14 @@ Here, we demonstrate how to define host security policies.
       nodeSelector:
         matchLabels:
           kubernetes.io/hostname: kubearmor-dev
+      severity: 5
       file:
         matchPaths:
-        - path: /etc/shadow # cat /etc/shadow
+        - path: /etc/passwd
       action:
         Audit
     ```
 
-    * Explanation: The purpose of this policy is to audit any file accesses to a critical file (i.e., '/etc/shadow'). Since we want to audit one critical file, we use matchPaths to specify the path of '/etc/shadow'.
+    * Explanation: The purpose of this policy is to audit any accesses to a critical file (i.e., '/etc/passwd'). Since we want to audit one critical file, we use matchPaths to specify the path of '/etc/passwd'.
 
-    * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run 'sudo cat /etc/shadow'. Then, check the alert logs of KubeArmor.
+    * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run 'sudo cat /etc/passwd'. Then, check the alert logs of KubeArmor.

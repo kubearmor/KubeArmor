@@ -9,9 +9,19 @@ spec:
     matchLabels:
       container: ubuntu-5
   file:
-    matchDirectories: # cat /home/user1/dir1/key1.txt (permission denied)
-    - dir: /home/user1/ # su - user1 -c "cat /home/user1/dir1/key1.txt" (success)
-      recursive: true # su - user1 -c "echo test >> /home/user1/secret_data1.txt" (success)
-      ownerOnly: true # echo testroot >> /home/user1/secret_data1.txt (permission denied)
+    matchDirectories:
+    - dir: /home/user1/
+      recursive: true
+      ownerOnly: true
   action:
     Block
+
+# test
+# $ cat /home/user1/dir1/key1.txt
+# cat: /home/user1/dir1/key1.txt: Permission denied
+# $ su - user1 -c "cat /home/user1/dir1/key1.txt"
+# key file 1
+# $ su - user1 -c "echo user1 >> /home/user1/secret_data1.txt"
+# (nothing is displayed)
+# $ echo root >> /home/user1/secret_data1.txt
+# bash: /home/user1/secret_data1.txt: Permission denied

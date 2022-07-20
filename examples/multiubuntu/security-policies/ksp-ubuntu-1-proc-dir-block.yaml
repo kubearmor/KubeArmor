@@ -11,6 +11,12 @@ spec:
       container: ubuntu-1
   process:
     matchDirectories:
-    - dir: /sbin/ # try route (permission denied)
+    - dir: /sbin/
   action:
     Block
+
+# multiubuntu_test_04
+
+# test
+# $ route
+# bash: /sbin/route: Permission denied

@@ -7,20 +7,30 @@ spec:
   severity: 10
   message: "a critical file was accessed"
   tags:
-  - WARNNING
+  - WARNING
   selector:
     matchLabels:
       container: ubuntu-4
   file:
     matchPaths:
     - path: /etc/passwd
-      readOnly: true # /bin/cat /etc/passwd (no logs)
+      readOnly: true
       fromSource: 
-      - path: /bin/cat # /bin/vi /etc/passwd (logs)
-    - path: /secret.txt # echo "test" >> /secret.txt (no logs)
-    - path: /credentials/password # echo "test" >> /credentials/password (logs)
-      readOnly: true # /bin/cat /credentials/password (logs)
+      - path: /bin/cat
+    - path: /secret.txt
+    - path: /credentials/password
+      readOnly: true
       fromSource: 
-      - path: /bin/cat # /bin/cat /credentials/password (logs)
+      - path: /bin/cat
   action:
     Audit
+
+# test
+# $ cat /etc/passwd
+# root:x:0:0:root:/root:/bin/bash (audit)
+# $ echo "test" >> /secret.txt
+# (nothing is displayed) (audit)
+# $ cat /credentials/password
+# password file (audit)
+# $ cat /credentials/keys/priv.key
+# key file (no log)

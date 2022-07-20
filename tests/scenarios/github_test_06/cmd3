@@ -1,7 +1,7 @@
 source: ubuntu-1-deployment
-cmd: /bin/cat /home/user1/secret_data1.txt
-result: failed
+cmd: cat /home/user1/secret_data1.txt
+result: default
 ---
 operation: File
 condition: /home/user1/secret_data1.txt
-action: Allow
+action: default

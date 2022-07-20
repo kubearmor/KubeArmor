@@ -1,0 +1,7 @@
+source: kubearmor-dev
+cmd: head -n 1 /etc/default/useradd
+result: failed
+---
+operation: File
+condition: /etc/default/useradd
+action: Block

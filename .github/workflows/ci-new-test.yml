@@ -1,0 +1,123 @@
+name: ci-new-test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-new-test.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-new-test.yml"
+
+jobs:
+  build:
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-18.04]
+        runtime: ["docker", "containerd", "crio"]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Install Latest Stable LLVM toolchain
+        run: |
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+          for tool in "clang" "llc" "llvm-strip"
+          do
+            sudo rm -f /usr/bin/$tool
+            sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
+          done
+          sudo apt install libelf-dev
+
+      - name: Setup Enviroment
+        run: |
+          echo "RUNTIME="$RUNTIME
+          if [ "$RUNTIME" == "docker" ]; then
+            ./contribution/self-managed-k8s/docker/install_docker.sh
+            docker --version
+          elif [ "$RUNTIME" == "crio" ]; then
+            ./contribution/self-managed-k8s/crio/install_crio.sh
+            crio --version
+          fi
+          ./contribution/k3s/install_k3s.sh
+
+          cd KubeArmor/BPF/
+          make -C libbpf/src
+      
+      - name: Install cmctl
+        run: |
+          OS=$(go env GOOS); ARCH=$(go env GOARCH); curl -sSL -o cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/download/v1.7.2/cmctl-$OS-$ARCH.tar.gz
+          tar xzf cmctl.tar.gz
+          sudo mv cmctl /usr/local/bin
+
+      - name: Install annotation controller
+        run: |
+          kubectl apply -f deployments/annotations/cert-manager.yaml
+          kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
+          cmctl check api  --wait 300s
+          kubectl apply -f deployments/annotations/kubearmor-annotation-manager.yaml
+          kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=kubearmor-annotation-manager
+
+      - name: Run kubectl proxy
+        run: kubectl proxy &
+
+      - name: Run kubearmor in local process mode
+        run: |
+          make -C KubeArmor/ run &
+          bash -c 'for((i=0;i<300;i++)); do cnt=$(ps -e | grep kubearmor | wc -l); [[ $cnt -gt 0 ]] && echo "Kubearmor is running" && break; sleep 1; done'
+        timeout-minutes: 5
+
+      - name: ginkgo kubearmor tests
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/
+        timeout-minutes: 10
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
+
+      - name: Measure Code Coverage
+        if: ${{ always() }}
+        run: |
+          go get github.com/modocache/gover
+          go install github.com/modocache/gover@latest
+          gover    
+          go tool cover -func=gover.coverprofile
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - uses: codecov/codecov-action@v2
+        if: ${{ always() }}
+        with:
+          files: ./KubeArmor/gover.coverprofile

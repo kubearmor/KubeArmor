@@ -1,0 +1,7 @@
+source: ubuntu-1-deployment
+cmd: curl google.com
+result: default
+---
+operation: Network
+condition: SOCK_DGRAM
+action: default

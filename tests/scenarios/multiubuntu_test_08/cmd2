@@ -1,0 +1,7 @@
+source: ubuntu-3-deployment
+cmd: cat /etc/hostname
+result: default
+---
+operation: File
+condition: /etc/hostname
+action: default

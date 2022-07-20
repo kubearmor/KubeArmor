@@ -1,6 +1,6 @@
 # Contribution Guide
 
-KubeArmor maintainers welcome individuals and organizations from across the Cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements of documentation that helps us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project!
+KubeArmor maintainers welcome individuals and organizations from across the cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements of documentation that helps us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project!
 
 To make a contribution, please follow the steps below.
 
@@ -59,7 +59,7 @@ To make a contribution, please follow the steps below.
    Then, commit the changes using the "git commit" command.
 
    ```text
-    ~/KubeArmor$ git commit -m "Add a new feature by [your name]"
+    ~/KubeArmor$ git commit -s -m "Add a new feature by [your name]"
    ```
 
    Please make sure that your changes are properly tested on your machine.  
@@ -86,7 +86,7 @@ To make a contribution, please follow the steps below.
 
    ![open pull request](../.gitbook/assets/open_pull_request.png)  
 
-   A pull request should contain the details of all commits as specific as possible. Also, please make sure that you have "Fixes: \#\(issue number\)".  
+   A pull request should contain the details of all commits as specific as possible, including "Fixes: \#\(issue number\)".  
 
    Finally, click the "Create pull request" button.
 
@@ -94,7 +94,7 @@ To make a contribution, please follow the steps below.
 
 8. DCO Signoffs
 
-   To ensure that contributors are only submitting work that they have rights to, we are requiring everyone to acknowledge this by signing their work. Any copyright notices in this repos should specify the authors as "The KubeArmor authors".
+   To ensure that contributors are only submitting work that they have rights to, we are requiring everyone to acknowledge this by signing their work. Any copyright notices in this repo should specify the authors as "KubeArmor authors".
 
    To sign your work, just add a line like this at the end of your commit message:
 
@@ -102,6 +102,6 @@ To make a contribution, please follow the steps below.
    Signed-off-by: FirstName LastName <email@address.com>
    ```
 
-   This can easily be done with the `--signoff` option to `git commit`.
+   This can easily be done with the `-s` or `--signoff` option to `git commit`.
 
-   By doing this you state that you can certify the following (from https://developercertificate.org/):
+   By doing this, you state that the source code being submitted originated from you (see https://developercertificate.org).

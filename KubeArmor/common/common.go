@@ -18,6 +18,7 @@ import (
 
 	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ============ //
@@ -274,18 +275,6 @@ func RunCommandAndWaitWithErr(cmd string, args []string) error {
 	return nil
 }
 
-// ========== //
-// == Host == //
-// ========== //
-
-// GetHostName Function
-func GetHostName() string {
-	if res, err := os.Hostname(); err == nil {
-		return res
-	}
-	return ""
-}
-
 // ============= //
 // == Network == //
 // ============= //
@@ -375,6 +364,41 @@ func IsK8sEnv() bool {
 	}
 
 	return false
+}
+
+// ContainerRuntimeSocketMap Structure
+var ContainerRuntimeSocketMap = map[string][]string{
+	"docker": {
+		"/var/run/docker.sock",
+	},
+	"containerd": {
+		"/var/snap/microk8s/common/run/containerd.sock",
+		"/run/k3s/containerd/containerd.sock",
+		"/var/run/containerd/containerd.sock",
+	},
+	"crio": {
+		"/var/run/crio/crio.sock",
+	},
+}
+
+// GetCRISocket Function
+func GetCRISocket(ContainerRuntime string) string {
+	for _, candidate := range ContainerRuntimeSocketMap[ContainerRuntime] {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// GetControllingPodOwner Function returns the pod's Controlling OnwerReference
+func GetControllingPodOwner(ownerRefs []metav1.OwnerReference) *metav1.OwnerReference {
+	for _, ownerRef := range ownerRefs {
+		if *ownerRef.Controller {
+			return &ownerRef
+		}
+	}
+	return nil
 }
 
 // ==================== //

@@ -1,7 +1,7 @@
 source: ubuntu-4-deployment
-cmd: cat /credentials/password
-result: failed
+cmd: /readwrite -r /secret.txt
+result: default
 ---
 operation: File
-condition: /credentials/password
-action: Allow
+condition: /secret.txt
+action: default

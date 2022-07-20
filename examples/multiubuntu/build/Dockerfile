@@ -5,7 +5,7 @@ FROM ubuntu:18.04
 
 RUN apt-get update
 
-RUN apt-get install -y net-tools iputils-ping telnet ssh tcpdump nmap dsniff
+RUN apt-get install -y net-tools iputils-ping telnet ssh tcpdump nmap dsniff arping
 RUN apt-get install -y curl iperf3 netperf ethtool python-scapy python-pip
 RUN apt-get install -y iptables bridge-utils apache2 vim
 

@@ -14,7 +14,15 @@ spec:
     - dir: /bin/
   file:
     matchDirectories:
-    - dir: /credentials/ # allow accessing the files in this directory; otherwise, deny all
+    - dir: /credentials/
       recursive: true
   action:
-    Audit
+    Allow
+
+# multiubuntu_test_08
+
+# test
+# $ cat /credentials/password
+# password file
+# $ cat /etc/hostname
+# cat: /etc/hostname: Permission denied

@@ -1,0 +1,137 @@
+
+# https://selinuxproject.org/page/NB_ObjectClassesPermissions#File_Object_Classes
+
+# common permissions
+
+define(`karmor_common_file_permissions', `{ append create execute getattr ioctl link lock mounton quotaon read relabelfrom relabelto rename setattr swapon unlink write }')
+define(`karmor_common_socket_permissions', `{ accept append bind connect create getattr getopt ioctl listen lock name_bind read recv_msg recvfrom relabelfrom relabelto send_msg sendto setattr setopt shutdown write }')
+define(`karmor_common_ipc_permissions', `{ associate create destroy getattr read setattr unix_read unix_write write }')
+define(`karmor_common_database_permissions', `{ create drop getattr relabelfrom relabelto setattr }')
+define(`karmor_common_x_device_permissions', `{ add bell create destroy force_cursor freeze get_property getattr getfocus grab list_property manage read remove set_property setattr setfocus use write }')
+define(`karmor_common_filesystem_permissions', `{ associate getattr mount quotaget quotamod relabelfrom relabelto remount transition unmount }')
+
+# file object classes
+
+define(`karmor_filesystem_permissions', `{ associate getattr mount quotaget quotamod relabelfrom relabelto remount transition unmount }')
+define(`karmor_dir_permissions', `{ karmor_common_file_permissions add_name audit_access execmod open remove_name reparent rmdir search }')
+define(`karmor_file_permissions', `{ karmor_common_file_permissions audit_access entrypoint execute_no_trans execmod open }')
+define(`karmor_lnk_file_permissions', `{ karmor_common_file_permissions audit_access execmod open }')
+define(`karmor_chr_file_permissions', `{ karmor_common_file_permissions audit_access entrypoint execute_no_trans execmod open }')
+define(`karmor_blk_file_permissions', `{ karmor_common_file_permissions audit_access execmod open }')
+define(`karmor_sock_file_permissions', `{ karmor_common_file_permissions audit_access execmod open }')
+define(`karmor_fifo_file_permissions', `{ karmor_common_file_permissions audit_access execmod open }')
+define(`karmor_fd_permissions', `{ use }')
+
+# network object classes
+
+define(`karmor_node_permissions', `{ dccp_recv dccp_send enforce_dest rawip_recv recvfrom sendto tcp_recv tcp_send udp_recv udp_send }')
+define(`karmor_netif_permissions', `{ dccp_recv dccp_send egress ingress rawip_recv rawip_send tcp_recv tcp_send udp_recv udp_send }')
+define(`karmor_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_tcp_socket_permissions', `{ karmor_common_socket_permissions acceptfrom connectto name_connect newconn node_bind }')
+define(`karmor_udp_socket_permissions', `{ karmor_common_socket_permissions node_bind }')
+define(`karmor_icmp_socket_permissions', `{ karmor_common_socket_permissions node_bind }')
+define(`karmor_rawip_socket_permissions', `{ karmor_common_socket_permissions node_bind }')
+define(`karmor_packet_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_tun_socket_permissions', `{ karmor_common_socket_permissions attach_queue }')
+define(`karmor_unix_stream_socket_permissions', `{ karmor_common_socket_permissions acceptfrom connectto newconn }')
+define(`karmor_unix_dgram_socket_permissions', `{ karmor_common_socket_permissions }')
+
+# ipsec network object classes
+
+define(`karmor_association_permissions', `{ polmatch recvfrom sendto setcontext }')
+define(`karmor_key_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_netlink_xfrm_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_write }')
+
+# netlink object classes
+
+define(`karmor_netlink_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_netlink_route_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_write }')
+define(`karmor_netlink_firewall_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_write }')
+define(`karmor_tcpdiag_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_write }')
+define(`karmor_nflog_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_selinux_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_audit_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_readpriv nlmsg_relay nlmsg_tty_audit nlmsg_write }')
+define(`karmor_netlink_ip6fw_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_write }')
+define(`karmor_netlink_dnrt_socket_permissions', `{ karmor_common_socket_permissions nlmsg_read nlmsg_write }')
+define(`karmor_netlink_kobject_uevent_socket_permissions', `{ karmor_common_socket_permissions }')
+
+# miscellaneous network object classes
+
+define(`karmor_peer_permissions', `{ recv }')
+define(`karmor_packet_permissions', `{ flow_in flow_out forward_in forward_out recv relabelto send }')
+define(`karmor_appletalk_socket_permissions', `{ karmor_common_socket_permissions }')
+define(`karmor_dccp_socket_permissions', `{ karmor_common_socket_permissions name_connect node_bind }')
+
+# ipc object classes
+
+define(`karmor_ipc_permissions', `{ karmor_common_ipc_permissions }')
+define(`karmor_sem_permissions', `{ karmor_common_ipc_permissions }')
+define(`karmor_msgq_permissions', `{ karmor_common_ipc_permissions enqueue }')
+define(`karmor_msg_permissions', `{ receive send }')
+define(`karmor_shm_permissions', `{ karmor_common_ipc_permissions lock }')
+
+# process object classes
+
+define(`karmor_process_permissions', `{ dyntransition execheap execmem execstack fork getattr getcap getpgid getsched getsession noatsecure ptrace ptrace_child rlimitinh setcap setcurrent setexec setfscreate setkeycreate setpgid setrlimit setsched setsockcreate share sigchld siginh sigkill signal signull sigstop transition }')
+
+# security object classes
+
+define(`karmor_security_permissions', `{ check_context compute_av compute_create compute_member compute_relabel compute_user load_policy read_policy setbool setcheckreqprot setenforce setsecparam }')
+
+# system operation object classes
+
+define(`karmor_system_permissions', `{ disable enable halt ipc_info module_request reboot reload status syslog_console syslog_mod syslog_read undefined }')
+
+# kernel service object classes
+
+define(`karmor_kernel_service_permissions', `{ use_as_override create_files_as }')
+
+# capability object classes
+
+define(`karmor_capability_permissions', `{ audit_control audit_write chown dac_override dac_read_search fowner fsetid ipc_lock ipc_owner kill lease linux_immutable mknod net_admin net_bind_service net_raw net_broadcast setfcap setgid setpcap setuid sys_admin sys_boot sys_chroot sys_module sys_nice sys_pacct sys_ptrace sys_rawio sys_resource sys_time sys_tty_config }')
+define(`karmor_capability2_permissions', `{ block_suspend mac_admin mac_override syslog wake_alarm }')
+
+# x windows object classes
+
+define(`karmor_x_drawable_permissions', `{ add_child blend create destroy get_property getattr hide list_child list_property manage override read receive remove_child send set_property setattr show write }')
+define(`karmor_x_screen_permissions', `{ getattr hide_cursor saver_getattr saver_hide saver_setattr saver_show setattr show_cursor }')
+define(`karmor_x_gc_permissions', `{ create destroy getattr setattr use }')
+define(`karmor_x_font_permissions', `{ add_glyph create destroy getattr remove_glyph use }')
+define(`karmor_x_colormap', `{ add_color create destroy getattr install read remove_color uninstall use write }')
+define(`karmor_x_property_permissions', `{ append create destroy getattr read setattr write }')
+define(`karmor_x_selection_permissions', `{ getattr read setattr write }')
+define(`karmor_x_cursor_permissions', `{ create destroy getattr read setattr use write }')
+define(`karmor_x_client_permissions', `{ destroy getattr manage setattr }')
+define(`karmor_x_device_permissions', `{ karmor_common_x_device_permissions }')
+define(`karmor_x_server_permissions', `{ debug getattr grab manage record setattr }')
+define(`karmor_x_extension_permissions', `{ query use }')
+define(`karmor_x_resource_permissions', `{ read write }')
+define(`karmor_x_event_permissions', `{ receive send }')
+define(`karmor_x_synthetic_event_permissions', `{ receive send }')
+define(`karmor_x_application_data_permissions', `{ copy paste paste_after_confirm }')
+define(`karmor_x_pointer_permissions', `{ karmor_common_x_device_permissions }')
+define(`karmor_x_keyboard_permissions', `{ karmor_common_x_device_permissions }')
+
+# database object classes
+
+define(`karmor_db_database_permissions', `{ karmor_common_database_permissions access install_module load_module }')
+define(`karmor_db_table_permissions', `{ karmor_common_database_permissions delete insert lock select update }')
+define(`karmor_db_schema_permissions', `{ karmor_common_database_permissions search add_name remove_name }')
+define(`karmor_db_procedure_permissions', `{ karmor_common_database_permissions entrypoint execute install }')
+define(`karmor_db_column_permissions', `{ karmor_common_database_permissions insert select update }')
+define(`karmor_db_tuple_permissions', `{ delete insert relabelfrom relabelto select update use }')
+define(`karmor_db_blob_permissions', `{ karmor_common_database_permissions export import read write }')
+define(`karmor_db_view_permissions', `{ karmor_common_database_permissions expand }')
+define(`karmor_db_sequence_permissions', `{ karmor_common_database_permissions get_value next_value set_value }')
+define(`karmor_db_language_permissions', `{ karmor_common_database_permissions implement execute }')
+
+# miscellaneous object classes
+
+define(`karmor_passwd_permissions', `{ chfn chsh crontab passwd rootok }')
+define(`karmor_nscd_permissions', `{ admin getgrp gethost getnetgrp getpwd getserv getstat shmemgrp shmemnetgrp shmempwd shmemserv }')
+define(`karmor_dbus_permissions', `{ acquire_svc send_msg }')
+define(`karmor_context_permissions', `{ contains translate }')
+define(`karmor_key_permissions', `{ create link read search setattr view write }')
+define(`karmor_memprotect_permissions', `{ mmap_zero }')
+define(`karmor_service_permissions', `{ disable enable kill load reload start status stop }')
+define(`karmor_proxy_permissions', `{ read }')

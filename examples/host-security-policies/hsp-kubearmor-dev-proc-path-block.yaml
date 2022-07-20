@@ -9,6 +9,15 @@ spec:
   severity: 5
   process:
     matchPaths:
-    - path: /usr/bin/diff # try diff -h
+    - path: /usr/bin/diff
   action:
     Block
+
+# kubearmor-dev_test_01
+
+# test
+# $ diff --help
+# -bash: /usr/bin/diff: Permission denied
+
+# expectation
+# anyone cannot execute /usr/bin/diff

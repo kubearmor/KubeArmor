@@ -5,14 +5,20 @@ metadata:
   namespace: multiubuntu
 spec:
   severity: 5
-  message: "audit /bin/cat accessing /home/user1/secret_data1.txt"
+  message: "audit /bin/cat accessing /secret.txt"
   selector:
     matchLabels:
       group: group-2
   file:
     matchPaths:
-      - path: /home/user1/secret_data1.txt # /bin/cat /home/user1/secret_data1.txt (no logs)
-        fromSource: # /bin/head /home/secret_data1.txt (logs)
-        - path: /bin/cat
+    - path: /secret.txt
+      fromSource:
+      - path: /bin/cat
   action:
     Audit
+
+# test
+# $ cat /secret.txt
+# secret file (audit)
+# $ cat /etc/hostname
+# ubuntu-4-deployment-566bf47cd7-b7f56 (no log)

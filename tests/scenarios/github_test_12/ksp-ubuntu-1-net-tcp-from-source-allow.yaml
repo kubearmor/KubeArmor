@@ -1,0 +1,27 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-net-tcp-from-source-allow
+  namespace: github
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+  action: Allow
+
+# test
+# curl 172.217.175.36
+# <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+# <TITLE>301 Moved</TITLE></HEAD><BODY>
+# <H1>301 Moved</H1>
+# The document has moved
+# <A HREF="http://www.google.com/">here</A>.
+# </BODY></HTML>
+# $ curl www.google.com
+# curl: (6) Could not resolve host: www.google.com

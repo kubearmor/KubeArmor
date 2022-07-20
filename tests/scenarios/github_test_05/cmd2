@@ -1,7 +1,7 @@
 source: ubuntu-1-deployment
-cmd: head /secret.txt 
-result: failed
+cmd: cat /etc/hosts
+result: default
 ---
 operation: File
-condition: /secret.txt
-action: Allow
+condition: /etc/hosts
+action: default

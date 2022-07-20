@@ -1,7 +1,7 @@
 source: ubuntu-5-deployment
 cmd: echo test >> /home/user1/secret_data1.txt
-result: failed
+result: default
 ---
 operation: File
 condition: /home/user1/secret_data1.txt
-action: Allow
+action: default

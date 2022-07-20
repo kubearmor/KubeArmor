@@ -16,3 +16,11 @@ spec:
       - path: /bin/dash
   action:
     Block
+
+# multiubuntu_test_12
+
+# test
+# $ dash -c ls
+# dash: 1: ls: Permission denied
+# $ dash -c "cat /etc/hostname"
+# ubuntu-1-deployment-5bd8d67678-4szzv
