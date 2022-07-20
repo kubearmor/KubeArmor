@@ -104,7 +104,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
-			hostUsrVolMnt,
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd

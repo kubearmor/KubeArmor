@@ -166,6 +166,7 @@ func GetPolicyManagerService(namespace string) *corev1.Service {
 
 // GetPolicyManagerDeployment Function
 func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
+	var readOnlyRootFilesystem = bool(true)
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -206,6 +207,9 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									Name:          "https",
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+							},
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -234,6 +238,9 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceCPU:    resource.MustParse("100m"),
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 							},
 						},
 					},
@@ -275,6 +282,7 @@ func GetHostPolicyManagerService(namespace string) *corev1.Service {
 
 // GetHostPolicyManagerDeployment Function
 func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
+	var readOnlyRootFilesystem = bool(true)
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -325,6 +333,9 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+							},
 						},
 						{
 							Name:  "kubearmor-host-policy-manager",
@@ -344,6 +355,9 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+							},
 						},
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -360,6 +374,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		"kubearmor-app": kubearmor,
 	}
 	var privileged = bool(true)
+	var readOnlyRootFilesystem = bool(true)
 	var terminationGracePeriodSeconds = int64(30)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
@@ -393,11 +408,21 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			MountPath: "/media/root/etc/os-release",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "tmp-path",
+			MountPath: "/tmp",
+		},
 	}
 
 	var volumes = []corev1.Volume{
 		{
 			Name: "bpf",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: "tmp-path",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -503,7 +528,8 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Name:  "init",
 							Image: "kubearmor/kubearmor-init:latest",
 							SecurityContext: &corev1.SecurityContext{
-								Privileged: &privileged,
+								Privileged:             &privileged,
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 							},
 							VolumeMounts: containerVolumeMounts,
 						},
@@ -605,6 +631,7 @@ var annotationsControllerAllowPrivilegeEscalation = false
 
 // GetAnnotationsControllerDeployment Function
 func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
+	var readOnlyRootFilesystem = bool(true)
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Deployment",
@@ -661,6 +688,9 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 									corev1.ResourceMemory: resource.MustParse("20Mi"),
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+							},
 						},
 						{
 							Name:  "manager",
@@ -692,6 +722,7 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 							},
 							SecurityContext: &corev1.SecurityContext{
 								AllowPrivilegeEscalation: &annotationsControllerAllowPrivilegeEscalation,
+								ReadOnlyRootFilesystem:   &readOnlyRootFilesystem,
 							},
 							LivenessProbe: &corev1.Probe{
 								Handler: corev1.Handler{

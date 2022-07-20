@@ -1,0 +1,79 @@
+name: run-in-cluster-test
+
+on:
+  push:
+    branches:
+    - "**"
+    paths:
+    - "deployments/annotations/**"
+    - "deployments/generic/**"
+    - "tests/test-scenarios-github.sh"
+    - ".github/workflows/ci-test-incluster.yml"
+  pull_request:
+    branches: ["*"]
+    paths: 
+    - "deployments/annotations/**"
+    - "deployments/generic/**"
+    - "tests/test-scenarios-github.sh"
+    - ".github/workflows/ci-test-incluster.yml"
+
+jobs:
+  manifest-test:
+    name: Run basic manifest tests / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-18.04]
+    steps:
+      - name: Kernel version
+        run: uname -r
+      
+      - uses: actions/checkout@v2
+
+      - name: Setup Enviroment
+        run: |
+          ./contribution/k3s/install_k3s.sh
+
+      - name: Install cmctl
+        run: |
+          OS=$(go env GOOS); ARCH=$(go env GOARCH); curl -sSL -o cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/download/v1.7.2/cmctl-$OS-$ARCH.tar.gz
+          tar xzf cmctl.tar.gz
+          sudo mv cmctl /usr/local/bin
+
+      - name: Install annotation controller
+        run: |
+          kubectl apply -f deployments/annotations/cert-manager.yaml
+          kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
+          cmctl check api  --wait 300s
+          kubectl apply -f deployments/annotations/kubearmor-annotation-manager.yaml
+          kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=kubearmor-annotation-manager
+      
+      - name: Apply KubeArmor manifest
+        run: |
+            kubectl apply -f deployments/generic/kubearmor.yaml
+       
+      - name: Test manifests
+        run: |
+            ./tests/test-scenarios-github.sh
+
+      - name: Get pod informations
+        if: ${{ failure() }}
+        run: |
+          kubectl get po -n kube-system
+          kubectl describe po -n kube-system
+
+  
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor.test
+            /tmp/kubearmor.log
+            /tmp/kubearmor.msg
+      
+      - name: Check Results
+        if: ${{ always() }}
+        run: cat /tmp/kubearmor.test
