@@ -67,7 +67,8 @@ nfpms:
     overrides:
       deb:
         dependencies:
-          - bpfcc-tools
+          - make
+          - libelf-dev
           - linux-headers-generic | linux-headers-generic-pae | linux-headers-lowlatency | linux-headers-lowlatency-pae
       rpm:
         dependencies:

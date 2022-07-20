@@ -1,0 +1,63 @@
+name: ci-test-systemd
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test.yml"
+
+jobs:
+  build:
+    name: Systemd Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-18.04]
+    steps:
+      - name: Kernel version
+        run: uname -r
+
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          install-only: true
+
+      - name: Install Latest Stable LLVM toolchain
+        run: |
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+          for tool in "clang" "llc" "llvm-strip"
+          do
+            sudo rm -f /usr/bin/$tool
+            sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
+          done
+
+      - name: Build Release
+        run:  make local-release
+        working-directory: KubeArmor
+
+      - name: Install KubeArmor Systemd
+        run:  sudo apt install --yes ./dist/kubearmor*.deb
+        working-directory: KubeArmor
+
+      - name: Check journalctl
+        run: sudo journalctl -u kubearmor --no-pager

@@ -38,12 +38,15 @@ echo "[INFO] Removed existing $REPO images"
 
 # set DTAG and LABEL
 DTAG="-t $REPO:$VERSION"
+DTAGINI="-t $REPO-init:$VERSION"
 unset LABEL
 [[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
 
 # build a new image
 echo "[INFO] Building $DTAG"
-cd $ARMOR_HOME/..; docker build $DTAG . $LABEL
+cd $ARMOR_HOME/..; docker build $DTAG --target kubearmor . $LABEL
+echo "[INFO] Building $DTAGINI"
+cd $ARMOR_HOME/..; docker build $DTAGINI --target kubearmor-init . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"

@@ -3,18 +3,18 @@ name: ci-new-test
 on:
   push:
     branches: [main]
-    paths: 
-    - 'KubeArmor/**'
-    - 'tests/**'
-    - 'protobuf/**'
-    - '.github/workflows/ci-new-test.yml'
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-new-test.yml"
   pull_request:
     branches: [main]
-    paths: 
-    - 'KubeArmor/**'
-    - 'tests/**'
-    - 'protobuf/**'
-    - '.github/workflows/ci-new-test.yml'
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-new-test.yml"
 
 jobs:
   build:
@@ -29,25 +29,23 @@ jobs:
         runtime: ["docker", "containerd", "crio"]
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.18
 
-      - name: Build bcc
+      - name: Install Latest Stable LLVM toolchain
         run: |
-          set -x
-          sudo apt-get update
-          sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev
-          pushd /tmp
-          git clone --branch v0.24.0 --depth 1 https://github.com/iovisor/bcc.git
-          mkdir -p bcc/build; cd bcc/build
-          sudo ln -s /usr/lib/llvm-9 /usr/local/llvm
-          cmake .. -DPYTHON_CMD=python3 -DCMAKE_INSTALL_PREFIX=/usr
-          make -j$(nproc)
-          sudo make install
-          popd
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+          for tool in "clang" "llc" "llvm-strip"
+          do
+            sudo rm -f /usr/bin/$tool
+            sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
+          done
+          sudo apt install libelf-dev
 
       - name: Setup Enviroment
         run: |
@@ -60,6 +58,9 @@ jobs:
             crio --version
           fi
           ./contribution/k3s/install_k3s.sh
+
+          cd KubeArmor/BPF/
+          make -C libbpf/src
 
       - name: Install annotation controller
         run: |

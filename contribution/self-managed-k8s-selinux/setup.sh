@@ -6,25 +6,16 @@
 sudo sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Linux-*
 sudo sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Linux-*
 
-# make a directory to build bcc
+# make a directory to build
 mkdir -p /tmp/build; cd /tmp/build
 
 # download bcc
 sudo dnf -y install git
-git -C /tmp/build/ clone --branch v0.24.0 --depth 1 https://github.com/iovisor/bcc.git
 
-# install dependencies for bcc
+# install dependencies for BPF compilation
 sudo dnf -y install gcc gcc-c++ make cmake bison flex ethtool iperf3 \
                     python3-netaddr python3-pip zlib-devel elfutils-libelf-devel libarchive \
-                    wget zip clang clang-devel llvm llvm-devel llvm-static ncurses-devel
-
-# install bcc
-mkdir -p /tmp/build/bcc/build; cd /tmp/build/bcc/build
-cmake .. -DENABLE_LLVM_SHARED=1 && make -j$(nproc) && sudo make install
-if [ $? != 0 ]; then
-    echo "Failed to install bcc"
-    exit 1
-fi
+                    wget zip clang clang-devel llvm llvm-devel llvm-static ncurses-devel kernel-devel
 
 # install dependencies for selinux
 sudo dnf -y install policycoreutils-devel setools-console

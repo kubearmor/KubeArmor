@@ -1,0 +1,3 @@
+[submodule "KubeArmor/BPF/libbpf"]
+	path = KubeArmor/BPF/libbpf
+	url = https://github.com/libbpf/libbpf/
