@@ -79,6 +79,7 @@ spec:
         imagePullPolicy: Never
         securityContext:
           privileged: true
+          readOnlyRootFilesystem: true
         ports:
         - containerPort: 32767
         livenessProbe:
@@ -118,9 +119,13 @@ spec:
         - mountPath: /var/lib/docker
           name: docker-storage-path
           readOnly: true
+        - mountPath: /tmp
+          name: tmp-path
       volumes:
       - emptyDir: {}
         name: bpf
+      - emptyDir: {}
+        name: tmp-path
       - hostPath:
           path: /lib/modules
           type: Directory

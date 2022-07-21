@@ -121,6 +121,8 @@ spec:
         - mountPath: /media/root/etc/os-release
           name: os-release-path
           readOnly: true
+        - mountPath: /tmp
+          name: tmp-path
         - mountPath: /usr/src
           name: usr-src-path
           readOnly: true
@@ -143,6 +145,7 @@ spec:
         name: init
         securityContext:
           privileged: true
+          readOnlyRootFilesystem: true
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
@@ -158,6 +161,8 @@ spec:
         - mountPath: /media/root/etc/os-release
           name: os-release-path
           readOnly: true
+        - mountPath: /tmp
+          name: tmp-path
         - mountPath: /usr/src
           name: usr-src-path
           readOnly: true
@@ -171,6 +176,8 @@ spec:
       volumes:
       - emptyDir: {}
         name: bpf
+      - emptyDir: {}
+        name: tmp-path
       - hostPath:
           path: /lib/modules
           type: Directory
@@ -264,6 +271,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        securityContext:
+          readOnlyRootFilesystem: true
       - args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
@@ -278,6 +287,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        securityContext:
+          readOnlyRootFilesystem: true
       serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 10
 ---
@@ -333,6 +344,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        securityContext:
+          readOnlyRootFilesystem: true
       - args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
@@ -347,6 +360,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        securityContext:
+          readOnlyRootFilesystem: true
       serviceAccountName: kubearmor
       terminationGracePeriodSeconds: 10
 ---
