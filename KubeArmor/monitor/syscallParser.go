@@ -24,16 +24,17 @@ import (
 
 // Data Types
 const (
-	intT       uint8 = 1
-	strT       uint8 = 10
-	strArrT    uint8 = 11
-	sockAddrT  uint8 = 12
-	openFlagsT uint8 = 13
-	execFlagsT uint8 = 14
-	sockDomT   uint8 = 15
-	sockTypeT  uint8 = 16
-	capT       uint8 = 17
-	syscallT   uint8 = 18
+	intT          uint8 = 1
+	strT          uint8 = 10
+	strArrT       uint8 = 11
+	sockAddrT     uint8 = 12
+	openFlagsT    uint8 = 13
+	execFlagsT    uint8 = 14
+	sockDomT      uint8 = 15
+	sockTypeT     uint8 = 16
+	capT          uint8 = 17
+	syscallT      uint8 = 18
+	unlinkAtFlagT uint8 = 19
 )
 
 // ======================= //
@@ -212,6 +213,17 @@ func readSockaddrFromBuff(buff io.Reader) (map[string]string, error) {
 		res["sin_addr"] = ipv6.String()
 	}
 	return res, nil
+}
+
+// getUnlinkAtFlag Function
+func getUnlinkAtFlag(flag uint32) string {
+	var f = ""
+
+	if flag == 0x200 {
+		f = "AT_REMOVEDIR"
+	}
+
+	return f
 }
 
 // getOpenFlags Function
@@ -1051,6 +1063,12 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 			return nil, err
 		}
 		res = getOpenFlags(flags)
+	case unlinkAtFlagT:
+		flag, err := readUInt32FromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
+		res = getUnlinkAtFlag(flag)
 	case execFlagsT:
 		flags, err := readUInt32FromBuff(dataBuff)
 		if err != nil {

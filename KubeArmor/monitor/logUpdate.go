@@ -176,6 +176,39 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
 
+			case SysUnlink:
+				if len(msg.ContextArgs) != 2 {
+					continue
+				}
+
+				var fileName string
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					fileName = val
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+
+			case SysUnlinkAt:
+				if len(msg.ContextArgs) != 3 {
+					continue
+				}
+
+				var fileName string
+				var fileUnlinkAtFlags string
+
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					fileName = val
+				}
+				if val, ok := msg.ContextArgs[2].(string); ok {
+					fileUnlinkAtFlags = val
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileUnlinkAtFlags
+
 			case SysClose:
 				if len(msg.ContextArgs) != 1 {
 					continue
