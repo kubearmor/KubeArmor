@@ -1,0 +1,24 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-file-pattern
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block files following a pattern"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchPatterns:
+    - pattern: /etc/*hado?
+  action:
+    Block
+
+# multiubuntu_test_11
+
+# test
+# $ cat /etc/shadow
+# cat: /etc/shadow: Permission denied
+# $ cat /etc/gshadow
+# cat: /etc/gshadow: Permission denied

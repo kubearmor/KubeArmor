@@ -1,0 +1,54 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-allow-file-path-owner-readonly-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical file was accessed"
+  tags:
+  - WARNING
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  process: # base whitelisting rules
+    matchPaths:
+    - path: /home/user1/readwrite
+      fromSource:
+      - path: /bin/su    
+    matchDirectories:
+    - dir: /bin/ # required to change root to user1 / try 'su - user1'
+      recursive: true
+    - dir: /usr/bin/ # used in changing accounts
+      recursive: true  
+  file:
+    matchPaths:
+    - path: /home/user1/secret_data1.txt
+      readOnly: true
+      ownerOnly: true
+      fromSource:
+      - path: /readwrite
+      - path: /bin/su
+    - path: /root/.bashrc # used by root
+    - path: /root/.bash_history # used by root
+    - path: /home/user1/.profile # used by user1
+    - path: /home/user1/.bashrc # used by user1
+    - path: /run/utmp # required to change root to user1
+    - path: /dev/tty
+    matchDirectories:
+    - dir: /etc/ # required to change root to user1 (coarse-grained way)
+      recursive: true
+    - dir: /proc/ # required to change root to user1 (coarse-grained way)
+      recursive: true
+  action:
+    Allow
+
+# test
+# $ ./readwrite -r /home/user1/secret_data1.txt
+# Error! (permission denied)
+# $ ./readwrite -w /home/user1/secret_data1.txt
+# Error! (permission denied)
+# $ su - user1 -c "./readwrite -r /home/user1/secret_data1.txt"
+# s
+# $ su - user1 -c "./readwrite -w /home/user1/secret_data1.txt"
+# (nothing is displayed)

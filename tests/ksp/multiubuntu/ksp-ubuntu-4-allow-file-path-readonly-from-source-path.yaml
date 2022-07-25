@@ -1,0 +1,37 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-allow-file-path-readonly-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical file was accessed"
+  tags:
+  - WARNING
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  file:
+    matchDirectories:
+    - dir: /bin/ # used by root
+      recursive: true
+    - dir: /pts/
+      recursive: true
+    matchPaths:
+    - path: /credentials/password
+      readOnly: true
+      fromSource:
+      - path: /readwrite
+    - path: /dev/tty  
+  action:
+    Allow
+
+# multiubuntu_test_19
+
+# test
+# $ ./readwrite -r /credentials/password
+# p
+# $ ./readwrite -w /credentials/password
+# Error! (permission denied)
+# $ ./readwrite -r /secret.txt
+# Error! (permission denied)

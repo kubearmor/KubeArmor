@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-audit-file-dir
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "audit credentials"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchDirectories:
+    - dir: /credentials/
+      recursive: true
+  action:
+    Audit

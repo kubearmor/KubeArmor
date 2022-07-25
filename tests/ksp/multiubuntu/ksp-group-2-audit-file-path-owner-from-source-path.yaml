@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-2-audit-file-path-owner-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      group: group-2
+  file:
+    matchPaths:
+    - path: /home/user1/secret_data1.txt
+      ownerOnly: true
+      fromSource:
+      - path: /bin/cat
+  action:
+    Audit
+
+# test
+# $ cat /home/user1/secret_data1.txt
+# secret file user1 (no log)
+# $ su - user1 -c "cat secret_data1.txt"
+# secret file user1 (audit)
+# $ su - user1 -c "cat /etc/hostname"
+# ubuntu-4-deployment-566bf47cd7-b7f56 (no log)
