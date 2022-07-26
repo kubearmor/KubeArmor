@@ -106,6 +106,12 @@ enum {
 
     // lsm
     _SECURITY_BPRM_CHECK = 352,
+
+    // accept/connect
+    _TCP_CONNECT = 400,
+    _TCP_ACCEPT = 401,
+    _TCP_CONNECT_v6 = 402,
+    _TCP_ACCEPT_v6 = 403,
 };
 
 typedef struct __attribute__((__packed__)) sys_context {
@@ -1294,6 +1300,128 @@ SEC("kretprobe/__x64_sys_listen")
 int kretprobe__listen(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));
+}
+
+
+static __always_inline int get_connection_info(struct sock_common *conn,struct sockaddr_in *sockv4, struct sockaddr_in6 *sockv6,sys_context_t *context, args_t *args, u32 event ) {
+    switch (conn->skc_family)
+    {
+    case AF_INET:
+        sockv4->sin_family = conn->skc_family;
+        sockv4->sin_addr.s_addr = conn->skc_daddr;
+        sockv4->sin_port = (event == _TCP_CONNECT) ? conn->skc_dport : (conn->skc_num>>8) | (conn->skc_num<<8);
+        args->args[1] = (unsigned long) sockv4;
+        context->event_id = (event == _TCP_CONNECT) ? _TCP_CONNECT : _TCP_ACCEPT ;
+        break;
+    
+    case AF_INET6:
+        sockv6->sin6_family = conn->skc_family;
+        sockv6->sin6_port = (event == _TCP_CONNECT) ? conn->skc_dport : (conn->skc_num>>8) | (conn->skc_num<<8);
+        bpf_probe_read(&sockv6->sin6_addr.in6_u.u6_addr16, sizeof(sockv6->sin6_addr.in6_u.u6_addr16), conn->skc_v6_daddr.in6_u.u6_addr16);
+        args->args[1] = (unsigned long) sockv6;
+        context->event_id = (event == _TCP_CONNECT) ? _TCP_CONNECT_v6 : _TCP_ACCEPT_v6 ;
+        break;
+
+    default:
+        return 1;
+    }
+
+    return 0;
+}
+
+SEC("kprobe/__x64_sys_tcp_connect")
+int kprobe__tcp_connect(struct pt_regs *ctx){
+    struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+    struct sock_common conn = READ_KERN(sk->__sk_common);
+    struct sockaddr_in sockv4;
+    struct sockaddr_in6 sockv6;
+    
+    sys_context_t context = {};
+    args_t args = {};
+    u64 types = ARG_TYPE0(STR_T)|ARG_TYPE1(SOCKADDR_T);
+
+    init_context(&context);
+    context.argnum = get_arg_num(types);
+    
+    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_CONNECT) != 0 ) {
+        return 0;
+    }
+
+    args.args[0] = (unsigned long) conn.skc_prot->name;
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+    save_context_to_buffer(bufs_p, (void*)&context);
+    save_args_to_buffer(types, &args);
+    events_perf_submit(ctx);
+
+    return 0;
+}
+
+
+SEC("kretprobe/__x64_sys_inet_csk_accept")
+int kretprobe__inet_csk_accept(struct pt_regs *ctx){
+    struct sock *newsk = (struct sock *)PT_REGS_RC(ctx);    
+    if (newsk == NULL)
+        return 0;
+    
+// Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
+    u16 protocol = 1;
+    int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
+    int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
+
+if (sk_lingertime_offset - gso_max_segs_offset == 2)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+        protocol = READ_KERN(newsk->sk_protocol);
+#else
+        protocol = newsk->sk_protocol;
+#endif
+    else if (sk_lingertime_offset - gso_max_segs_offset == 4)
+        // 4.10+ with little endian
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+        protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_gso_max_segs - 3));
+    else
+        // pre-4.10 with little endian
+        protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_wmem_queued - 3));
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        // 4.10+ with big endian
+        protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_gso_max_segs - 1));
+    else
+        // pre-4.10 with big endian
+        protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_wmem_queued - 1));
+#else
+# error "Fix your compiler's __BYTE_ORDER__?!"
+#endif   
+  
+    if (protocol != IPPROTO_TCP)
+        return 0;
+
+    struct sock_common conn = READ_KERN(newsk->__sk_common);
+    struct sockaddr_in sockv4;
+    struct sockaddr_in6 sockv6;
+    sys_context_t context = {};
+    args_t args = {};
+    u64 types = ARG_TYPE0(STR_T)|ARG_TYPE1(SOCKADDR_T);
+    init_context(&context);
+    context.argnum = get_arg_num(types);
+
+    
+    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_ACCEPT) != 0) {
+        return 0;
+    }
+
+    args.args[0] = (unsigned long) conn.skc_prot->name;    
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+
+    save_context_to_buffer(bufs_p, (void*)&context);
+    save_args_to_buffer(types, &args);
+    events_perf_submit(ctx);
+
+    return 0;
 }
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

@@ -214,6 +214,29 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + getProtocol(sockProtocol)
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
 
+			case TCPConnect, TCPConnectv6, TCPAccept, TCPAcceptv6:
+				if len(msg.ContextArgs) != 2 {
+					continue
+				}
+				var sockAddr map[string]string
+				var protocol string
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					protocol = val
+				}
+
+				if val, ok := msg.ContextArgs[1].(map[string]string); ok {
+					sockAddr = val
+				}
+
+				log.Operation = "Network"
+				log.Resource = "remoteip=" + sockAddr["sin_addr"] + " port=" + sockAddr["sin_port"] + " protocol=" + protocol
+				if msg.ContextSys.EventID == TCPConnect || msg.ContextSys.EventID == TCPConnectv6 {
+					log.Data = "kprobe=tcp_connect"
+				} else {
+					log.Data = "kprobe=tcp_accept"
+				}
+				log.Data = log.Data + " domain=" + sockAddr["sa_family"]
+
 			case SysConnect: // fd, sockaddr
 				if len(msg.ContextArgs) != 2 {
 					continue
