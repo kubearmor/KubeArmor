@@ -51,7 +51,10 @@ fi
 echo "wait for initialization"
 sleep 15
 
-for (( ; ; ))
+runtime="15 minute"
+endtime=$(date -ud "$runtime" +%s)
+
+while [[ $(date -u +%s) -le $endtime ]]
 do
     status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
     [[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break
