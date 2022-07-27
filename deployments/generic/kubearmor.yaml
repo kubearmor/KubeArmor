@@ -123,9 +123,6 @@ spec:
         - mountPath: /usr/src
           name: usr-src-path
           readOnly: true
-        - mountPath: /usr/src
-          name: usr-src-path
-          readOnly: true
         - mountPath: /etc/apparmor.d
           name: etc-apparmor-d-path
         - mountPath: /var/run/containerd/containerd.sock
