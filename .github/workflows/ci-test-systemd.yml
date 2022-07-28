@@ -7,14 +7,14 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test.yml"
+      - ".github/workflows/ci-test-systemd.yml"
   pull_request:
     branches: [main]
     paths:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test.yml"
+      - ".github/workflows/ci-test-systemd.yml"
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
         os: [ubuntu-latest, ubuntu-18.04]
     steps:
       - name: Kernel version
-        run: uname -r
+        run: uname -a
 
       - uses: actions/checkout@v2
         with:

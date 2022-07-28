@@ -21,6 +21,8 @@ jobs:
     name: Create KubeArmor latest release - 18.04
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-18.04
+    env:
+      RUNTIME: "containerd"
     timeout-minutes: 20
     steps:
       - name: Checkout KubeArmor code
@@ -34,6 +36,7 @@ jobs:
           else
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
+          echo "RUNTIME="$RUNTIME
           ./contribution/k3s/install_k3s.sh
 
       - name: Install cmctl
@@ -53,6 +56,8 @@ jobs:
       - name: Generate KubeArmor artifacts
         run: |
             GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+            echo "TAG="${{ steps.vars.outputs.tag }}
+            docker save kubearmor/kubearmor:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
 
       - name: Run KubeArmor
         run: |
