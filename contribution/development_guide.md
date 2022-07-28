@@ -234,7 +234,7 @@
         $ cd KubeArmor/KubeArmor
         ~/KubeArmor/KubeArmor$ make run
         ```
-    * Annotation controller
+   * Annotation controller
       
       Starting from KubeArmor v0.5 annotations are applied via an annotation controller, the controller code can be found under `pkg/KubeArmorAnnotation`.
 
