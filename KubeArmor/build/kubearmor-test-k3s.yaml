@@ -112,11 +112,11 @@ spec:
           readOnly: true
         - mountPath: /etc/apparmor.d
           name: etc-apparmor-d-path
-        - mountPath: /var/run/docker.sock
-          name: docker-sock-path
+        - mountPath: /var/run/containerd/containerd.sock
+          name: containerd-sock-path
           readOnly: true
-        - mountPath: /var/lib/docker
-          name: docker-storage-path
+        - mountPath: /run/containerd
+          name: containerd-storage-path
           readOnly: true
       volumes:
       - emptyDir: {}
@@ -150,13 +150,13 @@ spec:
           type: DirectoryOrCreate
         name: etc-apparmor-d-path
       - hostPath:
-          path: /var/run/docker.sock
+          path: /run/k3s/containerd/containerd.sock
           type: Socket
-        name: docker-sock-path
+        name: containerd-sock-path
       - hostPath:
-          path: /var/lib/docker
+          path: /run/k3s/containerd
           type: DirectoryOrCreate
-        name: docker-storage-path
+        name: containerd-storage-path
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

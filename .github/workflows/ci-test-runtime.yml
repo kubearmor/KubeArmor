@@ -7,19 +7,21 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test.yml"
+      - ".github/workflows/ci-test-runtime.yml"
   pull_request:
     branches: [main]
     paths:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test.yml"
+      - ".github/workflows/ci-test-runtime.yml"
 
 jobs:
   build:
     name: Auto-testing Framework Runtime
     runs-on: ubuntu-latest
+    env:
+      RUNTIME: "containerd"
     steps:
       - name: Kernel version
         run: uname -r
@@ -46,6 +48,7 @@ jobs:
         run: |
           echo ::set-output name=tag::latest
 
+          echo "RUNTIME="$RUNTIME
           ./contribution/k3s/install_k3s.sh
 
           cd KubeArmor/BPF/
@@ -53,22 +56,28 @@ jobs:
 
       - name: Generate KubeArmor artifacts
         run: |
-            GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+          echo "TAG="${{ steps.vars.outputs.tag }}
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+          docker save kubearmor/kubearmor:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
 
       - name: Run KubeArmor
         run: |
-            kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml && kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
-            kubectl get pods -A
+          kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml && kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          kubectl get pods -A
 
       - name: Test KubeArmor
         run: |
-            ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
+          ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
 
       - name: Capture KubeArmor logs
         if: ${{ failure() }}
         run: kubectl exec -n kube-system daemonset/kubearmor -- cat /tmp/kubearmor.log > /tmp/kubearmor.log
-            
-      
+
+      - name: Capture KubeArmor Pod Events
+        if: ${{ failure() }}
+        run: kubectl describe pod -n kube-system kubearmor
+
       - name: Archive log artifacts
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
