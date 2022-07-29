@@ -45,6 +45,11 @@ const (
 
 	DoExit            = 351
 	SecurityBprmCheck = 352
+
+	TCPConnect   = 400
+	TCPAccept    = 401
+	TCPConnectv6 = 402
+	TCPAcceptv6  = 403
 )
 
 // SystemMonitor Constant Values
@@ -226,7 +231,8 @@ func (mon *SystemMonitor) InitBPF() error {
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open"}
-
+	netSyscalls := []string{"tcp_connect"}
+	netRetSyscalls := []string{"inet_csk_accept"}
 	if mon.BpfModule != nil {
 
 		mon.Probes = make(map[string]link.Link)
@@ -255,6 +261,20 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
+			}
+		}
+
+		for _, netSyscall := range netSyscalls {
+			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
+			if err != nil {
+				return fmt.Errorf("error loading kprobe %s: %v", netSyscall, err)
+			}
+		}
+
+		for _, netRetSyscall := range netRetSyscalls {
+			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
+			if err != nil {
+				return fmt.Errorf("error loading kretprobe %s: %v", netRetSyscall, err)
 			}
 		}
 
@@ -554,6 +574,18 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.UpdateExecPath(containerID, ctx.HostPID, val)
 				}
 				continue
+			} else if ctx.EventID == TCPConnect {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == TCPAccept {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == TCPConnectv6 {
+				if len(args) != 2 {
+					continue
+				}
 			}
 
 			// if Policy is not set
