@@ -63,7 +63,8 @@ jobs:
 
       - name: Run KubeArmor
         run: |
-          kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml && kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          kubectl apply -f KubeArmor/build/kubearmor-test-k3s.yaml
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
           kubectl get pods -A
 
       - name: Test KubeArmor
