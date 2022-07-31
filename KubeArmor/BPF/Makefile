@@ -13,6 +13,20 @@ endif
 
 LIBBPF = $(CURDIR)/libbpf
 
+
+UNAME_M := $(shell uname -m)
+UNAME_R := $(shell uname -r)
+
+ifeq ($(UNAME_M),x86_64)
+   ARCH = x86_64
+   LINUX_ARCH = x86
+   GO_ARCH = amd64
+else ifeq ($(UNAME_M),aarch64)
+   ARCH = arm64
+   LINUX_ARCH = arm64
+   GO_ARCH = arm64
+endif
+
 CL  = clang
 CC  = gcc
 Q   = @
@@ -22,15 +36,15 @@ ifeq ($(V),1)
 endif
 
 # shamelessly copied from kernel's samples/bpf/Makefile
-KF = -I$(KRNDIR)/arch/x86/include -I$(KRNDIR)/arch/x86/include/generated  \
-	 -I$(KRNDIR)/include -I$(KRNDIR)/arch/x86/include/uapi \
-	 -I$(KRNDIR)/arch/x86/include/generated/uapi -I$(KRNDIR)/include/uapi \
+KF = -I$(KRNDIR)/arch/$(LINUX_ARCH)/include -I$(KRNDIR)/arch/$(LINUX_ARCH)/include/generated  \
+	 -I$(KRNDIR)/include -I$(KRNDIR)/arch/$(LINUX_ARCH)/include/uapi \
+	 -I$(KRNDIR)/arch/$(LINUX_ARCH)/include/generated/uapi -I$(KRNDIR)/include/uapi \
 	 -I$(KRNDIR)/include/generated/uapi \
 	 -I$(LIBBPF)/src \
 	 -include $(KRNDIR)/include/linux/kconfig.h \
 	 -D__KERNEL__ \
 	 -D__BPF_TRACING__ \
-	 -D__TARGET_ARCH_x86 \
+	 -D__TARGET_ARCH_$(LINUX_ARCH) \
 	 -Wunused \
 	 -Wno-frame-address \
 	 -Wno-unused-value \

@@ -84,27 +84,60 @@
 #define ARG_TYPE4(type)        ENC_ARG_TYPE(4, type)
 #define ARG_TYPE5(type)        ENC_ARG_TYPE(5, type)
 #define DEC_ARG_TYPE(n, type)  ((type>>(8*n))&0xFF)
-#define PT_REGS_PARM6(x) ((x)->r9)
 #define GET_FIELD_ADDR(field) &field
 
+#if defined(bpf_target_x86)
+    #define PT_REGS_PARM6(x) ((x)->r9)
+#elif defined(bpf_target_arm64)
+    #define PT_REGS_PARM6(x) ((x)->regs[5])
+#endif
+
+#define UNDEFINED_SYSCALL 1000
+
+#if defined(bpf_target_x86)
+    enum {
+        // file
+        _SYS_OPEN = 2,
+        _SYS_OPENAT = 257,
+        _SYS_CLOSE = 3,
+        _SYS_UNLINK = 87,
+        _SYS_UNLINKAT = 263,
+
+        // network
+        _SYS_SOCKET = 41,
+        _SYS_CONNECT = 42,
+        _SYS_ACCEPT = 43,
+        _SYS_BIND = 49,
+        _SYS_LISTEN = 50,
+
+        // process
+        _SYS_EXECVE = 59,
+        _SYS_EXECVEAT = 322,
+    };
+#elif defined(bpf_target_arm64)
+    enum {
+        // file
+        _SYS_OPEN = UNDEFINED_SYSCALL,
+        _SYS_OPENAT = 56,
+        _SYS_CLOSE = 57,
+        _SYS_UNLINK = UNDEFINED_SYSCALL,
+        _SYS_UNLINKAT = 35,
+
+        // network
+        _SYS_SOCKET = 198,
+        _SYS_CONNECT = 203,
+        _SYS_ACCEPT = 202,
+        _SYS_BIND = 200,
+        _SYS_LISTEN = 201,
+
+        // process
+        _SYS_EXECVE = 221,
+        _SYS_EXECVEAT = 281,
+    };
+#endif
+
+// common event_ids
 enum {
-    // file
-    _SYS_OPEN = 2,
-    _SYS_OPENAT = 257,
-    _SYS_CLOSE = 3,
-    _SYS_UNLINK = 87,
-    _SYS_UNLINKAT = 263,
-
-    // network
-    _SYS_SOCKET = 41,
-    _SYS_CONNECT = 42,
-    _SYS_ACCEPT = 43,
-    _SYS_BIND = 49,
-    _SYS_LISTEN = 50,
-
-    // process
-    _SYS_EXECVE = 59,
-    _SYS_EXECVEAT = 322,
     _DO_EXIT = 351,
 
     // lsm
@@ -116,6 +149,7 @@ enum {
     _TCP_CONNECT_v6 = 402,
     _TCP_ACCEPT_v6 = 403,
 };
+
 
 typedef struct __attribute__((__packed__)) sys_context {
     u64 ts;
