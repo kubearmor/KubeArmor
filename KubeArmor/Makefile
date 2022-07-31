@@ -16,10 +16,12 @@ KUBEARMOR_PID    = $(shell pgrep kubearmor)
 build: protobuf
 	cd $(CURDIR); go mod tidy
 ifneq (, $(shell which bpftool))
+ifneq (, $(wildcard /sys/kernel/btf/vmlinux))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
+endif
 ifneq (, $(shell which llvm-strip))
 	if grep -q bpf '/sys/kernel/security/lsm'; then \
-    cd $(CURDIR); go generate ./... || true; \
+		cd $(CURDIR); go generate ./... || true; \
 	fi
 endif
 endif
@@ -105,7 +107,7 @@ local-release: build
 ifeq (, $(shell which goreleaser))
 	@{ \
 	set -e ;\
-	go install github.com/goreleaser/goreleaser@latest
+	go install github.com/goreleaser/goreleaser@latest ;\
 	}
 endif
 	cd $(CURDIR)/BPF; make clean
@@ -114,8 +116,7 @@ endif
 
 .PHONY: clean
 clean:
-	cd $(CURDIR); sudo rm -f karmor kubearmor /tmp/kubearmor.log
-	cd $(CURDIR); sudo rm -rf dist
+	cd $(CURDIR); sudo rm -rf kubearmor karmor dist /tmp/kubearmor.log
 	cd $(CURDIR); find . -name .coverprofile | xargs -I {} rm {}
 
 .PHONY: vagrant-check

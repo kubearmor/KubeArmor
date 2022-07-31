@@ -1,5 +1,5 @@
 ifeq (,$(KRNDIR))
-KRNVER = $(shell uname -r)
+	KRNVER = $(shell uname -r)
 ifneq (,$(wildcard /lib/modules/$(KRNVER)/build/Kconfig))
 	KRNDIR = /lib/modules/$(KRNVER)/build
 else ifneq (,$(wildcard /lib/modules/$(KRNVER)/source/Kconfig))
@@ -10,6 +10,7 @@ else
 	KRNDIR = /usr/src/linux-headers-$(KRNVER)
 endif
 endif
+
 LIBBPF = $(CURDIR)/libbpf
 
 CL  = clang
@@ -87,6 +88,6 @@ system_monitor.host.bpf.o: $(SYSMONITOR)
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
 	$(Q)$(CL) $(KF) -DMONITOR_HOST -c $< -o -| llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
-# cleanup
+# clean up
 clean:
 	$(Q)rm -rf *.o

@@ -26,39 +26,47 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-18.04]
-        runtime: ["containerd", "crio"]
+        runtime: ["docker", "containerd", "crio"]
     steps:
-      - name: Kernel version
-        run: uname -r
-
       - uses: actions/checkout@v2
         with:
           submodules: true
 
-      - name: Set up Go
-        uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: v1.18
 
-      - name: Install Latest Stable LLVM toolchain
+      - name: Install the latest LLVM toolchain
         run: |
-          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
-          for tool in "clang" "llc" "llvm-strip"
-          do
-            sudo rm -f /usr/bin/$tool
-            sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
-          done
-          sudo apt install libelf-dev
+          . /etc/os-release
 
-      - name: Setup K8s Env
+          sudo apt-get -y install build-essential libelf-dev pkg-config
+          wget https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh
+
+          if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
+            sudo bash /tmp/llvm.sh 12
+            for tool in "clang" "llc" "llvm-strip"; do
+              sudo rm -f /usr/bin/$tool
+              sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+            done
+          else # VERSION_CODENAME == jammy
+            sudo bash /tmp/llvm.sh 14
+            for tool in "clang" "llc" "llvm-strip"; do
+              sudo rm -f /usr/bin/$tool
+              sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
+            done
+          fi
+
+      - name: Compile libbpf
+        run: |
+          cd KubeArmor/BPF
+          make -C libbpf/src
+
+      - name: Setup a Kubernetes environment
         run: |
           echo "RUNTIME="$RUNTIME
-          if [ "$RUNTIME" == "docker" ]; then
-            ./contribution/self-managed-k8s/docker/install_docker.sh
-            docker --version
-          elif [ "$RUNTIME" == "crio" ]; then
+          if [ "$RUNTIME" == "crio" ]; then
             ./contribution/self-managed-k8s/crio/install_crio.sh
-            crio --version
           fi
           ./contribution/k3s/install_k3s.sh
 
@@ -68,18 +76,18 @@ jobs:
           tar xzf cmctl.tar.gz
           sudo mv cmctl /usr/local/bin
 
-      - name: Install annotation controller
+      - name: Install an annotation controller
         run: |
           kubectl apply -f deployments/annotations/cert-manager.yaml
           kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
-          cmctl check api  --wait 300s
+          cmctl check api --wait 300s
           kubectl apply -f deployments/annotations/kubearmor-annotation-manager.yaml
           kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=kubearmor-annotation-manager
 
       - name: Run kubectl proxy
         run: kubectl proxy &
 
-      - name: Test KubeArmor
+      - name: Run and Test KubeArmor
         run: ./tests/test-scenarios-github.sh
         timeout-minutes: 15
 
@@ -93,15 +101,15 @@ jobs:
             /tmp/kubearmor.log
             /tmp/kubearmor.msg
 
-      - name: Check Results
+      - name: Check the testing results
         if: ${{ always() }}
         run: cat /tmp/kubearmor.test
 
-      - name: Measure Code Coverage
+      - name: Measure code coverage
         if: ${{ always() }}
         run: |
-          go get github.com/modocache/gover
-          gover    
+          go install github.com/modocache/gover@latest
+          gover
           go tool cover -func=gover.coverprofile
         working-directory: KubeArmor
         env:

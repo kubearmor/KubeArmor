@@ -36,22 +36,30 @@ fi
 docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 echo "[INFO] Removed existing $REPO images"
 
-# set DTAG and LABEL
-DTAG="-t $REPO:$VERSION"
-DTAGINI="-t $REPO-init:$VERSION"
+# set LABEL
 unset LABEL
 [[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
 
-# build a new image
+# build a kubearmor image
+DTAG="-t $REPO:$VERSION"
 echo "[INFO] Building $DTAG"
 cd $ARMOR_HOME/..; docker build $DTAG --target kubearmor . $LABEL
-echo "[INFO] Building $DTAGINI"
-cd $ARMOR_HOME/..; docker build $DTAGINI --target kubearmor-init . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"
     exit 1
 fi
 echo "[PASSED] Built $REPO:$VERSION"
+
+# build a kubearmor-init image
+DTAGINI="-t $REPO-init:$VERSION"
+echo "[INFO] Building $DTAGINI"
+cd $ARMOR_HOME/..; docker build $DTAGINI --target kubearmor-init . $LABEL
+
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to build $REPO-init:$VERSION"
+    exit 1
+fi
+echo "[PASSED] Built $REPO-init:$VERSION"
 
 exit 0
