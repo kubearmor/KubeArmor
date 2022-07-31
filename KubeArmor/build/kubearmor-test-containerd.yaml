@@ -118,9 +118,6 @@ spec:
         - mountPath: /run/containerd
           name: containerd-storage-path
           readOnly: true
-        - mountPath: /var/lib/docker
-          name: docker-storage-path
-          readOnly: true
       terminationGracePeriodSeconds: 30
       volumes:
       - emptyDir: {}
@@ -161,10 +158,6 @@ spec:
           path: /run/containerd
           type: DirectoryOrCreate
         name: containerd-storage-path
-      - hostPath:
-          path: /var/lib/docker
-          type: DirectoryOrCreate
-        name: docker-storage-path
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition

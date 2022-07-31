@@ -21,16 +21,22 @@ export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
 # install dependencies and llvm--toolchain
-sudo apt-get -y install build-essential cmake bison flex git python3 python3-pip \
-                        clang-9 libllvm9 llvm-9-dev libclang-9-dev zlib1g-dev libelf-dev libedit-dev libfl-dev \
-                        arping netperf iperf3 net-tools
+sudo apt-get -y install build-essential libelf-dev pkg-config net-tools linux-headers-generic
 wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
-sudo ./llvm.sh 12
-for tool in "clang" "llc" "llvm-strip"; do
-    sudo rm -f /usr/bin/$tool
-    sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
-done
+if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
+    sudo ./llvm.sh 12
+    for tool in "clang" "llc" "llvm-strip"; do
+        sudo rm -f /usr/bin/$tool
+        sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
+    done
+else # VERSION_CODENAME == jammy
+    sudo ./llvm.sh 14
+    for tool in "clang" "llc" "llvm-strip"; do
+        sudo rm -f /usr/bin/$tool
+        sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
+    done
+fi
 
 # install golang
 echo "Installing golang binaries..."
@@ -94,11 +100,11 @@ chmod +x /tmp/build/kubebuilder
 sudo mv /tmp/build/kubebuilder /usr/local/bin
 
 if [[ $(hostname) = kubearmor-dev* ]]; then
-    echo >>/home/vagrant/.bashrc
     echo 'export PATH=$PATH:/usr/local/kubebuilder/bin' >>/home/vagrant/.bashrc
+    echo >>/home/vagrant/.bashrc
 elif [ -z "$GOPATH" ]; then
-    echo >>~/.bashrc
     echo 'export PATH=$PATH:/usr/local/kubebuilder/bin' >>~/.bashrc
+    echo >>~/.bashrc
 fi
 
 # install kustomize
