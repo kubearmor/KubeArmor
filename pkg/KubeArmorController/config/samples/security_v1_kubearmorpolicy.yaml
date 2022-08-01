@@ -1,0 +1,6 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: kubearmorpolicy-sample
+spec:
+  # TODO(user): Add fields here

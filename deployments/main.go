@@ -15,8 +15,7 @@ import (
 	dp "github.com/kubearmor/KubeArmor/deployments/get"
 	"sigs.k8s.io/yaml"
 
-	hsp "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/crd"
-	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/crd"
+	kcrd "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/crd"
 )
 
 func main() {
@@ -34,12 +33,8 @@ func main() {
 			dp.GetRelayService(namespace),
 			dp.GetRelayDeployment(namespace),
 			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
-			dp.GetPolicyManagerService(namespace),
-			dp.GetPolicyManagerDeployment(namespace),
-			dp.GetHostPolicyManagerService(namespace),
-			dp.GetHostPolicyManagerDeployment(namespace),
-			ksp.GetCRD(),
-			hsp.GetCRD()}
+			kcrd.GetKspCRD(),
+			kcrd.GetHspCRD()}
 
 		currDir, err := os.Getwd()
 		if err != nil {
