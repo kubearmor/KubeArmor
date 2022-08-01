@@ -1542,14 +1542,27 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	}
 	newPoint.DefaultPosture = globalDefaultPosture
 
+	// check that a security policy should exist before performing delete operation
+	policymatch := 0
+	for _, policy := range newPoint.SecurityPolicies {
+		// check if policy exist
+		if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+			policymatch = 1 // policy exists
+		}
+	}
+
+	// policy doesn't exist and the policy is being removed
+	if policymatch == 0 && event.Type == "DELETED" {
+		dm.Logger.Warnf("Failed to delete security policy. Policy doesn't exist")
+		return
+	}
+
 	for idx, policy := range newPoint.SecurityPolicies {
-		if event.Type == "DELETED" {
-			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+		if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+			if event.Type == "DELETED" {
 				newPoint.SecurityPolicies = append(newPoint.SecurityPolicies[:idx], newPoint.SecurityPolicies[idx+1:]...)
 				break
-			}
-		} else {
-			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+			} else {
 				event.Type = "MODIFIED"
 				// Policy already exists so modify
 				newPoint.SecurityPolicies[idx] = secPolicy
