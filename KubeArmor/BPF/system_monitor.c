@@ -73,6 +73,7 @@
 #define SOCK_DOM_T    15UL
 #define SOCK_TYPE_T   16UL
 #define FILE_TYPE_T   17UL
+#define UNLINKAT_FLAG_T 19UL
 
 #define MAX_ARGS               6
 #define ENC_ARG_TYPE(n, type)  type<<(8*n)
@@ -91,6 +92,8 @@ enum {
     _SYS_OPEN = 2,
     _SYS_OPENAT = 257,
     _SYS_CLOSE = 3,
+    _SYS_UNLINK = 87,
+    _SYS_UNLINKAT = 263,
 
     // network
     _SYS_SOCKET = 41,
@@ -731,6 +734,9 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
                 }
             }
             break;
+        case UNLINKAT_FLAG_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
+            break;
         }
     }
 
@@ -754,6 +760,27 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
 }
 
 // == Full Path == //
+
+SEC("kprobe/security_path_unlink")
+int kprobe__security_path_unlink(struct pt_regs *ctx){
+    if (skip_syscall())
+		return 0;
+
+    struct path *dir = (struct path*) PT_REGS_PARM1(ctx);
+    struct dentry *dentry = (struct dentry*) PT_REGS_PARM2(ctx);
+    if(dir == NULL || dentry == NULL){
+        return 0;
+    }
+
+    struct path p;
+    p.dentry = READ_KERN(dentry);
+    p.mnt = READ_KERN(dir->mnt);
+
+    u64	tgid = bpf_get_current_pid_tgid();
+    bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
+
+    return 0;
+}
 
 SEC("kprobe/security_bprm_check")
 int kprobe__security_bprm_check(struct pt_regs *ctx)
@@ -1106,9 +1133,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     save_context_to_buffer(bufs_p, (void*)&context);
     save_args_to_buffer(types, &args);
-
     events_perf_submit(ctx);
-
     return 0;
 }
 
@@ -1140,6 +1165,37 @@ SEC("kretprobe/__x64_sys_openat")
 int kretprobe__openat(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(OPEN_FLAGS_T));
+}
+
+SEC("kprobe/__x64_sys_unlink")
+int kprobe__unlink(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_UNLINK, ctx);
+}
+
+SEC("kretprobe/__x64_sys_unlink")
+int kretprobe__unlink(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_UNLINK, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T));
+}
+
+SEC("kprobe/__x64_sys_unlinkat")
+int kprobe__unlinkat(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_UNLINKAT, ctx);
+}
+
+
+SEC("kretprobe/__x64_sys_unlinkat")
+int kretprobe__unlinkat(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_UNLINKAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(UNLINKAT_FLAG_T));
 }
 
 SEC("kprobe/__x64_sys_close")
