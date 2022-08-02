@@ -5,23 +5,23 @@ karmor
 # KubeArmor YAML Generator
 deploygen
 
-# Contribution
+# contribution
 .vscode
 
 # vagrant
 .vagrant
 contribution/vagrant/*.log
 
-# Packages
+# packages
 *.deb
 *.rpm
 .coverprofile
 
-#Object files
+# object files
 **/BPF/*.o
 
 # protobuf
 protobuf/go.sum
 
-#header
+# kernel header
 vmlinux.h

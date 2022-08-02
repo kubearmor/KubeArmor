@@ -1,16 +1,22 @@
 Vagrant.require_version ">= 2.0.0"
 
 if ENV['OS'] == "centos" then
-  VM_IMG = "bento/centos-8"
-  VM_NAME = "kubearmor-dev"
+  if ENV['NETNEXT'] == "1" then
+    VM_IMG = "generic/centos9s"
+    VM_NAME = "kubearmor-dev-next"
+  else # default
+    VM_IMG = "generic/centos8s"
+    VM_NAME = "kubearmor-dev"
+  end
 else # ubuntu
   if ENV['NETNEXT'] == "1" then
-    # VM_IMG = "ubuntu/jammy64" # 5.15
-    VM_IMG = "ubuntu/impish64" # 5.13
+    VM_IMG = "generic/ubuntu2204" # jammy (5.15)
     VM_NAME = "kubearmor-dev-next"
-  else
-    # VM_IMG = "ubuntu/focal64" # 5.4
-    VM_IMG = "ubuntu/bionic64" # 4.15
+  elsif ENV['NETNEXT'] == "-1" then
+    VM_IMG = "generic/ubuntu1804" # bionic (4.15)
+    VM_NAME = "kubearmor-dev"
+  else # default
+    VM_IMG = "generic/ubuntu2004" # focal (5.4)
     VM_NAME = "kubearmor-dev"
   end
 end
@@ -72,7 +78,7 @@ Vagrant.configure("2") do |config|
     if ENV['RUNTIME'] == "crio" then
       # install CRI-O
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/crio/install_crio.sh"
-    else # default == 'docker'
+    else # docker by default
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/docker/install_docker.sh"
     end
@@ -92,14 +98,17 @@ Vagrant.configure("2") do |config|
     config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s-selinux/enable_selinux.sh"
 
   else # ubuntu
+    # install base dependencies
+    config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/setup.sh"
+
     if ENV['NETNEXT'] == "1" then
       config.vm.provision :shell, :inline => "sed -i 's/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"lsm=apparmor,bpf\"/g' /etc/default/grub"
       config.vm.provision :shell, :inline => "update-grub"
       config.vm.provision :reload
     end
 
-    # install base dependencies
-    config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/setup.sh"
+    # additional task: linux-tools required by bpftool
+    config.vm.provision :shell, :inline => "apt-get install -y linux-tools-generic"
 
     if ENV['RUNTIME'] == "containerd" then
       # install Containerd
@@ -107,7 +116,7 @@ Vagrant.configure("2") do |config|
     elsif ENV['RUNTIME'] == "crio" then
       # install CRI-O
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/crio/install_crio.sh"
-    else # default == 'docker'
+    else # docker by default
       # install Docker
       config.vm.provision :shell, path: kubearmor_home + "/contribution/self-managed-k8s/docker/install_docker.sh"
     end

@@ -10,10 +10,9 @@ jobs:
   go-fmt:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: v1.18
 
@@ -24,10 +23,13 @@ jobs:
   go-lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Run Revive Action on KubeArmor code
+      - uses: actions/setup-go@v3
+        with:
+          go-version: v1.18
+
+      - name: Run Revive Action on KubeArmor
         uses: morphy2k/revive-action@v2
         with:
           path: "./KubeArmor/..."
@@ -35,10 +37,13 @@ jobs:
   go-lint-tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Run Revive Action on KubeArmor tests code
+      - uses: actions/setup-go@v3
+        with:
+          go-version: v1.18
+
+      - name: Run Revive Action on KubeArmor tests
         uses: morphy2k/revive-action@v2
         with:
           path: "./tests/..."
@@ -46,10 +51,9 @@ jobs:
   go-sec:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
           go-version: v1.18
 
@@ -60,8 +64,7 @@ jobs:
   license:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
       - name: Check License Header
         uses: apache/skywalking-eyes@9bd5feb86b5817aa6072b008f9866a2c3bbc8587

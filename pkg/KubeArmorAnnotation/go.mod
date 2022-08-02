@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/pkg/KubeArmorAnnotation
 
-go 1.17
+go 1.18
 
 require (
 	github.com/go-logr/logr v0.3.0

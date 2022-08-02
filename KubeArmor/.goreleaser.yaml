@@ -69,9 +69,11 @@ nfpms:
         dependencies:
           - make
           - libelf-dev
-          - linux-headers-generic | linux-headers-generic-pae | linux-headers-lowlatency | linux-headers-lowlatency-pae
+          - linux-headers-generic
       rpm:
         dependencies:
-          - bcc-tools
+          - make
+          - elfutils-libelf-devel
+          - kernel-devel
           - policycoreutils-devel
           - setools-console

@@ -5,19 +5,18 @@
 
 FROM alpine:3.15 as kubearmor-init
 
-RUN apk --no-cache update && \
-    apk --no-cache add bash git && \
-    apk --no-cache add llvm clang make gcc
+RUN apk --no-cache update
+RUN apk --no-cache add bash git clang llvm make gcc
 
-COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./GKE /KubeArmor/GKE/
+COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
 
 ENTRYPOINT ["/KubeArmor/compile.sh"]
 
 ### Builder
 
-FROM golang:1.17.5-alpine3.15 as builder
+FROM golang:1.18-alpine3.15 as builder
 
 RUN apk --no-cache update
 RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev llvm make gcc protobuf
