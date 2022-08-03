@@ -5,13 +5,22 @@ type karmor_exec_t; # parent process
 type karmor_allow_t; # child process
 type karmor_block_t; # child process
 
+# kubearmor service -> assign karmor_exec_t to a target
+allow unconfined_service_t karmor_exec_t:file { getattr relabelfrom relabelto };
+
 # unconfined -> karmor_exec_t
 configure_domain(karmor_t, karmor_exec_t)
 allow_process_execution(karmor_t, karmor_exec_t)
 
+# kubearmor service -> assign karmor_allow_t to a target
+allow unconfined_service_t karmor_allow_t:file { getattr relabelfrom relabelto };
+
 # karmor_t -> karmor_allow_t
 allow_child_process_execution(karmor_t, karmor_allow_t)
 allow_file_access(unconfined_t, karmor_allow_t)
+
+# kubearmor service -> assign karmor_block_t to a target
+allow unconfined_service_t karmor_block_t:file { getattr relabelfrom relabelto };
 
 # karmor_t -> karmor_block_t
 allow_no_child_process_execution(karmor_t, karmor_block_t)
@@ -26,13 +35,22 @@ files_type(karmor_file_t)
 type karmor_none_t;
 files_type(karmor_none_t)
 
+# kubearmor service -> assign karmor_read_t to a target
+allow unconfined_service_t karmor_read_t:file { getattr relabelfrom relabelto };
+
 # karmor_t -> karmor_read_t
 allow_readonly_file_access(karmor_t, karmor_read_t)
 allow_file_access(unconfined_t, karmor_read_t)
 
+# kubearmor service -> assign karmor_file_t to a target
+allow unconfined_service_t karmor_file_t:file { getattr relabelfrom relabelto };
+
 # karmor_t -> karmor_file_t
 allow_file_access(karmor_t, karmor_file_t)
 allow_file_access(unconfined_t, karmor_file_t)
+
+# kubearmor service -> assign karmor_none_t to a target
+allow unconfined_service_t karmor_none_t:file { getattr relabelfrom relabelto };
 
 # karmor_t -> karmor_none_t
 allow_no_file_access(karmor_t, karmor_none_t)
