@@ -38,6 +38,11 @@ else # VERSION_CODENAME == jammy
     done
 fi
 
+# install libbpf-dev
+if [ "$VERSION_CODENAME" == "jammy" ]; then
+    sudo apt-get -y install libbpf-dev
+fi
+
 # install golang
 echo "Installing golang binaries..."
 goBinary=$(curl -s https://go.dev/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)
