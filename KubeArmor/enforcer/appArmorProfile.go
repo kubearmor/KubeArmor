@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/template"
 
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -405,29 +406,53 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	// Resolve conflicts
 	ae.ResolvedProcessWhiteListConflicts(&profile)
 
+	/**
+		To resolve conflicting rules between Global and FromSource based rules, we take the approach to prefer the superset path or if the entities match we consider the config of rule in subprofile
+
+		Suppose we have the following Global rules
+		/etc/passwd
+		/run/secrets/**
+		/hello.txt
+
+		and the following rules inside a particular from source
+		/etc/*
+		/run/secrets/token
+		/hello.txt
+
+		We resolve the conflicts and finally add the following rules to the from source subprofile
+		/run/secrets/**
+	?	/run/secrets/token
+		/hello.txt (local config)
+		/etc/*
+	**/
+
 	for source, val := range profile.FromSource {
+		var newval FromSourceConfig
+		kl.Clone(val, &newval)
 		for proc, config := range profile.ProcessPaths {
-			if _, ok := val.ProcessPaths[proc]; !ok {
-				val.ProcessPaths[proc] = config
+			add := checkIfGlobalRuleToBeAdded(proc, val.ProcessPaths)
+			if add {
+				newval.ProcessPaths[proc] = config
 			}
 		}
 		for file, config := range profile.FilePaths {
-			if _, ok := val.FilePaths[file]; !ok {
-				val.FilePaths[file] = config
+			add := checkIfGlobalRuleToBeAdded(file, val.FilePaths)
+			if add {
+				newval.FilePaths[file] = config
 			}
 		}
 		for net, config := range profile.NetworkRules {
 			if _, ok := val.NetworkRules[net]; !ok {
-				val.NetworkRules[net] = config
+				newval.NetworkRules[net] = config
 			}
 		}
 		for cap, config := range profile.CapabilitiesRules {
 			if _, ok := val.CapabilitiesRules[cap]; !ok {
-				val.CapabilitiesRules[cap] = config
+				newval.CapabilitiesRules[cap] = config
 			}
 		}
 
-		profile.FromSource[source] = val
+		profile.FromSource[source] = newval
 		count = count + len(profile.FromSource[source].ProcessPaths) + len(profile.FromSource[source].FilePaths) + len(profile.FromSource[source].NetworkRules) + len(profile.FromSource[source].CapabilitiesRules)
 	}
 
@@ -476,4 +501,27 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	}
 
 	return 0, "", false
+}
+
+func checkIfGlobalRuleToBeAdded(p string, val map[string]RuleConfig) bool {
+	if _, ok := val[p]; !ok {
+		paths := strings.Split(p, "/")
+		add := true
+		for i := 1; i < len(paths); i++ {
+			var pdir = strings.Join(paths[0:i], "/") + "/"
+			if conf, ok := val[pdir]; ok {
+				if conf.Dir {
+					if len(paths)-i > 1 {
+						if !conf.Recursive {
+							continue
+						}
+					}
+					add = false
+					break
+				}
+			}
+		}
+		return add
+	}
+	return false
 }
