@@ -37,7 +37,7 @@ jobs:
           go-version: v1.18
 
       - name: Install the latest LLVM toolchain
-        run: ./.github/workflows/install-libbpf.sh
+        run: ./.github/workflows/install-llvm.sh
 
       - name: Compile libbpf
         run: ./.github/workflows/install-libbpf.sh
