@@ -34,30 +34,10 @@ jobs:
           go-version: v1.18
 
       - name: Install the latest LLVM toolchain
-        run: |
-          . /etc/os-release
-
-          sudo apt-get -y install build-essential libelf-dev pkg-config
-          wget https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh
-
-          if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
-            sudo bash /tmp/llvm.sh 12
-            for tool in "clang" "llc" "llvm-strip"; do
-              sudo rm -f /usr/bin/$tool
-              sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
-            done
-          else # VERSION_CODENAME == jammy
-            sudo bash /tmp/llvm.sh 14
-            for tool in "clang" "llc" "llvm-strip"; do
-              sudo rm -f /usr/bin/$tool
-              sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
-            done
-          fi
+        run: ./.github/workflows/install-llvm.sh
 
       - name: Compile libbpf
-        run: |
-          cd KubeArmor/BPF
-          make -C libbpf/src
+        run: ./.github/workflows/install-libbpf.sh
 
       - name: Setup a Kubernetes environment
         id: vars
@@ -66,8 +46,7 @@ jobs:
           RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
       - name: Generate KubeArmor artifacts
-        run: |
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
       - name: Run KubeArmor
         run: |
@@ -78,8 +57,7 @@ jobs:
           kubectl get pods -A
 
       - name: Test KubeArmor
-        run: |
-          ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
+        run: ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
 
       - name: Capture KubeArmor logs
         if: ${{ failure() }}
