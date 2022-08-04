@@ -489,6 +489,8 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 		}
 
 		ae.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile)
+	} else if newProfile != "" {
+		ae.Logger.Errf("Error Generating %s AppArmor profile: %s", appArmorProfile, newProfile)
 	}
 }
 

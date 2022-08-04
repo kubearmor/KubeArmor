@@ -17,7 +17,7 @@ func (h *ProfileHeader) Init() {
 
 // RuleConfig contains details for individual apparmor rules
 type RuleConfig struct {
-	Dir, Recursive, Deny, ReadOnly, OwnerOnly bool
+	Dir, Recursive, ReadOnly, OwnerOnly, Deny, Allow bool
 }
 
 // Rules contains configuration for the AppArmor Profile/SubProfile Body
@@ -87,7 +87,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	deny other {{$value}}{{$suffix}} rw,
 {{else if $data.ReadOnly}}	deny {{$value}}{{$suffix}} w,
 {{else}}	deny {{$value}}{{$suffix}} rw,{{end}}
-{{else}}{{if and $data.ReadOnly $data.OwnerOnly}}	owner {{$value}}{{$suffix}} r,
+{{end}}{{if $data.Allow}}{{if and $data.ReadOnly $data.OwnerOnly}}	owner {{$value}}{{$suffix}} r,
 {{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} rw,
 {{else if $data.ReadOnly}}	{{$value}}{{$suffix}} r,
 {{else}}	{{$value}}{{$suffix}} rw,
@@ -95,14 +95,14 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 {{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "**"}}{{else if $data.Dir}}{{$suffix = "*"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
 	owner {{$value}}{{$suffix}} ix,
 	deny other {{$value}}{{$suffix}} x,{{else}}
-	deny {{$value}}{{$suffix}} x,{{end}}{{else}}{{if $data.OwnerOnly}}
+	deny {{$value}}{{$suffix}} x,{{end}}{{end}}{{if $data.Allow}}{{if $data.OwnerOnly}}
 	owner {{$value}}{{$suffix}} ix,{{else}}	{{$value}}{{$suffix}} ix,
 {{end}}{{end}}{{end}}
-{{range $value, $data := .NetworkRules}}{{if $data.Deny}}	deny network {{$value}},{{else}}
-	network {{$value}},
+{{range $value, $data := .NetworkRules}}{{if $data.Deny}}	deny network {{$value}},
+{{end}}{{if $data.Allow}}	network {{$value}},
 {{end}}{{end}}
-{{range $value, $data := .CapabilitiesRules}}{{if $data.Deny}}	deny capability {{$value}},{{else}}
-	capability {{$value}},
+{{range $value, $data := .CapabilitiesRules}}{{if $data.Deny}}	deny capability {{$value}},
+{{end}}{{if $data.Allow}}	capability {{$value}},
 {{end}}{{end}}
 {{ range $source, $value := $.FromSource }}{{if $value.Fusion}}
 	{{$source}} cix,{{else}}
@@ -128,7 +128,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 		deny other {{$value}}{{$suffix}} rw,
 	{{else if $data.ReadOnly}}	deny {{$value}}{{$suffix}} w,
 	{{else}}	deny {{$value}}{{$suffix}} rw,{{end}}
-	{{else}}{{if and $data.ReadOnly $data.OwnerOnly}}	owner {{$value}}{{$suffix}} r,
+	{{end}}{{if $data.Allow}}{{if and $data.ReadOnly $data.OwnerOnly}}	owner {{$value}}{{$suffix}} r,
 	{{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} rw,
 	{{else if $data.ReadOnly}}	{{$value}}{{$suffix}} r,
 	{{else}}	{{$value}}{{$suffix}} rw,
@@ -136,14 +136,14 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "**"}}{{else if $data.Dir}}{{$suffix = "*"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
 		owner {{$value}}{{$suffix}} ix,
 		deny other {{$value}}{{$suffix}} x,{{else}}
-		deny {{$value}}{{$suffix}} x,{{end}}{{else}}{{if $data.OwnerOnly}}
+		deny {{$value}}{{$suffix}} x,{{end}}{{end}}{{if $data.Allow}}{{if $data.OwnerOnly}}
 		owner {{$value}}{{$suffix}} ix,{{else}}	{{$value}}{{$suffix}} ix,
 	{{end}}{{end}}{{end}}
-	{{range $value, $data := .NetworkRules}}{{if $data.Deny}}	deny network {{$value}},{{else}}
-		network {{$value}},
+	{{range $value, $data := .NetworkRules}}{{if $data.Deny}}	deny network {{$value}},
+	{{end}}{{if $data.Allow}}	network {{$value}},
 	{{end}}{{end}}
-	{{range $value, $data := .CapabilitiesRules}}{{if $data.Deny}}	deny capability {{$value}},{{else}}
-		capability {{$value}},
+	{{range $value, $data := .CapabilitiesRules}}{{if $data.Deny}}	deny capability {{$value}},
+	{{end}}{{if $data.Allow}}	capability {{$value}},
 	{{end}}{{end}}
 		## == POLICY END == ##
 	

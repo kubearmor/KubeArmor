@@ -35,12 +35,11 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	rule.OwnerOnly = path.OwnerOnly
 
 	if len(path.FromSource) == 0 {
-		if _, ok := prof.ProcessPaths[path.Path]; !ok {
-			prof.ProcessPaths[path.Path] = rule
-		}
+		addRuletoMap(rule, path.Path, prof.ProcessPaths)
 
 		return
 	}
@@ -63,9 +62,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 				prof.FromSource[source] = val
 			}
 		}
-		if _, ok := prof.FromSource[source].ProcessPaths[path.Path]; !ok {
-			prof.ProcessPaths[path.Path] = rule
-		}
+		addRuletoMap(rule, path.Path, prof.FromSource[source].ProcessPaths)
 	}
 }
 
@@ -76,14 +73,13 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	rule.Dir = true
 	rule.Recursive = dir.Recursive
 	rule.OwnerOnly = dir.OwnerOnly
 
 	if len(dir.FromSource) == 0 {
-		if _, ok := prof.ProcessPaths[dir.Directory]; !ok {
-			prof.ProcessPaths[dir.Directory] = rule
-		}
+		addRuletoMap(rule, dir.Directory, prof.ProcessPaths)
 
 		return
 	}
@@ -106,9 +102,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 				prof.FromSource[source] = val
 			}
 		}
-		if _, ok := prof.FromSource[source].ProcessPaths[dir.Directory]; !ok {
-			prof.FromSource[source].ProcessPaths[dir.Directory] = rule
-		}
+		addRuletoMap(rule, dir.Directory, prof.FromSource[source].ProcessPaths)
 	}
 }
 
@@ -119,6 +113,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, p
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	rule.OwnerOnly = pat.OwnerOnly
 
 	if _, ok := prof.ProcessPaths[pat.Pattern]; !ok {
@@ -133,13 +128,12 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	rule.OwnerOnly = path.OwnerOnly
 	rule.ReadOnly = path.ReadOnly
 
 	if len(path.FromSource) == 0 {
-		if _, ok := prof.FilePaths[path.Path]; !ok {
-			prof.FilePaths[path.Path] = rule
-		}
+		addRuletoMap(rule, path.Path, prof.FilePaths)
 
 		return
 	}
@@ -162,9 +156,7 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 				prof.FromSource[source] = val
 			}
 		}
-		if _, ok := prof.FromSource[source].FilePaths[path.Path]; !ok {
-			prof.FromSource[source].FilePaths[path.Path] = rule
-		}
+		addRuletoMap(rule, path.Path, prof.FromSource[source].FilePaths)
 	}
 }
 
@@ -175,15 +167,14 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	rule.OwnerOnly = dir.OwnerOnly
 	rule.ReadOnly = dir.ReadOnly
 	rule.Dir = true
 	rule.Recursive = dir.Recursive
 
 	if len(dir.FromSource) == 0 {
-		if _, ok := prof.FilePaths[dir.Directory]; !ok {
-			prof.FilePaths[dir.Directory] = rule
-		}
+		addRuletoMap(rule, dir.Directory, prof.FilePaths)
 
 		return
 	}
@@ -206,9 +197,7 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 				prof.FromSource[source] = val
 			}
 		}
-		if _, ok := prof.FromSource[source].FilePaths[dir.Directory]; !ok {
-			prof.FromSource[source].FilePaths[dir.Directory] = rule
-		}
+		addRuletoMap(rule, dir.Directory, prof.FromSource[source].FilePaths)
 	}
 }
 
@@ -219,6 +208,7 @@ func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *P
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	rule.OwnerOnly = pat.OwnerOnly
 	rule.ReadOnly = pat.ReadOnly
 
@@ -234,10 +224,9 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	if len(proto.FromSource) == 0 {
-		if _, ok := prof.NetworkRules[proto.Protocol]; !ok {
-			prof.NetworkRules[proto.Protocol] = rule
-		}
+		addRuletoMap(rule, proto.Protocol, prof.NetworkRules)
 		return
 	}
 
@@ -259,9 +248,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 				prof.FromSource[source] = val
 			}
 		}
-		if _, ok := prof.FromSource[source].NetworkRules[proto.Protocol]; !ok {
-			prof.FromSource[source].NetworkRules[proto.Protocol] = rule
-		}
+		addRuletoMap(rule, proto.Protocol, prof.FromSource[source].NetworkRules)
 	}
 }
 
@@ -272,10 +259,9 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
+	rule.Allow = !deny
 	if len(cap.FromSource) == 0 {
-		if _, ok := prof.CapabilitiesRules[cap.Capability]; !ok {
-			prof.CapabilitiesRules[cap.Capability] = rule
-		}
+		addRuletoMap(rule, cap.Capability, prof.CapabilitiesRules)
 		return
 	}
 
@@ -297,9 +283,7 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 				prof.FromSource[source] = val
 			}
 		}
-		if _, ok := prof.FromSource[source].CapabilitiesRules[cap.Capability]; !ok {
-			prof.FromSource[source].CapabilitiesRules[cap.Capability] = rule
-		}
+		addRuletoMap(rule, cap.Capability, prof.FromSource[source].CapabilitiesRules)
 	}
 }
 
@@ -428,7 +412,11 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 	for source, val := range profile.FromSource {
 		var newval FromSourceConfig
-		kl.Clone(val, &newval)
+		err := kl.Clone(val, &newval)
+		if err != nil {
+			ae.Logger.Errf("Error while copying global rules to local profile for %s: %s", source, err.Error())
+			continue
+		}
 		for proc, config := range profile.ProcessPaths {
 			add := checkIfGlobalRuleToBeAdded(proc, val.ProcessPaths)
 			if add {
@@ -501,6 +489,18 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	}
 
 	return 0, "", false
+}
+
+func addRuletoMap(rule RuleConfig, entity string, m map[string]RuleConfig) {
+	if val, ok := m[entity]; ok {
+		if val.Deny != rule.Deny {
+			rule.Deny = true
+			rule.Allow = true
+		} else {
+			return
+		}
+	}
+	m[entity] = rule
 }
 
 func checkIfGlobalRuleToBeAdded(p string, val map[string]RuleConfig) bool {
