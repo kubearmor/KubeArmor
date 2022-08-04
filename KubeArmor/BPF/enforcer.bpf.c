@@ -13,6 +13,16 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0
 
+enum deny_by_default {
+  dproc = 101,
+  dfile,
+  dnet
+}; // check if the list is whitelist/blacklist
+enum network_check_type {
+  sock_type = 2,
+  sock_proto
+}; // configure to check for network protocol or socket type
+
 typedef struct buffers {
   char buf[MAX_BUFFER_SIZE];
 } bufs_t;
@@ -173,6 +183,16 @@ static struct file *get_task_file(struct task_struct *task) {
   return BPF_CORE_READ(task, mm, exe_file);
 }
 
+static inline void get_outer_key(struct outer_key *pokey,
+                                 struct task_struct *t) {
+  pokey->pid_ns = get_task_pid_ns_id(t);
+  pokey->mnt_ns = get_task_mnt_ns_id(t);
+  if (pokey->pid_ns == PROC_PID_INIT_INO) {
+    pokey->pid_ns = 0;
+    pokey->mnt_ns = 0;
+  }
+}
+
 static bool is_owner(struct file *file_p) {
   kuid_t owner = BPF_CORE_READ(file_p, f_inode, i_uid);
   unsigned int z = bpf_get_current_uid_gid();
@@ -187,13 +207,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   bool match = false;
 
-  struct outer_key okey = {.pid_ns = get_task_pid_ns_id(t),
-                           .mnt_ns = get_task_mnt_ns_id(t)};
-
-  if (okey.pid_ns == PROC_PID_INIT_INO) {
-    okey.pid_ns = 0;
-    okey.mnt_ns = 0;
-  }
+  struct outer_key okey;
+  get_outer_key(&okey, t);
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
@@ -279,7 +294,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       if (val) {
         if (val->dir && val->exec) {
           match = true;
-          bpf_printk("dir match %s with recursive %d \n", dir, val->recursive);
+          bpf_printk("dir match %s with recursive %d\n", dir, val->recursive);
           if (val->recursive) {
             goto decision;
           } else {
@@ -297,7 +312,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
         if (val) {
           if (val->dir && val->exec) {
             match = true;
-            bpf_printk("dir match %s with recursive %d and from source %S \n",
+            bpf_printk("dir match %s with recursive %d and from source %S\n",
                        dir->path, val->recursive, dir->source);
             if (val->recursive) {
               goto decision;
@@ -321,28 +336,28 @@ decision:
   if (match) {
     if (val && val->owner) {
       if (!is_owner(bprm->file)) {
-        bpf_printk("denying proc %s due to not owner \n", p);
+        bpf_printk("denying proc %s due to not owner\n", p);
         return -EPERM;
       } else {
-        bpf_printk("allowing proc %s for owner \n", p);
+        bpf_printk("allowing proc %s for owner\n", p);
         return ret;
       }
     }
   }
 
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-  dir->path[0] = 101;
+  dir->path[0] = dproc;
   struct data_t *allow = bpf_map_lookup_elem(inner, dir);
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying proc %s due to not in allowlist, source -> %s \n",
+      bpf_printk("denying proc %s due to not in allowlist, source -> %s\n",
                  p->path, p->source);
       return -EPERM;
     }
   } else {
     if (match) {
-      bpf_printk("denying proc %s due to in blacklist \n", p->path);
+      bpf_printk("denying proc %s due to in blacklist\n", p->path);
       return -EPERM;
     }
   }
@@ -356,13 +371,8 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 
   bool match = false;
 
-  struct outer_key okey = {.pid_ns = get_task_pid_ns_id(t),
-                           .mnt_ns = get_task_mnt_ns_id(t)};
-
-  if (okey.pid_ns == PROC_PID_INIT_INO) {
-    okey.pid_ns = 0;
-    okey.mnt_ns = 0;
-  }
+  struct outer_key okey;
+  get_outer_key(&okey, t);
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
@@ -452,7 +462,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
       if (val) {
         if (val->dir && val->read) {
           match = true;
-          bpf_printk("dir match %s with recursive %d \n", dir, val->recursive);
+          bpf_printk("dir match %s with recursive %d\n", dir, val->recursive);
           if (val->recursive) {
             goto decision;
           } else {
@@ -472,7 +482,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
         if (val) {
           if (val->dir && val->read) {
             match = true;
-            bpf_printk("dir match %s with recursive %d and from source %s \n",
+            bpf_printk("dir match %s with recursive %d and from source %s\n",
                        dir->path, val->recursive, dir->source);
             if (val->recursive) {
               goto decision;
@@ -496,28 +506,28 @@ decision:
   if (match) {
     if (val && val->owner) {
       if (!is_owner(file)) {
-        bpf_printk("denying file %s due to not owner \n", p);
+        bpf_printk("denying file %s due to not owner\n", p);
         return -EPERM;
       } else {
-        bpf_printk("allowing file %s for owner \n", p);
+        bpf_printk("allowing file %s for owner\n", p);
         return 0;
       }
     }
   }
 
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-  dir->path[0] = 102;
+  dir->path[0] = dfile;
   struct data_t *allow = bpf_map_lookup_elem(inner, dir);
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying file %s due to not in allowlist, source -> %s \n",
+      bpf_printk("denying file %s due to not in allowlist, source -> %s\n",
                  p->path, p->source);
       return -EPERM;
     }
   } else {
     if (match) {
-      bpf_printk("denying file %s due to in blacklist \n", p);
+      bpf_printk("denying file %s due to in blacklist\n", p);
       return -EPERM;
     }
   }
@@ -526,19 +536,14 @@ decision:
 }
 
 SEC("lsm/socket_connect")
-int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
+int BPF_PROG(enforce_net_connect, struct socket *sock, struct sockaddr *address,
              int addrlen) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
   bool match = false;
 
-  struct outer_key okey = {.pid_ns = get_task_pid_ns_id(t),
-                           .mnt_ns = get_task_mnt_ns_id(t)};
-
-  if (okey.pid_ns == PROC_PID_INIT_INO) {
-    okey.pid_ns = 0;
-    okey.mnt_ns = 0;
-  }
+  struct outer_key okey;
+  get_outer_key(&okey, t);
 
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
@@ -558,7 +563,7 @@ int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
 
   bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
 
-  p->path[0] = 3; // Protocol Check
+  p->path[0] = sock_proto; // Protocol Check
   p->path[1] = sock->sk->sk_protocol;
 
   struct data_t *val = bpf_map_lookup_elem(inner, p);
@@ -594,7 +599,7 @@ int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
 
   bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
 
-  p->path[0] = 2; // Type Check
+  p->path[0] = sock_type; // Type Check
   p->path[1] = sock->type;
 
   val = bpf_map_lookup_elem(inner, p);
@@ -615,21 +620,128 @@ int BPF_PROG(enforce_net, struct socket *sock, struct sockaddr *address,
 decision:
 
   bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
-  p->path[0] = 103;
+  p->path[0] = dnet;
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying sock type %d, family %d, protocol %d due to not in "
-                 "allowlist \n",
+      bpf_printk("denying sock connect - type %d, family %d, protocol %d due "
+                 "to not in "
+                 "allowlist\n",
                  sock->type, address->sa_family, sock->sk->sk_protocol);
       return -EPERM;
     }
   } else {
     if (match) {
-      bpf_printk("denying sock type %d, family %d, protocol %d due to in "
-                 "blacklist \n",
-                 sock->type, address->sa_family, sock->sk->sk_protocol);
+      bpf_printk(
+          "denying sock connect - type %d, family %d, protocol %d due to in "
+          "blacklist\n",
+          sock->type, address->sa_family, sock->sk->sk_protocol);
+      return -EPERM;
+    }
+  }
+  return 0;
+}
+
+SEC("lsm/socket_accept")
+int BPF_PROG(enforce_net_accept, struct socket *sock) {
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  bool match = false;
+
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+
+  if (!inner) {
+    return 0;
+  }
+
+  u32 zero = 0;
+  u32 one = 1;
+  bufs_k *p = bpf_map_lookup_elem(&bufk, &zero);
+  if (p == NULL)
+    return 0;
+
+  bufs_k *z = bpf_map_lookup_elem(&bufk, &one);
+  if (z == NULL)
+    return 0;
+
+  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
+
+  p->path[0] = sock_proto; // Protocol Check
+  p->path[1] = sock->sk->sk_protocol;
+
+  struct data_t *val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    return 0;
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    return 0;
+  struct path f_src = BPF_CORE_READ(file_p, f_path);
+  if (!prepend_path(&f_src, src_buf))
+    return 0;
+
+  u32 *src_offset = get_buf_off(PATH_BUFFER);
+  if (src_offset == NULL)
+    return 0;
+
+  void *ptr = &src_buf->buf[*src_offset];
+  bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
+
+  p->path[0] = sock_type; // Type Check
+  p->path[1] = sock->type;
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+decision:
+
+  bpf_map_update_elem(&bufk, &zero, z, BPF_ANY);
+  p->path[0] = dnet;
+  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+
+  if (allow) {
+    if (!match) {
+      bpf_printk("denying sock accept - type %d, protocol %d due to not in "
+                 "allowlist\n",
+                 sock->type, sock->sk->sk_protocol);
+      return -EPERM;
+    }
+  } else {
+    if (match) {
+      bpf_printk("denying sock accept - type %d, protocol %d due to in "
+                 "blacklist\n",
+                 sock->type, sock->sk->sk_protocol);
       return -EPERM;
     }
   }

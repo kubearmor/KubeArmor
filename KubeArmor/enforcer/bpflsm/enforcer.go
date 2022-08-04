@@ -90,19 +90,25 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 
 	be.Probes[be.obj.EnforceProc.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceProc})
 	if err != nil {
-		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceProc.String(), err)
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceProc.String(), err)
 		return be, err
 	}
 
 	be.Probes[be.obj.EnforceFile.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceFile})
 	if err != nil {
-		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceFile.String(), err)
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceFile.String(), err)
 		return be, err
 	}
 
-	be.Probes[be.obj.EnforceNet.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNet})
+	be.Probes[be.obj.EnforceNetConnect.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetConnect})
 	if err != nil {
-		be.Logger.Errf("opening kprobe %s: %s", be.obj.EnforceNet.String(), err)
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetConnect.String(), err)
+		return be, err
+	}
+
+	be.Probes[be.obj.EnforceNetAccept.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetAccept})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetAccept.String(), err)
 		return be, err
 	}
 
