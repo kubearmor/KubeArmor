@@ -1,4 +1,4 @@
-name: stable-release
+name: ci-stable-release
 
 on:
   push:
@@ -32,5 +32,4 @@ jobs:
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
       - name: Push the stable version of KubeArmor to Docker Hub
-        run: |
-          ./KubeArmor/build/push_kubearmor.sh stable
+        run: ./KubeArmor/build/push_kubearmor.sh stable

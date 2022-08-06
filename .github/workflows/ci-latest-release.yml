@@ -1,4 +1,4 @@
-name: latest-release
+name: ci-latest-release
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/latest-release.yml"
+      - ".github/workflows/ci-latest-release.yml"
 
   create:
     branches:
@@ -31,30 +31,10 @@ jobs:
           go-version: v1.18
 
       - name: Install the latest LLVM toolchain
-        run: |
-          . /etc/os-release
-
-          sudo apt-get -y install build-essential libelf-dev pkg-config
-          wget https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh
-
-          if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
-            sudo bash /tmp/llvm.sh 12
-            for tool in "clang" "llc" "llvm-strip"; do
-              sudo rm -f /usr/bin/$tool
-              sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
-            done
-          else # VERSION_CODENAME == jammy
-            sudo bash /tmp/llvm.sh 14
-            for tool in "clang" "llc" "llvm-strip"; do
-              sudo rm -f /usr/bin/$tool
-              sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
-            done
-          fi
+        run: ./.github/workflows/install-llvm.sh
 
       - name: Compile libbpf
-        run: |
-          cd KubeArmor/BPF
-          make -C libbpf/src
+        run: ./.github/workflows/install-libbpf.sh
 
       - name: Setup a Kubernetes enviroment
         id: vars
@@ -66,23 +46,11 @@ jobs:
           fi
           RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
-      - name: Install cmctl
-        run: |
-          OS=$(go env GOOS); ARCH=$(go env GOARCH); curl -sSL -o cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/download/v1.7.2/cmctl-$OS-$ARCH.tar.gz
-          tar xzf cmctl.tar.gz
-          sudo mv cmctl /usr/local/bin
-
       - name: Install an annotation controller
-        run: |
-          kubectl apply -f deployments/annotations/cert-manager.yaml
-          kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
-          cmctl check api  --wait 300s
-          kubectl apply -f deployments/annotations/kubearmor-annotation-manager.yaml
-          kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=kubearmor-annotation-manager
+        run: ./.github/workflows/install-annotation-controller.sh
 
       - name: Generate KubeArmor artifacts
-        run: |
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
       - name: Deploy KubeArmor into Kubernetes
         run: |
@@ -92,8 +60,7 @@ jobs:
           kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
 
       - name: Test KubeArmor
-        run: |
-          ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
+        run: ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v1
@@ -102,8 +69,7 @@ jobs:
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
       - name: Push KubeArmor images to Docker
-        run: |
-          ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
+        run: ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
   push-stable-version:
     name: Create KubeArmor stable release
@@ -137,5 +103,4 @@ jobs:
 
       - name: Push the stable version of KubeArmor to Docker Hub
         if: steps.match.outputs.tag == 'true'
-        run: |
-          ./KubeArmor/build/push_kubearmor.sh stable
+        run: ./KubeArmor/build/push_kubearmor.sh stable
