@@ -149,6 +149,51 @@ var _ = Describe("Smoke", func() {
 			Expect(alerts[0].Severity).To(Equal("7"))
 		})
 
+		It("allow access for service account token to only cat", func() {
+			// Apply policy
+			err := K8sApply([]string{"res/ksp-wordpress-lenient-allow-sa.yaml"})
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
+			Expect(err).To(BeNil())
+
+			// trigger policy violation alert
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "head /run/secrets/kubernetes.io/serviceaccount/token"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("token.*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("ksp-wordpress-lenient-allow-sa"))
+			Expect(alerts[0].Severity).To(Equal("7"))
+
+			// trigger normal operations permitted by policy
+			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"})
+			Expect(err).To(BeNil())
+			Expect(sout).To(Not(ContainSubstring("Permission denied")))
+
+			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /etc/passwd"})
+			Expect(err).To(BeNil())
+			Expect(sout).To(Not(ContainSubstring("Permission denied")))
+
+			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "head /etc/passwd"})
+			Expect(err).To(BeNil())
+			Expect(sout).To(Not(ContainSubstring("Permission denied")))
+
+			// check for no policy violation alert
+			_, alerts, err = KarmorGetLogs(3*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically("==", 0))
+		})
+
 		It("can audit access to sensitive data path", func() {
 			// Apply policy
 			err := K8sApply([]string{"res/ksp-mysql-audit-dir.yaml"})
