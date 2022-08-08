@@ -67,11 +67,15 @@ nfpms:
     overrides:
       deb:
         dependencies:
+          - make
+          - libelf-dev
           - clang
           - llvm
           - linux-headers-generic
       rpm:
         dependencies:
+          - make
+          - elfutils-libelf-devel
           - clang
           - llvm
           - kernel-devel
