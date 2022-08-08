@@ -33,6 +33,26 @@ generate_requirements() {
     echo "}" >> karmor.te
 }
 
+generate_unconfined_service_rules() {
+    semanage fcontext -l | awk -F"object_r:" '{print $2}' | awk 'NF' | sort -u | awk -F':' '{print $1}' > karmor.tmp
+
+    echo >> karmor.te
+
+    echo "require {" >> karmor.te
+    echo "    type unconfined_service_t;" >> karmor.te
+    echo "}" >> karmor.te
+
+    echo >> karmor.te
+
+    echo "allow unconfined_service_t unconfined_service_t:capability2 { mac_admin };" >> karmor.te
+
+    echo >> karmor.te
+
+    while read line; do
+        echo "allow unconfined_service_t $line:file { getattr relabelfrom relabelto };" >> karmor.te
+    done < karmor.tmp
+}
+
 generate_karmor_base() {
     # directory and files
 
@@ -114,6 +134,9 @@ generate_karmor() {
 
     # generate required types
     generate_requirements
+
+    # generate rules for unconfined_service_t
+    generate_unconfined_service_rules
 
     # generate base file and directory rules
     generate_karmor_base

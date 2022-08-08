@@ -69,20 +69,19 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 		re.bpfEnforcer, err = be.NewBPFEnforcer(node, logger)
 		if re.bpfEnforcer != nil {
 			if err != nil {
-				re.Logger.Print("Error Initialising BPF LSM Enforcer, Cleaning Up")
+				re.Logger.Print("Error Initialising BPF-LSM Enforcer, Cleaning Up")
 				if err := re.bpfEnforcer.DestroyBPFEnforcer(); err != nil {
 					re.Logger.Err(err.Error())
 				} else {
-					re.Logger.Print("Destroyed BPFLSM Enforcer")
+					re.Logger.Print("Destroyed BPF-LSM Enforcer")
 				}
 			} else {
-				re.Logger.Print("Initialized BPF LSM Enforcer")
+				re.Logger.Print("Initialized BPF-LSM Enforcer")
 				re.EnforcerType = "BPFLSM"
 				logger.UpdateEnforcer(re.EnforcerType)
 				return re
 			}
 		}
-
 	}
 
 	// Fallback to Other LSMs if failure during BPF Enforcer initialisation
@@ -166,8 +165,6 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 		re.bpfEnforcer.UpdateSecurityPolicies(endPoint)
 	} else if re.EnforcerType == "AppArmor" {
 		re.appArmorEnforcer.UpdateSecurityPolicies(endPoint)
-	} else if re.EnforcerType == "SELinux" {
-		// do nothing
 	}
 }
 
@@ -202,7 +199,7 @@ func (re *RuntimeEnforcer) DestroyRuntimeEnforcer() error {
 				re.Logger.Err(err.Error())
 				errorLSM = true
 			} else {
-				re.Logger.Print("Destroyed BPFLSM Enforcer")
+				re.Logger.Print("Destroyed BPF-LSM Enforcer")
 			}
 		}
 	} else if re.EnforcerType == "AppArmor" {
