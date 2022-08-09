@@ -311,6 +311,29 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
+// ======================= //
+// == Container runtime == //
+// ======================= //
+
+// host container runtime available in case of containerized workloads
+func hostContainerRuntime() (string, string) {
+	var sockFile, sockPath string
+	if _, err := os.Stat("/var/run/docker.sock"); err == nil {
+		sockFile = "docker"
+		sockPath = "/var/run/docker.sock"
+	} else if _, err := os.Stat("/var/run/containerd/containerd.sock"); err == nil {
+		sockFile = "containerd"
+		sockPath = "/var/run/containerd/containerd.sock"
+	} else if _, err := os.Stat("/var/run/crio/crio.sock"); err == nil {
+		sockFile = "crio"
+		sockPath = "/var/run/crio/crio.sock"
+	} else {
+		sockFile = "unavailable"
+		sockPath = "unavailable"
+	}
+	return sockFile, sockPath
+}
+
 // ========== //
 // == Main == //
 // ========== //
@@ -412,7 +435,9 @@ func KubeArmor() {
 
 	// == //
 
+	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
+
 		// initialize system monitor
 		if !dm.InitSystemMonitor() {
 			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
@@ -449,8 +474,41 @@ func KubeArmor() {
 	// == //
 
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		dm.GetAlreadyDeployedDockerContainers()
-		go dm.MonitorDockerEvents()
+		// check if the CRI socket set while executing kubearmor exists
+		if cfg.GlobalCfg.CRISocket != "" {
+			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
+			if _, err := os.Stat(trimmedSocket); err != nil {
+				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
+			}
+		}
+		cri, criPath := hostContainerRuntime()
+		if cri == "docker" {
+			if cfg.GlobalCfg.CRISocket == "" {
+				cfg.GlobalCfg.CRISocket = "unix://" + criPath
+			}
+			// update already deployed containers
+			dm.GetAlreadyDeployedDockerContainers()
+
+			// monitor docker events
+			go dm.MonitorDockerEvents()
+
+		} else if cri == "containerd" {
+			if cfg.GlobalCfg.CRISocket == "" {
+				cfg.GlobalCfg.CRISocket = "unix://" + criPath
+			}
+			// monitor containerd events
+			go dm.MonitorContainerdEvents()
+
+		} else if cri == "crio" {
+			if cfg.GlobalCfg.CRISocket == "" {
+				cfg.GlobalCfg.CRISocket = "unix://" + criPath
+			}
+			// monitor cri-o events
+			go dm.MonitorCrioEvents()
+
+		} else if cri == "unavailable" {
+			dm.Logger.Warnf("Failed to monitor containers. Unsupported container runtime")
+		}
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
