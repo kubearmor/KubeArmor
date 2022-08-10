@@ -95,6 +95,12 @@ enum {
     _SYS_UNLINK = 87,
     _SYS_UNLINKAT = 263,
     _SYS_RMDIR = 84,
+    _SYS_CHOWN = 92,
+    _SYS_FCHOWNAT = 260,
+
+    //user
+    _SYS_SETUID = 105,
+    _SYS_SETGID = 106,
 
     // network
     _SYS_SOCKET = 41,
@@ -1290,6 +1296,62 @@ SEC("kretprobe/__x64_sys_close")
 int kretprobe__close(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T));
+}
+
+SEC("kprobe/__x64_sys_chown")
+int kprobe__chown(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_CHOWN, ctx);
+}
+
+SEC("kretprobe/__x64_sys_chown")
+int kretprobe__chown(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_CHOWN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(INT_T)|ARG_TYPE2(INT_T));
+}
+
+SEC("kprobe/__x64_sys_fchownat")
+int kprobe__fchownat(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_FCHOWNAT, ctx);
+}
+
+SEC("kretprobe/__x64_sys_fchownat")
+int kretprobe__fchownat(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_FCHOWNAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(INT_T)|ARG_TYPE3(INT_T)|ARG_TYPE4(INT_T));
+}
+
+SEC("kprobe/__x64_sys_setuid")
+int kprobe__setuid(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_SETUID, ctx);
+}
+
+SEC("kretprobe/__x64_sys_setuid")
+int kretprobe__setuid(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_SETUID, ctx, ARG_TYPE0(INT_T));
+}
+
+SEC("kprobe/__x64_sys_setgid")
+int kprobe__setgid(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_SETGID, ctx);
+}
+
+SEC("kretprobe/__x64_sys_setgid")
+int kretprobe__setgid(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T));
 }
 
 struct tracepoint_syscalls_sys_exit_t {
