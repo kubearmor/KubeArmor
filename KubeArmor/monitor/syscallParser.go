@@ -1108,3 +1108,14 @@ func GetArgs(dataBuff *bytes.Buffer, Argnum int32) ([]interface{}, error) {
 
 	return args, nil
 }
+
+var auditedSyscalls = map[int]string{
+	87: "unlink",
+}
+
+func IsAuditedSyscall(syscallID int32) bool {
+	if _, ok := auditedSyscalls[int(syscallID)]; ok {
+		return true
+	}
+	return false
+}

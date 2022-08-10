@@ -15,6 +15,7 @@ type KubeArmorHostPolicySpec struct {
 	File         FileType             `json:"file,omitempty"`
 	Network      HostNetworkType      `json:"network,omitempty"`
 	Capabilities HostCapabilitiesType `json:"capabilities,omitempty"`
+	Syscalls     SyscallsType         `json:"syscalls,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 

@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: audit-unlink-global-fill-missing-local-information
+  namespace: syscalls
+spec:
+  severity: 8
+  message: "Global message"
+  tags:
+    - "Global tag"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  syscalls:
+    matchPaths:
+    - syscall:
+      - unlink
+      path: /home/
+      recursive: true
+    severity: 7
+    message: "Local message"
+  action:
+    Audit
