@@ -8,7 +8,3 @@ package v1
 // KubeArmorHostPolicyListerExpansion allows custom methods to be added to
 // KubeArmorHostPolicyLister.
 type KubeArmorHostPolicyListerExpansion interface{}
-
-// KubeArmorHostPolicyNamespaceListerExpansion allows custom methods to be added to
-// KubeArmorHostPolicyNamespaceLister.
-type KubeArmorHostPolicyNamespaceListerExpansion interface{}

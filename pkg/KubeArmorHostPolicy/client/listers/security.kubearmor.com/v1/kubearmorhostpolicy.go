@@ -18,8 +18,9 @@ type KubeArmorHostPolicyLister interface {
 	// List lists all KubeArmorHostPolicies in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.KubeArmorHostPolicy, err error)
-	// KubeArmorHostPolicies returns an object that can list and get KubeArmorHostPolicies.
-	KubeArmorHostPolicies(namespace string) KubeArmorHostPolicyNamespaceLister
+	// Get retrieves the KubeArmorHostPolicy from the index for a given name.
+	// Objects returned here must be treated as read-only.
+	Get(name string) (*v1.KubeArmorHostPolicy, error)
 	KubeArmorHostPolicyListerExpansion
 }
 
@@ -41,41 +42,9 @@ func (s *kubeArmorHostPolicyLister) List(selector labels.Selector) (ret []*v1.Ku
 	return ret, err
 }
 
-// KubeArmorHostPolicies returns an object that can list and get KubeArmorHostPolicies.
-func (s *kubeArmorHostPolicyLister) KubeArmorHostPolicies(namespace string) KubeArmorHostPolicyNamespaceLister {
-	return kubeArmorHostPolicyNamespaceLister{indexer: s.indexer, namespace: namespace}
-}
-
-// KubeArmorHostPolicyNamespaceLister helps list and get KubeArmorHostPolicies.
-// All objects returned here must be treated as read-only.
-type KubeArmorHostPolicyNamespaceLister interface {
-	// List lists all KubeArmorHostPolicies in the indexer for a given namespace.
-	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1.KubeArmorHostPolicy, err error)
-	// Get retrieves the KubeArmorHostPolicy from the indexer for a given namespace and name.
-	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1.KubeArmorHostPolicy, error)
-	KubeArmorHostPolicyNamespaceListerExpansion
-}
-
-// kubeArmorHostPolicyNamespaceLister implements the KubeArmorHostPolicyNamespaceLister
-// interface.
-type kubeArmorHostPolicyNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all KubeArmorHostPolicies in the indexer for a given namespace.
-func (s kubeArmorHostPolicyNamespaceLister) List(selector labels.Selector) (ret []*v1.KubeArmorHostPolicy, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.KubeArmorHostPolicy))
-	})
-	return ret, err
-}
-
-// Get retrieves the KubeArmorHostPolicy from the indexer for a given namespace and name.
-func (s kubeArmorHostPolicyNamespaceLister) Get(name string) (*v1.KubeArmorHostPolicy, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+// Get retrieves the KubeArmorHostPolicy from the index for a given name.
+func (s *kubeArmorHostPolicyLister) Get(name string) (*v1.KubeArmorHostPolicy, error) {
+	obj, exists, err := s.indexer.GetByKey(name)
 	if err != nil {
 		return nil, err
 	}
