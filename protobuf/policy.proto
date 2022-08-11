@@ -13,6 +13,6 @@ message policy {
 }
 
 service PolicyService {
-    rpc hostPolicy (policy) returns (response);
     rpc containerPolicy (policy) returns (response);
+    rpc hostPolicy (policy) returns (response);
 }

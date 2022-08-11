@@ -383,9 +383,15 @@ var ContainerRuntimeSocketMap = map[string][]string{
 
 // GetCRISocket Function
 func GetCRISocket(ContainerRuntime string) string {
-	for _, candidate := range ContainerRuntimeSocketMap[ContainerRuntime] {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
+	for k := range ContainerRuntimeSocketMap {
+		if ContainerRuntime != "" && k != ContainerRuntime {
+			continue
+		}
+		criruntime := k
+		for _, candidate := range ContainerRuntimeSocketMap[criruntime] {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
 		}
 	}
 	return ""

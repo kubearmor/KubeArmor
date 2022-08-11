@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2022 Authors of KubeArmor
 
 package core
 
@@ -311,27 +311,10 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
-// ======================= //
-// == Container runtime == //
-// ======================= //
-
-// host container runtime available in case of containerized workloads
-func hostContainerRuntime() (string, string) {
-	var sockFile, sockPath string
-	if _, err := os.Stat("/var/run/docker.sock"); err == nil {
-		sockFile = "docker"
-		sockPath = "/var/run/docker.sock"
-	} else if _, err := os.Stat("/var/run/containerd/containerd.sock"); err == nil {
-		sockFile = "containerd"
-		sockPath = "/var/run/containerd/containerd.sock"
-	} else if _, err := os.Stat("/var/run/crio/crio.sock"); err == nil {
-		sockFile = "crio"
-		sockPath = "/var/run/crio/crio.sock"
-	} else {
-		sockFile = "unavailable"
-		sockPath = "unavailable"
-	}
-	return sockFile, sockPath
+// Trim sock file location from the env variable
+func trimmedSocketPath() string {
+	trimmedPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
+	return trimmedPath
 }
 
 // ========== //
@@ -437,7 +420,6 @@ func KubeArmor() {
 
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
-
 		// initialize system monitor
 		if !dm.InitSystemMonitor() {
 			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
@@ -452,8 +434,6 @@ func KubeArmor() {
 		// monior system events
 		go dm.MonitorSystemEvents()
 		dm.Logger.Print("Started to monitor system events")
-
-		// == //
 
 		// initialize runtime enforcer
 		if !dm.InitRuntimeEnforcer() {
@@ -471,50 +451,44 @@ func KubeArmor() {
 		}
 	}
 
-	// == //
+	trimmedSocket := trimmedSocketPath()
 
+	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// check if the CRI socket set while executing kubearmor exists
-		if cfg.GlobalCfg.CRISocket != "" {
-			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
-			if _, err := os.Stat(trimmedSocket); err != nil {
-				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
+
+		// Check if cri socket set, if not then auto detect
+		if cfg.GlobalCfg.CRISocket == "" {
+			if kl.GetCRISocket("") == "" {
+				dm.Logger.Warnf("Error while looking for CRI socket file")
+			} else {
+				cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
+				// update the value of trimmed socket path when the cfg.GlobalCfg.CRISocket is not set
+				trimmedSocket = trimmedSocketPath()
 			}
 		}
-		cri, criPath := hostContainerRuntime()
-		if cri == "docker" {
-			if cfg.GlobalCfg.CRISocket == "" {
-				cfg.GlobalCfg.CRISocket = "unix://" + criPath
-			}
+
+		// monitor containers
+		if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 			// update already deployed containers
 			dm.GetAlreadyDeployedDockerContainers()
-
 			// monitor docker events
 			go dm.MonitorDockerEvents()
-
-		} else if cri == "containerd" {
-			if cfg.GlobalCfg.CRISocket == "" {
-				cfg.GlobalCfg.CRISocket = "unix://" + criPath
-			}
+		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 			// monitor containerd events
 			go dm.MonitorContainerdEvents()
-
-		} else if cri == "crio" {
-			if cfg.GlobalCfg.CRISocket == "" {
-				cfg.GlobalCfg.CRISocket = "unix://" + criPath
-			}
-			// monitor cri-o events
+		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "crio") {
+			// monitor crio events
 			go dm.MonitorCrioEvents()
-
-		} else if cri == "unavailable" {
-			dm.Logger.Warnf("Failed to monitor containers. Unsupported container runtime")
+		} else {
+			dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
 		}
+
+		dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		// check if the CRI socket set while executing kubearmor exists
 		if cfg.GlobalCfg.CRISocket != "" {
-			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
 
@@ -542,7 +516,7 @@ func KubeArmor() {
 				return
 			}
 
-			dm.Logger.Printf("Using %s for monitoring containers.", cfg.GlobalCfg.CRISocket)
+			dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
 
 		} else { // CRI socket not set, we'll have to auto detect
 			dm.Logger.Print("CRI socket not set. Trying to detect.")
@@ -642,6 +616,13 @@ func KubeArmor() {
 
 	policyService := &policy.ServiceServer{}
 
+	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
+		if _, err := os.Stat(trimmedSocket); err == nil {
+			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
+			dm.Logger.Print("Started to monitor container security policies on gRPC")
+		}
+	}
+
 	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy {
 		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
 		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
@@ -650,13 +631,6 @@ func KubeArmor() {
 		reflection.Register(dm.Logger.LogServer)
 
 		dm.Logger.Print("Started to monitor host security policies on gRPC")
-
-	}
-
-	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
-
-		dm.Logger.Print("Started to monitor container security policies on gRPC")
 	}
 
 	// serve log feeds

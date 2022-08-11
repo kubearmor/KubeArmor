@@ -22,8 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PolicyServiceClient interface {
-	HostPolicy(ctx context.Context, in *Policy, opts ...grpc.CallOption) (*Response, error)
 	ContainerPolicy(ctx context.Context, in *Policy, opts ...grpc.CallOption) (*Response, error)
+	HostPolicy(ctx context.Context, in *Policy, opts ...grpc.CallOption) (*Response, error)
 }
 
 type policyServiceClient struct {
@@ -32,15 +32,6 @@ type policyServiceClient struct {
 
 func NewPolicyServiceClient(cc grpc.ClientConnInterface) PolicyServiceClient {
 	return &policyServiceClient{cc}
-}
-
-func (c *policyServiceClient) HostPolicy(ctx context.Context, in *Policy, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, "/policy.PolicyService/hostPolicy", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *policyServiceClient) ContainerPolicy(ctx context.Context, in *Policy, opts ...grpc.CallOption) (*Response, error) {
@@ -52,23 +43,32 @@ func (c *policyServiceClient) ContainerPolicy(ctx context.Context, in *Policy, o
 	return out, nil
 }
 
+func (c *policyServiceClient) HostPolicy(ctx context.Context, in *Policy, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/policy.PolicyService/hostPolicy", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PolicyServiceServer is the server API for PolicyService service.
 // All implementations should embed UnimplementedPolicyServiceServer
 // for forward compatibility
 type PolicyServiceServer interface {
-	HostPolicy(context.Context, *Policy) (*Response, error)
 	ContainerPolicy(context.Context, *Policy) (*Response, error)
+	HostPolicy(context.Context, *Policy) (*Response, error)
 }
 
 // UnimplementedPolicyServiceServer should be embedded to have forward compatible implementations.
 type UnimplementedPolicyServiceServer struct {
 }
 
-func (UnimplementedPolicyServiceServer) HostPolicy(context.Context, *Policy) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method HostPolicy not implemented")
-}
 func (UnimplementedPolicyServiceServer) ContainerPolicy(context.Context, *Policy) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ContainerPolicy not implemented")
+}
+func (UnimplementedPolicyServiceServer) HostPolicy(context.Context, *Policy) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostPolicy not implemented")
 }
 
 // UnsafePolicyServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -80,24 +80,6 @@ type UnsafePolicyServiceServer interface {
 
 func RegisterPolicyServiceServer(s grpc.ServiceRegistrar, srv PolicyServiceServer) {
 	s.RegisterService(&PolicyService_ServiceDesc, srv)
-}
-
-func _PolicyService_HostPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Policy)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PolicyServiceServer).HostPolicy(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/policy.PolicyService/hostPolicy",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PolicyServiceServer).HostPolicy(ctx, req.(*Policy))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _PolicyService_ContainerPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -118,6 +100,24 @@ func _PolicyService_ContainerPolicy_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PolicyService_HostPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Policy)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PolicyServiceServer).HostPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/policy.PolicyService/hostPolicy",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PolicyServiceServer).HostPolicy(ctx, req.(*Policy))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PolicyService_ServiceDesc is the grpc.ServiceDesc for PolicyService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -126,12 +126,12 @@ var PolicyService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*PolicyServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "hostPolicy",
-			Handler:    _PolicyService_HostPolicy_Handler,
-		},
-		{
 			MethodName: "containerPolicy",
 			Handler:    _PolicyService_ContainerPolicy_Handler,
+		},
+		{
+			MethodName: "hostPolicy",
+			Handler:    _PolicyService_HostPolicy_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
