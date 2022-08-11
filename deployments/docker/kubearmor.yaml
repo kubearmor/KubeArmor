@@ -263,6 +263,7 @@ spec:
         - /manager
         image: kubearmor/kubearmor-policy-manager:latest
 <<<<<<< HEAD
+<<<<<<< HEAD
         livenessProbe:
           httpGet:
             path: /healthz
@@ -272,6 +273,8 @@ spec:
         name: kubearmor-policy-manager
 =======
 >>>>>>> 329ec6a (update deployment yamls)
+=======
+>>>>>>> 079f699e9d18f32712e3e0c64b288334f60079a4
         livenessProbe:
           httpGet:
             path: /healthz
@@ -348,6 +351,7 @@ spec:
         - /manager
         image: kubearmor/kubearmor-host-policy-manager:latest
 <<<<<<< HEAD
+<<<<<<< HEAD
         livenessProbe:
           httpGet:
             path: /healthz
@@ -357,6 +361,8 @@ spec:
         name: kubearmor-host-policy-manager
 =======
 >>>>>>> 329ec6a (update deployment yamls)
+=======
+>>>>>>> 079f699e9d18f32712e3e0c64b288334f60079a4
         livenessProbe:
           httpGet:
             path: /healthz

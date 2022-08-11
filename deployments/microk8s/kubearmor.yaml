@@ -268,6 +268,7 @@ spec:
             port: 8081
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
           initialDelaySeconds: 15
           periodSeconds: 20
 =======
@@ -278,6 +279,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
 >>>>>>> 329ec6a (update deployment yamls)
+=======
+          initialDelaySeconds: 15
+          periodSeconds: 20
+>>>>>>> 079f699e9d18f32712e3e0c64b288334f60079a4
         name: kubearmor-policy-manager
         resources:
           limits:
@@ -353,6 +358,7 @@ spec:
             port: 8081
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
           initialDelaySeconds: 15
           periodSeconds: 20
 =======
@@ -363,6 +369,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 20
 >>>>>>> 329ec6a (update deployment yamls)
+=======
+          initialDelaySeconds: 15
+          periodSeconds: 20
+>>>>>>> 079f699e9d18f32712e3e0c64b288334f60079a4
         name: kubearmor-host-policy-manager
         resources:
           limits:
