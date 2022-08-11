@@ -893,6 +893,11 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							continue
 						}
+
+						if matchedFlags && secPolicy.Action == "Allow" && log.Result != "Passed" {
+							// It's possible there are additional rules in the Security Policy resulting in the block else we deem it as default posture anyway
+							continue
+						}
 					}
 
 					if secPolicy.Action == "Allow" && log.Result != "Passed" {

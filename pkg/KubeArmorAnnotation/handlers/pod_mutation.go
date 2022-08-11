@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
+// PodAnnotator Structure
 type PodAnnotator struct {
 	Client   client.Client
 	decoder  *admission.Decoder
@@ -27,6 +29,7 @@ const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 
 // +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Ignore,groups="",resources=pods,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 
+// Handle Pod Annotation
 func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pod := &corev1.Pod{}
 
@@ -55,11 +58,9 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 
 	// == LSM == //
 
-	if a.Enforcer == "" {
+	if a.Enforcer == "" || a.Enforcer == "SELinux" {
 		pod.Annotations["kubearmor-policy"] = "audited"
-	} else if a.Enforcer == "SELinux" {
-		pod.Annotations["kubearmor-policy"] = "audited"
-	} else { // AppArmor
+	} else if a.Enforcer == "AppArmor" {
 		appArmorAnnotator(pod)
 	}
 
@@ -104,7 +105,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
 }
 
-// to get a decoder injected for us
+// InjectDecoder gets a decoder injected for us
 func (a *PodAnnotator) InjectDecoder(d *admission.Decoder) error {
 	a.decoder = d
 	return nil
@@ -113,6 +114,27 @@ func (a *PodAnnotator) InjectDecoder(d *admission.Decoder) error {
 // == Add AppArmor annotations == //
 func appArmorAnnotator(pod *corev1.Pod) {
 	podAnnotations := map[string]string{}
+	var podOwnerName string
+
+	// podOwnerName is the pod name for static pods and parent object's name
+	// in other cases
+	for _, ownerRef := range pod.ObjectMeta.OwnerReferences {
+		// pod is owned by a replicaset, daemonset etc thus we use the managing
+		// controller's name
+		if *ownerRef.Controller {
+			podOwnerName = ownerRef.Name
+
+			if ownerRef.Kind == "ReplicaSet" {
+				// if it belongs to a replicaset, we also remove the pod template hash
+				podOwnerName = strings.TrimSuffix(podOwnerName, fmt.Sprintf("-%s", pod.ObjectMeta.Labels["pod-template-hash"]))
+			}
+		}
+	}
+
+	if podOwnerName == "" {
+		// pod is standalone, name remains constant
+		podOwnerName = pod.ObjectMeta.Name
+	}
 
 	// Get existant kubearmor annotations
 	for k, v := range pod.Annotations {
@@ -130,7 +152,7 @@ func appArmorAnnotator(pod *corev1.Pod) {
 	// Get the remaining containers / not addressed explecitly in the annotation
 	for _, container := range pod.Spec.Containers {
 		if _, ok := podAnnotations[container.Name]; !ok {
-			podAnnotations[container.Name] = "kubearmor-" + pod.Namespace + "-" + container.Name
+			podAnnotations[container.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + container.Name
 		}
 	}
 

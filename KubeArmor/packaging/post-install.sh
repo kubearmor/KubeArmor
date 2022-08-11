@@ -4,5 +4,18 @@
 
 set -e
 
+# compile BPF programs
+make -C /opt/kubearmor/BPF/
+
+# update karmor SELinux module
+if [ -x "$(command -v semanage)" ]; then
+    # old karmor SELinux module
+    /opt/kubearmor/templates/uninstall.sh
+
+    # new karmor SELinux module
+    /opt/kubearmor/templates/install.sh
+fi
+
+# start kubearmor.service
 /bin/systemctl daemon-reload
 /bin/systemctl start kubearmor.service

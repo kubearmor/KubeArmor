@@ -123,6 +123,7 @@ func (se *SELinuxEnforcer) DestroySELinuxEnforcer() error {
 		se.UnregisterSELinuxHostProfile()
 	}
 
+	se = nil
 	return nil
 }
 

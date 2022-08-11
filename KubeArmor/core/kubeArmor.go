@@ -580,6 +580,7 @@ func KubeArmor() {
 	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy {
 		policyService := &policy.ServiceServer{}
 		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
+		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
 		reflection.Register(dm.Logger.LogServer)

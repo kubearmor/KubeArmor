@@ -155,4 +155,4 @@ rm -rf $$TMP_DIR ;\
 endef
 
 clean:
-	rm -rf bin testbin go.sum cover.out /tmp/KubeArmorAnnotation.yaml
+	rm -rf bin testbin cover.out /tmp/KubeArmorAnnotation.yaml

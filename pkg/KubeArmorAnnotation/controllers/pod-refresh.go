@@ -24,17 +24,14 @@ type PodRefresherReconciler struct {
 
 func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
-
-	time.Sleep(2 * time.Second)
-
 	var podList corev1.PodList
 	if err := r.List(ctx, &podList); err != nil {
 		log.Error(err, "Unable to list pods")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
+	log.Info("Watching for blocked pods")
 	for _, pod := range podList.Items {
-		if pod.Status.Phase == corev1.PodRunning && strings.Contains(pod.Status.Message, "Cannot enforce AppArmor") {
+		if strings.Contains(pod.Status.Message, "Cannot enforce AppArmor") {
 			// the pod is managed by a controller (e.g: replicaset)
 			if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 {
 				log.Info("Deleting pod " + pod.Name + "in namespace " + pod.Namespace + " as it is managed")
@@ -60,7 +57,7 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 		}
 	}
-
+	time.Sleep(30 * time.Second)
 	return ctrl.Result{}, nil
 }
 

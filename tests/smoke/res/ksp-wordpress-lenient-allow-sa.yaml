@@ -1,0 +1,32 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-lenient-allow-sa
+  namespace: wordpress-mysql
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchDirectories:
+      - dir: /run/secrets/kubernetes.io/serviceaccount/
+        recursive: true
+        action: Block
+      - dir: /
+        recursive: true
+      - dir: /run/secrets/kubernetes.io/serviceaccount/
+        recursive: true
+        fromSource:
+          - path: /bin/cat
+  process:
+    matchDirectories:
+      - dir: /
+        recursive: true
+
+        # cat /run/secrets/kubernetes.io/serviceaccount/token
+        # cat /etc/passwd
+        # head /run/secrets/kubernetes.io/serviceaccount/token
+        # head /etc/passwd
+
+  action: Allow
