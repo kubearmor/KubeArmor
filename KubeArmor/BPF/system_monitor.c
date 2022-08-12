@@ -761,6 +761,7 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
 
 // == Full Path == //
 
+#if defined(SECURE_PATH_UNLINK)
 SEC("kprobe/security_path_unlink")
 int kprobe__security_path_unlink(struct pt_regs *ctx){
     if (skip_syscall())
@@ -781,6 +782,7 @@ int kprobe__security_path_unlink(struct pt_regs *ctx){
 
     return 0;
 }
+#endif
 
 SEC("kprobe/security_bprm_check")
 int kprobe__security_bprm_check(struct pt_regs *ctx)
