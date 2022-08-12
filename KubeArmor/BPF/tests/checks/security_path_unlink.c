@@ -8,7 +8,7 @@
 #include <linux/bpf.h>
 #include <bpf_helpers.h>
 
-// CFlag=-DSECURE_PATH_UNLINK
+// CFlag=-DSECURITY_PATH
 SEC("kprobe/security_path_unlink")
 int kprobe__security_path_unlink(struct pt_regs *ctx){
         return 0;

@@ -37,6 +37,7 @@ const (
 	SysClose    = 3
 	SysUnlink   = 87
 	SysUnlinkAt = 263
+	SysRmdir    = 84
 
 	SysSocket  = 41
 	SysConnect = 42
@@ -267,10 +268,10 @@ func (mon *SystemMonitor) InitBPF() error {
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink"}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink", "security_path_rmdir"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept"}
 
@@ -462,6 +463,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == SysUnlinkAt {
 				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysRmdir {
+				if len(args) != 1 {
 					continue
 				}
 			} else if ctx.EventID == SysExecve {
