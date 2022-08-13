@@ -64,14 +64,18 @@ struct outer_key {
   u32 mnt_ns;
 };
 
+#define RULE_EXEC 1 << 0
+#define RULE_WRITE 1 << 1
+#define RULE_READ 1 << 2
+#define RULE_OWNER 1 << 3
+#define RULE_DIR 1 << 4
+#define RULE_RECURSIVE 1 << 5
+#define RULE_HINT 1 << 6
+#define RULE_DENY 1 << 7
+
 struct data_t {
-  bool owner;
-  bool read;
-  bool write;
-  bool exec;
-  bool dir;
-  bool recursive;
-  bool hint;
+  u8 processmask;
+  u8 filemask;
 };
 
 struct outer_hash {
@@ -249,7 +253,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   struct data_t *val = bpf_map_lookup_elem(inner, p);
 
-  if (val && val->exec) {
+  if (val && (val->processmask & RULE_EXEC)) {
     match = true;
     goto decision;
   }
@@ -274,7 +278,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
   val = bpf_map_lookup_elem(inner, p);
 
-  if (val && val->exec) {
+  if (val && (val->processmask & RULE_EXEC)) {
     match = true;
     goto decision;
   }
@@ -292,17 +296,18 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       bpf_probe_read_str(dir->path, i + 2, p->path);
       val = bpf_map_lookup_elem(inner, dir);
       if (val) {
-        if (val->dir && val->exec) {
+        if ((val->processmask & RULE_DIR) && (val->processmask & RULE_EXEC)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d\n", dir, val->recursive);
-          if (val->recursive) {
+          bpf_printk("dir match %s with recursive %d\n", dir,
+                     (val->processmask & RULE_RECURSIVE));
+          if (val->processmask & RULE_RECURSIVE) {
             goto decision;
           } else {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (val->hint == 0) {
+        if (~val->processmask & RULE_HINT) {
           break;
         }
       } else {
@@ -310,18 +315,19 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
         bpf_probe_read_str(dir->source, MAX_STRING_SIZE, p->source);
         val = bpf_map_lookup_elem(inner, dir);
         if (val) {
-          if (val->dir && val->exec) {
+          if ((val->processmask & RULE_DIR) && (val->processmask & RULE_EXEC)) {
             match = true;
             bpf_printk("dir match %s with recursive %d and from source %S\n",
-                       dir->path, val->recursive, dir->source);
-            if (val->recursive) {
+                       dir->path, (val->processmask & RULE_RECURSIVE),
+                       dir->source);
+            if (val->processmask & RULE_RECURSIVE) {
               goto decision;
             } else {
               continue; // We continue the loop to see if we have more nested
                         // directories and set match to false
             }
           }
-          if (val->hint == 0) {
+          if (~val->processmask & RULE_HINT) {
             break;
           }
         } else {
@@ -334,7 +340,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 decision:
 
   if (match) {
-    if (val && val->owner) {
+    if (val && (val->processmask & RULE_OWNER)) {
       if (!is_owner(bprm->file)) {
         bpf_printk("denying proc %s due to not owner\n", p);
         return -EPERM;
@@ -417,7 +423,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 
   struct data_t *val = bpf_map_lookup_elem(inner, p);
 
-  if (val && val->read) {
+  if (val && (val->filemask & RULE_READ)) {
     match = true;
     goto decision;
   }
@@ -441,7 +447,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 
   val = bpf_map_lookup_elem(inner, p);
 
-  if (val && val->read) {
+  if (val && (val->filemask & RULE_READ)) {
     match = true;
     goto decision;
   }
@@ -460,17 +466,18 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
       // bpf_printk("file access of %s", dir->path);
       val = bpf_map_lookup_elem(inner, dir);
       if (val) {
-        if (val->dir && val->read) {
+        if ((val->filemask & RULE_DIR) && (val->filemask & RULE_READ)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d\n", dir, val->recursive);
-          if (val->recursive) {
+          bpf_printk("dir match %s with recursive %d\n", dir,
+                     (val->filemask & RULE_RECURSIVE));
+          if ((val->filemask & RULE_RECURSIVE)) {
             goto decision;
           } else {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (val->hint == 0) {
+        if (~val->filemask & RULE_HINT) {
           break;
         }
       } else {
@@ -480,18 +487,19 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 
         val = bpf_map_lookup_elem(inner, dir);
         if (val) {
-          if (val->dir && val->read) {
+          if ((val->filemask & RULE_DIR) && (val->filemask & RULE_READ)) {
             match = true;
             bpf_printk("dir match %s with recursive %d and from source %s\n",
-                       dir->path, val->recursive, dir->source);
-            if (val->recursive) {
+                       dir->path, (val->filemask & RULE_RECURSIVE),
+                       dir->source);
+            if ((val->filemask & RULE_RECURSIVE)) {
               goto decision;
             } else {
               continue; // We continue the loop to see if we have more nested
                         // directories and set match to false
             }
           }
-          if (val->hint == 0) {
+          if (~val->filemask & RULE_HINT) {
             break;
           }
         } else {
@@ -504,7 +512,7 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 decision:
 
   if (match) {
-    if (val && val->owner) {
+    if (val && (val->filemask & RULE_OWNER)) {
       if (!is_owner(file)) {
         bpf_printk("denying file %s due to not owner\n", p);
         return -EPERM;
