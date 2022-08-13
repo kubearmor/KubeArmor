@@ -311,12 +311,6 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
-// Trim sock file location from the env variable
-func trimmedSocketPath() string {
-	trimmedPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
-	return trimmedPath
-}
-
 // ========== //
 // == Main == //
 // ========== //
@@ -451,7 +445,7 @@ func KubeArmor() {
 		}
 	}
 
-	trimmedSocket := trimmedSocketPath()
+	enableContainerPolicy := true
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
@@ -460,10 +454,9 @@ func KubeArmor() {
 		if cfg.GlobalCfg.CRISocket == "" {
 			if kl.GetCRISocket("") == "" {
 				dm.Logger.Warnf("Error while looking for CRI socket file")
+				enableContainerPolicy = false
 			} else {
 				cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
-				// update the value of trimmed socket path when the cfg.GlobalCfg.CRISocket is not set
-				trimmedSocket = trimmedSocketPath()
 			}
 		}
 
@@ -481,6 +474,7 @@ func KubeArmor() {
 			go dm.MonitorCrioEvents()
 		} else {
 			dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
+			enableContainerPolicy = false
 		}
 
 		dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
@@ -489,6 +483,7 @@ func KubeArmor() {
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		// check if the CRI socket set while executing kubearmor exists
 		if cfg.GlobalCfg.CRISocket != "" {
+			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
 
@@ -616,11 +611,9 @@ func KubeArmor() {
 
 	policyService := &policy.ServiceServer{}
 
-	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		if _, err := os.Stat(trimmedSocket); err == nil {
-			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
-			dm.Logger.Print("Started to monitor container security policies on gRPC")
-		}
+	if enableContainerPolicy {
+		policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
+		dm.Logger.Print("Started to monitor container security policies on gRPC")
 	}
 
 	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy {
