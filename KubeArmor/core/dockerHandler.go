@@ -170,6 +170,34 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 // == Docker Events == //
 // =================== //
 
+// Enable visibility flag arguments for un-orchestrated container
+func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
+
+	// get container information from docker client
+	container, err := Docker.GetContainerInfo(containerID)
+	if err != nil {
+		return
+	}
+
+	if strings.Contains(cfg.GlobalCfg.Visibility, "process") {
+		container.ProcessVisibilityEnabled = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "file") {
+		container.FileVisibilityEnabled = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "network") {
+		container.NetworkVisibilityEnabled = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
+		container.CapabilitiesVisibilityEnabled = true
+	}
+
+	dm.Containers[container.ContainerID] = container
+
+	container.EndPointName = container.ContainerName
+	container.NamespaceName = "container_namespace"
+}
+
 // GetAlreadyDeployedDockerContainers Function
 func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 	// check if Docker exists else instantiate
@@ -235,6 +263,13 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				} else {
 					dm.ContainersLock.Unlock()
 					continue
+				}
+
+				// check for unorchestrated docker containers
+				if !dm.K8sEnabled {
+					dm.ContainersLock.Lock()
+					dm.SetContainerVisibility(dcontainer.ID)
+					dm.ContainersLock.Unlock()
 				}
 
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
@@ -316,6 +351,12 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		} else {
 			dm.ContainersLock.Unlock()
 			return
+		}
+
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.SetContainerVisibility(containerID)
+			dm.ContainersLock.Unlock()
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {

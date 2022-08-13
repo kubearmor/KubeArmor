@@ -201,7 +201,6 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string)
 			return false
 		}
 	}
-
 	if _, ok := ae.AppArmorProfiles[profileName]; ok {
 		if !kl.ContainsElement(ae.AppArmorProfiles[profileName], podName) {
 			ae.AppArmorProfiles[profileName] = append(ae.AppArmorProfiles[profileName], podName)
@@ -278,7 +277,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 		ae.Logger.Warnf("Unable to read the AppArmor profile (%s, %s)", profileName, err.Error())
 		return false
 	} else if !strings.Contains(string(content), "KubeArmor") {
-		ae.Logger.Warnf("Unabale to unregister the AppArmor profile (%s) (out-of-control)", profileName)
+		ae.Logger.Warnf("Unable to unregister the AppArmor profile (%s) (out-of-control)", profileName)
 		return false
 	}
 
