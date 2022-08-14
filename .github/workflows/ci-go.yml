@@ -1,6 +1,11 @@
 name: check_commit_compile
 
-on: [pull_request]
+on: 
+  pull_request:
+    branches:
+      - 'main'
+    paths:
+      - 'KubeArmor/**'
 
 jobs:
   check_commit_compile:
@@ -23,7 +28,7 @@ jobs:
           fetch-depth: 0
           
       - name: Check if build works for every commit
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # checkout full tree
           fetch-depth: 0
@@ -36,5 +41,5 @@ jobs:
                   echo "commit $commit compiled"
                 else
                   echo "failed to compile $commit"
-                fi
-            done
+                fi  
+              done
