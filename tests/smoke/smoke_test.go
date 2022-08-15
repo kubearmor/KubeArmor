@@ -187,6 +187,7 @@ var _ = Describe("Smoke", func() {
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			fmt.Printf("---Alert---\n%s", alerts[0].String())
 			Expect(alerts[0].PolicyName).To(Equal("ksp-wordpress-lenient-allow-sa"))
 			Expect(alerts[0].Severity).To(Equal("7"))
 
@@ -234,6 +235,7 @@ var _ = Describe("Smoke", func() {
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			fmt.Printf("---Alert---\n%s", alerts[0].String())
 			Expect(alerts[0].PolicyName).To(Equal("ksp-mysql-audit-dir"))
 			Expect(alerts[0].Severity).To(Equal("5"))
 

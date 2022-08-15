@@ -6,14 +6,14 @@ package deployments
 import (
 	"strconv"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // GetServiceAccount Function
@@ -1120,5 +1120,32 @@ func GetKubeArmorControllerTLSSecret(namespace string, caCert string, tlsCrt str
 			Labels:    KubeArmorControllerLabels,
 		},
 		StringData: data,
+	}
+}
+
+var kubearmorConfigLabels = map[string]string{
+	"kubearmor-app": "kubearmor-configmap",
+}
+
+func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
+	data := make(map[string]string)
+	data[cfg.ConfigGRPC] = "32767"
+	data[cfg.ConfigVisibility] = "process,file,network,capabilities"
+	data[cfg.ConfigCluster] = "default"
+	data[cfg.ConfigDefaultFilePosture] = "audit"
+	data[cfg.ConfigHostDefaultCapabilitiesPosture] = "audit"
+	data[cfg.ConfigHostDefaultNetworkPosture] = "audit"
+
+	return &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    kubearmorConfigLabels,
+		},
+		Data: data,
 	}
 }

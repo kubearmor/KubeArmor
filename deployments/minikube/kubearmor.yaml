@@ -122,6 +122,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: KUBEARMOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         image: kubearmor/kubearmor:stable
         imagePullPolicy: Always
         livenessProbe:
@@ -2749,3 +2753,18 @@ spec:
     storage: true
     subresources:
       status: {}
+---
+apiVersion: v1
+data:
+  cluster: default
+  defaultFilePosture: audit
+  gRPC: "32767"
+  hostDefaultCapabilitiesPosture: audit
+  hostDefaultNetworkPosture: audit
+  visibility: process,file,network,capabilities
+kind: ConfigMap
+metadata:
+  labels:
+    kubearmor-app: kubearmor-configmap
+  name: kubearmor-config
+  namespace: kube-system

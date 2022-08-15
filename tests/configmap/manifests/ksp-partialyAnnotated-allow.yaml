@@ -1,0 +1,35 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-partialyannotated-allow
+  namespace: partialyannotated
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: partialyannotated
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+  process:
+    matchDirectories:
+    - dir: /bin/ # required to change root to user1
+      recursive: true
+    - dir: /usr/bin/ # used in changing accounts
+      recursive: true
+  file:
+    matchPaths:
+    - path: /root/.bashrc # used by root
+    - path: /root/.bash_history # used by root
+    - path: /dev/tty
+    matchDirectories:
+    - dir: /credentials/
+    - dir: /etc/ # used by root (coarse-grained way)
+      recursive: true
+    - dir: /proc/ # used by root (coarse-grained way)
+      recursive: true
+  action:
+    Allow
+    

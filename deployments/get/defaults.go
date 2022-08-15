@@ -26,6 +26,8 @@ var (
 	KubeArmorControllerServiceName      = "kubearmor-controller-metrics-service"
 	KubeArmorControllerDeploymentName   = "kubearmor-controller"
 	KubeArmorControllerSecretName       = "kubearmor-webhook-server-cert"
+	AnnotationsControllerSecretName     = "kubearmor-webhook-server-cert"
+	KubeArmorConfigMapName              = "kubearmor-config"
 )
 
 // DaemonSetConfig Structure
@@ -94,6 +96,14 @@ var envVar = []corev1.EnvVar{
 		ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "spec.nodeName",
+			},
+		},
+	},
+	{
+		Name: "KUBEARMOR_NAMESPACE",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "metadata.namespace",
 			},
 		},
 	},
