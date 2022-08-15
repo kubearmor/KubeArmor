@@ -366,17 +366,26 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint8, val [2]uint8) {
 	}
 	paths := strings.Split(p, "/")
 	val[idx] = val[idx] | DIR
+	if oldval, ok := m[key]; ok {
+		if oldval[idx]&HINT != 0 {
+			val[idx] = val[idx] | HINT
+		}
+	}
 	m[key] = val
-
-	val[idx] = val[idx] ^ DIR // reset DIR mask to false
 
 	for i := 1; i < len(paths)-1; i++ {
 		var key InnerKey
+		val[idx] = val[idx] & ^DIR // reset DIR mask to false
 		val[idx] = val[idx] | HINT
 		var hint = strings.Join(paths[0:i], "/") + "/"
 		copy(key.Path[:], []byte(hint))
 		if src != "" {
 			copy(key.Source[:], []byte(src))
+		}
+		if oldval, ok := m[key]; ok {
+			if oldval[idx]&DIR != 0 {
+				val[idx] = val[idx] | DIR
+			}
 		}
 		m[key] = val
 	}

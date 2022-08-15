@@ -304,6 +304,9 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
     goto decision;
   }
 
+  struct data_t *dirval;
+  bool recursivebuthint = false;
+
 #pragma unroll
   for (int i = 0; i < 64; i++) {
     if (store->path[i] == '\0')
@@ -317,25 +320,48 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       bpf_probe_read_str(pk->path, i + 2, store->path);
       // Check Subdir with From Source
       bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
-      val = bpf_map_lookup_elem(inner, pk);
-      if (val) {
-        if ((val->processmask & RULE_DIR) && (val->processmask & RULE_EXEC)) {
+      dirval = bpf_map_lookup_elem(inner, pk);
+      if (dirval) {
+        if ((dirval->processmask & RULE_DIR) &&
+            (dirval->processmask & RULE_EXEC)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d and from source %s\n",
-                     pk->path, (val->processmask & RULE_RECURSIVE), pk->source);
-          if (val->processmask & RULE_RECURSIVE) {
+          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
+                     (dirval->processmask & RULE_RECURSIVE),
+                     (dirval->processmask & RULE_HINT));
+          bpf_printk("and from source %s\n", pk->source);
+          if ((dirval->processmask & RULE_RECURSIVE) &&
+              (~dirval->processmask &
+               RULE_HINT)) { // true directory match and not a hint suggests
+                             // there are no possibility of child dir
+            val = dirval;
             goto decision;
+          } else if (dirval->processmask &
+                     RULE_RECURSIVE) { // It's a directory match but also a
+                                       // hint, it's possible that a
+                                       // subdirectory exists that can also
+                                       // match so we continue the loop to look
+                                       // for a true match in subdirectories
+            recursivebuthint = true;
+            val = dirval;
           } else {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (~val->processmask & RULE_HINT) {
-          break;
-        }
       } else {
         break;
       }
+    }
+  }
+
+  if (recursivebuthint) {
+    match = true;
+    goto decision;
+  }
+  if (match) {
+    if (dirval) { // to please the holy verifier
+      val = dirval;
+      goto decision;
     }
   }
 
@@ -349,6 +375,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
     goto decision;
   }
 
+  recursivebuthint = false;
+
 #pragma unroll
   for (int i = 0; i < 64; i++) {
     if (store->path[i] == '\0')
@@ -360,23 +388,44 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       match = false;
 
       bpf_probe_read_str(pk->path, i + 2, store->path);
-      val = bpf_map_lookup_elem(inner, pk);
-      if (val) {
-        if ((val->processmask & RULE_DIR) && (val->processmask & RULE_EXEC)) {
+      dirval = bpf_map_lookup_elem(inner, pk);
+      if (dirval) {
+        if ((dirval->processmask & RULE_DIR) &&
+            (dirval->processmask & RULE_EXEC)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d\n", pk,
-                     (val->processmask & RULE_RECURSIVE));
-          if (val->processmask & RULE_RECURSIVE) {
+          bpf_printk("dir match %s with recursive %d and hint %d\n", pk,
+                     (dirval->processmask & RULE_RECURSIVE),
+                     (dirval->processmask & RULE_HINT));
+          if ((dirval->processmask & RULE_RECURSIVE) &&
+              (~dirval->processmask &
+               RULE_HINT)) { // true directory match and not a hint suggests
+                             // there are no possibility of child dir match
+            val = dirval;
             goto decision;
+          } else if (dirval->processmask & RULE_RECURSIVE) {
+            recursivebuthint = true;
+            val = dirval;
           } else {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (~val->processmask & RULE_HINT) {
+        if (~dirval->processmask & RULE_HINT) {
           break;
         }
+      } else {
+        break;
       }
+    }
+  }
+
+  if (recursivebuthint) {
+    match = true;
+    goto decision;
+  } else {
+    if (match && dirval) {
+      val = dirval;
+      goto decision;
     }
   }
 
@@ -485,6 +534,9 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
     goto decision;
   }
 
+  struct data_t *dirval;
+  bool recursivebuthint = false;
+
 #pragma unroll
   for (int i = 0; i < 64; i++) {
     if (store->path[i] == '\0')
@@ -498,25 +550,44 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
       bpf_probe_read_str(pk->path, i + 2, store->path);
       // Check Subdir with From Source
       bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
-      val = bpf_map_lookup_elem(inner, pk);
-      if (val) {
-        if ((val->filemask & RULE_DIR) && (val->filemask & RULE_READ)) {
+      dirval = bpf_map_lookup_elem(inner, pk);
+      if (dirval) {
+        if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d and from source %s\n",
-                     pk->path, (val->filemask & RULE_RECURSIVE), pk->source);
-          if (val->filemask & RULE_RECURSIVE) {
-            goto decision;
+          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
+                     (dirval->filemask & RULE_RECURSIVE),
+                     (dirval->filemask & RULE_HINT));
+          bpf_printk("and from source %s\n", pk->source);
+          if ((dirval->filemask &
+               RULE_RECURSIVE)) { // true directory match and
+                                  // not a hint suggests
+                                  // there are no possibility of child dir
+            val = dirval;
+            if (dirval->filemask & RULE_HINT) {
+              recursivebuthint = true;
+              continue;
+            } else {
+              goto decision;
+            }
           } else {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (~val->filemask & RULE_HINT) {
-          break;
-        }
       } else {
         break;
       }
+    }
+  }
+
+  if (recursivebuthint) {
+    match = true;
+    goto decision;
+  }
+  if (match) {
+    if (dirval) { // to please the holy verifier
+      val = dirval;
+      goto decision;
     }
   }
 
@@ -530,6 +601,8 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
     goto decision;
   }
 
+  recursivebuthint = false;
+
 #pragma unroll
   for (int i = 0; i < 64; i++) {
     if (store->path[i] == '\0')
@@ -537,27 +610,44 @@ int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
 
     if (store->path[i] == '/') {
       bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-
       match = false;
-
       bpf_probe_read_str(pk->path, i + 2, store->path);
-      val = bpf_map_lookup_elem(inner, pk);
-      if (val) {
-        if ((val->filemask & RULE_DIR) && (val->filemask & RULE_READ)) {
+      dirval = bpf_map_lookup_elem(inner, pk);
+      if (dirval) {
+        if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d\n", pk,
-                     (val->filemask & RULE_RECURSIVE));
-          if (val->filemask & RULE_RECURSIVE) {
-            goto decision;
+          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
+                     (dirval->filemask & RULE_RECURSIVE),
+                     (dirval->filemask & RULE_HINT));
+          if ((dirval->filemask &
+               RULE_RECURSIVE)) { // true directory match and
+                                  // not a hint suggests
+                                  // there are no possibility of child dir
+            val = dirval;
+            if (dirval->filemask & RULE_HINT) {
+              recursivebuthint = true;
+              continue;
+            } else {
+              goto decision;
+            }
           } else {
             continue; // We continue the loop to see if we have more nested
                       // directories and set match to false
           }
         }
-        if (~val->filemask & RULE_HINT) {
-          break;
-        }
+      } else {
+        break;
       }
+    }
+  }
+
+  if (recursivebuthint) {
+    match = true;
+    goto decision;
+  } else {
+    if (match && dirval) {
+      val = dirval;
+      goto decision;
     }
   }
 
