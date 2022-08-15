@@ -23,6 +23,7 @@ import (
 	kcli "github.com/kubearmor/kubearmor-client/k8s"
 	log "github.com/sirupsen/logrus"
 	appsV1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -71,6 +72,46 @@ func isK8sEnv() bool {
 	err = connectHspClient()
 
 	return err != nil
+}
+
+func CreateKAConfigMap(file, cap, network string) error {
+
+	data := make(map[string]string)
+	data["gRPC"] = "32767"
+	data["visibility"] = "process,file,network,capabilities"
+	data["cluster"] = "default"
+	data["defaultFilePosture"] = file
+	data["defaultCapabilitiesPosture"] = cap
+	data["defaultNetworkPosture"] = network
+
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kubearmor-config",
+			Namespace: "kube-system",
+		},
+		Data: data,
+	}
+
+	_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Create(context.Background(), cm, metav1.CreateOptions{})
+	if err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			return err
+		}
+		_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Update(context.Background(), cm, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func DeleteKAConfigMap() error {
+	err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Delete(context.Background(), "kubearmor-config", metav1.DeleteOptions{})
+	return err
 }
 
 // ConditionFunc functions that fulfills the condition handling

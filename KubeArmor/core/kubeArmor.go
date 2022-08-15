@@ -104,7 +104,6 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 	dm.Containers = map[string]tp.Container{}
 	dm.ContainersLock = new(sync.RWMutex)
-
 	dm.EndPoints = []tp.EndPoint{}
 	dm.EndPointsLock = new(sync.RWMutex)
 
@@ -602,6 +601,11 @@ func KubeArmor() {
 		// watch default posture
 		go dm.WatchDefaultPosture()
 		dm.Logger.Print("Started to monitor per-namespace default posture")
+
+		// watch kubearmor configmap
+		go dm.WatchConfigMap()
+		dm.Logger.Print("Watching for posture changes")
+
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
