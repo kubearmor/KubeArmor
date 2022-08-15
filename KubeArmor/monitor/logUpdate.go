@@ -209,6 +209,20 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileUnlinkAtFlags
 
+			case SysRmdir:
+				if len(msg.ContextArgs) != 1 {
+					continue
+				}
+
+				var fileName string
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					fileName = val
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+
 			case SysClose:
 				if len(msg.ContextArgs) != 1 {
 					continue
