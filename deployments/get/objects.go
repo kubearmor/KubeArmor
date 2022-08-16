@@ -363,7 +363,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var terminationGracePeriodSeconds = int64(30)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
-		"-logPath=/tmp/kubearmor.log",
 	}
 
 	var containerVolumeMounts = []corev1.VolumeMount{

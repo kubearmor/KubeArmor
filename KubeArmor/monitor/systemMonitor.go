@@ -339,7 +339,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.SyscallChannel = make(chan []byte, 8192)
 		mon.SyscallLostChannel = make(chan uint64)
 
-		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize())
+		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize() * 1024)
 		if err != nil {
 			return fmt.Errorf("error initializing events perf map: %v", err)
 		}
@@ -446,6 +446,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+				continue
+			}
+
+			// if Policy is not set
+			if !cfg.GlobalCfg.Policy && containerID != "" {
+				continue
+			}
+
+			// if HostPolicy is not set
+			if !cfg.GlobalCfg.HostPolicy && containerID == "" {
 				continue
 			}
 
@@ -654,16 +664,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 2 {
 					continue
 				}
-			}
-
-			// if Policy is not set
-			if !cfg.GlobalCfg.Policy && containerID != "" {
-				continue
-			}
-
-			// if HostPolicy is not set
-			if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-				continue
 			}
 
 			// push the context to the channel for logging
