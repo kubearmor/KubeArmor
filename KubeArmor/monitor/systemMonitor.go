@@ -310,7 +310,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.SyscallChannel = make(chan []byte, 8192)
 		mon.SyscallLostChannel = make(chan uint64)
 
-		mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 64)
+		mon.SyscallPerfMap, err = bcc.InitPerfMapWithPageCnt(eventsTable, mon.SyscallChannel, mon.SyscallLostChannel, 1024)
 		if err != nil {
 			return fmt.Errorf("error initializing events perf map: %v", err)
 		}
