@@ -28,22 +28,24 @@ import (
 // == Const. Vaiables == //
 // ===================== //
 
-// System Call Numbers
+// Syscall arm/aarch
 const (
-	SysOpen     = 2
-	SysOpenAt   = 257
-	SysClose    = 3
-	SysUnlink   = 87
-	SysUnlinkAt = 263
+	// not present in arm but kept for testing
+	SysOpen   = 2
+	SysUnlink = 87
 
-	SysSocket  = 41
-	SysConnect = 42
-	SysAccept  = 43
-	SysBind    = 49
-	SysListen  = 50
+	SysOpenAt   = 56
+	SysClose    = 57
+	SysUnlinkAt = 35
 
-	SysExecve   = 59
-	SysExecveAt = 322
+	SysSocket  = 198
+	SysConnect = 203
+	SysAccept  = 202
+	SysBind    = 200
+	SysListen  = 201
+
+	SysExecve   = 221
+	SysExecveAt = 281
 
 	DoExit            = 351
 	SecurityBprmCheck = 352
@@ -53,6 +55,32 @@ const (
 	TCPConnectv6 = 402
 	TCPAcceptv6  = 403
 )
+
+// Syscall numbers - x86
+// const (
+// 	SysOpen     = 2
+// 	SysOpenAt   = 257
+// 	SysClose    = 3
+// 	SysUnlink   = 87
+// 	SysUnlinkAt = 263
+
+// 	SysSocket  = 41
+// 	SysConnect = 42
+// 	SysAccept  = 43
+// 	SysBind    = 49
+// 	SysListen  = 50
+
+// 	SysExecve   = 59
+// 	SysExecveAt = 322
+
+// 	DoExit            = 351
+// 	SecurityBprmCheck = 352
+
+// 	TCPConnect   = 400
+// 	TCPAccept    = 401
+// 	TCPConnectv6 = 402
+// 	TCPAcceptv6  = 403
+// )
 
 // SystemMonitor Constant Values
 const (
