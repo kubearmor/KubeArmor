@@ -1018,10 +1018,32 @@ int trace_ret_open(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(OPEN_FLAGS_T));
 }
 
-int syscall__openat(struct pt_regs *ctx)
+static __always_inline int isProcDir(const char *path){
+    char procDir[] = "/proc/";
+    int i = 0;
+    while (i<6 && path[i] != '\0' && path[i] == procDir[i] )
+    {
+        i++;
+    }
+
+    if (i == 6 ){
+        return 0;
+    }
+
+    return 1;
+}
+
+int syscall__openat(struct pt_regs *ctx,
+    const int dirfd,
+    const char __user *pathname)
 {
     if (skip_syscall())
         return 0;
+    char path[8];
+    bpf_probe_read(path, 8, pathname);
+    if(isProcDir(path) == 0){
+        return 0;
+    }
 
     return save_args(_SYS_OPENAT, ctx);
 }
