@@ -1166,11 +1166,35 @@ int kretprobe__open(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(OPEN_FLAGS_T));
 }
 
+static __always_inline int isProcDir(char *path){
+    char procDir[] = "/proc/";
+    int i = 0;
+    while (i<6 && path[i] != '\0' && path[i] == procDir[i] )
+    {
+        i++;
+    }
+
+    if (i == 6 ){
+        return 0;
+    }
+
+    return 1;
+}
+
 SEC("kprobe/__x64_sys_openat")
 int kprobe__openat(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
+
+    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
+    const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM2(ctx2));
+    char path[8];
+    bpf_probe_read(path, 8, pathname);
+
+    if(isProcDir(path) == 0){
+        return 0;
+    }
 
     return save_args(_SYS_OPENAT, ctx);
 }
