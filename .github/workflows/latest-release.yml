@@ -34,7 +34,7 @@ jobs:
           else
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
-          ./contribution/k3s/install_k3s.sh
+          RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
       - name: Install annotation controller
         run: |
