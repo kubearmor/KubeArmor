@@ -383,9 +383,14 @@ var ContainerRuntimeSocketMap = map[string][]string{
 
 // GetCRISocket Function
 func GetCRISocket(ContainerRuntime string) string {
-	for _, candidate := range ContainerRuntimeSocketMap[ContainerRuntime] {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
+	for k := range ContainerRuntimeSocketMap {
+		if ContainerRuntime != "" && k != ContainerRuntime {
+			continue
+		}
+		for _, candidate := range ContainerRuntimeSocketMap[k] {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
 		}
 	}
 	return ""
@@ -414,7 +419,7 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 		return false
 	}
 
-	// if super identities not include indentity, return false
+	// if super identities not include identity, return false
 	for _, identity := range identities {
 		if !ContainsElement(superIdentities, identity) {
 			matched = false

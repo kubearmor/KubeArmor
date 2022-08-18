@@ -18,10 +18,15 @@ contribution/vagrant/*.log
 .coverprofile
 
 # object files
-**/BPF/*.o
+**/BPF/**/*.o
 
 # protobuf
 protobuf/go.sum
 
 # kernel header
 vmlinux.h
+
+# ignore list
+**/ignore.lst
+**/syscheck
+**/cflags.lst

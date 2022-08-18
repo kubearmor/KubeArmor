@@ -35,9 +35,9 @@ func loadEnforcer() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *enforcerObjects
-//     *enforcerPrograms
-//     *enforcerMaps
+//	*enforcerObjects
+//	*enforcerPrograms
+//	*enforcerMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func loadEnforcerObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -140,5 +140,6 @@ func _EnforcerClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed enforcer_bpfel.o
 var _EnforcerBytes []byte

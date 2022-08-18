@@ -387,7 +387,7 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 			containers := Containerd.GetContainerdContainers()
 
 			if len(containers) == len(Containerd.containers) {
-				time.Sleep(time.Millisecond * 10)
+				time.Sleep(time.Millisecond * 100)
 				continue
 			}
 
@@ -415,6 +415,6 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 			}
 		}
 
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 500)
 	}
 }

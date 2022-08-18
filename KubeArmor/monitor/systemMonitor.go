@@ -4,6 +4,7 @@
 package monitor
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
+	"k8s.io/kubectl/pkg/util/slice"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -35,6 +37,7 @@ const (
 	SysClose    = 3
 	SysUnlink   = 87
 	SysUnlinkAt = 263
+	SysRmdir    = 84
 
 	SysSocket  = 41
 	SysConnect = 42
@@ -184,6 +187,37 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 	return mon
 }
 
+func loadIgnoreList(bpfPath string) ([]string, error) {
+
+	ignoreListName := bpfPath + "ignore.lst"
+	if _, err := os.Stat(filepath.Clean(ignoreListName)); err != nil {
+		return []string{}, nil
+	}
+
+	file, err := os.Open(filepath.Clean(ignoreListName))
+	if err != nil {
+		return []string{}, err
+	}
+
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+
+	ignoreList := []string{}
+	for scanner.Scan() {
+		ignoreList = append(ignoreList, scanner.Text())
+	}
+
+	if err := file.Close(); err != nil {
+		return []string{}, err
+	}
+
+	return ignoreList, nil
+}
+
+func isIgnored(item string, ignoreList []string) bool {
+	return slice.ContainsString(ignoreList, item, nil)
+}
+
 // InitBPF Function
 func (mon *SystemMonitor) InitBPF() error {
 	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -204,6 +238,11 @@ func (mon *SystemMonitor) InitBPF() error {
 				return err
 			}
 		}
+	}
+
+	ignoreList, err := loadIgnoreList(bpfPath)
+	if err != nil {
+		return err
 	}
 
 	mon.Logger.Print("Initializing eBPF system monitor")
@@ -229,10 +268,10 @@ func (mon *SystemMonitor) InitBPF() error {
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink"}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink", "security_path_rmdir"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept"}
 
@@ -241,6 +280,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes = make(map[string]link.Link)
 
 		for _, syscallName := range systemCalls {
+			if isIgnored(syscallName, ignoreList) {
+				mon.Logger.Printf("Ignoring syscall %s", syscallName)
+				continue
+			}
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
@@ -261,6 +304,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, sysKprobe := range sysKprobes {
+			if isIgnored(sysKprobe, ignoreList) {
+				mon.Logger.Printf("Ignoring kprobe %s", sysKprobe)
+				continue
+			}
 			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
@@ -268,6 +315,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, netSyscall := range netSyscalls {
+			if isIgnored(netSyscall, ignoreList) {
+				mon.Logger.Printf("Ignoring syscall %s", netSyscall)
+				continue
+			}
 			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kprobe %s: %v", netSyscall, err)
@@ -275,6 +326,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, netRetSyscall := range netRetSyscalls {
+			if isIgnored(netRetSyscall, ignoreList) {
+				mon.Logger.Printf("Ignoring syscall %s", netRetSyscall)
+				continue
+			}
 			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
 			if err != nil {
 				return fmt.Errorf("error loading kretprobe %s: %v", netRetSyscall, err)
@@ -284,7 +339,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.SyscallChannel = make(chan []byte, 8192)
 		mon.SyscallLostChannel = make(chan uint64)
 
-		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize())
+		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize() * 1024)
 		if err != nil {
 			return fmt.Errorf("error initializing events perf map: %v", err)
 		}
@@ -394,6 +449,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
+			// if Policy is not set
+			if !cfg.GlobalCfg.Policy && containerID != "" {
+				continue
+			}
+
+			// if HostPolicy is not set
+			if !cfg.GlobalCfg.HostPolicy && containerID == "" {
+				continue
+			}
+
 			if ctx.EventID == SysOpen {
 				if len(args) != 2 {
 					continue
@@ -408,6 +473,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == SysUnlinkAt {
 				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysRmdir {
+				if len(args) != 1 {
 					continue
 				}
 			} else if ctx.EventID == SysExecve {
@@ -595,16 +664,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 2 {
 					continue
 				}
-			}
-
-			// if Policy is not set
-			if !cfg.GlobalCfg.Policy && containerID != "" {
-				continue
-			}
-
-			// if HostPolicy is not set
-			if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-				continue
 			}
 
 			// push the context to the channel for logging

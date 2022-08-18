@@ -94,6 +94,7 @@ enum {
     _SYS_CLOSE = 3,
     _SYS_UNLINK = 87,
     _SYS_UNLINKAT = 263,
+    _SYS_RMDIR = 84,
 
     // network
     _SYS_SOCKET = 41,
@@ -761,11 +762,8 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
 
 // == Full Path == //
 
-SEC("kprobe/security_path_unlink")
-int kprobe__security_path_unlink(struct pt_regs *ctx){
-    if (skip_syscall())
-		return 0;
-
+//  args:  const struct path *dir, struct dentry *dentry
+static __always_inline int security_path__dir_path_args(struct pt_regs *ctx){
     struct path *dir = (struct path*) PT_REGS_PARM1(ctx);
     struct dentry *dentry = (struct dentry*) PT_REGS_PARM2(ctx);
     if(dir == NULL || dentry == NULL){
@@ -781,6 +779,22 @@ int kprobe__security_path_unlink(struct pt_regs *ctx){
 
     return 0;
 }
+
+#if defined(SECURITY_PATH)
+SEC("kprobe/security_path_unlink")
+int kprobe__security_path_unlink(struct pt_regs *ctx){
+    if (skip_syscall())
+		return 0;
+    return security_path__dir_path_args(ctx);
+}
+
+SEC("kprobe/security_path_rmdir")
+int kprobe__security_path_rmdir(struct pt_regs *ctx){
+    if (skip_syscall())
+		return 0;
+    return security_path__dir_path_args(ctx);
+}
+#endif
 
 SEC("kprobe/security_bprm_check")
 int kprobe__security_bprm_check(struct pt_regs *ctx)
@@ -1196,6 +1210,21 @@ SEC("kretprobe/__x64_sys_unlinkat")
 int kretprobe__unlinkat(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_UNLINKAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(UNLINKAT_FLAG_T));
+}
+
+SEC("kprobe/__x64_sys_rmdir")
+int kprobe__rmdir(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_RMDIR, ctx);
+}
+
+SEC("kretprobe/__x64_sys_rmdir")
+int kretprobe__rmdir(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_RMDIR, ctx, ARG_TYPE1(FILE_TYPE_T));
 }
 
 SEC("kprobe/__x64_sys_close")

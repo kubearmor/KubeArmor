@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Authors of KubeArmor
 
+// Package bpflsm is responsible for setting/cleaning up objects for BPF LSM enforcer and handle updates for the same
 package bpflsm
 
 import (
@@ -59,7 +60,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    512,
-		ValueSize:  8,
+		ValueSize:  2,
 		MaxEntries: 128,
 	}
 

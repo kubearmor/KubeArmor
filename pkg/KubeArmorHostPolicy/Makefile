@@ -51,7 +51,6 @@ delete: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	sed -i 's/scope: Namespaced/scope: Cluster/g' config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/CRD/KubeArmorHostPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml crd/KubeArmorHostPolicy.yaml
 

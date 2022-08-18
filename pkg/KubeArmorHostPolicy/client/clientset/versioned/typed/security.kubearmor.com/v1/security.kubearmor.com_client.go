@@ -21,8 +21,8 @@ type SecurityV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *SecurityV1Client) KubeArmorHostPolicies(namespace string) KubeArmorHostPolicyInterface {
-	return newKubeArmorHostPolicies(c, namespace)
+func (c *SecurityV1Client) KubeArmorHostPolicies() KubeArmorHostPolicyInterface {
+	return newKubeArmorHostPolicies(c)
 }
 
 // NewForConfig creates a new SecurityV1Client for the given config.

@@ -15,8 +15,8 @@ type FakeSecurityV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeSecurityV1) KubeArmorHostPolicies(namespace string) v1.KubeArmorHostPolicyInterface {
-	return &FakeKubeArmorHostPolicies{c, namespace}
+func (c *FakeSecurityV1) KubeArmorHostPolicies() v1.KubeArmorHostPolicyInterface {
+	return &FakeKubeArmorHostPolicies{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
