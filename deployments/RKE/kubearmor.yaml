@@ -155,7 +155,7 @@ spec:
         name: bpf
       - hostPath:
           path: /lib/modules
-          type: Directory
+          type: DirectoryOrCreate
         name: lib-modules-path
       - hostPath:
           path: /sys/fs/bpf
