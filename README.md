@@ -23,19 +23,17 @@ If there are any violations against security policies, KubeArmor immediately gen
 
 * Restrict the behavior of containers and nodes (VMs) at the system level
 
-    Traditional container security solutions \(e.g., Cilium\) protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\). KubeArmor also allows operators to restrict the behaviors of nodes (VMs) based on node identities.
+    Traditional container security solutions protect containers by determining their inter-container relations \(i.e., service flows\) at the network level. In contrast, KubeArmor prevents malicious or unknown behaviors in containers by specifying their desired actions \(e.g., a specific process should only be allowed to access a sensitive file\). KubeArmor also allows operators to restrict the behaviors of nodes (VMs) based on node identities.
 
-* Enforce security policies to containers and nodes (VMs) in runtime
+* Enforce security policies to containers and nodes (VMs) at runtime
 
-    In general, security policies \(e.g., Seccomp and AppArmor profiles\) are statically defined within pod definitions for Kubernetes, and they are applied to containers at creation time. Then, the security policies are not allowed to be updated in runtime. In addition, there is no way to define security policies for nodes in Kubernetes.
+    In general, security policies \(e.g., Seccomp and AppArmor profiles\) are statically defined within pod definitions for Kubernetes, and they are applied to containers at creation time. Then, the security policies are not allowed to be updated in runtime.
 
-    To address those problems, KubeArmor maintains security policies separately; security policies are no longer tightly coupled with containers. Then, KubeArmor directly applies the security policies into Linux security modules \(LSMs\) for each container according to the labels of given containers and security policies.  Similiarly, KubeArmor directly enforces security policies to nodes (VMs) as well.
+    To address those problems, KubeArmor users k8s CRDs to define security policies, such that the orchestration of the policy is handled by the k8s control plane. KubeArmor leverages Linux Security Modules (LSMs) to enforce the security policies at the container level according to the labels of given containers and security policies.  Similiarly, KubeArmor support policy enforcement at the Host/Node/VM level using `KubeArmorHostSecurityPolicy` k8s resource.
 
 * Produce container-aware alerts and system logs
 
-    LSMs do not have any container-related information; thus, they generate alerts and system logs only based on system metadata \(e.g., User ID, Group ID, and process ID\). Therefore, it is hard to figure out what containers cause policy violations.
-
-    For this reason, KubeArmor uses an eBPF-based system monitor, which keeps track of process life cycles in containers and even nodes, and converts system metadata to container/node identities when LSMs generate alerts and system logs for any policy violations from containers and nodes (VMs).
+    LSMs do not have any container-related information; thus, they generate alerts and system logs only based on system metadata \(e.g., User ID, Group ID, and process ID\). It is hard to figure out what containers cause policy violations. KubeArmor uses an eBPF-based system monitor to keep track of process life cycles in containers and even nodes, and converts system metadata to container/node identities when LSMs generate alerts and system logs for any policy violations from containers and nodes (VMs).
 
 * Provide easy-to-use semantics for policy definitions
 
