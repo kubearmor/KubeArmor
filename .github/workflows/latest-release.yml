@@ -9,6 +9,7 @@ on:
       - 'KubeArmor/**'
       - 'tests/**'
       - 'protobuf/**'
+      - '.github/workflows/latest-release.yml'
 
   create:
     branches:
