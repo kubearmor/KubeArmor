@@ -9,6 +9,7 @@ on:
       - 'KubeArmor/**'
       - 'tests/**'
       - 'protobuf/**'
+      - '.github/workflows/latest-release.yml'
 
   create:
     branches:
@@ -18,15 +19,17 @@ name: Create KubeArmor release after testing the image
 
 jobs:
   build:
-    name: Create KubeArmor latest release - 18.04
+    name: Create KubeArmor latest release - 20.04
     if: github.repository == 'kubearmor/kubearmor'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
+    env:
+      RUNTIME: "containerd"
     steps:
       - name: Checkout KubeArmor code
         uses: actions/checkout@v2
 
-      - name: Setup Enviroment
+      - name: Setup a Kubernetes enviroment
         id: vars
         run: |
           if [ ${{ github.ref }} == "refs/heads/main" ]; then
@@ -34,7 +37,8 @@ jobs:
           else
             echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           fi
-          RUNTIME=docker ./contribution/k3s/install_k3s.sh
+          echo "RUNTIME="$RUNTIME
+          ./contribution/k3s/install_k3s.sh
 
       - name: Install annotation controller
         run: |
@@ -46,11 +50,12 @@ jobs:
       - name: Generate KubeArmor artifacts
         run: |
             GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+            docker save kubearmor/kubearmor:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
 
       - name: Run KubeArmor
         run: |
-            sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-k3s.yaml
-            kubectl apply -f ./KubeArmor/build/kubearmor-test-k3s.yaml
+            sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-containerd.yaml
+            kubectl apply -f ./KubeArmor/build/kubearmor-test-containerd.yaml
             kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
 
       - name: Test KubeArmor
@@ -68,10 +73,10 @@ jobs:
             ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
   push-stable-version:
-    name: Create KubeArmor stable version release - 18.04
+    name: Create KubeArmor stable version release - 20.04
     needs: build
     if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
       - name: Checkout KubeArmor code
