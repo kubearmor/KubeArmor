@@ -1005,19 +1005,6 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     return 0;
 }
 
-int syscall__open(struct pt_regs *ctx)
-{
-    if (skip_syscall())
-        return 0;
-
-    return save_args(_SYS_OPEN, ctx);
-}
-
-int trace_ret_open(struct pt_regs *ctx)
-{
-    return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(OPEN_FLAGS_T));
-}
-
 static __always_inline int isProcDir(const char *path){
     char procDir[] = "/proc/";
     int i = 0;
@@ -1031,6 +1018,24 @@ static __always_inline int isProcDir(const char *path){
     }
 
     return 1;
+}
+
+int syscall__open(struct pt_regs *ctx, 
+    const char __user *pathname)
+{
+    if (skip_syscall())
+        return 0;
+    char path[8];
+    bpf_probe_read(path, 8, pathname);
+    if(isProcDir(path) == 0){
+        return 0;
+    }
+    return save_args(_SYS_OPEN, ctx);
+}
+
+int trace_ret_open(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(OPEN_FLAGS_T));
 }
 
 int syscall__openat(struct pt_regs *ctx,
