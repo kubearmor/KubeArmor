@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ubuntu-pods
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-1-deployment
+  namespace: ubuntu-pods
+  labels:
+    deployment: ubuntu-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      group: group-1
+      container: ubuntu-1
+  template:
+    metadata:
+      labels:
+        group: group-1
+        container: ubuntu-1
+      # annotations:
+      #   kubearmor-policy: enabled
+      #   kubearmor-visibility: process,file,network
+    spec:
+      containers:
+        - name: ubuntu-1-container
+          image: kubearmor/ubuntu-w-utils:0.1
