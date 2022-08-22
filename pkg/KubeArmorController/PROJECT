@@ -1,0 +1,25 @@
+domain: kubearmor.com
+layout:
+- go.kubebuilder.io/v3
+projectName: kubearmorcontroller
+repo: github.com/kubearmor/KubeArmor/pkg/KubeArmorController
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: false
+  controller: true
+  domain: kubearmor.com
+  group: security
+  kind: KubeArmorHostPolicy
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1
+  version: v1
+version: "3"

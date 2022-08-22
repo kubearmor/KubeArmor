@@ -1,0 +1,6 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: kubearmorhostpolicy-sample
+spec:
+  # TODO(user): Add fields here

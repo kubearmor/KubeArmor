@@ -139,6 +139,7 @@ var policyManagerDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-policy-manager",
 }
 
+// To be removed in KubeArmor v0.7
 // GetPolicyManagerService Function
 func GetPolicyManagerService(namespace string) *corev1.Service {
 	return &corev1.Service{
@@ -164,6 +165,7 @@ func GetPolicyManagerService(namespace string) *corev1.Service {
 	}
 }
 
+// To be removed in KubeArmor v0.7
 // GetPolicyManagerDeployment Function
 func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
@@ -248,6 +250,7 @@ var hostPolicyManagerDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-host-policy-manager",
 }
 
+// To be removed in KubeArmor v0.7
 // GetHostPolicyManagerService Function
 func GetHostPolicyManagerService(namespace string) *corev1.Service {
 	return &corev1.Service{
@@ -273,6 +276,7 @@ func GetHostPolicyManagerService(namespace string) *corev1.Service {
 	}
 }
 
+// To be removed in KubeArmor v0.7
 // GetHostPolicyManagerDeployment Function
 func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
@@ -548,10 +552,11 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	}
 }
 
-var annotationsControllerDeploymentLabels = map[string]string{
+var KubeArmorControllerLabels = map[string]string{
 	"kubearmor-app": "kubearmor-annotation-manager",
 }
 
+// To be removed in KubeArmor v0.7
 // GetAnnotationsControllerService Function
 func GetAnnotationsControllerService(namespace string) *corev1.Service {
 	return &corev1.Service{
@@ -561,11 +566,11 @@ func GetAnnotationsControllerService(namespace string) *corev1.Service {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      AnnotationsControllerServiceName,
-			Labels:    annotationsControllerDeploymentLabels,
+			Labels:    KubeArmorControllerLabels,
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: annotationsControllerDeploymentLabels,
+			Selector: KubeArmorControllerLabels,
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "https",
@@ -578,19 +583,45 @@ func GetAnnotationsControllerService(namespace string) *corev1.Service {
 	}
 }
 
-var annotationsControllerCertVolumeDefaultMode = int32(420)
+// GetKubeArmorControllerService Function
+func GetKubeArmorControllerService(namespace string) *corev1.Service {
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerServiceName,
+			Labels:    KubeArmorControllerLabels,
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: KubeArmorControllerLabels,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "https",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       int32(443),
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+}
 
-var annotationsControllerCertVolume = corev1.Volume{
+var KubeArmorControllerCertVolumeDefaultMode = int32(420)
+
+var KubeArmorControllerCertVolume = corev1.Volume{
 	Name: "cert",
 	VolumeSource: corev1.VolumeSource{
 		Secret: &corev1.SecretVolumeSource{
-			SecretName:  AnnotationsControllerSecretName,
-			DefaultMode: &annotationsControllerCertVolumeDefaultMode,
+			SecretName:  KubeArmorControllerSecretName,
+			DefaultMode: &KubeArmorControllerCertVolumeDefaultMode,
 		},
 	},
 }
 
-var annotationsControllerHostPathVolume = corev1.Volume{
+var KubeArmorControllerHostPathVolume = corev1.Volume{
 	Name: "sys-path",
 	VolumeSource: corev1.VolumeSource{
 		HostPath: &corev1.HostPathVolumeSource{
@@ -600,8 +631,9 @@ var annotationsControllerHostPathVolume = corev1.Volume{
 	},
 }
 
-var annotationsControllerAllowPrivilegeEscalation = false
+var KubeArmorControllerAllowPrivilegeEscalation = false
 
+// To be removed in KubeArmor v0.7
 // GetAnnotationsControllerDeployment Function
 func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 	return &appsv1.Deployment{
@@ -611,13 +643,13 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      AnnotationsControllerDeploymentName,
-			Labels:    annotationsControllerDeploymentLabels,
+			Labels:    KubeArmorControllerLabels,
 			Namespace: namespace,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: annotationsControllerDeploymentLabels,
+				MatchLabels: KubeArmorControllerLabels,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -625,14 +657,14 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 						"kubearmor-policy": "audited",
 						"container.apparmor.security.beta.kubernetes.io/manager": "unconfined",
 					},
-					Labels: annotationsControllerDeploymentLabels,
+					Labels: KubeArmorControllerLabels,
 				},
 				Spec: corev1.PodSpec{
 					PriorityClassName:  "system-node-critical",
 					ServiceAccountName: kubearmor,
 					Volumes: []corev1.Volume{
-						annotationsControllerCertVolume,
-						annotationsControllerHostPathVolume,
+						KubeArmorControllerCertVolume,
+						KubeArmorControllerHostPathVolume,
 					},
 					Containers: []corev1.Container{
 						{
@@ -679,18 +711,18 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      annotationsControllerCertVolume.Name,
+									Name:      KubeArmorControllerCertVolume.Name,
 									ReadOnly:  true,
 									MountPath: "/tmp/k8s-webhook-server/serving-certs",
 								},
 								{
-									Name:      annotationsControllerHostPathVolume.Name,
+									Name:      KubeArmorControllerHostPathVolume.Name,
 									ReadOnly:  true,
 									MountPath: "/sys/kernel/security",
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: &annotationsControllerAllowPrivilegeEscalation,
+								AllowPrivilegeEscalation: &KubeArmorControllerAllowPrivilegeEscalation,
 							},
 							LivenessProbe: &corev1.Probe{
 								Handler: corev1.Handler{
@@ -731,11 +763,142 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 	}
 }
 
-var annotationsControllerMutationFullName = "annotation.kubearmor.com"
-var annotationsControllerPodMutationPath = "/mutate-pods"
-var annotationsControllerPodMutationFailurePolicy = admissionregistrationv1.Ignore
-var annotationsControllerMutationSideEffect = admissionregistrationv1.SideEffectClassNoneOnDryRun
+// GetKubeArmorControllerDeployment Function
+func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerDeploymentName,
+			Labels:    KubeArmorControllerLabels,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: KubeArmorControllerLabels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kubearmor-policy": "audited",
+						"container.apparmor.security.beta.kubernetes.io/manager":         "unconfined",
+						"container.apparmor.security.beta.kubernetes.io/kube-rbac-proxy": "unconfined",
+					},
+					Labels: KubeArmorControllerLabels,
+				},
+				Spec: corev1.PodSpec{
+					PriorityClassName:  "system-node-critical",
+					ServiceAccountName: kubearmor,
+					Volumes: []corev1.Volume{
+						KubeArmorControllerCertVolume,
+						KubeArmorControllerHostPathVolume,
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "kube-rbac-proxy",
+							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+							Args: []string{
+								"--secure-listen-address=0.0.0.0:8443",
+								"--upstream=http://127.0.0.1:8080/",
+								"--logtostderr=true",
+								"--v=10",
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 8443,
+									Name:          "https",
+								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("40Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("20Mi"),
+								},
+							},
+						},
+						{
+							Name:  "manager",
+							Image: "kubearmor/kubearmor-controller:latest",
+							Args: []string{
+								"--metrics-bind-address=127.0.0.1:8080",
+								"--leader-elect",
+								"--health-probe-bind-address=:8081",
+							},
+							Command: []string{"/manager"},
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: int32(9443),
+									Name:          "webhook-server",
+									Protocol:      corev1.ProtocolTCP,
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      KubeArmorControllerCertVolume.Name,
+									ReadOnly:  true,
+									MountPath: "/tmp/k8s-webhook-server/serving-certs",
+								},
+								{
+									Name:      KubeArmorControllerHostPathVolume.Name,
+									ReadOnly:  true,
+									MountPath: "/sys/kernel/security",
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: &KubeArmorControllerAllowPrivilegeEscalation,
+							},
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/healthz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(15),
+								PeriodSeconds:       int32(20),
+							},
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/readyz",
+										Port: intstr.FromInt(8081),
+									},
+								},
+								InitialDelaySeconds: int32(5),
+								PeriodSeconds:       int32(10),
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("30Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("20Mi"),
+								},
+							},
+						},
+					},
+					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+				},
+			},
+		},
+	}
+}
 
+var KubeArmorControllerMutationFullName = "annotation.kubearmor.com"
+var KubeArmorControllerPodMutationPath = "/mutate-pods"
+var KubeArmorControllerPodMutationFailurePolicy = admissionregistrationv1.Ignore
+var KubeArmorControllerMutationSideEffect = admissionregistrationv1.SideEffectClassNoneOnDryRun
+
+// To be removed in KubeArmor v0.7
 // GetAnnotationsControllerMutationAdmissionConfiguration Function
 func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistrationv1.MutatingWebhookConfiguration {
 	return &admissionregistrationv1.MutatingWebhookConfiguration{
@@ -749,17 +912,17 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
 			{
-				Name:                    annotationsControllerMutationFullName,
+				Name:                    KubeArmorControllerMutationFullName,
 				AdmissionReviewVersions: []string{"v1"},
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: namespace,
 						Name:      AnnotationsControllerServiceName,
-						Path:      &annotationsControllerPodMutationPath,
+						Path:      &KubeArmorControllerPodMutationPath,
 					},
 					CABundle: caCert,
 				},
-				FailurePolicy: &annotationsControllerPodMutationFailurePolicy,
+				FailurePolicy: &KubeArmorControllerPodMutationFailurePolicy,
 				Rules: []admissionregistrationv1.RuleWithOperations{
 					{
 						Rule: admissionregistrationv1.Rule{
@@ -773,14 +936,63 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 						},
 					},
 				},
-				SideEffects: &annotationsControllerMutationSideEffect,
+				SideEffects: &KubeArmorControllerMutationSideEffect,
 			},
 		},
 	}
 }
 
+// GetKubeArmorControllerMutationAdmissionConfiguration Function
+func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCert []byte) *admissionregistrationv1.MutatingWebhookConfiguration {
+	return &admissionregistrationv1.MutatingWebhookConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "MutatingWebhookConfiguration",
+			APIVersion: "admissionregistration.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerDeploymentName,
+			Namespace: namespace,
+		},
+		Webhooks: []admissionregistrationv1.MutatingWebhook{
+			{
+				Name:                    KubeArmorControllerMutationFullName,
+				AdmissionReviewVersions: []string{"v1"},
+				ClientConfig: admissionregistrationv1.WebhookClientConfig{
+					Service: &admissionregistrationv1.ServiceReference{
+						Namespace: namespace,
+						Name:      KubeArmorControllerServiceName,
+						Path:      &KubeArmorControllerPodMutationPath,
+					},
+					CABundle: caCert,
+				},
+				FailurePolicy: &KubeArmorControllerPodMutationFailurePolicy,
+				Rules: []admissionregistrationv1.RuleWithOperations{
+					{
+						Rule: admissionregistrationv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"pods"},
+						},
+						Operations: []admissionregistrationv1.OperationType{
+							admissionregistrationv1.Create,
+							admissionregistrationv1.Update,
+						},
+					},
+				},
+				SideEffects: &KubeArmorControllerMutationSideEffect,
+			},
+		},
+	}
+}
+
+// To be removed in KubeArmor v0.7
 // GetAnnotationsControllerTLSSecret Functionn
 func GetAnnotationsControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
+	return GetKubeArmorControllerTLSSecret(namespace, caCert, tlsCrt, tlsCrt)
+}
+
+// GetKubeArmorControllerTLSSecret Functionn
+func GetKubeArmorControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
 	data := make(map[string]string)
 	data["ca.crt"] = caCert
 	data["tls.crt"] = tlsCrt
@@ -792,9 +1004,9 @@ func GetAnnotationsControllerTLSSecret(namespace string, caCert string, tlsCrt s
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      AnnotationsControllerSecretName,
+			Name:      KubeArmorControllerSecretName,
 			Namespace: namespace,
-			Labels:    annotationsControllerDeploymentLabels,
+			Labels:    KubeArmorControllerLabels,
 		},
 		StringData: data,
 	}
