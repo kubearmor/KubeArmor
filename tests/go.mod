@@ -15,8 +15,8 @@ replace (
 )
 
 require (
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-20220620050120-7e1810d2ad41
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-20220620050120-7e1810d2ad41
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-20220823050108-4455a183e9ef
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-20220823050108-4455a183e9ef
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220712092628-6b4cef291201
 	github.com/kubearmor/kubearmor-client v0.8.0
 	github.com/onsi/ginkgo/v2 v2.1.4
