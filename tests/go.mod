@@ -15,14 +15,17 @@ replace (
 )
 
 require (
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-20220620050120-7e1810d2ad41
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-20220620050120-7e1810d2ad41
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220712092628-6b4cef291201
-	github.com/kubearmor/kubearmor-client v0.7.8
+	github.com/kubearmor/kubearmor-client v0.8.0
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
 	github.com/sirupsen/logrus v1.8.1
 	google.golang.org/protobuf v1.28.0
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
+	k8s.io/cli-runtime v0.24.2
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/kubectl v0.24.2
 )
@@ -37,6 +40,7 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/clarketm/json v1.17.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
@@ -58,9 +62,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20220706172948-9d2644f2666b // indirect
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy v0.0.0-20220620050120-7e1810d2ad41 // indirect
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-20220620050120-7e1810d2ad41 // indirect
+	github.com/kubearmor/KubeArmor/deployments v0.0.0-20220728032827-8078616fc8bd // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
@@ -92,7 +94,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/apiextensions-apiserver v0.22.3 // indirect
-	k8s.io/cli-runtime v0.24.2 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
