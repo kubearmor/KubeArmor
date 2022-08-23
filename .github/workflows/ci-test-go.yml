@@ -8,7 +8,7 @@ on:
 
 jobs:
   go-fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
@@ -21,7 +21,7 @@ jobs:
         working-directory: KubeArmor
 
   go-lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
@@ -35,7 +35,7 @@ jobs:
           path: "./KubeArmor/..."
 
   go-lint-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
@@ -49,7 +49,7 @@ jobs:
           path: "./tests/..."
 
   go-sec:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
@@ -62,7 +62,7 @@ jobs:
         working-directory: KubeArmor
 
   license:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
 
