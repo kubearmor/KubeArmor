@@ -631,7 +631,7 @@ func KubeArmor() {
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
 
 	// == //
-
+	go dm.SetKarmorData()
 	dm.Logger.Print("Initialized KubeArmor")
 
 	// == //
