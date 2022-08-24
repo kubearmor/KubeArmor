@@ -1151,18 +1151,35 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     return 0;
 }
 
+#define DIR_PROC "/proc/"
 static __always_inline int isProcDir(char *path){
-    char procDir[] = "/proc/";
+    char procDir[] = DIR_PROC;
     int i = 0;
-    while (i<6 && path[i] != '\0' && path[i] == procDir[i] )
+    while (i<sizeof(DIR_PROC)-1 && path[i] != '\0' && path[i] == procDir[i] )
     {
         i++;
     }
 
-    if (i == 6 ){
+    if (i == sizeof(DIR_PROC)-1 ){
         return 0;
     }
 
+    return 1;
+}
+
+#define DIR_SYS "/sys/"
+static __always_inline int isSysDir(char *path){
+    char sysDir[] = DIR_SYS;
+    int i = 0;
+    while (i<sizeof(DIR_SYS)-1 && path[i] != '\0' && path[i] == sysDir[i] )
+    {
+        i++;
+    }
+
+    if (i == sizeof(DIR_SYS)-1 ){
+        return 0;
+    }
+    
     return 1;
 }
 
@@ -1177,7 +1194,7 @@ int kprobe__open(struct pt_regs *ctx)
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-    if(isProcDir(path) == 0){
+    if(isProcDir(path) == 0 || isSysDir(path) == 0){
         return 0;
     }
 
@@ -1201,7 +1218,7 @@ int kprobe__openat(struct pt_regs *ctx)
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-    if(isProcDir(path) == 0){
+   if(isProcDir(path) == 0 || isSysDir(path) == 0){
         return 0;
     }
 
