@@ -109,9 +109,6 @@ spec:
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
-        - mountPath: /lib/modules
-          name: lib-modules-path
-          readOnly: true
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
         - mountPath: /sys/kernel/security
@@ -123,6 +120,9 @@ spec:
           readOnly: true
         - mountPath: /usr/src
           name: usr-src-path
+          readOnly: true
+        - mountPath: /lib/modules
+          name: lib-modules-path
           readOnly: true
         - mountPath: /etc/apparmor.d
           name: etc-apparmor-d-path
@@ -146,9 +146,6 @@ spec:
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
-        - mountPath: /lib/modules
-          name: lib-modules-path
-          readOnly: true
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
         - mountPath: /sys/kernel/security
@@ -161,6 +158,9 @@ spec:
         - mountPath: /usr/src
           name: usr-src-path
           readOnly: true
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always
@@ -171,10 +171,6 @@ spec:
       volumes:
       - emptyDir: {}
         name: bpf
-      - hostPath:
-          path: /lib/modules
-          type: Directory
-        name: lib-modules-path
       - hostPath:
           path: /sys/fs/bpf
           type: Directory
@@ -195,6 +191,10 @@ spec:
           path: /usr/src
           type: Directory
         name: usr-src-path
+      - hostPath:
+          path: /lib/modules
+          type: Directory
+        name: lib-modules-path
       - hostPath:
           path: /etc/apparmor.d
           type: DirectoryOrCreate

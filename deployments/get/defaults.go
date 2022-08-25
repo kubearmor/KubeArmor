@@ -54,6 +54,31 @@ var gkeHostUsrVol = corev1.Volume{ // check #579 why GKE is handled separately
 	},
 }
 
+var rkeHostLibVol = corev1.Volume{ // check #771 why RKE is handled separately
+	Name: "lib-modules-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/lib/modules",
+			Type: &hostPathDirectoryOrCreate,
+		},
+	},
+}
+
+var hostLibVol = corev1.Volume{
+	Name: "lib-modules-path",
+	VolumeSource: corev1.VolumeSource{
+		HostPath: &corev1.HostPathVolumeSource{
+			Path: "/lib/modules",
+			Type: &hostPathDirectory,
+		},
+	},
+}
+var hostLibVolMnt = corev1.VolumeMount{
+	Name:      "lib-modules-path", // /usr/src (read-only)
+	MountPath: "/lib/modules",
+	ReadOnly:  true,
+}
+
 var hostUsrVolMnt = corev1.VolumeMount{
 	Name:      "usr-src-path", // /usr/src (read-only)
 	MountPath: "/usr/src",
@@ -514,6 +539,60 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"aks": {
+		Args: []string{
+			"-enableKubeArmorHostPolicy",
+		},
+		Envs: envVar,
+		VolumeMounts: []corev1.VolumeMount{
+			apparmorVolMnt,
+			{
+				Name:      "containerd-sock-path", // containerd
+				MountPath: "/var/run/containerd/containerd.sock",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "containerd-storage-path", // containerd storage
+				MountPath: "/run/containerd",
+				ReadOnly:  true,
+			},
+			{
+				Name:      "docker-storage-path", // docker storage
+				MountPath: "/var/lib/docker",
+				ReadOnly:  true,
+			},
+		},
+		Volumes: []corev1.Volume{
+			apparmorVol,
+			{
+				Name: "containerd-sock-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/run/containerd/containerd.sock",
+						Type: &hostPathSocket,
+					},
+				},
+			},
+			{
+				Name: "containerd-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/run/containerd",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+			{
+				Name: "docker-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/lib/docker",
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+		},
+	},
+	"rke": {
 		Args: []string{
 			"-enableKubeArmorHostPolicy",
 		},

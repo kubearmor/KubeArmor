@@ -371,11 +371,11 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			Name:      "bpf",
 			MountPath: "/opt/kubearmor/BPF",
 		},
-		{
-			Name:      "lib-modules-path", //BPF (read-only)
-			MountPath: "/lib/modules",
-			ReadOnly:  true,
-		},
+		// {
+		// 	Name:      "lib-modules-path", //BPF (read-only)
+		// 	MountPath: "/lib/modules",
+		// 	ReadOnly:  true,
+		// },
 		{
 			Name:      "sys-fs-bpf-path", //BPF (read-write)
 			MountPath: "/sys/fs/bpf",
@@ -402,15 +402,15 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
-		{
-			Name: "lib-modules-path",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/lib/modules",
-					Type: &hostPathDirectory,
-				},
-			},
-		},
+		// {
+		// 	Name: "lib-modules-path",
+		// 	VolumeSource: corev1.VolumeSource{
+		// 		HostPath: &corev1.HostPathVolumeSource{
+		// 			Path: "/lib/modules",
+		// 			Type: &hostPathDirectory,
+		// 		},
+		// 	},
+		// },
 		{
 			Name: "sys-fs-bpf-path",
 			VolumeSource: corev1.VolumeSource{
@@ -457,6 +457,13 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		volumes = append(volumes, hostUsrVol)
 	}
 
+	if env == "rke" {
+		containerVolumeMounts = append(containerVolumeMounts, hostLibVolMnt)
+		volumes = append(volumes, rkeHostLibVol)
+	} else {
+		containerVolumeMounts = append(containerVolumeMounts, hostLibVolMnt)
+		volumes = append(volumes, hostLibVol)
+	}
 	args = append(args, defaultConfigs[env].Args...)
 	envs := defaultConfigs[env].Envs
 
