@@ -82,6 +82,12 @@ spec:
       - args:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
+        - -enableKubeArmorHostPolicy
+        env:
+        - name: KUBEARMOR_NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         image: kubearmor/kubearmor:stable
         imagePullPolicy: Always
         livenessProbe:
@@ -102,9 +108,6 @@ spec:
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
-        - mountPath: /lib/modules
-          name: lib-modules-path
-          readOnly: true
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
         - mountPath: /sys/kernel/security
@@ -116,6 +119,20 @@ spec:
           readOnly: true
         - mountPath: /usr/src
           name: usr-src-path
+          readOnly: true
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
+        - mountPath: /etc/apparmor.d
+          name: etc-apparmor-d-path
+        - mountPath: /var/run/containerd/containerd.sock
+          name: containerd-sock-path
+          readOnly: true
+        - mountPath: /run/containerd
+          name: containerd-storage-path
+          readOnly: true
+        - mountPath: /var/lib/docker
+          name: docker-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
@@ -128,9 +145,6 @@ spec:
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
-        - mountPath: /lib/modules
-          name: lib-modules-path
-          readOnly: true
         - mountPath: /sys/fs/bpf
           name: sys-fs-bpf-path
         - mountPath: /sys/kernel/security
@@ -143,6 +157,9 @@ spec:
         - mountPath: /usr/src
           name: usr-src-path
           readOnly: true
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always
@@ -153,10 +170,6 @@ spec:
       volumes:
       - emptyDir: {}
         name: bpf
-      - hostPath:
-          path: /lib/modules
-          type: DirectoryOrCreate
-        name: lib-modules-path
       - hostPath:
           path: /sys/fs/bpf
           type: Directory
@@ -177,6 +190,26 @@ spec:
           path: /usr/src
           type: Directory
         name: usr-src-path
+      - hostPath:
+          path: /lib/modules
+          type: DirectoryOrCreate
+        name: lib-modules-path
+      - hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
+        name: etc-apparmor-d-path
+      - hostPath:
+          path: /var/run/containerd/containerd.sock
+          type: Socket
+        name: containerd-sock-path
+      - hostPath:
+          path: /run/containerd
+          type: DirectoryOrCreate
+        name: containerd-storage-path
+      - hostPath:
+          path: /var/lib/docker
+          type: DirectoryOrCreate
+        name: docker-storage-path
 ---
 apiVersion: v1
 kind: Service
