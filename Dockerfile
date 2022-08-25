@@ -51,9 +51,8 @@ RUN apk --no-cache update
 RUN apk add bash curl procps
 RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
-COPY --from=builder /usr/src/KubeArmor/KubeArmor/build/entrypoint.sh /KubeArmor/entrypoint.sh
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
 
-ENTRYPOINT ["/KubeArmor/entrypoint.sh"]
+ENTRYPOINT ["/KubeArmor/kubearmor"]
