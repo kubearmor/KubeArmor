@@ -452,6 +452,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// create a pod
 
 				pod := tp.K8sPod{}
+				appArmorAnnotationsCount := 0
+				containersCount := 0
 
 				// need this for apparmor profile
 				var podOwnerName string
@@ -598,6 +600,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
+							appArmorAnnotationsCount += 1
 						}
 					}
 
@@ -606,6 +609,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
 							updateAppArmor = true
 						}
+						containersCount += 1
 					}
 
 					if event.Type == "ADDED" {
@@ -613,7 +617,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
-							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+							if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
 								// patch the deployment with apparmor annotations
 								if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -633,7 +637,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 
 								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
-									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+									if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
 										// patch the deployment with apparmor annotations
 										if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
