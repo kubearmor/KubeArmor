@@ -3,7 +3,6 @@
 # Copyright 2021 Authors of KubeArmor
 
 terminate_kubearmor() {
-    pid=$(ps -e | grep kubearmor | awk '{print $1}')
     if [ "$pid" != "" ]; then
         kill -SIGTERM $pid
     fi
@@ -25,7 +24,9 @@ esac
 
 for ((i=0;i<5;i++))
 do
-    /KubeArmor/kubearmor ${ARMOR_OPTIONS[@]}
+    /KubeArmor/kubearmor ${ARMOR_OPTIONS[@]} &
+    pid=$!
+    wait $pid
     ERROR_CODE=$?
 
     if [ $ERROR_CODE != 0 ]; then
