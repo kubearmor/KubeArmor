@@ -21,18 +21,21 @@
 #pragma clang diagnostic ignored "-Wunused-label"
 #endif
 
+#ifdef BTF_SUPPORTED
+#include "vmlinux.h"
+#include "vmlinux_macro.h"
+#define __user
+#else
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
 #include <linux/mount.h>
 #include <linux/binfmts.h>
-
+#include <linux/bpf.h>
 #include <linux/un.h>
 #include <net/inet_sock.h>
-
-#include <linux/bpf.h>
-#include <linux/version.h>
+#endif
 
 #include <bpf_helpers.h>
 #include <bpf_tracing.h>
@@ -87,6 +90,10 @@
 #define PT_REGS_PARM6(x) ((x)->r9)
 #define GET_FIELD_ADDR(field) &field
 
+#define AF_UNIX     1
+#define AF_INET     2
+#define AF_INET6    10
+
 enum {
     // file
     _SYS_OPEN = 2,
@@ -117,6 +124,22 @@ enum {
     _TCP_CONNECT_v6 = 402,
     _TCP_ACCEPT_v6 = 403,
 };
+
+#ifndef BTF_SUPPORTED
+struct mnt_namespace {
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+    atomic_t count;
+    #endif
+    struct ns_common ns;
+};
+
+struct mount {
+	struct hlist_node mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
+	struct vfsmount mnt;
+};
+#endif
 
 typedef struct __attribute__((__packed__)) sys_context {
     u64 ts;
@@ -198,25 +221,11 @@ static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
     return READ_KERN(pidns->ns.inum);
 }
 
-struct mnt_namespace {
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
-    atomic_t count;
-    #endif
-    struct ns_common ns;
-};
-
 static __always_inline u32 get_mnt_ns_id(struct nsproxy *ns)
 {
     struct mnt_namespace* mntns = READ_KERN(ns->mnt_ns);
     return READ_KERN(mntns->ns.inum);
 }
-
-struct mount {
-	struct hlist_node mnt_hash;
-	struct mount *mnt_parent;
-	struct dentry *mnt_mountpoint;
-	struct vfsmount mnt;
-};
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {

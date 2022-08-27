@@ -15,7 +15,11 @@ RUN go build -o syscheck main.go
 FROM alpine:3.15 as kubearmor-init
 
 RUN apk --no-cache update
-RUN apk --no-cache add bash git clang llvm make gcc
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" | tee -a /etc/apk/repositories
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
+
+RUN apk --no-cache update
+RUN apk --no-cache add bash git clang llvm make gcc bpftool@edge
 
 COPY ./GKE /KubeArmor/GKE/
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
