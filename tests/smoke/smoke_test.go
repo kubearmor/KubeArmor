@@ -101,7 +101,6 @@ var _ = Describe("Smoke", func() {
 		})
 
 		It("can block execution of access to sensitive file with rel path", func() {
-			Skip("Check https://github.com/kubearmor/KubeArmor/issues/750")
 			// Apply policy
 			err := K8sApply([]string{"res/ksp-wordpress-block-config.yaml"})
 			Expect(err).To(BeNil())
