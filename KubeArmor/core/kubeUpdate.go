@@ -1622,6 +1622,17 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		dm.EndPoints[i] = newPoint
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 	}
+
+	// backup/remove container policies
+	if !dm.K8sEnabled && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.Policy) {
+		if event.Type == "ADDED" || event.Type == "MODIFIED" {
+			// backup SecurityPolicy to file
+			dm.backupKubeArmorContainerPolicy(secPolicy)
+		} else if event.Type == "DELETED" {
+			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
+		}
+	}
+
 }
 
 // ================================= //
@@ -2074,6 +2085,30 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+			return
+		}
+	}
+
+	var file *os.File
+	var err error
+
+	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := json.Marshal(policy); err == nil {
+			if _, err = file.Write(policyBytes); err == nil {
+				if err := file.Close(); err != nil {
+					dm.Logger.Errf(err.Error())
+				}
+			}
+		}
+	}
+}
+
+// Back up KubeArmor container policies in /opt/kubearmor/policies
+func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPolicy) {
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {

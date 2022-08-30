@@ -54,5 +54,5 @@ func main() {
 
 	}*/
 
-	fmt.Printf("[Success] Syscall %s attahed\n", fn)
+	fmt.Printf("[Success] Syscall %s attached\n", fn)
 }
