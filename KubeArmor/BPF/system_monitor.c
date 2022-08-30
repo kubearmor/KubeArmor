@@ -32,9 +32,12 @@
 #include <linux/proc_ns.h>
 #include <linux/mount.h>
 #include <linux/binfmts.h>
-#include <linux/bpf.h>
+
 #include <linux/un.h>
 #include <net/inet_sock.h>
+
+#include <linux/bpf.h>
+#include <linux/version.h>
 #endif
 
 #include <bpf_helpers.h>
