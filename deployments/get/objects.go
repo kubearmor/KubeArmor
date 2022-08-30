@@ -1008,7 +1008,7 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 // To be removed in KubeArmor v0.7
 // GetAnnotationsControllerTLSSecret Functionn
 func GetAnnotationsControllerTLSSecret(namespace string, caCert string, tlsCrt string, tlsKey string) *corev1.Secret {
-	return GetKubeArmorControllerTLSSecret(namespace, caCert, tlsCrt, tlsCrt)
+	return GetKubeArmorControllerTLSSecret(namespace, caCert, tlsCrt, tlsKey)
 }
 
 // GetKubeArmorControllerTLSSecret Functionn
