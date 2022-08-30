@@ -33,20 +33,27 @@ endif
 syscall_test: tests/Makefile
 	$(Q)make -C tests KRNDIR="$(KRNDIR)"
 
+# below we use long chain of commands, clang | opt | llvm-dis | llc,
+# to generate final object file. 'clang' compiles the source into IR
+# with native target, e.g., x64, arm64, etc. 'opt' does bpf CORE IR builtin
+# processing (llvm12) and IR optimizations. 'llvm-dis' converts
+# 'opt' output to IR, and finally 'llc' generates bpf byte code.
+# Ref https://elixir.bootlin.com/linux/v5.19.5/source/samples/bpf/Makefile#L439
+
 system_monitor.bpf.o: $(SYSMONITOR) $(VMLINUX_H) syscall_test
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
 	@echo "Using Compiler flags: $(CFlags)"
-	$(Q)$(CL) $(KF) -DMONITOR_HOST_AND_CONTAINER $(CFlags) -c $< -o -| llc -march=bpf -mcpu=probe -filetype=obj -o $@
+	$(Q)$(CL) $(KF) -DMONITOR_HOST_AND_CONTAINER $(CFlags) -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
 system_monitor.container.bpf.o: $(SYSMONITOR) $(VMLINUX_H) syscall_test
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
 	@echo "Using Compiler flags: $(CFlags)"
-	$(Q)$(CL) $(KF) -DMONITOR_CONTAINER $(CFlags) -c $< -o -| llc -march=bpf -mcpu=probe -filetype=obj -o $@
+	$(Q)$(CL) $(KF) -DMONITOR_CONTAINER $(CFlags) -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
 system_monitor.host.bpf.o: $(SYSMONITOR) $(VMLINUX_H) syscall_test
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
 	@echo "Using Compiler flags: $(CFlags)"
-	$(Q)$(CL) $(KF) -DMONITOR_HOST $(CFlags) -c $< -o -| llc -march=bpf -mcpu=probe -filetype=obj -o $@
+	$(Q)$(CL) $(KF) -DMONITOR_HOST $(CFlags) -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
 .PHONY: clean
 clean:

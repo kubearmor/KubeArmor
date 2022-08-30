@@ -24,6 +24,7 @@
 #ifdef BTF_SUPPORTED
 #include "vmlinux.h"
 #include "vmlinux_macro.h"
+#include <bpf_core_read.h>
 #define __user
 #else
 #include <linux/nsproxy.h>
@@ -91,7 +92,6 @@
 #define ARG_TYPE5(type)        ENC_ARG_TYPE(5, type)
 #define DEC_ARG_TYPE(n, type)  ((type>>(8*n))&0xFF)
 #define PT_REGS_PARM6(x) ((x)->r9)
-#define GET_FIELD_ADDR(field) &field
 
 #define AF_UNIX     1
 #define AF_INET     2
@@ -192,6 +192,19 @@ BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
 BPF_HASH(pid_ns_map, u32, u32);
 
+#ifdef BTF_SUPPORTED
+#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
+
+#define READ_KERN(ptr)                                                                         \
+    ({                                                                                         \
+        typeof(ptr) _val;                                                                      \
+        __builtin_memset((void *) &_val, 0, sizeof(_val));                                     \
+        bpf_core_read((void *) &_val, sizeof(_val), &ptr);                                     \
+        _val;                                                                                  \
+    })
+#else
+#define GET_FIELD_ADDR(field) &field
+
 #define READ_KERN(ptr)                                                  \
     ({                                                                  \
         typeof(ptr) _val;                                               \
@@ -199,6 +212,7 @@ BPF_HASH(pid_ns_map, u32, u32);
         bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
         _val;                                                           \
     })
+#endif
 
 typedef struct args {
     unsigned long args[6];
