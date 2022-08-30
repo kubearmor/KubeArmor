@@ -58,3 +58,100 @@ Here, we demonstrate how to define host security policies.
     * Explanation: The purpose of this policy is to audit any accesses to a critical file (i.e., '/etc/passwd'). Since we want to audit one critical file, we use matchPaths to specify the path of '/etc/passwd'.
 
     * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run 'sudo cat /etc/passwd'. Then, check the alert logs of KubeArmor.
+
+* System calls alerting
+  * Alert for all `unlink` syscalls
+  ```text
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorHostPolicy
+  metadata:
+    name: audit-all-unlink
+  spec:
+    severity: 3
+    nodeSelector:
+          matchLabels:
+            kubernetes.io/hostname: vagrant
+    syscalls:
+      matchSyscalls:
+      - syscall:
+        - unlink
+    action:
+      Audit
+  ```
+
+<details>
+<summary>Generated telemetry</summary>
+
+```json
+{
+  "Timestamp": 1661937152,
+  "UpdatedTime": "2022-08-31T09:12:32.967304Z",
+  "ClusterName": "default",
+  "HostName": "vagrant",
+  "HostPPID": 8563,
+  "HostPID": 310459,
+  "PPID": 8563,
+  "PID": 310459,
+  "UID": 1000,
+  "ProcessName": "/usr/bin/unlink",
+  "PolicyName": "audit-all-unlink",
+  "Severity": "3",
+  "Type": "MatchedHostPolicy",
+  "Source": "/usr/bin/unlink /home/vagrant/secret.txt",
+  "Operation": "Syscall",
+  "Resource": "/home/vagrant/secret.txt",
+  "Data": "syscall=SYS_UNLINK",
+  "Action": "Audit",
+  "Result": "Passed"
+}
+```
+</details>
+
+  * Alert on all `rmdir` syscalls targeting anything in `/home/` directory and sub-directories
+  
+  ```text
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorHostPolicy
+  metadata:
+    name: audit-home-rmdir
+  spec:
+    severity: 3
+    nodeSelector:
+          matchLabels:
+            kubernetes.io/hostname: vagrant
+    syscalls:
+      matchPaths:
+      - syscall:
+        - rmdir
+        path: /home/
+        recursive: true
+    action:
+      Audit
+  ```
+
+<details>
+<summary>Generated telemetry</summary>
+
+```json
+{
+  "Timestamp": 1661936983,
+  "UpdatedTime": "2022-08-31T09:09:43.894787Z",
+  "ClusterName": "default",
+  "HostName": "vagrant",
+  "HostPPID": 308001,
+  "HostPID": 308002,
+  "PPID": 308001,
+  "PID": 308002,
+  "ProcessName": "/usr/bin/rmdir",
+  "PolicyName": "audit-home-rmdir",
+  "Severity": "3",
+  "Type": "MatchedHostPolicy",
+  "Source": "/usr/bin/rmdir jane-doe",
+  "Operation": "Syscall",
+  "Resource": "/home/jane-doe",
+  "Data": "syscall=SYS_RMDIR",
+  "Action": "Audit",
+  "Result": "Passed"
+}
+```
+</details>
