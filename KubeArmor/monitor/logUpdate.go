@@ -223,6 +223,69 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
 
+			case SysChown:
+				if len(msg.ContextArgs) != 3 {
+					continue
+				}
+				var fileName string
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					fileName = val
+				}
+				var uid int
+				if val, ok := msg.ContextArgs[1].(int32); ok {
+					uid = int(val)
+				}
+
+				var guid int
+				if val, ok := msg.ContextArgs[2].(int32); ok {
+					guid = int(val)
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid)
+
+			case SysFChownAt:
+				if len(msg.ContextArgs) != 5 {
+					continue
+				}
+				var fileName string
+				var uid int
+				var guid int
+				var mode int
+
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					fileName = val
+				}
+
+				if val, ok := msg.ContextArgs[2].(int32); ok {
+					uid = int(val)
+				}
+
+				if val, ok := msg.ContextArgs[3].(int32); ok {
+					guid = int(val)
+				}
+
+				if val, ok := msg.ContextArgs[4].(int32); ok {
+					mode = int(val)
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid) + " mode=" + strconv.Itoa(mode)
+
+			case SysSetuid, SysSetgid:
+				if len(msg.ContextArgs) != 1 {
+					continue
+				}
+
+				var uid int
+				if val, ok := msg.ContextArgs[0].(int32); ok {
+					uid = int(val)
+				}
+				log.Operation = "Syscall"
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid)
+
 			case SysClose:
 				if len(msg.ContextArgs) != 1 {
 					continue
@@ -401,7 +464,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			// push the generated log
 			if mon.Logger != nil {
 				go mon.Logger.PushLog(log)
-				if IsAuditedSyscall(msg.ContextSys.EventID) {
+				if isAuditedSyscall(msg.ContextSys.EventID) && log.Operation != "Syscall" {
 					log.Action = "Audit"
 					log.Operation = "Syscall"
 					go mon.Logger.PushLog(log)

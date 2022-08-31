@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package monitor is the component responsible for monitoring syscalls and communicating with eBPF Programs
 package monitor
 
 import (
@@ -38,6 +39,11 @@ const (
 	SysUnlink   = 87
 	SysUnlinkAt = 263
 	SysRmdir    = 84
+	SysChown    = 92
+	SysFChownAt = 260
+
+	SysSetuid = 105
+	SysSetgid = 106
 
 	SysSocket  = 41
 	SysConnect = 42
@@ -268,7 +274,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "chown", "setuid", "setgid", "fchownat"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink", "security_path_rmdir"}
@@ -339,7 +345,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.SyscallChannel = make(chan []byte, 8192)
 		mon.SyscallLostChannel = make(chan uint64)
 
-		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize() * 1024)
+		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
 			return fmt.Errorf("error initializing events perf map: %v", err)
 		}
@@ -479,6 +485,23 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 1 {
 					continue
 				}
+			} else if ctx.EventID == SysChown {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysFChownAt {
+				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysSetuid {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysSetgid {
+				if len(args) != 1 {
+					continue
+				}
+
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
