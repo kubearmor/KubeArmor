@@ -5,7 +5,12 @@
 #define KBUILD_MODNAME "kubearmor_syscall_check"
 #endif
 
+#ifdef BTF_SUPPORTED
+#include "vmlinux.h"
+#else
 #include <linux/bpf.h>
+#endif
+
 #include <bpf_helpers.h>
 
 // CFlag=-DSECURITY_PATH
