@@ -21,7 +21,7 @@ export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
 # install dependencies and llvm--toolchain
-sudo apt-get -y install build-essential libelf-dev pkg-config net-tools linux-headers-generic
+sudo apt-get -y install build-essential libelf-dev pkg-config net-tools linux-headers-$(uname -r) linux-tools-$(uname -r)
 wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
 if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; then
