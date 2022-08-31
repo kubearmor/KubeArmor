@@ -1,6 +1,7 @@
 // +build ignore
 
 #include "vmlinux.h"
+#include "vmlinux_macro.h"
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>

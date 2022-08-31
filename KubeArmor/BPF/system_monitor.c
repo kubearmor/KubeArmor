@@ -21,6 +21,12 @@
 #pragma clang diagnostic ignored "-Wunused-label"
 #endif
 
+#ifdef BTF_SUPPORTED
+#include "vmlinux.h"
+#include "vmlinux_macro.h"
+#include <bpf_core_read.h>
+#define __user
+#else
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
@@ -33,6 +39,7 @@
 
 #include <linux/bpf.h>
 #include <linux/version.h>
+#endif
 
 #include <bpf_helpers.h>
 #include <bpf_tracing.h>
@@ -85,7 +92,10 @@
 #define ARG_TYPE5(type)        ENC_ARG_TYPE(5, type)
 #define DEC_ARG_TYPE(n, type)  ((type>>(8*n))&0xFF)
 #define PT_REGS_PARM6(x) ((x)->r9)
-#define GET_FIELD_ADDR(field) &field
+
+#define AF_UNIX     1
+#define AF_INET     2
+#define AF_INET6    10
 
 enum {
     // file
@@ -95,6 +105,12 @@ enum {
     _SYS_UNLINK = 87,
     _SYS_UNLINKAT = 263,
     _SYS_RMDIR = 84,
+    _SYS_CHOWN = 92,
+    _SYS_FCHOWNAT = 260,
+
+    //user
+    _SYS_SETUID = 105,
+    _SYS_SETGID = 106,
 
     // network
     _SYS_SOCKET = 41,
@@ -117,6 +133,22 @@ enum {
     _TCP_CONNECT_v6 = 402,
     _TCP_ACCEPT_v6 = 403,
 };
+
+#ifndef BTF_SUPPORTED
+struct mnt_namespace {
+    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+    atomic_t count;
+    #endif
+    struct ns_common ns;
+};
+
+struct mount {
+	struct hlist_node mnt_hash;
+	struct mount *mnt_parent;
+	struct dentry *mnt_mountpoint;
+	struct vfsmount mnt;
+};
+#endif
 
 typedef struct __attribute__((__packed__)) sys_context {
     u64 ts;
@@ -166,6 +198,19 @@ BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
 BPF_HASH(pid_ns_map, u32, u32);
 
+#ifdef BTF_SUPPORTED
+#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
+
+#define READ_KERN(ptr)                                                                         \
+    ({                                                                                         \
+        typeof(ptr) _val;                                                                      \
+        __builtin_memset((void *) &_val, 0, sizeof(_val));                                     \
+        bpf_core_read((void *) &_val, sizeof(_val), &ptr);                                     \
+        _val;                                                                                  \
+    })
+#else
+#define GET_FIELD_ADDR(field) &field
+
 #define READ_KERN(ptr)                                                  \
     ({                                                                  \
         typeof(ptr) _val;                                               \
@@ -173,6 +218,7 @@ BPF_HASH(pid_ns_map, u32, u32);
         bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
         _val;                                                           \
     })
+#endif
 
 typedef struct args {
     unsigned long args[6];
@@ -198,25 +244,11 @@ static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
     return READ_KERN(pidns->ns.inum);
 }
 
-struct mnt_namespace {
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
-    atomic_t count;
-    #endif
-    struct ns_common ns;
-};
-
 static __always_inline u32 get_mnt_ns_id(struct nsproxy *ns)
 {
     struct mnt_namespace* mntns = READ_KERN(ns->mnt_ns);
     return READ_KERN(mntns->ns.inum);
 }
-
-struct mount {
-	struct hlist_node mnt_hash;
-	struct mount *mnt_parent;
-	struct dentry *mnt_mountpoint;
-	struct vfsmount mnt;
-};
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
@@ -1151,18 +1183,35 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     return 0;
 }
 
+#define DIR_PROC "/proc/"
 static __always_inline int isProcDir(char *path){
-    char procDir[] = "/proc/";
+    char procDir[] = DIR_PROC;
     int i = 0;
-    while (i<6 && path[i] != '\0' && path[i] == procDir[i] )
+    while (i<sizeof(DIR_PROC)-1 && path[i] != '\0' && path[i] == procDir[i] )
     {
         i++;
     }
 
-    if (i == 6 ){
+    if (i == sizeof(DIR_PROC)-1 ){
         return 0;
     }
 
+    return 1;
+}
+
+#define DIR_SYS "/sys/"
+static __always_inline int isSysDir(char *path){
+    char sysDir[] = DIR_SYS;
+    int i = 0;
+    while (i<sizeof(DIR_SYS)-1 && path[i] != '\0' && path[i] == sysDir[i] )
+    {
+        i++;
+    }
+
+    if (i == sizeof(DIR_SYS)-1 ){
+        return 0;
+    }
+    
     return 1;
 }
 
@@ -1177,7 +1226,7 @@ int kprobe__open(struct pt_regs *ctx)
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-    if(isProcDir(path) == 0){
+    if(isProcDir(path) == 0 || isSysDir(path) == 0){
         return 0;
     }
 
@@ -1201,7 +1250,7 @@ int kprobe__openat(struct pt_regs *ctx)
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-    if(isProcDir(path) == 0){
+   if(isProcDir(path) == 0 || isSysDir(path) == 0){
         return 0;
     }
 
@@ -1273,6 +1322,62 @@ SEC("kretprobe/__x64_sys_close")
 int kretprobe__close(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T));
+}
+
+SEC("kprobe/__x64_sys_chown")
+int kprobe__chown(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_CHOWN, ctx);
+}
+
+SEC("kretprobe/__x64_sys_chown")
+int kretprobe__chown(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_CHOWN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(INT_T)|ARG_TYPE2(INT_T));
+}
+
+SEC("kprobe/__x64_sys_fchownat")
+int kprobe__fchownat(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_FCHOWNAT, ctx);
+}
+
+SEC("kretprobe/__x64_sys_fchownat")
+int kretprobe__fchownat(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_FCHOWNAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(INT_T)|ARG_TYPE3(INT_T)|ARG_TYPE4(INT_T));
+}
+
+SEC("kprobe/__x64_sys_setuid")
+int kprobe__setuid(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_SETUID, ctx);
+}
+
+SEC("kretprobe/__x64_sys_setuid")
+int kretprobe__setuid(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_SETUID, ctx, ARG_TYPE0(INT_T));
+}
+
+SEC("kprobe/__x64_sys_setgid")
+int kprobe__setgid(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_SETGID, ctx);
+}
+
+SEC("kretprobe/__x64_sys_setgid")
+int kretprobe__setgid(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T));
 }
 
 struct tracepoint_syscalls_sys_exit_t {

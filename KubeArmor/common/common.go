@@ -430,3 +430,16 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 	// otherwise, return true
 	return matched
 }
+
+// WriteToFile writes given string to file as JSON
+func WriteToFile(val interface{}, destFile string) error {
+	j, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(destFile, j, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
+}

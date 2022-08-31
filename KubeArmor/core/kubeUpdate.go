@@ -452,6 +452,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// create a pod
 
 				pod := tp.K8sPod{}
+				appArmorAnnotationsCount := 0
+				containersCount := 0
 
 				// need this for apparmor profile
 				var podOwnerName string
@@ -598,6 +600,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
+							appArmorAnnotationsCount += 1
 						}
 					}
 
@@ -606,6 +609,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
 							updateAppArmor = true
 						}
+						containersCount += 1
 					}
 
 					if event.Type == "ADDED" {
@@ -613,7 +617,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
-							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+							if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
 								// patch the deployment with apparmor annotations
 								if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -633,7 +637,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 
 								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
-									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+									if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
 										// patch the deployment with apparmor annotations
 										if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -1137,6 +1141,64 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				}
 
+				if len(secPolicy.Spec.Syscalls.MatchSyscalls) > 0 {
+					for idx, syscall := range secPolicy.Spec.Syscalls.MatchSyscalls {
+						if syscall.Severity == 0 {
+							if secPolicy.Spec.Syscalls.Severity != 0 {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Syscalls.Severity
+							} else {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Severity
+							}
+						}
+
+						if len(syscall.Tags) == 0 {
+							if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Syscalls.Tags
+							} else {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Tags
+							}
+						}
+
+						if len(syscall.Message) == 0 {
+							if len(secPolicy.Spec.Syscalls.Message) > 0 {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Syscalls.Message
+							} else {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Message
+							}
+						}
+
+					}
+				}
+
+				if len(secPolicy.Spec.Syscalls.MatchPaths) > 0 {
+					for idx, syscall := range secPolicy.Spec.Syscalls.MatchPaths {
+						if syscall.Severity == 0 {
+							if secPolicy.Spec.Syscalls.Severity != 0 {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Syscalls.Severity
+							} else {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Severity
+							}
+						}
+
+						if len(syscall.Tags) == 0 {
+							if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Syscalls.Tags
+							} else {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Tags
+							}
+						}
+
+						if len(syscall.Message) == 0 {
+							if len(secPolicy.Spec.Syscalls.Message) > 0 {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Syscalls.Message
+							} else {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Message
+							}
+						}
+
+					}
+				}
+
 				// update a security policy into the policy list
 
 				dm.SecurityPoliciesLock.Lock()
@@ -1183,7 +1245,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 // == Container Security Policy Update == //
 // ====================================== //
 
-//ParseAndUpdateContainerSecurityPolicy Function
+// ParseAndUpdateContainerSecurityPolicy Function
 func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKubeArmorPolicyEvent) {
 	// create a container security policy
 	secPolicy := tp.SecurityPolicy{}
@@ -1622,6 +1684,17 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		dm.EndPoints[i] = newPoint
 		dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
 	}
+
+	// backup/remove container policies
+	if !dm.K8sEnabled && (cfg.GlobalCfg.KVMAgent || cfg.GlobalCfg.Policy) {
+		if event.Type == "ADDED" || event.Type == "MODIFIED" {
+			// backup SecurityPolicy to file
+			dm.backupKubeArmorContainerPolicy(secPolicy)
+		} else if event.Type == "DELETED" {
+			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
+		}
+	}
+
 }
 
 // ================================= //
@@ -1984,6 +2057,64 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		}
 	}
 
+	if len(secPolicy.Spec.Syscalls.MatchSyscalls) > 0 {
+		for idx, syscall := range secPolicy.Spec.Syscalls.MatchSyscalls {
+			if syscall.Severity == 0 {
+				if secPolicy.Spec.Syscalls.Severity != 0 {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Syscalls.Severity
+				} else {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(syscall.Tags) == 0 {
+				if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Syscalls.Tags
+				} else {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(syscall.Message) == 0 {
+				if len(secPolicy.Spec.Syscalls.Message) > 0 {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Syscalls.Message
+				} else {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+		}
+	}
+
+	if len(secPolicy.Spec.Syscalls.MatchPaths) > 0 {
+		for idx, syscall := range secPolicy.Spec.Syscalls.MatchPaths {
+			if syscall.Severity == 0 {
+				if secPolicy.Spec.Syscalls.Severity != 0 {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Syscalls.Severity
+				} else {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(syscall.Tags) == 0 {
+				if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Syscalls.Tags
+				} else {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(syscall.Message) == 0 {
+				if len(secPolicy.Spec.Syscalls.Message) > 0 {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Syscalls.Message
+				} else {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+		}
+	}
+
 	// update a security policy into the policy list
 
 	dm.HostSecurityPoliciesLock.Lock()
@@ -2074,6 +2205,30 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
+	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
+	if _, err := os.Stat(cfg.PolicyDir); err != nil {
+		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+			return
+		}
+	}
+
+	var file *os.File
+	var err error
+
+	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := json.Marshal(policy); err == nil {
+			if _, err = file.Write(policyBytes); err == nil {
+				if err := file.Close(); err != nil {
+					dm.Logger.Errf(err.Error())
+				}
+			}
+		}
+	}
+}
+
+// Back up KubeArmor container policies in /opt/kubearmor/policies
+func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPolicy) {
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {

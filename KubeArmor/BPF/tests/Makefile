@@ -5,6 +5,7 @@
 include ../Makefile.vars
 
 LIBBPF = $(CURDIR)/../libbpf
+VMLINUX = $(CURDIR)/../
 
 Cfiles =  $(wildcard checks/*.c)
 files = $(Cfiles:.c=)

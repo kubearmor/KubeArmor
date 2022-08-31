@@ -631,12 +631,12 @@ func KubeArmor() {
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
 
 	// == //
-
+	go dm.SetKarmorData()
 	dm.Logger.Print("Initialized KubeArmor")
 
 	// == //
 
-	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
+	if cfg.GlobalCfg.KVMAgent || !dm.K8sEnabled {
 		// Restore and apply all kubearmor host security policies
 		dm.restoreKubeArmorHostPolicies()
 	}

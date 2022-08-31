@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: audit-unlink-fromsource-path
+  namespace: syscalls
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  syscalls:
+    matchSyscalls:
+    - syscall:
+      - unlink
+      fromSource:
+        - path: /unlink
+  action:
+    Audit
