@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: audit-unlink-local-information
+  namespace: syscalls
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  syscalls:
+    matchPaths:
+    - syscall:
+      - unlink
+      path: /home/
+      recursive: true
+    severity: 8
+    message: "Local message"
+    tags:
+      - "Local tag"
+  action:
+    Audit

@@ -215,6 +215,22 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		} else {
 			match.Action = cct.Action
 		}
+	} else if smt, ok := mp.(tp.SyscallMatchType); ok {
+		match.Severity = strconv.Itoa(smt.Severity)
+		match.Tags = smt.Tags
+		match.Message = smt.Message
+		match.Operation = "Syscall"
+		match.ResourceType = strings.ToUpper(smt.Syscalls[0])
+		match.Action = "Audit"
+	} else if smpt, ok := mp.(tp.SyscallMatchPathType); ok {
+		match.Severity = strconv.Itoa(smpt.Severity)
+		match.Tags = smpt.Tags
+		match.Message = smpt.Message
+		match.Action = "Audit"
+		match.Operation = "Syscall"
+		match.Resource = smpt.Path
+		match.ResourceType = strings.ToUpper(smpt.Syscalls[0])
+
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -438,6 +454,104 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
+		}
+
+		// MatchSyscalls
+		for _, syscallRule := range secPolicy.Spec.Syscalls.MatchSyscalls {
+			if len(syscallRule.Syscalls) == 0 {
+				continue
+			}
+			fromSource := ""
+			syscall := tp.SyscallMatchType{
+				Tags:     syscallRule.Tags,
+				Message:  syscallRule.Message,
+				Severity: syscallRule.Severity,
+			}
+			if len(syscallRule.FromSource) == 0 {
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 {
+						continue
+					}
+					matches.Policies = append(matches.Policies, match)
+				}
+				continue
+			}
+
+			for _, src := range syscallRule.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Dir) > 0 {
+					fromSource = src.Dir
+					if !strings.HasSuffix(fromSource, "/") {
+						fromSource += "/"
+					}
+				} else {
+					continue
+				}
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 {
+						continue
+					}
+					match.IsFromSource = len(fromSource) > 0
+					match.Recursive = len(src.Path) == 0 && src.Recursive
+					matches.Policies = append(matches.Policies, match)
+				}
+
+			}
+		}
+		// SyscallsMatchPath
+		for _, syscallRule := range secPolicy.Spec.Syscalls.MatchPaths {
+			if len(syscallRule.Path) == 0 || len(syscallRule.Syscalls) == 0 {
+				continue
+			}
+			fromSource := ""
+			syscall := tp.SyscallMatchPathType{
+				Tags:     syscallRule.Tags,
+				Message:  syscallRule.Message,
+				Severity: syscallRule.Severity,
+				Path:     syscallRule.Path,
+			}
+			if len(syscallRule.FromSource) == 0 {
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 && len(match.Resource) == 0 {
+						continue
+					}
+					match.ReadOnly = syscallRule.Recursive
+					matches.Policies = append(matches.Policies, match)
+				}
+				continue
+			}
+
+			for _, src := range syscallRule.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Dir) > 0 {
+					fromSource = src.Dir
+					if !strings.HasSuffix(fromSource, "/") {
+						fromSource += "/"
+					}
+				} else {
+					continue
+				}
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(endPoint.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 && len(match.Resource) == 0 {
+						continue
+					}
+					match.IsFromSource = len(fromSource) > 0
+					match.Recursive = len(src.Path) == 0 && src.Recursive
+					match.ReadOnly = syscallRule.Recursive
+					matches.Policies = append(matches.Policies, match)
+				}
+			}
+
 		}
 	}
 
@@ -663,6 +777,102 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 				match.IsFromSource = len(fromSource) > 0
 				matches.Policies = append(matches.Policies, match)
 			}
+		}
+
+		// MatchSyscalls
+		for _, syscallRule := range secPolicy.Spec.Syscalls.MatchSyscalls {
+			if len(syscallRule.Syscalls) == 0 {
+				continue
+			}
+			fromSource := ""
+			syscall := tp.SyscallMatchType{
+				Tags:     syscallRule.Tags,
+				Message:  syscallRule.Message,
+				Severity: syscallRule.Severity,
+			}
+			if len(syscallRule.FromSource) == 0 {
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 {
+						continue
+					}
+					matches.Policies = append(matches.Policies, match)
+				}
+				continue
+			}
+
+			for _, src := range syscallRule.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Dir) > 0 {
+					fromSource = src.Dir
+					if !strings.HasSuffix(fromSource, "/") {
+						fromSource += "/"
+					}
+				} else {
+					continue
+				}
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 {
+						continue
+					}
+					match.IsFromSource = len(fromSource) > 0
+					match.Recursive = len(src.Path) == 0 && src.Recursive
+					matches.Policies = append(matches.Policies, match)
+				}
+
+			}
+		}
+		// SyscallsMatchPath
+		for _, syscallRule := range secPolicy.Spec.Syscalls.MatchPaths {
+			if len(syscallRule.Path) == 0 || len(syscallRule.Syscalls) == 0 {
+				continue
+			}
+			fromSource := ""
+			syscall := tp.SyscallMatchPathType{
+				Tags:     syscallRule.Tags,
+				Message:  syscallRule.Message,
+				Severity: syscallRule.Severity,
+			}
+			if len(syscallRule.FromSource) == 0 {
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 && len(match.Resource) == 0 {
+						continue
+					}
+					matches.Policies = append(matches.Policies, match)
+					match.Source = syscallRule.Path
+				}
+				continue
+			}
+
+			for _, src := range syscallRule.FromSource {
+				if len(src.Path) > 0 {
+					fromSource = src.Path
+				} else if len(src.Dir) > 0 {
+					fromSource = src.Dir
+					if !strings.HasSuffix(fromSource, "/") {
+						fromSource += "/"
+					}
+				} else {
+					continue
+				}
+				for _, syscallName := range syscallRule.Syscalls {
+					syscall.Syscalls = []string{syscallName}
+					match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, syscall)
+					if len(match.ResourceType) == 0 && len(match.Resource) == 0 {
+						continue
+					}
+					match.IsFromSource = len(fromSource) > 0
+					match.Recursive = len(src.Path) == 0 && src.Recursive
+					matches.Policies = append(matches.Policies, match)
+				}
+			}
+
 		}
 	}
 
@@ -1144,6 +1354,46 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 				}
+			case "Syscall":
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+				//Get syscall
+				syscallName := strings.Split(strings.Split(log.Data, " ")[0], "SYS_")[1]
+				//Get syscall Source
+				syscallSource := strings.Split(log.Source, " ")[0]
+				matchedRule := false
+				if syscallName == secPolicy.ResourceType {
+					matchPath := false
+					fromSource := false
+					if secPolicy.IsFromSource &&
+						(((strings.HasPrefix(syscallSource, secPolicy.Source) && secPolicy.Source[len(secPolicy.Source)-1] == '/') && // match dir
+							(secPolicy.Recursive || !strings.Contains(syscallSource[len(secPolicy.Source):], "/"))) || // handle recursive dir
+							secPolicy.Source == syscallSource) { // match file
+						fromSource = true
+					}
+
+					if len(secPolicy.Resource) > 0 &&
+						((secPolicy.Resource[len(secPolicy.Resource)-1] == '/' && ((strings.HasPrefix(log.Resource, secPolicy.Resource) && secPolicy.ReadOnly) || secPolicy.Resource[:len(secPolicy.Resource)-1] == log.Resource)) || //match dir
+							secPolicy.Resource == log.Resource) { // match path
+						matchPath = true
+					}
+					matchedRule = (len(secPolicy.Resource) == 0 || matchPath) && (!secPolicy.IsFromSource || fromSource)
+
+					if matchedRule {
+						log.Type = "MatchedPolicy"
+						log.PolicyName = secPolicy.PolicyName
+						log.Severity = secPolicy.Severity
+						if len(secPolicy.Tags) > 0 {
+							log.Tags = strings.Join(secPolicy.Tags[:], ",")
+						}
+
+						if len(secPolicy.Message) > 0 {
+							log.Message = secPolicy.Message
+						}
+					}
+				}
+
 			}
 		}
 
@@ -1197,6 +1447,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			} else if log.Operation == "Capabilities" {
 				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
+					return log
+				}
+			} else if log.Operation == "Syscall" {
+				if setLogFields(&log, false, "", true, true) {
 					return log
 				}
 			}

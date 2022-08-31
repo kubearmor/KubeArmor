@@ -1137,6 +1137,64 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					}
 				}
 
+				if len(secPolicy.Spec.Syscalls.MatchSyscalls) > 0 {
+					for idx, syscall := range secPolicy.Spec.Syscalls.MatchSyscalls {
+						if syscall.Severity == 0 {
+							if secPolicy.Spec.Syscalls.Severity != 0 {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Syscalls.Severity
+							} else {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Severity
+							}
+						}
+
+						if len(syscall.Tags) == 0 {
+							if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Syscalls.Tags
+							} else {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Tags
+							}
+						}
+
+						if len(syscall.Message) == 0 {
+							if len(secPolicy.Spec.Syscalls.Message) > 0 {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Syscalls.Message
+							} else {
+								secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Message
+							}
+						}
+
+					}
+				}
+
+				if len(secPolicy.Spec.Syscalls.MatchPaths) > 0 {
+					for idx, syscall := range secPolicy.Spec.Syscalls.MatchPaths {
+						if syscall.Severity == 0 {
+							if secPolicy.Spec.Syscalls.Severity != 0 {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Syscalls.Severity
+							} else {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Severity
+							}
+						}
+
+						if len(syscall.Tags) == 0 {
+							if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Syscalls.Tags
+							} else {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Tags
+							}
+						}
+
+						if len(syscall.Message) == 0 {
+							if len(secPolicy.Spec.Syscalls.Message) > 0 {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Syscalls.Message
+							} else {
+								secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Message
+							}
+						}
+
+					}
+				}
+
 				// update a security policy into the policy list
 
 				dm.SecurityPoliciesLock.Lock()
@@ -1183,7 +1241,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 // == Container Security Policy Update == //
 // ====================================== //
 
-//ParseAndUpdateContainerSecurityPolicy Function
+// ParseAndUpdateContainerSecurityPolicy Function
 func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKubeArmorPolicyEvent) {
 	// create a container security policy
 	secPolicy := tp.SecurityPolicy{}
@@ -1992,6 +2050,64 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 					secPolicy.Spec.Capabilities.MatchCapabilities[idx].Action = secPolicy.Spec.Action
 				}
 			}
+		}
+	}
+
+	if len(secPolicy.Spec.Syscalls.MatchSyscalls) > 0 {
+		for idx, syscall := range secPolicy.Spec.Syscalls.MatchSyscalls {
+			if syscall.Severity == 0 {
+				if secPolicy.Spec.Syscalls.Severity != 0 {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Syscalls.Severity
+				} else {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(syscall.Tags) == 0 {
+				if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Syscalls.Tags
+				} else {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(syscall.Message) == 0 {
+				if len(secPolicy.Spec.Syscalls.Message) > 0 {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Syscalls.Message
+				} else {
+					secPolicy.Spec.Syscalls.MatchSyscalls[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+		}
+	}
+
+	if len(secPolicy.Spec.Syscalls.MatchPaths) > 0 {
+		for idx, syscall := range secPolicy.Spec.Syscalls.MatchPaths {
+			if syscall.Severity == 0 {
+				if secPolicy.Spec.Syscalls.Severity != 0 {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Syscalls.Severity
+				} else {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(syscall.Tags) == 0 {
+				if len(secPolicy.Spec.Syscalls.Tags) > 0 {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Syscalls.Tags
+				} else {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(syscall.Message) == 0 {
+				if len(secPolicy.Spec.Syscalls.Message) > 0 {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Syscalls.Message
+				} else {
+					secPolicy.Spec.Syscalls.MatchPaths[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
 		}
 	}
 

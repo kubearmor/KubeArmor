@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package types is an extension of the CRD types.
 package types
 
 import (
@@ -424,6 +425,45 @@ type CapabilitiesType struct {
 	Action   string   `json:"action,omitempty"`
 }
 
+// SyscallFromSourceType Structure
+type SyscallFromSourceType struct {
+	Path      string `json:"path,omitempty"`
+	Dir       string `json:"dir,omitempty"`
+	Recursive bool   `json:"recursive,omitempty"`
+}
+
+// SyscallMatchType Structure
+type SyscallMatchType struct {
+	Syscalls   []string                `json:"syscall,omitempty"`
+	FromSource []SyscallFromSourceType `json:"fromSource,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+}
+
+// SyscallMatchPathType Structure
+type SyscallMatchPathType struct {
+	Path       string                  `json:"path,omitempty"`
+	Recursive  bool                    `json:"recursive,omitempty"`
+	Syscalls   []string                `json:"syscall,omitempty"`
+	FromSource []SyscallFromSourceType `json:"fromSource,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+}
+
+// SyscallsType Structure
+type SyscallsType struct {
+	MatchSyscalls []SyscallMatchType     `json:"matchSyscalls,omitempty"`
+	MatchPaths    []SyscallMatchPathType `json:"matchPaths,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+}
+
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Selector SelectorType `json:"selector"`
@@ -432,6 +472,7 @@ type SecuritySpec struct {
 	File         FileType         `json:"file,omitempty"`
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
+	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 
@@ -465,6 +506,7 @@ type HostSecuritySpec struct {
 	File         FileType         `json:"file,omitempty"`
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
+	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 

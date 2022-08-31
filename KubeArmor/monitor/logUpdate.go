@@ -401,6 +401,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 			// push the generated log
 			if mon.Logger != nil {
 				go mon.Logger.PushLog(log)
+				if IsAuditedSyscall(msg.ContextSys.EventID) {
+					log.Action = "Audit"
+					log.Operation = "Syscall"
+					go mon.Logger.PushLog(log)
+				}
 			}
 		}
 	}
