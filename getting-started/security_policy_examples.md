@@ -261,4 +261,115 @@ Here, we demonstrate how to define security policies using our example microserv
     * Explanation: We want to block any network operations using raw sockets from the containers with the 'ubuntu-1' label, meaning that containers cannot send non-TCP/UDP packets \(e.g., ICMP echo request or reply\) to other containers. To achieve this, we use matchCapabilities and specify the 'CAP\_NET\_RAW' capability to block raw socket creations inside the containers. Here, since we use the stream and datagram sockets to TCP and UDP packets respectively, we can still send those packets to others.
 
     * Verification: After applying this policy, please get into the container with the 'ubuntu-1' label and run 'curl https://kubernetes.io/'. This will work fine. Then, run 'ping 8.8.8.8'. You will see 'Operation not permitted' since the 'ping' command internally requires a raw socket to send ICMP packets.
- 
+
+* System calls alerting
+  * Alert for all `unlink` syscalls
+  ```text
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorPolicy
+  metadata:
+    name: audit-all-unlink
+    namespace: default
+  spec:
+    severity: 3
+    selector:
+      matchLabels:
+        container: ubuntu-1
+    syscalls:
+      matchSyscalls:
+      - syscall:
+        - unlink
+    action:
+      Audit
+  ```
+
+
+<details>
+<summary>Generated telemetry</summary>
+
+```json
+{
+  "Timestamp": 1661936135,
+  "UpdatedTime": "2022-08-31T08:55:35.368285Z",
+  "ClusterName": "default",
+  "HostName": "vagrant",
+  "NamespaceName": "default",
+  "PodName": "ubuntu-1-6779f689b5-jjcvh",
+  "Labels": "container=ubuntu-1",
+  "ContainerID": "1f613df8390b9d2e4e89d0323ac0b9a2e7d7ddcc460720e15074f8c497aec0df",
+  "ContainerName": "nginx",
+  "ContainerImage": "nginx:latest@sha256:b95a99feebf7797479e0c5eb5ec0bdfa5d9f504bc94da550c2f58e839ea6914f",
+  "HostPPID": 255296,
+  "HostPID": 296264,
+  "PPID": 47,
+  "PID": 65,
+  "ParentProcessName": "/bin/bash",
+  "ProcessName": "/usr/bin/unlink",
+  "PolicyName": "audit-all-unlink",
+  "Severity": "3",
+  "Type": "MatchedPolicy",
+  "Source": "/usr/bin/unlink home/secret.txt",
+  "Operation": "Syscall",
+  "Resource": "/home/secret.txt",
+  "Data": "syscall=SYS_UNLINK",
+  "Action": "Audit",
+  "Result": "Passed"
+}
+```
+</details>
+
+  * Alert on all `rmdir` syscalls targeting anything in `/home/` directory and sub-directories
+  
+  ```text
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorPolicy
+  metadata:
+    name: audit-home-rmdir
+    namespace: default
+  spec:
+    selector:
+      matchLabels:
+        container: ubuntu-1
+    syscalls:
+      matchPaths:
+      - syscall:
+        - rmdir
+        path: /home/
+        recursive: true
+    action:
+      Audit
+  ```
+
+<details>
+<summary>Generated telemetry</summary>
+
+```json
+{
+  "Timestamp": 1661936575,
+  "UpdatedTime": "2022-08-31T09:02:55.841537Z",
+  "ClusterName": "default",
+  "HostName": "vagrant",
+  "NamespaceName": "default",
+  "PodName": "ubuntu-1-6779f689b5-jjcvh",
+  "Labels": "container=ubuntu-1",
+  "ContainerID": "1f613df8390b9d2e4e89d0323ac0b9a2e7d7ddcc460720e15074f8c497aec0df",
+  "ContainerName": "nginx",
+  "ContainerImage": "nginx:latest@sha256:b95a99feebf7797479e0c5eb5ec0bdfa5d9f504bc94da550c2f58e839ea6914f",
+  "HostPPID": 255296,
+  "HostPID": 302715,
+  "PPID": 47,
+  "PID": 67,
+  "ParentProcessName": "/bin/bash",
+  "ProcessName": "/bin/rmdir",
+  "PolicyName": "audit-home-rmdir",
+  "Severity": "1",
+  "Type": "MatchedPolicy",
+  "Source": "/bin/rmdir home/jane-doe/",
+  "Operation": "Syscall",
+  "Resource": "/home/jane-doe",
+  "Data": "syscall=SYS_RMDIR",
+  "Action": "Audit",
+  "Result": "Passed"
+}
+```
+</details>
