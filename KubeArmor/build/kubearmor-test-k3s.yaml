@@ -48,7 +48,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
       - name: init
-        image: kubearmor/kubearmor-init
+        image: kubearmor/kubearmor-init:latest
         imagePullPolicy: Never
         securityContext:
           privileged: true
