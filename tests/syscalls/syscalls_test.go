@@ -27,6 +27,8 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	KubearmorPortForwardStop()
+	err := K8sDelete([]string{"manifests/ubuntu-deployment.yaml"})
+	Expect(err).To(BeNil())
 })
 
 func getUbuntuPod(name string, ant string) string {
