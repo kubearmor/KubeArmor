@@ -399,7 +399,7 @@ func GetCRISocket(ContainerRuntime string) string {
 // GetControllingPodOwner Function returns the pod's Controlling OnwerReference
 func GetControllingPodOwner(ownerRefs []metav1.OwnerReference) *metav1.OwnerReference {
 	for _, ownerRef := range ownerRefs {
-		if *ownerRef.Controller {
+		if ownerRef.Controller != nil && *ownerRef.Controller {
 			return &ownerRef
 		}
 	}
