@@ -430,7 +430,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/lib/modules",
-					Type: &hostPathDirectory,
+					Type: &hostPathDirectoryOrCreate,
 				},
 			},
 		},
