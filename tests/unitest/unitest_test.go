@@ -4,7 +4,7 @@
 package unitest
 
 import (
-        "fmt"
+        //"fmt"
         "time"
 
         . "github.com/kubearmor/karts/util"
@@ -17,6 +17,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(BeNil())
 	err = K8sApply([]string{"res/nginx.yaml"})
 	Expect(err).To(BeNil())
+	time.Sleep(60*time.Second)
 	KspDeleteAll()
 })
 
@@ -56,9 +57,8 @@ var _ = Describe("Unitest", func() {
 		Expect(err).To(BeNil())
 		err = KarmorLogStart("system", "ubuntu-pods", "File", ub)
 		Expect(err).To(BeNil())
-		sout, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"rm","test.tmp"})
+		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rm","test.tmp"})
 		Expect(err).To(BeNil())
-		fmt.Printf("---START---\n%s---END---\n", sout)
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
 		Expect(logs[len(logs)-1].Source).To(Equal("/bin/rm test.tmp"))
 		Expect(logs[len(logs)-1].Data).To(MatchRegexp("syscall=SYS_UNLINKAT*"))
@@ -69,9 +69,8 @@ var _ = Describe("Unitest", func() {
 		Expect(err).To(BeNil())
 		err = KarmorLogStart("system", "ubuntu-pods", "File", ub)
 		Expect(err).To(BeNil())
-		sout, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"rm","-rf","testtmp"})
+		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rm","-rf","testtmp"})
 		Expect(err).To(BeNil())
-		fmt.Printf("---START---\n%s---END---\n", sout)
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
 		Expect(logs[len(logs)-1].Source).To(Equal("/bin/rm -rf testtmp"))
 		Expect(logs[len(logs)-1].Data).To(MatchRegexp("syscall=SYS_UNLINKAT*")) 
@@ -80,9 +79,8 @@ var _ = Describe("Unitest", func() {
 	It("Checks for TCP_CONNECT in logs for curl", func() {
 		err := KarmorLogStart("system", "ubuntu-pods", "Network", ub)
 		Expect(err).To(BeNil())
-		sout, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
+		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
 		Expect(err).To(BeNil())
-		fmt.Printf("---START---\n%s---END---\n", sout)
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
 		Expect(logs[len(logs)-1].Data).To(MatchRegexp("kprobe=tcp_connect*"))
 	})
@@ -90,9 +88,8 @@ var _ = Describe("Unitest", func() {
 	It("Checks for TCP_ACCEPT in logs for curl", func() {
 		err := KarmorLogStart("system", "nginx-pods", "Network", ng)
 		Expect(err).To(BeNil())
-		sout, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
+		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
 		Expect(err).To(BeNil())
-		fmt.Printf("---START---\n%s---END---\n", sout)
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
 		Expect(logs[len(logs)-1].Data).To(MatchRegexp("kprobe=tcp_accept*"))
         })
