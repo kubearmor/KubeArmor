@@ -6,6 +6,7 @@ package unitest
 import (
         //"fmt"
         "time"
+	"regexp"
 
         . "github.com/kubearmor/karts/util"
         . "github.com/onsi/ginkgo/v2"
@@ -60,8 +61,14 @@ var _ = Describe("Unitest", func() {
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rm","test.tmp"})
 		Expect(err).To(BeNil())
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
-		Expect(logs[len(logs)-1].Source).To(Equal("/bin/rm test.tmp"))
-		Expect(logs[len(logs)-1].Data).To(MatchRegexp("syscall=SYS_UNLINKAT*"))
+		match := false
+		for _, log := range logs {
+			match, _ = regexp.MatchString("syscall=SYS_UNLINKAT*",log.Data)
+			if match {
+				break
+			}
+		}
+		Expect(match).To(Equal(true))
         })
 
 	It("Checks for UNLINKAT syscall in logs for rm -rf", func() {
@@ -72,8 +79,14 @@ var _ = Describe("Unitest", func() {
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rm","-rf","testtmp"})
 		Expect(err).To(BeNil())
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
-		Expect(logs[len(logs)-1].Source).To(Equal("/bin/rm -rf testtmp"))
-		Expect(logs[len(logs)-1].Data).To(MatchRegexp("syscall=SYS_UNLINKAT*")) 
+		match := false
+                for _, log := range logs {
+                        match, _ = regexp.MatchString("syscall=SYS_UNLINKAT*",log.Data)
+                        if match {
+                                break
+                        }       
+                }
+                Expect(match).To(Equal(true))
         })
 	
 	It("Checks for TCP_CONNECT in logs for curl", func() {
@@ -82,7 +95,14 @@ var _ = Describe("Unitest", func() {
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
 		Expect(err).To(BeNil())
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
-		Expect(logs[len(logs)-1].Data).To(MatchRegexp("kprobe=tcp_connect*"))
+		match := false
+                for _, log := range logs {
+                        match, _ = regexp.MatchString("kprobe=tcp_connect*",log.Data)
+                        if match {
+                                break
+                        }       
+                }
+                Expect(match).To(Equal(true))
 	})
 
 	It("Checks for TCP_ACCEPT in logs for curl", func() {
@@ -91,8 +111,14 @@ var _ = Describe("Unitest", func() {
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
 		Expect(err).To(BeNil())
 		logs, _, err := KarmorGetLogs(5*time.Second, 5)
-		Expect(logs[len(logs)-1].Data).To(MatchRegexp("kprobe=tcp_accept*"))
+		match := false
+		for _, log := range logs {
+                        match, _ = regexp.MatchString("kprobe=tcp_accept*",log.Data)  
+                        if match {
+                                break
+                        }       
+                }
+                Expect(match).To(Equal(true))
         })
-
 
 })
