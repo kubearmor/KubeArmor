@@ -1283,7 +1283,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	containername := ""
 	for k, v := range secPolicy.Spec.Selector.MatchLabels {
 		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-		containername = v // TODO: fix identity behavior
+		if k == "kubearmor.io/container.name" {
+			containername = v
+		} else {
+			dm.Logger.Warnf("Fail to apply policy. The MatchLabels container name key should be `kubearmor.io/container.name` ")
+			return
+		}
 	}
 
 	sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
