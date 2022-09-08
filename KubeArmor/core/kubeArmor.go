@@ -609,22 +609,22 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor host security policies")
 	}
 
-	policyService := &policy.ServiceServer{}
-
-	if enableContainerPolicy {
-		policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
-		dm.Logger.Print("Started to monitor container security policies on gRPC")
-	}
-
-	if !cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy {
-		policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
-		dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
+	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy) {
+		policyService := &policy.ServiceServer{}
+		if enableContainerPolicy {
+			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
+			dm.Logger.Print("Started to monitor container security policies on gRPC")
+		}
+		if cfg.GlobalCfg.HostPolicy {
+			policyService.UpdateHostPolicy = dm.ParseAndUpdateHostSecurityPolicy
+			dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
+			dm.Logger.Print("Started to monitor host security policies on gRPC")
+		}
 
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
-		reflection.Register(dm.Logger.LogServer)
-
-		dm.Logger.Print("Started to monitor host security policies on gRPC")
 	}
+
+	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
 
 	// serve log feeds
 	go dm.ServeLogFeeds()
