@@ -4,7 +4,6 @@
 package unitest
 
 import (
-        //"fmt"
         "time"
 	"regexp"
 
@@ -18,7 +17,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(BeNil())
 	err = K8sApply([]string{"res/nginx.yaml"})
 	Expect(err).To(BeNil())
-	time.Sleep(60*time.Second)
+	time.Sleep(180*time.Second)
 	KspDeleteAll()
 })
 
@@ -53,6 +52,42 @@ var _ = Describe("Unitest", func() {
 		KspDeleteAll()
 	})
 
+	It("Checks for RMDIR syscall in logs for rmdir", func() {
+                _, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"mkdir","test"})
+                Expect(err).To(BeNil())
+                err = KarmorLogStart("system", "ubuntu-pods", "File", ub)
+                Expect(err).To(BeNil())
+                _, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rmdir","test"})
+                Expect(err).To(BeNil())
+                logs, _, err := KarmorGetLogs(5*time.Second, 50)
+                match := false
+                for _, log := range logs {
+                        match, _ = regexp.MatchString("syscall=SYS_RMDIR*",log.Data)
+                        if match {
+                                break
+                        }
+                }
+                Expect(match).To(Equal(true))
+        })
+
+	It("Checks for UNLINK syscall in logs for unlink", func() {
+                _, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"touch","test.txt"})
+                Expect(err).To(BeNil())
+                err = KarmorLogStart("system", "ubuntu-pods", "File", ub)
+                Expect(err).To(BeNil())
+                _, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"unlink","test.txt"})
+                Expect(err).To(BeNil())
+                logs, _, err := KarmorGetLogs(5*time.Second, 50)
+                match := false
+                for _, log := range logs {
+                        match, _ = regexp.MatchString("syscall=SYS_UNLINK*",log.Data)
+                        if match {
+                                break
+                        }
+                }
+                Expect(match).To(Equal(true))
+        })
+
 	It("Checks for UNLINKAT syscall in logs for rm", func() {
 		_, _, err := K8sExecInPod(ub, "ubuntu-pods", []string{"touch","test.tmp"})
 		Expect(err).To(BeNil())
@@ -60,7 +95,7 @@ var _ = Describe("Unitest", func() {
 		Expect(err).To(BeNil())
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rm","test.tmp"})
 		Expect(err).To(BeNil())
-		logs, _, err := KarmorGetLogs(5*time.Second, 5)
+		logs, _, err := KarmorGetLogs(5*time.Second, 50)
 		match := false
 		for _, log := range logs {
 			match, _ = regexp.MatchString("syscall=SYS_UNLINKAT*",log.Data)
@@ -78,7 +113,7 @@ var _ = Describe("Unitest", func() {
 		Expect(err).To(BeNil())
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"rm","-rf","testtmp"})
 		Expect(err).To(BeNil())
-		logs, _, err := KarmorGetLogs(5*time.Second, 5)
+		logs, _, err := KarmorGetLogs(5*time.Second, 50)
 		match := false
                 for _, log := range logs {
                         match, _ = regexp.MatchString("syscall=SYS_UNLINKAT*",log.Data)
@@ -94,7 +129,7 @@ var _ = Describe("Unitest", func() {
 		Expect(err).To(BeNil())
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
 		Expect(err).To(BeNil())
-		logs, _, err := KarmorGetLogs(5*time.Second, 5)
+		logs, _, err := KarmorGetLogs(5*time.Second, 50)
 		match := false
                 for _, log := range logs {
                         match, _ = regexp.MatchString("kprobe=tcp_connect*",log.Data)
@@ -110,7 +145,7 @@ var _ = Describe("Unitest", func() {
 		Expect(err).To(BeNil())
 		_, _, err = K8sExecInPod(ub, "ubuntu-pods", []string{"curl","http://"+ngip+":80"})
 		Expect(err).To(BeNil())
-		logs, _, err := KarmorGetLogs(5*time.Second, 5)
+		logs, _, err := KarmorGetLogs(5*time.Second, 50)
 		match := false
 		for _, log := range logs {
                         match, _ = regexp.MatchString("kprobe=tcp_accept*",log.Data)  
