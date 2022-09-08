@@ -92,7 +92,8 @@ func init() {
 // SystemMonitor Structure
 type SystemMonitor struct {
 	// node
-	Node *tp.Node
+	Node     *tp.Node
+	NodeLock **sync.RWMutex
 
 	// logs
 	Logger *fd.Feeder
@@ -127,6 +128,8 @@ type SystemMonitor struct {
 
 	execLogMap     map[uint32]tp.Log
 	execLogMapLock *sync.RWMutex
+	// monitor lock
+	MonitorLock **sync.RWMutex
 
 	Status          bool
 	UptimeTimeStamp float64
@@ -134,11 +137,12 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
-	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex) *SystemMonitor {
+func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
+	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.Node = node
+	mon.NodeLock = nodeLock
 	mon.Logger = logger
 
 	mon.Containers = containers
@@ -153,6 +157,8 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 	mon.ContextChan = make(chan ContextCombined, 4096)
 
 	mon.UntrackedNamespaces = []string{"kube-system", "kubearmor"}
+
+	mon.MonitorLock = monitorLock
 
 	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
@@ -340,6 +346,10 @@ func (mon *SystemMonitor) InitBPF() error {
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
+
+	(*mon.MonitorLock).Lock()
+	defer (*mon.MonitorLock).Unlock()
+
 	mon.Status = false
 
 	if mon.SyscallPerfMap != nil {
@@ -361,7 +371,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -433,6 +442,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}()
 		}
 	}()
+	MonitorLock := *(mon.MonitorLock)
 
 	for {
 		select {
@@ -727,9 +737,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 					continue
 				}
 			}
-
+			MonitorLock.Lock()
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
+			MonitorLock.Unlock()
 		}
 	}
 }

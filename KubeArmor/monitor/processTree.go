@@ -252,6 +252,7 @@ func cleanMaps(pidMap tp.PidMap, execLogMap map[uint32]tp.Log, execLogMapLock *s
 func (mon *SystemMonitor) CleanUpExitedHostPids() {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
+	MonitorLock := *(mon.MonitorLock)
 
 	for {
 		now := time.Now()
@@ -281,10 +282,16 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 
 		ActivePidMapLock.Unlock()
 
-		if !mon.Status {
+		// read monitor status
+		MonitorLock.RLock()
+		monStatus := mon.Status
+		MonitorLock.RUnlock()
+
+		if !monStatus {
 			break
 		}
 
 		time.Sleep(10 * time.Second)
 	}
+
 }

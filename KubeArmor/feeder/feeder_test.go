@@ -4,6 +4,7 @@
 package feeder
 
 import (
+	"sync"
 	"testing"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -13,6 +14,7 @@ import (
 func TestFeeder(t *testing.T) {
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
 
 	// load configuration
 	if err := cfg.LoadConfig(); err != nil {
@@ -21,7 +23,7 @@ func TestFeeder(t *testing.T) {
 	}
 
 	// create logger
-	logger := NewFeeder(&node)
+	logger := NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return

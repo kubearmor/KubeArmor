@@ -166,7 +166,11 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 				dm.HandleNodeAnnotations(&node)
 
+				// update node info
+				dm.NodeLock.Lock()
 				dm.Node = node
+				dm.NodeLock.Unlock()
+
 			}
 		} else {
 			time.Sleep(time.Second * 1)
