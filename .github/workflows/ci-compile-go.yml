@@ -17,7 +17,6 @@ on:
 jobs:
   check_controller_change:
     name: Check what controllers were updated
-    if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
     timeout-minutes: 5
     outputs:
@@ -87,7 +86,6 @@ jobs:
 
   check_commit_compile:
     name: Check if kubearmor compiles for every commit
-    if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     steps:
