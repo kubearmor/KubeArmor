@@ -10,7 +10,7 @@ TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:crdVersions=v1"
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+# Get the currently used golang install path (in GOPATH/bin, unlesss GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
 else
