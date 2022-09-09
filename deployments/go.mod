@@ -11,7 +11,7 @@ replace (
 
 require (
 	github.com/clarketm/json v1.17.1
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20220831101822-b5577563a8ee
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20220908103453-7b92e248beb9
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
 	sigs.k8s.io/yaml v1.3.0
@@ -24,12 +24,12 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b // indirect
+	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiextensions-apiserver v0.25.0 // indirect
-	k8s.io/klog/v2 v2.70.1 // indirect
+	k8s.io/klog/v2 v2.80.0 // indirect
 	k8s.io/utils v0.0.0-20220823124924-e9cbc92d1a73 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
