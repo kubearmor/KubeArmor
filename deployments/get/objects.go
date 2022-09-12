@@ -238,7 +238,7 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 								},
 							},
 							LivenessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
 										Path: "/healthz",
 										Port: intstr.FromInt(8081),
@@ -359,7 +359,7 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 								},
 							},
 							LivenessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
 										Path: "/healthz",
 										Port: intstr.FromInt(8081),
@@ -548,7 +548,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							},
 							VolumeMounts: volumeMounts,
 							LivenessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{
 											"/bin/bash",
@@ -745,7 +745,7 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 								AllowPrivilegeEscalation: &KubeArmorControllerAllowPrivilegeEscalation,
 							},
 							LivenessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
 										Path: "/healthz",
 										Port: intstr.FromInt(8081),
@@ -755,7 +755,7 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 								PeriodSeconds:       int32(20),
 							},
 							ReadinessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
 										Path: "/readyz",
 										Port: intstr.FromInt(8081),
@@ -875,7 +875,7 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 								AllowPrivilegeEscalation: &KubeArmorControllerAllowPrivilegeEscalation,
 							},
 							LivenessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
 										Path: "/healthz",
 										Port: intstr.FromInt(8081),
@@ -885,7 +885,7 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 								PeriodSeconds:       int32(20),
 							},
 							ReadinessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
+								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
 										Path: "/readyz",
 										Port: intstr.FromInt(8081),

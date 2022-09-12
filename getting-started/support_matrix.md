@@ -15,8 +15,8 @@ KubeArmor supports following types of workloads:
 | [AWS EKS](https://aws.amazon.com/eks/) | Ubuntu | Yes |
 | [AWS EKS](https://aws.amazon.com/eks/) | [Bottlerocket OS](https://github.com/bottlerocket-os/bottlerocket#bottlerocket-os) | Yes | Support leveraging [BPF LSM](https://github.com/kubearmor/KubeArmor/issues/484)
 | RedHat OpenShift | Red Hat Enterprise Linux release 8.4 | Partial | Observability/Audit mode is supported, Enforcement mode is not supported. (Kernel Version: 4.18.0-305.45.1.el8_4.x86_64, Openshift Version: 4.10.14)
+| Rancher RKE | * | Supported - Except [RKE deployed on host using a Docker container](https://rancher.com/docs/rancher/v2.5/en/installation/other-installation-methods/single-node-docker/) |
 | VMWare Tanzu | * | TBD |
-| Rancher RKE | * | TBD |
 
 ### When will EKS with Amazon Linux 2 be supported?
 
@@ -33,6 +33,10 @@ It would be very much appreciated if you can test kubearmor on a platform not li
 ### What local K8s platforms are supported?
 
 [Minikube](../contribution/minikube), [K3s](../deployments/k3s) and [Microk8s](../contribution/microk8s) platforms are currently supported.
+
+### Why KubeArmor does not work on kind
+
+KubeArmor does not support Kubernetes in Docker.
 
 ## VM/Bare-Metal support
 
