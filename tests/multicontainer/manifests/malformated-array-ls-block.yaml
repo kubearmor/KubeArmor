@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: malformated-array-ls-block
+  namespace: multicontainer
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      container: multicontainer
+      kubearmor.io/container.name: "[container-1,,]"
+  process:
+    matchPaths:
+    - path: /bin/ls
+      # ls
+  action:
+    Block
