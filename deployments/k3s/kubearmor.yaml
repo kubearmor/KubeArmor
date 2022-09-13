@@ -102,6 +102,20 @@ spec:
         - containerPort: 32767
         securityContext:
           privileged: true
+          capabilities:
+            drop: 
+              - ALL
+            add: 
+              - SETUID 
+              - SETGID
+              - SETPCAP
+              - SYS_ADMIN
+              - SYS_PTRACE 
+              - MAC_ADMIN
+              - SYS_RESOURCE 
+              - IPC_LOCK
+              - CAP_DAC_OVERRIDE
+              - CAP_DAC_READ_SEARCH
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
@@ -131,13 +145,27 @@ spec:
           name: containerd-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
-      hostNetwork: true
+      hostNetwork: false
       hostPID: true
       initContainers:
       - image: kubearmor/kubearmor-init:latest
         name: init
         securityContext:
-          privileged: true
+          privileged: false
+          capabilities:
+            drop: 
+              - ALL
+            add: 
+              - SETUID 
+              - SETGID
+              - SETPCAP
+              - SYS_ADMIN
+              - SYS_PTRACE 
+              - MAC_ADMIN
+              - SYS_RESOURCE 
+              - IPC_LOCK
+              - CAP_DAC_OVERRIDE
+              - CAP_DAC_READ_SEARCH
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
