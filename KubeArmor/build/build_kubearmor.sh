@@ -43,7 +43,7 @@ unset LABEL
 # build a kubearmor image
 DTAG="-t $REPO:$VERSION"
 echo "[INFO] Building $DTAG"
-cd $ARMOR_HOME/..; docker build $DTAG --target kubearmor . $LABEL
+cd $ARMOR_HOME/..; docker buildx build $DTAG --platform linux/amd64,linux/arm64 --target kubearmor . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"
