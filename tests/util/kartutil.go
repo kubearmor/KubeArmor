@@ -166,7 +166,7 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 		}
 		pods = []string{}
 		for _, p := range podList.Items {
-			if p.Status.Phase != v1.PodRunning {
+			if p.Status.Phase != v1.PodRunning || p.DeletionTimestamp != nil {
 				continue
 			}
 			if p.Status.Reason != "" {
