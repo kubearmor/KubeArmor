@@ -119,7 +119,7 @@ func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
 }
 
 // UpdateLogs Function
-func (mon *SystemMonitor) UpdateLogs() {
+func (mon *SystemMonitor) UpdateLogs(logPassedResults string) {
 	for {
 		select {
 		case <-StopChan:
@@ -463,11 +463,13 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 			// push the generated log
 			if mon.Logger != nil {
-				go mon.Logger.PushLog(log)
-				if isAuditedSyscall(msg.ContextSys.EventID) && log.Operation != "Syscall" {
-					log.Action = "Audit"
-					log.Operation = "Syscall"
+				if logPassedResults == "true" && log.Result == "Passed" {
 					go mon.Logger.PushLog(log)
+					if isAuditedSyscall(msg.ContextSys.EventID) && log.Operation != "Syscall" {
+						log.Action = "Audit"
+						log.Operation = "Syscall"
+						go mon.Logger.PushLog(log)
+					}
 				}
 			}
 		}
