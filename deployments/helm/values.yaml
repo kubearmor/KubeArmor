@@ -25,6 +25,11 @@ kubearmorHostPolicyManager:
     repository: kubearmor/kubearmor-host-policy-manager
     tag: latest
 
+kubearmorAnnotationManager:
+  image:
+    repository: kubearmor/kubearmor-annotation-manager
+    tag: latest 
+
 #volume mounts and volumes
 kubearmor:
   image:

@@ -56,6 +56,29 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
+      initContainers:
+      - image: kubearmor/kubearmor-init:latest
+        name: init
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /opt/kubearmor/BPF
+          name: bpf
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
+        - mountPath: /sys/fs/bpf
+          name: sys-fs-bpf-path
+        - mountPath: /sys/kernel/security
+          name: sys-kernel-security-path
+        - mountPath: /sys/kernel/debug
+          name: sys-kernel-debug-path
+        - mountPath: /media/root/etc/os-release
+          name: os-release-path
+          readOnly: true
+        - mountPath: /usr/src
+          name: usr-src-path
+          readOnly: true
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always

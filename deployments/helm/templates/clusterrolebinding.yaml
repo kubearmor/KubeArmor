@@ -11,3 +11,16 @@ subjects:
 - kind: ServiceAccount
   name: kubearmor
   namespace: {{ .Values.namespace.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: system

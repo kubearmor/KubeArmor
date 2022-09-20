@@ -42,3 +42,18 @@ spec:
     targetPort: https
   selector:
     kubearmor-app: kubearmor-host-policy-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    kubearmor-app: kubearmor-annotation-manager
+  name: kubearmor-host-policy-manager-metrics-service
+  namespace: {{ .Values.namespace.name }}
+spec:
+  ports:
+  - name: https
+    port: 8443
+    targetPort: https
+  selector:
+    kubearmor-app: kubearmor-annotation-manager
