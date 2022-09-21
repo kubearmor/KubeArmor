@@ -51,7 +51,21 @@ spec:
         image: kubearmor/kubearmor-init:latest
         imagePullPolicy: Never
         securityContext:
-          privileged: true
+          privileged: false
+          capabilities:
+            drop: 
+              - ALL
+            add: 
+              - SETUID 
+              - SETGID
+              - SETPCAP
+              - SYS_ADMIN
+              - SYS_PTRACE 
+              - MAC_ADMIN
+              - SYS_RESOURCE 
+              - IPC_LOCK
+              - CAP_DAC_OVERRIDE
+              - CAP_DAC_READ_SEARCH              
         volumeMounts:
           - mountPath: /opt/kubearmor/BPF
             name: bpf
@@ -78,7 +92,21 @@ spec:
         image: kubearmor/kubearmor:latest
         imagePullPolicy: Never
         securityContext:
-          privileged: true
+          privileged: false
+          capabilities:
+            drop: 
+              - ALL
+            add: 
+              - SETUID 
+              - SETGID
+              - SETPCAP
+              - SYS_ADMIN
+              - SYS_PTRACE 
+              - MAC_ADMIN
+              - SYS_RESOURCE 
+              - IPC_LOCK
+              - CAP_DAC_OVERRIDE
+              - CAP_DAC_READ_SEARCH
         ports:
         - containerPort: 32767
         livenessProbe:
