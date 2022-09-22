@@ -25,9 +25,22 @@ func (p *ServiceServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb
 	res := new(pb.Response)
 
 	err := json.Unmarshal(data.Policy, &policyEvent)
+
 	if err == nil {
-		p.UpdateContainerPolicy(policyEvent)
-		res.Status = 1
+
+		if policyEvent.Object.Metadata.Name != "" {
+
+			p.UpdateContainerPolicy(policyEvent)
+
+			res.Status = 1
+
+		} else {
+
+			kg.Warn("Empty Container Policy Event")
+
+			res.Status = 0
+		}
+
 	} else {
 		kg.Warn("Invalid Container Policy Event")
 		res.Status = 0
@@ -38,13 +51,27 @@ func (p *ServiceServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb
 
 // HostPolicy accepts host policy event on gRPC service and updates host security policies. It responds with 1 if success else 0.
 func (p *ServiceServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
+
 	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 	res := new(pb.Response)
 
 	err := json.Unmarshal(data.Policy, &policyEvent)
 	if err == nil {
-		p.UpdateHostPolicy(policyEvent)
-		res.Status = 1
+
+		if policyEvent.Object.Metadata.Name != "" {
+
+			p.UpdateHostPolicy(policyEvent)
+
+			res.Status = 1
+
+		} else {
+
+			kg.Warn("Empty Host Policy Event")
+
+			res.Status = 0
+
+		}
+
 	} else {
 		kg.Warn("Invalid Host Policy Event")
 		res.Status = 0

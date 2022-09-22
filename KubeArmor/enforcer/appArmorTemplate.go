@@ -61,7 +61,7 @@ func (p *Profile) Init() {
 
 // Inspired from https://github.com/genuinetools/bane/blob/master/apparmor/template.go
 
-//BaseTemplate for AppArmor profiles
+// BaseTemplate for AppArmor profiles
 const BaseTemplate = `
 ## == Managed by KubeArmor == ##
 
