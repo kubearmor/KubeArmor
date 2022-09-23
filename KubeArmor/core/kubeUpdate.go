@@ -20,7 +20,9 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 )
 
 // ================= //
@@ -2358,25 +2360,38 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 
 // WatchDefaultPosture Function
 func (dm *KubeArmorDaemon) WatchDefaultPosture() {
-	nsWatcher, err := K8s.K8sClient.CoreV1().Namespaces().Watch(context.Background(), metav1.ListOptions{})
-	defer nsWatcher.Stop()
-	if err == nil {
-		for resp := range nsWatcher.ResultChan() {
-			if resp.Type == watch.Modified || resp.Type == watch.Added {
-				if ns, ok := resp.Object.(*corev1.Namespace); ok {
-					defaultPosture := tp.DefaultPosture{
-						FileAction:         validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture),
-						NetworkAction:      validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture),
-						CapabilitiesAction: validateDefaultPosture("kubearmor-capabilities-posture", ns, cfg.GlobalCfg.DefaultCapabilitiesPosture),
-					}
-					dm.UpdateDefaultPosture(string(resp.Type), ns.Name, defaultPosture)
+	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
+	informer := factory.Core().V1().Namespaces().Informer()
 
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if ns, ok := obj.(*corev1.Namespace); ok {
+				defaultPosture := tp.DefaultPosture{
+					FileAction:         validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture),
+					NetworkAction:      validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture),
+					CapabilitiesAction: validateDefaultPosture("kubearmor-capabilities-posture", ns, cfg.GlobalCfg.DefaultCapabilitiesPosture),
 				}
-			} else if resp.Type == watch.Deleted {
-				if ns, ok := resp.Object.(*corev1.Namespace); ok {
-					dm.UpdateDefaultPosture(string(resp.Type), ns.Name, tp.DefaultPosture{})
-				}
+				dm.UpdateDefaultPosture("ADDED", ns.Name, defaultPosture)
 			}
-		}
-	}
+		},
+		UpdateFunc: func(old, new interface{}) {
+			if ns, ok := new.(*corev1.Namespace); ok {
+				defaultPosture := tp.DefaultPosture{
+					FileAction:         validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture),
+					NetworkAction:      validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture),
+					CapabilitiesAction: validateDefaultPosture("kubearmor-capabilities-posture", ns, cfg.GlobalCfg.DefaultCapabilitiesPosture),
+				}
+				dm.UpdateDefaultPosture("MODIFIED", ns.Name, defaultPosture)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			if ns, ok := obj.(*corev1.Namespace); ok {
+				dm.UpdateDefaultPosture("DELETED", ns.Name, tp.DefaultPosture{})
+			}
+		},
+	})
+
+	go factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
+	dm.Logger.Print("Started watching Default Posture Annotations")
 }
