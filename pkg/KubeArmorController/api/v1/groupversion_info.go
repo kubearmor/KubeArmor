@@ -2,8 +2,8 @@
 // Copyright 2022 Authors of KubeArmor
 
 // Package v1 contains API Schema definitions for the security v1 API group
-//+kubebuilder:object:generate=true
-//+groupName=security.kubearmor.com
+// +kubebuilder:object:generate=true
+// +groupName=security.kubearmor.com
 package v1
 
 import (
