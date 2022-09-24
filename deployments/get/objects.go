@@ -383,7 +383,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var label = map[string]string{
 		"kubearmor-app": kubearmor,
 	}
-	var privileged = bool(true)
+	var privileged = bool(false)
 	var terminationGracePeriodSeconds = int64(30)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
@@ -527,6 +527,23 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Image: "kubearmor/kubearmor-init:latest",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{
+										"ALL",
+									},
+									Add: []corev1.Capability{
+										"SETUID",
+										"SETGID",
+										"SETPCAP",
+										"SYS_ADMIN",
+										"SYS_PTRACE",
+										"MAC_ADMIN",
+										"SYS_RESOURCE",
+										"IPC_LOCK",
+										"CAP_DAC_OVERRIDE",
+										"CAP_DAC_READ_SEARCH",
+									},
+								},
 							},
 							VolumeMounts: containerVolumeMounts,
 						},
@@ -538,6 +555,23 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							ImagePullPolicy: "Always",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{
+										"ALL",
+									},
+									Add: []corev1.Capability{
+										"SETUID",
+										"SETGID",
+										"SETPCAP",
+										"SYS_ADMIN",
+										"SYS_PTRACE",
+										"MAC_ADMIN",
+										"SYS_RESOURCE",
+										"IPC_LOCK",
+										"CAP_DAC_OVERRIDE",
+										"CAP_DAC_READ_SEARCH",
+									},
+								},
 							},
 							Args: args,
 							Env:  envs,
