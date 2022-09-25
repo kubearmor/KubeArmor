@@ -8,14 +8,14 @@ Expand the name of the chart.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "kubearmor-annotaion-manager.chart" -}}
+{{- define "kubearmor-annotation-manager.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
 Generate certificates for kubearmor-annotaion-manager api server 
 */}}
-{{- define "kubearmor-annotaion-manager.gen-certs" -}}
+{{- define "kubearmor-annotation-manager.gen-certs" -}}
 {{- $altNames := list ( printf "%s.%s" (include "kubearmor-annotation-manager.name" .) .Values.namespace ) ( printf "%s.%s.svc" (include "kubearmor-annotation-manager.name" .) .Values.namespace ) -}}
 {{- $ca := genCA "kubearmor-annotaion-manager-ca" 365 -}}
 {{- $cert := genSignedCert ( include "kubearmor-annotation-manager.name" . ) nil $altNames 365 $ca -}}
