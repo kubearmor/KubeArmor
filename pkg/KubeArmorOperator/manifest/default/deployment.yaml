@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-operator
+spec:
+  selector:
+    matchLabels:
+      app: kubearmor-operator
+  template:
+    metadata:
+      labels:
+        app: kubearmor-operator
+    spec:
+      serviceAccountName: kubearmor-operator
+      containers:
+      - name: operator
+        image: kubearmor/operator:latest
+        imagePullPolicy: Never
