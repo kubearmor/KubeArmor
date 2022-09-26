@@ -232,7 +232,7 @@ spec:
         - --enable-leader-election
         command:
         - /manager
-        image: "{{ .Values.kubearmorAnnotationManager .image.repository }}:{{ .Values.kubearmorAnnotationManager.image.tag }}"
+        image: "{{ .Values.kubearmorAnnotationManager.image.repository }}:{{ .Values.kubearmorAnnotationManager.image.tag }}"
         name: kubearmor-annotation-manager
         resources:
           limits:
