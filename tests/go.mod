@@ -1,4 +1,4 @@
-module github.com/kubearmor/karts
+module github.com/kubearmor/KubeArmor/tests
 
 go 1.18
 
