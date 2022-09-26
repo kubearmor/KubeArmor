@@ -1,0 +1,154 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    createdAt: "2023-05-01T05:17:07Z"
+    categories: Security
+    description: The KubeArmor Operator deloys and manages KubeArmor daemonset and its componenets within a cluster.
+    support: Accuknox
+    repository: https://github.com/kubearmor/KubeArmor
+    operators.operatorframework.io/builder: operator-sdk-v1.28.0+git
+    operators.operatorframework.io/project_layout: unknown
+    operators.openshift.io/valid-subscription: ""
+    com.redhat.openshift.versions: v4.12
+  name: kubearmor-operator.v1.0.0
+  namespace: placeholder
+spec:
+  relatedImages:
+    - image: docker.io/kubearmor/kubearmor@sha256:52f7049ecdbfa779663d2cd44ddd7f36aecd8ccd2ca91e69709b628600029f13
+      name: kubearmor
+    - image: docker.io/kubearmor/kubearmor-init@sha256:44fa534587972c5f85e3e6f362dd8268e9088a33c5657a21b72a7e8563164fb5
+      name: kubearmor-init
+    - image: docker.io/kubearmor/kubearmor-relay-server@sha256:695f9ade3382bcf858077e2a7b9b01e0713071517603778d72f7aca5a6d71323
+      name: kubearmor-relay-server
+    - image: docker.io/kubearmor/kubearmor-controller@sha256:ccec0fb8bb1e91bd48631cc89baf752b842f19c33b50edab08f8b33e57af64d4
+      name: kubearmor-controller          
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: |-
+    The KubeArmor Operator deploys and manages KubeArmor and its components:
+    - KubeArmor Daemonset
+    - KubeArmor Relay Server
+    - KubeArmor Controller to manage CRDs (KubeArmorPolicy, KubeArmorHostPolicy)
+
+    KubeArmor is a cloud-native runtime security enforcement system that restricts the behavior (such as process execution, file access, and networking operations) of pods, containers, and nodes (VMs) at the system level.
+
+    KubeArmor leverages Linux security modules (LSMs) such as AppArmor, SELinux, or BPF-LSM to enforce the user-specified policies. KubeArmor generates rich alerts/telemetry events with container/pod/namespace identities by leveraging eBPF.
+   
+    ## Documentation
+
+    github: [https://github.com/kubearmor/KubeArmor](https://github.com/kubearmor/KubeArmor)
+    website: [https://kubearmor.io/](https://kubearmor.io/)
+  displayName: Kubearmor Operator
+  icon:
+  - base64data: "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"
+    mediatype: "image/x-icon"
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - watch
+          - list
+          - patch
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          - serviceaccounts
+          - services
+          verbs:
+          - get
+          - create
+          - delete
+          - update
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          verbs:
+          - get
+          - create
+          - delete
+          - update
+        - apiGroups:
+          - admissionregistration.k8s.io
+          resources:
+          - mutatingwebhookconfigurations
+          verbs:
+          - get
+          - create
+          - delete
+        - apiGroups:
+          - batch
+          resources:
+          - jobs
+          verbs:
+          - create
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterroles
+          - clusterrolebindings
+          verbs:
+          - create
+          - get
+        - apiGroups:
+          - '*'
+          resources:
+          - '*'
+          verbs:
+          - '*'
+        serviceAccountName: kubearmor-operator
+      deployments:
+      - name: kubearmor-operator
+        spec:
+          selector:
+            matchLabels:
+              kubearmor-app: kubearmor-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                kubearmor-app: kubearmor-operator
+            spec:
+              containers:
+              - image: docker.io/kubearmor/kubearmor-operator@sha256:8c2d56781a2adf78ee58f956e01417f38b6ad2f319feada6470e93f4f9bf0808
+                imagePullPolicy: Always
+                name: operator
+                resources: {}
+              serviceAccountName: kubearmor-operator
+    strategy: deployment
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - kubearmor-operator
+  - runtime-security
+  - security
+  - cloud-native
+  links:
+  - name: Kubearmor
+    url: https://kubearmor.io
+  maintainers:
+  - email: ramakant@accuknox.com
+    name: Ramakant Sharma
+  maturity: alpha
+  provider:
+    name: Accuknox
+    url: https://www.accuknox.com/
+  version: 1.0.0

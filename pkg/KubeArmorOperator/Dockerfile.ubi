@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2022 Authors of KubeArmor
+
+FROM redhat/ubi9-minimal as builder
+WORKDIR /app
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# Copy the go source
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 tar gzip && \
+    microdnf clean all && \
+    rm -rf /var/cache/yum
+# install go
+RUN curl -sfL -o go1.19.tar.gz https://go.dev/dl/go1.19.linux-amd64.tar.gz && \
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go1.19.tar.gz && \
+    rm go1.19.tar.gz
+ENV PATH=${PATH}:/usr/local/go/bin
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+COPY cmd cmd
+COPY common common
+COPY internal/controller internal/controller
+COPY enforcer enforcer
+COPY k8s k8s
+COPY runtime runtime
+# Build
+RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o kubearmor-operator cmd/main.go
+RUN ln -s kubearmor-operator snitch
+
+FROM redhat/ubi9-minimal
+LABEL name="kubearmor-operator" \
+      vendor="Accuknox" \
+      version="1.0.0" \
+      release="1.0.0" \
+      summary="kubearmor-operator container image based on redhat ubi" \
+      description="kubearmor-operator to deploy and manage KubeArmor"
+
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils && \
+    microdnf clean all && \
+    rm -rf /var/cache/yum
+
+RUN groupadd --gid 1000 default \
+  && useradd --uid 1000 --gid default --shell /bin/bash --create-home default          
+
+COPY --from=builder /app/kubearmor-operator /kubearmor-operator
+RUN ln -s /kubearmor-operator /snitch
+
+USER default
+ENTRYPOINT ["/kubearmor-operator"]

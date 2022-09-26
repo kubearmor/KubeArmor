@@ -379,14 +379,18 @@ func IsK8sEnv() bool {
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
 		"/var/run/docker.sock",
+		"/run/docker.sock",
 	},
 	"containerd": {
 		"/var/snap/microk8s/common/run/containerd.sock",
 		"/run/k3s/containerd/containerd.sock",
+		"/run/containerd/containerd.sock",
 		"/var/run/containerd/containerd.sock",
+		"/run/dockershim.sock",
 	},
-	"crio": {
+	"cri-o": {
 		"/var/run/crio/crio.sock",
+		"/run/crio/crio.sock",
 	},
 }
 
