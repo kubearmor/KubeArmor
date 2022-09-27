@@ -1,0 +1,75 @@
+
+Found KubeArmor running in Kubernetes
+
+Daemonset :
+ 	kubearmor 	Desired: 3	Ready: 3	Available: 3	
+Deployments : 
+ 	kubearmor-annotation-manager 	Desired: 1	Ready: 1	Available: 1	
+ 	kubearmor-host-policy-manager	Desired: 1	Ready: 1	Available: 1	
+ 	kubearmor-policy-manager     	Desired: 1	Ready: 1	Available: 1	
+ 	kubearmor-relay              	Desired: 1	Ready: 1	Available: 1	
+Containers : 
+ 	kubearmor-6bqh4                               	Running: 1	Image Version: kubearmor/kubearmor:latest               	
+ 	kubearmor-annotation-manager-797c848b9c-4djw9 	Running: 2	Image Version: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0	
+ 	kubearmor-gbhzs                               	Running: 1	Image Version: kubearmor/kubearmor:latest               	
+ 	kubearmor-host-policy-manager-66f599dcd6-gvrk8	Running: 2	Image Version: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0	
+ 	kubearmor-policy-manager-57675fc7c7-gz2hl     	Running: 2	Image Version: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0	
+ 	kubearmor-q5r6z                               	Running: 1	Image Version: kubearmor/kubearmor:latest               	
+ 	kubearmor-relay-645667c695-xv6nl              	Running: 1	Image Version: kubearmor/kubearmor-relay-server:latest  	
+Node 1 : 
+ 	OS Image:                 	Container-Optimized OS from Google	
+ 	Kernel Version:           	5.10.133+                         	
+ 	Kubelet Version:          	v1.22.12-gke.2300                 	
+ 	Container Runtime:        	containerd://1.5.13               	
+ 	Active LSM:               	AppArmor                          	
+ 	Host Security:            	true                              	
+ 	Container Security:       	true                              	
+ 	Container Default Posture:	block(File)                       	block(Capabilities)	block(Network)	
+ 	Host Default Posture:     	block(File)                       	block(Capabilities)	block(Network)	
+Node 2 : 
+ 	OS Image:                 	Container-Optimized OS from Google	
+ 	Kernel Version:           	5.10.133+                         	
+ 	Kubelet Version:          	v1.22.12-gke.2300                 	
+ 	Container Runtime:        	containerd://1.5.13               	
+ 	Active LSM:               	AppArmor                          	
+ 	Host Security:            	true                              	
+ 	Container Security:       	true                              	
+ 	Container Default Posture:	block(File)                       	block(Capabilities)	block(Network)	
+ 	Host Default Posture:     	block(File)                       	block(Capabilities)	block(Network)	
+Node 3 : 
+ 	OS Image:                 	Container-Optimized OS from Google	
+ 	Kernel Version:           	5.10.133+                         	
+ 	Kubelet Version:          	v1.22.12-gke.2300                 	
+ 	Container Runtime:        	containerd://1.5.13               	
+ 	Active LSM:               	AppArmor                          	
+ 	Host Security:            	true                              	
+ 	Container Security:       	true                              	
+ 	Container Default Posture:	block(File)                       	block(Capabilities)	block(Network)	
+ 	Host Default Posture:     	block(File)                       	block(Capabilities)	block(Network)	
+Armored Up pods : 
++-----------------+--------------------------------------+-----------------------------------------+
+|    NAMESPACE    |                 NAME                 |                 POLICY                  |
++-----------------+--------------------------------------+-----------------------------------------+
+| explorer        | knoxautopolicy-55cdb5f996-l7j66      |                                         |
++-----------------+--------------------------------------+-----------------------------------------+
+| kube-system     | go-audit-8rs7t                       |                                         |
++                 +--------------------------------------+-----------------------------------------+
+|                 | go-audit-bzhm6                       |                                         |
++                 +--------------------------------------+-----------------------------------------+
+|                 | go-audit-rp485                       |                                         |
++-----------------+--------------------------------------+-----------------------------------------+
+| multiubuntu     | ubuntu-1-deployment-77dd6c77c4-4nwr6 | ksp-ubuntu-1-file-path-block            |
+|                 |                                      | ksp-group-1-proc-path-block-from-source |
++                 +--------------------------------------+-----------------------------------------+
+|                 | ubuntu-2-deployment-6c7558cf49-kc9pw | ksp-group-1-proc-path-block-from-source |
++                 +--------------------------------------+-----------------------------------------+
+|                 | ubuntu-3-deployment-75fdb9d4b8-xlhrx | ksp-group-1-proc-path-block-from-source |
++                 +--------------------------------------+-----------------------------------------+
+|                 | ubuntu-4-deployment-77fd9b8db-fl6cg  |                                         |
++                 +--------------------------------------+-----------------------------------------+
+|                 | ubuntu-5-deployment-5fdf8444c5-vn9dr |                                         |
++-----------------+--------------------------------------+-----------------------------------------+
+| wordpress-mysql | mysql-64d6f94d6c-92k77               |                                         |
++                 +--------------------------------------+-----------------------------------------+
+|                 | wordpress-bc7dd8d9c-jmxqx            | ksp-wordpress-block-sa                  |
++-----------------+--------------------------------------+-----------------------------------------+
