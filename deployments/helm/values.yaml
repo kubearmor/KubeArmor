@@ -167,6 +167,10 @@ kubearmor:
 
   volumesGeneric:
     - hostPath:
+        path: /opt/kubearmor/BPF
+        type: Directory
+      name: bpf 
+    - hostPath:
         path: /usr/src
         type: Directory
       name: usr-src-path
@@ -209,6 +213,10 @@ kubearmor:
 
   volumesDocker:
     - hostPath:
+        path: /opt/kubearmor/BPF
+        type: Directory
+      name: bpf 
+    - hostPath:
         path: /usr/src
         type: Directory
       name: usr-src-path
@@ -246,6 +254,10 @@ kubearmor:
       name: docker-storage-path
 
   volumesMicrok8s: 
+    - hostPath:
+        path: /opt/kubearmor/BPF
+        type: Directory
+      name: bpf 
     - hostPath:
         path: /usr/src
         type: Directory
@@ -285,6 +297,10 @@ kubearmor:
 
   volumesK3s:
     - hostPath:
+        path: /opt/kubearmor/BPF
+        type: Directory
+      name: bpf 
+    - hostPath:
         path: /usr/src
         type: Directory
       name: usr-src-path
@@ -322,6 +338,10 @@ kubearmor:
       name: containerd-storage-path
 
   volumesMinikube:
+    - hostPath:
+        path: /opt/kubearmor/BPF
+        type: Directory
+      name: bpf 
     - hostPath:
         path: /usr/src
         type: Directory
