@@ -255,7 +255,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 // SetCapabilitiesMatchCapabilities Function
 func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, prof *Profile, deny bool) {
 	if deny == false {
-		prof.Network = false
+		prof.Capabilities = false
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
