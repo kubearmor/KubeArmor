@@ -242,6 +242,63 @@ var _ = Describe("Namespace", func() {
 
                 })
 
+		It("check default posture for capabilities", func() {
+			// Setup
+			_, _, err := K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "touch dummy"})
+                        Expect(err).To(BeNil())
+			_, _, err = K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "useradd test"})
+                        Expect(err).To(BeNil())
+
+			// Apply policy
+			err = K8sApply([]string{"res/capabilities.yaml"})
+			Expect(err).To(BeNil())
+
+			// Check execution
+			sout, _, err := K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "chown test dummy"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("Operation not permitted"))
+
+			// Delete policy
+			err = K8sDelete([]string{"res/capabilities.yaml"})
+			Expect(err).To(BeNil())
+
+		})
+
+		It("check default posture for capabilities with kubearmor-capabilities-posture=audit", func() {
+                        // Setup
+                        _, _, err := K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "touch dummy"})
+                        Expect(err).To(BeNil())
+                        _, _, err = K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "useradd test"})
+                        Expect(err).To(BeNil())
+
+                        // Apply policy
+                        err = K8sApply([]string{"res/capabilities.yaml"})
+                        Expect(err).To(BeNil())
+
+			// Set Namespace annotation
+                        sout, err := Kubectl("annotate ns nptest kubearmor-capabilities-posture=audit --overwrite")
+                        Expect(err).To(BeNil())
+                        Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
+                        time.Sleep(5*time.Second)
+
+                        // Check execution
+                        sout, _, err = K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "chown test dummy"})
+                        Expect(err).To(BeNil())
+                        fmt.Printf("OUTPUT: %s\n", sout)
+                        Expect(sout).To(Equal(""))
+
+			// Remove Namespace annotation
+                        sout, err = Kubectl("annotate ns nptest kubearmor-capabilities-posture-")
+                        Expect(err).To(BeNil())
+                        Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
+
+                        // Delete policy
+                        err = K8sDelete([]string{"res/capabilities.yaml"})
+                        Expect(err).To(BeNil())
+
+                })
+
 	})
 
 })
