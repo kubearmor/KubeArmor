@@ -49,6 +49,7 @@ type Container struct {
 type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
 	EndPointName  string `json:"endPointName"`
+	ContainerName string `json:"containerName"`
 
 	Labels     map[string]string `json:"labels"`
 	Identities []string          `json:"identities"`
@@ -276,6 +277,7 @@ const (
 // SelectorType Structure
 type SelectorType struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	Containers  []string          `json:"containers,omitempty"`
 	Identities  []string          `json:"identities,omitempty"` // set during policy update
 }
 
