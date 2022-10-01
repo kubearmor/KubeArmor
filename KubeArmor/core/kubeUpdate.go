@@ -454,8 +454,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// create a pod
 
 				pod := tp.K8sPod{}
-				appArmorAnnotationsCount := 0
-				containersCount := 0
+				containers := []string{}
 
 				// need this for apparmor profile
 				var podOwnerName string
@@ -593,6 +592,15 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					appArmorAnnotations := map[string]string{}
 					updateAppArmor := false
 
+					if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+						deploy, err := K8s.K8sClient.AppsV1().Deployments(pod.Metadata["namespaceName"]).Get(context.Background(), deploymentName, metav1.GetOptions{})
+						if err == nil {
+							for _, c := range deploy.Spec.Template.Spec.Containers {
+								containers = append(containers, c.Name)
+							}
+						}
+					}
+
 					for k, v := range pod.Annotations {
 						if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
 							if v == "unconfined" {
@@ -602,16 +610,14 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
-							appArmorAnnotationsCount += 1
 						}
 					}
 
 					for _, container := range event.Object.Spec.Containers {
-						if _, ok := appArmorAnnotations[container.Name]; !ok {
+						if _, ok := appArmorAnnotations[container.Name]; !ok && kl.ContainsElement(containers, container.Name) {
 							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
 							updateAppArmor = true
 						}
-						containersCount += 1
 					}
 
 					if event.Type == "ADDED" {
@@ -619,7 +625,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
-							if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
+							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
 								// patch the deployment with apparmor annotations
 								if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -639,7 +645,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 
 								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
-									if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
+									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
 										// patch the deployment with apparmor annotations
 										if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
