@@ -236,11 +236,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 			dm.EndPointsLock.Lock()
 			for idx, endPoint := range dm.EndPoints {
-				if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName {
-					// update containers
-					if !kl.ContainsElement(endPoint.Containers, container.ContainerID) {
-						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, container.ContainerID)
-					}
+				if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 
 					// update apparmor profiles
 					if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
@@ -274,14 +270,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 		dm.EndPointsLock.Lock()
 		for idx, endPoint := range dm.EndPoints {
-			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName {
-				// update containers
-				for idxC, containerID := range endPoint.Containers {
-					if containerID == container.ContainerID {
-						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers[:idxC], dm.EndPoints[idx].Containers[idxC+1:]...)
-						break
-					}
-				}
+			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 
 				// update apparmor profiles
 				for idxA, profile := range endPoint.AppArmorProfiles {

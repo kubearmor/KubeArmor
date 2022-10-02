@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	be "github.com/kubearmor/KubeArmor/KubeArmor/enforcer/bpflsm"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -34,10 +35,95 @@ type RuntimeEnforcer struct {
 	seLinuxEnforcer *SELinuxEnforcer
 }
 
+// selectLsm Function
+func selectLsm(re *RuntimeEnforcer, lsmOrder, availablelsms, supportedlsm []string, node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
+	var err error
+	var lsm string
+
+lsmselection:
+	//check lsm preference order
+	if len(lsmOrder) != 0 {
+		lsm = lsmOrder[0]
+		lsmOrder = lsmOrder[1:]
+		if kl.ContainsElement(supportedlsm, lsm) && kl.ContainsElement(availablelsms, lsm) {
+			goto lsmdispatch
+		}
+		goto lsmselection
+	}
+
+	// fallback to available lsms order
+	if len(availablelsms) != 0 {
+		lsm = availablelsms[0]
+		availablelsms = availablelsms[1:]
+		if kl.ContainsElement(supportedlsm, lsm) {
+			goto lsmdispatch
+		}
+		goto lsmselection
+	}
+
+	goto nil
+
+lsmdispatch:
+	switch lsm {
+	case "bpf":
+		goto bpf
+	case "apparmor":
+		goto apparmor
+	case "selinux":
+		goto selinux
+	default:
+		goto lsmselection
+	}
+
+selinux:
+	if !kl.IsInK8sCluster() {
+		re.seLinuxEnforcer = NewSELinuxEnforcer(node, logger)
+		if re.seLinuxEnforcer != nil {
+			re.Logger.Print("Initialized SELinux Enforcer")
+			re.EnforcerType = "SELinux"
+			logger.UpdateEnforcer(re.EnforcerType)
+			return re
+		}
+	}
+	goto lsmselection
+
+apparmor:
+	re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
+	if re.appArmorEnforcer != nil {
+		re.Logger.Print("Initialized AppArmor Enforcer")
+		re.EnforcerType = "AppArmor"
+		logger.UpdateEnforcer(re.EnforcerType)
+		return re
+	}
+	goto lsmselection
+
+bpf:
+	re.bpfEnforcer, err = be.NewBPFEnforcer(node, logger)
+	if re.bpfEnforcer != nil {
+		if err != nil {
+			re.Logger.Print("Error Initialising BPF-LSM Enforcer, Cleaning Up")
+			if err := re.bpfEnforcer.DestroyBPFEnforcer(); err != nil {
+				re.Logger.Err(err.Error())
+			} else {
+				re.Logger.Print("Destroyed BPF-LSM Enforcer")
+			}
+			goto lsmselection
+		}
+		re.Logger.Print("Initialized BPF-LSM Enforcer")
+		re.EnforcerType = "BPFLSM"
+		logger.UpdateEnforcer(re.EnforcerType)
+		return re
+	}
+	goto lsmselection
+
+nil:
+	return nil
+}
+
 // NewRuntimeEnforcer Function
 func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
+	availablelsms := []string{"bpf", "selinux", "apparmor"}
 	re := &RuntimeEnforcer{}
-
 	re.Logger = logger
 
 	if !kl.IsK8sLocal() {
@@ -64,48 +150,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	lsms := string(lsm)
 	re.Logger.Printf("Supported LSMs: %s", lsms)
 
-	if strings.Contains(lsms, "bpf") {
-		var err error
-		re.bpfEnforcer, err = be.NewBPFEnforcer(node, logger)
-		if re.bpfEnforcer != nil {
-			if err != nil {
-				re.Logger.Print("Error Initialising BPF-LSM Enforcer, Cleaning Up")
-				if err := re.bpfEnforcer.DestroyBPFEnforcer(); err != nil {
-					re.Logger.Err(err.Error())
-				} else {
-					re.Logger.Print("Destroyed BPF-LSM Enforcer")
-				}
-			} else {
-				re.Logger.Print("Initialized BPF-LSM Enforcer")
-				re.EnforcerType = "BPFLSM"
-				logger.UpdateEnforcer(re.EnforcerType)
-				return re
-			}
-		}
-	}
-
-	// Fallback to Other LSMs if failure during BPF Enforcer initialisation
-	if strings.Contains(lsms, "apparmor") {
-		re.appArmorEnforcer = NewAppArmorEnforcer(node, logger)
-		if re.appArmorEnforcer != nil {
-			re.Logger.Print("Initialized AppArmor Enforcer")
-			re.EnforcerType = "AppArmor"
-			logger.UpdateEnforcer(re.EnforcerType)
-			return re
-		}
-	} else if strings.Contains(lsms, "selinux") {
-		if !kl.IsInK8sCluster() {
-			re.seLinuxEnforcer = NewSELinuxEnforcer(node, logger)
-			if re.seLinuxEnforcer != nil {
-				re.Logger.Print("Initialized SELinux Enforcer")
-				re.EnforcerType = "SELinux"
-				logger.UpdateEnforcer(re.EnforcerType)
-				return re
-			}
-		}
-	}
-
-	return nil
+	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, strings.Split(lsms, ","), node, logger)
 }
 
 // RegisterContainer registers container identifiers to BPFEnforcer Map
