@@ -42,6 +42,18 @@ var _ = Describe("Namespace", func() {
 	AfterEach(func() {
 		KarmorLogStop()
 		KspDeleteAll()
+		// Remove all Namespace annotation
+		sout, err := Kubectl("annotate ns nptest kubearmor-network-posture-")
+		Expect(err).To(BeNil())
+		Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
+
+		sout, err = Kubectl("annotate ns nptest kubearmor-file-posture-")
+                Expect(err).To(BeNil())
+                Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
+
+		sout, err = Kubectl("annotate ns nptest kubearmor-capabilities-posture-")
+                Expect(err).To(BeNil())
+                Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
 	})
 
 	Describe("Policy Apply", func() {
