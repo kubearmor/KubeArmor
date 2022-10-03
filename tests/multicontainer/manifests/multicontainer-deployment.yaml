@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: multicontainer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multicontainer-deployment
+  namespace: multicontainer
+  labels:
+    deployment: multicontainer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      container: multicontainer
+  template:
+    metadata:
+      labels:
+        container: multicontainer
+    spec:
+      containers:
+      - name: container-1
+        image: kubearmor/ubuntu-w-utils:0.1
+      - name: container-2
+        image: kubearmor/ubuntu-w-utils:0.1

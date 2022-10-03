@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package config is the component responsible for loading KubeArmor configurations
 package config
 
 import (
@@ -41,6 +42,8 @@ type KubearmorConfig struct {
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
 	CoverageTest bool // Enable/Disable Coverage Test
+
+	LsmOrder []string // LSM order
 }
 
 // PolicyDir policy dir path for host policies backup
@@ -109,6 +112,9 @@ const ConfigCoverageTest string = "coverageTest"
 // ConfigK8sEnv VM key
 const ConfigK8sEnv string = "k8s"
 
+// LsmOrder Preference order of the LSMs
+const LsmOrder string = "lsm"
+
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
@@ -136,6 +142,8 @@ func readCmdLineParams() {
 	hostDefaultCapabilitiesPosture := flag.String(ConfigHostDefaultCapabilitiesPosture, "block", "configuring default enforcement action in global capability context {allow|audit|block}")
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
+
+	lsmOrder := flag.String(LsmOrder, "bpf,apparmor,selinux", "lsm preference order to use, available lsms [bpf, apparmor, selinux]")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -171,6 +179,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHostDefaultCapabilitiesPosture, *hostDefaultCapabilitiesPosture)
 
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
+
+	viper.SetDefault(LsmOrder, *lsmOrder)
 }
 
 // LoadConfig Load configuration
@@ -244,6 +254,8 @@ func LoadConfig() error {
 	}
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
+
+	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

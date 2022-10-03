@@ -219,6 +219,33 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	return buf.String(), errBuf.String(), nil
 }
 
+// K8sExecInPodWithContainer Exec into the pod. Output: stdout, stderr, err
+func K8sExecInPodWithContainer(pod string, ns string, container string, cmd []string) (string, string, error) {
+	req := k8sClient.K8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(ns).SubResource("exec")
+	option := &v1.PodExecOptions{
+		Command:   cmd,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       true,
+		Container: container,
+	}
+	req.VersionedParams(
+		option,
+		scheme.ParameterCodec,
+	)
+	exec, err := remotecommand.NewSPDYExecutor(k8sClient.Config, "POST", req.URL())
+	if err != nil {
+		return "", "", err
+	}
+	buf := &bytes.Buffer{}
+	errBuf := &bytes.Buffer{}
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: buf,
+		Stderr: errBuf,
+	})
+	return buf.String(), errBuf.String(), nil
+}
+
 func init() {
 	if !isK8sEnv() {
 		log.Error("could not find k8s env")

@@ -224,6 +224,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			newPoint.Containers = append(newPoint.Containers, k)
 		}
 
+		containersAppArmorProfiles := map[string]string{}
+
 		// update containers and apparmors
 		dm.ContainersLock.Lock()
 		for _, containerID := range newPoint.Containers {
@@ -248,6 +250,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container.NetworkVisibilityEnabled = newPoint.NetworkVisibilityEnabled
 			container.CapabilitiesVisibilityEnabled = newPoint.CapabilitiesVisibilityEnabled
 
+			containersAppArmorProfiles[containerID] = container.AppArmorProfile
 			if !kl.ContainsElement(newPoint.AppArmorProfiles, container.AppArmorProfile) {
 				newPoint.AppArmorProfiles = append(newPoint.AppArmorProfiles, container.AppArmorProfile)
 			}
@@ -273,18 +276,38 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// update security policies with the identities
 		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint.Identities)
 
+		endpoints := []tp.EndPoint{}
+		for k, v := range pod.Containers {
+			endpoint := newPoint
+			endpoint.Containers = []string{}
+			endpoint.AppArmorProfiles = []string{}
+			endpoint.SecurityPolicies = []tp.SecurityPolicy{}
+			endpoint.AppArmorProfiles = append(endpoint.AppArmorProfiles, containersAppArmorProfiles[k])
+			endpoint.Containers = append(endpoint.Containers, k)
+			endpoint.ContainerName = v
+
+			for _, secPolicy := range newPoint.SecurityPolicies {
+				if len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, v) {
+					endpoint.SecurityPolicies = append(endpoint.SecurityPolicies, secPolicy)
+				}
+			}
+
+			endpoints = append(endpoints, endpoint)
+		}
+
 		dm.EndPointsLock.Lock()
 
 		// add the endpoint into the endpoint list
-		dm.EndPoints = append(dm.EndPoints, newPoint)
+		dm.EndPoints = append(dm.EndPoints, endpoints...)
 
 		if cfg.GlobalCfg.Policy {
 			// update security policies
-			dm.Logger.UpdateSecurityPolicies(action, newPoint)
-
-			if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+			for _, endpoint := range endpoints {
+				dm.Logger.UpdateSecurityPolicies(action, endpoint)
+				if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+				}
 			}
 		}
 
@@ -292,141 +315,180 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 	} else if action == "MODIFIED" {
 		newEndPoint := tp.EndPoint{}
+		endpoints := []tp.EndPoint{}
 
 		dm.EndPointsLock.Lock()
 		for _, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				newEndPoint = endPoint
+				endpoints = append(endpoints, endPoint)
 			}
 		}
 		dm.EndPointsLock.Unlock()
+		if len(endpoints) == 0 {
+			// No endpoints were added as containers ID have been just added
+			// Same logic as ADDED
+			dm.UpdateEndPointWithPod("ADDED", pod)
 
-		newEndPoint.Labels = map[string]string{}
-		newEndPoint.Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
-
-		// update labels and identities
-		for k, v := range pod.Labels {
-			newEndPoint.Labels[k] = v
-			newEndPoint.Identities = append(newEndPoint.Identities, k+"="+v)
-		}
-
-		sort.Slice(newEndPoint.Identities, func(i, j int) bool {
-			return newEndPoint.Identities[i] < newEndPoint.Identities[j]
-		})
-
-		// update policy flag
-		if pod.Annotations["kubearmor-policy"] == "enabled" {
-			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-		} else if pod.Annotations["kubearmor-policy"] == "audited" {
-			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
-		} else { // disabled
-			newEndPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
-		}
-
-		newEndPoint.ProcessVisibilityEnabled = false
-		newEndPoint.FileVisibilityEnabled = false
-		newEndPoint.NetworkVisibilityEnabled = false
-		newEndPoint.CapabilitiesVisibilityEnabled = false
-
-		// parse annotations and update visibility flags
-		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-			if visibility == "process" {
-				newEndPoint.ProcessVisibilityEnabled = true
-			} else if visibility == "file" {
-				newEndPoint.FileVisibilityEnabled = true
-			} else if visibility == "network" {
-				newEndPoint.NetworkVisibilityEnabled = true
-			} else if visibility == "capabilities" {
-				newEndPoint.CapabilitiesVisibilityEnabled = true
-			}
-		}
-
-		newEndPoint.Containers = []string{}
-		newEndPoint.AppArmorProfiles = []string{}
-		newEndPoint.SELinuxProfiles = []string{}
-
-		// update containers
-		for k := range pod.Containers {
-			newEndPoint.Containers = append(newEndPoint.Containers, k)
-		}
-
-		// update containers and apparmors
-		dm.ContainersLock.Lock()
-		for _, containerID := range newEndPoint.Containers {
-			container := dm.Containers[containerID]
-
-			container.NamespaceName = newEndPoint.NamespaceName
-			container.EndPointName = newEndPoint.EndPointName
-
-			labels := []string{}
-			for k, v := range newEndPoint.Labels {
-				labels = append(labels, k+"="+v)
-			}
-			container.Labels = strings.Join(labels, ",")
-
-			container.ContainerName = pod.Containers[containerID]
-			container.ContainerImage = pod.ContainerImages[containerID]
-
-			container.PolicyEnabled = newEndPoint.PolicyEnabled
-
-			container.ProcessVisibilityEnabled = newEndPoint.ProcessVisibilityEnabled
-			container.FileVisibilityEnabled = newEndPoint.FileVisibilityEnabled
-			container.NetworkVisibilityEnabled = newEndPoint.NetworkVisibilityEnabled
-			container.CapabilitiesVisibilityEnabled = newEndPoint.CapabilitiesVisibilityEnabled
-
-			if !kl.ContainsElement(newEndPoint.AppArmorProfiles, container.AppArmorProfile) {
-				newEndPoint.AppArmorProfiles = append(newEndPoint.AppArmorProfiles, container.AppArmorProfile)
-			}
-
-			dm.Containers[containerID] = container
-		}
-		dm.ContainersLock.Unlock()
-
-		dm.DefaultPosturesLock.Lock()
-		if val, ok := dm.DefaultPostures[newEndPoint.NamespaceName]; ok {
-			newEndPoint.DefaultPosture = val
 		} else {
-			globalDefaultPosture := tp.DefaultPosture{
-				FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-				NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-				CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+			newEndPoint.Labels = map[string]string{}
+			newEndPoint.Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
+
+			// update labels and identities
+			for k, v := range pod.Labels {
+				newEndPoint.Labels[k] = v
+				newEndPoint.Identities = append(newEndPoint.Identities, k+"="+v)
 			}
-			dm.DefaultPostures[newEndPoint.NamespaceName] = globalDefaultPosture
-			newEndPoint.DefaultPosture = globalDefaultPosture
-		}
-		dm.DefaultPosturesLock.Unlock()
 
-		// get security policies according to the updated identities
-		newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint.Identities)
+			sort.Slice(newEndPoint.Identities, func(i, j int) bool {
+				return newEndPoint.Identities[i] < newEndPoint.Identities[j]
+			})
 
-		dm.EndPointsLock.Lock()
-
-		for idx, endPoint := range dm.EndPoints {
-			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				dm.EndPoints[idx] = newEndPoint
+			// update policy flag
+			if pod.Annotations["kubearmor-policy"] == "enabled" {
+				newEndPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
+			} else if pod.Annotations["kubearmor-policy"] == "audited" {
+				newEndPoint.PolicyEnabled = tp.KubeArmorPolicyAudited
+			} else { // disabled
+				newEndPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 			}
-		}
 
-		if cfg.GlobalCfg.Policy {
-			// update security policies
-			dm.Logger.UpdateSecurityPolicies(action, newEndPoint)
+			newEndPoint.ProcessVisibilityEnabled = false
+			newEndPoint.FileVisibilityEnabled = false
+			newEndPoint.NetworkVisibilityEnabled = false
+			newEndPoint.CapabilitiesVisibilityEnabled = false
 
-			if dm.RuntimeEnforcer != nil && newEndPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(newEndPoint)
+			// parse annotations and update visibility flags
+			for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
+				if visibility == "process" {
+					newEndPoint.ProcessVisibilityEnabled = true
+				} else if visibility == "file" {
+					newEndPoint.FileVisibilityEnabled = true
+				} else if visibility == "network" {
+					newEndPoint.NetworkVisibilityEnabled = true
+				} else if visibility == "capabilities" {
+					newEndPoint.CapabilitiesVisibilityEnabled = true
+				}
 			}
-		}
 
-		dm.EndPointsLock.Unlock()
+			newEndPoint.Containers = []string{}
+			newEndPoint.AppArmorProfiles = []string{}
+			newEndPoint.SELinuxProfiles = []string{}
+
+			// update containers
+			for k := range pod.Containers {
+				newEndPoint.Containers = append(newEndPoint.Containers, k)
+			}
+
+			containersAppArmorProfiles := map[string]string{}
+
+			// update containers and apparmors
+			dm.ContainersLock.Lock()
+			for _, containerID := range newEndPoint.Containers {
+				container := dm.Containers[containerID]
+
+				container.NamespaceName = newEndPoint.NamespaceName
+				container.EndPointName = newEndPoint.EndPointName
+
+				labels := []string{}
+				for k, v := range newEndPoint.Labels {
+					labels = append(labels, k+"="+v)
+				}
+				container.Labels = strings.Join(labels, ",")
+
+				container.ContainerName = pod.Containers[containerID]
+				container.ContainerImage = pod.ContainerImages[containerID]
+
+				container.PolicyEnabled = newEndPoint.PolicyEnabled
+
+				container.ProcessVisibilityEnabled = newEndPoint.ProcessVisibilityEnabled
+				container.FileVisibilityEnabled = newEndPoint.FileVisibilityEnabled
+				container.NetworkVisibilityEnabled = newEndPoint.NetworkVisibilityEnabled
+				container.CapabilitiesVisibilityEnabled = newEndPoint.CapabilitiesVisibilityEnabled
+
+				containersAppArmorProfiles[containerID] = container.AppArmorProfile
+				if !kl.ContainsElement(newEndPoint.AppArmorProfiles, container.AppArmorProfile) {
+					newEndPoint.AppArmorProfiles = append(newEndPoint.AppArmorProfiles, container.AppArmorProfile)
+				}
+
+				dm.Containers[containerID] = container
+			}
+			dm.ContainersLock.Unlock()
+
+			dm.DefaultPosturesLock.Lock()
+			if val, ok := dm.DefaultPostures[newEndPoint.NamespaceName]; ok {
+				newEndPoint.DefaultPosture = val
+			} else {
+				globalDefaultPosture := tp.DefaultPosture{
+					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+				}
+				dm.DefaultPostures[newEndPoint.NamespaceName] = globalDefaultPosture
+				newEndPoint.DefaultPosture = globalDefaultPosture
+			}
+			dm.DefaultPosturesLock.Unlock()
+
+			// get security policies according to the updated identities
+			newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint.Identities)
+
+			newendpoints := []tp.EndPoint{}
+			for k, v := range pod.Containers {
+				endpoint := newEndPoint
+				endpoint.Containers = []string{}
+				endpoint.AppArmorProfiles = []string{}
+				endpoint.SecurityPolicies = []tp.SecurityPolicy{}
+				endpoint.AppArmorProfiles = append(endpoint.AppArmorProfiles, containersAppArmorProfiles[k])
+				endpoint.Containers = append(endpoint.Containers, k)
+				endpoint.ContainerName = v
+
+				for _, secPolicy := range newEndPoint.SecurityPolicies {
+					if len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, v) {
+						endpoint.SecurityPolicies = append(endpoint.SecurityPolicies, secPolicy)
+					}
+				}
+
+				endpoints = append(newendpoints, endpoint)
+			}
+
+			dm.EndPointsLock.Lock()
+
+			idx := 0
+			nidx := 0
+			for nidx < len(endpoints) && idx < len(dm.EndPoints) {
+				if pod.Metadata["namespaceName"] == dm.EndPoints[idx].NamespaceName && pod.Metadata["podName"] == dm.EndPoints[idx].EndPointName && kl.ContainsElement(endpoints, dm.EndPoints[idx].ContainerName) {
+					dm.EndPoints[idx] = endpoints[nidx]
+					nidx++
+				}
+				idx++
+			}
+
+			for _, endpoint := range endpoints {
+				if cfg.GlobalCfg.Policy {
+					// update security policies
+					dm.Logger.UpdateSecurityPolicies(action, endpoint)
+
+					if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+						// enforce security policies
+						dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+					}
+				}
+			}
+
+			dm.EndPointsLock.Unlock()
+		}
 
 	} else { // DELETED
 		dm.EndPointsLock.Lock()
-		for idx, endPoint := range dm.EndPoints {
-			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
-				// remove endpoint
+		idx := 0
+		endpointsLength := len(dm.EndPoints)
+		for idx < endpointsLength {
+			endpoint := dm.EndPoints[idx]
+			if pod.Metadata["namespaceName"] == endpoint.NamespaceName && pod.Metadata["podName"] == endpoint.EndPointName {
 				dm.EndPoints = append(dm.EndPoints[:idx], dm.EndPoints[idx+1:]...)
-				break
+				endpointsLength--
+				idx--
 			}
+			idx++
 		}
 		dm.EndPointsLock.Unlock()
 	}
@@ -454,8 +516,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// create a pod
 
 				pod := tp.K8sPod{}
-				appArmorAnnotationsCount := 0
-				containersCount := 0
+				containers := []string{}
 
 				// need this for apparmor profile
 				var podOwnerName string
@@ -593,6 +654,15 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					appArmorAnnotations := map[string]string{}
 					updateAppArmor := false
 
+					if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+						deploy, err := K8s.K8sClient.AppsV1().Deployments(pod.Metadata["namespaceName"]).Get(context.Background(), deploymentName, metav1.GetOptions{})
+						if err == nil {
+							for _, c := range deploy.Spec.Template.Spec.Containers {
+								containers = append(containers, c.Name)
+							}
+						}
+					}
+
 					for k, v := range pod.Annotations {
 						if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
 							if v == "unconfined" {
@@ -602,16 +672,14 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
-							appArmorAnnotationsCount += 1
 						}
 					}
 
 					for _, container := range event.Object.Spec.Containers {
-						if _, ok := appArmorAnnotations[container.Name]; !ok {
+						if _, ok := appArmorAnnotations[container.Name]; !ok && kl.ContainsElement(containers, container.Name) {
 							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
 							updateAppArmor = true
 						}
-						containersCount += 1
 					}
 
 					if event.Type == "ADDED" {
@@ -619,7 +687,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
-							if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
+							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
 								// patch the deployment with apparmor annotations
 								if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -639,7 +707,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 
 								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
-									if deploymentName, ok := pod.Metadata["deploymentName"]; ok && containersCount != appArmorAnnotationsCount {
+									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
 										// patch the deployment with apparmor annotations
 										if err := K8s.PatchDeploymentWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -737,7 +805,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 
 	for idx, endPoint := range dm.EndPoints {
 		// update a security policy
-		if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) {
+		if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) && (len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, endPoint.ContainerName)) {
 			if action == "ADDED" {
 				// add a new security policy if it doesn't exist
 				new := true
@@ -846,7 +914,20 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				secPolicy.Spec.Selector.Identities = []string{"namespaceName=" + event.Object.Metadata.Namespace}
 
 				for k, v := range secPolicy.Spec.Selector.MatchLabels {
-					secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+					if k == "kubearmor.io/container.name" {
+						if len(v) > 2 {
+							containerArray := v[1 : len(v)-1]
+							containers := strings.Split(containerArray, ",")
+							for _, container := range containers {
+								if len(container) > 0 {
+									secPolicy.Spec.Selector.Containers = append(secPolicy.Spec.Selector.Containers, strings.TrimSpace(container))
+								}
+
+							}
+						}
+					} else {
+						secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+					}
 				}
 
 				sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
