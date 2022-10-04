@@ -221,7 +221,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 		for _, net := range secPolicy.Spec.Network.MatchProtocols {
 			var val [2]uint8
-			var key = InnerKey{Path: [256]byte{}}
+			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
 			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = PROTOCOL
 				key.Path[1] = val
@@ -239,7 +239,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			} else {
 				for _, src := range net.FromSource {
-					copy(key.Source[:], []byte(src.Path))
+					var source [256]byte
+					copy(source[:], []byte(src.Path))
+					key.Source = source
 					if net.Action == "Allow" && defaultPosture.NetworkAction == "block" {
 						newrules.NetWhiteListPosture = true
 						newrules.NetworkRuleList[key] = val
