@@ -362,11 +362,20 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newRuleList
 // dirtoMap extracts parent directories from the Path Key and adds it as hints in the Container Rule Map
 func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint8, val [2]uint8) {
 	var key InnerKey
-	copy(key.Path[:], []byte(p))
 	if src != "" {
 		copy(key.Source[:], []byte(src))
 	}
 	paths := strings.Split(p, "/")
+
+	// Add the directory itself but kernel space would refer it as a file so...
+	var pth [256]byte
+	copy(pth[:], []byte(strings.Join(paths[0:len(paths)-1], "/")))
+	key.Path = pth
+	m[key] = val
+
+	// Add directory for sub file matching
+	copy(key.Path[:], []byte(p))
+
 	val[idx] = val[idx] | DIR
 	if oldval, ok := m[key]; ok {
 		if oldval[idx]&HINT != 0 {
