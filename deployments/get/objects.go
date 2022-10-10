@@ -125,6 +125,16 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 									ContainerPort: port,
 								},
 							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("4000m"),
+									corev1.ResourceMemory: resource.MustParse("4Gi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+							},
 						},
 					},
 				},
@@ -578,6 +588,16 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: port,
+								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("4000m"),
+									corev1.ResourceMemory: resource.MustParse("4Gi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
 								},
 							},
 							VolumeMounts: volumeMounts,
