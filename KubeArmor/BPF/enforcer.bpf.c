@@ -711,6 +711,11 @@ int BPF_PROG(enforce_net_connect, struct socket *sock, struct sockaddr *address,
   if (p == NULL)
     return 0;
 
+  u32 two = 2;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &two);
+  if (store == NULL)
+    return 0;
+
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
 
   p->path[0] = sock_proto; // Protocol Check
@@ -739,6 +744,7 @@ int BPF_PROG(enforce_net_connect, struct socket *sock, struct sockaddr *address,
 
   void *ptr = &src_buf->buf[*src_offset];
   bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+  bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);
 
   val = bpf_map_lookup_elem(inner, p);
 
@@ -779,6 +785,9 @@ decision:
                  "to not in "
                  "allowlist\n",
                  sock->type, address->sa_family, sock->sk->sk_protocol);
+      if (store->source[0] != '\0') {
+        bpf_printk("denying from source connect from %s", store->source);
+      }
       return -EPERM;
     }
   } else {
@@ -818,6 +827,11 @@ int BPF_PROG(enforce_net_accept, struct socket *sock) {
   if (p == NULL)
     return 0;
 
+  u32 two = 2;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &two);
+  if (store == NULL)
+    return 0;
+
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
 
   p->path[0] = sock_proto; // Protocol Check
@@ -846,6 +860,7 @@ int BPF_PROG(enforce_net_accept, struct socket *sock) {
 
   void *ptr = &src_buf->buf[*src_offset];
   bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+  bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);
 
   val = bpf_map_lookup_elem(inner, p);
 
@@ -882,9 +897,9 @@ decision:
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying sock accept - type %d, protocol %d due to not in "
-                 "allowlist\n",
-                 sock->type, sock->sk->sk_protocol);
+      bpf_printk("testing denying sock accept - type %d, protocol %d due to not in "
+                 "allowlist - %s\n",
+                 sock->type, sock->sk->sk_protocol, store->source);
       return -EPERM;
     }
   } else {

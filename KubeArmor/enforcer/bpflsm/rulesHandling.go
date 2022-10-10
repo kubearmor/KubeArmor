@@ -221,7 +221,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 		for _, net := range secPolicy.Spec.Network.MatchProtocols {
 			var val [2]uint8
-			var key = InnerKey{Path: [256]byte{}}
+			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
 			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = PROTOCOL
 				key.Path[1] = val
@@ -239,7 +239,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			} else {
 				for _, src := range net.FromSource {
-					copy(key.Source[:], []byte(src.Path))
+					var source [256]byte
+					copy(source[:], []byte(src.Path))
+					key.Source = source
 					if net.Action == "Allow" && defaultPosture.NetworkAction == "block" {
 						newrules.NetWhiteListPosture = true
 						newrules.NetworkRuleList[key] = val
@@ -360,11 +362,20 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newRuleList
 // dirtoMap extracts parent directories from the Path Key and adds it as hints in the Container Rule Map
 func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint8, val [2]uint8) {
 	var key InnerKey
-	copy(key.Path[:], []byte(p))
 	if src != "" {
 		copy(key.Source[:], []byte(src))
 	}
 	paths := strings.Split(p, "/")
+
+	// Add the directory itself but kernel space would refer it as a file so...
+	var pth [256]byte
+	copy(pth[:], []byte(strings.Join(paths[0:len(paths)-1], "/")))
+	key.Path = pth
+	m[key] = val
+
+	// Add directory for sub file matching
+	copy(key.Path[:], []byte(p))
+
 	val[idx] = val[idx] | DIR
 	if oldval, ok := m[key]; ok {
 		if oldval[idx]&HINT != 0 {
