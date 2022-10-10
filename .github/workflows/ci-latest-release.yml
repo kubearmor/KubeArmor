@@ -59,11 +59,11 @@ jobs:
 
       - name: Deploy KubeArmor into Kubernetes
         run: |
-          sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
-          sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          sed -i 's/kubearmor\/kubearmor:latest/kranurag78\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          sed -i 's/kubearmor\/kubearmor-init:latest/kranurag78\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
           cat ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
-          sleep 200
+          sleep 60
           kubectl -n kube-system get pods -l kubearmor-app=kubearmor
           kubectl -n kube-system describe pod -l kubearmor-app=kubearmor
           kubectl -n kube-system get events 
