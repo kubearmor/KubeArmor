@@ -70,6 +70,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
+      - name: Docker Images 
+        run: docker images 
+        
       - name: Push KubeArmor images to Docker
         run: ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
