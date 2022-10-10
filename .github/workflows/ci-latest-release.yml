@@ -54,10 +54,14 @@ jobs:
       - name: Generate KubeArmor artifacts
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
+      - name: Docker Images 
+        run: docker images 
+
       - name: Deploy KubeArmor into Kubernetes
         run: |
           sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
           sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          cat ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
 
@@ -69,9 +73,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
-
-      - name: Docker Images 
-        run: docker images 
 
         
       - name: Push KubeArmor images to Docker
