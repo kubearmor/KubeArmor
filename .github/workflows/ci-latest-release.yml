@@ -63,7 +63,7 @@ jobs:
           sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
           cat ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          kubectl wait --for=condition=ready --timeout=8m -n kube-system pod -l kubearmor-app=kubearmor
 
       - name: Test KubeArmor
         run: ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
