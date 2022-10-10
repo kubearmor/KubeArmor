@@ -88,8 +88,8 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign kubearmor/kubearmor:${{ steps.vars.outputs.tag }}
-          cosign sign kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
+          cosign sign kranurag78/kubearmor:${{ steps.vars.outputs.tag }}
+          cosign sign kranurag78/kubearmor-init:${{ steps.vars.outputs.tag }}
 
   push-stable-version:
     name: Create KubeArmor stable release
@@ -131,5 +131,5 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign kubearmor/kubearmor:stable
-          cosign sign kubearmor/kubearmor-init:stable
+          cosign sign kranurag78/kubearmor:stable
+          cosign sign kranurag78/kubearmor-init:stable
