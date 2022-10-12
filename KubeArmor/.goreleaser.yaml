@@ -72,6 +72,7 @@ nfpms:
           - clang
           - llvm
           - linux-headers-generic
+          - golang
       rpm:
         dependencies:
           - make
@@ -81,3 +82,4 @@ nfpms:
           - kernel-devel
           - policycoreutils-devel
           - setools-console
+          - golang
