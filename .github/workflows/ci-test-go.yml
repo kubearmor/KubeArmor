@@ -10,7 +10,7 @@ jobs:
   go-fmt:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions/setup-go@v3
         with:
@@ -23,7 +23,7 @@ jobs:
   go-lint:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions/setup-go@v3
         with:
@@ -37,7 +37,7 @@ jobs:
   go-lint-tests:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions/setup-go@v3
         with:
@@ -51,7 +51,7 @@ jobs:
   go-sec:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: actions/setup-go@v3
         with:
@@ -64,7 +64,7 @@ jobs:
   license:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Check License Header
         uses: apache/skywalking-eyes@9bd5feb86b5817aa6072b008f9866a2c3bbc8587

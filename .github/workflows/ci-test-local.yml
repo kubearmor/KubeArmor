@@ -28,7 +28,7 @@ jobs:
         os: [ubuntu-20.04]
         runtime: ["docker", "containerd", "crio"]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
 
@@ -57,7 +57,7 @@ jobs:
 
       - name: Archive log artifacts
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: kubearmor.logs
           path: |
@@ -79,7 +79,7 @@ jobs:
         env:
           GOPATH: /home/runner/go
 
-      - uses: codecov/codecov-action@v2
+      - uses: codecov/codecov-action@v3
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
