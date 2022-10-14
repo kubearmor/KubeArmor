@@ -19,7 +19,6 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
-	"k8s.io/kubectl/pkg/util/slice"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -210,7 +209,7 @@ func loadIgnoreList(bpfPath string) ([]string, error) {
 
 	ignoreList := []string{}
 	for scanner.Scan() {
-		ignoreList = append(ignoreList, scanner.Text())
+		ignoreList = append(ignoreList, scanner.Text()[1:])
 	}
 
 	if err := file.Close(); err != nil {
@@ -220,8 +219,22 @@ func loadIgnoreList(bpfPath string) ([]string, error) {
 	return ignoreList, nil
 }
 
+var syscallsInKernelFeatureFlag = map[string][]string{
+	"DSECURITY_PATH": {
+		"security_path_unlink",
+		"security_path_rmdir",
+	},
+}
+
 func isIgnored(item string, ignoreList []string) bool {
-	return slice.ContainsString(ignoreList, item, nil)
+	for _, ignoreFlag := range ignoreList {
+		for _, syscall := range syscallsInKernelFeatureFlag[ignoreFlag] {
+			if syscall == item {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // InitBPF Function
