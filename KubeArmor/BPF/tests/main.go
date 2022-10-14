@@ -44,7 +44,7 @@ func main() {
 		log.Fatalf("%s.c should contain only one syscall\n", args[0])
 	}
 
-	if strings.HasPrefix(fn, "Kprobe__") {
+	if strings.HasPrefix(fn, "kprobe__") {
 		_, err = link.Kprobe(syscall, bpfModule.Programs[fn], nil)
 		if err != nil {
 			log.Fatalf("[Failed] Cannot attach syscall %s\n", err.Error())
