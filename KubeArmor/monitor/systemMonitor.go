@@ -7,9 +7,11 @@ package monitor
 import (
 	"bufio"
 	"bytes"
+	"embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -80,6 +82,9 @@ type ContextCombined struct {
 
 // StopChan Channel
 var StopChan chan struct{}
+
+//go:embed system_monitor.*
+var embededdBPFFiles embed.FS
 
 // init Function
 func init() {
@@ -227,22 +232,44 @@ func (mon *SystemMonitor) InitBPF() error {
 		return err
 	}
 
-	mon.Logger.Print("Initializing eBPF system monitor")
+	var bpfFile io.ReaderAt
 
+	mon.Logger.Print("Initializing eBPF system monitor")
+	bpfPath = os.Getenv("PWD") + "/monitor/"
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("error removing memlock %v", err)
 	}
 
 	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("system_monitor.container.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: system_monitor.container.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
 		bpfPath = bpfPath + "system_monitor.container.bpf.o"
 	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("system_monitor.host.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: system_monitor.host.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
 		bpfPath = bpfPath + "system_monitor.host.bpf.o"
 	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("system_monitor.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: system_monitor.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
 		bpfPath = bpfPath + "system_monitor.bpf.o"
 	}
 	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
-	mon.BpfModule, err = cle.LoadCollection(bpfPath)
+	spec, err := cle.LoadCollectionSpecFromReader(bpfFile)
+	if err != nil {
+		return fmt.Errorf("unable to load collection spec from %v", err)
+	}
+
+	mon.BpfModule, err = cle.NewCollection(spec)
 	if err != nil {
 		return fmt.Errorf("bpf module is nil %v", err)
 	}
