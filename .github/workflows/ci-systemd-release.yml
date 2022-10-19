@@ -12,7 +12,7 @@ jobs:
   goreleaser:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
 
@@ -25,6 +25,10 @@ jobs:
 
       - name: Compile libbpf
         run: ./.github/workflows/install-libbpf.sh
+        
+      - name: Compile syscheck Binary
+        run: make syscheck
+        working-directory: KubeArmor/BPF/tests
 
       - name: Install karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .

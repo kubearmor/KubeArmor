@@ -23,7 +23,7 @@ jobs:
       hostpolicy: ${{ steps.filter.outputs.hostpolicy }}
       policy: ${{ steps.filter.outputs.policy }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: dorny/paths-filter@v2
       id: filter
       with:
@@ -49,7 +49,7 @@ jobs:
         with:
           go-version: v1.18
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Build annotation controller
         run: make docker-build TAG=latest
@@ -68,7 +68,7 @@ jobs:
         with:
           go-version: v1.18
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Build hostpolicy controller
         run: make docker-build TAG=latest
@@ -87,7 +87,7 @@ jobs:
         with:
           go-version: v1.18
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Build policy controller
         run: make docker-build TAG=latest

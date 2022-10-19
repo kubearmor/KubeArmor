@@ -40,10 +40,10 @@ func isK8sEnv() bool {
 
 func getOptions() kins.Options {
 	return kins.Options{
-		"kube-system",
-		"kubearmor/kubearmor:stable",
-		"",
-		false,
+		Namespace:      "kube-system",
+		KubearmorImage: "kubearmor/kubearmor:stable",
+		Audit:          "",
+		Force:          false,
 	}
 }
 

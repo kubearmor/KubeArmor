@@ -30,7 +30,7 @@ SYSCALL=${1#*/}
 
 if ! $SUDO ./syscheck $1 ; then
     echo "Disabling $SYSCALL ..."
-    echo "$SYSCALL" >> ignore.lst
+    grep "// CFlag=.*$" "$1.c" | sed -E "s/.*?=(.*?)$/\1/" >> ignore.lst
 else
     echo "Enabling syscall $SYSCALL"
     grep "// CFlag=.*$" "$1.c" | sed -E "s/.*?=(.*?)$/\1/" >> cflags.lst
