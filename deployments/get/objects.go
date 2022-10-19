@@ -563,7 +563,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 										"SETUID",
 										"SETGID",
 										"SETPCAP",
-										"SYS_ADMIN",
 										"SYS_PTRACE",
 										"MAC_ADMIN",
 										"SYS_RESOURCE",
