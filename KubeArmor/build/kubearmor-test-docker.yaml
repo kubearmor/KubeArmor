@@ -48,7 +48,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:
       - name: init
-        image: kubearmor/kubearmor-init:latest
+        image: kranurag78/kubearmor-init:latest
         imagePullPolicy: Never
         securityContext:
           privileged: false
@@ -89,7 +89,7 @@ spec:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
         - -enableKubeArmorHostPolicy
-        image: kubearmor/kubearmor:latest
+        image: kranurag78/kubearmor:latest
         imagePullPolicy: Never
         securityContext:
           privileged: false
