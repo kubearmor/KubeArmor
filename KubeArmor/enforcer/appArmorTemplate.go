@@ -80,7 +80,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	## == PRE END == ##
 
 	## == POLICY START == ##
-{{range $value, $data := .FilePaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if and $data.ReadOnly $data.OwnerOnly}}
+{{range $value, $data := .FilePaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**,.**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if and $data.ReadOnly $data.OwnerOnly}}
 	deny owner {{$value}}{{$suffix}} w,
 	deny other {{$value}}{{$suffix}} rw,
 {{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} rw,
@@ -92,7 +92,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 {{else if $data.ReadOnly}}	{{$value}}{{$suffix}} r,
 {{else}}	{{$value}}{{$suffix}} rw,
 {{end}}{{end}}{{end}}
-{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
+{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**,.**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
 	owner {{$value}}{{$suffix}} ix,
 	deny other {{$value}}{{$suffix}} x,{{else}}
 	deny {{$value}}{{$suffix}} x,{{end}}{{end}}{{if $data.Allow}}{{if $data.OwnerOnly}}
@@ -121,7 +121,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 		## == PRE END == ##
 	
 		## == POLICY START == ##
-	{{range $value, $data := .FilePaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if and $data.ReadOnly $data.OwnerOnly}}
+	{{range $value, $data := .FilePaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**,.**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if and $data.ReadOnly $data.OwnerOnly}}
 		deny owner {{$value}}{{$suffix}} w,
 		deny other {{$value}}{{$suffix}} rw,
 	{{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} rw,
@@ -133,7 +133,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	{{else if $data.ReadOnly}}	{{$value}}{{$suffix}} r,
 	{{else}}	{{$value}}{{$suffix}} rw,
 	{{end}}{{end}}{{end}}
-	{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
+	{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**,.**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
 		owner {{$value}}{{$suffix}} ix,
 		deny other {{$value}}{{$suffix}} x,{{else}}
 		deny {{$value}}{{$suffix}} x,{{end}}{{end}}{{if $data.Allow}}{{if $data.OwnerOnly}}
