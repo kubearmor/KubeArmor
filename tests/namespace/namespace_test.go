@@ -125,7 +125,7 @@ var _ = Describe("Namespace", func() {
 			sout, err := Kubectl("annotate ns nptest kubearmor-network-posture=audit --overwrite")
 			Expect(err).To(BeNil())
 			Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
-			time.Sleep(5*time.Second)
+			time.Sleep(10*time.Second)
 
                         // Start Kubearmor Logs
                         err = KarmorLogStart("policy", "nptest", "Network", ubuntu)
@@ -165,7 +165,7 @@ var _ = Describe("Namespace", func() {
 			sout, err := Kubectl("annotate ns nptest kubearmor-file-posture=audit --overwrite")
 			Expect(err).To(BeNil())
 			Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
-			time.Sleep(5*time.Second)
+			time.Sleep(10*time.Second)
 
                         // Start Kubearmor Logs
                         err = KarmorLogStart("policy", "nptest", "Process", ubuntu)
@@ -292,7 +292,7 @@ var _ = Describe("Namespace", func() {
                         sout, err := Kubectl("annotate ns nptest kubearmor-capabilities-posture=audit --overwrite")
                         Expect(err).To(BeNil())
                         Expect(sout).To(MatchRegexp("namespace/nptest annotated"))
-                        time.Sleep(5*time.Second)
+                        time.Sleep(10*time.Second)
 
                         // Check execution
                         sout, _, err = K8sExecInPod(ubuntu, "nptest",[]string{"bash", "-c", "chown test dummy"})
