@@ -21,7 +21,7 @@ RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /e
 RUN apk --no-cache update
 RUN apk --no-cache add bash git clang llvm make gcc bpftool@edge
 
-COPY ./GKE /KubeArmor/GKE/
+
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
 COPY --from=init-builder /usr/src/KubeArmor/syscheck /KubeArmor/BPF/tests/syscheck
@@ -57,6 +57,6 @@ RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
-COPY --from=builder /usr/src/KubeArmor/GKE/*.sh /KubeArmor/GKE/
+
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
