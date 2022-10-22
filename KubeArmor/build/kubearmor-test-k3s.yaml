@@ -101,6 +101,7 @@ spec:
               - SETGID
               - SETPCAP
               - SYS_PTRACE 
+              - SYS_ADMIN
               - MAC_ADMIN
               - SYS_RESOURCE 
               - IPC_LOCK
