@@ -38,7 +38,7 @@ jobs:
       - name: Setup a Kubernetes environment
         id: vars
         run: |
-          echo ::set-output name=tag::latest
+          echo "tag=latest" >> $GITHUB_OUTPUT
           RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
       - name: Generate KubeArmor artifacts

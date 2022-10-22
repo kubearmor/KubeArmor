@@ -102,7 +102,6 @@ spec:
               - SETPCAP
               - SYS_PTRACE 
               - SYS_ADMIN
-              - MAC_ADMIN
               - SYS_RESOURCE 
               - IPC_LOCK
               - CAP_DAC_OVERRIDE

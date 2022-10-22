@@ -565,7 +565,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 										"SETPCAP",
 										"SYS_ADMIN",
 										"SYS_PTRACE",
-										"MAC_ADMIN",
 										"SYS_RESOURCE",
 										"IPC_LOCK",
 										"CAP_DAC_OVERRIDE",
