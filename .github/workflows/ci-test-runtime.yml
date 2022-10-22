@@ -74,3 +74,5 @@ jobs:
       - name: Check the testing results
         if: ${{ always() }}
         run: cat /tmp/kubearmor.test
+
+
