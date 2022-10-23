@@ -32,6 +32,8 @@ if [ ! -z $1 ]; then
     VERSION=$1
 fi
 
+export DOCKER_BUILDKIT=1
+
 # remove old images
 docker images | grep kubearmor | awk '{print $3}' | xargs -I {} docker rmi -f {} 2> /dev/null
 echo "[INFO] Removed existing $REPO images"
