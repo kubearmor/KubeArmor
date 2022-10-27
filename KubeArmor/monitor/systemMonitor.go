@@ -83,7 +83,7 @@ type ContextCombined struct {
 // StopChan Channel
 var StopChan chan struct{}
 
-//go:embed system_monitor.*
+//go:embed embedded_system_monitor.*
 var embededdBPFFiles embed.FS
 
 // init Function
@@ -231,26 +231,26 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-			var tempBpfFile, err = embededdBPFFiles.ReadFile("system_monitor.container.bpf.o")
+			var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.container.bpf.o")
 			if err != nil {
 				return fmt.Errorf("unable to read file: system_monitor.container.bpf.o")
 			}
 			bpfFile = bytes.NewReader(tempBpfFile)
-			bpfPath = bpfPath + "system_monitor.container.bpf.o"
+			bpfPath = bpfPath + "embedded_system_monitor.container.bpf.o"
 		} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-			var tempBpfFile, err = embededdBPFFiles.ReadFile("system_monitor.host.bpf.o")
+			var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.host.bpf.o")
 			if err != nil {
-				return fmt.Errorf("unable to read file: system_monitor.host.bpf.o")
+				return fmt.Errorf("unable to read file: embedded_system_monitor.host.bpf.o")
 			}
 			bpfFile = bytes.NewReader(tempBpfFile)
-			bpfPath = bpfPath + "system_monitor.host.bpf.o"
+			bpfPath = bpfPath + "embedded_system_monitor.host.bpf.o"
 		} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-			var tempBpfFile, err = embededdBPFFiles.ReadFile("system_monitor.bpf.o")
+			var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.bpf.o")
 			if err != nil {
-				return fmt.Errorf("unable to read file: system_monitor.bpf.o")
+				return fmt.Errorf("unable to read file: embedded_system_monitor.bpf.o")
 			}
 			bpfFile = bytes.NewReader(tempBpfFile)
-			bpfPath = bpfPath + "system_monitor.bpf.o"
+			bpfPath = bpfPath + "embedded_system_monitor.bpf.o"
 		}
 		mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
 		spec, err := cle.LoadCollectionSpecFromReader(bpfFile)
