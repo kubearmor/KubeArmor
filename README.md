@@ -13,7 +13,7 @@ KubeArmor is a cloud-native runtime security enforcement system that restricts t
 
 KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/wiki/Linux_Security_Modules) such as [AppArmor](https://en.wikipedia.org/wiki/AppArmor), [SELinux](https://en.wikipedia.org/wiki/Security-Enhanced_Linux), or [BPF-LSM](https://lwn.net/Articles/808048/)\) to enforce the user-specified policies. KubeArmor generates alerts/telemetry events with container/pod/namespace identities by leveraging eBPF.
 
-![KubeArmor High Level Design](.gitbook/assets/KubeArmor_overview.png)
+![KubeArmor High Level Design](.gitbook/assets/kubearmor_overview.png)
 
 ## Functionality Overview
 
