@@ -21,6 +21,8 @@ jobs:
     name: Create KubeArmor latest release
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
+    permissions:
+      id-token: write 
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
@@ -80,11 +82,29 @@ jobs:
       - name: Push KubeArmor images to Docker
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
+      - name: Install Cosign 
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: | 
+          echo "imagedigest=$(docker images kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+          echo "initdigest=$(docker images kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign sign kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign sign kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+
   push-stable-version:
     name: Create KubeArmor stable release
     needs: build
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-20.04
+    permissions:
+      id-token: write
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
@@ -121,3 +141,19 @@ jobs:
       - name: Push the stable version of KubeArmor to Docker Hub
         if: steps.match.outputs.tag == 'true'
         run: STABLE_VERSION=$(cat STABLE-RELEASE) GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh stable
+
+      - name: Install Cosign 
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: | 
+          echo "imagedigest=$(docker images kubearmor/kubearmor:stable --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+          echo "initdigest=$(docker images kubearmor/kubearmor-init:stable --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign sign kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign sign kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
