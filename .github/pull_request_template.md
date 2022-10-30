@@ -1,20 +1,12 @@
-## Pull Request template
-
-Please, go through these steps before you submit a PR.
-
-**Why is this PR required? What issue does it fix?**:
+**Purpose of PR?**:
 
 Fixes #
 
-**What this PR does/why we need it?**:
-
-Description
-
-**Does this PR introduce a breaking change?** 
+**Does this PR introduce a breaking change?**
 
 **If the changes in this PR are manually verified, list down the scenarios covered:**:
 
-**Any additional information for your reviewer?** :
+**Additional information for reviewer?** :
 _Mention if this PR is part of any design or a continuation of previous PRs_
 
 
@@ -27,7 +19,7 @@ _Mention if this PR is part of any design or a continuation of previous PRs_
 - [ ] Commit has unit tests
 - [ ] Commit has integration tests
 
-**PLEASE REMOVE BELOW INFORMATION BEFORE SUBMITTING**
+<!--
 
 The PR title message must follow convention:
 `<type>(<scope>): <subject>`.
@@ -44,5 +36,9 @@ Where: <br />
     - `refactor`  - refactoring production code, eg. renaming a variable or function name, there should not be any significant production code changes
 
 - `scope` is a single word that best describes where the changes fit.
-
+    - feature(`monitor`,`enforcer`)
+    - test(`tests`, `bdd`)
+    - chore(`build`)
 - `subject` is a single line brief description of the changes made in the pull request.
+
+-->
