@@ -216,8 +216,52 @@ func (mon *SystemMonitor) InitBPF() error {
 	var bpfFile io.ReaderAt
 	var bpfPath string
 
-	if _, err := os.Stat("/sys/kernel/vmlinux"); err != nil 	{
+	if _, err := os.Stat("/sys/kernel/btf/vmlinux"); err != nil {
+		// go test
+		bpfPath = homeDir + "/BPF/"
+		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+			// go test
+			bpfPath = os.Getenv("PWD") + "/../BPF/"
+			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+				// container
 
+				bpfPath = "/opt/kubearmor/BPF/"
+				if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
+					return err
+				}
+			}
+
+			ignoreList, err = loadIgnoreList(bpfPath)
+			if err != nil {
+				return err
+			}
+
+			mon.Logger.Print("Initializing eBPF system monitor")
+
+			// Allow the current process to lock memory for eBPF resources.
+			if err := rlimit.RemoveMemlock(); err != nil {
+				return fmt.Errorf("error removing memlock %v", err)
+			}
+
+			if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
+				bpfPath = bpfPath + "system_monitor.container.bpf.o"
+			} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
+				bpfPath = bpfPath + "system_monitor.host.bpf.o"
+			} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
+				bpfPath = bpfPath + "system_monitor.bpf.o"
+			}
+			mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
+			mon.BpfModule, err = cle.LoadCollection(bpfPath)
+			if err != nil {
+				return fmt.Errorf("bpf module is nil %v", err)
+			}
+
+			mon.Logger.Print("Initialized the eBPF system monitor")
+
+		}
+
+	} else {
+		// go test
 		mon.Logger.Print("Initializing embedded eBPF system monitor")
 		bpfPath = os.Getenv("PWD") + "/monitor/"
 		// Allow the current process to lock memory for eBPF resources.
@@ -264,50 +308,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		mon.Logger.Print("Initialized the eBPF system monitor")
-
-	} else {
-		bpfPath = homeDir + "/BPF/"
-		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-			// go test
-
-			bpfPath = os.Getenv("PWD") + "/../BPF/"
-			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-				// container
-
-				bpfPath = "/opt/kubearmor/BPF/"
-				if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-					return err
-				}
-			}
-
-			ignoreList, err = loadIgnoreList(bpfPath)
-			if err != nil {
-				return err
-			}
-
-			mon.Logger.Print("Initializing eBPF system monitor")
-
-			// Allow the current process to lock memory for eBPF resources.
-			if err := rlimit.RemoveMemlock(); err != nil {
-				return fmt.Errorf("error removing memlock %v", err)
-			}
-
-			if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-				bpfPath = bpfPath + "system_monitor.container.bpf.o"
-			} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-				bpfPath = bpfPath + "system_monitor.host.bpf.o"
-			} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-				bpfPath = bpfPath + "system_monitor.bpf.o"
-			}
-			mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
-			mon.BpfModule, err = cle.LoadCollection(bpfPath)
-			if err != nil {
-				return fmt.Errorf("bpf module is nil %v", err)
-			}
-
-			mon.Logger.Print("Initialized the eBPF system monitor")
-
-		}
 
 	}
 
