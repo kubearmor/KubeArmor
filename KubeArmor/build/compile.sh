@@ -11,5 +11,4 @@ else
     make
 fi
 
-cp *.bpf.o /opt/kubearmor/BPF/
 cp *.bpf.o ignore.lst /opt/kubearmor/BPF/
