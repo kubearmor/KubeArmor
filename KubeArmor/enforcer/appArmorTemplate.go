@@ -64,120 +64,57 @@ func (p *Profile) Init() {
 // BaseTemplate for AppArmor profiles
 const BaseTemplate = `
 ## == Managed by KubeArmor == ##
-
 #include <tunables/global>
+{{- $ctx := .}}
+{{- $regex := ".*?(\\[|\\*|\\+|\\?|\\$|\\|)+.*"}}
 
+## == Dispatcher profile START == ##
 profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
+	{{- template "pre-section" . }}
+  {{template "file-section" . }}
+	## == DISPATCHER START == ##
+  {{- range $source, $value:= $.FromSource}}
+				{{$source}} px -> {{$.Name}}-{{$source}},
+  {{- end}}
+	{{- range $value, $data := .ProcessPaths}}
+		{{- $suffix := ""}}
+    {{- $ext := "" }}
+		{{- if and $data.Dir $data.Recursive}}
+			{{- $suffix = "{,**}"}}
+      {{- $ext = "-**" }}
+		{{- else if $data.Dir}}
+			{{- $suffix = "{,*}"}}
+      {{- $ext = "-*" }}
+		{{- end}}
+		{{- if $data.Deny}}
+			{{- if $data.OwnerOnly}}
+				owner {{$value}}{{$suffix}} ix,
+				deny other {{$value}}{{$suffix}} x,
+			{{- else}}
+				deny {{$value}}{{$suffix}} x,
+			{{- end}}
+		{{- end}}
 
-	## == PRE START == ##
-
-	#include <abstractions/base>
-
-{{if .File}}	file,
-{{end}}{{if .Network}}	network,
-{{end}}{{if .Capabilities}}	capability,
-{{end}}
-	## == PRE END == ##
-
-	## == POLICY START == ##
-{{range $value, $data := .FilePaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if and $data.ReadOnly $data.OwnerOnly}}
-	deny owner {{$value}}{{$suffix}} w,
-	deny other {{$value}}{{$suffix}} rw,
-{{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} rw,
-	deny other {{$value}}{{$suffix}} rw,
-{{else if $data.ReadOnly}}	deny {{$value}}{{$suffix}} w,
-{{else}}	deny {{$value}}{{$suffix}} rw,{{end}}
-{{end}}{{if $data.Allow}}{{if and $data.ReadOnly $data.OwnerOnly}}	owner {{$value}}{{$suffix}} r,
-{{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} rw,
-{{else if $data.ReadOnly}}	{{$value}}{{$suffix}} r,
-{{else}}	{{$value}}{{$suffix}} rw,
-{{end}}{{end}}{{end}}
-{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
-	owner {{$value}}{{$suffix}} ix,
-	deny other {{$value}}{{$suffix}} x,{{else}}
-	deny {{$value}}{{$suffix}} x,{{end}}{{end}}{{if $data.Allow}}{{if $data.OwnerOnly}}
-	owner {{$value}}{{$suffix}} ix,{{else}}	{{$value}}{{$suffix}} ix,
-{{end}}{{end}}{{end}}
-{{range $value, $data := .NetworkRules}}{{if $data.Deny}}	deny network {{$value}},
-{{end}}{{if $data.Allow}}	network {{$value}},
-{{end}}{{end}}
-{{range $value, $data := .CapabilitiesRules}}{{if $data.Deny}}	deny capability {{$value}},
-{{end}}{{if $data.Allow}}	capability {{$value}},
-{{end}}{{end}}
-{{ range $source, $value := $.FromSource }}{{if $value.Fusion}}
-	{{$source}} cix,{{else}}
-	{{$source}} cx,{{end}}
-	profile {{$source}} {
-
-		{{$source}} rix,
-		## == PRE START == ##
-
-		#include <abstractions/base>
-	
-	{{if .File}}	file,
-	{{end}}{{if .Network}}	network,
-	{{end}}{{if .Capabilities}}	capability,
-	{{end}}
-		## == PRE END == ##
-	
-		## == POLICY START == ##
-	{{range $value, $data := .FilePaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if and $data.ReadOnly $data.OwnerOnly}}
-		deny owner {{$value}}{{$suffix}} klw,
-		deny other {{$value}}{{$suffix}} klmrw,
-	{{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} klmrw,
-		deny other {{$value}}{{$suffix}} klmrw,
-	{{else if $data.ReadOnly}}	deny {{$value}}{{$suffix}} klw,
-	{{else}}	deny {{$value}}{{$suffix}} klmrw,{{end}}
-	{{end}}{{if $data.Allow}}{{if and $data.ReadOnly $data.OwnerOnly}}	owner {{$value}}{{$suffix}} lmr,
-	{{else if $data.OwnerOnly}}	owner {{$value}}{{$suffix}} klmrw,
-	{{else if $data.ReadOnly}}	{{$value}}{{$suffix}} lmr,
-	{{else}}	{{$value}}{{$suffix}} klmrw,
-	{{end}}{{end}}{{end}}
-	{{range $value, $data := .ProcessPaths}}{{$suffix := ""}}{{if and $data.Dir $data.Recursive}}{{$suffix = "{,**}"}}{{else if $data.Dir}}{{$suffix = "{,*}"}}{{end}}{{if $data.Deny}}{{if $data.OwnerOnly}}
-		owner {{$value}}{{$suffix}} ix,
-		deny other {{$value}}{{$suffix}} x,{{else}}
-		deny {{$value}}{{$suffix}} x,{{end}}{{end}}{{if $data.Allow}}{{if $data.OwnerOnly}}
-		owner {{$value}}{{$suffix}} ix,{{else}}	{{$value}}{{$suffix}} ix,
-	{{end}}{{end}}{{end}}
-	{{range $value, $data := .NetworkRules}}{{if $data.Deny}}	deny network {{$value}},
-	{{end}}{{if $data.Allow}}	network {{$value}},
-	{{end}}{{end}}
-	{{range $value, $data := .CapabilitiesRules}}{{if $data.Deny}}	deny capability {{$value}},
-	{{end}}{{if $data.Allow}}	capability {{$value}},
-	{{end}}{{end}}
-		## == POLICY END == ##
-	
-		## == POST START == ##
-	
-		/lib/x86_64-linux-gnu/{*,**} rm,
-		
-		deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-		deny @{PROC}/sysrq-trigger rwklx,
-		deny @{PROC}/mem rwklx,
-		deny @{PROC}/kmem rwklx,
-		deny @{PROC}/kcore rwklx,
-		
-		deny mount,
-		
-		deny /sys/[^f]*/** wklx,
-		deny /sys/f[^s]*/** wklx,
-		deny /sys/fs/[^c]*/** wklx,
-		deny /sys/fs/c[^g]*/** wklx,
-		deny /sys/fs/cg[^r]*/** wklx,
-		deny /sys/firmware/efi/efivars/** rwklx,
-		deny /sys/kernel/security/** rwklx,
-	
-		## == POST END == ##
-
-	}
-{{end}}
-	## == POLICY END == ##
-{{ if gt (len .NativeRules) 0 }}	## == NATIVE POLICY START == ##
-{{range $value := .NativeRules}}	{{$value}}
-{{end}}	## == NATIVE POLICY END == ##
-{{end}}
+		{{- if $data.Allow}}
+			{{- if and (eq $suffix "") (not (regexMatch $regex $value)) }}
+				{{- if $data.OwnerOnly}}
+					owner {{$value}} ix,
+				{{- else}}
+					{{$value}} ix,
+				{{- end}}
+      {{- else if not (regexMatch $regex $value)}}
+      	{{$value}}{{$suffix}} ix,
+      {{- else}}
+      	## {{$value}} px -> {{$.Name}}-{{$value}}
+			{{- end}}
+		{{- end}}
+	{{- end}}
+	## == DISPATCHER END == ##
+  {{template "network-section" .}}
+  {{template "capabilities-section" .}}
+  {{template "native-policy" . }}
+  
 	## == POST START == ##
-
 	/lib/x86_64-linux-gnu/{*,**} rm,
 	
 	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
@@ -197,6 +134,155 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	deny /sys/kernel/security/** rwklx,
 
 	## == POST END == ##
-
 }
+## == Dispatcher profile END == ##
+
+## == FromSource per binary profiles START == ##
+{{- range $source, $value := $.FromSource}}
+profile {{$.Name}}-{{$source}} {
+	{{$source}} rix,
+	{{ template "pre-section" $value }}
+	{{template "file-section" $value}}
+ 	## == DISPATCHER START == ##
+	{{- range $value, $data := .ProcessPaths}}
+		{{- $suffix := ""}}
+		{{- if and $data.Dir $data.Recursive}}
+			{{- $suffix = "{,**}"}}
+		{{- else if $data.Dir}}
+			{{- $suffix = "{,*}"}}
+		{{- end}}
+		{{- if $data.Deny}}
+			{{- if $data.OwnerOnly}}
+				owner {{$value}}{{$suffix}} ix,
+				deny other {{$value}}{{$suffix}} x,
+			{{- else}}
+				deny {{$value}}{{$suffix}} x,
+			{{- end}}
+		{{- end}}
+
+		{{- if $data.Allow}}
+			{{- if eq $suffix "" }}
+				{{- if $data.OwnerOnly}}
+					owner {{$value}} px -> {{$.Name}}-{{$value}},
+				{{- else}}
+					{{$value}} px -> {{$.Name}}-{{$value}},
+				{{- end}}
+			{{- end}}
+		{{- end}}
+	{{- end}}
+	## == DISPATCHER END == ##
+  {{template "network-section" .}}
+  {{template "capabilities-section" .}}
+  {{template "post-section" }}
+}
+{{- end}}
+## == FromSource per binary profiles END == ##
+
+## == Templates section START == ##
+
+{{define "pre-section"}}
+	## == PRE START == ##
+	#include <abstractions/base>
+			{{ if .File}}	file,{{end}}
+			{{ if .Network}}	network,{{end}}
+			{{ if .Capabilities}}	capability,{{end}}
+	## == PRE END == ##
+{{- end}}
+
+{{define "network-section"}}
+  ## == Network START == ##
+	{{- range $value, $data := .NetworkRules}}
+    {{- if $data.Deny}}
+      deny network {{$value}},
+    {{- end}}
+    {{- if $data.Allow}}
+      network {{$value}},
+    {{- end}}
+  {{- end}}
+  ## == Network END == ##
+{{- end}}
+
+{{define "capabilities-section"}}
+  ## == Capabilities START == ##
+  {{- range $value, $data := .CapabilitiesRules}}
+    {{- if $data.Deny}}
+      deny capability
+    {{$value}},
+    {{- end}}
+    {{- if $data.Allow}}
+      capability {{$value}},
+    {{- end}}
+  {{- end}}
+  ## == Capabilities END == ##
+{{- end}}
+
+{{ define "file-section"}}
+	## == File/Dir START == ##
+  {{- range $value, $data := .FilePaths}}
+  	{{- $suffix := ""}}
+  	{{- if and $data.Dir $data.Recursive}}
+      {{- $suffix = "{,**}"}}
+    {{- else if $data.Dir}}
+      {{- $suffix = "{,*}"}}
+    {{- end}}
+    {{- if $data.Deny}}
+      {{- if and $data.ReadOnly $data.OwnerOnly}}
+        deny owner {{$value}}{{$suffix}} klw,
+        deny other {{$value}}{{$suffix}} klmrw,
+      {{- else if $data.OwnerOnly}}
+        owner {{$value}}{{$suffix}} klmrw,
+        deny other {{$value}}{{$suffix}} klmrw,
+      {{- else if $data.ReadOnly}}
+        deny {{$value}}{{$suffix}} klw,
+      {{- else}}
+        deny {{$value}}{{$suffix}} klmrw,
+      {{- end}}
+    {{- end}}
+    {{- if $data.Allow}}
+      {{- if and $data.ReadOnly $data.OwnerOnly}}
+        owner {{$value}}{{$suffix}} klr,
+      {{- else if $data.OwnerOnly}}
+        owner {{$value}}{{$suffix}} klmrw,
+      {{- else if $data.ReadOnly}}
+        {{$value}}{{$suffix}} klr,
+      {{- else}}
+        {{$value}}{{$suffix}} klmrw,
+      {{- end}}
+    {{- end}}
+	{{- end}}
+  ## == File/Dir END == ##
+{{- end}}
+
+{{ define "post-section"}}
+	## == POST START == ##
+	/lib/x86_64-linux-gnu/{*,**} rm,
+	
+	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+	deny @{PROC}/sysrq-trigger rwklx,
+	deny @{PROC}/mem rwklx,
+	deny @{PROC}/kmem rwklx,
+	deny @{PROC}/kcore rwklx,
+	
+	deny mount,
+	
+	deny /sys/[^f]*/** wklx,
+	deny /sys/f[^s]*/** wklx,
+	deny /sys/fs/[^c]*/** wklx,
+	deny /sys/fs/c[^g]*/** wklx,
+	deny /sys/fs/cg[^r]*/** wklx,
+	deny /sys/firmware/efi/efivars/** rwklx,
+	deny /sys/kernel/security/** rwklx,
+
+	## == POST END == ##
+{{- end -}}
+
+{{ define "native-policy"}}
+	## == Native Policy START == ##
+{{ if gt (len .NativeRules) 0 }}	## == NATIVE POLICY START == ##
+	{{- range $value := .NativeRules}}
+  	{{$value}}
+	{{end}}
+{{end}}
+	## == Native Policy END == ##
+{{ end}}
 `

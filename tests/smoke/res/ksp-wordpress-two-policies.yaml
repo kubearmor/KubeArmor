@@ -1,0 +1,37 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-block-config-pol01
+  namespace: wordpress-mysql
+spec:
+  severity: 5
+  message: "block /bin/cat from accessing /etc/passwd"
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchPaths:
+      - path: /etc/passwd
+        fromSource:
+        - path: /bin/cat
+  action:
+    Block
+---
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-block-config-pol02
+  namespace: wordpress-mysql
+spec:
+  severity: 5
+  message: "block /bin/cat from accessing /etc/shadow"
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchPaths:
+      - path: /etc/shadow
+        fromSource:
+        - path: /bin/cat
+  action:
+    Block
