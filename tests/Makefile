@@ -8,4 +8,6 @@ build:
 
 .PHONY: test
 test:
+	@go mod tidy
+	@go get github.com/onsi/ginkgo/v2
 	@ginkgo -r
