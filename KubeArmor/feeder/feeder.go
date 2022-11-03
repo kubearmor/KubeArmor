@@ -630,6 +630,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		if len(log.Tags) > 0 {
 			pbAlert.Tags = log.Tags
+			pbAlert.ATags = strings.Split(log.Tags, ",")
 		}
 
 		if len(log.Message) > 0 {

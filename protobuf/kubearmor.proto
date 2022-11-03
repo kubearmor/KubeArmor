@@ -53,6 +53,7 @@ message Alert {
   string Severity = 14;
 
   string Tags = 15;
+  repeated string ATags = 30;
   string Message = 16;
 
   string Type = 17;
