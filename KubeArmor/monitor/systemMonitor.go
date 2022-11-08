@@ -152,9 +152,8 @@ type SystemMonitor struct {
 	ContextChan chan ContextCombined
 
 	// system events
-	SyscallChannel     chan []byte
-	SyscallLostChannel chan uint64
-	SyscallPerfMap     *perf.Reader
+	SyscallChannel chan []byte
+	SyscallPerfMap *perf.Reader
 
 	// lists to skip
 	UntrackedNamespaces []string
@@ -356,7 +355,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		mon.SyscallChannel = make(chan []byte, 8192)
-		mon.SyscallLostChannel = make(chan uint64)
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
@@ -406,13 +404,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 				record, err := mon.SyscallPerfMap.Read()
 				if err != nil {
 					if errors.Is(err, perf.ErrClosed) {
+						// This should only happen when we call DestroyMonitor while terminating the process.
+						// Adding a Warn just in case it happens at runtime, to help debug
+						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
 						return
 					}
 					continue
 				}
 
 				if record.LostSamples != 0 {
-					mon.SyscallLostChannel <- record.LostSamples
+					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
 					continue
 				}
 
@@ -421,6 +422,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 		}()
 	} else {
+		mon.Logger.Err("Perf Buffer nil, exiting TraceSyscall")
 		return
 	}
 
@@ -704,9 +706,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
-
-		case <-mon.SyscallLostChannel:
-			continue
 		}
 	}
 }
