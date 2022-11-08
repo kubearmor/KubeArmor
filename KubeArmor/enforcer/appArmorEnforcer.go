@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +36,9 @@ type AppArmorEnforcer struct {
 	// profiles for containers
 	AppArmorProfiles     map[string][]string
 	AppArmorProfilesLock *sync.RWMutex
+
+	// Regex used to get profile Names
+	rgx *regexp.Regexp
 }
 
 // NewAppArmorEnforcer Function
@@ -84,6 +88,10 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 	// host profile
 	ae.HostProfile = ""
+
+	// profile regex
+
+	ae.rgx = regexp.MustCompile("profile kubearmor-.* {")
 
 	// profiles
 	ae.AppArmorProfiles = map[string][]string{}

@@ -11,8 +11,10 @@ import (
 	"strings"
 	"text/template"
 
+	sprig "github.com/Masterminds/sprig/v3"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"k8s.io/utils/strings/slices"
 )
 
 // == //
@@ -471,8 +473,15 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	newProfile.Name = appArmorProfile
 
+	// https://helm.sh/docs/howto/charts_tips_and_tricks/
+	// Extend go template with sprig functions
+
+	allFuncs := sprig.GenericFuncMap()
+	delete(allFuncs, "env")
+	delete(allFuncs, "expandenv")
+
 	// Create a new template and parse the letter into it.
-	t, err := template.New("apparmor").Parse(BaseTemplate)
+	t, err := template.New("apparmor").Funcs(allFuncs).Parse(BaseTemplate)
 	if err != nil {
 		return 0, err.Error(), false
 	}
@@ -485,6 +494,38 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	// check the new profile with the old profile
 
 	if np.String() != oldProfile {
+		// check if we need to off load profile
+		oldProfilesNames := ae.rgx.FindAllString(oldProfile, -1)
+		newProfilesNames := ae.rgx.FindAllString(np.String(), -1)
+		profileToDelete := []string{}
+		for _, oldProf := range oldProfilesNames {
+			if !slices.Contains(newProfilesNames, oldProf) {
+				profileToDelete = append(profileToDelete, oldProf)
+			}
+		}
+		if len(profileToDelete) != 0 {
+			file, err := os.CreateTemp("/tmp", "apparmor-")
+			if err != nil {
+				ae.Logger.Warnf("Unable to create tmp file, err=%s", err.Error())
+			} else {
+				defer os.Remove(file.Name())
+				writer := bufio.NewWriter(file)
+				for _, prof := range profileToDelete {
+					_, err = writer.WriteString(prof + "} \n")
+					if err != nil {
+						ae.Logger.Warnf("Unable to write deleted profile %s to tmp file, err=%s", prof+"}", err.Error())
+					}
+				}
+				err = writer.Flush()
+				if err != nil {
+					ae.Logger.Warnf("Cannot flush tmp file writer buffer, err=%s", err.Error())
+				}
+				if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", file.Name()}); err != nil {
+					ae.Logger.Warnf("Unable to unload %d unused apparmor profiles, err=%s", len(profileToDelete), err.Error())
+				}
+			}
+		}
+
 		return count, np.String(), true
 	}
 
