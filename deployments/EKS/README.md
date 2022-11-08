@@ -216,6 +216,9 @@ eksctl creates several required resources automatically i.e. dedicated VPC, mana
 
 Karmor tool can be used to quick install and interact with the Kubearmor on EKS cluster. Karmor can auto-detect the running environment and installs the Kubearmor with applicable configurations. It deploys k8s resources i.e. Daemonset, Deployments, Services, Serviceaccount with ClusterRole, and CRDs in the cluster node. We've observed the estimated time it takes to complete the installation is approximately 2 minutes. Karmor shows the information about installation time in the output.
 
+### Architecture Overview
+![KubeArmor EKS Deployment Architecture](../../.gitbook/assets/KA-EKS-architecture.png)
+
 The main components of the Kubearmor deployed in the Kubernetes node are as follows:
 
 ### Kubearmor Daemon
