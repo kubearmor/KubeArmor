@@ -5,10 +5,7 @@ on:
     branches: [main]
     paths:
       - "STABLE-RELEASE"
-      - ".github/workflows/ci-stable-release.yml"
-
-env:
-  PLATFORM: linux/amd64,linux/arm64/v8
+    #  - ".github/workflows/ci-stable-release.yml"
 
 jobs:
   push-stable-version:
@@ -35,7 +32,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          platforms: $PLATFORM
+          platforms: linux/amd64,linux/arm64/v8
 
       - name: Push the stable version of KubeArmor to Docker Hub
         run: ./KubeArmor/build/push_kubearmor.sh stable
