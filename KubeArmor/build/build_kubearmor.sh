@@ -45,7 +45,7 @@ unset LABEL
 # build a kubearmor image
 DTAG="-t $REPO:$VERSION"
 echo "[INFO] Building $DTAG"
-cd $ARMOR_HOME/..; docker build $DTAG --target kubearmor . $LABEL
+cd $ARMOR_HOME/..; docker build $DTAG -f Dockerfile --target kubearmor . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"
@@ -56,7 +56,7 @@ echo "[PASSED] Built $REPO:$VERSION"
 # build a kubearmor-init image
 DTAGINI="-t $REPO-init:$VERSION"
 echo "[INFO] Building $DTAGINI"
-cd $ARMOR_HOME/..; docker build $DTAGINI --target kubearmor-init . $LABEL
+cd $ARMOR_HOME/..; docker build $DTAGINI -f Dockerfile.init --target kubearmor-init . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO-init:$VERSION"

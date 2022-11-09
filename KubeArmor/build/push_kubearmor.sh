@@ -36,14 +36,14 @@ pwd
 
 # push $REPO
 echo "[INFO] Pushing $REPO:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION --push .
+cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO:$VERSION"
 
 # push $REPO-init
 echo "[INFO] Pushing $REPO-init:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION --push .
+cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO-init:$VERSION"
