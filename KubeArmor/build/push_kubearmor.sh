@@ -4,7 +4,7 @@
 
 [[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
 
-[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64"
+[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64,linux/arm64/v8"
 
 VERSION=latest
 
