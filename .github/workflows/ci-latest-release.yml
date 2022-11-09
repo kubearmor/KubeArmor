@@ -21,7 +21,7 @@ jobs:
     name: Create KubeArmor latest release
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v3
         with:
@@ -85,7 +85,7 @@ jobs:
     needs: build
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v3
         with:
