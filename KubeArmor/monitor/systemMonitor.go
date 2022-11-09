@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2022 Authors of KubeArmor
 
 // Package monitor is the component responsible for monitoring syscalls and communicating with eBPF Programs
 package monitor
@@ -24,42 +24,6 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-)
-
-// ===================== //
-// == Const. Vaiables == //
-// ===================== //
-
-// System Call Numbers
-const (
-	SysOpen     = 2
-	SysOpenAt   = 257
-	SysClose    = 3
-	SysUnlink   = 87
-	SysUnlinkAt = 263
-	SysRmdir    = 84
-	SysChown    = 92
-	SysFChownAt = 260
-
-	SysSetuid = 105
-	SysSetgid = 106
-
-	SysSocket  = 41
-	SysConnect = 42
-	SysAccept  = 43
-	SysBind    = 49
-	SysListen  = 50
-
-	SysExecve   = 59
-	SysExecveAt = 322
-
-	DoExit            = 351
-	SecurityBprmCheck = 352
-
-	TCPConnect   = 400
-	TCPAccept    = 401
-	TCPConnectv6 = 402
-	TCPAcceptv6  = 403
 )
 
 // SystemMonitor Constant Values

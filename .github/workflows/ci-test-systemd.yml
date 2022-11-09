@@ -45,7 +45,7 @@ jobs:
         working-directory: KubeArmor
 
       - name: Install KubeArmor
-        run: sudo apt install -y ./dist/kubearmor*.deb
+        run: sudo apt install -y ./dist/kubearmor*amd64.deb
         working-directory: KubeArmor
 
       - name: Check journalctl
