@@ -55,7 +55,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          platforms: $PLATFORM
+          platforms: linux/amd64,linux/arm64/v8
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -88,7 +88,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          platforms: $PLATFORM
+          platforms: linux/amd64,linux/arm64/v8
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -121,7 +121,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          platforms: $PLATFORM
+          platforms: linux/amd64,linux/arm64/v8
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2

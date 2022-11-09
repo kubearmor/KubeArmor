@@ -16,9 +16,6 @@ on:
     branches:
       - "v*"
 
-env:
-  PLATFORM: linux/amd64,linux/arm64/v8
-
 jobs:
   build:
     name: Create KubeArmor latest release
@@ -78,7 +75,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          platforms: $PLATFORM
+          platforms: linux/amd64,linux/arm64/v8
 
       - name: Push KubeArmor images to Docker
         run: ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
@@ -119,7 +116,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          platforms: $PLATFORM
+          platforms: linux/amd64,linux/arm64/v8
 
       - name: Push the stable version of KubeArmor to Docker Hub
         if: steps.match.outputs.tag == 'true'
