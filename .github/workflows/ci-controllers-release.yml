@@ -1,4 +1,4 @@
-name: ci-test-controllers
+name: ci-release-controllers
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
         working-directory: ./pkg/KubeArmorAnnotation
     if: needs.check.outputs.annotation == 'true'
     runs-on: ubuntu-20.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -74,7 +74,7 @@ jobs:
         working-directory: ./pkg/KubeArmorHostPolicy
     if: needs.check.outputs.hostpolicy == 'true'
     runs-on: ubuntu-20.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -107,7 +107,7 @@ jobs:
         working-directory: ./pkg/KubeArmorPolicy
     if: needs.check.outputs.policy == 'true'
     runs-on: ubuntu-20.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/setup-go@v3
         with:

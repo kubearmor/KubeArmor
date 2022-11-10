@@ -21,7 +21,7 @@ jobs:
     name: Create KubeArmor latest release
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
         with:
@@ -85,7 +85,7 @@ jobs:
     needs: build
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-20.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
         with:
@@ -120,4 +120,4 @@ jobs:
 
       - name: Push the stable version of KubeArmor to Docker Hub
         if: steps.match.outputs.tag == 'true'
-        run: ./KubeArmor/build/push_kubearmor.sh stable
+        run: STABLE_VERSION=$(cat STABLE-RELEASE) ./KubeArmor/build/push_kubearmor.sh stable
