@@ -6,6 +6,8 @@
 
 [[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64,linux/arm64/v8"
 
+[[ "$STABLE_VERSION" != "" ]] && STABEL_LABEL="--label stabel-version=$STABLE_VERSION"
+
 VERSION=latest
 
 # check version
@@ -36,14 +38,14 @@ pwd
 
 # push $REPO
 echo "[INFO] Pushing $REPO:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push .
+cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push $STABEL_LABEL .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO:$VERSION"
 
 # push $REPO-init
 echo "[INFO] Pushing $REPO-init:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push .
+cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push $STABEL_LABEL .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO-init:$VERSION"
