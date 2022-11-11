@@ -35,4 +35,4 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
 
       - name: Push the stable version of KubeArmor to Docker Hub
-        run: STABLE_VERSION=$(cat STABLE-RELEASE) ./KubeArmor/build/push_kubearmor.sh stable
+        run: STABLE_VERSION=$(cat STABLE-RELEASE) GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh stable

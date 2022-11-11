@@ -8,6 +8,10 @@
 
 [[ "$STABLE_VERSION" != "" ]] && STABEL_LABEL="--label stabel-version=$STABLE_VERSION"
 
+# set LABEL
+unset LABEL
+[[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
+
 VERSION=latest
 
 # check version
@@ -38,14 +42,14 @@ pwd
 
 # push $REPO
 echo "[INFO] Pushing $REPO:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push $STABEL_LABEL .
+cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push $LABEL $STABEL_LABEL .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO:$VERSION"
 
 # push $REPO-init
 echo "[INFO] Pushing $REPO-init:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push $STABEL_LABEL .
+cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push $LABEL $STABEL_LABEL .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO-init:$VERSION"
