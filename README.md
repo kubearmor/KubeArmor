@@ -1,8 +1,4 @@
-# KubeArmor
-
 ![KubeArmor Logo](.gitbook/assets/logo.png)
-
-## Introduction to KubeArmor
 
 [![Build Status](https://github.com/kubearmor/KubeArmor/actions/workflows/ci-go.yml/badge.svg)](https://github.com/kubearmor/KubeArmor/actions/workflows/ci-go.yml/)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5401/badge)](https://bestpractices.coreinfrastructure.org/projects/5401)
@@ -60,7 +56,7 @@ If you want to make a contribution, please refer to the following documents too.
 
 ### Biweekly Meetup
 
-- Where: [Zoom Link](https://bit.ly/KubeArmor-zoom)
+- Where: [Zoom Link](https://bit.ly/kubearmor-zoom)
 - Minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
 - Calendar invite: [Google Calendar](https://calendar.google.com/event?action=TEMPLATE&tmeid=MWN0MTlzYWFoM2tkcXZidTk1cHZjNjNyOGtfMjAyMjAyMTBUMTUwMDAwWiBjXzJmMXRiYnNqNWdrNmdnbGpzMzA4NnAwamw4QGc&tmsrc=c_2f1tbbsj5gk6ggljs3086p0jl8%40group.calendar.google.com&scp=ALL)
 - ICS: [ICS file](getting-started/resources/KubeArmorMeetup.ics) for setting up meeting on your calendar
