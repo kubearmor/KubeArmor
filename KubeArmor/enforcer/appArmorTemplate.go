@@ -67,6 +67,10 @@ const BaseTemplate = `
 #include <tunables/global>
 {{- $ctx := .}}
 {{- $regex := ".*?(\\[|\\*|\\+|\\?|\\$|\\|)+.*"}}
+{{- $fromSourceList := list }}
+{{- range $source, $data := .FromSource }}
+{{- $fromSourceList = append $fromSourceList $source}}
+{{- end }}
 
 ## == Dispatcher profile START == ##
 profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
@@ -141,8 +145,8 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 {{- range $source, $value := $.FromSource}}
 profile {{$.Name}}-{{$source}} {
 	{{$source}} rix,
-	{{ template "pre-section" $value }}
-	{{template "file-section" $value}}
+	{{template "pre-section" $value }}
+  {{template "file-section" $value}}
  	## == DISPATCHER START == ##
 	{{- range $value, $data := .ProcessPaths}}
 		{{- $suffix := ""}}
@@ -162,11 +166,27 @@ profile {{$.Name}}-{{$source}} {
 
 		{{- if $data.Allow}}
 			{{- if eq $suffix "" }}
-				{{- if $data.OwnerOnly}}
-					owner {{$value}} px -> {{$.Name}}-{{$value}},
-				{{- else}}
-					{{$value}} px -> {{$.Name}}-{{$value}},
-				{{- end}}
+      	{{- if has $value $fromSourceList }}
+        	{{- if $data.OwnerOnly}}
+						owner {{$value}} px -> {{$.Name}}-{{$value}},
+					{{- else}}
+						{{$value}} px -> {{$.Name}}-{{$value}},
+					{{- end}}
+        {{- else}}
+        	{{- if $data.OwnerOnly}}
+						owner {{$value}} cx,
+					{{- else}}
+						{{$value}} cx,
+            profile {{$value}} {
+            {{$value}} rix,
+            {{template "pre-section" $ctx}}
+            {{template "file-section" $ctx}}
+            {{template "network-section" $ctx}}
+  					{{template "capabilities-section" $ctx}}
+            {{template "post-section" }}
+            }
+					{{- end}}
+        {{- end}}	
 			{{- end}}
 		{{- end}}
 	{{- end}}

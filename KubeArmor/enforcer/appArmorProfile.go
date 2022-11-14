@@ -419,12 +419,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 			ae.Logger.Errf("Error while copying global rules to local profile for %s: %s", source, err.Error())
 			continue
 		}
-		for proc, config := range profile.ProcessPaths {
-			add := checkIfGlobalRuleToBeAdded(proc, val.ProcessPaths)
-			if add {
-				newval.ProcessPaths[proc] = config
-			}
-		}
 		for file, config := range profile.FilePaths {
 			add := checkIfGlobalRuleToBeAdded(file, val.FilePaths)
 			if add {
