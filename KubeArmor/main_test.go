@@ -12,6 +12,7 @@ import (
 
 var clusterPtr, gRPCPtr, logPathPtr *string
 var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr *bool
+var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr *string
 
 func init() {
 	// options (string)
@@ -20,6 +21,15 @@ func init() {
 	// options (string)
 	gRPCPtr = flag.String("gRPC", "32767", "gRPC port number")
 	logPathPtr = flag.String("logPath", "none", "log file path")
+
+	// options (string)
+	defaultFilePosturePtr = flag.String("defaultFilePosture", "block", "configuring default enforcement action in global file context {allow|audit|block}")
+	defaultNetworkPosturePtr = flag.String("defaultNetworkPosture", "block", "configuring default enforcement action in global network context {allow|audit|block}")
+	defaultCapabilitiesPosturePtr = flag.String("defaultCapabilitiesPosture", "block", "configuring default enforcement action in global capability context {allow|audit|block}")
+
+	hostDefaultFilePosturePtr = flag.String("hostDefaultFilePosture", "block", "configuring default enforcement action in global file context {allow|audit|block}")
+	hostDefaultNetworkPosturePtr = flag.String("hostDefaultNetworkPosture", "block", "configuring default enforcement action in global network context {allow|audit|block}")
+	hostDefaultCapabilitiesPosturePtr = flag.String("hostDefaultCapabilitiesPosture", "block", "configuring default enforcement action in global capability context {allow|audit|block}")
 
 	// options (boolean)
 	enableKubeArmorPolicyPtr = flag.Bool("enableKubeArmorPolicy", true, "enabling KubeArmorPolicy")
@@ -37,6 +47,12 @@ func TestMain(t *testing.T) {
 
 	// Set os args to set flags in main
 	os.Args = []string{"cmd", "--cluster", *clusterPtr, "--gRPC", *gRPCPtr, "--logPath", *logPathPtr,
+		"--defaultFilePosture", *defaultFilePosturePtr,
+		"--defaultNetworkPosture", *defaultNetworkPosturePtr,
+		"--defaultCapabilitiesPosture", *defaultCapabilitiesPosturePtr,
+		"--hostDefaultFilePosture", *hostDefaultFilePosturePtr,
+		"--hostDefaultNetworkPosture", *hostDefaultNetworkPosturePtr,
+		"--hostDefaultCapabilitiesPosture", *hostDefaultCapabilitiesPosturePtr,
 		"--enableKubeArmorPolicy", strconv.FormatBool(*enableKubeArmorPolicyPtr),
 		"--enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr),
 		"--enableKubeArmorVm", strconv.FormatBool(*enableKubeArmorVMPtr),

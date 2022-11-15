@@ -9,6 +9,8 @@ KubeArmor has 4 types of resources: Process, File, Network and Capabilities. Def
 
 ### Global Default Posture
 
+> **Note** By default, KubeArmor set the Global default posture to `audit`
+
 Global default posture is configured using configuration options passed to KubeArmor using configuration file
 
 ```yaml

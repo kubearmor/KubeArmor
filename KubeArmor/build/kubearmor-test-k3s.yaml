@@ -89,6 +89,12 @@ spec:
         - -gRPC=32767
         - -logPath=/tmp/kubearmor.log
         - -enableKubeArmorHostPolicy
+        - -defaultFilePosture=block
+        - -defaultCapabilitiesPosture=block
+        - -defaultNetworkPosture=block
+        - -hostDefaultCapabilitiesPosture=block
+        - -hostDefaultNetworkPosture=block
+        - -hostDefaultFilePosture=block
         image: kubearmor/kubearmor:latest
         imagePullPolicy: Never
         securityContext:

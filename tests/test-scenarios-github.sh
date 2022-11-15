@@ -126,6 +126,20 @@ function start_and_wait_for_kubearmor_initialization() {
 
     cd $ARMOR_HOME
 
+    if [ "$DEFAULT_POSTURE" == "allow" ]; then
+        ARMOR_OPTIONS+=("-defaultFilePosture=allow")
+        ARMOR_OPTIONS+=("-defaultNetworkPosture=allow")
+        ARMOR_OPTIONS+=("-defaultCapabilitiesPosture=allow")
+    elif [ "$DEFAULT_POSTURE" == "audit" ]; then # Current default posture is "audit" and for testing we need block based posture
+        ARMOR_OPTIONS+=("-defaultFilePosture=block")
+        ARMOR_OPTIONS+=("-defaultNetworkPosture=block")
+        ARMOR_OPTIONS+=("-defaultCapabilitiesPosture=block")
+    else # block
+        ARMOR_OPTIONS+=("-defaultFilePosture=block")
+        ARMOR_OPTIONS+=("-defaultNetworkPosture=block")
+        ARMOR_OPTIONS+=("-defaultCapabilitiesPosture=block")
+    fi
+
     echo "Options: -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]}"
     if [[ ! " ${ARMOR_OPTIONS[@]} " =~ "-enableKubeArmorHostPolicy" ]]; then
         SKIP_HOST_POLICY=1
