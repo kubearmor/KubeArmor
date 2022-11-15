@@ -13,8 +13,20 @@ DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 .PHONY: build
-build: protobuf
+build: protobuf generate system_monitor
 	cd $(CURDIR); go mod tidy
+	cd $(CURDIR); go build -o kubearmor main.go
+
+.PHONY: protobuf
+protobuf:
+	cd $(CURDIR); make -C ../protobuf
+
+.PHONY: system_monitor
+system_monitor: BPF/system_monitor.c
+	cd $(CURDIR)/BPF/; make
+
+.PHONY: generate
+generate: BPF/enforcer.bpf.c
 ifneq (, $(shell which bpftool))
 ifneq (, $(wildcard /sys/kernel/btf/vmlinux))
 	cd $(CURDIR); bpftool btf dump file /sys/kernel/btf/vmlinux format c > BPF/vmlinux.h || true
@@ -25,11 +37,6 @@ ifneq (, $(shell which llvm-strip))
 	fi
 endif
 endif
-	cd $(CURDIR); go build -o kubearmor main.go
-
-.PHONY: protobuf
-protobuf:
-	cd $(CURDIR); make -C ../protobuf
 
 .PHONY: build-test
 build-test: testall
