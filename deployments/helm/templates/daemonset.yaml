@@ -4,7 +4,6 @@ metadata:
   labels:
     kubearmor-app: kubearmor
   name: kubearmor
-  namespace: {{ .Values.namespace.name }}
 spec:
   selector:
     matchLabels:
@@ -41,6 +40,7 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
+        {{ toYaml .Values.kubearmor.commonMounts | nindent 10}}
         {{- if eq .Values.environment.name "docker" }}
           {{- toYaml .Values.kubearmor.volumeMountsDocker | nindent 10 }}
         {{ else if eq .Values.environment.name "microk8s" }}
@@ -56,6 +56,13 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
+      initContainers:
+      - image: kubearmor/kubearmor-init:latest
+        name: init
+        securityContext:
+          privileged: true
+        volumeMounts:
+        {{ toYaml .Values.kubearmor.initMounts | nindent 10 }}
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always
@@ -64,6 +71,7 @@ spec:
       tolerations:
       - operator: Exists
       volumes:
+      {{ toYaml .Values.kubearmor.commonVolumes | nindent 8}}
       {{- if eq .Values.environment.name "docker" }}
         {{- toYaml .Values.kubearmor.volumesDocker | nindent 8 }}
       {{ else if eq .Values.environment.name "microk8s" }}
