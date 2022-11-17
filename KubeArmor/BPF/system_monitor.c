@@ -304,7 +304,7 @@ static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
 {
     struct pid *pid = NULL;
 
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0))
+    #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0)  && !defined(BTF_SUPPORTED))
     pid = READ_KERN(task->pids[PIDTYPE_PID].pid);
     #else
     pid = READ_KERN(task->thread_pid);
