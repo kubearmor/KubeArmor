@@ -529,6 +529,7 @@ func (ae *AppArmorEnforcer) GenerateHostProfileHead() string {
 		"  umount,\n" +
 		"  signal,\n" +
 		"  unix,\n" +
+		"  ptrace,\n" +
 		"\n" +
 		"  file,\n" +
 		"  network,\n" +
