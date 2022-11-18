@@ -19,6 +19,22 @@ KubeArmor supports following types of workloads:
 | VMWare Tanzu | * | TBD |
 | Nutanix | * | TBD |
 
+## Supported Linux Distributions
+
+| Provider | Distro | VM / Bare-metal | Kubernetes |
+|----------|--------|---------------|------|
+| SUSE | SUSE Enterprise 15 | Full | Full |
+| Debian | [Buster](https://www.debian.org/releases/buster/) / [Bullseye](https://www.debian.org/releases/bullseye/) | Full | Full |
+| Ubuntu | 18.04 / 20.04 | Full | Full |
+| RedHat / CentOS | RHEL 8.4 / CentOS 8.4 | Full | Partial |
+| RedHat | RHEL 9 / RHEL >= 8.5 / CentOS 8 Steam | Full | Full |
+| Fedora | Fedora 34 / 35 | Full | Full |
+| Rocky Linux | Rocky Linux >= 8.5 | Full | Full |
+
+> **Note**  
+> Full: Supports both enforcement and observability  
+Partial: Supports only observability
+
 ### When will EKS with Amazon Linux 2 be supported?
 
 Amazon Linux 2 currently is shipped with SELinux as the LSM (Linux Security Module). KubeArmor supports SELinux only for host-based policy enforcement. On Amazon Linux 2, Kubearmor currently supports observability/policy audits using ebpf based engine.
@@ -39,13 +55,3 @@ It would be very much appreciated if you can test kubearmor on a platform not li
 
 KubeArmor does not support Kubernetes in Docker.
 
-## VM/Bare-Metal support
-
-| Provider | Distro | Support |
-|----------|--------|---------|
-| SUSE | SUSE Enterprise 15 | Yes |
-| Debian | [Buster](https://www.debian.org/releases/buster/) / [Bullseye](https://www.debian.org/releases/bullseye/) | Yes |
-| Ubuntu | 18.04 / 20.04 | Yes |
-| RedHat | RHEL8.4 / RHEL 9 | Yes |
-| CentOS | CentOS8.4 / CentOS 9 | Yes |
-| Fedora | Fedora 34 / 35 | Yes |
