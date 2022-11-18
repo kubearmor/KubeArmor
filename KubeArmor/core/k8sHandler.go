@@ -9,7 +9,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -133,7 +133,7 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 
 // InitInclusterAPIClient Function
 func (kh *K8sHandler) InitInclusterAPIClient() bool {
-	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
 		return false
 	}
@@ -192,7 +192,7 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 		return nil, err
 	}
 
-	resBody, err := ioutil.ReadAll(resp.Body)
+	resBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

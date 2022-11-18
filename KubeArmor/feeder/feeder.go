@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -385,7 +384,7 @@ func NewFeeder(node *tp.Node) *Feeder {
 
 	// check if GKE
 	if kl.IsInK8sCluster() {
-		if b, err := ioutil.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
+		if b, err := os.ReadFile(filepath.Clean("/media/root/etc/os-release")); err == nil {
 			s := string(b)
 			if strings.Contains(s, "Container-Optimized OS") {
 				fd.IsGKE = true

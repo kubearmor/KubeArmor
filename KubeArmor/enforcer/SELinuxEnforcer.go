@@ -4,7 +4,6 @@
 package enforcer
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -325,7 +324,7 @@ func (se *SELinuxEnforcer) RestoreSELinuxLabels(profilePath string) bool {
 		return true
 	}
 
-	profile, err := ioutil.ReadFile(filepath.Clean(profilePath + ".old"))
+	profile, err := os.ReadFile(filepath.Clean(profilePath + ".old"))
 	if err != nil {
 		se.Logger.Warnf("Unable to read %s", profilePath+".old")
 		return false
@@ -378,7 +377,7 @@ func (se *SELinuxEnforcer) RestoreSELinuxLabels(profilePath string) bool {
 						res = false
 					}
 				} else {
-					if files, err := ioutil.ReadDir(objectPath); err == nil {
+					if files, err := os.ReadDir(objectPath); err == nil {
 						for _, file := range files {
 							if file.IsDir() {
 								continue
@@ -432,7 +431,7 @@ func (se *SELinuxEnforcer) RestoreSELinuxLabels(profilePath string) bool {
 						res = false
 					}
 
-					if files, err := ioutil.ReadDir(objectPath); err == nil {
+					if files, err := os.ReadDir(objectPath); err == nil {
 						for _, file := range files {
 							if file.IsDir() {
 								continue
@@ -477,7 +476,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 		se.Logger.Warnf("Unable to create %s.old", profilePath)
 	}
 
-	profile, err := ioutil.ReadFile(filepath.Clean(profilePath))
+	profile, err := os.ReadFile(filepath.Clean(profilePath))
 	if err != nil {
 		se.Logger.Warnf("Unable to read %s", profilePath)
 		return false
@@ -533,7 +532,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 						res = false
 					}
 				} else {
-					if files, err := ioutil.ReadDir(objectPath); err == nil {
+					if files, err := os.ReadDir(objectPath); err == nil {
 						for _, file := range files {
 							if file.IsDir() {
 								continue
@@ -587,7 +586,7 @@ func (se *SELinuxEnforcer) UpdateSELinuxLabels(profilePath string) bool {
 						res = false
 					}
 
-					if files, err := ioutil.ReadDir(objectPath); err == nil {
+					if files, err := os.ReadDir(objectPath); err == nil {
 						for _, file := range files {
 							if file.IsDir() {
 								continue
