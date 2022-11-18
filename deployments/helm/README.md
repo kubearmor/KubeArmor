@@ -24,5 +24,5 @@ kubectl get all -n <namespace>
 Uninstall KubeArmor using helm
 
 ```
-helm uninstall kubearmor
+helm uninstall kubearmor -n <namespace>
 ```
