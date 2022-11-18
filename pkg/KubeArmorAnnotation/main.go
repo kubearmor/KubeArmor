@@ -5,7 +5,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,7 +111,7 @@ func detectEnforcer(logger logr.Logger) string {
 	lsmPath := "/sys/kernel/security/lsm"
 
 	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-		lsm, err = ioutil.ReadFile(lsmPath)
+		lsm, err = os.ReadFile(lsmPath)
 		if err != nil {
 			logger.Info("Failed to read /sys/kernel/security/lsm " + err.Error())
 			return ""

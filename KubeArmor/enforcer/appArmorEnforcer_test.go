@@ -4,7 +4,6 @@
 package enforcer
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -19,7 +18,7 @@ func TestAppArmorEnforcer(t *testing.T) {
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
-	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	lsm, err := os.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
 		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
@@ -90,7 +89,7 @@ func TestAppArmorProfile(t *testing.T) {
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
-	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	lsm, err := os.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
 		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
@@ -203,7 +202,7 @@ func TestHostAppArmorProfile(t *testing.T) {
 	if _, err := os.Stat("/sys/kernel/security/lsm"); err != nil {
 		t.Log("[INFO] Unable to access /sys/kernel/security/lsm")
 	}
-	lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm")
+	lsm, err := os.ReadFile("/sys/kernel/security/lsm")
 	if err != nil {
 		t.Log("[INFO] Unable to read /sys/kernel/security/lsm")
 		return
