@@ -6,6 +6,7 @@ Install KubeArmor using helm
 helm upgrade --install kubearmor . \
     --set kubearmorrelay.enabled=true \
     --set namespace.name=<namespace> \
+    -n <namespace> \
     --set environment.name=<environment>
 ```
 * kubearmorrelay.enabled = {true | false} (default: true)
