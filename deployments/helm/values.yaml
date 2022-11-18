@@ -4,9 +4,6 @@
 kubearmorrelay:
   enabled: true
 
-namespace:
-  name: kube-system
-
 environment:
   name: generic
 
@@ -15,22 +12,49 @@ kubearmorRelay:
     repository: kubearmor/kubearmor-relay-server
     tag: latest
 
-kubearmorPolicyManager:
-  image:
-    repository: kubearmor/kubearmor-policy-manager
-    tag: latest
+kubeRbacProxy:
+  image: 
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    tag: v0.12.0
 
-kubearmorHostPolicyManager:
+kubearmorAnnotationManager:
+  name: kubearmor-annotation-manager
+  replicas: 1
   image:
-    repository: kubearmor/kubearmor-host-policy-manager
+    repository: kubearmor/kubearmor-annotation-manager
     tag: latest
+  mutation:
+    failurePolicy: Fail 
 
 #volume mounts and volumes
 kubearmor:
   image:
     repository: kubearmor/kubearmor
     tag: latest
-
+  commonMounts:
+  - mountPath: /opt/kubearmor/BPF
+    name: bpf
+  commonVolumes:
+  - emptyDir: {}
+    name: bpf
+  initMounts:
+  - mountPath: /opt/kubearmor/BPF
+    name: bpf
+  - mountPath: /lib/modules
+    name: lib-modules-path
+    readOnly: true
+  - mountPath: /sys/fs/bpf
+    name: sys-fs-bpf-path
+  - mountPath: /sys/kernel/security
+    name: sys-kernel-security-path
+  - mountPath: /sys/kernel/debug
+    name: sys-kernel-debug-path
+  - mountPath: /media/root/etc/os-release
+    name: os-release-path
+    readOnly: true
+  - mountPath: /usr/src
+    name: usr-src-path
+    readOnly: true
   volumeMountsGeneric:
     - mountPath: /usr/src
       name: usr-src-path
@@ -235,7 +259,7 @@ kubearmor:
         type: DirectoryOrCreate
       name: docker-storage-path
 
-  volumesMicrok8s: 
+  volumesMicrok8s:
     - hostPath:
         path: /usr/src
         type: Directory

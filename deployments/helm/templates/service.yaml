@@ -3,7 +3,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kubearmor
-  namespace: {{ .Values.namespace.name }}
 spec:
   ports:
   - port: 32767
@@ -17,28 +16,12 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    kubearmor-app: kubearmor-policy-manager
-  name: kubearmor-policy-manager-metrics-service
-  namespace: {{ .Values.namespace.name }}
+    kubearmor-app: kubearmor-annotation-manager
+  name: {{ .Values.kubearmorAnnotationManager.name }}
 spec:
   ports:
   - name: https
-    port: 8443
-    targetPort: https
+    port: 443
+    targetPort: 9443
   selector:
-    kubearmor-app: kubearmor-policy-manager
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    kubearmor-app: kubearmor-host-policy-manager
-  name: kubearmor-host-policy-manager-metrics-service
-  namespace: {{ .Values.namespace.name }}
-spec:
-  ports:
-  - name: https
-    port: 8443
-    targetPort: https
-  selector:
-    kubearmor-app: kubearmor-host-policy-manager
+    kubearmor-app: kubearmor-annotation-manager
