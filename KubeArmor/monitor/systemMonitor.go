@@ -208,127 +208,83 @@ func isIgnored(item string, ignoreList []string) bool {
 
 // InitBPF Function
 func (mon *SystemMonitor) InitBPF() error {
-	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		return err
-	}
+	// homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	// if err != nil {
+	// 	return err
+	// }
 
 	var ignoreList []string
 	var bpfFile io.ReaderAt
 	var bpfFileName string
-	btfPath := homeDir + "/monitor/vmlinux"
+	btfPath := "/sys/kernel/btf/vmlinux"
 	
 	if _, err := os.Stat(btfPath); err != nil {
-		// go test
-		mon.Logger.Print("Initializing embedded eBPF system monitor")
-		// bpfPath = os.Getenv("PWD") + "/monitor/"
-		// Allow the current process to lock memory for eBPF resources.
-		if err := rlimit.RemoveMemlock(); err != nil {
-			return fmt.Errorf("error removing memlock %v", err)
-		}
-
-		// ignoreList, err = loadIgnoreList(bpfPath)
-		// if err != nil {
-		// 	return err
-		// }
-
-		if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-			var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.container.bpf.o")
-			if err != nil {
-				return fmt.Errorf("unable to read file: system_monitor.container.bpf.o")
-			}
-			bpfFile = bytes.NewReader(tempBpfFile)
-			bpfFileName = "embedded_system_monitor.container.bpf.o"
-		} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-			var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.host.bpf.o")
-			if err != nil {
-				return fmt.Errorf("unable to read file: embedded_system_monitor.host.bpf.o")
-			}
-			bpfFile = bytes.NewReader(tempBpfFile)
-			bpfFileName = "embedded_system_monitor.host.bpf.o"
-		} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-			var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.bpf.o")
-			if err != nil {
-				return fmt.Errorf("unable to read file: embedded_system_monitor.bpf.o")
-			}
-			bpfFile = bytes.NewReader(tempBpfFile)
-			bpfFileName = "embedded_system_monitor.bpf.o"
-		}
-		mon.Logger.Printf("eBPF system monitor object file path: %s", bpfFileName)
-		spec, err := cle.LoadCollectionSpecFromReader(bpfFile)
-		if err != nil {
-			return fmt.Errorf("unable to load collection spec from %v", err)
-		}
-
-		// btfspec, err := btf.LoadSpecFromReader(btfFile)
-
-		// btfPath := homeDir+ "/monitor/vmlinux"
-		btfSpec, err := btf.LoadSpec(btfPath)
-		if err != nil{
-			return fmt.Errorf("Unable to load btf file: %v", err)
-		}
-
-		opts := cle.CollectionOptions{
-			Programs: cle.ProgramOptions{
-				KernelTypes: btfSpec,
-			},
-		}
-		
-		mon.Logger.Printf("Using embedded BTFFile")
-		// mon.BpfModule, err = cle.NewCollection(spec)
-		mon.BpfModule, err = cle.NewCollectionWithOptions(spec, opts)
-		if err != nil {
-			return fmt.Errorf("bpf module is nil %v", err)
-		}
-
-		mon.Logger.Print("Initialized the eBPF system monitor")
+		return fmt.Errorf("cant find vmlinux in %v", btfPath)
 
 	}
-	// 	// go test
-	// 	bpfPath = homeDir + "/BPF/"
-	// 	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-	// 		// go test
-	// 		bpfPath = os.Getenv("PWD") + "/../BPF/"
-	// 		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-	// 			// container
+	// go test
+	mon.Logger.Print("Initializing embedded eBPF system monitor")
+	// bpfPath = os.Getenv("PWD") + "/monitor/"
+	// Allow the current process to lock memory for eBPF resources.
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return fmt.Errorf("error removing memlock %v", err)
+	}
 
-	// 			bpfPath = "/opt/kubearmor/BPF/"
-	// 			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-	// 				return err
-	// 			}
-	// 		}
+	// ignoreList, err = loadIgnoreList(bpfPath)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// 		ignoreList, err = loadIgnoreList(bpfPath)
-	// 		if err != nil {
-	// 			return err
-	// 		}
+	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.container.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: system_monitor.container.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
+		bpfFileName = "embedded_system_monitor.container.bpf.o"
+	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.host.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: embedded_system_monitor.host.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
+		bpfFileName = "embedded_system_monitor.host.bpf.o"
+	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: embedded_system_monitor.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
+		bpfFileName = "embedded_system_monitor.bpf.o"
+	}
+	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfFileName)
+	spec, err := cle.LoadCollectionSpecFromReader(bpfFile)
+	if err != nil {
+		return fmt.Errorf("unable to load collection spec from %v", err)
+	}
 
-	// 		mon.Logger.Print("Initializing eBPF system monitor")
+	// btfspec, err := btf.LoadSpecFromReader(btfFile)
 
-	// 		// Allow the current process to lock memory for eBPF resources.
-	// 		if err := rlimit.RemoveMemlock(); err != nil {
-	// 			return fmt.Errorf("error removing memlock %v", err)
-	// 		}
+	// btfPath := homeDir+ "/monitor/vmlinux"
+	btfSpec, err := btf.LoadSpec(btfPath)
+	if err != nil{
+		return fmt.Errorf("Unable to load btf file: %v", err)
+	}
 
-	// 		if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-	// 			bpfPath = bpfPath + "system_monitor.container.bpf.o"
-	// 		} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-	// 			bpfPath = bpfPath + "system_monitor.host.bpf.o"
-	// 		} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-	// 			bpfPath = bpfPath + "system_monitor.bpf.o"
-	// 		}
-	// 		mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
-	// 		mon.BpfModule, err = cle.LoadCollection(bpfPath)
-	// 		if err != nil {
-	// 			return fmt.Errorf("bpf module is nil %v", err)
-	// 		}
+	opts := cle.CollectionOptions{
+		Programs: cle.ProgramOptions{
+			KernelTypes: btfSpec,
+		},
+	}
+	
+	mon.Logger.Printf("Using embedded BTF File")
+	// mon.BpfModule, err = cle.NewCollection(spec)
+	mon.BpfModule, err = cle.NewCollectionWithOptions(spec, opts)
+	if err != nil {
+		return fmt.Errorf("bpf module is nil %v", err)
+	}
 
-	// 		mon.Logger.Print("Initialized the eBPF system monitor")
-
-	// 	}
-
-	// } else {
-
+	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "chown", "setuid", "setgid", "fchownat"}
