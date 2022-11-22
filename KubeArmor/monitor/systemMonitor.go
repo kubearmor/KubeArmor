@@ -16,12 +16,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"strings"
 
 	cle "github.com/cilium/ebpf"
 	btf "github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/aquasecurity/libbpfgo/helpers"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -208,19 +210,32 @@ func isIgnored(item string, ignoreList []string) bool {
 
 // InitBPF Function
 func (mon *SystemMonitor) InitBPF() error {
-	// homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	// if err != nil {
-	// 	return err
-	// }
+	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		return err
+	}
 
 	var ignoreList []string
 	var bpfFile io.ReaderAt
 	var bpfFileName string
 	btfPath := "/sys/kernel/btf/vmlinux"
+
+	OSInfo, err := helpers.GetOSInfo()
+	if err!=nil{
+		fmt.Errorf("Failed to get OS Info: %v", err)
+	}
+
+	osId := OSInfo.GetOSReleaseFieldValue(helpers.OS_ID)
+	versionId := strings.Replace(OSInfo.GetOSReleaseFieldValue(helpers.OS_VERSION_ID), "\"", "", -1)
+	kernelRelease := OSInfo.GetOSReleaseFieldValue(helpers.OS_KERNEL_RELEASE)
+	arch := OSInfo.GetOSReleaseFieldValue(helpers.OS_ARCH)
 	
 	if _, err := os.Stat(btfPath); err != nil {
-		return fmt.Errorf("cant find vmlinux in %v", btfPath)
-
+		mon.Logger.Printf("vmlinux not found, searching for reduced btf file")
+		reduced_btfPath := homeDir+"/monitor/reduced-btfs/"+osId+"/"+versionId+"/"+arch+"/"+kernelRelease
+		if _,err := os.Stat(reduced_btfPath); err != nil{
+			return fmt.Errorf("vmlinux and reduced btf file not found")
+		}
 	}
 	// go test
 	mon.Logger.Print("Initializing embedded eBPF system monitor")
@@ -235,6 +250,8 @@ func (mon *SystemMonitor) InitBPF() error {
 	// 	return err
 	// }
 
+	test := fmt.Sprintf("os id: %s/ versionID: %s/ arch: %s/ kernel-release%s", osId, versionId, arch, kernelRelease)
+	print(test)
 	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
 		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.container.bpf.o")
 		if err != nil {
@@ -263,9 +280,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		return fmt.Errorf("unable to load collection spec from %v", err)
 	}
 
-	// btfspec, err := btf.LoadSpecFromReader(btfFile)
-
-	// btfPath := homeDir+ "/monitor/vmlinux"
 	btfSpec, err := btf.LoadSpec(btfPath)
 	if err != nil{
 		return fmt.Errorf("Unable to load btf file: %v", err)
