@@ -232,7 +232,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	
 	if _, err := os.Stat(btfPath); err != nil {
 		mon.Logger.Printf("vmlinux not found, searching for reduced btf file")
-		reduced_btfPath := homeDir+"/monitor/reduced-btfs/"+osId+"/"+versionId+"/"+arch+"/"+kernelRelease".btf"
+		reduced_btfPath := homeDir+"/monitor/reduced-btfs/"+osId+"/"+versionId+"/"+arch+"/"+kernelRelease+".btf"
 		if _,err := os.Stat(reduced_btfPath); err != nil{
 			return fmt.Errorf("vmlinux and reduced btf file not found")
 		}
