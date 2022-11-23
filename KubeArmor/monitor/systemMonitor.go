@@ -232,11 +232,12 @@ func (mon *SystemMonitor) InitBPF() error {
 	
 	if _, err := os.Stat(btfPath); err != nil {
 		mon.Logger.Printf("vmlinux not found, searching for reduced btf file")
-		reduced_btfPath := homeDir+"/monitor/reduced-btfs/"+osId+"/"+versionId+"/"+arch+"/"+kernelRelease+".btf"
-		if _,err := os.Stat(reduced_btfPath); err != nil{
+		btfPath := homeDir+"/monitor/reduced-btfs/"+osId+"/"+versionId+"/"+arch+"/"+kernelRelease+".btf"
+		if _,err := os.Stat(btfPath); err != nil{
 			return fmt.Errorf("vmlinux and reduced btf file not found")
 		}
 	}
+	mon.Logger.Printf("Using BTF file from %v", btfPath)
 	// go test
 	mon.Logger.Print("Initializing embedded eBPF system monitor")
 	// bpfPath = os.Getenv("PWD") + "/monitor/"
@@ -250,8 +251,6 @@ func (mon *SystemMonitor) InitBPF() error {
 	// 	return err
 	// }
 
-	test := fmt.Sprintf("os id: %s/ versionID: %s/ arch: %s/ kernel-release%s", osId, versionId, arch, kernelRelease)
-	print(test)
 	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
 		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.container.bpf.o")
 		if err != nil {
