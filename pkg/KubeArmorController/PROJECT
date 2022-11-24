@@ -11,7 +11,7 @@ resources:
   domain: kubearmor.com
   group: security
   kind: KubeArmorPolicy
-  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1
   version: v1
 - api:
     crdVersion: v1
@@ -20,6 +20,6 @@ resources:
   domain: kubearmor.com
   group: security
   kind: KubeArmorHostPolicy
-  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1
   version: v1
 version: "3"

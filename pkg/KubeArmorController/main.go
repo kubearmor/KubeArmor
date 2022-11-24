@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/go-logr/logr"
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
 	//+kubebuilder:scaffold:imports

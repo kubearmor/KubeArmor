@@ -17,7 +17,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	//+kubebuilder:scaffold:imports
 )
 
