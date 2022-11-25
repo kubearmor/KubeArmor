@@ -38,7 +38,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           distribution: goreleaser
-          version: latest
+          version: v1.12.2
           args: release --rm-dist
           workdir: KubeArmor
         env:
