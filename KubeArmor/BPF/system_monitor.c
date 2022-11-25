@@ -1425,6 +1425,7 @@ struct tracepoint_syscalls_sys_exit_t {
     long ret;
 };
 
+#if defined(TRACEPOINT_EXIT_OPENAT)
 SEC("tracepoint/syscalls/sys_exit_openat")
 int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
 {
@@ -1468,6 +1469,7 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
 
     return 0;
 }
+#endif
 
 // == Syscall Hooks (Network) == //
 

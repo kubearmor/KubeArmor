@@ -187,6 +187,9 @@ var syscallsInKernelFeatureFlag = map[string][]string{
 		"security_path_unlink",
 		"security_path_rmdir",
 	},
+	"DTRACEPOINT_EXIT_OPENAT": {
+		"sys_exit_openat",
+	},
 }
 
 func isIgnored(item string, ignoreList []string) bool {
@@ -279,6 +282,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, sysTracepoint := range sysTracepoints {
+			if isIgnored(sysTracepoint[1], ignoreList) {
+				mon.Logger.Printf("Ignoring tracepoint %s", sysTracepoint[1])
+				continue
+			}
 			mon.Probes[sysTracepoint[1]], err = link.Tracepoint(sysTracepoint[0], sysTracepoint[1], mon.BpfModule.Programs[sysTracepoint[1]], nil)
 			if err != nil {
 				return fmt.Errorf("error:%s: %v", sysTracepoint, err)

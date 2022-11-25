@@ -49,6 +49,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("[Failed] Cannot attach syscall %s\n", err.Error())
 		}
+	} else if strings.HasPrefix(fn, "sys_") {
+		_, err = link.Tracepoint("syscalls", fn, bpfModule.Programs[fn], nil)
+		if err != nil {
+			log.Fatalf("[Failed] Cannot attach tracepoint %s\n", err.Error())
+		}
 	} // other probe types goes here
 	/*else if (){
 
