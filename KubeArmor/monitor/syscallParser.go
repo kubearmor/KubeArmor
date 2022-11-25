@@ -861,6 +861,7 @@ var auditedSyscalls = map[int]string{
 	106: "setgid",
 	260: "fchownat",
 	263: "unlinkat",
+	101: "ptrace",
 }
 
 func isAuditedSyscall(syscallID int32) bool {
