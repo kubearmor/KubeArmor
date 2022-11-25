@@ -29,6 +29,8 @@ const (
 	SysExecve   = 59
 	SysExecveAt = 322
 
+	SysPtrace = 101
+
 	DoExit            = 351
 	SecurityBprmCheck = 352
 

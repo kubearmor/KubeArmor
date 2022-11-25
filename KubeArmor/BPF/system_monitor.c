@@ -81,6 +81,7 @@
 #define SOCK_TYPE_T   16UL
 #define FILE_TYPE_T   17UL
 #define UNLINKAT_FLAG_T 19UL
+#define PTRACE_REQ_T 23UL
 
 #define MAX_ARGS               6
 #define ENC_ARG_TYPE(n, type)  type<<(8*n)
@@ -159,6 +160,7 @@ enum {
     _DO_EXIT = 351,
     _SYS_RMDIR = 84,
 
+    _SYS_PTRACE = 101,         
     // lsm
     _SECURITY_BPRM_CHECK = 352,
 
@@ -336,6 +338,10 @@ static __always_inline u32 get_task_ppid(struct task_struct *task)
     struct task_struct *parent = READ_KERN(task->parent);
     return READ_KERN(parent->pid);
 
+}
+
+static struct file *get_task_file(struct task_struct *task) {
+  return BPF_CORE_READ(task, mm, exe_file);
 }
 
 // == Pid NS Management == //
@@ -774,6 +780,9 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         case FILE_TYPE_T:
             save_file_to_buffer(bufs_p, (void *)args->args[i]);
             break;
+        case PTRACE_REQ_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), PTRACE_REQ_T);            
+            break;    
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;
@@ -847,6 +856,24 @@ static __always_inline int security_path__dir_path_args(struct pt_regs *ctx){
     return 0;
 }
 
+//  args:  struct task_struct *task
+static __always_inline int security_path_task_arg(struct pt_regs *ctx){
+    struct task_struct *task = (struct task_struct*) PT_REGS_PARM1(ctx);
+    if(task == NULL){
+        return 0;
+    }
+   
+    struct file *file_p = get_task_file(task);
+    if (file_p == NULL)
+    return 0;
+
+    struct path p = READ_KERN(file_p->f_path);
+
+    u64	tgid = bpf_get_current_pid_tgid();
+    bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
+    return 0;
+}
+
 #if defined(SECURITY_PATH)
 SEC("kprobe/security_path_unlink")
 int kprobe__security_path_unlink(struct pt_regs *ctx){
@@ -862,6 +889,13 @@ int kprobe__security_path_rmdir(struct pt_regs *ctx){
     return security_path__dir_path_args(ctx);
 }
 #endif
+
+SEC("kprobe/security_ptrace_access_check")
+int kprobe__security_ptrace_access_check(struct pt_regs *ctx){
+    if (skip_syscall())
+		return 0;
+    return security_path_task_arg(ctx);
+}
 
 SEC("kprobe/security_bprm_check")
 int kprobe__security_bprm_check(struct pt_regs *ctx)
@@ -1414,6 +1448,20 @@ int kretprobe__setgid(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T));
 }
+    
+SEC("kprobe/__x64_sys_ptrace")
+int kprobe__ptrace(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_PTRACE, ctx);
+}
+
+SEC("kretprobe/__x64_sys_ptrace")
+int kretprobe__ptrace(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_PTRACE, ctx, ARG_TYPE0(PTRACE_REQ_T)|ARG_TYPE1(INT_T)|ARG_TYPE2(FILE_TYPE_T));
+}
 
 struct tracepoint_syscalls_sys_exit_t {
     unsigned short common_type;
@@ -1547,7 +1595,6 @@ int kretprobe__listen(struct pt_regs *ctx)
     return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));
 }
 
-
 static __always_inline int get_connection_info(struct sock_common *conn,struct sockaddr_in *sockv4, struct sockaddr_in6 *sockv6,sys_context_t *context, args_t *args, u32 event ) {
     switch (conn->skc_family)
     {
@@ -1650,7 +1697,6 @@ if (sk_lingertime_offset - gso_max_segs_offset == 2)
     u64 types = ARG_TYPE0(STR_T)|ARG_TYPE1(SOCKADDR_T);
     init_context(&context);
     context.argnum = get_arg_num(types);
-
     
     if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_ACCEPT) != 0) {
         return 0;
@@ -1668,5 +1714,4 @@ if (sk_lingertime_offset - gso_max_segs_offset == 2)
 
     return 0;
 }
-
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

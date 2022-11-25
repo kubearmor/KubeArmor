@@ -35,6 +35,7 @@ const (
 	capT          uint8 = 17
 	syscallT      uint8 = 18
 	unlinkAtFlagT uint8 = 19
+	ptraceReqT    uint8 = 23
 )
 
 // ======================= //
@@ -224,6 +225,82 @@ func getUnlinkAtFlag(flag uint32) string {
 	}
 
 	return f
+}
+
+// getPtraceReq
+func getPtraceReq(req uint32) string {
+	switch req {
+	case 0:
+		return "PTRACE_TRACEME"
+	case 1:
+		return "PTRACE_PEEKTEXT"
+	case 2:
+		return "PTRACE_PEEKDATA"
+	case 3:
+		return "PTRACE_PEEKUSER"
+	case 4:
+		return "PTRACE_POKETEXT"
+	case 5:
+		return "PTRACE_POKEDATA"
+	case 6:
+		return "PTRACE_POKEUSER"
+	case 7:
+		return "PTRACE_CONT"
+	case 8:
+		return "PTRACE_KILL"
+	case 9:
+		return "PTRACE_SINGLESTEP"
+	case 12:
+		return "PTRACE_GETREGS"
+	case 13:
+		return "PTRACE_SETREGS"
+	case 14:
+		return "PTRACE_GETFPREGS"
+	case 15:
+		return "PTRACE_SETFPREGS"
+	case 16:
+		return "PTRACE_ATTACH"
+	case 17:
+		return "PTRACE_DETACH"
+	case 18:
+		return "PTRACE_GETFPXREGS"
+	case 19:
+		return "PTRACE_SETFPXREGS"
+	case 24:
+		return "PTRACE_SYSCALL"
+	case 0x4200:
+		return "PTRACE_SETOPTIONS"
+	case 0x4201:
+		return "PTRACE_GETEVENTMSG"
+	case 0x4202:
+		return "PTRACE_GETSIGINFO"
+	case 0x4203:
+		return "PTRACE_SETSIGINFO"
+	case 0x4204:
+		return "PTRACE_GETREGSET"
+	case 0x4205:
+		return "PTRACE_SETREGSET"
+	case 0x4206:
+		return "PTRACE_SEIZE"
+	case 0x4207:
+		return "PTRACE_INTERRUPT"
+	case 0x4208:
+		return "PTRACE_LISTEN"
+	case 0x4209:
+		return "PTRACE_PEEKSIGINFO"
+	case 0x420a:
+		return "PTRACE_GETSIGMASK"
+	case 0x420b:
+		return "PTRACE_SETSIGMASK"
+	case 0x420c:
+		return "PTRACE_SECCOMP_GET_FILTER"
+	case 0x420d:
+		return "PTRACE_SECCOMP_GET_METADATA"
+	case 0x420e:
+		return "PTRACE_GET_SYSCALL_INFO"
+	default:
+		return strconv.Itoa(int(req))
+	}
 }
 
 // getOpenFlags Function
@@ -736,6 +813,12 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 			return nil, err
 		}
 		res = getExecFlags(flags)
+	case ptraceReqT:
+		req, err := readUInt32FromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
+		res = getPtraceReq(req)
 	case sockDomT:
 		dom, err := readUInt32FromBuff(dataBuff)
 		if err != nil {
@@ -778,6 +861,7 @@ var auditedSyscalls = map[int]string{
 	106: "setgid",
 	260: "fchownat",
 	263: "unlinkat",
+	101: "ptrace",
 }
 
 func isAuditedSyscall(syscallID int32) bool {
