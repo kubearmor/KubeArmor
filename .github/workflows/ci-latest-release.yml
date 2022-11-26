@@ -10,6 +10,7 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-latest-release.yml"
+      - "!STABLE-RELEASE"
 
   create:
     branches:
@@ -20,7 +21,7 @@ jobs:
     name: Create KubeArmor latest release
     if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
         with:
@@ -68,15 +69,23 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
       - name: Push KubeArmor images to Docker
-        run: ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
   push-stable-version:
     name: Create KubeArmor stable release
     needs: build
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
         with:
@@ -101,6 +110,14 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
       - name: Push the stable version of KubeArmor to Docker Hub
         if: steps.match.outputs.tag == 'true'
-        run: ./KubeArmor/build/push_kubearmor.sh stable
+        run: STABLE_VERSION=$(cat STABLE-RELEASE) GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh stable

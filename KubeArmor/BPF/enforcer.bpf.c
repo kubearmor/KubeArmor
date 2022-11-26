@@ -74,6 +74,10 @@ struct outer_key {
 #define RULE_HINT 1 << 6
 #define RULE_DENY 1 << 7
 
+#define MASK_WRITE 0x00000002
+#define MASK_READ 0x00000004
+#define MASK_APPEND 0x00000008
+
 struct data_t {
   u8 processmask;
   u8 filemask;
@@ -664,6 +668,229 @@ decision:
         return 0;
       }
     }
+    if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
+      // Read Only Policy, Decision making will be done in lsm/file_permission
+      return 0;
+    }
+    if (val && (val->filemask & RULE_DENY)) {
+      bpf_printk("denying file %s due to in blacklist\n", store->path);
+      return -EPERM;
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  pk->path[0] = dfile;
+  struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+  if (allow) {
+    if (!match) {
+      bpf_printk("denying file %s due to not in allowlist, source -> %s\n",
+                 store->path, store->source);
+      return -EPERM;
+    }
+  }
+
+  return 0;
+}
+
+SEC("lsm/file_permission")
+int BPF_PROG(enforce_file_perm, struct file *file, int mask) {
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  bool match = false;
+
+  if (!(mask & (MASK_WRITE | MASK_APPEND))) {
+    // only relevant when write events triggered, since rest is blocked by
+    // file_open
+    return 0;
+  }
+
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+
+  if (!inner) {
+    return 0;
+  }
+
+  u32 zero = 0;
+  bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
+  if (z == NULL)
+    return 0;
+
+  u32 one = 1;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &one);
+  if (store == NULL)
+    return 0;
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+
+  u32 two = 2;
+  bufs_k *pk = bpf_map_lookup_elem(&bufk, &two);
+  if (pk == NULL)
+    return 0;
+
+  // Extract full path from file structure provided by LSM Hook
+  bufs_t *path_buf = get_buf(PATH_BUFFER);
+  if (path_buf == NULL)
+    return 0;
+  struct path f_path = BPF_CORE_READ(file, f_path);
+  if (!prepend_path(&f_path, path_buf))
+    return 0;
+
+  u32 *path_offset = get_buf_off(PATH_BUFFER);
+  if (path_offset == NULL)
+    return 0;
+
+  void *path_ptr = &path_buf->buf[*path_offset];
+  bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
+
+  // Extract full path of the source binary from the task structure
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    return 0;
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    return 0;
+  struct path f_src = BPF_CORE_READ(file_p, f_path);
+  if (!prepend_path(&f_src, src_buf))
+    return 0;
+
+  u32 *src_offset = get_buf_off(PATH_BUFFER);
+  if (src_offset == NULL)
+    return 0;
+
+  void *ptr = &src_buf->buf[*src_offset];
+  bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);
+
+  struct data_t *val = bpf_map_lookup_elem(inner, store);
+
+  if (val && (val->filemask & RULE_READ)) {
+    match = true;
+    goto decision;
+  }
+
+  struct data_t *dirval;
+  bool recursivebuthint = false;
+
+#pragma unroll
+  for (int i = 0; i < 64; i++) {
+    if (store->path[i] == '\0')
+      break;
+
+    if (store->path[i] == '/') {
+      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+
+      match = false;
+
+      bpf_probe_read_str(pk->path, i + 2, store->path);
+      // Check Subdir with From Source
+      bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
+      dirval = bpf_map_lookup_elem(inner, pk);
+      if (dirval) {
+        if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
+          match = true;
+          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
+                     (dirval->filemask & RULE_RECURSIVE),
+                     (dirval->filemask & RULE_HINT));
+          bpf_printk("and from source %s\n", pk->source);
+          if ((dirval->filemask &
+               RULE_RECURSIVE)) { // true directory match and
+                                  // not a hint suggests
+                                  // there are no possibility of child dir
+            val = dirval;
+            if (dirval->filemask & RULE_HINT) {
+              recursivebuthint = true;
+              continue;
+            } else {
+              goto decision;
+            }
+          } else {
+            continue; // We continue the loop to see if we have more nested
+                      // directories and set match to false
+          }
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (recursivebuthint) {
+    match = true;
+    goto decision;
+  }
+  if (match) {
+    if (dirval) { // to please the holy verifier
+      val = dirval;
+      goto decision;
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
+
+  val = bpf_map_lookup_elem(inner, pk);
+
+  if (val && (val->filemask & RULE_READ)) {
+    match = true;
+    goto decision;
+  }
+
+  recursivebuthint = false;
+
+#pragma unroll
+  for (int i = 0; i < 64; i++) {
+    if (store->path[i] == '\0')
+      break;
+
+    if (store->path[i] == '/') {
+      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+      match = false;
+      bpf_probe_read_str(pk->path, i + 2, store->path);
+      dirval = bpf_map_lookup_elem(inner, pk);
+      if (dirval) {
+        if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
+          match = true;
+          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
+                     (dirval->filemask & RULE_RECURSIVE),
+                     (dirval->filemask & RULE_HINT));
+          if ((dirval->filemask &
+               RULE_RECURSIVE)) { // true directory match and
+                                  // not a hint suggests
+                                  // there are no possibility of child dir
+            val = dirval;
+            if (dirval->filemask & RULE_HINT) {
+              recursivebuthint = true;
+              continue;
+            } else {
+              goto decision;
+            }
+          } else {
+            continue; // We continue the loop to see if we have more nested
+                      // directories and set match to false
+          }
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  if (recursivebuthint) {
+    match = true;
+    goto decision;
+  } else {
+    if (match && dirval) {
+      val = dirval;
+      goto decision;
+    }
+  }
+
+decision:
+
+  if (match) {
     if (val && (val->filemask & RULE_DENY)) {
       bpf_printk("denying file %s due to in blacklist\n", store->path);
       return -EPERM;
@@ -897,9 +1124,10 @@ decision:
 
   if (allow) {
     if (!match) {
-      bpf_printk("testing denying sock accept - type %d, protocol %d due to not in "
-                 "allowlist - %s\n",
-                 sock->type, sock->sk->sk_protocol, store->source);
+      bpf_printk(
+          "testing denying sock accept - type %d, protocol %d due to not in "
+          "allowlist - %s\n",
+          sock->type, sock->sk->sk_protocol, store->source);
       return -EPERM;
     }
   } else {

@@ -39,13 +39,14 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           install-only: true
+          version: v1.12.2
 
       - name: Build Systemd Release
         run: make local-release
         working-directory: KubeArmor
 
       - name: Install KubeArmor
-        run: sudo apt install -y ./dist/kubearmor*.deb
+        run: sudo apt install -y ./dist/kubearmor*amd64.deb
         working-directory: KubeArmor
 
       - name: Check journalctl

@@ -91,6 +91,17 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:${TAG}
 	docker push ${IMG}:latest
 
+client/gen:
+	@echo "--> Running code-generator to generate clients"
+	# prepare tool code-generator
+	@mkdir -p ./tmp/code-generator
+	@git clone https://github.com/kubernetes/code-generator.git --branch v0.22.1 --single-branch  ./tmp/code-generator
+	# generate client
+	GOPATH= GOROOT= ./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api security.kubearmor.com:v1 --go-header-file hack/boilerplate.go.txt
+	# check generated client at ./pkg/client
+	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/* ./client/
+	@rm -rf ./github.com ./tmp/code-generator
+
 ##@ Deployment
 
 deploy-cert-manager: ensure-cmctl ## Deploy cert-manager before deploying the admission controller

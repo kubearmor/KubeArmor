@@ -5,7 +5,6 @@ package enforcer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -534,7 +533,7 @@ func (se *SELinuxEnforcer) GenerateSELinuxHostProfile(securityPolicies []tp.Host
 
 	// get the old profile
 
-	profile, err := ioutil.ReadFile(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
+	profile, err := os.ReadFile(filepath.Clean(cfg.GlobalCfg.SELinuxProfileDir + se.HostProfile))
 	if err != nil {
 		return 0, err.Error(), false
 	}

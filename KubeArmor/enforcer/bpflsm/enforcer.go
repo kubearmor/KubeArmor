@@ -101,6 +101,12 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		return be, err
 	}
 
+	be.Probes[be.obj.EnforceFilePerm.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceFilePerm})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceFilePerm.String(), err)
+		return be, err
+	}
+
 	be.Probes[be.obj.EnforceNetConnect.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetConnect})
 	if err != nil {
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetConnect.String(), err)

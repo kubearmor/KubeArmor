@@ -11,8 +11,10 @@ import (
 	"strings"
 	"text/template"
 
+	sprig "github.com/Masterminds/sprig/v3"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"k8s.io/utils/strings/slices"
 )
 
 // == //
@@ -29,9 +31,9 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(prof *Profile) {
 }
 
 // SetProcessMatchPaths Function
-func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.File = false
+		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -58,7 +60,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 		}
 		if deny == false {
 			if val, ok := prof.FromSource[source]; ok {
-				val.File = false
+				val.File = head
 				prof.FromSource[source] = val
 			}
 		}
@@ -67,9 +69,9 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 }
 
 // SetProcessMatchDirectories Function
-func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.File = false
+		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -98,7 +100,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 		}
 		if deny == false {
 			if val, ok := prof.FromSource[source]; ok {
-				val.File = false
+				val.File = head
 				prof.FromSource[source] = val
 			}
 		}
@@ -107,9 +109,9 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 }
 
 // SetProcessMatchPatterns Function
-func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.File = false
+		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -122,9 +124,9 @@ func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, p
 }
 
 // SetFileMatchPaths Function
-func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.File = false
+		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -152,7 +154,7 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 		}
 		if deny == false {
 			if val, ok := prof.FromSource[source]; ok {
-				val.File = false
+				val.File = head
 				prof.FromSource[source] = val
 			}
 		}
@@ -161,9 +163,9 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 }
 
 // SetFileMatchDirectories Function
-func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.File = false
+		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -193,7 +195,7 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 		}
 		if deny == false {
 			if val, ok := prof.FromSource[source]; ok {
-				val.File = false
+				val.File = head
 				prof.FromSource[source] = val
 			}
 		}
@@ -202,9 +204,9 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 }
 
 // SetFileMatchPatterns Function
-func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.File = false
+		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -218,9 +220,9 @@ func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *P
 }
 
 // SetNetworkMatchProtocols Function
-func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.Network = false
+		prof.Network = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -244,7 +246,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 		}
 		if deny == false {
 			if val, ok := prof.FromSource[source]; ok {
-				val.Network = false
+				val.Network = head
 				prof.FromSource[source] = val
 			}
 		}
@@ -253,9 +255,9 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 }
 
 // SetCapabilitiesMatchCapabilities Function
-func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, prof *Profile, deny bool) {
+func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, prof *Profile, deny bool, head bool) {
 	if deny == false {
-		prof.Capabilities = false
+		prof.Capabilities = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
@@ -279,7 +281,7 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 		}
 		if deny == false {
 			if val, ok := prof.FromSource[source]; ok {
-				val.Capabilities = false
+				val.Capabilities = head
 				prof.FromSource[source] = val
 			}
 		}
@@ -309,76 +311,76 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
-				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
-					ae.SetProcessMatchPaths(path, &profile, false)
+				if path.Action == "Allow" {
+					ae.SetProcessMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
 				} else if path.Action == "Block" {
-					ae.SetProcessMatchPaths(path, &profile, true)
+					ae.SetProcessMatchPaths(path, &profile, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
-					ae.SetProcessMatchDirectories(dir, &profile, false)
+				if dir.Action == "Allow" {
+					ae.SetProcessMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
 				} else if dir.Action == "Block" {
-					ae.SetProcessMatchDirectories(dir, &profile, true)
+					ae.SetProcessMatchDirectories(dir, &profile, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-				if pat.Action == "Allow" && defaultPosture.FileAction == "block" {
-					ae.SetProcessMatchPatterns(pat, &profile, false)
+				if pat.Action == "Allow" {
+					ae.SetProcessMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
 				} else if pat.Action == "Block" {
-					ae.SetProcessMatchPatterns(pat, &profile, true)
+					ae.SetProcessMatchPatterns(pat, &profile, true, true)
 				}
 			}
 		}
 
 		if len(secPolicy.Spec.File.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.File.MatchPaths {
-				if path.Action == "Allow" && defaultPosture.FileAction == "block" {
-					ae.SetFileMatchPaths(path, &profile, false)
+				if path.Action == "Allow" {
+					ae.SetFileMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
 				} else if path.Action == "Block" {
-					ae.SetFileMatchPaths(path, &profile, true)
+					ae.SetFileMatchPaths(path, &profile, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
-				if dir.Action == "Allow" && defaultPosture.FileAction == "block" {
-					ae.SetFileMatchDirectories(dir, &profile, false)
+				if dir.Action == "Allow" {
+					ae.SetFileMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
 				} else if dir.Action == "Block" {
-					ae.SetFileMatchDirectories(dir, &profile, true)
+					ae.SetFileMatchDirectories(dir, &profile, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
-				if pat.Action == "Allow" && defaultPosture.FileAction == "block" {
-					ae.SetFileMatchPatterns(pat, &profile, false)
+				if pat.Action == "Allow" {
+					ae.SetFileMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
 				} else if pat.Action == "Block" {
-					ae.SetFileMatchPatterns(pat, &profile, true)
+					ae.SetFileMatchPatterns(pat, &profile, true, true)
 				}
 			}
 		}
 
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-				if proto.Action == "Allow" && defaultPosture.NetworkAction == "block" {
-					ae.SetNetworkMatchProtocols(proto, &profile, false)
+				if proto.Action == "Allow" {
+					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
 				} else if proto.Action == "Block" {
-					ae.SetNetworkMatchProtocols(proto, &profile, true)
+					ae.SetNetworkMatchProtocols(proto, &profile, true, true)
 				}
 			}
 		}
 
 		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-				if cap.Action == "Allow" && defaultPosture.CapabilitiesAction == "block" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false)
+				if cap.Action == "Allow" {
+					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, defaultPosture.CapabilitiesAction != "block")
 				} else if cap.Action == "Block" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, true)
+					ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, true)
 				}
 			}
 		}
@@ -416,12 +418,6 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if err != nil {
 			ae.Logger.Errf("Error while copying global rules to local profile for %s: %s", source, err.Error())
 			continue
-		}
-		for proc, config := range profile.ProcessPaths {
-			add := checkIfGlobalRuleToBeAdded(proc, val.ProcessPaths)
-			if add {
-				newval.ProcessPaths[proc] = config
-			}
 		}
 		for file, config := range profile.FilePaths {
 			add := checkIfGlobalRuleToBeAdded(file, val.FilePaths)
@@ -471,8 +467,15 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 
 	newProfile.Name = appArmorProfile
 
+	// https://helm.sh/docs/howto/charts_tips_and_tricks/
+	// Extend go template with sprig functions
+
+	allFuncs := sprig.GenericFuncMap()
+	delete(allFuncs, "env")
+	delete(allFuncs, "expandenv")
+
 	// Create a new template and parse the letter into it.
-	t, err := template.New("apparmor").Parse(BaseTemplate)
+	t, err := template.New("apparmor").Funcs(allFuncs).Parse(BaseTemplate)
 	if err != nil {
 		return 0, err.Error(), false
 	}
@@ -485,6 +488,38 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	// check the new profile with the old profile
 
 	if np.String() != oldProfile {
+		// check if we need to off load profile
+		oldProfilesNames := ae.rgx.FindAllString(oldProfile, -1)
+		newProfilesNames := ae.rgx.FindAllString(np.String(), -1)
+		profileToDelete := []string{}
+		for _, oldProf := range oldProfilesNames {
+			if !slices.Contains(newProfilesNames, oldProf) {
+				profileToDelete = append(profileToDelete, oldProf)
+			}
+		}
+		if len(profileToDelete) != 0 {
+			file, err := os.CreateTemp("/tmp", "apparmor-")
+			if err != nil {
+				ae.Logger.Warnf("Unable to create tmp file, err=%s", err.Error())
+			} else {
+				defer os.Remove(file.Name())
+				writer := bufio.NewWriter(file)
+				for _, prof := range profileToDelete {
+					_, err = writer.WriteString(prof + "} \n")
+					if err != nil {
+						ae.Logger.Warnf("Unable to write deleted profile %s to tmp file, err=%s", prof+"}", err.Error())
+					}
+				}
+				err = writer.Flush()
+				if err != nil {
+					ae.Logger.Warnf("Cannot flush tmp file writer buffer, err=%s", err.Error())
+				}
+				if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", file.Name()}); err != nil {
+					ae.Logger.Warnf("Unable to unload %d unused apparmor profiles, err=%s", len(profileToDelete), err.Error())
+				}
+			}
+		}
+
 		return count, np.String(), true
 	}
 

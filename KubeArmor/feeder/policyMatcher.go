@@ -1034,6 +1034,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							if len(secPolicy.Tags) > 0 {
 								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								log.ATags = secPolicy.Tags
 							}
 
 							if len(secPolicy.Message) > 0 {
@@ -1062,6 +1063,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							if len(secPolicy.Tags) > 0 {
 								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								log.ATags = secPolicy.Tags
 							}
 
 							if len(secPolicy.Message) > 0 {
@@ -1087,6 +1089,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							if len(secPolicy.Tags) > 0 {
 								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								log.ATags = secPolicy.Tags
 							}
 
 							if len(secPolicy.Message) > 0 {
@@ -1119,6 +1122,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Severity = ""
 						log.Tags = ""
+						log.ATags = []string{}
 						log.Message = ""
 
 						log.Enforcer = "eBPF Monitor"
@@ -1136,6 +1140,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						log.Severity = ""
 						log.Tags = ""
+						log.ATags = []string{}
 						log.Message = ""
 
 						log.Enforcer = "eBPF Monitor"
@@ -1159,6 +1164,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 					log.Severity = ""
 					log.Tags = ""
+					log.ATags = []string{}
 					log.Message = ""
 
 					log.Enforcer = "eBPF Monitor"
@@ -1174,6 +1180,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 					log.Severity = ""
 					log.Tags = ""
+					log.ATags = []string{}
 					log.Message = ""
 
 					log.Enforcer = "eBPF Monitor"
@@ -1207,6 +1214,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 								if len(secPolicy.Tags) > 0 {
 									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+									log.ATags = secPolicy.Tags
 								}
 
 								if len(secPolicy.Message) > 0 {
@@ -1236,6 +1244,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 								if len(secPolicy.Tags) > 0 {
 									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+									log.ATags = secPolicy.Tags
 								}
 
 								if len(secPolicy.Message) > 0 {
@@ -1409,6 +1418,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			log.Severity = ""
 			log.Tags = ""
+			log.ATags = []string{}
 			log.Message = ""
 
 			log.Enforcer = fd.Enforcer

@@ -5,7 +5,6 @@ package enforcer
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -140,7 +139,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	lsmPath := "/sys/kernel/security/lsm"
 
 	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-		lsm, err = ioutil.ReadFile(lsmPath)
+		lsm, err = os.ReadFile(lsmPath)
 		if err != nil {
 			re.Logger.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
 			return nil

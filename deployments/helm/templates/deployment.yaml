@@ -5,7 +5,6 @@ metadata:
   labels:
     kubearmor-app: kubearmor-relay
   name: kubearmor-relay
-  namespace: {{ .Values.namespace.name }}
 spec:
   replicas: 1
   selector:
@@ -32,106 +31,79 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    kubearmor-app: kubearmor-policy-manager
-  name: kubearmor-policy-manager
-  namespace: {{ .Values.namespace.name }}
+    kubearmor-app: {{ .Values.kubearmorAnnotationManager.name }}
+  name: {{ .Values.kubearmorAnnotationManager.name }}
+  namespace: kube-system
 spec:
-  replicas: 1
+  replicas: {{ .Values.kubearmorAnnotationManager.replicas }}
   selector:
     matchLabels:
-      kubearmor-app: kubearmor-policy-manager
+      kubearmor-app: {{ .Values.kubearmorAnnotationManager.name }}
   template:
     metadata:
       annotations:
-        kubearmor-policy: audited
+        container.apparmor.security.beta.kubernetes.io/manager: unconfined
       labels:
-        kubearmor-app: kubearmor-policy-manager
+        kubearmor-app: {{ .Values.kubearmorAnnotationManager.name }}
     spec:
       containers:
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        image: {{ .Values.kubearmorAnnotationManager.image.repository}}:{{ .Values.kubearmorAnnotationManager.image.tag}}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        - mountPath: /sys/kernel/security
+          name: sys-path
       - args:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
         - --v=10
-        image: "{{ .Values.kubeRbacProxy.image.repository }}:{{ .Values.kubeRbacProxy.image.tag }}"
+        image: {{ .Values.kubeRbacProxy.image.repository }}:{{ .Values.kubeRbacProxy.image.tag }}
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      - args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        command:
-        - /manager
-        image: "{{ .Values.kubearmorPolicyManager.image.repository }}:{{ .Values.kubearmorPolicyManager.image.tag }}"
-        name: kubearmor-policy-manager
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      serviceAccountName: kubearmor
+      serviceAccountName: {{ .Values.kubearmorAnnotationManager.name }}
       terminationGracePeriodSeconds: 10
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    kubearmor-app: kubearmor-host-policy-manager
-  name: kubearmor-host-policy-manager
-  namespace: {{ .Values.namespace.name }}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      kubearmor-app: kubearmor-host-policy-manager
-  template:
-    metadata:
-      annotations:
-        kubearmor-policy: audited
-      labels:
-        kubearmor-app: kubearmor-host-policy-manager
-    spec:
-      containers:
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        image: "{{ .Values.kubeRbacProxy.image.repository }}:{{ .Values.kubeRbacProxy.image.tag }}"
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      - args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        command:
-        - /manager
-        image: "{{ .Values.kubearmorHostPolicyManager.image.repository }}:{{ .Values.kubearmorHostPolicyManager.image.tag }}"
-        name: kubearmor-host-policy-manager
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      serviceAccountName: kubearmor
-      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: {{ .Values.kubearmorAnnotationManager.name }}
+      - hostPath:
+          path: /sys/kernel/security
+          type: Directory
+        name: sys-path

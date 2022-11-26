@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -39,7 +38,7 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 		node.Annotations["kubearmor-policy"] = "enabled"
 	}
 
-	if lsm, err := ioutil.ReadFile("/sys/kernel/security/lsm"); err == nil {
+	if lsm, err := os.ReadFile("/sys/kernel/security/lsm"); err == nil {
 		if !strings.Contains(string(lsm), "apparmor") && !strings.Contains(string(lsm), "selinux") {
 			// exception: neither AppArmor nor SELinux
 			if node.Annotations["kubearmor-policy"] == "enabled" {
@@ -2346,9 +2345,9 @@ func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
 	}
 
 	// List all policies files from "/opt/kubearmor/policies" path
-	if policyFiles, err := ioutil.ReadDir(cfg.PolicyDir); err == nil {
+	if policyFiles, err := os.ReadDir(cfg.PolicyDir); err == nil {
 		for _, file := range policyFiles {
-			if data, err := ioutil.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
+			if data, err := os.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
 				var hostPolicy tp.HostSecurityPolicy
 				if err := json.Unmarshal(data, &hostPolicy); err == nil {
 					dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)

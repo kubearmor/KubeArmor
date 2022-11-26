@@ -219,6 +219,29 @@ var _ = Describe("Smoke", func() {
 				[]string{"bash", "-c", fmt.Sprintf("rm %s", fname)})
 			Expect(err).To(BeNil())
 		})
+
+		It("can enforce multiple rules targeting same pod", func() {
+			// Apply policy
+			err := K8sApply([]string{"res/ksp-wordpress-two-policies.yaml"})
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "wordpress-mysql", "File", sql)
+			Expect(err).To(BeNil())
+
+			// trigger policy violation alert
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /etc/passwd"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("/etc/passwd.*Permission denied"))
+
+			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /etc/shadow"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("/etc/shadow.*Permission denied"))
+		})
 	})
 
 })

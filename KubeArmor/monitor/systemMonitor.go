@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2021 Authors of KubeArmor
+// Copyright 2022 Authors of KubeArmor
 
 // Package monitor is the component responsible for monitoring syscalls and communicating with eBPF Programs
 package monitor
@@ -24,42 +24,6 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-)
-
-// ===================== //
-// == Const. Vaiables == //
-// ===================== //
-
-// System Call Numbers
-const (
-	SysOpen     = 2
-	SysOpenAt   = 257
-	SysClose    = 3
-	SysUnlink   = 87
-	SysUnlinkAt = 263
-	SysRmdir    = 84
-	SysChown    = 92
-	SysFChownAt = 260
-
-	SysSetuid = 105
-	SysSetgid = 106
-
-	SysSocket  = 41
-	SysConnect = 42
-	SysAccept  = 43
-	SysBind    = 49
-	SysListen  = 50
-
-	SysExecve   = 59
-	SysExecveAt = 322
-
-	DoExit            = 351
-	SecurityBprmCheck = 352
-
-	TCPConnect   = 400
-	TCPAccept    = 401
-	TCPConnectv6 = 402
-	TCPAcceptv6  = 403
 )
 
 // SystemMonitor Constant Values
@@ -152,9 +116,8 @@ type SystemMonitor struct {
 	ContextChan chan ContextCombined
 
 	// system events
-	SyscallChannel     chan []byte
-	SyscallLostChannel chan uint64
-	SyscallPerfMap     *perf.Reader
+	SyscallChannel chan []byte
+	SyscallPerfMap *perf.Reader
 
 	// lists to skip
 	UntrackedNamespaces []string
@@ -287,10 +250,10 @@ func (mon *SystemMonitor) InitBPF() error {
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "chown", "setuid", "setgid", "fchownat"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink", "security_path_rmdir"}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept"}
 
@@ -356,7 +319,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		mon.SyscallChannel = make(chan []byte, 8192)
-		mon.SyscallLostChannel = make(chan uint64)
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
@@ -406,13 +368,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 				record, err := mon.SyscallPerfMap.Read()
 				if err != nil {
 					if errors.Is(err, perf.ErrClosed) {
+						// This should only happen when we call DestroyMonitor while terminating the process.
+						// Adding a Warn just in case it happens at runtime, to help debug
+						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
 						return
 					}
 					continue
 				}
 
 				if record.LostSamples != 0 {
-					mon.SyscallLostChannel <- record.LostSamples
+					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
 					continue
 				}
 
@@ -421,6 +386,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 		}()
 	} else {
+		mon.Logger.Err("Perf Buffer nil, exiting TraceSyscall")
 		return
 	}
 
@@ -498,6 +464,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 1 {
 					continue
 				}
+			} else if ctx.EventID == SysPtrace {
+				if len(args) != 3 {
+					continue
+				}
 			} else if ctx.EventID == SysChown {
 				if len(args) != 3 {
 					continue
@@ -514,7 +484,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 1 {
 					continue
 				}
-
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
@@ -704,9 +673,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
-
-		case <-mon.SyscallLostChannel:
-			continue
 		}
 	}
 }

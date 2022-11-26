@@ -211,9 +211,10 @@ type Log struct {
 	PolicyName string `json:"policyName,omitempty"`
 
 	// severity, tags, message
-	Severity string `json:"severity,omitempty"`
-	Tags     string `json:"tags,omitempty"`
-	Message  string `json:"message,omitempty"`
+	Severity string   `json:"severity,omitempty"`
+	Tags     string   `json:"tags,omitempty"`
+	ATags    []string `json:"atags"`
+	Message  string   `json:"message,omitempty"`
 
 	// log
 	Type      string `json:"type"`

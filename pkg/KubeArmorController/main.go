@@ -5,7 +5,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/go-logr/logr"
-	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
 	//+kubebuilder:scaffold:imports
@@ -147,7 +146,7 @@ func detectEnforcer(logger logr.Logger) string {
 	lsmPath := "/sys/kernel/security/lsm"
 
 	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-		lsm, err = ioutil.ReadFile(lsmPath)
+		lsm, err = os.ReadFile(lsmPath)
 		if err != nil {
 			logger.Info("Failed to read /sys/kernel/security/lsm " + err.Error())
 			return ""

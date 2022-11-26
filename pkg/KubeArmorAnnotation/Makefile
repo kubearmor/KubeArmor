@@ -72,6 +72,9 @@ run: manifests generate fmt vet ## Run a controller from your host.
 docker-build: build ## Build docker image with the manager.
 	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
 
+docker-buildx: build ## Build docker image with the manager multiple archs.
+	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} -t ${IMG}:latest .
+
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:${TAG}
 	docker push ${IMG}:latest

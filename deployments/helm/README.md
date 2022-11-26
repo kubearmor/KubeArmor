@@ -3,19 +3,14 @@
 Install KubeArmor using helm
 
 ```
-helm upgrade --install kubearmor . \
-    --set kubearmorrelay.enabled=true \
-    --set namespace.name=<namespace> \
-    --set environment.name=<environment>
+helm upgrade --install kubearmor . --set kubearmorrelay.enabled=true -n kube-system
 ```
-* kubearmorrelay.enabled = {true | false} (default: true)
-* namespace.name = [namespace name] (default: kube-system)
-* environment.name = {generic | docker | microk8s | minikube | k3s} (default: generic) / use 'generic' for GKE and EKS
+* [kubearmorrelay](https://github.com/kubearmor/kubearmor-relay-server/).enabled = {true | false} (default: true)
 
-Check if all the pods are up and running
+## Verify if all the pods are up and running
 
 ```
-kubectl get all -n <namespace>
+kubectl get all -n kube-system
 ```
 
 ## Remove KubeArmor
@@ -23,5 +18,5 @@ kubectl get all -n <namespace>
 Uninstall KubeArmor using helm
 
 ```
-helm uninstall kubearmor
+helm uninstall kubearmor -n kube-system
 ```

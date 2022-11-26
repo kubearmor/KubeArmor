@@ -301,6 +301,31 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = ""
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
+			case SysPtrace:
+				if len(msg.ContextArgs) != 3 {
+					continue
+				}
+
+				var request string
+				var pid string
+				var binary string
+
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					request = val
+				}
+
+				if val, ok := msg.ContextArgs[1].(int32); ok {
+					pid = strconv.Itoa(int(val))
+				}
+
+				if val, ok := msg.ContextArgs[2].(string); ok {
+					binary = val
+				}
+
+				log.Resource = binary
+				log.Operation = "Process"
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " request=" + request + " pid=" + pid + " process=" + binary
+
 			case SysSocket: // domain, type, proto
 				if len(msg.ContextArgs) != 3 {
 					continue

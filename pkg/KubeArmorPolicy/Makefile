@@ -75,6 +75,9 @@ generate: controller-gen
 docker-build:
 	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
 
+docker-buildx: ## Build docker image with the manager multiple archs.
+	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} -t ${IMG}:latest .
+
 # Push the docker image
 docker-push:
 	docker push ${IMG}:${TAG}
