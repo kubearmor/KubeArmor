@@ -340,8 +340,10 @@ static __always_inline u32 get_task_ppid(struct task_struct *task)
 
 }
 
-static struct file *get_task_file(struct task_struct *task) {
-  return BPF_CORE_READ(task, mm, exe_file);
+static struct file *get_task_file(struct task_struct *task)
+{
+  struct mm_struct *mm = READ_KERN(task->mm);
+  return READ_KERN(mm->exe_file);
 }
 
 // == Pid NS Management == //
