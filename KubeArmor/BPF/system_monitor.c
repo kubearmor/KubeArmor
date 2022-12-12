@@ -1019,7 +1019,6 @@ static __always_inline int security_path_task_arg(struct pt_regs *ctx)
     return 0;
 }
 
-#if defined(SECURITY_PATH)
 SEC("kprobe/security_path_mknod")
 int kprobe__security_path_mknod(struct pt_regs *ctx)
 {
@@ -1043,7 +1042,6 @@ int kprobe__security_path_rmdir(struct pt_regs *ctx)
         return 0;
     return security_path__dir_path_args(ctx);
 }
-#endif
 
 SEC("kprobe/security_ptrace_access_check")
 int kprobe__security_ptrace_access_check(struct pt_regs *ctx)
