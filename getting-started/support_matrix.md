@@ -25,6 +25,8 @@ Amazon Linux 2 currently is shipped with SELinux as the LSM (Linux Security Modu
 
 The latest versions of Amazon Linux 2 ship with a new LSM type called BPF-LSM and Kubearmor [intends](https://github.com/kubearmor/KubeArmor/issues/484) to support it soon).
 
+Update: On Amazon Linux 2 with Kernel Version 5.10, Kubearmor is found to be running on systemd mode. The enforcement is sometimes partial with following supported LSM's: "Capability,Yama,Lockdown,SELinux,BPF". Refer [Issue](https://github.com/kubearmor/KubeArmor/issues/919).
+
 ### Platform I am interested is not listed here! What can I do?
 
 Please approach the Kubearmor community on [slack](https://github.com/kubearmor/kubearmor#slack) or [raise](https://github.com/kubearmor/KubeArmor/issues/new/choose) a GitHub issue to express interest in adding the support.
