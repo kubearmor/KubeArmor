@@ -420,11 +420,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
-	ignoreList, err := loadIgnoreList(bpfPath)
-	if err != nil {
-		return err
-	}
-
 	mon.Logger.Print("Initializing eBPF system monitor")
 
 	// Allow the current process to lock memory for eBPF resources.
@@ -476,10 +471,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes = make(map[string]link.Link)
 
 		for _, syscallName := range systemCalls {
-			if isIgnored(syscallName, ignoreList) {
-				mon.Logger.Printf("Ignoring syscall %s", syscallName)
-				continue
-			}
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", syscallName, err)
@@ -500,10 +491,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, sysKprobe := range sysKprobes {
-			if isIgnored(sysKprobe, ignoreList) {
-				mon.Logger.Printf("Ignoring kprobe %s", sysKprobe)
-				continue
-			}
 			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", sysKprobe, err)
@@ -511,10 +498,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, netSyscall := range netSyscalls {
-			if isIgnored(netSyscall, ignoreList) {
-				mon.Logger.Printf("Ignoring syscall %s", netSyscall)
-				continue
-			}
 			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", netSyscall, err)
@@ -522,10 +505,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, netRetSyscall := range netRetSyscalls {
-			if isIgnored(netRetSyscall, ignoreList) {
-				mon.Logger.Printf("Ignoring syscall %s", netRetSyscall)
-				continue
-			}
 			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kretprobe %s: %v", netRetSyscall, err)
