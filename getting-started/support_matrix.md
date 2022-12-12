@@ -23,7 +23,9 @@ KubeArmor supports following types of workloads:
 
 Amazon Linux 2 currently is shipped with SELinux as the LSM (Linux Security Module). KubeArmor supports SELinux only for host-based policy enforcement. On Amazon Linux 2, Kubearmor currently supports observability/policy audits using ebpf based engine.
 
-The latest versions of Amazon Linux 2 ship with a new LSM type called BPF-LSM and Kubearmor [intends](https://github.com/kubearmor/KubeArmor/issues/484) to support it soon).
+The latest versions of Amazon Linux 2 ship with a new LSM type called BPF-LSM and Kubearmor [intends](https://github.com/kubearmor/KubeArmor/issues/484) to support it soon). 
+
+Update: On Amazon Linux 2 with Kernel Version 5.10, Kubearmor is found to be running on systemd mode. The enforcement is sometimes partial with following supported LSM's: "Capability,Yama,Lockdown,SELinux,BPF". Refer [Issue](https://github.com/kubearmor/KubeArmor/issues/919).
 
 ### Platform I am interested is not listed here! What can I do?
 
