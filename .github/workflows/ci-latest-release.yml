@@ -88,8 +88,8 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: | 
-          echo "imagedigest=$(docker images kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
-          echo "initdigest=$(docker images kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+          echo "imagedigest=$(docker buildx imagetools inspect kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT
+          echo "initdigest=$(docker buildx imagetools inspect kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT 
 
       - name: Sign the Container Images
         env:
@@ -148,8 +148,8 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: | 
-          echo "imagedigest=$(docker images kubearmor/kubearmor:stable --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
-          echo "initdigest=$(docker images kubearmor/kubearmor-init:stable --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+          echo "imagedigest=$(docker buildx imagetools inspect kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT
+          echo "initdigest=$(docker buildx imagetools inspect kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT 
 
       - name: Sign the Container Images
         env:
