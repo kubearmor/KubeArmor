@@ -9,6 +9,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
+// KarmorData Structure
 type KarmorData struct {
 	OSImage                 string
 	KernelVersion           string
