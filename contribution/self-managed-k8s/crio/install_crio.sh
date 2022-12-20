@@ -10,7 +10,7 @@ if [ "$NAME" != "Ubuntu" ]; then
 fi
 
 OS="x${NAME}_${VERSION_ID}"
-VERSION=1.19
+VERSION=1.23
 
 # get signing keys
 echo "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
