@@ -18,14 +18,14 @@ on:
 
 jobs:
   build:
-    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
-    runs-on: ${{ matrix.os }}
+    name: Auto-testing Framework / ${{ matrix.runtime }}
+    runs-on:
+      labels: ubuntu-latest-8-cores
     env:
       RUNTIME: ${{ matrix.runtime }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
         runtime: ["docker", "containerd", "crio"]
     steps:
       - uses: actions/checkout@v3
