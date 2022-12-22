@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Authors of KubeArmor
 
+// Package util declaration
 package util
 
 import (
@@ -17,7 +18,7 @@ var eventChan chan klog.EventInfo
 
 const maxEvents = 128
 
-// WaitForLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
+// KarmorGetLogs function. WaitForLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
 // before this so that the channel is established.
 func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]pb.Log, []pb.Alert, error) {
 	if eventChan == nil {
