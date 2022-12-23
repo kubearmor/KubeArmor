@@ -66,6 +66,7 @@ spec:
               - IPC_LOCK
               - CAP_DAC_OVERRIDE
               - CAP_DAC_READ_SEARCH
+              - CAP_AUDIT_READ
         volumeMounts:
           - mountPath: /opt/kubearmor/BPF
             name: bpf

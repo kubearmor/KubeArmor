@@ -8,4 +8,4 @@ spec:
     matchLabels:
       container: ubuntu-1
   apparmor: |
-    deny /etc/{*,**} rw,
+    audit deny /etc/{*,**} rw,

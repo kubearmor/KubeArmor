@@ -17,7 +17,7 @@ func (h *ProfileHeader) Init() {
 
 // RuleConfig contains details for individual apparmor rules
 type RuleConfig struct {
-	Dir, Recursive, ReadOnly, OwnerOnly, Deny, Allow bool
+	Dir, Recursive, ReadOnly, OwnerOnly, Deny, Allow, Audit bool
 }
 
 // Rules contains configuration for the AppArmor Profile/SubProfile Body
@@ -93,23 +93,27 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 		{{- if $data.Deny}}
 			{{- if $data.OwnerOnly}}
 				owner {{$value}}{{$suffix}} ix,
-				deny other {{$value}}{{$suffix}} x,
+				audit deny other {{$value}}{{$suffix}} x,
 			{{- else}}
-				deny {{$value}}{{$suffix}} x,
+				audit deny {{$value}}{{$suffix}} x,
 			{{- end}}
 		{{- end}}
 
-		{{- if $data.Allow}}
+		{{- if or $data.Audit $data.Allow}}
+    	{{- $audit := "" -}}
+      {{- if $data.Audit }}
+      	{{- $audit = "audit" }}
+      {{- end }}
 			{{- if and (eq $suffix "") (not (regexMatch $regex $value)) }}
 				{{- if $data.OwnerOnly}}
-					owner {{$value}} ix,
+					{{$audit}} owner {{$value}} ix,
 				{{- else}}
-					{{$value}} ix,
+					{{$audit}} {{$value}} ix,
 				{{- end}}
       {{- else if not (regexMatch $regex $value)}}
-      	{{$value}}{{$suffix}} ix,
+      	{{$audit}} {{$value}}{{$suffix}} ix,
       {{- else}}
-      	## {{$value}} px -> {{$.Name}}-{{$value}}
+      	## {{$audit}} {{$value}} px -> {{$.Name}}-{{$value}}
 			{{- end}}
 		{{- end}}
 	{{- end}}
@@ -157,26 +161,30 @@ profile {{$.Name}}-{{$source}} {
 		{{- end}}
 		{{- if $data.Deny}}
 			{{- if $data.OwnerOnly}}
-				owner {{$value}}{{$suffix}} ix,
-				deny other {{$value}}{{$suffix}} x,
+				audit owner {{$value}}{{$suffix}} ix,
+				audit deny other {{$value}}{{$suffix}} x,
 			{{- else}}
-				deny {{$value}}{{$suffix}} x,
+				audit deny {{$value}}{{$suffix}} x,
 			{{- end}}
 		{{- end}}
 
-		{{- if $data.Allow}}
+		{{- if or $data.Audit $data.Allow}}
+    	{{- $audit := "" -}}
+      {{- if $data.Audit }}
+      	{{- $audit = "audit" }}
+      {{- end }}
 			{{- if eq $suffix "" }}
       	{{- if has $value $fromSourceList }}
         	{{- if $data.OwnerOnly}}
-						owner {{$value}} px -> {{$.Name}}-{{$value}},
+						{{$audit}} owner {{$value}} px -> {{$.Name}}-{{$value}},
 					{{- else}}
-						{{$value}} px -> {{$.Name}}-{{$value}},
+						{{$audit}} {{$value}} px -> {{$.Name}}-{{$value}},
 					{{- end}}
         {{- else}}
         	{{- if $data.OwnerOnly}}
-						owner {{$value}} cx,
+						{{$audit}} owner {{$value}} cx,
 					{{- else}}
-						{{$value}} cx,
+						{{$audit}} {{$value}} cx,
             profile {{$value}} {
             {{$value}} rix,
             {{template "pre-section" $ctx}}
@@ -213,10 +221,14 @@ profile {{$.Name}}-{{$source}} {
   ## == Network START == ##
 	{{- range $value, $data := .NetworkRules}}
     {{- if $data.Deny}}
-      deny network {{$value}},
+    	audit deny network {{$value}},
     {{- end}}
-    {{- if $data.Allow}}
-      network {{$value}},
+    {{- if or $data.Audit $data.Allow}}
+    	{{- $audit := "" -}}
+      {{- if $data.Audit }}
+      	{{- $audit = "audit" }}
+      {{- end }}
+      {{$audit}} network {{$value}},
     {{- end}}
   {{- end}}
   ## == Network END == ##
@@ -226,11 +238,15 @@ profile {{$.Name}}-{{$source}} {
   ## == Capabilities START == ##
   {{- range $value, $data := .CapabilitiesRules}}
     {{- if $data.Deny}}
-      deny capability
+      audit deny capability
     {{$value}},
     {{- end}}
-    {{- if $data.Allow}}
-      capability {{$value}},
+    {{- if or $data.Audit $data.Allow}}
+    	{{- $audit := "" -}}
+      {{- if $data.Audit }}
+      	{{- $audit = "audit" }}
+      {{- end }}
+      {{$audit}} capability {{$value}},
     {{- end}}
   {{- end}}
   ## == Capabilities END == ##
@@ -247,26 +263,30 @@ profile {{$.Name}}-{{$source}} {
     {{- end}}
     {{- if $data.Deny}}
       {{- if and $data.ReadOnly $data.OwnerOnly}}
-        deny owner {{$value}}{{$suffix}} klw,
-        deny other {{$value}}{{$suffix}} klmrw,
+        audit deny owner {{$value}}{{$suffix}} klw,
+        audit deny other {{$value}}{{$suffix}} klmrw,
       {{- else if $data.OwnerOnly}}
         owner {{$value}}{{$suffix}} klmrw,
-        deny other {{$value}}{{$suffix}} klmrw,
+        audit deny other {{$value}}{{$suffix}} klmrw,
       {{- else if $data.ReadOnly}}
-        deny {{$value}}{{$suffix}} klw,
+        audit deny {{$value}}{{$suffix}} klw,
       {{- else}}
-        deny {{$value}}{{$suffix}} klmrw,
+        audit deny {{$value}}{{$suffix}} klmrw,
       {{- end}}
     {{- end}}
-    {{- if $data.Allow}}
+    {{- if or $data.Audit $data.Allow}}
+    	{{- $audit := "" -}}
+      {{- if $data.Audit }}
+      	{{- $audit = "audit" }}
+      {{- end }}
       {{- if and $data.ReadOnly $data.OwnerOnly}}
-        owner {{$value}}{{$suffix}} klr,
+        {{$audit}} owner {{$value}}{{$suffix}} klr,
       {{- else if $data.OwnerOnly}}
-        owner {{$value}}{{$suffix}} klmrw,
+        {{$audit}} owner {{$value}}{{$suffix}} klmrw,
       {{- else if $data.ReadOnly}}
-        {{$value}}{{$suffix}} klr,
+        {{$audit}} {{$value}}{{$suffix}} klr,
       {{- else}}
-        {{$value}}{{$suffix}} klmrw,
+        {{$audit}} {{$value}}{{$suffix}} klmrw,
       {{- end}}
     {{- end}}
 	{{- end}}

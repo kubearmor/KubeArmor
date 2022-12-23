@@ -31,13 +31,14 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(prof *Profile) {
 }
 
 // SetProcessMatchPaths Function
-func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	rule.OwnerOnly = path.OwnerOnly
 
 	if len(path.FromSource) == 0 {
@@ -69,13 +70,14 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 }
 
 // SetProcessMatchDirectories Function
-func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	rule.Dir = true
 	rule.Recursive = dir.Recursive
 	rule.OwnerOnly = dir.OwnerOnly
@@ -98,7 +100,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -109,13 +111,14 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 }
 
 // SetProcessMatchPatterns Function
-func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	rule.OwnerOnly = pat.OwnerOnly
 
 	if _, ok := prof.ProcessPaths[pat.Pattern]; !ok {
@@ -124,13 +127,14 @@ func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, p
 }
 
 // SetFileMatchPaths Function
-func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	rule.OwnerOnly = path.OwnerOnly
 	rule.ReadOnly = path.ReadOnly
 
@@ -152,7 +156,7 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -163,13 +167,14 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 }
 
 // SetFileMatchDirectories Function
-func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	rule.OwnerOnly = dir.OwnerOnly
 	rule.ReadOnly = dir.ReadOnly
 	rule.Dir = true
@@ -193,7 +198,7 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -204,13 +209,14 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 }
 
 // SetFileMatchPatterns Function
-func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	rule.OwnerOnly = pat.OwnerOnly
 	rule.ReadOnly = pat.ReadOnly
 
@@ -220,13 +226,14 @@ func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *P
 }
 
 // SetNetworkMatchProtocols Function
-func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.Network = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	if len(proto.FromSource) == 0 {
 		addRuletoMap(rule, proto.Protocol, prof.NetworkRules)
 		return
@@ -244,7 +251,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.Network = head
 				prof.FromSource[source] = val
@@ -255,13 +262,14 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 }
 
 // SetCapabilitiesMatchCapabilities Function
-func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, prof *Profile, deny bool, audit bool, head bool) {
+	if !deny {
 		prof.Capabilities = head
 	}
 	rule := RuleConfig{}
 	rule.Deny = deny
 	rule.Allow = !deny
+	rule.Audit = audit
 	if len(cap.FromSource) == 0 {
 		addRuletoMap(rule, cap.Capability, prof.CapabilitiesRules)
 		return
@@ -279,7 +287,7 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.Capabilities = head
 				prof.FromSource[source] = val
@@ -312,27 +320,33 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
-					ae.SetProcessMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
+					ae.SetProcessMatchPaths(path, &profile, false, false, defaultPosture.FileAction != "block")
 				} else if path.Action == "Block" {
-					ae.SetProcessMatchPaths(path, &profile, true, true)
+					ae.SetProcessMatchPaths(path, &profile, true, false, true)
+				} else if path.Action == "Audit" {
+					ae.SetProcessMatchPaths(path, &profile, false, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
-					ae.SetProcessMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
+					ae.SetProcessMatchDirectories(dir, &profile, false, false, defaultPosture.FileAction != "block")
 				} else if dir.Action == "Block" {
-					ae.SetProcessMatchDirectories(dir, &profile, true, true)
+					ae.SetProcessMatchDirectories(dir, &profile, true, false, true)
+				} else if dir.Action == "Audit" {
+					ae.SetProcessMatchDirectories(dir, &profile, false, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Allow" {
-					ae.SetProcessMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
+					ae.SetProcessMatchPatterns(pat, &profile, false, false, defaultPosture.FileAction != "block")
 				} else if pat.Action == "Block" {
-					ae.SetProcessMatchPatterns(pat, &profile, true, true)
+					ae.SetProcessMatchPatterns(pat, &profile, true, false, true)
+				} else if pat.Action == "Audit" {
+					ae.SetProcessMatchPatterns(pat, &profile, false, true, true)
 				}
 			}
 		}
@@ -340,27 +354,33 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.File.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
-					ae.SetFileMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
+					ae.SetFileMatchPaths(path, &profile, false, false, defaultPosture.FileAction != "block")
 				} else if path.Action == "Block" {
-					ae.SetFileMatchPaths(path, &profile, true, true)
+					ae.SetFileMatchPaths(path, &profile, true, false, true)
+				} else if path.Action == "Audit" {
+					ae.SetFileMatchPaths(path, &profile, false, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
-					ae.SetFileMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
+					ae.SetFileMatchDirectories(dir, &profile, false, false, defaultPosture.FileAction != "block")
 				} else if dir.Action == "Block" {
-					ae.SetFileMatchDirectories(dir, &profile, true, true)
+					ae.SetFileMatchDirectories(dir, &profile, true, false, true)
+				} else if dir.Action == "Audit" {
+					ae.SetFileMatchDirectories(dir, &profile, false, true, true)
 				}
 			}
 		}
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Allow" {
-					ae.SetFileMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
+					ae.SetFileMatchPatterns(pat, &profile, false, false, defaultPosture.FileAction != "block")
 				} else if pat.Action == "Block" {
-					ae.SetFileMatchPatterns(pat, &profile, true, true)
+					ae.SetFileMatchPatterns(pat, &profile, true, false, true)
+				} else if pat.Action == "Audit" {
+					ae.SetFileMatchPatterns(pat, &profile, false, true, true)
 				}
 			}
 		}
@@ -368,9 +388,11 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 				if proto.Action == "Allow" {
-					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
+					ae.SetNetworkMatchProtocols(proto, &profile, false, false, defaultPosture.NetworkAction != "block")
 				} else if proto.Action == "Block" {
-					ae.SetNetworkMatchProtocols(proto, &profile, true, true)
+					ae.SetNetworkMatchProtocols(proto, &profile, true, false, true)
+				} else if proto.Action == "Audit" {
+					ae.SetNetworkMatchProtocols(proto, &profile, false, true, true)
 				}
 			}
 		}
@@ -378,9 +400,11 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 				if cap.Action == "Allow" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, defaultPosture.CapabilitiesAction != "block")
+					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, false, defaultPosture.CapabilitiesAction != "block")
 				} else if cap.Action == "Block" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, true)
+					ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, false, true)
+				} else if cap.Action == "Audit" {
+					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, true, true)
 				}
 			}
 		}
@@ -531,6 +555,8 @@ func addRuletoMap(rule RuleConfig, entity string, m map[string]RuleConfig) {
 		if val.Deny != rule.Deny {
 			rule.Deny = true
 			rule.Allow = true
+		} else if val.Audit != rule.Audit {
+			rule.Audit = true
 		} else {
 			return
 		}

@@ -3,5 +3,5 @@ cmd: curl www.accuknox.com
 result: passed
 ---
 operation: Network
-condition: SOCK_STREAM
+condition: net_raw
 action: Block
