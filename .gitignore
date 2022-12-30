@@ -31,3 +31,6 @@ vmlinux.h
 **/ignore.lst
 **/syscheck
 **/cflags.lst
+
+# gingko test tmp file
+**/*.test
