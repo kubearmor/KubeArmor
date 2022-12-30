@@ -48,12 +48,16 @@ jobs:
         run: |
           sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
           sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          kubectl apply -f deployments/CRD
           kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
           kubectl get pods -A
 
-      - name: Test KubeArmor
-        run: ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/
+        timeout-minutes: 30
 
       - name: Capture KubeArmor logs
         if: ${{ failure() }}
@@ -67,10 +71,8 @@ jobs:
         with:
           name: kubearmor.logs
           path: |
-            /tmp/kubearmor.test
             /tmp/kubearmor.log
-            /tmp/kubearmor.msg
 
-      - name: Check the testing results
-        if: ${{ always() }}
-        run: cat /tmp/kubearmor.test
+      - name: Check kubearmor log
+        if: ${{ failure() }}
+        run: cat /tmp/kubearmor.log
