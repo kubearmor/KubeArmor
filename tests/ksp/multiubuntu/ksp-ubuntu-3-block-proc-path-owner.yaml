@@ -1,0 +1,24 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-3-block-proc-path-owner
+  namespace: multiubuntu
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      container: ubuntu-3
+  process:
+    matchPaths:
+    - path: /home/user1/hello
+      ownerOnly: true
+  action:
+    Block
+
+# multiubuntu_test_15
+
+# test
+# $ /home/user1/hello
+# bash: /home/user1/hello: Permission denied
+# $ su - user1 -c "/home/user1/hello"
+# helloworld

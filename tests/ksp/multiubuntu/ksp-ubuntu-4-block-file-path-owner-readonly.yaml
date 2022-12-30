@@ -1,0 +1,32 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-block-file-path-owner-readonly
+  namespace: multiubuntu
+spec:
+  severity: 10
+  message: "a critical file was accessed"
+  tags:
+  - WARNING
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  file:
+    matchPaths:
+    - path: /home/user1/secret_data1.txt
+      readOnly: true
+      ownerOnly: true
+  action:
+    Block
+
+# multiubuntu_test_23
+
+# test
+# $ su - user1 -c "cat /home/user1/secret_data1.txt"
+# secret file user1
+# $ su - user1 -c "/readwrite -w /home/user1/secret_data1.txt"
+# Error! (permission denied)
+# $ cat /home/user1/secret_data1.txt
+# cat: /home/user1/secret_data1.txt: Permission denied
+# $ ./readwrite -w /home/user1/secret_data1.txt
+# Error! (permission denied)
