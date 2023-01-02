@@ -92,15 +92,15 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: | 
-          echo "imagedigest=$(docker buildx imagetools inspect kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT
-          echo "initdigest=$(docker buildx imagetools inspect kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT 
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
+          echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
-          cosign sign kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
 
   push-stable-version:
     name: Create KubeArmor stable release
@@ -152,12 +152,15 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: | 
-          echo "imagedigest=$(docker buildx imagetools inspect kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT
-          echo "initdigest=$(docker buildx imagetools inspect kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT 
+          ls -l
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
+          echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
+          echo $imagedigest 
+          echo $initdigest 
 
       - name: Sign the Container Images
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
-          cosign sign kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}

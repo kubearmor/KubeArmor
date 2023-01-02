@@ -42,14 +42,14 @@ pwd
 
 # push $REPO
 echo "[INFO] Pushing $REPO:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push $LABEL $STABEL_LABEL .
+cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor.json --platform $PLATFORMS -t $REPO:$VERSION -f Dockerfile --push $LABEL $STABEL_LABEL .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO:$VERSION"
 
 # push $REPO-init
 echo "[INFO] Pushing $REPO-init:$VERSION"
-cd $ARMOR_HOME/..; docker buildx build --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push $LABEL $STABEL_LABEL .
+cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor-init.json --platform $PLATFORMS -t $REPO-init:$VERSION -f Dockerfile.init --push $LABEL $STABEL_LABEL .
 
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO-init:$VERSION"
