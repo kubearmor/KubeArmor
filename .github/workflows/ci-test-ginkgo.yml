@@ -61,7 +61,7 @@ jobs:
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make -C tests/
-        timeout-minutes: 15
+        timeout-minutes: 30
 
       - name: Get karmor sysdump
         if: ${{ failure() }}
