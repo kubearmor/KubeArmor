@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-2-block-file-path-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block /bin/cat from accessing /secret.txt"
+  selector:
+    matchLabels:
+      group: group-2
+  file:
+    matchPaths:
+    - path: /secret.txt
+      fromSource:
+      - path: /bin/cat
+  action:
+    Block
+
+# multiubuntu_test_18
+
+# test
+# $ cat /secret.txt
+# cat: /secret.txt: Permission denied
+# $ cat /etc/hostname
+# ubuntu-4-deployment-566bf47cd7-b7f56

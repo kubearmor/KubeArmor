@@ -18,7 +18,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(BeNil())
 
 	// delete all KSPs
-	KspDeleteAll()
+	err = DeleteAllKsp()
+	Expect(err).To(BeNil())
 
 	// enable kubearmor port forwarding
 	err = KubearmorPortForward()
@@ -49,18 +50,24 @@ var _ = Describe("Smoke", func() {
 
 	AfterEach(func() {
 		KarmorLogStop()
-		KspDeleteAll()
+		err := DeleteAllKsp()
+		Expect(err).To(BeNil())
+		// wait for policy deletion
+		time.Sleep(5 * time.Second)
 	})
 
 	Describe("Policy Apply", func() {
 		It("can block execution of pkg mgmt tools such as apt, apt-get", func() {
 			// Apply policy
-			err := K8sApply([]string{"res/ksp-wordpress-block-process.yaml"})
+			err := K8sApplyFile("res/ksp-wordpress-block-process.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "Process", wp)
 			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
 
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "apt"})
 			Expect(err).To(BeNil())
@@ -77,12 +84,15 @@ var _ = Describe("Smoke", func() {
 
 		It("can block execution of access to sensitive file with abs path", func() {
 			// Apply policy
-			err := K8sApply([]string{"res/ksp-wordpress-block-config.yaml"})
+			err := K8sApplyFile("res/ksp-wordpress-block-config.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
 
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
 				[]string{"bash", "-c", "cat /var/www/html/wp-config.php"})
@@ -102,12 +112,15 @@ var _ = Describe("Smoke", func() {
 
 		It("can block execution of access to sensitive file with rel path", func() {
 			// Apply policy
-			err := K8sApply([]string{"res/ksp-wordpress-block-config.yaml"})
+			err := K8sApplyFile("res/ksp-wordpress-block-config.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
 
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
 				[]string{"bash", "-c", "cat wp-config.php"})
@@ -127,12 +140,15 @@ var _ = Describe("Smoke", func() {
 
 		It("can block execution of access to service account token", func() {
 			// Apply policy
-			err := K8sApply([]string{"res/ksp-wordpress-block-sa.yaml"})
+			err := K8sApplyFile("res/ksp-wordpress-block-sa.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
 
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
 				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"})
@@ -150,12 +166,15 @@ var _ = Describe("Smoke", func() {
 
 		It("allow access for service account token to only cat", func() {
 			// Apply policy
-			err := K8sApply([]string{"res/ksp-wordpress-lenient-allow-sa.yaml"})
+			err := K8sApplyFile("res/ksp-wordpress-lenient-allow-sa.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
 
 			// trigger policy violation alert
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
@@ -195,12 +214,15 @@ var _ = Describe("Smoke", func() {
 
 		It("can audit access to sensitive data path", func() {
 			// Apply policy
-			err := K8sApply([]string{"res/ksp-mysql-audit-dir.yaml"})
+			err := K8sApplyFile("res/ksp-mysql-audit-dir.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", sql)
 			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
 
 			fname := fmt.Sprintf("/var/lib/mysql/%s", RandString(12))
 			sout, _, err := K8sExecInPod(sql, "wordpress-mysql",

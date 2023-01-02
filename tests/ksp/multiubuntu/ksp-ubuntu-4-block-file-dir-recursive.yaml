@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-4-block-file-dir-recursive
+  namespace: multiubuntu
+spec:
+  severity: 9
+  selector:
+    matchLabels:
+      container: ubuntu-4
+  file:
+    matchDirectories:
+    - dir: /credentials/
+      recursive: true
+  action:
+    Block
+
+# multiubuntu_test_06
+
+# test
+# $ cat /credentials/password
+# cat: /credentials/password: Permission denied

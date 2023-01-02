@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-2-audit-proc-path
+  namespace: multiubuntu
+spec:
+  severity: 4
+  selector:
+    matchLabels:
+      group: group-2
+  process:
+    matchPaths:
+    - path: /bin/sleep
+  action:
+    Audit
+
+# multiubuntu_test_02
+
+# test
+# $ sleep 1
+# ... sleep ... (audit)

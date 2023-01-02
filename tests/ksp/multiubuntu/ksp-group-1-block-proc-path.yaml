@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-block-proc-path
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block /bin/sleep"
+  selector:
+    matchLabels:
+      group: group-1
+  process:
+    matchPaths:
+    - path: /bin/sleep
+  action:
+    Block
+
+# multiubuntu_test_01
+
+# test
+# $ sleep 1
+# bash: /bin/sleep: Permission denied

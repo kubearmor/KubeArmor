@@ -59,11 +59,15 @@ jobs:
         run: |
           sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
           sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          kubectl apply -f deployments/CRD
           kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
 
-      - name: Test KubeArmor
-        run: ./tests/test-scenarios-github.sh ${{ steps.vars.outputs.tag }}
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/
+        timeout-minutes: 30
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -88,8 +92,8 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: | 
-          echo "imagedigest=$(docker images kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
-          echo "initdigest=$(docker images kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+          echo "imagedigest=$(docker buildx imagetools inspect kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT
+          echo "initdigest=$(docker buildx imagetools inspect kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT 
 
       - name: Sign the Container Images
         env:
@@ -148,8 +152,8 @@ jobs:
       - name: Get Image Digest
         id: digest
         run: | 
-          echo "imagedigest=$(docker images kubearmor/kubearmor:stable --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
-          echo "initdigest=$(docker images kubearmor/kubearmor-init:stable --digests --quiet --no-trunc)" >> $GITHUB_OUTPUT
+          echo "imagedigest=$(docker buildx imagetools inspect kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT
+          echo "initdigest=$(docker buildx imagetools inspect kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --format "{{json (index .Manifest)}}" | jq -r '.manifests[0].digest')" >> $GITHUB_OUTPUT 
 
       - name: Sign the Container Images
         env:

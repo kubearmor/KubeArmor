@@ -1,0 +1,26 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-1-block-proc-path-from-source
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block /bin/bash executing /bin/ls"
+  selector:
+    matchLabels:
+      group: group-1
+  process:
+    matchPaths:
+    - path: /bin/ls
+      fromSource:
+      - path: /bin/dash
+  action:
+    Block
+
+# multiubuntu_test_12
+
+# test
+# $ dash -c ls
+# dash: 1: ls: Permission denied
+# $ dash -c "cat /etc/hostname"
+# ubuntu-1-deployment-5bd8d67678-4szzv

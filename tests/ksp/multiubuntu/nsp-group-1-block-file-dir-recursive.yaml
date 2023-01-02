@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: nsp-group-1-block-file-dir-recursive
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      group: group-1
+  apparmor: |
+    deny /etc/{*,**} rw,
+
+# multiubuntu_test_10
+
+# test
+# $ cat /etc/hostname
+# cat: /etc/hostname: Permission denied (defaultPosture)

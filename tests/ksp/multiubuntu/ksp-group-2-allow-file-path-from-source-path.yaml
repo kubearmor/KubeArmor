@@ -1,0 +1,34 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-2-allow-file-path-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "allow /bin/cat to access /secret.txt"
+  selector:
+    matchLabels:
+      group: group-2
+  process:
+    matchDirectories:
+      - dir: /bin/
+        recursive: true
+  file:
+    matchPaths:
+    - path: /secret.txt
+      fromSource:
+      - path: /bin/cat
+    - path: /dev/tty
+    matchDirectories:
+      - dir: /pts/
+        recursive: true
+  action:
+    Allow
+
+# multiubuntu_test_17
+
+# test
+# $ cat /secret.txt
+# secret file
+# $ cat /etc/hostname
+# cat: /etc/hostname: Permission denied

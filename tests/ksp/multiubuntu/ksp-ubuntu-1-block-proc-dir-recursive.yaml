@@ -1,0 +1,24 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-proc-dir-recursive
+  namespace: multiubuntu
+spec:
+  severity: 2
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchDirectories:
+    - dir: /usr/
+      recursive: true
+  action:
+    Block
+
+# multiubuntu_test_05
+
+# test
+# $ env
+# bash: /usr/bin/env: Permission denied
+# $ whoami
+# bash: /usr/bin/whoami: Permission denied

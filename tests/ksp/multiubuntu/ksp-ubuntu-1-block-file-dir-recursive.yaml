@@ -1,0 +1,34 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-file-dir-recursive
+  namespace: multiubuntu
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  file:
+    matchDirectories:
+    - dir: /run/secrets/kubernetes.io/serviceaccount/
+      recursive: true
+  action:
+    Block
+
+# multiubuntu_test_13
+
+# test
+# $ cat /run/secrets/kubernetes.io/serviceaccount/token
+# cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
+# $ curl https://$KUBERNETES_PORT_443_TCP_ADDR/api --insecure --header "Authorization: Bearer $(cat /run/secrets/kubernetes.io/serviceaccount/token)"
+# cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
+# {
+#   "kind": "Status",
+#   "apiVersion": "v1",
+#   "metadata": {},
+#   "status": "Failure",
+#   "message": "forbidden: User \"system:anonymous\" cannot get path \"/api\"",
+#   "reason": "Forbidden",
+#   "details": {},
+#   "code": 403
+# }

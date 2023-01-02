@@ -1,0 +1,29 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-3-block-file-dir-owner-readonly
+  namespace: multiubuntu
+spec:
+  severity: 7
+  selector:
+    matchLabels:
+      container: ubuntu-3
+  file:
+    matchDirectories:
+    - dir: /home/user1/
+      ownerOnly: true
+      readOnly: true
+  action:
+    Block
+
+# multiubuntu_test_26
+
+# test
+# $ cat /home/user1/secret_data1.txt
+# cat: /home/user1/secret_data1.txt: Permission denied
+# $ su - user1 -c "cat /home/user1/secret_data1.txt"
+# secret file user1
+# $ echo root >> /home/user1/secret_data1.txt
+# bash: /home/user1/secret_data1.txt: Permission denied
+# $ su - user1 -c "echo user1 >> /home/user1/secret_data1.txt"
+# -su: /home/user1/secret_data1.txt: Permission denied
