@@ -21,6 +21,7 @@ replace (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
+	github.com/aquasecurity/libbpfgo/helpers v0.4.4
 	github.com/cilium/ebpf v0.9.1
 	github.com/containerd/containerd v1.6.8
 	github.com/containerd/typeurl v1.0.2
@@ -90,7 +91,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7 // indirect
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094 // indirect
-	golang.org/x/sys v0.0.0-20220907062415-87db552b00fd // indirect
+	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect

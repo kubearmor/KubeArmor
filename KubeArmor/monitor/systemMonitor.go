@@ -7,18 +7,23 @@ package monitor
 import (
 	"bufio"
 	"bytes"
+	"embed"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"strings"
 
 	cle "github.com/cilium/ebpf"
+	btf "github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/aquasecurity/libbpfgo/helpers"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -80,6 +85,9 @@ type ContextCombined struct {
 
 // StopChan Channel
 var StopChan chan struct{}
+
+//go:embed embedded_system_monitor.*
+var embededdBPFFiles embed.FS
 
 // init Function
 func init() {
@@ -207,42 +215,84 @@ func (mon *SystemMonitor) InitBPF() error {
 		return err
 	}
 
-	bpfPath := homeDir + "/BPF/"
-	if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-		// go test
+	var ignoreList []string
+	var bpfFile io.ReaderAt
+	var bpfFileName string
+	btfPath := "/sys/kernel/btf/vmlinux"
 
-		bpfPath = os.Getenv("PWD") + "/../BPF/"
-		if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-			// container
+	OSInfo, err := helpers.GetOSInfo()
+	if err!=nil{
+		fmt.Errorf("Failed to get OS Info: %v", err)
+	}
 
-			bpfPath = "/opt/kubearmor/BPF/"
-			if _, err := os.Stat(filepath.Clean(bpfPath)); err != nil {
-				return err
-			}
+	osId := OSInfo.GetOSReleaseFieldValue(helpers.OS_ID)
+	versionId := strings.Replace(OSInfo.GetOSReleaseFieldValue(helpers.OS_VERSION_ID), "\"", "", -1)
+	kernelRelease := OSInfo.GetOSReleaseFieldValue(helpers.OS_KERNEL_RELEASE)
+	arch := OSInfo.GetOSReleaseFieldValue(helpers.OS_ARCH)
+	
+	if _, err := os.Stat(btfPath); err != nil {
+		mon.Logger.Printf("vmlinux not found, searching for reduced btf file")
+		btfPath := homeDir+"/monitor/reduced-btfs/"+osId+"/"+versionId+"/"+arch+"/"+kernelRelease+".btf"
+		if _,err := os.Stat(btfPath); err != nil{
+			return fmt.Errorf("vmlinux and reduced btf file not found")
 		}
 	}
-
-	ignoreList, err := loadIgnoreList(bpfPath)
-	if err != nil {
-		return err
-	}
-
-	mon.Logger.Print("Initializing eBPF system monitor")
-
+	mon.Logger.Printf("Using BTF file from %v", btfPath)
+	// go test
+	mon.Logger.Print("Initializing embedded eBPF system monitor")
+	// bpfPath = os.Getenv("PWD") + "/monitor/"
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
 		return fmt.Errorf("error removing memlock %v", err)
 	}
 
+	// ignoreList, err = loadIgnoreList(bpfPath)
+	// if err != nil {
+	// 	return err
+	// }
+
 	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-		bpfPath = bpfPath + "system_monitor.container.bpf.o"
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.container.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: system_monitor.container.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
+		bpfFileName = "embedded_system_monitor.container.bpf.o"
 	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-		bpfPath = bpfPath + "system_monitor.host.bpf.o"
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.host.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: embedded_system_monitor.host.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
+		bpfFileName = "embedded_system_monitor.host.bpf.o"
 	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-		bpfPath = bpfPath + "system_monitor.bpf.o"
+		var tempBpfFile, err = embededdBPFFiles.ReadFile("embedded_system_monitor.bpf.o")
+		if err != nil {
+			return fmt.Errorf("unable to read file: embedded_system_monitor.bpf.o")
+		}
+		bpfFile = bytes.NewReader(tempBpfFile)
+		bpfFileName = "embedded_system_monitor.bpf.o"
 	}
-	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
-	mon.BpfModule, err = cle.LoadCollection(bpfPath)
+	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfFileName)
+	spec, err := cle.LoadCollectionSpecFromReader(bpfFile)
+	if err != nil {
+		return fmt.Errorf("unable to load collection spec from %v", err)
+	}
+
+	btfSpec, err := btf.LoadSpec(btfPath)
+	if err != nil{
+		return fmt.Errorf("Unable to load btf file: %v", err)
+	}
+
+	opts := cle.CollectionOptions{
+		Programs: cle.ProgramOptions{
+			KernelTypes: btfSpec,
+		},
+	}
+	
+	mon.Logger.Printf("Using embedded BTF File")
+	// mon.BpfModule, err = cle.NewCollection(spec)
+	mon.BpfModule, err = cle.NewCollectionWithOptions(spec, opts)
 	if err != nil {
 		return fmt.Errorf("bpf module is nil %v", err)
 	}

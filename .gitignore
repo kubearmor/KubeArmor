@@ -31,3 +31,9 @@ vmlinux.h
 **/ignore.lst
 **/syscheck
 **/cflags.lst
+
+#btfhub
+btf-utils/btfhub/
+btf-utils/btfhub-archive/
+btf-utils/reduced
+btf-utils/bpftool
