@@ -56,8 +56,6 @@ var _ = Describe("Ksp", func() {
 		KarmorLogStop()
 		err := DeleteAllKsp()
 		Expect(err).To(BeNil())
-		// wait for policy deletion
-		time.Sleep(5 * time.Second)
 	})
 
 	Describe("Apply Network Policies", func() {
@@ -73,9 +71,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "ping -c 1 127.0.0.1"})
 			Expect(err).To(BeNil())
@@ -90,7 +85,7 @@ var _ = Describe("Ksp", func() {
 			}
 
 			// check policy alert
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -106,9 +101,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
 			Expect(err).To(BeNil())
@@ -122,7 +114,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Operation not permitted",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -148,7 +140,7 @@ var _ = Describe("Ksp", func() {
 				Source: "/usr/bin/curl 142.250.193.46",
 			}
 
-			res, err := KarmorGetTargetLogs(5*time.Second, expect)
+			res, err := KarmorGetTargetLogs(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -161,9 +153,6 @@ var _ = Describe("Ksp", func() {
 			// Start KubeArmor Logs
 			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 			Expect(err).To(BeNil())
-
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
 
 			sout, _, err = K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "curl google.com"})
@@ -178,7 +167,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expectAlert)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expectAlert)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -210,7 +199,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -227,9 +216,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
 			Expect(err).To(BeNil())
@@ -242,7 +228,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -264,9 +250,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "sleep 1"})
 			Expect(err).To(BeNil())
@@ -280,7 +263,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -289,9 +272,6 @@ var _ = Describe("Ksp", func() {
 			// Start KubeArmor Logs in ubuntu-3 pod
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub3)
 			Expect(err).To(BeNil())
-
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
 
 			sout, _, err = K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "sleep 1"})
@@ -306,7 +286,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -337,7 +317,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -353,9 +333,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "route"})
 			Expect(err).To(BeNil())
@@ -369,7 +346,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -385,9 +362,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "whoami"})
 			Expect(err).To(BeNil())
@@ -401,7 +375,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -420,9 +394,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "/bin/dash -c ls"})
 			Expect(err).To(BeNil())
@@ -436,7 +407,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -458,7 +429,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -477,9 +448,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub3)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "cat /etc/hostname"})
 			Expect(err).To(BeNil())
@@ -494,7 +462,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "hostname",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -520,9 +488,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub3)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "/home/user1/hello"})
 			Expect(err).To(BeNil())
@@ -536,7 +501,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -562,9 +527,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub3)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "/home/user1/hello"})
 			Expect(err).To(BeNil())
@@ -578,7 +540,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -599,7 +561,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -620,9 +582,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "cat /etc/hostname"})
 			Expect(err).To(BeNil())
@@ -637,7 +596,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "hostname",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -678,7 +637,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -708,7 +667,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -742,7 +701,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -761,7 +720,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -778,9 +737,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "cat /secret.txt"})
 			Expect(err).To(BeNil())
@@ -794,7 +750,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -811,9 +767,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -828,7 +781,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret_data1.txt",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -867,7 +820,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Passed",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -883,9 +836,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -899,7 +849,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -920,7 +870,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -938,9 +888,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -954,7 +901,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -975,7 +922,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -999,7 +946,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1023,7 +970,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1041,9 +988,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub3)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/dir1/key1.txt"})
 			Expect(err).To(BeNil())
@@ -1057,7 +1001,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1095,7 +1039,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1114,7 +1058,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1133,7 +1077,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1151,9 +1095,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub3)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -1167,7 +1108,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1187,7 +1128,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1209,7 +1150,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1228,7 +1169,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1244,9 +1185,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "./readwrite -r /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -1259,7 +1197,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1277,7 +1215,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1298,7 +1236,7 @@ var _ = Describe("Ksp", func() {
 				Result: "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1317,9 +1255,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "su - user1 -c '/readwrite -w /home/user1/secret_data1.txt'"})
 			Expect(err).To(BeNil())
@@ -1333,7 +1268,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1352,7 +1287,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1375,7 +1310,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1396,7 +1331,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1415,9 +1350,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "su - user1 -c '/readwrite -w /home/user1/secret_data1.txt'"})
 			Expect(err).To(BeNil())
@@ -1430,7 +1362,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1448,7 +1380,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1466,7 +1398,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1487,7 +1419,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1505,9 +1437,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -1522,7 +1451,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret_data1.txt",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1554,7 +1483,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "otherfile.txt",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1572,9 +1501,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub3)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
 				[]string{"bash", "-c", "cat /home/user1/secret_data1.txt"})
 			Expect(err).To(BeNil())
@@ -1589,7 +1515,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret_data1",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1623,9 +1549,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("system", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "./readwrite -r /credentials/password"})
 			Expect(err).To(BeNil())
@@ -1637,7 +1560,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err := KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1659,7 +1582,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1680,7 +1603,7 @@ var _ = Describe("Ksp", func() {
 				Result:   "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1693,9 +1616,6 @@ var _ = Describe("Ksp", func() {
 			// Apply KubeArmor Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-allow-file-path-readonly-from-source-path.yaml")
 			Expect(err).To(BeNil())
-
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
 
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "./readwrite -r /credentials/password"})
@@ -1722,7 +1642,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "password",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1741,7 +1661,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "secret.txt",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1760,9 +1680,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "echo test >> /credentials/password"})
 			Expect(err).To(BeNil())
@@ -1776,7 +1693,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1797,7 +1714,7 @@ var _ = Describe("Ksp", func() {
 				Result: "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1816,9 +1733,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "cat /etc/shadow"})
 			Expect(err).To(BeNil())
@@ -1832,7 +1746,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1851,7 +1765,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err = KarmorGetTargetAlert(5*time.Second, expect)
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1869,9 +1783,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"})
 			Expect(err).To(BeNil())
@@ -1885,7 +1796,7 @@ var _ = Describe("Ksp", func() {
 				Result:     "Permission denied",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1901,9 +1812,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
 				[]string{"bash", "-c", "cat /etc/hostname"})
 			Expect(err).To(BeNil())
@@ -1918,7 +1826,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "hostname",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1936,9 +1844,6 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
 				[]string{"bash", "-c", "echo test >> /credentials/password"})
 			Expect(err).To(BeNil())
@@ -1953,7 +1858,7 @@ var _ = Describe("Ksp", func() {
 				Resource:   "password",
 			}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
@@ -1974,7 +1879,7 @@ var _ = Describe("Ksp", func() {
 				Result: "Passed",
 			}
 
-			res, err = KarmorGetTargetLogs(5*time.Second, expectLog)
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})

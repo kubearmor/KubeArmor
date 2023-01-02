@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Authors of KubeArmor
 
+// Package util contains helper functions needed by unit tests
 package util
 
 import (
@@ -17,8 +18,8 @@ import (
 
 // EventResult type
 type EventResult struct {
-	Alerts []pb.Alert
-	Logs   []pb.Log
+	Alerts []*pb.Alert
+	Logs   []*pb.Log
 	Found  bool
 }
 
@@ -26,7 +27,7 @@ var eventChan chan klog.EventInfo
 
 const maxEvents = 128
 
-func getLogWithInfo(logItem pb.Log, target pb.Log) bool {
+func getLogWithInfo(logItem *pb.Log, target *pb.Log) bool {
 	if target.Source != "" {
 		if !strings.Contains(logItem.Source, target.Source) {
 			return false
@@ -45,11 +46,11 @@ func getLogWithInfo(logItem pb.Log, target pb.Log) bool {
 	return true
 }
 
-// KarmorGetLogs waits for logs from kubearmor. KarmorLogStart() has to be called
+// KarmorGetTargetLogs waits for logs from kubearmor. KarmorLogStart() has to be called
 // before this so that the channel is established.
-func KarmorGetTargetLogs(timeout time.Duration, target pb.Log) (EventResult, error) {
+func KarmorGetTargetLogs(timeout time.Duration, target *pb.Log) (EventResult, error) {
 	res := EventResult{}
-	res.Logs = []pb.Log{}
+	res.Logs = []*pb.Log{}
 	res.Found = false
 	if eventChan == nil {
 		log.Error("event channel not set. Did you call KarmorQueueLog()?")
@@ -63,12 +64,12 @@ func KarmorGetTargetLogs(timeout time.Duration, target pb.Log) (EventResult, err
 		case evtin := <-eventChan:
 			if evtin.Type == "Log" {
 				protojson.Unmarshal(evtin.Data, &logItem)
-				res.Logs = append(res.Logs, logItem)
+				res.Logs = append(res.Logs, &logItem)
 				// fmt.Printf("Log: %s\n", &logItem)
 			} else if evtin.Type != "Alert" {
 				log.Errorf("UNKNOWN EVT type %s", evtin.Type)
 			}
-			if getLogWithInfo(logItem, target) {
+			if getLogWithInfo(&logItem, target) {
 				log.Printf("Found Target Log")
 				fmt.Printf("Alert: %s\n", &logItem)
 				res.Found = true
@@ -90,7 +91,7 @@ func KarmorGetTargetLogs(timeout time.Duration, target pb.Log) (EventResult, err
 	return res, nil
 }
 
-func getAlertWithInfo(alert pb.Alert, target pb.Alert) bool {
+func getAlertWithInfo(alert *pb.Alert, target *pb.Alert) bool {
 
 	if target.PolicyName != "" {
 		if alert.PolicyName != target.PolicyName {
@@ -126,10 +127,10 @@ func getAlertWithInfo(alert pb.Alert, target pb.Alert) bool {
 	return true
 }
 
-// KarmorGetAlert looks for target alert in telemetry events
-func KarmorGetTargetAlert(timeout time.Duration, target pb.Alert) (EventResult, error) {
+// KarmorGetTargetAlert looks for target alert in telemetry events
+func KarmorGetTargetAlert(timeout time.Duration, target *pb.Alert) (EventResult, error) {
 	res := EventResult{}
-	res.Alerts = []pb.Alert{}
+	res.Alerts = []*pb.Alert{}
 	res.Found = false
 	if eventChan == nil {
 		log.Error("event channel not set. Did you call KarmorQueueLog()?")
@@ -143,11 +144,11 @@ func KarmorGetTargetAlert(timeout time.Duration, target pb.Alert) (EventResult, 
 		case evtin := <-eventChan:
 			if evtin.Type == "Alert" {
 				protojson.Unmarshal(evtin.Data, &alert)
-				res.Alerts = append(res.Alerts, alert)
+				res.Alerts = append(res.Alerts, &alert)
 			} else if evtin.Type != "Log" {
 				log.Errorf("UNKNOWN EVT type %s", evtin.Type)
 			}
-			if getAlertWithInfo(alert, target) {
+			if getAlertWithInfo(&alert, target) {
 				log.Printf("Found Target Alert")
 				fmt.Printf("Alert: %s\n", &alert)
 				res.Found = true
@@ -190,15 +191,15 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 	return nil
 }
 
-// WaitForLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
+// KarmorGetLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
 // before this so that the channel is established.
-func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]pb.Log, []pb.Alert, error) {
+func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert, error) {
 	if eventChan == nil {
 		log.Error("event channel not set. Did you call KarmorQueueLog()?")
 		return nil, nil, errors.New("event channel not set")
 	}
-	logs := []pb.Log{}
-	alerts := []pb.Alert{}
+	logs := []*pb.Log{}
+	alerts := []*pb.Alert{}
 	evtCnt := 0
 	breakAway := false
 	for eventChan != nil {
@@ -207,11 +208,11 @@ func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]pb.Log, []pb.Alert, 
 			if evtin.Type == "Alert" {
 				alert := pb.Alert{}
 				protojson.Unmarshal(evtin.Data, &alert)
-				alerts = append(alerts, alert)
+				alerts = append(alerts, &alert)
 			} else if evtin.Type == "Log" {
 				log := pb.Log{}
 				protojson.Unmarshal(evtin.Data, &log)
-				logs = append(logs, log)
+				logs = append(logs, &log)
 			} else {
 				log.Errorf("UNKNOWN EVT type %s", evtin.Type)
 			}

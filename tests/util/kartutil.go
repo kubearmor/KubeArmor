@@ -20,7 +20,6 @@ import (
 	hsp "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/clientset/versioned/typed/security.kubearmor.com/v1"
 	kspV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api/security.kubearmor.com/v1"
 	kspScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/clientset/versioned/scheme"
-	kins "github.com/kubearmor/kubearmor-client/install"
 	kcli "github.com/kubearmor/kubearmor-client/k8s"
 	log "github.com/sirupsen/logrus"
 	appsV1 "k8s.io/api/apps/v1"
@@ -70,36 +69,8 @@ func isK8sEnv() bool {
 	}
 	k8sClient = cli
 	err = connectHspClient()
-	if err != nil {
-		return false
-	}
-	return true
-}
 
-func getOptions() kins.Options {
-	return kins.Options{
-		Namespace:      "kube-system",
-		KubearmorImage: "kubearmor/kubearmor:stable",
-		Audit:          "",
-		Force:          false,
-	}
-}
-
-func k8sInstallKubearmor() error {
-	err := kins.K8sInstaller(k8sClient, getOptions())
-	if err != nil {
-		log.Error("failed to install kubearmor err=%s", err)
-		return err
-	}
-	return nil
-}
-
-func k8sUninstallKubearmor() {
-	err := kins.K8sUninstaller(k8sClient, getOptions())
-	if err != nil {
-		log.Error("failed to uninstall kubearmor err=%s", err)
-		return
-	}
+	return err != nil
 }
 
 // ConditionFunc functions that fulfills the condition handling
@@ -127,7 +98,6 @@ func waitForCondition(timeout time.Duration, cf ConditionFunc) error {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
-	return errors.New("condition not met")
 }
 
 func isDaemonSetReady(dsname string, ns string) ConditionFunc {
@@ -250,7 +220,7 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	err = exec.Stream(remotecommand.StreamOptions{
+	exec.Stream(remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
@@ -277,7 +247,7 @@ func K8sExecInPodWithContainer(pod string, ns string, container string, cmd []st
 	}
 	buf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
-	err = exec.Stream(remotecommand.StreamOptions{
+	exec.Stream(remotecommand.StreamOptions{
 		Stdout: buf,
 		Stderr: errBuf,
 	})
@@ -514,6 +484,9 @@ func K8sApplyFile(fileName string) error {
 			log.Printf("Created policy %q", result.GetObjectMeta().GetName())
 		}
 	}
+	// waiting for a policy to be created is better
+	// as it implicitly gives us waiting for old policy to be deleted also
+	time.Sleep(5 * time.Second)
 	return nil
 }
 
