@@ -20,9 +20,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	kspclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 )
 
 // ================= //
@@ -40,6 +43,7 @@ func init() {
 // K8sHandler Structure
 type K8sHandler struct {
 	K8sClient   *kubernetes.Clientset
+	KSPClient   *kspclient.Clientset
 	HTTPClient  *http.Client
 	WatchClient *http.Client
 
@@ -77,6 +81,17 @@ func NewK8sHandler() *K8sHandler {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
+	}
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		log.Warnf("Error creating kubernetes config, %s", err)
+		return kh
+	}
+
+	kh.KSPClient, err = kspclient.NewForConfig(config)
+	if err != nil {
+		log.Warnf("Error creating ksp clientset, %s", err)
+		return kh
 	}
 
 	return kh
