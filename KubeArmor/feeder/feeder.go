@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package feeder declaration
+// Package feeder is responsible for sanitizing and pushing telemetry data to connected clients 
 package feeder
 
 import (
