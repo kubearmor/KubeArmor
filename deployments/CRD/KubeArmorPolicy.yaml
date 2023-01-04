@@ -1151,6 +1151,8 @@ spec:
                 items:
                   type: string
                 type: array
+            required:
+            - selector
             type: object
           status:
             description: KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
