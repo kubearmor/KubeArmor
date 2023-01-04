@@ -44,7 +44,7 @@ type SELinuxType struct {
 
 // KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
 type KubeArmorPolicySpec struct {
-	Selector SelectorType `json:"selector,omitempty"`
+	Selector SelectorType `json:"selector"`
 
 	Process      ProcessType      `json:"process,omitempty"`
 	File         FileType         `json:"file,omitempty"`
