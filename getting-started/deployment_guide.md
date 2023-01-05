@@ -61,31 +61,10 @@ $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-1,container=ubuntu-
 ```
 ### 4. Getting Alerts/Telemetry from KubeArmor
 
-#### a. Enable port-forwarding for KubeArmor relay (if needed)
-```
-kubectl port-forward -n kube-system svc/kubearmor 32767:32767
-```
-
-#### b. Observing logs using karmor cli
+#### Observing logs using karmor cli
 ```
 karmor log
 ```
-
-## Manual YAML based [KubeArmor deployment](https://github.com/kubearmor/KubeArmor/tree/main/deployments)
-1. [generic](https://github.com/kubearmor/KubeArmor/tree/main/deployments/generic)
-2. [docker](https://github.com/kubearmor/KubeArmor/tree/main/deployments/docker)
-3. [k3s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/k3s)
-4. [microk8s](https://github.com/kubearmor/KubeArmor/tree/main/deployments/microk8s)
-5. [minikube](https://github.com/kubearmor/KubeArmor/tree/main/deployments/minikube)
-6. [GKE](https://github.com/kubearmor/KubeArmor/tree/main/deployments/GKE)
-7. [EKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/EKS)
-8. [AKS](https://github.com/kubearmor/KubeArmor/tree/main/deployments/AKS)
-
----
-**NOTE**
-* "docker": KubeArmor deployment for self-managed k8s with docker (v18.09 and below).
-* "generic": KubeArmor deployment for self-managed k8s with containerd and docker (v18.09 and above).
----
 
 ## K8s platforms tested
 1. Self-managed (on-prem) k8s
