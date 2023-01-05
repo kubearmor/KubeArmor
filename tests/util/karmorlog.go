@@ -147,6 +147,7 @@ func KarmorGetTargetAlert(timeout time.Duration, target *pb.Alert) (EventResult,
 				res.Alerts = append(res.Alerts, &alert)
 			} else if evtin.Type != "Log" {
 				log.Errorf("UNKNOWN EVT type %s", evtin.Type)
+				continue
 			}
 			if getAlertWithInfo(&alert, target) {
 				log.Printf("Found Target Alert")

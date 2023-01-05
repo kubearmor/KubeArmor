@@ -216,7 +216,7 @@ func (dm *KubeArmorDaemon) CloseLogger() bool {
 
 // InitSystemMonitor Function
 func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
-	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock)
+	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, dm.RuntimeEnforcer.EnforcerType)
 	if dm.SystemMonitor == nil {
 		return false
 	}
@@ -236,6 +236,9 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		go dm.SystemMonitor.TraceSyscall()
+		if dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
+			go dm.SystemMonitor.WatchAppArmorAlerts()
+		}
 		go dm.SystemMonitor.UpdateLogs()
 		go dm.SystemMonitor.CleanUpExitedHostPids()
 	}
@@ -412,6 +415,21 @@ func KubeArmor() {
 
 	// == //
 
+	// initialize runtime enforcer
+	if !dm.InitRuntimeEnforcer() {
+		dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
+	} else {
+		dm.Logger.Print("Initialized KubeArmor Enforcer")
+
+		if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy {
+			dm.Logger.Print("Started to protect containers")
+		} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
+			dm.Logger.Print("Started to protect a host")
+		} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
+			dm.Logger.Print("Started to protect a host and containers")
+		}
+	}
+
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		// initialize system monitor
@@ -425,24 +443,14 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized KubeArmor Monitor")
 
+		// No need for mutex here
+		if dm.SystemMonitor.NetLinkClient != nil {
+			dm.Logger.Netfilter = true
+		}
+
 		// monior system events
 		go dm.MonitorSystemEvents()
 		dm.Logger.Print("Started to monitor system events")
-
-		// initialize runtime enforcer
-		if !dm.InitRuntimeEnforcer() {
-			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
-		} else {
-			dm.Logger.Print("Initialized KubeArmor Enforcer")
-
-			if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy {
-				dm.Logger.Print("Started to protect containers")
-			} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
-				dm.Logger.Print("Started to protect a host")
-			} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
-				dm.Logger.Print("Started to protect a host and containers")
-			}
-		}
 	}
 
 	enableContainerPolicy := true

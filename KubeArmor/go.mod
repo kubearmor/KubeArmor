@@ -26,6 +26,7 @@ require (
 	github.com/containerd/containerd v1.6.8
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.17+incompatible
+	github.com/elastic/go-libaudit/v2 v2.3.2
 	github.com/google/uuid v1.3.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230102134750-3c9ddc923c3f
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220908103453-7b92e248beb9

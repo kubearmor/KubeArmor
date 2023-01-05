@@ -102,21 +102,22 @@ spec:
         ports:
         - containerPort: 32767
         securityContext:
-          privileged: false
           capabilities:
-            drop: 
-              - ALL
-            add: 
-              - SETUID 
-              - SETGID
-              - SETPCAP
-              - SYS_ADMIN
-              - SYS_PTRACE 
-              - MAC_ADMIN
-              - SYS_RESOURCE 
-              - IPC_LOCK
-              - CAP_DAC_OVERRIDE
-              - CAP_DAC_READ_SEARCH
+            add:
+            - SETUID
+            - SETGID
+            - SETPCAP
+            - SYS_ADMIN
+            - SYS_PTRACE
+            - MAC_ADMIN
+            - SYS_RESOURCE
+            - IPC_LOCK
+            - CAP_DAC_OVERRIDE
+            - CAP_DAC_READ_SEARCH
+            - CAP_AUDIT_READ
+            drop:
+            - ALL
+          privileged: false
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
@@ -149,27 +150,27 @@ spec:
           name: docker-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
-      hostNetwork: false
+      hostNetwork: true
       hostPID: true
       initContainers:
       - image: kubearmor/kubearmor-init:latest
         name: init
         securityContext:
-          privileged: false
           capabilities:
-            drop: 
-              - ALL
-            add: 
-              - SETUID 
-              - SETGID
-              - SETPCAP
-              - SYS_ADMIN
-              - SYS_PTRACE 
-              - MAC_ADMIN
-              - SYS_RESOURCE 
-              - IPC_LOCK
-              - CAP_DAC_OVERRIDE
-              - CAP_DAC_READ_SEARCH
+            add:
+            - SETUID
+            - SETGID
+            - SETPCAP
+            - SYS_ADMIN
+            - SYS_PTRACE
+            - MAC_ADMIN
+            - SYS_RESOURCE
+            - IPC_LOCK
+            - CAP_DAC_OVERRIDE
+            - CAP_DAC_READ_SEARCH
+            drop:
+            - ALL
+          privileged: false
         volumeMounts:
         - mountPath: /opt/kubearmor/BPF
           name: bpf
@@ -1539,8 +1540,6 @@ spec:
                 items:
                   type: string
                 type: array
-            required:
-            - selector
             type: object
           status:
             description: KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
