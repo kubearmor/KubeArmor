@@ -305,3 +305,7 @@ webhooks:
     resources:
     - pods
   sideEffects: NoneOnDryRun
+  objectSelector:
+    matchExpressions:
+    - key: "kubearmor-app"
+      operator: DoesNotExist
