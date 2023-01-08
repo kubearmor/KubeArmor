@@ -7,11 +7,24 @@ import (
 	"go.uber.org/zap"
 )
 
-func DetectRuntimeViaMap(pathPrefix string, log zap.SugaredLogger) (string, string) {
+func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, log zap.SugaredLogger) (string, string) {
+	log.Infof("Checking for %s socket\n", k8sRuntime)
+	if k8sRuntime != "" {
+		for _, path := range common.ContainerRuntimeSocketMap[k8sRuntime] {
+			if _, err := os.Stat(pathPrefix + path); err == nil {
+				return k8sRuntime, path
+			} else {
+				log.Warnf("%s", err)
+			}
+		}
+	}
+	log.Warn("Could'nt detect k8s runtime localtion, searching for other runtime sockets")
 	for runtime, paths := range common.ContainerRuntimeSocketMap {
 		for _, path := range paths {
 			if _, err := os.Stat(pathPrefix + path); err == nil {
 				return runtime, path
+			} else {
+				log.Warnf("%s", err)
 			}
 		}
 	}

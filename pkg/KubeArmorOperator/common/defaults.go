@@ -25,7 +25,7 @@ var (
 	AddAction                       string = "ADD"
 	Namespace                       string = "kube-system"
 	Privileged                      bool   = true
-	OperatorImage                   string = "kubearmor/operator:latest"
+	OperatorImage                   string = "achrefbensaad/operator:latest"
 	KubeArmorServiceAccountName     string = "kubearmor"
 	KubeArmorClusterRoleBindingName string = KubeArmorServiceAccountName
 	KubeArmorSnitchRoleName         string = "kubearmor-snitch"
@@ -34,17 +34,15 @@ var (
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
 		"/var/run/docker.sock",
-		"/var/run/dockershim.sock",
-		"/run/dockershim.sock",
+		"/run/docker.sock",
 	},
 	"containerd": {
-		"/var/run/containerd/containerd.sock",
-		"/run/k3s/containerd/containerd.sock",
 		"/var/snap/microk8s/common/run/containerd.sock",
+		"/run/k3s/containerd/containerd.sock",
 		"/run/containerd/containerd.sock",
+		"/var/run/containerd/containerd.sock",
 	},
 	"crio": {
-		"/var/run/crio/crio.sock",
 		"/run/crio/crio.sock",
 	},
 }

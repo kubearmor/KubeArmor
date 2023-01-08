@@ -5,14 +5,14 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: kubearmor-operator
+      kubearmor-app: kubearmor-operator
   template:
     metadata:
       labels:
-        app: kubearmor-operator
+        kubearmor-app: kubearmor-operator
     spec:
       serviceAccountName: kubearmor-operator
       containers:
       - name: operator
-        image: kubearmor/operator:latest
-        imagePullPolicy: Never
+        image: achrefbensaad/operator:latest
+        imagePullPolicy: IfNotPresent

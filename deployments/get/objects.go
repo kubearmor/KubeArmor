@@ -991,6 +991,14 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 					},
 				},
 				SideEffects: &KubeArmorControllerMutationSideEffect,
+				ObjectSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubearmor-app",
+							Operator: metav1.LabelSelectorOpDoesNotExist,
+						},
+					},
+				},
 			},
 		},
 	}

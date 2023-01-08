@@ -28,6 +28,7 @@ func DetectEnforcer(lsmOrder []string, PathPrefix string, log zap.SugaredLogger)
 	}
 
 	enforcer := string(lsm)
+	log.Infof("/sys/kernel/security/lsm : %s", enforcer)
 
 	return selectLsm(lsmOrder, GetAvailableLsms(), strings.Split(enforcer, ","))
 }

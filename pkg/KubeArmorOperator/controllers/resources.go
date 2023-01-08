@@ -8,6 +8,7 @@ import (
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -55,6 +56,8 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage string) *
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = common.CommonVolumesMount
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
+	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, "-criSocket=unix:///"+strings.ReplaceAll(socket, "_", "/"))
+	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	return daemonset
 }
 
@@ -161,24 +164,20 @@ func genSnitchServiceAccount() *corev1.ServiceAccount {
 	}
 }
 
-func deploySnitch(nodename string) *batchv1.Job {
+func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	job := batchv1.Job{}
+	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
 	job.GenerateName = "kubearmor-snitch-"
-	if deployment_uuid != "" {
-		job.OwnerReferences = []metav1.OwnerReference{
-			{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-				Name:       deployment_name,
-				UID:        deployment_uuid,
-			},
-		}
-	}
 
 	job.Spec = batchv1.JobSpec{
 		TTLSecondsAfterFinished: &ttls,
 		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"kubearmor-app": common.KubeArmorSnitchRoleName,
+				},
+			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
@@ -190,6 +189,7 @@ func deploySnitch(nodename string) *batchv1.Job {
 						Args: []string{
 							"--nodename=$(NODE_NAME)",
 							"--pathprefix=" + PathPrefix,
+							"--runtime=" + runtime,
 						},
 						Env: []corev1.EnvVar{
 							{
@@ -199,11 +199,12 @@ func deploySnitch(nodename string) *batchv1.Job {
 								}},
 							},
 						},
-						ImagePullPolicy: corev1.PullAlways,
+						ImagePullPolicy: corev1.PullIfNotPresent,
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "rootfs",
 								MountPath: PathPrefix,
+								ReadOnly:  true,
 							},
 						},
 					},
@@ -217,6 +218,7 @@ func deploySnitch(nodename string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/",
+								Type: &common.HostPathDirectory,
 							},
 						},
 					},
@@ -231,11 +233,10 @@ func isNotfound(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "not found")
 }
 
-func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
-	var caCert, tlsCrt, tlsKey *bytes.Buffer
-	var kGenErr, err error
-	RotateTls := false
-	FirstRun := true
+func addOwnership(obj interface{}) interface{} {
+	if deployment_uuid == "" {
+		return obj
+	}
 	OwnerReferences := []metav1.OwnerReference{
 		{
 			APIVersion: "apps/v1",
@@ -244,23 +245,51 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			UID:        deployment_uuid,
 		},
 	}
+	switch resource := obj.(type) {
+	case *corev1.ServiceAccount:
+		resource.OwnerReferences = OwnerReferences
+		return resource
+	case *corev1.Service:
+		resource.OwnerReferences = OwnerReferences
+		return resource
+	case *appsv1.Deployment:
+		resource.OwnerReferences = OwnerReferences
+		return resource
+	case *corev1.Secret:
+		resource.OwnerReferences = OwnerReferences
+		return resource
+	case *appsv1.DaemonSet:
+		resource.OwnerReferences = OwnerReferences
+		return resource
+	case *batchv1.Job:
+		resource.OwnerReferences = OwnerReferences
+		return resource
+	}
+	return obj
+}
+
+func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
+	var caCert, tlsCrt, tlsKey *bytes.Buffer
+	var kGenErr, err error
+	RotateTls := false
+	FirstRun := true
 	srvAccs := []*corev1.ServiceAccount{
-		deployments.GetServiceAccount(common.Namespace),
-		genSnitchServiceAccount(),
+		addOwnership(deployments.GetServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
+		addOwnership(genSnitchServiceAccount()).(*corev1.ServiceAccount),
 	}
 	bindings := []*rbacv1.ClusterRoleBinding{
-		deployments.GetClusterRoleBinding(common.Namespace),
-		genSnitchRoleBinding(),
+		addOwnership(deployments.GetClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
+		addOwnership(genSnitchRoleBinding()).(*rbacv1.ClusterRoleBinding),
 	}
 	svcs := []*corev1.Service{
-		deployments.GetAnnotationsControllerService(common.Namespace),
-		deployments.GetKubeArmorControllerService(common.Namespace),
+		addOwnership(deployments.GetAnnotationsControllerService(common.Namespace)).(*corev1.Service),
+		addOwnership(deployments.GetKubeArmorControllerService(common.Namespace)).(*corev1.Service),
 	}
 	deploys := []*appsv1.Deployment{
-		deployments.GetAnnotationsControllerDeployment(common.Namespace),
-		deployments.GetRelayDeployment(common.Namespace),
+		addOwnership(deployments.GetAnnotationsControllerDeployment(common.Namespace)).(*appsv1.Deployment),
+		addOwnership(deployments.GetRelayDeployment(common.Namespace)).(*appsv1.Deployment),
 	}
-	role := genSnitchRole()
+	role := addOwnership(genSnitchRole()).(*rbacv1.ClusterRole)
 	for {
 		caCert, tlsCrt, tlsKey, kGenErr = common.GeneratePki(common.Namespace, deployments.AnnotationsControllerServiceName)
 		if kGenErr == nil {
@@ -271,15 +300,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 
 	secret := deployments.GetAnnotationsControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
+	secret = addOwnership(secret).(*corev1.Secret)
 	mutationhook := deployments.GetAnnotationsControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
+	mutationhook = addOwnership(mutationhook).(*v1.MutatingWebhookConfiguration)
 	for {
 		for _, srvAcc := range srvAccs {
 			_, err = clusterWatcher.Client.CoreV1().ServiceAccounts(common.Namespace).Get(context.Background(), srvAcc.Name, metav1.GetOptions{})
 			if isNotfound(err) {
-				if deployment_uuid != "" {
-					srvAcc.OwnerReferences = OwnerReferences
-				}
-				clusterWatcher.Log.Infof("Creating service account %s", mutationhook.Name)
+				clusterWatcher.Log.Infof("Creating service account %s", srvAcc.Name)
 				_, err := clusterWatcher.Client.CoreV1().ServiceAccounts(common.Namespace).Create(context.Background(), srvAcc, metav1.CreateOptions{})
 				if err != nil {
 					clusterWatcher.Log.Warnf("Cannot create service account %s, error=%s", srvAcc.Name, err.Error())
@@ -291,9 +319,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		//rbac
 		_, err = clusterWatcher.Client.RbacV1().ClusterRoles().Get(context.Background(), role.Name, metav1.GetOptions{})
 		if isNotfound(err) {
-			if deployment_uuid != "" {
-				role.OwnerReferences = OwnerReferences
-			}
 			clusterWatcher.Log.Infof("Creating role %s", role.Name)
 			_, err := clusterWatcher.Client.RbacV1().ClusterRoles().Create(context.Background(), role, metav1.CreateOptions{})
 			if err != nil {
@@ -304,9 +329,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		for _, binding := range bindings {
 			_, err = clusterWatcher.Client.RbacV1().ClusterRoleBindings().Get(context.Background(), binding.Name, metav1.GetOptions{})
 			if isNotfound(err) {
-				if deployment_uuid != "" {
-					binding.OwnerReferences = OwnerReferences
-				}
 				clusterWatcher.Log.Infof("Creating cluster role binding %s", binding.Name)
 				_, err := clusterWatcher.Client.RbacV1().ClusterRoleBindings().Create(context.Background(), binding, metav1.CreateOptions{})
 				if err != nil {
@@ -319,9 +341,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		for _, svc := range svcs {
 			_, err = clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), svc.Name, metav1.GetOptions{})
 			if isNotfound(err) {
-				if deployment_uuid != "" {
-					svc.OwnerReferences = OwnerReferences
-				}
 				clusterWatcher.Log.Infof("Creating service %s", svc.Name)
 				_, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Create(context.Background(), svc, metav1.CreateOptions{})
 				if err != nil {
@@ -334,9 +353,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		var caInK8sSecret []byte
 		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
 		if isNotfound(err) {
-			if deployment_uuid != "" {
-				secret.OwnerReferences = OwnerReferences
-			}
 			clusterWatcher.Log.Infof("Creating secret %s", secret.Name)
 			_, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 			if err != nil {
@@ -355,9 +371,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		for _, deploy := range deploys {
 			_, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deploy.Name, metav1.GetOptions{})
 			if isNotfound(err) {
-				if deployment_uuid != "" {
-					deploy.OwnerReferences = OwnerReferences
-				}
 				clusterWatcher.Log.Infof("Creating deployment %s", deploy.Name)
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 				if err != nil {
@@ -369,9 +382,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		//mutation webhook
 		hook, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mutationhook.Name, metav1.GetOptions{})
 		if isNotfound(err) {
-			if deployment_uuid != "" {
-				mutationhook.OwnerReferences = OwnerReferences
-			}
 			clusterWatcher.Log.Infof("Creating mutation webhook %s", mutationhook.Name)
 			_, err = clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mutationhook, metav1.CreateOptions{})
 			if err != nil {
@@ -401,14 +411,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 }
 
 func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
-	OwnerReferences := []metav1.OwnerReference{
-		{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-			Name:       deployment_name,
-			UID:        deployment_uuid,
-		},
-	}
 	var suffix string
 	var caCert, tlsCrt, tlsKey *bytes.Buffer
 	var err error
@@ -436,15 +438,14 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		time.Sleep(3 * time.Second)
 	}
 	tmpsecret := deployments.GetAnnotationsControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
+	tmpsecret = addOwnership(tmpsecret).(*corev1.Secret)
 	tmpsecret.Name = tmpsecret.GetName() + "-" + suffix
-	if deployment_uuid != "" {
-		tmpsecret.OwnerReferences = OwnerReferences
-	}
 	_, err = clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Create(context.Background(), tmpsecret, metav1.CreateOptions{})
 	if err != nil {
 		clusterWatcher.Log.Warnf("Cannot create secret %s, error=%s", tmpsecret.Name, err.Error())
 	}
 	tmpdeploy := deployments.GetAnnotationsControllerDeployment(common.Namespace)
+	tmpdeploy = addOwnership(tmpdeploy).(*appsv1.Deployment)
 	tmpdeploy.Name = tmpdeploy.GetName() + "-" + suffix
 	for i, s := range tmpdeploy.Spec.Template.Spec.Volumes {
 		if s.Name == "cert" {
@@ -457,10 +458,8 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 	selectLabels["kubearmor-app"] = suffix
 	tmpdeploy.Spec.Selector.MatchLabels = selectLabels
 	origdeploy, _ := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.AnnotationsControllerDeploymentName, metav1.GetOptions{})
+	origdeploy = addOwnership(origdeploy).(*appsv1.Deployment)
 	tmpdeploy.Spec.Replicas = origdeploy.Spec.Replicas
-	if deployment_uuid != "" {
-		tmpdeploy.OwnerReferences = OwnerReferences
-	}
 	if _, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Create(context.Background(), tmpdeploy, metav1.CreateOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("Cannot create deployment %s, error=%s", tmpdeploy.Name, err.Error())
 	}
@@ -468,29 +467,23 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 	time.Sleep(10 * time.Second)
 
 	tmpservice := deployments.GetAnnotationsControllerService(common.Namespace)
+	tmpservice = addOwnership(tmpservice).(*corev1.Service)
 	tmpservice.Name = serviceName
 	tmpservice.Spec.Selector = selectLabels
-	if deployment_uuid != "" {
-		tmpservice.OwnerReferences = OwnerReferences
-	}
 	if _, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Create(context.Background(), tmpservice, metav1.CreateOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("Cannot create deployment %s, error=%s", tmpservice.Name, err.Error())
 	}
 	tmpmutation := deployments.GetAnnotationsControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
+	tmpmutation = addOwnership(tmpmutation).(*v1.MutatingWebhookConfiguration)
 	tmpmutation.Name = tmpmutation.Name + "-" + suffix
 	tmpmutation.Webhooks[0].ClientConfig.Service.Name = tmpservice.GetName()
-	if deployment_uuid != "" {
-		tmpmutation.OwnerReferences = OwnerReferences
-	}
 	if _, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), tmpmutation, metav1.CreateOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("Cannot create mutation webhook %s, error=%s", tmpmutation.Name, err.Error())
 	}
 	clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(context.Background(), deployments.AnnotationsControllerServiceName, metav1.DeleteOptions{})
 	caCert, tlsCrt, tlsKey, _ = common.GeneratePki(common.Namespace, deployments.AnnotationsControllerServiceName)
 	secret := deployments.GetAnnotationsControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
-	if deployment_uuid != "" {
-		secret.OwnerReferences = OwnerReferences
-	}
+	secret = addOwnership(secret).(*corev1.Secret)
 	clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
 
 	replicas := int32(0)
@@ -498,13 +491,13 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 	clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), origdeploy, metav1.UpdateOptions{})
 	time.Sleep(10 * time.Second)
 	origdeploy, _ = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.AnnotationsControllerDeploymentName, metav1.GetOptions{})
+	origdeploy = addOwnership(origdeploy).(*appsv1.Deployment)
 	origdeploy.Spec.Replicas = tmpdeploy.Spec.Replicas
 
 	clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), origdeploy, metav1.UpdateOptions{})
 	mutation := deployments.GetAnnotationsControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
-	if deployment_uuid != "" {
-		mutation.OwnerReferences = OwnerReferences
-	}
+	mutation = addOwnership(mutation).(*v1.MutatingWebhookConfiguration)
+
 	clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), mutation, metav1.CreateOptions{})
 
 	clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(context.Background(), tmpmutation.Name, metav1.DeleteOptions{})

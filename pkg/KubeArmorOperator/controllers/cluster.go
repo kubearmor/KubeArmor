@@ -68,9 +68,11 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if node, ok := obj.(*corev1.Node); ok {
+				runtime := node.Status.NodeInfo.ContainerRuntimeVersion
+				runtime = strings.Split(runtime, ":")[0]
 				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
 					log.Infof("Installing snitch on node %s", node.Name)
-					_, err := clusterWatcher.Client.BatchV1().Jobs("kube-system").Create(context.Background(), deploySnitch(node.Name), v1.CreateOptions{})
+					_, err := clusterWatcher.Client.BatchV1().Jobs("kube-system").Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 					if err != nil {
 						log.Errorf("Cannot run snitch on node %s, error=%s", node.Name, err.Error())
 						return

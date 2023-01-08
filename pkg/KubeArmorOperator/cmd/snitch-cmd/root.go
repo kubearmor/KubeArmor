@@ -40,6 +40,7 @@ var Context string
 var LsmOrder string
 var PathPrefix string = "/rootfs"
 var NodeName string
+var Runtime string
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
@@ -54,6 +55,11 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		Logger.Infof("Running snitch in node %s", NodeName)
+		Logger.Infof("lsm order=%s", LsmOrder)
+		Logger.Infof("path prefix=%s", PathPrefix)
+		Logger.Infof("k8s runtime=%s", Runtime)
+		Logger.Infof("KubeConfig path=%s", KubeConfig)
 		snitch()
 
 	},
@@ -78,6 +84,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&LsmOrder, "lsmorder", "bpf,apparmor,selinux", "lsm preference order to use")
 	Cmd.PersistentFlags().StringVar(&NodeName, "nodename", "", "node name to label")
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs", "path prefix for runtime search")
+	Cmd.PersistentFlags().StringVar(&Runtime, "runtime", "", "runtime detected by k8s")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -100,7 +107,7 @@ func snitch() {
 
 	//Detecting runtime
 
-	runtime, socket := runtimepkg.DetectRuntimeViaMap(PathPrefix, *Logger)
+	runtime, socket := runtimepkg.DetectRuntimeViaMap(PathPrefix, Runtime, *Logger)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
