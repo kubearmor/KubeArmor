@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js">
+    </script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js">
+    </script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css">
+
+    <script type="text/javascript">
+        function showHideRow(row) {
+            $("#" + row).toggle();
+        }
+    </script>
+
+    <style>
+        body {
+            margin: 0 auto;
+            padding: 0px;
+            text-align: center;
+            width: 100%;
+            font-family: "Myriad Pro",
+                "Helvetica Neue", Helvetica,
+                Arial, Sans-Serif;
+        }
+
+        #wrapper {
+            margin: 0 auto;
+            padding: 0px;
+            text-align: center;
+            width: 995px;
+        }
+
+        #wrapper h1 {
+            margin-top: 50px;
+            font-size: 45px;
+            color: #585858;
+        }
+
+        #wrapper h1 p {
+            font-size: 20px;
+        }
+
+        #table_detail {
+            width: 900px;
+            text-align: left;
+            border-collapse: collapse;
+            color: #2E2E2E;
+            border: #A4A4A4;
+        }
+
+        #table_detail tr:hover {
+            background-color: #F2F2F2;
+        }
+
+        #table_detail .hidden_row {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>KubeArmor Security Report</h1>
+
+    <p>Date: 08-Jan-2023 19:17:17</p>
+    <div id="wrapper">
+	<table align=center border=1 cellpadding=1>
+	  
+	  <tr align=left>
+		 <td>Container</td>
+		 <td>cytopia/dvwa:php-8.1</td>
+	  </tr>
+	  
+	  <tr align=left>
+		 <td>OS/Arch/Distro</td>
+		 <td>linux//</td>
+	  </tr>
+	  
+	  <tr align=left>
+		 <td>Output Directory</td>
+		 <td>out/dvwa-dvwa-web</td>
+	  </tr>
+	  
+	  <tr align=left>
+		 <td>policy-template version</td>
+		 <td>v0.1.6</td>
+	  </tr>
+	  
+	</table>
+
+        <table border=1 id="table_detail" align=center cellpadding=10>
+            <tr>
+                
+                    <th>Policy</th>
+                
+                    <th>Description</th>
+                
+                    <th>Severity</th>
+                
+                    <th>Action</th>
+                
+                    <th>Tags</th>
+                
+            </tr>
+
+            <tr onclick="showHideRow('row1');">
+				
+					<td>cytopia-dvwa-php-8-1-maintenance-tool-access.yaml</td>
+				
+					<td>Restrict access to maintenance tools (apk, mii-tool, ...)</td>
+				
+					<td>1</td>
+				
+					<td>Block</td>
+				
+					<td>PCI_DSS
+MITRE</td>
+				
+            </tr>
+            <tr id="row1" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-maintenance-tool-access
+  namespace: dvwa
+spec:
+  action: Block
+  message: restricted maintenance tool access attempt detected
+  process:
+    matchDirectories:
+    - dir: /sbin/
+      recursive: true
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 1
+  tags:
+  - PCI_DSS
+  - MITRE
+
+</pre>
+					<h3>Description</h3>
+					Container images might contain maintenance tools which should ideally never be used in prod env, or if used, should be used only in certain time frames. Examples include, dynamic package management tools, mii-tool, iptables etc
+					<br>
+					<h3>References</h3>
+					
+					MITRE-TTP: [https://attack.mitre.org/techniques/T1553/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row2');">
+				
+					<td>cytopia-dvwa-php-8-1-cert-access.yaml</td>
+				
+					<td>Restrict access to trusted certificated bundles in the OS image</td>
+				
+					<td>1</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE
+MITRE_T1552_unsecured_credentials</td>
+				
+            </tr>
+            <tr id="row2" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-cert-access
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/ssl/
+      readOnly: true
+      recursive: true
+    - dir: /etc/pki/
+      readOnly: true
+      recursive: true
+    - dir: /usr/local/share/ca-certificates/
+      readOnly: true
+      recursive: true
+  message: Credentials modification denied
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 1
+  tags:
+  - MITRE
+  - MITRE_T1552_unsecured_credentials
+
+</pre>
+					<h3>Description</h3>
+					Operating systems maintain a list of trusted certificates (often called trust bundles) in file system. These bundles decides which authorities are trusted. Subverting these trust controls would essentially allow an adversary to operate as a trusted entity. Adversaries may undermine security controls that will either warn users of untrusted activity or prevent execution of untrusted programs. Operating systems and security products may contain mechanisms to identify programs or websites as possessing some level of trust. Examples of such features would include a program being allowed to run because it is signed by a valid code signing certificate, a program prompting the user with a warning because it has an attribute set from being downloaded from the Internet, or getting an indication that you are about to connect to an untrusted site.
+					<br>
+					<h3>References</h3>
+					
+					MITRE-TTP: [https://attack.mitre.org/techniques/T1553/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row3');">
+				
+					<td>cytopia-dvwa-php-8-1-system-owner-discovery.yaml</td>
+				
+					<td>System Information Discovery - block system owner discovery commands</td>
+				
+					<td>3</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE
+MITRE_T1082_system_information_discovery</td>
+				
+            </tr>
+            <tr id="row3" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-system-owner-discovery
+  namespace: dvwa
+spec:
+  action: Block
+  message: System owner discovery command execution denied
+  process:
+    matchPaths:
+    - path: /usr/bin/who
+    - path: /usr/bin/w
+    - path: /usr/bin/id
+    - path: /usr/bin/whoami
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 3
+  tags:
+  - MITRE
+  - MITRE_T1082_system_information_discovery
+
+</pre>
+					<h3>Description</h3>
+					An adversary may attempt to get detailed information about the operating system and hardware, including version, patches, hotfixes, service packs, and architecture. Adversaries may use the information from System Information Discovery during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infects the target and/or attempts specific actions.
+					<br>
+					<h3>References</h3>
+					
+					MITRE-TTP-T1082: [https://attack.mitre.org/techniques/T1082/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row4');">
+				
+					<td>cytopia-dvwa-php-8-1-system-monitoring-deny-write-under-bin-directory.yaml</td>
+				
+					<td>System and Information Integrity - System Monitoring make directory under /bin/</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST
+NIST_800-53_AU-2
+NIST_800-53_SI-4
+MITRE
+MITRE_T1036_masquerading</td>
+				
+            </tr>
+            <tr id="row4" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-system-monitoring-deny-write-under-bin-directory
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /bin/
+      readOnly: true
+      recursive: true
+    - dir: /sbin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/sbin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/bin/
+      readOnly: true
+      recursive: true
+  message: Alert! An attempt to write below system binary directories denied.
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+  - MITRE
+  - MITRE_T1036_masquerading
+
+</pre>
+					<h3>Description</h3>
+					System monitoring includes external and internal monitoring. External monitoring includes the observation of events occurring at system boundaries. Internal monitoring includes the observation of events occurring within the system. Organizations monitor systems, for example, by observing audit activities in real time or by observing other system aspects such as access patterns, characteristics of access, and other actions.
+					<br>
+					<h3>References</h3>
+					
+					NIST-SI-4: [https://csf.tools/reference/nist-sp-800-53/r5/si/si-4/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row5');">
+				
+					<td>cytopia-dvwa-php-8-1-system-monitoring-write-under-dev-directory.yaml</td>
+				
+					<td>System and Information Integrity - System Monitoring make files under /dev/</td>
+				
+					<td>5</td>
+				
+					<td>Audit</td>
+				
+					<td>NIST
+NIST_800-53_AU-2
+NIST_800-53_SI-4
+MITRE
+MITRE_T1036_masquerading</td>
+				
+            </tr>
+            <tr id="row5" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-system-monitoring-write-under-dev-directory
+  namespace: dvwa
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /dev/
+      readOnly: true
+      recursive: true
+  message: Alert! File creation under /dev/ directory detected.
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+  - MITRE
+  - MITRE_T1036_masquerading
+
+</pre>
+					<h3>Description</h3>
+					System monitoring includes external and internal monitoring. External monitoring includes the observation of events occurring at system boundaries. Internal monitoring includes the observation of events occurring within the system. Organizations monitor systems, for example, by observing audit activities in real time or by observing other system aspects such as access patterns, characteristics of access, and other actions.
+					<br>
+					<h3>References</h3>
+					
+					NIST-SI-4: [https://csf.tools/reference/nist-sp-800-53/r5/si/si-4/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row6');">
+				
+					<td>cytopia-dvwa-php-8-1-system-monitoring-detect-access-to-cronjob-files.yaml</td>
+				
+					<td>System and Information Integrity - System Monitoring Detect access to cronjob files</td>
+				
+					<td>5</td>
+				
+					<td>Audit</td>
+				
+					<td>NIST
+SI-4
+NIST_800-53_SI-4</td>
+				
+            </tr>
+            <tr id="row6" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-system-monitoring-detect-access-to-cronjob-files
+  namespace: dvwa
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /var/spool/cron/
+      recursive: true
+    - dir: /var/cron/
+      recursive: true
+    - dir: /etc/cron.d/
+      recursive: true
+    - dir: /etc/cron.daily/
+      recursive: true
+    - dir: /etc/cron.hourly/
+      recursive: true
+    - dir: /etc/cron.monthly/
+      recursive: true
+    - dir: /etc/cron.weekly/
+      recursive: true
+    matchPaths:
+    - path: /etc/crontab
+  message: Alert! Access to cron job files/directories detected.
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - NIST
+  - SI-4
+  - NIST_800-53_SI-4
+
+</pre>
+					<h3>Description</h3>
+					System monitoring includes external and internal monitoring. External monitoring includes the observation of events occurring at system boundaries. Internal monitoring includes the observation of events occurring within the system. Organizations monitor systems, for example, by observing audit activities in real time or by observing other system aspects such as access patterns, characteristics of access, and other actions.
+					<br>
+					<h3>References</h3>
+					
+					NIST-SI-4: [https://csf.tools/reference/nist-sp-800-53/r5/si/si-4/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row7');">
+				
+					<td>cytopia-dvwa-php-8-1-least-functionality-execute-package-management-process-in-container.yaml</td>
+				
+					<td>System and Information Integrity - Least Functionality deny execution of package manager process in container</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST
+NIST_800-53_CM-7(4)
+SI-4
+process
+NIST_800-53_SI-4</td>
+				
+            </tr>
+            <tr id="row7" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-least-functionality-execute-package-management-process-in-container
+  namespace: dvwa
+spec:
+  action: Block
+  message: Alert! Execution of package management process inside container is denied
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+    - path: /usr/bin/apt-get
+    - path: /bin/apt-get
+    - path: /bin/apt
+    - path: /usr/bin/dpkg
+    - path: /bin/dpkg
+    - path: /usr/bin/gdebi
+    - path: /bin/gdebi
+    - path: /usr/bin/make
+    - path: /bin/make
+    - path: /usr/bin/yum
+    - path: /bin/yum
+    - path: /usr/bin/rpm
+    - path: /bin/rpm
+    - path: /usr/bin/dnf
+    - path: /bin/dnf
+    - path: /usr/bin/pacman
+    - path: /usr/sbin/pacman
+    - path: /bin/pacman
+    - path: /sbin/pacman
+    - path: /usr/bin/makepkg
+    - path: /usr/sbin/makepkg
+    - path: /bin/makepkg
+    - path: /sbin/makepkg
+    - path: /usr/bin/yaourt
+    - path: /usr/sbin/yaourt
+    - path: /bin/yaourt
+    - path: /sbin/yaourt
+    - path: /usr/bin/zypper
+    - path: /bin/zypper
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53_CM-7(4)
+  - SI-4
+  - process
+  - NIST_800-53_SI-4
+
+</pre>
+					<h3>Description</h3>
+					Authorized software programs can be limited to specific versions or from a specific source. To facilitate a comprehensive authorized software process and increase the strength of protection for attacks that bypass application level authorized software, software programs may be decomposed into and monitored at different levels of detail. These levels include applications, application programming interfaces, application modules, scripts, system processes, system services, kernel functions, registries, drivers, and dynamic link libraries.
+					<br>
+					<h3>References</h3>
+					
+					NIST-CM-7-5: [https://csf.tools/reference/nist-sp-800-53/r5/cm/cm-7/cm-7-5/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row8');">
+				
+					<td>cytopia-dvwa-php-8-1-deny-remote-file-copy.yaml</td>
+				
+					<td>The adversary is trying to steal data.</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE
+MITRE_TA0008_lateral_movement
+MITRE_TA0010_exfiltration
+MITRE_TA0006_credential_access
+MITRE_T1552_unsecured_credentials
+NIST_800-53_SI-4(18)
+NIST
+NIST_800-53
+NIST_800-53_SC-4</td>
+				
+            </tr>
+            <tr id="row8" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-deny-remote-file-copy
+  namespace: dvwa
+spec:
+  action: Block
+  message: Alert! remote file copy tools execution prevented.
+  process:
+    matchPaths:
+    - path: /usr/bin/rsync
+    - path: /bin/rsync
+    - path: /usr/bin/scp
+    - path: /bin/scp
+    - path: /usr/bin/scp
+    - path: /bin/scp
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - MITRE
+  - MITRE_TA0008_lateral_movement
+  - MITRE_TA0010_exfiltration
+  - MITRE_TA0006_credential_access
+  - MITRE_T1552_unsecured_credentials
+  - NIST_800-53_SI-4(18)
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_SC-4
+
+</pre>
+					<h3>Description</h3>
+					Exfiltration consists of techniques that adversaries may use to steal data from your network. Once they’ve collected data, adversaries often package it to avoid detection while removing it. This can include compression and encryption. Techniques for getting data out of a target network typically include transferring it over their command and control channel or an alternate channel and may also include putting size limits on the transmission.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_TA0010_exfiltration: [https://attack.mitre.org/tactics/TA0010/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row9');">
+				
+					<td>cytopia-dvwa-php-8-1-deny-write-in-shm-folder.yaml</td>
+				
+					<td>The adversary is trying to write under shm folder</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE_execution
+MITRE</td>
+				
+            </tr>
+            <tr id="row9" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-deny-write-in-shm-folder
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /dev/shm/
+      readOnly: true
+      recursive: true
+  message: Alert! write to /dev/shm folder prevented.
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - MITRE_execution
+  - MITRE
+
+</pre>
+					<h3>Description</h3>
+					The adversary is trying to run malicious code. Execution consists of techniques that result in adversary-controlled code running on a local or remote system. Techniques that run malicious code are often paired with techniques from all other tactics to achieve broader goals, like exploring a network or stealing data.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_execution: [https://attack.mitre.org/tactics/TA0002/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row10');">
+				
+					<td>cytopia-dvwa-php-8-1-deny-write-under-etc-directory.yaml</td>
+				
+					<td>The adversary is trying to avoid being detected.</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST_800-53_SI-7
+NIST
+NIST_800-53_SI-4
+NIST_800-53
+MITRE_T1562.001_disable_or_modify_tools
+MITRE_T1036.005_match_legitimate_name_or_location
+MITRE_TA0003_persistence
+MITRE
+MITRE_T1036_masquerading
+MITRE_TA0005_defense_evasion</td>
+				
+            </tr>
+            <tr id="row10" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-deny-write-under-etc-directory
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/
+      readOnly: true
+      recursive: true
+  message: Alert! File creation under /etc/ directory detected.
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - NIST_800-53_SI-7
+  - NIST
+  - NIST_800-53_SI-4
+  - NIST_800-53
+  - MITRE_T1562.001_disable_or_modify_tools
+  - MITRE_T1036.005_match_legitimate_name_or_location
+  - MITRE_TA0003_persistence
+  - MITRE
+  - MITRE_T1036_masquerading
+  - MITRE_TA0005_defense_evasion
+
+</pre>
+					<h3>Description</h3>
+					Defense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics’ techniques are cross-listed here when those techniques include the added benefit of subverting defenses.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_TA0005_defense_evasion: [https://attack.mitre.org/tactics/TA0005/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row11');">
+				
+					<td>cytopia-dvwa-php-8-1-deny-write-under-etc-directory.yaml</td>
+				
+					<td>Adversaries may delete or modify artifacts generated within systems to remove evidence.</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST
+NIST_800-53
+NIST_800-53_CM-5
+NIST_800-53_AU-6(8)
+MITRE_T1070_indicator_removal_on_host
+MITRE
+MITRE_T1036_masquerading</td>
+				
+            </tr>
+            <tr id="row11" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-web-cytopia-dvwa-php-8-1-deny-write-under-etc-directory
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchPaths:
+    - fromSource:
+      - path: /usr/bin/shred
+      - path: /usr/bin/rm
+      - path: /bin/mv
+      - path: /bin/rm
+      - path: /usr/bin/mv
+      path: /root/*_history
+    - fromSource:
+      - path: /usr/bin/shred
+      - path: /usr/bin/rm
+      - path: /bin/rm
+      - path: /bin/mv
+      - path: /usr/bin/mv
+      path: /home/*/*_history
+  message: Alert! shell history modification or deletion detected and prevented
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_CM-5
+  - NIST_800-53_AU-6(8)
+  - MITRE_T1070_indicator_removal_on_host
+  - MITRE
+  - MITRE_T1036_masquerading
+
+</pre>
+					<h3>Description</h3>
+					Adversaries may delete or modify artifacts generated within systems to remove evidence of their presence or hinder defenses. Various artifacts may be created by an adversary or something that can be attributed to an adversary’s actions. Typically these artifacts are used as defensive indicators related to monitored events, such as strings from downloaded files, logs that are generated from user actions, and other data analyzed by defenders. Location, format, and type of artifact (such as command or login history) are often specific to each platform. Removal of these indicators may interfere with event collection, reporting, or other processes used to detect intrusion activity. This may compromise the integrity of security solutions by causing notable events to go unreported. This activity may also impede forensic analysis and incident response, due to lack of sufficient data to determine what occurred.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_T1070_indicator_removal: [https://attack.mitre.org/techniques/T1070/]<br>
+					
+                </td>
+            </tr>
+</table>
+<br>
+<hr>
+    <div id="wrapper">
+	<table align=center border=1 cellpadding=1>
+	  
+	  <tr align=left>
+		 <td>Container</td>
+		 <td>mariadb:10.1</td>
+	  </tr>
+	  
+	  <tr align=left>
+		 <td>OS/Arch/Distro</td>
+		 <td>linux//</td>
+	  </tr>
+	  
+	  <tr align=left>
+		 <td>Output Directory</td>
+		 <td>out/dvwa-dvwa-mysql</td>
+	  </tr>
+	  
+	  <tr align=left>
+		 <td>policy-template version</td>
+		 <td>v0.1.6</td>
+	  </tr>
+	  
+	</table>
+
+        <table border=1 id="table_detail" align=center cellpadding=10>
+            <tr>
+                
+                    <th>Policy</th>
+                
+                    <th>Description</th>
+                
+                    <th>Severity</th>
+                
+                    <th>Action</th>
+                
+                    <th>Tags</th>
+                
+            </tr>
+
+            <tr onclick="showHideRow('row12');">
+				
+					<td>mariadb-10-1-maintenance-tool-access.yaml</td>
+				
+					<td>Restrict access to maintenance tools (apk, mii-tool, ...)</td>
+				
+					<td>1</td>
+				
+					<td>Block</td>
+				
+					<td>PCI_DSS
+MITRE</td>
+				
+            </tr>
+            <tr id="row12" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-maintenance-tool-access
+  namespace: dvwa
+spec:
+  action: Block
+  message: restricted maintenance tool access attempt detected
+  process:
+    matchDirectories:
+    - dir: /sbin/
+      recursive: true
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 1
+  tags:
+  - PCI_DSS
+  - MITRE
+
+</pre>
+					<h3>Description</h3>
+					Container images might contain maintenance tools which should ideally never be used in prod env, or if used, should be used only in certain time frames. Examples include, dynamic package management tools, mii-tool, iptables etc
+					<br>
+					<h3>References</h3>
+					
+					MITRE-TTP: [https://attack.mitre.org/techniques/T1553/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row13');">
+				
+					<td>mariadb-10-1-cert-access.yaml</td>
+				
+					<td>Restrict access to trusted certificated bundles in the OS image</td>
+				
+					<td>1</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE
+MITRE_T1552_unsecured_credentials</td>
+				
+            </tr>
+            <tr id="row13" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-cert-access
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/ssl/
+      readOnly: true
+      recursive: true
+    - dir: /etc/pki/
+      readOnly: true
+      recursive: true
+    - dir: /usr/local/share/ca-certificates/
+      readOnly: true
+      recursive: true
+  message: Credentials modification denied
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 1
+  tags:
+  - MITRE
+  - MITRE_T1552_unsecured_credentials
+
+</pre>
+					<h3>Description</h3>
+					Operating systems maintain a list of trusted certificates (often called trust bundles) in file system. These bundles decides which authorities are trusted. Subverting these trust controls would essentially allow an adversary to operate as a trusted entity. Adversaries may undermine security controls that will either warn users of untrusted activity or prevent execution of untrusted programs. Operating systems and security products may contain mechanisms to identify programs or websites as possessing some level of trust. Examples of such features would include a program being allowed to run because it is signed by a valid code signing certificate, a program prompting the user with a warning because it has an attribute set from being downloaded from the Internet, or getting an indication that you are about to connect to an untrusted site.
+					<br>
+					<h3>References</h3>
+					
+					MITRE-TTP: [https://attack.mitre.org/techniques/T1553/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row14');">
+				
+					<td>mariadb-10-1-system-owner-discovery.yaml</td>
+				
+					<td>System Information Discovery - block system owner discovery commands</td>
+				
+					<td>3</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE
+MITRE_T1082_system_information_discovery</td>
+				
+            </tr>
+            <tr id="row14" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-system-owner-discovery
+  namespace: dvwa
+spec:
+  action: Block
+  message: System owner discovery command execution denied
+  process:
+    matchPaths:
+    - path: /usr/bin/who
+    - path: /usr/bin/w
+    - path: /usr/bin/id
+    - path: /usr/bin/whoami
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 3
+  tags:
+  - MITRE
+  - MITRE_T1082_system_information_discovery
+
+</pre>
+					<h3>Description</h3>
+					An adversary may attempt to get detailed information about the operating system and hardware, including version, patches, hotfixes, service packs, and architecture. Adversaries may use the information from System Information Discovery during automated discovery to shape follow-on behaviors, including whether or not the adversary fully infects the target and/or attempts specific actions.
+					<br>
+					<h3>References</h3>
+					
+					MITRE-TTP-T1082: [https://attack.mitre.org/techniques/T1082/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row15');">
+				
+					<td>mariadb-10-1-system-monitoring-deny-write-under-bin-directory.yaml</td>
+				
+					<td>System and Information Integrity - System Monitoring make directory under /bin/</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST
+NIST_800-53_AU-2
+NIST_800-53_SI-4
+MITRE
+MITRE_T1036_masquerading</td>
+				
+            </tr>
+            <tr id="row15" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-system-monitoring-deny-write-under-bin-directory
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /bin/
+      readOnly: true
+      recursive: true
+    - dir: /sbin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/sbin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/bin/
+      readOnly: true
+      recursive: true
+  message: Alert! An attempt to write below system binary directories denied.
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+  - MITRE
+  - MITRE_T1036_masquerading
+
+</pre>
+					<h3>Description</h3>
+					System monitoring includes external and internal monitoring. External monitoring includes the observation of events occurring at system boundaries. Internal monitoring includes the observation of events occurring within the system. Organizations monitor systems, for example, by observing audit activities in real time or by observing other system aspects such as access patterns, characteristics of access, and other actions.
+					<br>
+					<h3>References</h3>
+					
+					NIST-SI-4: [https://csf.tools/reference/nist-sp-800-53/r5/si/si-4/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row16');">
+				
+					<td>mariadb-10-1-system-monitoring-write-under-dev-directory.yaml</td>
+				
+					<td>System and Information Integrity - System Monitoring make files under /dev/</td>
+				
+					<td>5</td>
+				
+					<td>Audit</td>
+				
+					<td>NIST
+NIST_800-53_AU-2
+NIST_800-53_SI-4
+MITRE
+MITRE_T1036_masquerading</td>
+				
+            </tr>
+            <tr id="row16" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-system-monitoring-write-under-dev-directory
+  namespace: dvwa
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /dev/
+      readOnly: true
+      recursive: true
+  message: Alert! File creation under /dev/ directory detected.
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+  - MITRE
+  - MITRE_T1036_masquerading
+
+</pre>
+					<h3>Description</h3>
+					System monitoring includes external and internal monitoring. External monitoring includes the observation of events occurring at system boundaries. Internal monitoring includes the observation of events occurring within the system. Organizations monitor systems, for example, by observing audit activities in real time or by observing other system aspects such as access patterns, characteristics of access, and other actions.
+					<br>
+					<h3>References</h3>
+					
+					NIST-SI-4: [https://csf.tools/reference/nist-sp-800-53/r5/si/si-4/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row17');">
+				
+					<td>mariadb-10-1-system-monitoring-detect-access-to-cronjob-files.yaml</td>
+				
+					<td>System and Information Integrity - System Monitoring Detect access to cronjob files</td>
+				
+					<td>5</td>
+				
+					<td>Audit</td>
+				
+					<td>NIST
+SI-4
+NIST_800-53_SI-4</td>
+				
+            </tr>
+            <tr id="row17" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-system-monitoring-detect-access-to-cronjob-files
+  namespace: dvwa
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /var/spool/cron/
+      recursive: true
+    - dir: /var/cron/
+      recursive: true
+    - dir: /etc/cron.d/
+      recursive: true
+    - dir: /etc/cron.daily/
+      recursive: true
+    - dir: /etc/cron.hourly/
+      recursive: true
+    - dir: /etc/cron.monthly/
+      recursive: true
+    - dir: /etc/cron.weekly/
+      recursive: true
+    matchPaths:
+    - path: /etc/crontab
+  message: Alert! Access to cron job files/directories detected.
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - NIST
+  - SI-4
+  - NIST_800-53_SI-4
+
+</pre>
+					<h3>Description</h3>
+					System monitoring includes external and internal monitoring. External monitoring includes the observation of events occurring at system boundaries. Internal monitoring includes the observation of events occurring within the system. Organizations monitor systems, for example, by observing audit activities in real time or by observing other system aspects such as access patterns, characteristics of access, and other actions.
+					<br>
+					<h3>References</h3>
+					
+					NIST-SI-4: [https://csf.tools/reference/nist-sp-800-53/r5/si/si-4/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row18');">
+				
+					<td>mariadb-10-1-least-functionality-execute-package-management-process-in-container.yaml</td>
+				
+					<td>System and Information Integrity - Least Functionality deny execution of package manager process in container</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST
+NIST_800-53_CM-7(4)
+SI-4
+process
+NIST_800-53_SI-4</td>
+				
+            </tr>
+            <tr id="row18" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-least-functionality-execute-package-management-process-in-container
+  namespace: dvwa
+spec:
+  action: Block
+  message: Alert! Execution of package management process inside container is denied
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+    - path: /usr/bin/apt-get
+    - path: /bin/apt-get
+    - path: /bin/apt
+    - path: /usr/bin/dpkg
+    - path: /bin/dpkg
+    - path: /usr/bin/gdebi
+    - path: /bin/gdebi
+    - path: /usr/bin/make
+    - path: /bin/make
+    - path: /usr/bin/yum
+    - path: /bin/yum
+    - path: /usr/bin/rpm
+    - path: /bin/rpm
+    - path: /usr/bin/dnf
+    - path: /bin/dnf
+    - path: /usr/bin/pacman
+    - path: /usr/sbin/pacman
+    - path: /bin/pacman
+    - path: /sbin/pacman
+    - path: /usr/bin/makepkg
+    - path: /usr/sbin/makepkg
+    - path: /bin/makepkg
+    - path: /sbin/makepkg
+    - path: /usr/bin/yaourt
+    - path: /usr/sbin/yaourt
+    - path: /bin/yaourt
+    - path: /sbin/yaourt
+    - path: /usr/bin/zypper
+    - path: /bin/zypper
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53_CM-7(4)
+  - SI-4
+  - process
+  - NIST_800-53_SI-4
+
+</pre>
+					<h3>Description</h3>
+					Authorized software programs can be limited to specific versions or from a specific source. To facilitate a comprehensive authorized software process and increase the strength of protection for attacks that bypass application level authorized software, software programs may be decomposed into and monitored at different levels of detail. These levels include applications, application programming interfaces, application modules, scripts, system processes, system services, kernel functions, registries, drivers, and dynamic link libraries.
+					<br>
+					<h3>References</h3>
+					
+					NIST-CM-7-5: [https://csf.tools/reference/nist-sp-800-53/r5/cm/cm-7/cm-7-5/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row19');">
+				
+					<td>mariadb-10-1-deny-remote-file-copy.yaml</td>
+				
+					<td>The adversary is trying to steal data.</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE
+MITRE_TA0008_lateral_movement
+MITRE_TA0010_exfiltration
+MITRE_TA0006_credential_access
+MITRE_T1552_unsecured_credentials
+NIST_800-53_SI-4(18)
+NIST
+NIST_800-53
+NIST_800-53_SC-4</td>
+				
+            </tr>
+            <tr id="row19" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-deny-remote-file-copy
+  namespace: dvwa
+spec:
+  action: Block
+  message: Alert! remote file copy tools execution prevented.
+  process:
+    matchPaths:
+    - path: /usr/bin/rsync
+    - path: /bin/rsync
+    - path: /usr/bin/scp
+    - path: /bin/scp
+    - path: /usr/bin/scp
+    - path: /bin/scp
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - MITRE
+  - MITRE_TA0008_lateral_movement
+  - MITRE_TA0010_exfiltration
+  - MITRE_TA0006_credential_access
+  - MITRE_T1552_unsecured_credentials
+  - NIST_800-53_SI-4(18)
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_SC-4
+
+</pre>
+					<h3>Description</h3>
+					Exfiltration consists of techniques that adversaries may use to steal data from your network. Once they’ve collected data, adversaries often package it to avoid detection while removing it. This can include compression and encryption. Techniques for getting data out of a target network typically include transferring it over their command and control channel or an alternate channel and may also include putting size limits on the transmission.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_TA0010_exfiltration: [https://attack.mitre.org/tactics/TA0010/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row20');">
+				
+					<td>mariadb-10-1-deny-write-in-shm-folder.yaml</td>
+				
+					<td>The adversary is trying to write under shm folder</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>MITRE_execution
+MITRE</td>
+				
+            </tr>
+            <tr id="row20" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-deny-write-in-shm-folder
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /dev/shm/
+      readOnly: true
+      recursive: true
+  message: Alert! write to /dev/shm folder prevented.
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - MITRE_execution
+  - MITRE
+
+</pre>
+					<h3>Description</h3>
+					The adversary is trying to run malicious code. Execution consists of techniques that result in adversary-controlled code running on a local or remote system. Techniques that run malicious code are often paired with techniques from all other tactics to achieve broader goals, like exploring a network or stealing data.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_execution: [https://attack.mitre.org/tactics/TA0002/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row21');">
+				
+					<td>mariadb-10-1-deny-write-under-etc-directory.yaml</td>
+				
+					<td>The adversary is trying to avoid being detected.</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST_800-53_SI-7
+NIST
+NIST_800-53_SI-4
+NIST_800-53
+MITRE_T1562.001_disable_or_modify_tools
+MITRE_T1036.005_match_legitimate_name_or_location
+MITRE_TA0003_persistence
+MITRE
+MITRE_T1036_masquerading
+MITRE_TA0005_defense_evasion</td>
+				
+            </tr>
+            <tr id="row21" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-deny-write-under-etc-directory
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/
+      readOnly: true
+      recursive: true
+  message: Alert! File creation under /etc/ directory detected.
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - NIST_800-53_SI-7
+  - NIST
+  - NIST_800-53_SI-4
+  - NIST_800-53
+  - MITRE_T1562.001_disable_or_modify_tools
+  - MITRE_T1036.005_match_legitimate_name_or_location
+  - MITRE_TA0003_persistence
+  - MITRE
+  - MITRE_T1036_masquerading
+  - MITRE_TA0005_defense_evasion
+
+</pre>
+					<h3>Description</h3>
+					Defense Evasion consists of techniques that adversaries use to avoid detection throughout their compromise. Techniques used for defense evasion include uninstalling/disabling security software or obfuscating/encrypting data and scripts. Adversaries also leverage and abuse trusted processes to hide and masquerade their malware. Other tactics’ techniques are cross-listed here when those techniques include the added benefit of subverting defenses.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_TA0005_defense_evasion: [https://attack.mitre.org/tactics/TA0005/]<br>
+					
+                </td>
+            </tr>
+            <tr onclick="showHideRow('row22');">
+				
+					<td>mariadb-10-1-deny-write-under-etc-directory.yaml</td>
+				
+					<td>Adversaries may delete or modify artifacts generated within systems to remove evidence.</td>
+				
+					<td>5</td>
+				
+					<td>Block</td>
+				
+					<td>NIST
+NIST_800-53
+NIST_800-53_CM-5
+NIST_800-53_AU-6(8)
+MITRE_T1070_indicator_removal_on_host
+MITRE
+MITRE_T1036_masquerading</td>
+				
+            </tr>
+            <tr id="row22" class="hidden_row">
+                <td colspan="100%">
+					<h3>Kubearmor Security Policy</h3>
+<pre>
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: dvwa-mysql-mariadb-10-1-deny-write-under-etc-directory
+  namespace: dvwa
+spec:
+  action: Block
+  file:
+    matchPaths:
+    - fromSource:
+      - path: /usr/bin/shred
+      - path: /usr/bin/rm
+      - path: /bin/mv
+      - path: /bin/rm
+      - path: /usr/bin/mv
+      path: /root/*_history
+    - fromSource:
+      - path: /usr/bin/shred
+      - path: /usr/bin/rm
+      - path: /bin/rm
+      - path: /bin/mv
+      - path: /usr/bin/mv
+      path: /home/*/*_history
+  message: Alert! shell history modification or deletion detected and prevented
+  selector:
+    matchLabels:
+      app: dvwa-mysql
+      tier: backend
+  severity: 5
+  tags:
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_CM-5
+  - NIST_800-53_AU-6(8)
+  - MITRE_T1070_indicator_removal_on_host
+  - MITRE
+  - MITRE_T1036_masquerading
+
+</pre>
+					<h3>Description</h3>
+					Adversaries may delete or modify artifacts generated within systems to remove evidence of their presence or hinder defenses. Various artifacts may be created by an adversary or something that can be attributed to an adversary’s actions. Typically these artifacts are used as defensive indicators related to monitored events, such as strings from downloaded files, logs that are generated from user actions, and other data analyzed by defenders. Location, format, and type of artifact (such as command or login history) are often specific to each platform. Removal of these indicators may interfere with event collection, reporting, or other processes used to detect intrusion activity. This may compromise the integrity of security solutions by causing notable events to go unreported. This activity may also impede forensic analysis and incident response, due to lack of sufficient data to determine what occurred.
+					<br>
+					<h3>References</h3>
+					
+					MITRE_T1070_indicator_removal: [https://attack.mitre.org/techniques/T1070/]<br>
+					
+                </td>
+            </tr>
+</table>
+<br>
+<hr>
+</body>
+</html>
