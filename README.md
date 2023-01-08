@@ -32,7 +32,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 * :octocat: [Contribution Guide](contribution/contribution_guide.md)
 * :technologist: [Development Guide](contribution/development_guide.md), [Testing Guide](contribution/testing_guide.md)
 * :raising_hand_woman: [Join KubeArmor Slack](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA)
-* :question: [FAQs](FAQ.md)
+* :question: [FAQs](getting-started/FAQ.md)
 
 ### Biweekly Meetup
 
