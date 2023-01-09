@@ -12,7 +12,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 |  |   |
 |:---|:---|
 | :muscle: **[Harden Infrastructure](getting-started/hardening_guide.md)** <hr>:small_blue_diamond: Protect critical paths such as cert bundles :chains: <br>:small_blue_diamond: MITRE, STIGs, CIS based rules :clamp: <br>:small_blue_diamond: Restrict access to raw DB table :left_luggage: | :ring: **[Least Permissive Access](getting-started/least_permissive_access.md)** <hr>:small_blue_diamond: Process Whitelisting :traffic_light:<br>:small_blue_diamond: Network Whitelisting :traffic_light:<br>:small_blue_diamond: Control access to sensitive assets :control_knobs:|
-| :snowflake: **[Network Segmentation](getting-started/network_segmentation.md)** <hr>:small_blue_diamond: Communication Graph between services/pods :spider_web:<br>:small_blue_diamond: Generate k8s network policies :magic_wand:<br>:small_blue_diamond: Keep policies in sync with app updates :inbox_tray:| :telescope: **[Workload Visibility](getting-started/workload_visibility.md)** <hr>:small_blue_diamond: Process execs, File System accesses :dna:<br>:small_blue_diamond: Service binds, Ingress, Egress connections :compass: <br>:small_blue_diamond: Sensitive system call profiling :microscope:|
+| :snowflake: **[Network Segmentation](getting-started/network_segmentation.md)** <hr>:small_blue_diamond: Communication Graph between services/pods :spider_web:<br>:small_blue_diamond: Generate k8s network policies :magic_wand:<br>:small_blue_diamond: Keep policies in sync with app updates :inbox_tray:| :telescope: **[Application Behavior](getting-started/workload_visibility.md)** <hr>:small_blue_diamond: Process execs, File System accesses :dna:<br>:small_blue_diamond: Service binds, Ingress, Egress connections :compass: <br>:small_blue_diamond: Sensitive system call profiling :microscope:|
 
 ## Architecture Overview
 
@@ -32,7 +32,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 * :octocat: [Contribution Guide](contribution/contribution_guide.md)
 * :technologist: [Development Guide](contribution/development_guide.md), [Testing Guide](contribution/testing_guide.md)
 * :raising_hand_woman: [Join KubeArmor Slack](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA)
-* :question: [FAQs](FAQ.md)
+* :question: [FAQs](getting-started/FAQ.md)
 
 ### Biweekly Meetup
 

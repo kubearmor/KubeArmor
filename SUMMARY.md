@@ -5,13 +5,16 @@
 ## Quick Links
 
 * [Getting Started](getting-started/deployment_guide.md)
-* [Use-Cases](getting-started/use-cases.md)
 * [Support Matrix](getting-started/support_matrix.md)
 * [KubeArmor Differentiation](getting-started/differentiation.md)
-* [Policy Spec for Containers](getting-started/security_policy_specification.md)
-* [Policy Examples for Containers](getting-started/security_policy_examples.md)
-* [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)
-* [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
+
+## Use-Cases
+
+* [Harden Infrastructure](getting-started/hardening_guide.md)
+* [Least Permissive Access](getting-started/least_permissive_access.md)
+* [Network Segmentation](getting-started/network_segmentation.md)
+* [Application Behavior](getting-started/workload_visibility.md)
+* [Use-Cases](getting-started/use-cases.md)
 
 ## Contribution
 
@@ -19,10 +22,11 @@
 * [Development Guide](contribution/development_guide.md)
 * [Testing Guide](contribution/testing_guide.md)
 
-## Reference
-
-* [Kubernetes Installation for Ubuntu](contribution/self-managed-k8s/README.md)
-* [Kubernetes Installation for Fedora](contribution/self-managed-k8s-selinux/README.md)
+## Specification
+* [Policy Spec for Containers](getting-started/security_policy_specification.md)
+* [Policy Examples for Containers](getting-started/security_policy_examples.md)
+* [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)
+* [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
 
 ## Examples
 
