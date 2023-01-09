@@ -13,6 +13,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,6 +28,7 @@ import (
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/informer"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -129,6 +131,16 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorPolicy")
 		os.Exit(1)
 	}
+
+	client, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "Cannot init kuberntes client")
+		os.Exit(1)
+	}
+
+	cluster := informer.InitCluster()
+	setupLog.Info("Starting nodewatcher")
+	go informer.NodeWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("NodeWatcher"))
 
 	//+kubebuilder:scaffold:builder
 
