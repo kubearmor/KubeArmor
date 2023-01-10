@@ -567,6 +567,55 @@ var _ = Describe("Ksp", func() {
 
 		})
 
+		It("mount will be blocked by default for a pod", func() {
+			// Start KubeArmor Logs
+			err := KarmorLogStart("policy", "multiubuntu", "Syscall", ub3)
+			Expect(err).To(BeNil())
+
+			// execute mount inside the pod
+			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
+				[]string{"bash", "-c", "mkdir /mnt/test"})
+			Expect(err).To(BeNil())
+			sout, _, err = K8sExecInPod(ub3, "multiubuntu",
+				[]string{"bash", "-c", "mount /home /mnt/test"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+
+			expect := protobuf.Alert{
+				PolicyName: "DefaultPosture",
+				Action:     "Block",
+				Result:     "Permission denied",
+				Data:       "syscall=SYS_MOUNT",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("umount will be blocked by default for a pod as the capability not added", func() {
+			// Start KubeArmor Logs
+			err := KarmorLogStart("policy", "multiubuntu", "Syscall", ub3)
+			Expect(err).To(BeNil())
+
+			// execute umount inside the pod
+			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
+				[]string{"bash", "-c", "umount /mnt"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+
+			expect := protobuf.Alert{
+				PolicyName: "DefaultPosture",
+				Action:     "Block",
+				Result:     "Operation not permitted",
+				Data:       "syscall=SYS_UMOUNT2",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 	})
 
 	Describe("Apply Files Policies", func() {
