@@ -170,7 +170,7 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 // == Docker Events == //
 // =================== //
 
-// Enable visibility flag arguments for un-orchestrated container
+// SetContainerVisibility function enables visibility flag arguments for un-orchestrated container
 func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 
 	// get container information from docker client

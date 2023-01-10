@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package enforcer is responsible for setting up and handling policy updates for supported enforcers including AppArmor, SELinux and BPFLSM
 package enforcer
 
 import (
@@ -267,10 +268,9 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 
 			ae.Logger.Printf("Removed %s from the pod list of the AppArmor profile (%s, %d)", podName, profileName, len(ae.AppArmorProfiles[profileName]))
 			return true
-		} else {
-			ae.Logger.Warnf("Unable to find %s from the AppArmor profiles", profileName)
-			return false
 		}
+		ae.Logger.Warnf("Unable to find %s from the AppArmor profiles", profileName)
+		return false
 	}
 
 	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + profileName)); err != nil {

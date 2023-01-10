@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package kvmagent contains utilities to connect to kvmservice to establish support on bare-metal env
 package kvmagent
 
 import (

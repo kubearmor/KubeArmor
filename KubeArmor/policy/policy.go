@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package policy handles policy updates over gRPC in non-k8s environment
 package policy
 
 import (

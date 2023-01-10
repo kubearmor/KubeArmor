@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package feeder is the component responsible for relaying telemetry and alerts
+// Package feeder is responsible for sanitizing and relaying telemetry and alerts data to connected clients 
 package feeder
 
 import (
