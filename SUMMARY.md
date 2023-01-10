@@ -2,13 +2,19 @@
 
 * [KubeArmor](README.md)
 
-## Getting Started
+## Quick Links
 
-* [Deployment Guide](getting-started/deployment_guide.md)
-* [Security Policy Specification for Containers](getting-started/security_policy_specification.md)
-* [Security Policy Examples for Containers](getting-started/security_policy_examples.md)
-* [Security Policy Specification for Nodes/VMs](getting-started/host_security_policy_specification.md)
-* [Security Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
+* [Getting Started](getting-started/deployment_guide.md)
+* [Support Matrix](getting-started/support_matrix.md)
+* [KubeArmor Differentiation](getting-started/differentiation.md)
+
+## Use-Cases
+
+* [Harden Infrastructure](getting-started/hardening_guide.md)
+* [Least Permissive Access](getting-started/least_permissive_access.md)
+* [Network Segmentation](getting-started/network_segmentation.md)
+* [Application Behavior](getting-started/workload_visibility.md)
+* [Use-Cases](getting-started/use-cases.md)
 
 ## Contribution
 
@@ -16,14 +22,14 @@
 * [Development Guide](contribution/development_guide.md)
 * [Testing Guide](contribution/testing_guide.md)
 
-## Reference
-
-* [Kubernetes Installation for Ubuntu](contribution/self-managed-k8s/README.md)
-* [Kubernetes Installation for Fedora](contribution/self-managed-k8s-selinux/README.md)
-* [Supported Capability List](reference/supported_capability_list.md)
+## Specification
+* [Policy Spec for Containers](getting-started/security_policy_specification.md)
+* [Policy Examples for Containers](getting-started/security_policy_examples.md)
+* [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)
+* [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
 
 ## Examples
 
+* [Wordpress-MySQL](examples/wordpress-mysql.md)
 * [Multiubuntu](examples/multiubuntu.md)
 * [Sock-Shop](examples/sock-shop.md)
-* [Wordpress-MySQL](examples/wordpress-mysql.md)

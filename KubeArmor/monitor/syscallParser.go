@@ -490,10 +490,12 @@ func getSocketType(st uint32) string {
 }
 
 var protocols = map[int32]string{
-	1:  "ICMP",
-	6:  "TCP",
-	17: "UDP",
-	58: "ICMPv6",
+	0:   "ICMP",
+	1:   "ICMP",
+	6:   "TCP",
+	17:  "UDP",
+	58:  "ICMPv6",
+	768: "ICMP",
 }
 
 // getProtocol Function

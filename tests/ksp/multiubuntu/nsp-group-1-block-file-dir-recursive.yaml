@@ -8,7 +8,7 @@ spec:
     matchLabels:
       group: group-1
   apparmor: |
-    deny /etc/{*,**} rw,
+    audit deny /etc/{*,**} rw,
 
 # multiubuntu_test_10
 

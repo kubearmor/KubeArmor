@@ -570,6 +570,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 										"IPC_LOCK",
 										"CAP_DAC_OVERRIDE",
 										"CAP_DAC_READ_SEARCH",
+										"CAP_AUDIT_READ",
 									},
 								},
 							},
@@ -991,6 +992,14 @@ func GetAnnotationsControllerMutationAdmissionConfiguration(namespace string, ca
 					},
 				},
 				SideEffects: &KubeArmorControllerMutationSideEffect,
+				ObjectSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubearmor-app",
+							Operator: metav1.LabelSelectorOpDoesNotExist,
+						},
+					},
+				},
 			},
 		},
 	}
@@ -1034,6 +1043,14 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 					},
 				},
 				SideEffects: &KubeArmorControllerMutationSideEffect,
+				ObjectSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "kubearmor-app",
+							Operator: metav1.LabelSelectorOpDoesNotExist,
+						},
+					},
+				},
 			},
 		},
 	}

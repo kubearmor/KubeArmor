@@ -233,6 +233,8 @@ type Log struct {
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled,omitempty"`
 	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled,omitempty"`
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled,omitempty"`
+
+	AppArmorAlert bool `json:"apparmorAlert,omitempty"`
 }
 
 // MatchPolicy Structure
