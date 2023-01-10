@@ -13,7 +13,8 @@ var port int32 = 32767
 // K8s Object Name Defaults
 var (
 	serviceAccountName                  = kubearmor
-	clusterRoleBindingName              = kubearmor
+	clusterRoleBindingName              = "kubearmor-clusterrolebinding"
+	clusterRoleName                     = "kubearmor-clusterrole"
 	relayServiceName                    = kubearmor
 	relayDeploymentName                 = "kubearmor-relay"
 	policyManagerServiceName            = "kubearmor-policy-manager-metrics-service"

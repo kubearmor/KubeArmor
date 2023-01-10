@@ -30,6 +30,31 @@ func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 	}
 }
 
+// GetClusterRole Function 
+func GetClusterRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRole",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods", "nodes", "namespaces"},
+				Verbs:     []string{"patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{"security.kubearmor.io"},
+				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Verbs:     []string{"get", "list", "watch", "update", "delete"},
+			},
+		},
+	}
+}
+
 // GetClusterRoleBinding Function
 func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
@@ -39,12 +64,11 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterRoleBindingName,
-			Namespace: namespace,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "cluster-admin",
+			Name:     clusterRoleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
