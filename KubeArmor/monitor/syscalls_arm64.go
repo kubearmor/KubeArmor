@@ -23,6 +23,9 @@ const (
 	SysSetuid = 146
 	SysSetgid = 144
 
+	SysMount  = 165
+	SysUmount = 166
+
 	SysSocket  = 198
 	SysConnect = 203
 	SysAccept  = 202
