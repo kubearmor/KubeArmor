@@ -908,7 +908,6 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 		}
 
 		(*log).PolicyName = "DefaultPosture"
-		(*log).Enforcer = "eBPF Monitor"
 		(*log).Action = "Audit"
 
 		return true
@@ -1420,23 +1419,23 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			fd.DefaultPosturesLock.Unlock()
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
+				if setLogFields(&log, !existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
+				if setLogFields(&log, !existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
+				if setLogFields(&log, !existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
+				if setLogFields(&log, !existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Syscall" {
-				if setLogFields(&log, false, "", true, true) {
+				if setLogFields(&log, true, "", true, true) {
 					return log
 				}
 			}
@@ -1453,19 +1452,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			// host log
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, !existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, !existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, !existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, !existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
 			}
