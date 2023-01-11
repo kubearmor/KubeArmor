@@ -1,6 +1,7 @@
 package informer
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -15,7 +16,6 @@ type Cluster struct {
 	Nodes             map[string]string
 	HomogeneousStatus bool // the cluster runs the same enforcer
 	ClusterLock       *sync.Mutex
-	Enforcer          string
 }
 
 func InitCluster() Cluster {
@@ -23,7 +23,6 @@ func InitCluster() Cluster {
 		Nodes:             make(map[string]string),
 		HomogeneousStatus: true,
 		ClusterLock:       &sync.Mutex{},
-		Enforcer:          "",
 	}
 }
 
@@ -38,17 +37,23 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *Cluster, log logr.Logger) {
 			if node, ok := obj.(*corev1.Node); ok {
 				if node.Labels != nil {
 					if enforcer, ok := node.Labels["kubearmor.io/enforcer"]; ok {
+						log.Info(fmt.Sprintf("New node was added, name=%s enforcer=%s", node.Name, enforcer))
 						cluster.ClusterLock.Lock()
 						defer cluster.ClusterLock.Unlock()
-						if len(cluster.Nodes) == 0 {
-							cluster.HomogeneousStatus = true
-							log.Info("Cluster in a homogeneus state, enabling mutation controller")
-						} else if cluster.Enforcer != enforcer || !cluster.HomogeneousStatus {
-							cluster.HomogeneousStatus = false
-							log.Info("Cluster in a non homogeneus state, disabling mutation controller")
-						}
-						cluster.Enforcer = enforcer
 						cluster.Nodes[node.Name] = enforcer
+						// re-compute homogeneous status
+						homogeneous := true
+						for _, nodeEnforcer := range cluster.Nodes {
+							if enforcer != nodeEnforcer {
+								homogeneous = false
+								log.Info("Cluster in a non homogeneus state")
+								break
+							}
+						}
+						cluster.HomogeneousStatus = homogeneous
+						if homogeneous {
+							log.Info("Cluster in a homogeneus state")
+						}
 					}
 				}
 			}
@@ -65,22 +70,25 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *Cluster, log logr.Logger) {
 				}
 
 				if enforcer, ok := node.Labels["kubearmor.io/enforcer"]; ok {
+					if _, ok := cluster.Nodes[node.Name]; !ok {
+						log.Info(fmt.Sprintf("New node was detected, name=%s enforcer=%s", node.Name, enforcer))
+						cluster.Nodes[node.Name] = enforcer
+					}
 					if enforcer != cluster.Nodes[node.Name] {
 						cluster.Nodes[node.Name] = enforcer
-						// re-compute homogeneous status
-						homogeneous := true
-						for _, nodeEnforcer := range cluster.Nodes {
-							if enforcer != nodeEnforcer {
-								homogeneous = false
-								log.Info("Cluster in a non homogeneus state, disabling mutation controller")
-								break
-							}
+					}
+					// re-compute homogeneous status
+					homogeneous := true
+					for _, nodeEnforcer := range cluster.Nodes {
+						if enforcer != nodeEnforcer {
+							homogeneous = false
+							log.Info("Cluster in a non homogeneus state")
+							break
 						}
-						cluster.HomogeneousStatus = homogeneous
-						if homogeneous {
-							cluster.Enforcer = enforcer
-							log.Info("Cluster in a homogeneus state, enabling mutation controller")
-						}
+					}
+					cluster.HomogeneousStatus = homogeneous
+					if homogeneous {
+						log.Info("Cluster in a homogeneus state")
 					}
 				}
 			}
@@ -106,14 +114,13 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *Cluster, log logr.Logger) {
 					}
 					if enforcer != nodeEnforcer {
 						homogeneous = false
-						log.Info("Cluster in a non homogeneus state, disabling mutation controller")
+						log.Info("Cluster in a non homogeneus state")
 						break
 					}
 				}
 				cluster.HomogeneousStatus = homogeneous
 				if homogeneous {
-					cluster.Enforcer = enforcer
-					log.Info("Cluster in a homogeneus state, enabling mutation controller")
+					log.Info("Cluster in a homogeneus state")
 				}
 
 			}

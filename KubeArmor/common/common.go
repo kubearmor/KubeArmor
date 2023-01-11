@@ -334,7 +334,7 @@ func IsK8sLocal() bool {
 	if _, err := os.Stat(filepath.Clean(home + "/.kube/config")); err == nil {
 		return true
 	}
-	fmt.Println("***********")
+
 	return false
 }
 

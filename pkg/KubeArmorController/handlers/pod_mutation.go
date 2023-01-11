@@ -39,7 +39,6 @@ func hasBeenRestarted(lables map[string]string) bool {
 func apparmorIsForced(lables map[string]string) bool {
 	_, ok := lables[KubeArmorForceAppArmorAnnotation]
 	return ok
-
 }
 
 // Handle Pod Annotation

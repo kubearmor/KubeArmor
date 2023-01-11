@@ -3,7 +3,7 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 go 1.19
 
 require (
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230106085334-88ef12c18b9a
+	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230110035627-26adfb0a0f18
 	github.com/spf13/cobra v1.5.0
 	go.uber.org/zap v1.23.0
 	k8s.io/api v0.25.2

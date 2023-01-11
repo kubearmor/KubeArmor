@@ -5,6 +5,7 @@ package informer
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -38,7 +39,7 @@ func restartPod(c *kubernetes.Clientset, pod *corev1.Pod, apparmor bool, log *lo
 	name := pod.Name
 	pod.ResourceVersion = ""
 	pod.UID = ""
-	log.Info("Restarting pod %s", name)
+	log.Info(fmt.Sprintf("Restarting pod %s", name))
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
@@ -51,14 +52,14 @@ func restartPod(c *kubernetes.Clientset, pod *corev1.Pod, apparmor bool, log *lo
 	}
 	err := c.CoreV1().Pods(pod.Namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		log.Error(err, "Error while deleting pod %s", name)
+		log.Info(fmt.Sprintf("Error while deleting pod %s, error=%s", name, err.Error()))
 	} else {
 		_, err = c.CoreV1().Pods(pod.Namespace).Create(context.Background(), pod, metav1.CreateOptions{})
 		if err != nil {
-			log.Error(err, "Error while restarting pod %s", name)
+			log.Info(fmt.Sprintf("Error while restarting pod %s, error=%s", name, err.Error()))
 		}
 	}
-	log.Info("Pod %s has been restarted")
+	log.Info(fmt.Sprintf("Pod %s has been restarted", name))
 }
 
 func handleAppArmor(annotations map[string]string) bool {
@@ -69,10 +70,36 @@ func handleBPF(annotations map[string]string) bool {
 	return hasApparmorAnnotation(annotations)
 }
 
+func isAppArmorExempt(labels map[string]string, namespace string) bool {
+	// exception: kubernetes app
+	if namespace == "kube-system" {
+		if _, ok := labels["k8s-app"]; ok {
+			return true
+		}
+
+		if value, ok := labels["component"]; ok {
+			if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" {
+				return true
+			}
+		}
+	}
+
+	// exception: cilium-operator
+	if _, ok := labels["io.cilium/app"]; ok {
+		return true
+	}
+
+	// exception: kubearmor
+	if _, ok := labels["kubearmor-app"]; ok {
+		return true
+	}
+	return false
+}
+
 func handlePod(c *kubernetes.Clientset, pod *corev1.Pod, enforcer string, log *logr.Logger) {
 	switch enforcer {
 	case "apparmor":
-		if handleAppArmor(pod.Annotations) {
+		if handleAppArmor(pod.Annotations) && !isAppArmorExempt(pod.Labels, pod.Namespace) {
 			restartPod(c, pod, true, log)
 		}
 		return
@@ -93,7 +120,7 @@ func handlePod(c *kubernetes.Clientset, pod *corev1.Pod, enforcer string, log *l
 			restartPod(c, pod, false, log)
 		}
 	default:
-		log.Info("Leaving pod %s as it is, couldnot determin the enforcer", pod.Name)
+		log.Info(fmt.Sprintf("Leaving pod %s as it is, could not determin the enforcer", pod.Name))
 	}
 }
 

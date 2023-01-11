@@ -30,6 +30,8 @@ jobs:
             - 'pkg/KubeArmorHostPolicy/**'
           policy:
             - 'pkg/KubeArmorPolicy/**'
+          controller:
+            - 'pkg/KubeArmorOperator/**'
   
   annotation-controller-release:
     name: Build & push annotation controller

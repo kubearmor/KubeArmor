@@ -88,7 +88,6 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					oldRand = old.Labels[common.RandLabel]
 				}
 				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && oldRand != node.Labels[common.RandLabel] {
-					clusterWatcher.Log.Infof("Node %s was updated", node.Name)
 					newNode := Node{}
 					if val, ok := node.Labels[common.EnforcerLabel]; ok {
 						newNode.Enforcer = val
@@ -124,6 +123,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 							clusterWatcher.Nodes[i].RuntimeStorage != newNode.RuntimeStorage {
 							clusterWatcher.Nodes[i] = newNode
 							nodeModified = true
+							clusterWatcher.Log.Infof("Node %s was updated", node.Name)
 						}
 					}
 					clusterWatcher.NodesLock.Unlock()

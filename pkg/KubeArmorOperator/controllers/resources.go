@@ -286,20 +286,9 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		addOwnership(deployments.GetKubeArmorControllerService(common.Namespace)).(*corev1.Service),
 	}
 	deploys := []*appsv1.Deployment{
-		//addOwnership(deployments.GetKubeArmorControllerDeployment(common.Namespace)).(*appsv1.Deployment),
+		addOwnership(deployments.GetKubeArmorControllerDeployment(common.Namespace)).(*appsv1.Deployment),
 		addOwnership(deployments.GetRelayDeployment(common.Namespace)).(*appsv1.Deployment),
 	}
-
-	d := addOwnership(deployments.GetKubeArmorControllerDeployment(common.Namespace)).(*appsv1.Deployment)
-	if d.Spec.Template.Spec.Containers[0].Name == "manager" {
-		d.Spec.Template.Spec.Containers[0].Image = "achrefbensaad/kubearmor-controller:latest"
-		d.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
-	}
-	if d.Spec.Template.Spec.Containers[1].Name == "manager" {
-		d.Spec.Template.Spec.Containers[1].Image = "achrefbensaad/kubearmor-controller:latest"
-		d.Spec.Template.Spec.Containers[1].ImagePullPolicy = corev1.PullIfNotPresent
-	}
-	deploys = append(deploys, d)
 
 	role := addOwnership(genSnitchRole()).(*rbacv1.ClusterRole)
 	for {
@@ -315,6 +304,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	secret = addOwnership(secret).(*corev1.Secret)
 	mutationhook := deployments.GetKubeArmorControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
 	mutationhook = addOwnership(mutationhook).(*v1.MutatingWebhookConfiguration)
+	var caInK8sSecret []byte
 	for {
 		for _, srvAcc := range srvAccs {
 			_, err = clusterWatcher.Client.CoreV1().ServiceAccounts(common.Namespace).Get(context.Background(), srvAcc.Name, metav1.GetOptions{})
@@ -362,7 +352,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 
 		//secret
-		var caInK8sSecret []byte
 		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
 		if isNotfound(err) {
 			clusterWatcher.Log.Infof("Creating secret %s", secret.Name)
@@ -486,13 +475,14 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		clusterWatcher.Log.Warnf("Cannot create deployment %s, error=%s", tmpservice.Name, err.Error())
 	}
 	tmpmutation := deployments.GetKubeArmorControllerMutationAdmissionConfiguration(common.Namespace, caCert.Bytes())
+	mutationName := tmpmutation.Name
 	tmpmutation = addOwnership(tmpmutation).(*v1.MutatingWebhookConfiguration)
 	tmpmutation.Name = tmpmutation.Name + "-" + suffix
 	tmpmutation.Webhooks[0].ClientConfig.Service.Name = tmpservice.GetName()
 	if _, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(context.Background(), tmpmutation, metav1.CreateOptions{}); err != nil {
 		clusterWatcher.Log.Warnf("Cannot create mutation webhook %s, error=%s", tmpmutation.Name, err.Error())
 	}
-	clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(context.Background(), deployments.KubeArmorControllerServiceName, metav1.DeleteOptions{})
+	clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(context.Background(), mutationName, metav1.DeleteOptions{})
 	caCert, tlsCrt, tlsKey, _ = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerServiceName)
 	secret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
 	secret = addOwnership(secret).(*corev1.Secret)

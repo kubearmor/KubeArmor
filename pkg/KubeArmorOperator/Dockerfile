@@ -22,7 +22,7 @@ COPY runtime runtime
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o kubearmor-operator main.go
 RUN ln -s kubearmor-operator snitch
 
-FROM debian
+FROM scratch
 COPY --from=builder /app/kubearmor-operator /kubearmor-operator
 COPY --from=builder /app/snitch /snitch
 ENTRYPOINT ["/kubearmor-operator"]

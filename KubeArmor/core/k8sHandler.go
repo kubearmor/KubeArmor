@@ -92,10 +92,8 @@ func (kh *K8sHandler) InitK8sClient() bool {
 		return false
 	}
 
-	fmt.Println("--------------------")
 	if kh.K8sClient == nil {
 		if kl.IsInK8sCluster() {
-			fmt.Println("--------111111111111111------------")
 			return kh.InitInclusterAPIClient()
 		}
 		if kl.IsK8sLocal() {
@@ -113,7 +111,6 @@ func (kh *K8sHandler) InitLocalAPIClient() bool {
 	if kubeconfig == "" {
 		kubeconfig = os.Getenv("HOME") + "/.kube/config"
 		if _, err := os.Stat(filepath.Clean(kubeconfig)); err != nil {
-			fmt.Println(err)
 			return false
 		}
 	}

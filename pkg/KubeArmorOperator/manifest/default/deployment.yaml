@@ -14,5 +14,5 @@ spec:
       serviceAccountName: kubearmor-operator
       containers:
       - name: operator
-        image: achrefbensaad/operator:latest
+        image: kubearmor/kubearmor-operator:latest
         imagePullPolicy: IfNotPresent
