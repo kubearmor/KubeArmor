@@ -30,6 +30,7 @@ func main() {
 		v := []interface{}{
 			dp.GetServiceAccount(namespace),
 			dp.GetClusterRoleBinding(namespace),
+			dp.GetClusterRole(),
 			dp.GetRelayService(namespace),
 			dp.GetRelayDeployment(namespace),
 			dp.GenerateDaemonSet(strings.ToLower(env), namespace),

@@ -8,16 +8,43 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kubearmor
-  namespace: kube-system
+  name: kubearmor-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: kubearmor-clusterrole
 subjects:
 - kind: ServiceAccount
   name: kubearmor
   namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - namespaces
+  verbs:
+  - patch
+  - list
+  - watch
+  - update
+- apiGroups:
+  - security.kubearmor.io
+  resources:
+  - kubearmorpolicies
+  - kubearmorhostpolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - delete
 ---
 apiVersion: v1
 kind: Service
