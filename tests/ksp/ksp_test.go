@@ -1242,7 +1242,7 @@ var _ = Describe("Ksp", func() {
 
 		})
 
-		It("it will block a file path access except read-only accessible to owner from source path", func() {
+		It("it will block a file path access except read-only accessible to owner", func() {
 			// multiubuntu_test_23
 
 			// Test 1: write operation on the file by the owner should be blocked

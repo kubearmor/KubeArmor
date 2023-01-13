@@ -229,10 +229,10 @@ func (mon *SystemMonitor) BuildAppArmorLogBase(containerID string, pidInfo tp.Pi
 	case "exec":
 		log.Operation = "Process"
 		log.Resource = match[3]
-	case "open", "getattr", "mknod", "file_perm", "chown", "unlink":
+	case "open", "getattr", "mknod", "file_perm", "chown", "unlink", "file_mmap":
 		log.Operation = "File"
 		log.Resource = match[3]
-	case "create", "connect", "setsockopt", "getsockopt", "getsockname", "getpeername", "sendmsg", "recvmsg", "bind", "file_mmap":
+	case "create", "connect", "setsockopt", "getsockopt", "getsockname", "getpeername", "sendmsg", "recvmsg", "bind":
 		log.Operation = "Network"
 		proto, _ := strconv.ParseInt(match[6], 10, 32)
 		log.Resource = "domain=" + match[4] + " type=" + match[5] + " protocol=" + getProtocol(int32(proto))
@@ -255,9 +255,9 @@ func (mon *SystemMonitor) WatchAppArmorAlerts() {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-	profilergx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED)\".*?operation=\"(.*?)\".*?name=\"(.*?)\".*?pid=([0-9]+)")
-	netregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?family=\"(.*?)\".*?sock_type=\"(.*?)\" protocol=(.*?) ")
-	capregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?capability=([0-9]+).*?capname=\"(.*?)\"")
+	profilergx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?name=\"(.*?)\".*?pid=([0-9]+)")
+	netregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?family=\"(.*?)\".*?sock_type=\"(.*?)\" protocol=(.*?) ")
+	capregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?capability=([0-9]+).*?capname=\"(.*?)\"")
 	for {
 		rawEvent, err := mon.NetLinkClient.Receive(false)
 		if err != nil || rawEvent.Type != auparse.AUDIT_AVC {

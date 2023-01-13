@@ -3,16 +3,23 @@
 
 package enforcer
 
+import tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+
 // ProfileHeader contain sAppArmor Profile/SubProfile header config
 type ProfileHeader struct {
-	File, Network, Capabilities bool
+	File, Network, Capabilities                bool
+	AuditFile, AuditNetwork, AuditCapabilities bool
 }
 
 // Init sets the presence of Entity headers to true by default
-func (h *ProfileHeader) Init() {
+func (h *ProfileHeader) Init(defaultPosture *tp.DefaultPosture) {
 	h.File = true
 	h.Network = true
 	h.Capabilities = true
+	h.AuditFile = defaultPosture.FileAction == "audit"
+	h.AuditNetwork = defaultPosture.NetworkAction == "audit"
+	h.AuditCapabilities = defaultPosture.CapabilitiesAction == "audit"
+
 }
 
 // RuleConfig contains details for individual apparmor rules
@@ -53,8 +60,8 @@ type Profile struct {
 }
 
 // Init initialises elements Profike Structure
-func (p *Profile) Init() {
-	p.ProfileHeader.Init()
+func (p *Profile) Init(defaultPosture *tp.DefaultPosture) {
+	p.ProfileHeader.Init(defaultPosture)
 	p.Rules.Init()
 	p.FromSource = make(map[string]FromSourceConfig)
 }
@@ -211,9 +218,21 @@ profile {{$.Name}}-{{$source}} {
 {{define "pre-section"}}
 	## == PRE START == ##
 	#include <abstractions/base>
-			{{ if .File}}	file,{{end}}
-			{{ if .Network}}	network,{{end}}
-			{{ if .Capabilities}}	capability,{{end}}
+			{{- if .AuditFile }}
+      	audit file,
+      {{- else if .File}}
+      	file,
+      {{- end }}
+			{{- if .AuditNetwork }}
+        audit network,
+      {{- else if .Network }}
+        network,
+      {{- end }}
+			{{- if .AuditCapabilities }}
+        audit capability,
+      {{- else if .Capabilities }}
+      	capability,
+      {{- end }}
 	## == PRE END == ##
 {{- end}}
 
