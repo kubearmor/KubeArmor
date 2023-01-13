@@ -264,7 +264,7 @@ func (mon *SystemMonitor) WatchAppArmorAlerts() {
 			continue
 		}
 
-		ActivePidMapLock.Lock()
+		ActivePidMapLock.RLock()
 		if match := profilergx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
 			a, _ := strconv.Atoi(match[0][4])
 			for cID, pidInfor := range ActiveHostPidMap {
@@ -290,7 +290,7 @@ func (mon *SystemMonitor) WatchAppArmorAlerts() {
 				}
 			}
 		}
-		ActivePidMapLock.Unlock()
+		ActivePidMapLock.RUnlock()
 	}
 
 }

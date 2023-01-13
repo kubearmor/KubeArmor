@@ -174,8 +174,8 @@ func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32) string
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
+	ActivePidMapLock.RLock()
+	defer ActivePidMapLock.RUnlock()
 
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[hostPid]; ok {
@@ -198,8 +198,8 @@ func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32) string 
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
+	ActivePidMapLock.RLock()
+	defer ActivePidMapLock.RUnlock()
 
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[hostPid]; ok {
@@ -251,7 +251,7 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 
 		for containerID, pidMap := range ActiveHostPidMap {
 			for pid, pidNode := range pidMap {
-				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
+				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*10)) {
 					delete(pidMap, pid)
 				}
 			}
