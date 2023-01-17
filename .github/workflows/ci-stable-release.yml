@@ -10,7 +10,6 @@ on:
 jobs:
   push-stable-version:
     name: Create KubeArmor stable release
-    if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     steps:
@@ -35,4 +34,25 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
 
       - name: Push the stable version of KubeArmor to Docker Hub
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
         run: STABLE_VERSION=$(cat STABLE-RELEASE) GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh stable
+
+      - name: Install Cosign 
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: | 
+          ls -l
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
+          echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
+          echo $imagedigest 
+          echo $initdigest 
+
+      - name: Sign the Container Images
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign sign -r ${{ github.repository_owner }}/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign sign -r ${{ github.repository_owner }}/kubearmor-init@${{ steps.digest.outputs.initdigest }}
