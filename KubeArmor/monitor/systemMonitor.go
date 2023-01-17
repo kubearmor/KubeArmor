@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+	"time"
 
 	cle "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -247,13 +248,25 @@ func (mon *SystemMonitor) BuildAppArmorLogBase(containerID string, pidInfo tp.Pi
 	go mon.Logger.PushLog(log)
 }
 
+func (mon *SystemMonitor) lookupPid(pid uint32, match []string) {
+	time.Sleep(10 * time.Millisecond)
+	ActiveHostPidMap := *(mon.ActiveHostPidMap)
+	ActivePidMapLock := *(mon.ActivePidMapLock)
+	ActivePidMapLock.RLock()
+	for cID, pidInfor := range ActiveHostPidMap {
+		if elem, ok := pidInfor[pid]; ok {
+			go mon.BuildAppArmorLogBase(cID, elem, match)
+			break
+		}
+	}
+	ActivePidMapLock.RUnlock()
+}
+
 // WatchAppArmorAlerts Function
 func (mon *SystemMonitor) WatchAppArmorAlerts() {
 	if mon.NetLinkClient == nil {
 		return
 	}
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-	ActivePidMapLock := *(mon.ActivePidMapLock)
 
 	profilergx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?name=\"(.*?)\".*?pid=([0-9]+)")
 	netregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?family=\"(.*?)\".*?sock_type=\"(.*?)\" protocol=(.*?) ")
@@ -264,33 +277,17 @@ func (mon *SystemMonitor) WatchAppArmorAlerts() {
 			continue
 		}
 
-		ActivePidMapLock.RLock()
 		if match := profilergx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
 			a, _ := strconv.Atoi(match[0][4])
-			for cID, pidInfor := range ActiveHostPidMap {
-				if elem, ok := pidInfor[uint32(a)]; ok {
-					go mon.BuildAppArmorLogBase(cID, elem, match[0])
-					break
-				}
-			}
+			go mon.lookupPid(uint32(a), match[0])
 		} else if match := netregx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
 			a, _ := strconv.Atoi(match[0][3])
-			for cID, pidInfor := range ActiveHostPidMap {
-				if elem, ok := pidInfor[uint32(a)]; ok {
-					go mon.BuildAppArmorLogBase(cID, elem, match[0])
-					break
-				}
-			}
+			go mon.lookupPid(uint32(a), match[0])
 		} else if match := capregx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
 			a, _ := strconv.Atoi(match[0][3])
-			for cID, pidInfor := range ActiveHostPidMap {
-				if elem, ok := pidInfor[uint32(a)]; ok {
-					go mon.BuildAppArmorLogBase(cID, elem, match[0])
-					break
-				}
-			}
+			go mon.lookupPid(uint32(a), match[0])
 		}
-		ActivePidMapLock.RUnlock()
+
 	}
 
 }

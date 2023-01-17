@@ -218,20 +218,20 @@ profile {{$.Name}}-{{$source}} {
 {{define "pre-section"}}
 	## == PRE START == ##
 	#include <abstractions/base>
-			{{- if .AuditFile }}
-      	audit file,
-      {{- else if .File}}
+			{{- if .File }}
       	file,
+      {{- else if .AuditFile}}
+      	audit file,
       {{- end }}
-			{{- if .AuditNetwork }}
-        audit network,
-      {{- else if .Network }}
+			{{- if .Network }}
         network,
+      {{- else if .AuditNetwork }}
+        audit network,
       {{- end }}
-			{{- if .AuditCapabilities }}
-        audit capability,
-      {{- else if .Capabilities }}
-      	capability,
+			{{- if and .Capabilities }}
+        capability,
+      {{- else if .AuditCapabilities }}
+      	audit capability,
       {{- end }}
 	## == PRE END == ##
 {{- end}}

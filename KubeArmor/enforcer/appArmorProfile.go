@@ -59,7 +59,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -320,7 +320,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.Process.MatchPaths {
 				if path.Action == "Allow" {
-					ae.SetProcessMatchPaths(path, &profile, false, false, defaultPosture.FileAction != "block", &defaultPosture)
+					ae.SetProcessMatchPaths(path, &profile, false, false, defaultPosture.FileAction != "block" && defaultPosture.FileAction != "audit", &defaultPosture)
 				} else if path.Action == "Block" {
 					ae.SetProcessMatchPaths(path, &profile, true, false, true, &defaultPosture)
 				} else if path.Action == "Audit" {
@@ -328,10 +328,11 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 				}
 			}
 		}
+
 		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
 				if dir.Action == "Allow" {
-					ae.SetProcessMatchDirectories(dir, &profile, false, false, defaultPosture.FileAction != "block", &defaultPosture)
+					ae.SetProcessMatchDirectories(dir, &profile, false, false, defaultPosture.FileAction != "block" && defaultPosture.FileAction != "audit", &defaultPosture)
 				} else if dir.Action == "Block" {
 					ae.SetProcessMatchDirectories(dir, &profile, true, false, true, &defaultPosture)
 				} else if dir.Action == "Audit" {
@@ -342,7 +343,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
 				if pat.Action == "Allow" {
-					ae.SetProcessMatchPatterns(pat, &profile, false, false, defaultPosture.FileAction != "block")
+					ae.SetProcessMatchPatterns(pat, &profile, false, false, defaultPosture.FileAction != "block" && defaultPosture.FileAction != "audit")
 				} else if pat.Action == "Block" {
 					ae.SetProcessMatchPatterns(pat, &profile, true, false, true)
 				} else if pat.Action == "Audit" {
@@ -354,7 +355,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.File.MatchPaths) > 0 {
 			for _, path := range secPolicy.Spec.File.MatchPaths {
 				if path.Action == "Allow" {
-					ae.SetFileMatchPaths(path, &profile, false, false, defaultPosture.FileAction != "block", &defaultPosture)
+					ae.SetFileMatchPaths(path, &profile, false, false, defaultPosture.FileAction != "block" && defaultPosture.FileAction != "audit", &defaultPosture)
 				} else if path.Action == "Block" {
 					ae.SetFileMatchPaths(path, &profile, true, false, true, &defaultPosture)
 				} else if path.Action == "Audit" {
@@ -365,7 +366,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 			for _, dir := range secPolicy.Spec.File.MatchDirectories {
 				if dir.Action == "Allow" {
-					ae.SetFileMatchDirectories(dir, &profile, false, false, defaultPosture.FileAction != "block", &defaultPosture)
+					ae.SetFileMatchDirectories(dir, &profile, false, false, defaultPosture.FileAction != "block" && defaultPosture.FileAction != "audit", &defaultPosture)
 				} else if dir.Action == "Block" {
 					ae.SetFileMatchDirectories(dir, &profile, true, false, true, &defaultPosture)
 				} else if dir.Action == "Audit" {
@@ -376,7 +377,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 			for _, pat := range secPolicy.Spec.File.MatchPatterns {
 				if pat.Action == "Allow" {
-					ae.SetFileMatchPatterns(pat, &profile, false, false, defaultPosture.FileAction != "block")
+					ae.SetFileMatchPatterns(pat, &profile, false, false, defaultPosture.FileAction != "block" && defaultPosture.FileAction != "audit")
 				} else if pat.Action == "Block" {
 					ae.SetFileMatchPatterns(pat, &profile, true, false, true)
 				} else if pat.Action == "Audit" {
@@ -388,7 +389,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 				if proto.Action == "Allow" {
-					ae.SetNetworkMatchProtocols(proto, &profile, false, false, defaultPosture.NetworkAction != "block", &defaultPosture)
+					ae.SetNetworkMatchProtocols(proto, &profile, false, false, defaultPosture.NetworkAction != "block" && defaultPosture.NetworkAction != "audit", &defaultPosture)
 				} else if proto.Action == "Block" {
 					ae.SetNetworkMatchProtocols(proto, &profile, true, false, true, &defaultPosture)
 				} else if proto.Action == "Audit" {
@@ -400,7 +401,7 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 				if cap.Action == "Allow" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, false, defaultPosture.CapabilitiesAction != "block", &defaultPosture)
+					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, false, defaultPosture.CapabilitiesAction != "block" && defaultPosture.CapabilitiesAction != "audit", &defaultPosture)
 				} else if cap.Action == "Block" {
 					ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, false, true, &defaultPosture)
 				} else if cap.Action == "Audit" {
