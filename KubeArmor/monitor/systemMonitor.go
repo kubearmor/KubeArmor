@@ -227,16 +227,32 @@ func (mon *SystemMonitor) BuildAppArmorLogBase(containerID string, pidInfo tp.Pi
 
 	switch match[2] {
 	case "exec":
+		if len(match) < 4 {
+			goto error
+		}
 		log.Operation = "Process"
 		log.Resource = match[3]
-	case "open", "getattr", "mknod", "file_perm", "chown", "unlink", "file_mmap":
+	case "open", "getattr", "mknod", "file_perm", "chown", "unlink", "file_mmap", "file_lock", "mkdir", "rename_src", "rename_dest", "truncate", "chmod", "rmdir":
+		if len(match) != 5 {
+			goto error
+		}
 		log.Operation = "File"
 		log.Resource = match[3]
-	case "create", "connect", "setsockopt", "getsockopt", "getsockname", "getpeername", "sendmsg", "recvmsg", "bind":
+	case "create", "connect", "setsockopt", "getsockopt", "getsockname", "getpeername", "sendmsg", "recvmsg", "bind", "listen", "socket_shutdown":
 		log.Operation = "Network"
-		proto, _ := strconv.ParseInt(match[6], 10, 32)
-		log.Resource = "domain=" + match[4] + " type=" + match[5] + " protocol=" + getProtocol(int32(proto))
+		if len(match) == 5 {
+			log.Resource = "domain=unix socket=" + match[3]
+		} else if len(match) == 7 {
+			proto, _ := strconv.ParseInt(match[6], 10, 32)
+			log.Resource = "domain=" + match[4] + " type=" + match[5] + " protocol=" + getProtocol(int32(proto))
+		} else {
+			goto error
+		}
+
 	case "capable":
+		if len(match) != 6 {
+			goto error
+		}
 		log.Operation = "Network"
 		log.Resource = "capability_id=" + match[4] + " capability_name=" + match[5]
 	default:
@@ -245,6 +261,9 @@ func (mon *SystemMonitor) BuildAppArmorLogBase(containerID string, pidInfo tp.Pi
 	}
 
 	go mon.Logger.PushLog(log)
+	return
+error:
+	mon.Logger.Warnf("Skipped AppArmor Alert, array length does not match expected length. %v", match)
 }
 
 // WatchAppArmorAlerts Function
