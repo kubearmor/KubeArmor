@@ -217,7 +217,13 @@ func (dm *KubeArmorDaemon) CloseLogger() bool {
 
 // InitSystemMonitor Function
 func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
-	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, dm.RuntimeEnforcer.EnforcerType)
+	// if none of the lsm is present, no enforcer will be initialized
+	enforcerType := ""
+	if dm.RuntimeEnforcer != nil {
+		enforcerType = dm.RuntimeEnforcer.EnforcerType
+	}
+
+	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, enforcerType)
 	if dm.SystemMonitor == nil {
 		return false
 	}
@@ -237,7 +243,8 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		go dm.SystemMonitor.TraceSyscall()
-		if dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
+
+		if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
 			go dm.SystemMonitor.WatchAppArmorAlerts()
 		}
 		go dm.SystemMonitor.UpdateLogs()
