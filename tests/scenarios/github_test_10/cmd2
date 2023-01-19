@@ -3,5 +3,5 @@ cmd: arping -c 1 127.0.0.1
 result: failed
 ---
 operation: Network
-condition: net_raw
+condition: SOCK_RAW
 action: Block

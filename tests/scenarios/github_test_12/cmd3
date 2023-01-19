@@ -3,5 +3,5 @@ cmd: wget --tries=1 142.250.193.46
 result: default
 ---
 operation: Network
-condition: stream
+condition: SOCK_STREAM
 action: default

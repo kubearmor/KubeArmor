@@ -113,7 +113,6 @@ spec:
               - IPC_LOCK
               - CAP_DAC_OVERRIDE
               - CAP_DAC_READ_SEARCH
-              - CAP_AUDIT_READ
         ports:
         - containerPort: 32767
         livenessProbe:
