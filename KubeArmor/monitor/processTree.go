@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -253,6 +254,15 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 			for pid, pidNode := range pidMap {
 				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
 					delete(pidMap, pid)
+				} else if now.After(pidNode.ExitedTime.Add(time.Second * 30)) {
+					p, err := os.FindProcess(int(pid))
+					if err == nil && p != nil {
+						if p.Signal(syscall.Signal(0)) != nil {
+							delete(pidMap, pid)
+						}
+					} else {
+						delete(pidMap, pid)
+					}
 				}
 			}
 
