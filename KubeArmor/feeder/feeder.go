@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package feeder is responsible for sanitizing and relaying telemetry and alerts data to connected clients 
+// Package feeder is responsible for sanitizing and relaying telemetry and alerts data to connected clients
 package feeder
 
 import (
@@ -295,9 +295,6 @@ type Feeder struct {
 
 	// Activated Enforcer
 	Enforcer string
-
-	// Netfilter is initialized
-	Netfilter bool
 }
 
 // NewFeeder Function

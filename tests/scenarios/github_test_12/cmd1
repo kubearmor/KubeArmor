@@ -3,5 +3,5 @@ cmd: curl 142.250.193.46
 result: passed
 ---
 operation: Network
-condition: dgram
+condition: SOCK_STREAM
 action: Allow

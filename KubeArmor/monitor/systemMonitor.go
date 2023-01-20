@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"sync"
 
@@ -20,8 +19,6 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/elastic/go-libaudit/v2"
-	"github.com/elastic/go-libaudit/v2/auparse"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -128,14 +125,11 @@ type SystemMonitor struct {
 	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
-
-	// Netlink client
-	NetLinkClient *libaudit.AuditClient
 }
 
 // NewSystemMonitor Function
 func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
-	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, enforcer string) *SystemMonitor {
+	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.Node = node
@@ -158,160 +152,7 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = binary.LittleEndian
 
-	mon.NetLinkClient = mon.InitNetfilter(enforcer)
-
 	return mon
-}
-
-// InitNetfilter Function
-func (mon *SystemMonitor) InitNetfilter(enforcer string) *libaudit.AuditClient {
-	if enforcer != "AppArmor" {
-		return nil
-	}
-
-	mon.Logger.Print("Initializing NetFilter")
-	client, err := libaudit.NewMulticastAuditClient(nil)
-	if err != nil {
-		mon.Logger.Errf("Error initializing NetFilter %s", err)
-		return nil
-	}
-
-	mon.Logger.Print("NetFilter initialized")
-	return client
-}
-
-// BuildAppArmorLogBase Function
-func (mon *SystemMonitor) BuildAppArmorLogBase(containerID string, pidInfo tp.PidNode, match []string) {
-	log := tp.Log{}
-	timestamp, updatedTime := kl.GetDateTimeNow()
-
-	log.Timestamp = timestamp
-	log.UpdatedTime = updatedTime
-	log.ContainerID = containerID
-	log.AppArmorAlert = true
-
-	if log.ContainerID != "" {
-		log = mon.UpdateContainerInfoByContainerID(log)
-	} else {
-		// update host policy flag
-		log.PolicyEnabled = mon.Node.PolicyEnabled
-
-		// update host visibility flags
-		log.ProcessVisibilityEnabled = mon.Node.ProcessVisibilityEnabled
-		log.FileVisibilityEnabled = mon.Node.FileVisibilityEnabled
-		log.NetworkVisibilityEnabled = mon.Node.NetworkVisibilityEnabled
-		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
-	}
-
-	log.HostPPID = int32(pidInfo.HostPPID)
-	log.HostPID = int32(pidInfo.HostPID)
-	log.PID = int32(pidInfo.PID)
-	log.PPID = int32(pidInfo.PPID)
-	log.UID = int32(pidInfo.UID)
-
-	log.Source = pidInfo.Source
-	if len(pidInfo.Args) > 0 {
-		log.Source = log.Source + " " + pidInfo.Args
-	}
-
-	log.ParentProcessName = pidInfo.ParentExecPath
-	log.ProcessName = pidInfo.ExecPath
-
-	if match[1] == "DENIED" {
-		log.Result = "Permission denied"
-	} else {
-		log.Result = "Passed"
-	}
-
-	log.Data = "operation=" + match[2]
-
-	switch match[2] {
-	case "exec":
-		if len(match) < 4 {
-			goto error
-		}
-		log.Operation = "Process"
-		log.Resource = match[3]
-	case "open", "getattr", "mknod", "file_perm", "chown", "unlink", "file_mmap", "file_lock", "mkdir", "rename_src", "rename_dest", "truncate", "chmod", "rmdir":
-		if len(match) != 5 {
-			goto error
-		}
-		log.Operation = "File"
-		log.Resource = match[3]
-	case "create", "connect", "setsockopt", "getsockopt", "getsockname", "getpeername", "sendmsg", "recvmsg", "bind", "listen", "socket_shutdown":
-		log.Operation = "Network"
-		if len(match) == 5 {
-			log.Resource = "domain=unix socket=" + match[3]
-		} else if len(match) == 7 {
-			proto, _ := strconv.ParseInt(match[6], 10, 32)
-			log.Resource = "domain=" + match[4] + " type=" + match[5] + " protocol=" + getProtocol(int32(proto))
-		} else {
-			goto error
-		}
-
-	case "capable":
-		if len(match) != 6 {
-			goto error
-		}
-		log.Operation = "Network"
-		log.Resource = "capability_id=" + match[4] + " capability_name=" + match[5]
-	default:
-		mon.Logger.Warnf("Dropped AppArmor Alert, no matching operation: %v", match)
-		return
-	}
-
-	go mon.Logger.PushLog(log)
-	return
-error:
-	mon.Logger.Warnf("Skipped AppArmor Alert, array length does not match expected length. %v", match)
-}
-
-// WatchAppArmorAlerts Function
-func (mon *SystemMonitor) WatchAppArmorAlerts() {
-	if mon.NetLinkClient == nil {
-		return
-	}
-	ActiveHostPidMap := *(mon.ActiveHostPidMap)
-	ActivePidMapLock := *(mon.ActivePidMapLock)
-
-	profilergx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?name=\"(.*?)\".*?pid=([0-9]+)")
-	netregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?family=\"(.*?)\".*?sock_type=\"(.*?)\" protocol=(.*?) ")
-	capregx := regexp.MustCompile("apparmor=\"(AUDIT|DENIED|ALLOWED)\".*?operation=\"(.*?)\".*?pid=([0-9]+).*?capability=([0-9]+).*?capname=\"(.*?)\"")
-	for {
-		rawEvent, err := mon.NetLinkClient.Receive(false)
-		if err != nil || rawEvent.Type != auparse.AUDIT_AVC {
-			continue
-		}
-
-		ActivePidMapLock.RLock()
-		if match := profilergx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
-			a, _ := strconv.Atoi(match[0][4])
-			for cID, pidInfor := range ActiveHostPidMap {
-				if elem, ok := pidInfor[uint32(a)]; ok {
-					go mon.BuildAppArmorLogBase(cID, elem, match[0])
-					break
-				}
-			}
-		} else if match := netregx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
-			a, _ := strconv.Atoi(match[0][3])
-			for cID, pidInfor := range ActiveHostPidMap {
-				if elem, ok := pidInfor[uint32(a)]; ok {
-					go mon.BuildAppArmorLogBase(cID, elem, match[0])
-					break
-				}
-			}
-		} else if match := capregx.FindAllStringSubmatch(string(rawEvent.Data), -1); len(match) != 0 {
-			a, _ := strconv.Atoi(match[0][3])
-			for cID, pidInfor := range ActiveHostPidMap {
-				if elem, ok := pidInfor[uint32(a)]; ok {
-					go mon.BuildAppArmorLogBase(cID, elem, match[0])
-					break
-				}
-			}
-		}
-		ActivePidMapLock.RUnlock()
-	}
-
 }
 
 func loadIgnoreList(bpfPath string) ([]string, error) {

@@ -185,7 +185,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = npt.Message
 
 		match.Operation = "Network"
-		match.Resource = getProtocolFromName(npt.Protocol) + "," + npt.Protocol
+		match.Resource = getProtocolFromName(npt.Protocol)
 		match.ResourceType = "Protocol"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Allow" {
@@ -205,7 +205,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		op, cap := getOperationAndCapabilityFromName(cct.Capability)
 
 		match.Operation = op
-		match.Resource = cap + "," + cct.Capability
+		match.Resource = cap
 		match.ResourceType = "Capability"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && cct.Action == "Allow" {
@@ -908,6 +908,7 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 		}
 
 		(*log).PolicyName = "DefaultPosture"
+		(*log).Enforcer = "eBPF Monitor"
 		(*log).Action = "Audit"
 
 		return true
@@ -940,19 +941,6 @@ func getDirectoryPart(path string) string {
 
 // UpdateMatchedPolicy Function
 func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
-
-	if fd.Netfilter && !(log.AppArmorAlert || fd.Enforcer != "AppArmor" || log.Operation == "Syscall") {
-		return log
-	}
-
-	if log.AppArmorAlert {
-		log.Enforcer = "AppArmor"
-	} else if fd.Enforcer == "BPFLSM" && log.Operation != "Syscall" {
-		log.Enforcer = fd.Enforcer
-	} else {
-		log.Enforcer = "eBPF Monitor"
-	}
-
 	existFileAllowPolicy := false
 	existNetworkAllowPolicy := false
 	existCapabilitiesAllowPolicy := false
@@ -1053,6 +1041,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
+							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								log.Enforcer = "eBPF Monitor"
+							} else {
+								log.Enforcer = fd.Enforcer
+							}
+
 							log.Action = "Allow"
 
 							continue
@@ -1076,6 +1070,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
+							log.Enforcer = "eBPF Monitor"
 							log.Action = secPolicy.Action
 
 							continue
@@ -1101,6 +1096,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 								log.Message = secPolicy.Message
 							}
 
+							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								log.Enforcer = "eBPF Monitor"
+							} else {
+								log.Enforcer = fd.Enforcer
+							}
+
 							log.Action = secPolicy.Action
 
 							continue
@@ -1123,6 +1124,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						log.Tags = ""
 						log.ATags = []string{}
 						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
 						log.Action = "Block"
 
 						continue
@@ -1139,6 +1142,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						log.Tags = ""
 						log.ATags = []string{}
 						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
 
 						if fd.DefaultPostures[log.NamespaceName].FileAction == "block" {
 							log.Action = "Audit (Block)"
@@ -1162,6 +1167,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.ATags = []string{}
 					log.Message = ""
 
+					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit (Block)"
 				}
 
@@ -1177,6 +1183,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.ATags = []string{}
 					log.Message = ""
 
+					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 				}
 
@@ -1214,6 +1221,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 									log.Message = secPolicy.Message
 								}
 
+								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+									log.Enforcer = "eBPF Monitor"
+								} else {
+									log.Enforcer = fd.Enforcer
+								}
+
 								log.Action = "Allow"
 
 								skip = true
@@ -1238,6 +1251,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 									log.Message = secPolicy.Message
 								}
 
+								log.Enforcer = "eBPF Monitor"
 								log.Action = secPolicy.Action
 
 								skip = true
@@ -1260,6 +1274,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 								if len(secPolicy.Message) > 0 {
 									log.Message = secPolicy.Message
+								}
+
+								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+									log.Enforcer = "eBPF Monitor"
+								} else {
+									log.Enforcer = fd.Enforcer
 								}
 
 								log.Action = secPolicy.Action
@@ -1285,6 +1305,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						log.Tags = ""
 						log.Message = ""
 
+						log.Enforcer = "eBPF Monitor"
 						log.Action = "Block"
 
 						continue
@@ -1300,6 +1321,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						log.Severity = ""
 						log.Tags = ""
 						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
 
 						if fd.DefaultPostures[log.NamespaceName].NetworkAction == "block" {
 							log.Action = "Audit (Block)"
@@ -1322,6 +1345,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Tags = ""
 					log.Message = ""
 
+					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit (Block)"
 				}
 
@@ -1336,6 +1360,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Tags = ""
 					log.Message = ""
 
+					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 				}
 			case "Syscall":
@@ -1419,23 +1444,23 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			fd.DefaultPosturesLock.Unlock()
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, !existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
+				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, !existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
+				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.FileVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, !existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
+				if setLogFields(&log, existNetworkAllowPolicy, fd.DefaultPostures[log.NamespaceName].NetworkAction, log.NetworkVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, !existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, fd.DefaultPostures[log.NamespaceName].CapabilitiesAction, log.CapabilitiesVisibilityEnabled, true) {
 					return log
 				}
 			} else if log.Operation == "Syscall" {
-				if setLogFields(&log, true, "", true, true) {
+				if setLogFields(&log, false, "", true, true) {
 					return log
 				}
 			}
@@ -1452,19 +1477,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			// host log
 
 			if log.Operation == "Process" {
-				if setLogFields(&log, !existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, !existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, !existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, !existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
 			}

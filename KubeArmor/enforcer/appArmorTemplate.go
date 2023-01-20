@@ -3,28 +3,21 @@
 
 package enforcer
 
-import tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-
 // ProfileHeader contain sAppArmor Profile/SubProfile header config
 type ProfileHeader struct {
-	File, Network, Capabilities                bool
-	AuditFile, AuditNetwork, AuditCapabilities bool
+	File, Network, Capabilities bool
 }
 
 // Init sets the presence of Entity headers to true by default
-func (h *ProfileHeader) Init(defaultPosture *tp.DefaultPosture) {
+func (h *ProfileHeader) Init() {
 	h.File = true
 	h.Network = true
 	h.Capabilities = true
-	h.AuditFile = defaultPosture.FileAction == "audit"
-	h.AuditNetwork = defaultPosture.NetworkAction == "audit"
-	h.AuditCapabilities = defaultPosture.CapabilitiesAction == "audit"
-
 }
 
 // RuleConfig contains details for individual apparmor rules
 type RuleConfig struct {
-	Dir, Recursive, ReadOnly, OwnerOnly, Deny, Allow, Audit bool
+	Dir, Recursive, ReadOnly, OwnerOnly, Deny, Allow bool
 }
 
 // Rules contains configuration for the AppArmor Profile/SubProfile Body
@@ -60,8 +53,8 @@ type Profile struct {
 }
 
 // Init initialises elements Profike Structure
-func (p *Profile) Init(defaultPosture *tp.DefaultPosture) {
-	p.ProfileHeader.Init(defaultPosture)
+func (p *Profile) Init() {
+	p.ProfileHeader.Init()
 	p.Rules.Init()
 	p.FromSource = make(map[string]FromSourceConfig)
 }
@@ -100,27 +93,23 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 		{{- if $data.Deny}}
 			{{- if $data.OwnerOnly}}
 				owner {{$value}}{{$suffix}} ix,
-				audit deny other {{$value}}{{$suffix}} x,
+				deny other {{$value}}{{$suffix}} x,
 			{{- else}}
-				audit deny {{$value}}{{$suffix}} x,
+				deny {{$value}}{{$suffix}} x,
 			{{- end}}
 		{{- end}}
 
-		{{- if or $data.Audit $data.Allow}}
-    	{{- $audit := "" -}}
-      {{- if $data.Audit }}
-      	{{- $audit = "audit" }}
-      {{- end }}
+		{{- if $data.Allow}}
 			{{- if and (eq $suffix "") (not (regexMatch $regex $value)) }}
 				{{- if $data.OwnerOnly}}
-					{{$audit}} owner {{$value}} ix,
+					owner {{$value}} ix,
 				{{- else}}
-					{{$audit}} {{$value}} ix,
+					{{$value}} ix,
 				{{- end}}
       {{- else if not (regexMatch $regex $value)}}
-      	{{$audit}} {{$value}}{{$suffix}} ix,
+      	{{$value}}{{$suffix}} ix,
       {{- else}}
-      	## {{$audit}} {{$value}} px -> {{$.Name}}-{{$value}}
+      	## {{$value}} px -> {{$.Name}}-{{$value}}
 			{{- end}}
 		{{- end}}
 	{{- end}}
@@ -168,30 +157,26 @@ profile {{$.Name}}-{{$source}} {
 		{{- end}}
 		{{- if $data.Deny}}
 			{{- if $data.OwnerOnly}}
-				audit owner {{$value}}{{$suffix}} ix,
-				audit deny other {{$value}}{{$suffix}} x,
+				owner {{$value}}{{$suffix}} ix,
+				deny other {{$value}}{{$suffix}} x,
 			{{- else}}
-				audit deny {{$value}}{{$suffix}} x,
+				deny {{$value}}{{$suffix}} x,
 			{{- end}}
 		{{- end}}
 
-		{{- if or $data.Audit $data.Allow}}
-    	{{- $audit := "" -}}
-      {{- if $data.Audit }}
-      	{{- $audit = "audit" }}
-      {{- end }}
+		{{- if $data.Allow}}
 			{{- if eq $suffix "" }}
       	{{- if has $value $fromSourceList }}
         	{{- if $data.OwnerOnly}}
-						{{$audit}} owner {{$value}} px -> {{$.Name}}-{{$value}},
+						owner {{$value}} px -> {{$.Name}}-{{$value}},
 					{{- else}}
-						{{$audit}} {{$value}} px -> {{$.Name}}-{{$value}},
+						{{$value}} px -> {{$.Name}}-{{$value}},
 					{{- end}}
         {{- else}}
         	{{- if $data.OwnerOnly}}
-						{{$audit}} owner {{$value}} cx,
+						owner {{$value}} cx,
 					{{- else}}
-						{{$audit}} {{$value}} cx,
+						{{$value}} cx,
             profile {{$value}} {
             {{$value}} rix,
             {{template "pre-section" $ctx}}
@@ -218,21 +203,9 @@ profile {{$.Name}}-{{$source}} {
 {{define "pre-section"}}
 	## == PRE START == ##
 	#include <abstractions/base>
-			{{- if .AuditFile }}
-      	audit file,
-      {{- else if .File}}
-      	file,
-      {{- end }}
-			{{- if .AuditNetwork }}
-        audit network,
-      {{- else if .Network }}
-        network,
-      {{- end }}
-			{{- if .AuditCapabilities }}
-        audit capability,
-      {{- else if .Capabilities }}
-      	capability,
-      {{- end }}
+			{{ if .File}}	file,{{end}}
+			{{ if .Network}}	network,{{end}}
+			{{ if .Capabilities}}	capability,{{end}}
 	## == PRE END == ##
 {{- end}}
 
@@ -240,14 +213,10 @@ profile {{$.Name}}-{{$source}} {
   ## == Network START == ##
 	{{- range $value, $data := .NetworkRules}}
     {{- if $data.Deny}}
-    	audit deny network {{$value}},
+      deny network {{$value}},
     {{- end}}
-    {{- if or $data.Audit $data.Allow}}
-    	{{- $audit := "" -}}
-      {{- if $data.Audit }}
-      	{{- $audit = "audit" }}
-      {{- end }}
-      {{$audit}} network {{$value}},
+    {{- if $data.Allow}}
+      network {{$value}},
     {{- end}}
   {{- end}}
   ## == Network END == ##
@@ -257,15 +226,11 @@ profile {{$.Name}}-{{$source}} {
   ## == Capabilities START == ##
   {{- range $value, $data := .CapabilitiesRules}}
     {{- if $data.Deny}}
-      audit deny capability
+      deny capability
     {{$value}},
     {{- end}}
-    {{- if or $data.Audit $data.Allow}}
-    	{{- $audit := "" -}}
-      {{- if $data.Audit }}
-      	{{- $audit = "audit" }}
-      {{- end }}
-      {{$audit}} capability {{$value}},
+    {{- if $data.Allow}}
+      capability {{$value}},
     {{- end}}
   {{- end}}
   ## == Capabilities END == ##
@@ -282,30 +247,26 @@ profile {{$.Name}}-{{$source}} {
     {{- end}}
     {{- if $data.Deny}}
       {{- if and $data.ReadOnly $data.OwnerOnly}}
-        audit deny owner {{$value}}{{$suffix}} klw,
-        audit deny other {{$value}}{{$suffix}} klmrw,
+        deny owner {{$value}}{{$suffix}} klw,
+        deny other {{$value}}{{$suffix}} klmrw,
       {{- else if $data.OwnerOnly}}
         owner {{$value}}{{$suffix}} klmrw,
-        audit deny other {{$value}}{{$suffix}} klmrw,
+        deny other {{$value}}{{$suffix}} klmrw,
       {{- else if $data.ReadOnly}}
-        audit deny {{$value}}{{$suffix}} klw,
+        deny {{$value}}{{$suffix}} klw,
       {{- else}}
-        audit deny {{$value}}{{$suffix}} klmrw,
+        deny {{$value}}{{$suffix}} klmrw,
       {{- end}}
     {{- end}}
-    {{- if or $data.Audit $data.Allow}}
-    	{{- $audit := "" -}}
-      {{- if $data.Audit }}
-      	{{- $audit = "audit" }}
-      {{- end }}
+    {{- if $data.Allow}}
       {{- if and $data.ReadOnly $data.OwnerOnly}}
-        {{$audit}} owner {{$value}}{{$suffix}} klr,
+        owner {{$value}}{{$suffix}} klr,
       {{- else if $data.OwnerOnly}}
-        {{$audit}} owner {{$value}}{{$suffix}} klmrw,
+        owner {{$value}}{{$suffix}} klmrw,
       {{- else if $data.ReadOnly}}
-        {{$audit}} {{$value}}{{$suffix}} klr,
+        {{$value}}{{$suffix}} klr,
       {{- else}}
-        {{$audit}} {{$value}}{{$suffix}} klmrw,
+        {{$value}}{{$suffix}} klmrw,
       {{- end}}
     {{- end}}
 	{{- end}}
