@@ -52,14 +52,12 @@ jobs:
         run: ./.github/workflows/install-annotation-controller.sh
 
       - name: Generate KubeArmor artifacts
-        env: 
-          REPO_OWNER: ${{ github.repository_owner }}
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
       - name: Deploy KubeArmor into Kubernetes
         run: |
-          sed -i 's/${{ github.repository_owner }}\/kubearmor:latest/${{ github.repository_owner }}\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
-          sed -i 's/${{ github.repository_owner }}\/kubearmor-init:latest/${{ github.repository_owner }}\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
+          sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl apply -f deployments/CRD
           kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
           kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor

@@ -41,7 +41,7 @@ jobs:
           echo "tag=latest" >> $GITHUB_OUTPUT
           RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
-      - name: Generate KubeArmor artifacts
+      - name: Generate KubeArmor artifacts      
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
       - name: Run KubeArmor
