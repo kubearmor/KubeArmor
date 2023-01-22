@@ -3,5 +3,5 @@ cmd: curl google.com
 result: default
 ---
 operation: Network
-condition: dgram
+condition: SOCK_DGRAM
 action: default

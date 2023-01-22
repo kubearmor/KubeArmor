@@ -12,4 +12,4 @@ spec:
     matchProtocols:
     - protocol: icmp
   action:
-    Block
+    Audit
