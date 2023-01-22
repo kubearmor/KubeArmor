@@ -120,7 +120,7 @@ jobs:
         id: match
         run: |
           value=`cat STABLE-RELEASE`
-          if [ ${{ github.ref }} == refs/heads/$value ]; then
+          if [ ${{ github.ref }} == "refs/heads/$value" ]; then
             docker pull docker.io/${{ github.repository_owner }}/kubearmor:$value
             docker image tag ${{ github.repository_owner }}/kubearmor:$value ${{ github.repository_owner }}/kubearmor:stable
             echo "tag=true" >> $GITHUB_OUTPUT
