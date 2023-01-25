@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	cle "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -30,6 +31,8 @@ import (
 const (
 	PermissionDenied = -13
 	MaxStringLen     = 4096
+	// how many event the channel can hold
+	SyscallChannelSize = 1 << 13 //8192
 )
 
 // ======================= //
@@ -40,6 +43,11 @@ const (
 type NsKey struct {
 	PidNS uint32
 	MntNS uint32
+}
+
+type ContextReplay struct {
+	Time  time.Time
+	Count int
 }
 
 // ===================== //
@@ -318,7 +326,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
-		mon.SyscallChannel = make(chan []byte, 8192)
+		mon.SyscallChannel = make(chan []byte, SyscallChannelSize)
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
@@ -394,6 +402,67 @@ func (mon *SystemMonitor) TraceSyscall() {
 	ContainersLock := *(mon.ContainersLock)
 
 	execLogMap := map[uint32]tp.Log{}
+	ctxReplayMap := map[SyscallContext]ContextReplay{}
+	ctxReplayMapLock := new(sync.RWMutex)
+	ReplayChannel := make(chan []byte, SyscallChannelSize)
+
+	go func() {
+		for {
+			dataRaw, valid := <-ReplayChannel
+			if !valid {
+				continue
+			}
+			dataBuff := bytes.NewBuffer(dataRaw)
+			ctx, err := readContextFromBuff(dataBuff)
+			if err != nil {
+				continue
+			}
+			ctxReplayMapLock.Lock()
+			if replay, ok := ctxReplayMap[ctx]; ok {
+				/*
+					Container is still starting, KubeArmor is still gathering informations.
+					Replaying event, max replays = 5
+				*/
+				if replay.Count < 5 {
+					replay.Count++
+					ctxReplayMap[ctx] = replay
+				} else {
+					// max repeats has been reached
+					delete(ctxReplayMap, ctx)
+					ctxReplayMapLock.Unlock()
+					continue
+				}
+			} else {
+				ctxReplayMap[ctx] = ContextReplay{
+					Time: time.Now(),
+				}
+			}
+			ctxReplayMapLock.Unlock()
+
+			// Best effort replay
+			select {
+			case mon.SyscallChannel <- dataRaw:
+			default:
+				mon.Logger.Printf("Event droped due to busy event channel")
+			}
+
+		}
+	}()
+	// ctxReplayMap cleaner
+	go func() {
+		for {
+			now := time.Now()
+			ctxReplayMapLock.Lock()
+			for ctx, replay := range ctxReplayMap {
+				if now.After(replay.Time.Add(time.Second * 5)) {
+					mon.Logger.Warnf("cleaned a memory")
+					delete(ctxReplayMap, ctx)
+				}
+			}
+			ctxReplayMapLock.Unlock()
+			time.Sleep(time.Second * 10)
+		}
+	}()
 
 	for {
 		select {
@@ -431,6 +500,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+				ReplayChannel <- dataRaw
 				continue
 			}
 
