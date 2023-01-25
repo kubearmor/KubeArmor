@@ -45,11 +45,6 @@ type NsKey struct {
 	MntNS uint32
 }
 
-type ContextReplay struct {
-	Time  time.Time
-	Count int
-}
-
 // ===================== //
 // == Syscall Context == //
 // ===================== //
@@ -130,6 +125,9 @@ type SystemMonitor struct {
 	// lists to skip
 	UntrackedNamespaces []string
 
+	execLogMap     map[uint32]tp.Log
+	execLogMapLock *sync.RWMutex
+
 	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
@@ -159,6 +157,9 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = binary.LittleEndian
+
+	mon.execLogMap = map[uint32]tp.Log{}
+	mon.execLogMapLock = new(sync.RWMutex)
 
 	return mon
 }
@@ -401,9 +402,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 
-	execLogMap := map[uint32]tp.Log{}
-	ctxReplayMap := map[SyscallContext]ContextReplay{}
-	ctxReplayMapLock := new(sync.RWMutex)
 	ReplayChannel := make(chan []byte, SyscallChannelSize)
 
 	go func() {
@@ -417,50 +415,22 @@ func (mon *SystemMonitor) TraceSyscall() {
 			if err != nil {
 				continue
 			}
-			ctxReplayMapLock.Lock()
-			if replay, ok := ctxReplayMap[ctx]; ok {
-				/*
-					Container is still starting, KubeArmor is still gathering informations.
-					Replaying event, max replays = 5
-				*/
-				if replay.Count < 5 {
-					replay.Count++
-					ctxReplayMap[ctx] = replay
-				} else {
-					// max repeats has been reached
-					delete(ctxReplayMap, ctx)
-					ctxReplayMapLock.Unlock()
-					continue
-				}
-			} else {
-				ctxReplayMap[ctx] = ContextReplay{
-					Time: time.Now(),
-				}
+
+			now := time.Now()
+			if now.After(time.Unix(int64(ctx.Ts), 0).Add(5 * time.Second)) {
+				mon.Logger.Warn("Event dropped due to replay timeout")
+				continue
 			}
-			ctxReplayMapLock.Unlock()
 
 			// Best effort replay
-			select {
-			case mon.SyscallChannel <- dataRaw:
-			default:
-				mon.Logger.Printf("Event droped due to busy event channel")
-			}
-
-		}
-	}()
-	// ctxReplayMap cleaner
-	go func() {
-		for {
-			now := time.Now()
-			ctxReplayMapLock.Lock()
-			for ctx, replay := range ctxReplayMap {
-				if now.After(replay.Time.Add(time.Second * 5)) {
-					mon.Logger.Warnf("cleaned a memory")
-					delete(ctxReplayMap, ctx)
+			go func() {
+				time.Sleep(1 * time.Second)
+				select {
+				case mon.SyscallChannel <- dataRaw:
+				default:
+					mon.Logger.Warn("Event droped due to busy event channel")
 				}
-			}
-			ctxReplayMapLock.Unlock()
-			time.Sleep(time.Second * 10)
+			}()
 		}
 	}()
 
@@ -591,7 +561,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
-					execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
 
 				} else if len(args) == 0 { // return
 					// if Policy is not set
@@ -605,10 +577,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// get the stored log
-					log := execLogMap[ctx.HostPID]
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-					delete(execLogMap, ctx.HostPID)
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
 
 					// update the log again
 					log = mon.UpdateLogBase(ctx.EventID, log)
@@ -678,7 +652,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
-					execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
 
 				} else if len(args) == 0 { // return
 					// if Policy is not set
@@ -692,10 +668,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// get the stored log
-					log := execLogMap[ctx.HostPID]
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-					delete(execLogMap, ctx.HostPID)
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
 
 					// update the log again
 					log = mon.UpdateLogBase(ctx.EventID, log)
