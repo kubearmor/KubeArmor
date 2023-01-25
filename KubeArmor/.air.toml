@@ -1,0 +1,27 @@
+root = "."
+
+[build]
+  bin = "make run"
+  cmd = "make build"
+  include_file = ["BPF/enforcer.bpf.c", "BPF/system_monitor.c"]
+  exclude_dir = ["tmp","BPF/libbpf","BPF/tests"]
+  exclude_file = [""]
+  exclude_ext = ["o","h","lst","vars"]
+  exclude_regex = ["_test.go"]
+  exclude_unchanged = true
+  follow_symlink = false
+  include_dir = []
+  include_ext = ["go", "tpl", "tmpl", "html", "c"]
+  kill_delay = "0s"
+  log = "build-errors.log"
+  send_interrupt = false
+  stop_on_error = true
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true
+
+[screen]
+  clear_on_rebuild = false
