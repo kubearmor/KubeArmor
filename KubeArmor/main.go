@@ -7,13 +7,27 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"syscall"
-	"time"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
+
+var GitCommit string
+var GitBranch string
+var BuildDate string
+
+func printBuildDetails() {
+	if GitCommit == "" {
+		return
+	}
+	kg.Printf("BUILD-INFO: commit: %v, branch: %v, date: %v",
+		GitCommit, GitBranch, BuildDate)
+}
+
+func init() {
+	printBuildDetails()
+}
 
 func main() {
 	if os.Geteuid() != 0 {
@@ -30,11 +44,6 @@ func main() {
 	if err := os.Chdir(dir); err != nil {
 		kg.Err(err.Error())
 		return
-	}
-
-	if finfo, err := os.Stat(os.Args[0]); err == nil {
-		stat := finfo.Sys().(*syscall.Stat_t)
-		kg.Printf("Build Time: %v", time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec)))
 	}
 
 	if err := cfg.LoadConfig(); err != nil {
