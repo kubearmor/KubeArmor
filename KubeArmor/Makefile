@@ -12,6 +12,13 @@ DLV_LPORT       := 2345
 DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
+ifeq (, $(shell which govvv))
+$(shell go install github.com/ahmetb/govvv)	# This works for older go version
+$(shell go install github.com/ahmetb/govvv@latest) # This works for new go version
+endif
+
+GIT_INFO := $(shell govvv -flags)
+
 .PHONY: build
 build: protobuf
 	cd $(CURDIR); go mod tidy
@@ -25,7 +32,7 @@ ifneq (, $(shell which llvm-strip))
 	fi
 endif
 endif
-	cd $(CURDIR); go build -o kubearmor main.go
+	cd $(CURDIR); go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
 
 .PHONY: protobuf
 protobuf:
