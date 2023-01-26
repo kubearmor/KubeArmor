@@ -5,7 +5,10 @@ The list is sorted in ascending order.
 
 ## KubeArmor Maintainers
 
-* [Asif Ali](https://github.com/asifalix) (Accuknox)
-* [Jaehyun Nam](https://github.com/nam-jaehyun) (Accuknox)
-* [Rahul Jadhav](https://github.com/nyrahul) (Accuknox)
+* [Ankur Kothiwal](https://github.com/Ankurk99) (AccuKnox)
+* [Anurag Kumar](https://github.com/kranurag7)
+* [Achref Ben Saad](https://github.com/achrefbensaad) (AccuKnox)
+* [Barun Acharya](https://github.com/daemon1024) (AccuKnox)
+* [Jaehyun Nam](https://github.com/nam-jaehyun) (AccuKnox)
+* [Rahul Jadhav](https://github.com/nyrahul) (AccuKnox)
 
