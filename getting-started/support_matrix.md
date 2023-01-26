@@ -16,7 +16,7 @@ KubeArmor supports following types of workloads:
 | [AWS EKS](https://aws.amazon.com/eks/) | [Bottlerocket OS](https://github.com/bottlerocket-os/bottlerocket#bottlerocket-os) | Yes | Support leveraging [BPF LSM](https://github.com/kubearmor/KubeArmor/issues/484)
 | RedHat OpenShift | Red Hat Enterprise Linux release 8.4 | Partial | Observability/Audit mode is supported, Enforcement mode is not supported. (Kernel Version: 4.18.0-305.45.1.el8_4.x86_64, Openshift Version: 4.10.14)
 | [Rancher RKE](https://www.rancher.com/products/rke) | all | Yes | Supported - Except [RKE deployed on host using a Docker container](https://rancher.com/docs/rancher/v2.5/en/installation/other-installation-methods/single-node-docker/) |
-|[Oracle OKE](https://www.oracle.com/in/cloud/cloud-native/container-engine-kubernetes/)|[Oracle Linux Server 8.6](https://docs.oracle.com/en/operating-systems/oracle-linux/8/relnotes8.6/)|Partial|Observability/Audit: Supported, Enforcement: Not Supported for k8s pods (Kernel Version 5.4.17-2136.311.6.1.el8uek.x86_64)|
+|[Oracle OKE](https://www.oracle.com/in/cloud/cloud-native/container-engine-kubernetes/)|[Oracle Linux Server 8.7](https://docs.oracle.com/en/operating-systems/oracle-linux/8/relnotes8.7/)|Yes|Support leveraging [BPF LSM](https://github.com/kubearmor/KubeArmor/issues/484)|
 | VMWare Tanzu | * | TBD |
 | Nutanix | * | TBD |
 
