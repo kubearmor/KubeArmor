@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -240,6 +241,13 @@ func (mon *SystemMonitor) DeleteActivePid(containerID string, ctx SyscallContext
 	}
 }
 
+func cleanMaps(pidMap tp.PidMap, execLogMap map[uint32]tp.Log, execLogMapLock *sync.RWMutex, pid uint32) {
+	delete(pidMap, pid)
+	execLogMapLock.Lock()
+	delete(execLogMap, pid)
+	execLogMapLock.Unlock()
+}
+
 // CleanUpExitedHostPids Function
 func (mon *SystemMonitor) CleanUpExitedHostPids() {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
@@ -253,15 +261,15 @@ func (mon *SystemMonitor) CleanUpExitedHostPids() {
 		for containerID, pidMap := range ActiveHostPidMap {
 			for pid, pidNode := range pidMap {
 				if pidNode.Exited && now.After(pidNode.ExitedTime.Add(time.Second*5)) {
-					delete(pidMap, pid)
+					cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
 				} else if now.After(pidNode.ExitedTime.Add(time.Second * 30)) {
 					p, err := os.FindProcess(int(pid))
 					if err == nil && p != nil {
 						if p.Signal(syscall.Signal(0)) != nil {
-							delete(pidMap, pid)
+							cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
 						}
 					} else {
-						delete(pidMap, pid)
+						cleanMaps(pidMap, mon.execLogMap, mon.execLogMapLock, pid)
 					}
 				}
 			}
