@@ -21,6 +21,7 @@ type KarmorData struct {
 	ContainerSecurity       bool
 	ContainerDefaultPosture tp.DefaultPosture
 	HostDefaultPosture      tp.DefaultPosture
+	HostVisibility          string
 }
 
 // SetKarmorData generates runtime configuration for KubeArmor to be consumed by kArmor
@@ -54,6 +55,7 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 		}
 	}
 	kd.KernelHeaderPresent = true //this is always true since KubeArmor is running
+	kd.HostVisibility = dm.Node.Annotations["kubearmor-visibility"]
 	err := kl.WriteToFile(kd, "/tmp/karmorProbeData.cfg")
 	if err != nil {
 		dm.Logger.Errf("Error writing karmor config data", err)
