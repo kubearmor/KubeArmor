@@ -195,9 +195,6 @@
 
         KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives (including LSMs).
 
-        > **Note** If you have done all steps and while doing `make run` ,you get logs like <br>
-        `2023-02-01 18:50:57.983600	INFO	The node information is not available`.<br> 
-         Then it is due to a mismatch between the hostname(can be obatined by running `hostname`) and the hostname shown under Name section in the output of `kubectl get nodes -o wide`. This can happen when the hostname has different letter casing from the name shown in the output.And, it happens because kubernetes lowers the casing. To resolve this, change the hostname to a some lowercase name with the command `hostnamectl set-hostname <lowercase-hostname>`.
 
    * Development Setup
 
@@ -238,6 +235,11 @@
         $ cd KubeArmor/KubeArmor
         ~/KubeArmor/KubeArmor$ make run
         ```
+        > **Note** If you have followed all necessary steps, and still getting logs like <br>
+        `2023-02-01 18:50:57.983600 INFO The node information is not available` <br>
+        It is due to discrepancy between the actual hostname (obtained by running `hostname`) and the hostname used by Kubernetes (under `kubectl get nodes -o wide`) may be due to case sensitivity issue. K8s converts the hostname to lowercase, which results in a mismatch with the actual hostname.
+        To resolve this, change the hostname to a lowercase version using the command `hostnamectl set-hostname <lowercase-hostname>`
+         
    * Annotation controller
       
       Starting from KubeArmor v0.5 annotations are applied via an annotation controller, the controller code can be found under `pkg/KubeArmorAnnotation`.
