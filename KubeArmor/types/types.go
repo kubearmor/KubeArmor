@@ -532,6 +532,14 @@ type DefaultPosture struct {
 	CapabilitiesAction string `json:"capabilties,omitempty"`
 }
 
+// Visibility Structure
+type Visibility struct {
+	File         bool `json:"file,omitempty"`
+	Process      bool `json:"process,omitempty"`
+	Network      bool `json:"network,omitempty"`
+	Capabilities bool `json:"capabilties,omitempty"`
+}
+
 // ================== //
 // == SELinux Rule == //
 // ================== //

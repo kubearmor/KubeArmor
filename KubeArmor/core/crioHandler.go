@@ -254,7 +254,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
@@ -288,7 +288,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
-			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
@@ -321,13 +321,6 @@ func (dm *KubeArmorDaemon) MonitorCrioEvents() {
 			containers, err := Crio.GetCrioContainers()
 			if err != nil {
 				return
-			}
-
-			// if number of stored container IDs is equal to number of container IDs
-			// returned by the API, no containers added/deleted
-			if len(containers) == len(Crio.containers) {
-				time.Sleep(time.Millisecond * 10)
-				continue
 			}
 
 			invalidContainers := []string{}

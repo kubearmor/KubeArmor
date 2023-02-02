@@ -16,12 +16,14 @@ import (
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	get "github.com/kubearmor/KubeArmor/deployments/get"
 	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kspinformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -2571,6 +2573,77 @@ func validateGlobalDefaultPosture(posture string) string {
 	}
 }
 
+// ======================== //
+// == Default Visibility == //
+// ======================== //
+
+func (dm *KubeArmorDaemon) validateVisibility(scope string, ns *corev1.Namespace, DefaultVisibility string) bool {
+	key := "kubearmor-visibility"
+	if ns.Annotations != nil && ns.Annotations[key] != "" {
+		if strings.Contains(ns.Annotations[key], scope) {
+			return true
+		}
+	} else {
+		nsPatch := corev1.Namespace{}
+		nsPatch.Annotations = make(map[string]string)
+		nsPatch.Annotations[key] = DefaultVisibility
+		if kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, ns.Name) {
+			nsPatch.Annotations[key] = "none"
+		}
+		patch, err := json.Marshal(nsPatch)
+		if err != nil {
+			dm.Logger.Warnf("Cannot marshal namespace patch for %s, err=%s", ns.Name, err)
+			return false
+		}
+		_, err = K8s.K8sClient.CoreV1().Namespaces().Patch(context.Background(), ns.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			dm.Logger.Warnf("Cannot patch namespace %s, err=%s", ns.Name, err)
+		}
+	}
+	return false
+}
+
+// UpdateVisibility Function
+func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, visibility tp.Visibility) {
+	dm.SystemMonitor.BpfMapLock.Lock()
+	defer dm.SystemMonitor.BpfMapLock.Unlock()
+
+	if action == "ADDED" || action == "MODIFIED" {
+		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
+			val.Capability = visibility.Capabilities
+			val.File = visibility.File
+			val.Network = visibility.Network
+			val.Process = visibility.Process
+			dm.SystemMonitor.NamespacePidsMap[namespace] = val
+			for _, nskey := range val.NsKeys {
+				dm.SystemMonitor.UpdateNsKeyMap("MODIFIED", nskey, tp.Visibility{
+					File:         visibility.File,
+					Process:      visibility.Process,
+					Capabilities: visibility.Capabilities,
+					Network:      visibility.Network,
+				})
+			}
+		} else {
+			dm.SystemMonitor.NamespacePidsMap[namespace] = monitor.NsVisibility{
+				NsKeys:     []monitor.NsKey{},
+				File:       visibility.File,
+				Process:    visibility.Process,
+				Capability: visibility.Capabilities,
+				Network:    visibility.Network,
+			}
+		}
+		dm.Logger.Printf("Namespace %s visibiliy configured", namespace)
+	} else if action == "DELETED" {
+		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
+			for _, nskey := range val.NsKeys {
+				dm.Logger.Warnf("Calling delete")
+				dm.SystemMonitor.UpdateNsKeyMap("DELETED", nskey, tp.Visibility{})
+			}
+		}
+		delete(dm.SystemMonitor.NamespacePidsMap, namespace)
+	}
+}
+
 // UpdateGlobalPosture Function
 func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
 	dm.EndPointsLock.Lock()
@@ -2607,8 +2680,14 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 					CapabilitiesAction: cp,
 				}
 				annotated := fa || na || ca
+				visibility := tp.Visibility{
+					File:         dm.validateVisibility("file", ns, cfg.GlobalCfg.Visibility),
+					Process:      dm.validateVisibility("process", ns, cfg.GlobalCfg.Visibility),
+					Network:      dm.validateVisibility("network", ns, cfg.GlobalCfg.Visibility),
+					Capabilities: dm.validateVisibility("capabilities", ns, cfg.GlobalCfg.Visibility),
+				}
 				dm.UpdateDefaultPosture("ADDED", ns.Name, defaultPosture, annotated)
-
+				dm.UpdateVisibility("ADDED", ns.Name, visibility)
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
@@ -2622,7 +2701,14 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 					CapabilitiesAction: cp,
 				}
 				annotated := fa || na || ca
+				visibility := tp.Visibility{
+					File:         dm.validateVisibility("file", ns, cfg.GlobalCfg.Visibility),
+					Process:      dm.validateVisibility("process", ns, cfg.GlobalCfg.Visibility),
+					Network:      dm.validateVisibility("network", ns, cfg.GlobalCfg.Visibility),
+					Capabilities: dm.validateVisibility("capabilities", ns, cfg.GlobalCfg.Visibility),
+				}
 				dm.UpdateDefaultPosture("MODIFIED", ns.Name, defaultPosture, annotated)
+				dm.UpdateVisibility("MODIFIED", ns.Name, visibility)
 
 			}
 		},
@@ -2633,13 +2719,14 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 				_, ca := validateDefaultPosture("kubearmor-capabilities-posture", ns, cfg.GlobalCfg.DefaultCapabilitiesPosture)
 				annotated := fa || na || ca
 				dm.UpdateDefaultPosture("DELETED", ns.Name, tp.DefaultPosture{}, annotated)
+				dm.UpdateVisibility("DELETED", ns.Name, tp.Visibility{})
 			}
 		},
 	})
 
 	go factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
-	dm.Logger.Print("Started watching Default Posture Annotations")
+	dm.Logger.Print("Started watching Default Posture Annotations and namespace")
 }
 
 // WatchConfigMap function

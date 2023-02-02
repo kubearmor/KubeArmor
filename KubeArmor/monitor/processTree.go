@@ -33,31 +33,83 @@ func (mon *SystemMonitor) LookupContainerID(pidns, mntns, ppid, pid uint32) stri
 }
 
 // AddContainerIDToNsMap Function
-func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, pidns, mntns uint32) {
+func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace string, pidns, mntns uint32) {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 
 	mon.NsMapLock.Lock()
-	defer mon.NsMapLock.Unlock()
-
 	mon.NsMap[key] = containerID
+	mon.NsMapLock.Unlock()
+
+	mon.BpfMapLock.Lock()
+	if val, ok := mon.NamespacePidsMap[namespace]; ok {
+		// check if nskey already exist
+		found := false
+		for i := range val.NsKeys {
+			if val.NsKeys[i].MntNS == mntns && val.NsKeys[i].PidNS == pidns {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			val.NsKeys = append(val.NsKeys, key)
+			mon.NamespacePidsMap[namespace] = val
+		}
+		mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{
+			File:         val.File,
+			Process:      val.Process,
+			Capabilities: val.Capability,
+			Network:      val.Network,
+		})
+	} else {
+		mon.NamespacePidsMap[namespace] = NsVisibility{
+			NsKeys: []NsKey{
+				key,
+			},
+		}
+		mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{})
+	}
+	mon.BpfMapLock.Unlock()
 }
 
 // DeleteContainerIDFromNsMap Function
-func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string) {
-	ns := NsKey{}
-
-	mon.NsMapLock.Lock()
-	defer mon.NsMapLock.Unlock()
-
-	for key, val := range mon.NsMap {
-		if containerID == val {
-			ns = key
-			break
-		}
+func (mon *SystemMonitor) DeleteContainerIDFromNsMap(containerID string, namespace string, pidns, mntns uint32) {
+	ns := NsKey{
+		PidNS: pidns,
+		MntNS: mntns,
 	}
 
-	if ns.PidNS != 0 && ns.MntNS != 0 {
+	found := true
+	mon.NsMapLock.Lock()
+	if pidns != 0 && mntns != 0 {
 		delete(mon.NsMap, ns)
+	} else {
+		found = false
+		for key, val := range mon.NsMap {
+			if containerID == val {
+				ns = key
+				found = true
+				break
+			}
+		}
+	}
+	mon.NsMapLock.Unlock()
+
+	if !found {
+		return
+	}
+
+	mon.BpfMapLock.Lock()
+	defer mon.BpfMapLock.Unlock()
+	if val, ok := mon.NamespacePidsMap[namespace]; ok {
+		for i := range val.NsKeys {
+			if val.NsKeys[i].MntNS == ns.MntNS && val.NsKeys[i].PidNS == ns.PidNS {
+				val.NsKeys = append(val.NsKeys[:i], val.NsKeys[i+1:]...)
+				break
+			}
+		}
+		mon.NamespacePidsMap[namespace] = val
+		mon.UpdateNsKeyMap("DELETED", ns, tp.Visibility{})
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 
-	"github.com/kubearmor/KubeArmor/KubeArmor/config"
+	common "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -43,7 +43,7 @@ type BPFEnforcer struct {
 }
 
 // NewBPFEnforcer instantiates a objects for setting up BPF LSM Enforcement
-func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
+func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) (*BPFEnforcer, error) {
 
 	be := &BPFEnforcer{}
 
@@ -67,8 +67,6 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		MaxEntries: 256,
 	}
 
-	be.CheckOrMountBPFFs(config.GlobalCfg.BPFFsPath)
-
 	be.BPFContainerMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.HashOfMaps,
 		KeySize:    8,
@@ -78,7 +76,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		InnerMap:   be.InnerMapSpec,
 		Name:       "kubearmor_containers",
 	}, ebpf.MapOptions{
-		PinPath: GetMapRoot(),
+		PinPath: pinpath,
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_containers map: %s", err)
@@ -87,7 +85,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 
 	if err := loadEnforcerObjects(&be.obj, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
-			PinPath: GetMapRoot(),
+			PinPath: pinpath,
 		},
 	}); err != nil {
 		be.Logger.Errf("error loading BPF LSM objects: %v", err)
@@ -136,7 +134,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 
 	if err := loadEnforcer_pathObjects(&be.objPath, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
-			PinPath: GetMapRoot(),
+			PinPath: common.GetMapRoot(),
 		},
 	}); err != nil {
 		be.Logger.Warnf("error loading BPF LSM Path objects. This usually suggests that the system doesn't have the system has `CONFIG_SECURITY_PATH=y`: %v", err)

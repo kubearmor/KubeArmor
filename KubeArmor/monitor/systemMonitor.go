@@ -13,10 +13,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	cle "github.com/cilium/ebpf"
+
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
@@ -31,6 +33,9 @@ import (
 const (
 	PermissionDenied = -13
 	MaxStringLen     = 4096
+	PinPath          = "/sys/fs/bpf"
+	visibilityOff    = uint32(1)
+	visibilityOn     = uint32(0)
 	// how many event the channel can hold
 	SyscallChannelSize = 1 << 13 //8192
 )
@@ -43,6 +48,15 @@ const (
 type NsKey struct {
 	PidNS uint32
 	MntNS uint32
+}
+
+// NsVisibility Structure
+type NsVisibility struct {
+	NsKeys     []NsKey
+	File       bool
+	Process    bool
+	Capability bool
+	Network    bool
 }
 
 // ===================== //
@@ -110,8 +124,15 @@ type SystemMonitor struct {
 	NsMap     map[NsKey]string
 	NsMapLock *sync.RWMutex
 
-	// system monitor (for container)
-	BpfModule *cle.Collection
+	// system monitor
+	BpfModule            *cle.Collection
+	BpfNsVisibilityMap   *cle.Map
+	BpfVisibilityMapSpec cle.MapSpec
+
+	NsVisibilityMap  map[NsKey]*cle.Map
+	NamespacePidsMap map[string]NsVisibility
+	BpfMapLock       *sync.RWMutex
+	PinPath          string
 
 	// Probes Links
 	Probes map[string]link.Link
@@ -167,6 +188,19 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.execLogMap = map[uint32]tp.Log{}
 	mon.execLogMapLock = new(sync.RWMutex)
 
+	mon.BpfMapLock = new(sync.RWMutex)
+	mon.NsVisibilityMap = make(map[NsKey]*cle.Map)
+	mon.NamespacePidsMap = make(map[string]NsVisibility)
+	mon.BpfVisibilityMapSpec = cle.MapSpec{
+		Type:       cle.Array,
+		KeySize:    4,
+		ValueSize:  4,
+		MaxEntries: 4,
+	}
+
+	kl.CheckOrMountBPFFs(cfg.GlobalCfg.BPFFsPath)
+	mon.PinPath = kl.GetMapRoot()
+
 	return mon
 }
 
@@ -215,6 +249,150 @@ func isIgnored(item string, ignoreList []string) bool {
 	return false
 }
 
+// InitBPFMaps Function
+func (mon *SystemMonitor) initBPFMaps() error {
+	visibilityMap, err := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_visibility",
+			Type:       cle.HashOfMaps,
+			KeySize:    8,
+			ValueSize:  4,
+			MaxEntries: 65535,
+			Pinning:    cle.PinByName,
+			InnerMap:   &mon.BpfVisibilityMapSpec,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.BpfNsVisibilityMap = visibilityMap
+	mon.UpdateHostVisibility()
+
+	return err
+}
+
+// DestroyBPFMaps Function
+func (mon *SystemMonitor) DestroyBPFMaps() {
+	err := mon.BpfNsVisibilityMap.Unpin()
+	if err != nil {
+		mon.Logger.Warnf("error unpinning bpf map kubearmor_visibility %v", err)
+	}
+	err = mon.BpfNsVisibilityMap.Close()
+	if err != nil {
+		mon.Logger.Warnf("error closing bpf map kubearmor_visibility %v", err)
+	}
+}
+
+// UpdateNsKeyMap Function
+func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
+	var err error
+
+	file := cle.MapKV{
+		Key:   uint32(0),
+		Value: visibilityOff,
+	}
+	process := cle.MapKV{
+		Key:   uint32(1),
+		Value: visibilityOff,
+	}
+	network := cle.MapKV{
+		Key:   uint32(2),
+		Value: visibilityOff,
+	}
+	capability := cle.MapKV{
+		Key:   uint32(3),
+		Value: visibilityOff,
+	}
+	if visibility.File {
+		file.Value = visibilityOn
+	}
+	if visibility.Process {
+		process.Value = visibilityOn
+	}
+	if visibility.Capabilities {
+		capability.Value = visibilityOn
+	}
+	if visibility.Network {
+		network.Value = visibilityOn
+	}
+
+	if action == "ADDED" {
+		spec := mon.BpfVisibilityMapSpec
+		spec.Contents = append(spec.Contents, file)
+		spec.Contents = append(spec.Contents, process)
+		spec.Contents = append(spec.Contents, network)
+		spec.Contents = append(spec.Contents, capability)
+		visibilityMap, err := cle.NewMap(&spec)
+		if err != nil {
+			mon.Logger.Warnf("Cannot create bpf map %s", err)
+			return
+		}
+		mon.NsVisibilityMap[nsKey] = visibilityMap
+		err = mon.BpfNsVisibilityMap.Put(nsKey, visibilityMap)
+		if err != nil {
+			mon.Logger.Warnf("Cannot insert insert visibiliy map into kernel nskey=%+v, error=%s", nsKey, err)
+		}
+		mon.Logger.Printf("Successfully added visibiliy map with key=%+v to the kernel", nsKey)
+	} else if action == "MODIFIED" {
+		visibilityMap := mon.NsVisibilityMap[nsKey]
+		if visibilityMap == nil {
+			mon.Logger.Warnf("Cannot locate visibiliy map. nskey=%+v, action=modified", nsKey)
+			return
+		}
+		err = visibilityMap.Put(file.Key, file.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=file", nsKey)
+		}
+		err = visibilityMap.Put(process.Key, process.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=process", nsKey)
+		}
+		err = visibilityMap.Put(network.Key, network.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=network", nsKey)
+		}
+		err = visibilityMap.Put(capability.Key, capability.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=capability", nsKey)
+		}
+		mon.Logger.Printf("Updated visibiliy map with key=%+v", nsKey)
+	} else if action == "DELETED" {
+		err := mon.BpfNsVisibilityMap.Delete(nsKey)
+		if err != nil {
+			mon.Logger.Warnf("Cannot locate visibiliy map. nskey=%+v, action=deleted", nsKey)
+			return
+		}
+		delete(mon.NsVisibilityMap, nsKey)
+		mon.Logger.Printf("Successfully deleted visibiliy map with key=%+v from the kernel", nsKey)
+	}
+}
+
+// UpdateHostVisibility Function
+func (mon *SystemMonitor) UpdateHostVisibility() {
+	nsKey := NsKey{
+		PidNS: 0,
+		MntNS: 0,
+	}
+
+	visibility := tp.Visibility{}
+	if cfg.GlobalCfg.HostPolicy {
+		visibilityParams := cfg.GlobalCfg.HostVisibility
+		if strings.Contains(visibilityParams, "file") {
+			visibility.File = true
+		}
+		if strings.Contains(visibilityParams, "process") {
+			visibility.Process = true
+		}
+		if strings.Contains(visibilityParams, "network") {
+			visibility.Network = true
+		}
+		if strings.Contains(visibilityParams, "capabilities") {
+			visibility.Capabilities = true
+		}
+	}
+	mon.BpfMapLock.Lock()
+	defer mon.BpfMapLock.Unlock()
+	mon.UpdateNsKeyMap("ADDED", nsKey, visibility)
+}
+
 // InitBPF Function
 func (mon *SystemMonitor) InitBPF() error {
 	homeDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -256,8 +434,24 @@ func (mon *SystemMonitor) InitBPF() error {
 	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
 		bpfPath = bpfPath + "system_monitor.bpf.o"
 	}
+
+	err = mon.initBPFMaps()
+	if err != nil {
+		return err
+	}
 	mon.Logger.Printf("eBPF system monitor object file path: %s", bpfPath)
-	mon.BpfModule, err = cle.LoadCollection(bpfPath)
+	bpfModuleSpec, err := cle.LoadCollectionSpec(bpfPath)
+	if err != nil {
+		return fmt.Errorf("cannot load bpf module specs %v", err)
+	}
+	mon.BpfModule, err = cle.NewCollectionWithOptions(
+		bpfModuleSpec,
+		cle.CollectionOptions{
+			Maps: cle.MapOptions{
+				PinPath: PinPath,
+			},
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("bpf module is nil %v", err)
 	}
@@ -371,6 +565,8 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 			return err
 		}
 	}
+
+	mon.DestroyBPFMaps()
 	return nil
 }
 

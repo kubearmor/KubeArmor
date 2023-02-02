@@ -245,3 +245,17 @@ func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert
 func KarmorLogStop() {
 	klog.StopObserver()
 }
+
+// GetOperations Function
+func GetOperations(logs []*pb.Log) []string {
+	optsMap := make(map[string]int)
+	opts := []string{}
+	for _, log := range logs {
+		optsMap[log.Operation] = 1
+	}
+	for operation := range optsMap {
+		opts = append(opts, strings.ToLower(operation))
+	}
+
+	return opts
+}

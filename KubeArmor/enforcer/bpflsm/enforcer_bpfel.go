@@ -143,5 +143,6 @@ func _EnforcerClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed enforcer_bpfel.o
 var _EnforcerBytes []byte
