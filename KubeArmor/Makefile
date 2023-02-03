@@ -11,6 +11,7 @@ DLV_EXEC         = $(GOPATH)/bin/dlv
 DLV_LPORT       := 2345
 DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
+ENABLE_PPROF	:= $(shell echo $$ENABLE_PPROF)
 
 ifeq (, $(shell which govvv))
 $(shell go install github.com/ahmetb/govvv)	# This works for older go version

@@ -5,8 +5,13 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
+
+	"net/http"
+	"net/http/pprof"
+	_ "net/http/pprof"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
@@ -49,6 +54,29 @@ func main() {
 	if err := cfg.LoadConfig(); err != nil {
 		kg.Err(err.Error())
 		return
+	}
+
+	pprofEnable := true
+	pprofPtr := flag.String("pprof", "8081", "pprof port number")
+	flag.Parse()
+
+	if pprofEnable {
+
+		mux := http.NewServeMux()
+
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+		server := &http.Server{
+			Addr:    "0.0.0.0" + *pprofPtr,
+			Handler: mux,
+		}
+
+		if err := server.ListenAndServe(); err != nil {
+			kg.Err(err.Error() + "\nCould not expose a pprof server for debugging")
+		}
 	}
 
 	core.KubeArmor()
