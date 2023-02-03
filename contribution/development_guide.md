@@ -235,10 +235,9 @@
         $ cd KubeArmor/KubeArmor
         ~/KubeArmor/KubeArmor$ make run
         ```
-        > **Note** If you have followed all necessary steps, and still getting logs like <br>
-        `2023-02-01 18:50:57.983600 INFO The node information is not available` <br>
-        It is due to discrepancy between the actual hostname (obtained by running `hostname`) and the hostname used by Kubernetes (under `kubectl get nodes -o wide`) may be due to case sensitivity issue. K8s converts the hostname to lowercase, which results in a mismatch with the actual hostname.
-        To resolve this, change the hostname to a lowercase version using the command `hostnamectl set-hostname <lowercase-hostname>`
+        > **Note** If you have followed all the above steps and still getting the warning `The node information is not available`, then this could be due to the case-sensitivity discrepancy in the actual hostname (obtained by running `hostname`) and the hostname used by Kubernetes (under `kubectl get nodes -o wide`).<br>
+        K8s converts the hostname to lowercase, which results in a mismatch with the actual hostname.<br>
+        To resolve this, change the hostname to lowercase using the command `hostnamectl set-hostname <lowercase-hostname>`.
          
    * Annotation controller
       
