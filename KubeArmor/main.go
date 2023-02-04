@@ -75,7 +75,7 @@ func main() {
 		if err := server.ListenAndServe(); err != nil {
 			kg.Err(err.Error() + "\nCould not expose a pprof server for debugging")
 		} else {
-			fmt.Println("pprof Server is running on htts://0.0.0.0:" + cfg.GlobalCfg.PPROF)
+			fmt.Println("pprof server is running on http://0.0.0.0:" + cfg.GlobalCfg.PPROF)
 		}
 	}
 
