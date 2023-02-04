@@ -56,9 +56,7 @@ func main() {
 		return
 	}
 
-	pprofEnable := true
-
-	if pprofEnable {
+	if cfg.GlobalCfg.EnablePPROF {
 
 		mux := http.NewServeMux()
 

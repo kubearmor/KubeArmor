@@ -11,7 +11,11 @@ DLV_EXEC         = $(GOPATH)/bin/dlv
 DLV_LPORT       := 2345
 DLV_RPORT       := $(shell expr $(DLV_LPORT) + $(NETNEXT))
 KUBEARMOR_PID    = $(shell pgrep kubearmor)
-# ENABLE_PPROF	:= $(shell echo $$ENABLE_PPROF)
+ENABLE_PPROF	:= $(shell echo $$ENABLE_PPROF)
+
+ifneq ($(ENABLE_PPROF), true)
+ENABLE_PPROF = false
+endif
 
 ifeq (, $(shell which govvv))
 $(shell go install github.com/ahmetb/govvv)	# This works for older go version
@@ -51,18 +55,18 @@ run: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR)/BPF; make
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block
+	cd $(CURDIR); sudo -E ./kubearmor -pprofEnable=$(ENABLE_PPROF) -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block
 
 .PHONY: run-container
 run-container: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy -enableKubeArmorPolicy -k8s=false
+	cd $(CURDIR); sudo -E ./kubearmor -pprofEnable=$(ENABLE_PPROF) -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy -enableKubeArmorPolicy -k8s=false
 
 .PHONY: run-host-only
 run-host-only: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
+	cd $(CURDIR); sudo -E ./kubearmor -pprofEnable=$(ENABLE_PPROF) -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy=false -enableKubeArmorHostPolicy=true -hostVisibility=process,file,network,capabilities
 
 .PHONY: test
 test:
