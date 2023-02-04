@@ -902,6 +902,9 @@ int kprobe__security_ptrace_access_check(struct pt_regs *ctx){
 SEC("kprobe/security_bprm_check")
 int kprobe__security_bprm_check(struct pt_regs *ctx)
 {
+    if (skip_syscall())
+        return 0;
+
     sys_context_t context = {};
 
     //
@@ -970,6 +973,12 @@ int kprobe__security_file_open(struct pt_regs *ctx)
 SEC("kprobe/__x64_sys_execve")
 int kprobe__execve(struct pt_regs *ctx)
 {
+    if (!add_pid_ns())
+        return 0;
+
+    if (skip_syscall())
+	    return 0;
+
     sys_context_t context = {};
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
@@ -980,10 +989,6 @@ int kprobe__execve(struct pt_regs *ctx)
     char *filename = (char *)READ_KERN(PT_REGS_PARM1(ctx2));
     unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
 #endif
-
-    if (!add_pid_ns())
-        return 0;
-    
 
     init_context(&context);
 
@@ -1011,6 +1016,9 @@ int kprobe__execve(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_execve")
 int kretprobe__execve(struct pt_regs *ctx)
 {
+    if (skip_syscall())
+	    return 0;
+
     sys_context_t context = {};
 
     init_context(&context);
@@ -1041,6 +1049,12 @@ int kretprobe__execve(struct pt_regs *ctx)
 SEC("kprobe/__x64_sys_execveat")
 int kprobe__execveat(struct pt_regs *ctx)
 {
+    if (!add_pid_ns())
+        return 0;
+    
+    if (skip_syscall())
+	    return 0;
+
     sys_context_t context = {};
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
@@ -1064,9 +1078,6 @@ int kprobe__execveat(struct pt_regs *ctx)
 
     int flags = (int)READ_KERN(PT_REGS_PARM5(ctx2));
 #endif
-
-    if (!add_pid_ns())
-        return 0;
 
     init_context(&context);
 
@@ -1095,6 +1106,9 @@ int kprobe__execveat(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_execveat")
 int kretprobe__execveat(struct pt_regs *ctx)
 {
+    if (skip_syscall())
+		return 0;
+
     sys_context_t context = {};
 
     init_context(&context);
@@ -1125,6 +1139,9 @@ int kretprobe__execveat(struct pt_regs *ctx)
 SEC("kprobe/do_exit")
 int kprobe__do_exit(struct pt_regs *ctx)
 {
+    if (skip_syscall())
+	    return 0;
+
     sys_context_t context = {};
 
     const long code = PT_REGS_PARM1(ctx);
@@ -1218,6 +1235,9 @@ static __always_inline int get_arg_num(u64 types)
 
 static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 types)
 {
+    if (skip_syscall())
+        return 0;
+
     sys_context_t context = {};
     args_t args = {};
 
@@ -1225,9 +1245,6 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         return 0;
 
     if (load_args(id, &args) != 0)
-        return 0;
-
-    if (skip_syscall())
         return 0;
 
     init_context(&context);
@@ -1478,6 +1495,9 @@ struct tracepoint_syscalls_sys_exit_t {
 SEC("tracepoint/syscalls/sys_exit_openat")
 int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
 {
+    if (skip_syscall())
+	    return 0;
+
     u32 id = _SYS_OPENAT;
     u64 types = ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(OPEN_FLAGS_T);
 
@@ -1625,6 +1645,9 @@ static __always_inline int get_connection_info(struct sock_common *conn,struct s
 
 SEC("kprobe/__x64_sys_tcp_connect")
 int kprobe__tcp_connect(struct pt_regs *ctx){
+    if (skip_syscall())
+		return 0;
+
     struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
     struct sock_common conn = READ_KERN(sk->__sk_common);
     struct sockaddr_in sockv4;
@@ -1656,6 +1679,9 @@ int kprobe__tcp_connect(struct pt_regs *ctx){
 
 SEC("kretprobe/__x64_sys_inet_csk_accept")
 int kretprobe__inet_csk_accept(struct pt_regs *ctx){
+    if (skip_syscall())
+	    return 0;
+
     struct sock *newsk = (struct sock *)PT_REGS_RC(ctx);    
     if (newsk == NULL)
         return 0;

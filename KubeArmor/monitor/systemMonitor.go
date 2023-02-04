@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	cle "github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -30,6 +31,8 @@ import (
 const (
 	PermissionDenied = -13
 	MaxStringLen     = 4096
+	// how many event the channel can hold
+	SyscallChannelSize = 1 << 13 //8192
 )
 
 // ======================= //
@@ -122,6 +125,9 @@ type SystemMonitor struct {
 	// lists to skip
 	UntrackedNamespaces []string
 
+	execLogMap     map[uint32]tp.Log
+	execLogMapLock *sync.RWMutex
+
 	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
@@ -151,6 +157,9 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
 	mon.HostByteOrder = binary.LittleEndian
+
+	mon.execLogMap = map[uint32]tp.Log{}
+	mon.execLogMapLock = new(sync.RWMutex)
 
 	return mon
 }
@@ -318,7 +327,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
-		mon.SyscallChannel = make(chan []byte, 8192)
+		mon.SyscallChannel = make(chan []byte, SyscallChannelSize)
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
@@ -393,7 +402,37 @@ func (mon *SystemMonitor) TraceSyscall() {
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
 
-	execLogMap := map[uint32]tp.Log{}
+	ReplayChannel := make(chan []byte, SyscallChannelSize)
+
+	go func() {
+		for {
+			dataRaw, valid := <-ReplayChannel
+			if !valid {
+				continue
+			}
+			dataBuff := bytes.NewBuffer(dataRaw)
+			ctx, err := readContextFromBuff(dataBuff)
+			if err != nil {
+				continue
+			}
+
+			now := time.Now()
+			if now.After(time.Unix(int64(ctx.Ts), 0).Add(5 * time.Second)) {
+				mon.Logger.Warn("Event dropped due to replay timeout")
+				continue
+			}
+
+			// Best effort replay
+			go func() {
+				time.Sleep(1 * time.Second)
+				select {
+				case mon.SyscallChannel <- dataRaw:
+				default:
+					mon.Logger.Warn("Event droped due to busy event channel")
+				}
+			}()
+		}
+	}()
 
 	for {
 		select {
@@ -431,6 +470,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+				ReplayChannel <- dataRaw
 				continue
 			}
 
@@ -521,7 +561,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
-					execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
 
 				} else if len(args) == 0 { // return
 					// if Policy is not set
@@ -535,10 +577,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// get the stored log
-					log := execLogMap[ctx.HostPID]
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-					delete(execLogMap, ctx.HostPID)
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
 
 					// update the log again
 					log = mon.UpdateLogBase(ctx.EventID, log)
@@ -608,7 +652,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
-					execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
 
 				} else if len(args) == 0 { // return
 					// if Policy is not set
@@ -622,10 +668,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// get the stored log
-					log := execLogMap[ctx.HostPID]
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
 
 					// remove the log from the map
-					delete(execLogMap, ctx.HostPID)
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
 
 					// update the log again
 					log = mon.UpdateLogBase(ctx.EventID, log)

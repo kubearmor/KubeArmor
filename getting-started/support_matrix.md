@@ -26,7 +26,7 @@ KubeArmor supports following types of workloads:
 |----------|--------|---------------|------|
 | SUSE | SUSE Enterprise 15 | Full | Full |
 | Debian | [Buster](https://www.debian.org/releases/buster/) / [Bullseye](https://www.debian.org/releases/bullseye/) | Full | Full |
-| Ubuntu | 18.04 / 20.04 | Full | Full |
+| Ubuntu | 18.04 / 16.04 / 20.04 | Full | Full |
 | RedHat / CentOS | RHEL 8.4 / CentOS 8.4 | Full | Partial |
 | RedHat | RHEL 9 / RHEL >= 8.5 / CentOS 8 Steam | Full | Full |
 | Fedora | Fedora 34 / 35 | Full | Full |
