@@ -21,6 +21,7 @@ type KubearmorConfig struct {
 	Host    string // Host name to use for feeds
 
 	GRPC              string // gRPC Port to use
+	PPROF             string // pprof Port to use
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use
@@ -63,6 +64,9 @@ const ConfigHost string = "host"
 
 // ConfigGRPC GRPC Port key
 const ConfigGRPC string = "gRPC"
+
+// ConfigPPROF PPROF port key
+const ConfigPPROF = "pprof"
 
 // ConfigLogPath Log Path key
 const ConfigLogPath string = "logPath"
@@ -121,6 +125,7 @@ func readCmdLineParams() {
 	hostStr := flag.String(ConfigHost, strings.Split(hostname, ".")[0], "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
+	pprofStr := flag.String(ConfigPPROF, "8081", "pprof port number if not set 8081 by default")
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
@@ -158,6 +163,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHost, *hostStr)
 
 	viper.SetDefault(ConfigGRPC, *grpcStr)
+	viper.SetDefault(ConfigPPROF, *pprofStr)
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.SetDefault(ConfigCRISocket, *criSocket)
@@ -210,6 +216,7 @@ func LoadConfig() error {
 	GlobalCfg.Host = viper.GetString(ConfigHost)
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
+	GlobalCfg.PPROF = viper.GetString(ConfigPPROF)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 

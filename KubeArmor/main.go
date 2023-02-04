@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -58,8 +57,6 @@ func main() {
 	}
 
 	pprofEnable := true
-	pprofPtr := flag.String("pprof", "8081", "pprof port number")
-	flag.Parse()
 
 	if pprofEnable {
 
@@ -71,14 +68,14 @@ func main() {
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
 		server := &http.Server{
-			Addr:    "0.0.0.0:" + *pprofPtr,
+			Addr:    "0.0.0.0:" + cfg.GlobalCfg.PPROF,
 			Handler: mux,
 		}
 
 		if err := server.ListenAndServe(); err != nil {
 			kg.Err(err.Error() + "\nCould not expose a pprof server for debugging")
 		} else {
-			fmt.Println("pprof Server is running on htts://0.0.0.0:" + *pprofPtr)
+			fmt.Println("pprof Server is running on htts://0.0.0.0:" + cfg.GlobalCfg.PPROF)
 		}
 	}
 
