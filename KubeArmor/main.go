@@ -70,7 +70,7 @@ func main() {
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
 		server := &http.Server{
-			Addr:    "0.0.0.0" + *pprofPtr,
+			Addr:    ":" + *pprofPtr,
 			Handler: mux,
 		}
 
