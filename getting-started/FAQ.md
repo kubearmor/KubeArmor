@@ -96,3 +96,4 @@ KubeArmor defines 3 policy actions: Allow, Block and Audit.
 
 If Block policy is used and there are no supported enforcement mechanism on the platform then the policy enforcement wouldn't be observed. But we will still be able to see the observability data for the applied Block policy, which can help us in identifying any suspicious activity.
 </details>
+

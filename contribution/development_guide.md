@@ -195,6 +195,7 @@
 
         KubeArmor does not work with Docker Desktops on Windows and macOS because KubeArmor integrates with Linux-kernel native primitives (including LSMs).
 
+
    * Development Setup
 
      In order to install all dependencies, please run the following command.
@@ -234,6 +235,10 @@
         $ cd KubeArmor/KubeArmor
         ~/KubeArmor/KubeArmor$ make run
         ```
+        > **Note** If you have followed all the above steps and still getting the warning `The node information is not available`, then this could be due to the case-sensitivity discrepancy in the actual hostname (obtained by running `hostname`) and the hostname used by Kubernetes (under `kubectl get nodes -o wide`).<br>
+        K8s converts the hostname to lowercase, which results in a mismatch with the actual hostname.<br>
+        To resolve this, change the hostname to lowercase using the command `hostnamectl set-hostname <lowercase-hostname>`.
+         
    * Annotation controller
       
       Starting from KubeArmor v0.5 annotations are applied via an annotation controller, the controller code can be found under `pkg/KubeArmorAnnotation`.
