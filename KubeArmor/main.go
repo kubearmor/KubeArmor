@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -70,12 +71,14 @@ func main() {
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
 		server := &http.Server{
-			Addr:    ":" + *pprofPtr,
+			Addr:    "0.0.0.0:" + *pprofPtr,
 			Handler: mux,
 		}
 
 		if err := server.ListenAndServe(); err != nil {
 			kg.Err(err.Error() + "\nCould not expose a pprof server for debugging")
+		} else {
+			fmt.Println("Server is running on htts://0.0.0.0:" + *pprofPtr)
 		}
 	}
 
