@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unannotated
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unannotated-deployment
+  namespace: unannotated
+  labels:
+    deployment: unannotated
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      container: unannotated
+  template:
+    metadata:
+      labels:
+        container: unannotated
+    spec:
+      containers:
+      - name: ubuntu-1
+        image: kubearmor/ubuntu-w-utils:0.1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: partialyannotated
+  annotations:
+    "kubearmor-file-posture": "audit"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: partialyannotated-deployment
+  namespace: partialyannotated
+  labels:
+    deployment: partialyannotated
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      container: partialyannotated
+  template:
+    metadata:
+      labels:
+        container: partialyannotated
+    spec:
+      containers:
+      - name: ubuntu-1
+        image: kubearmor/ubuntu-w-utils:0.1
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fullyannotated
+  annotations:
+    "kubearmor-file-posture": "audit"
+    "kubearmor-network-posture": "audit"
+    "kubearmor-capabilities-posture": "audit"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fullyannotated-deployment
+  namespace: fullyannotated
+  labels:
+    deployment: fullyannotated
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      container: fullyannotated
+  template:
+    metadata:
+      labels:
+        container: fullyannotated
+    spec:
+      containers:
+      - name: ubuntu-1
+        image: kubearmor/ubuntu-w-utils:0.1
+        
