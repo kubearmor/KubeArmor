@@ -221,8 +221,12 @@ func GetCommandOutputWithErr(cmd string, args []string) (string, error) {
 	}
 
 	go func() {
-		defer stdin.Close()
-		_, _ = io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
+		defer func() {
+			if err = stdin.Close(); err != nil {
+				kg.Warnf("Error closing stdin %s\n", err)
+			}
+		}()
+		_, err = io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
 	}()
 
 	out, err := res.CombinedOutput()
@@ -251,7 +255,11 @@ func GetCommandOutputWithoutErr(cmd string, args []string) string {
 	}
 
 	go func() {
-		defer stdin.Close()
+		defer func() {
+			if err = stdin.Close(); err != nil {
+				kg.Warnf("Error closing stdin %s\n", err)
+			}
+		}()
 		_, _ = io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
 	}()
 
