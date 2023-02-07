@@ -221,6 +221,9 @@ func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *P
 
 // SetNetworkMatchProtocols Function
 func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolType, prof *Profile, deny bool, head bool) {
+	//forcing the protocol to lowercase
+	proto.Protocol = strings.ToLower(proto.Protocol)
+
 	if deny == false {
 		prof.Network = head
 	}
