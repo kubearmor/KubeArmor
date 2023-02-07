@@ -6,6 +6,7 @@ package enforcer
 import (
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -30,6 +31,7 @@ func TestSELinuxEnforcer(t *testing.T) {
 
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
 
 	// load configuration
 	if err := cfg.LoadConfig(); err != nil {
@@ -42,7 +44,7 @@ func TestSELinuxEnforcer(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder(&node)
+	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
@@ -101,13 +103,14 @@ func TestSELinuxProfile(t *testing.T) {
 
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
 
 	// configuration
 	cfg.GlobalCfg.Policy = true
 	cfg.GlobalCfg.HostPolicy = false
 
 	// create logger
-	logger := feeder.NewFeeder(&node)
+	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
@@ -166,13 +169,14 @@ func TestSELinuxHostProfile(t *testing.T) {
 
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
 
 	// configuration
 	cfg.GlobalCfg.Policy = false
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder(&node)
+	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return

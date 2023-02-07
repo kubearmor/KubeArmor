@@ -28,6 +28,8 @@ func TestSystemMonitor(t *testing.T) {
 
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
+
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
 
@@ -42,15 +44,18 @@ func TestSystemMonitor(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder(&node)
+	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 	t.Log("[PASS] Created logger")
 
+	// montor lock
+	monitorLock := new(sync.RWMutex)
+
 	// Create System Monitor
-	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock)
+	systemMonitor := NewSystemMonitor(&node, &nodeLock, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock, &monitorLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 
@@ -97,6 +102,7 @@ func TestTraceSyscallWithPod(t *testing.T) {
 
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
 
@@ -105,15 +111,18 @@ func TestTraceSyscallWithPod(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = false
 
 	// create logger
-	logger := feeder.NewFeeder(&node)
+	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 	t.Log("[PASS] Created logger")
 
+	// montor lock
+	monitorLock := new(sync.RWMutex)
+
 	// Create System Monitor
-	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock)
+	systemMonitor := NewSystemMonitor(&node, &nodeLock, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock, &monitorLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 
@@ -194,6 +203,7 @@ func TestTraceSyscallWithHost(t *testing.T) {
 
 	// node
 	node := tp.Node{}
+	nodeLock := new(sync.RWMutex)
 	node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 	node.KernelVersion = strings.TrimSuffix(node.KernelVersion, "\n")
 
@@ -202,15 +212,18 @@ func TestTraceSyscallWithHost(t *testing.T) {
 	cfg.GlobalCfg.HostPolicy = true
 
 	// create logger
-	logger := feeder.NewFeeder(&node)
+	logger := feeder.NewFeeder(&node, &nodeLock)
 	if logger == nil {
 		t.Log("[FAIL] Failed to create logger")
 		return
 	}
 	t.Log("[PASS] Created logger")
 
+	// monitor lock
+	monitorLock := new(sync.RWMutex)
+
 	// Create System Monitor
-	systemMonitor := NewSystemMonitor(&node, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock)
+	systemMonitor := NewSystemMonitor(&node, &nodeLock, logger, &Containers, &ContainersLock, &ActiveHostPidMap, &ActivePidMapLock, &monitorLock)
 	if systemMonitor == nil {
 		t.Log("[FAIL] Failed to create SystemMonitor")
 
