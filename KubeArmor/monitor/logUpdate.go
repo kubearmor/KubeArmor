@@ -286,6 +286,49 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Operation = "Syscall"
 				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid)
 
+			case SysMount:
+				if len(msg.ContextArgs) != 5 {
+					continue
+				}
+				var source, target, fstype, data string
+				var flags int
+
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					source = val
+				}
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					target = val
+				}
+				if val, ok := msg.ContextArgs[2].(string); ok {
+					fstype = val
+				}
+				if val, ok := msg.ContextArgs[3].(int32); ok {
+					flags = int(val)
+				}
+				if val, ok := msg.ContextArgs[4].(string); ok {
+					data = val
+				}
+
+				log.Operation = "Syscall"
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " source=" + source + " target=" + target + " filesystem=" + fstype + " mountflag=" + strconv.Itoa(flags) + " data=" + data
+
+			case SysUmount:
+				if len(msg.ContextArgs) != 2 {
+					continue
+				}
+				var target string
+				var flags int
+
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					target = val
+				}
+				if val, ok := msg.ContextArgs[1].(int32); ok {
+					flags = int(val)
+				}
+
+				log.Operation = "Syscall"
+				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " target=" + target + " flag=" + strconv.Itoa(flags)
+
 			case SysClose:
 				if len(msg.ContextArgs) != 1 {
 					continue

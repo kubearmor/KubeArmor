@@ -82,6 +82,8 @@
 #define FILE_TYPE_T   17UL
 #define UNLINKAT_FLAG_T 19UL
 #define PTRACE_REQ_T 23UL
+#define MOUNT_FLAG_T 24UL
+#define UMOUNT_FLAG_T 25UL
 
 #define MAX_ARGS               6
 #define ENC_ARG_TYPE(n, type)  type<<(8*n)
@@ -117,6 +119,8 @@
         _SYS_FCHOWNAT = 260,
         _SYS_SETUID = 105,
         _SYS_SETGID = 106,
+        _SYS_MOUNT = 165,
+        _SYS_UMOUNT = 166,
 
         // network
         _SYS_SOCKET = 41,
@@ -141,6 +145,8 @@
         _SYS_FCHOWNAT = 54,
         _SYS_SETUID = 146,
         _SYS_SETGID = 144,
+        _SYS_MOUNT = 165,
+        _SYS_UMOUNT = 166,
 
         // network
         _SYS_SOCKET = 198,
@@ -784,7 +790,13 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
             break;
         case PTRACE_REQ_T:
             save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), PTRACE_REQ_T);            
-            break;    
+            break;
+        case MOUNT_FLAG_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);            
+            break;
+        case UMOUNT_FLAG_T:
+            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);            
+            break;          
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;
@@ -1480,6 +1492,34 @@ SEC("kretprobe/__x64_sys_ptrace")
 int kretprobe__ptrace(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_PTRACE, ctx, ARG_TYPE0(PTRACE_REQ_T)|ARG_TYPE1(INT_T)|ARG_TYPE2(FILE_TYPE_T));
+}
+
+SEC("kprobe/__x64_sys_mount")
+int kprobe__mount(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_MOUNT, ctx);
+}
+
+SEC("kretprobe/__x64_sys_mount")
+int kretprobe__mount(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_MOUNT, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(STR_T)|ARG_TYPE3(MOUNT_FLAG_T)|ARG_TYPE4(STR_T));
+}
+
+SEC("kprobe/__x64_sys_umount")
+int kprobe__umount(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return save_args(_SYS_UMOUNT, ctx);
+}
+
+SEC("kretprobe/__x64_sys_umount")
+int kretprobe__umount(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_UMOUNT, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(UMOUNT_FLAG_T));
 }
 
 struct tracepoint_syscalls_sys_exit_t {
