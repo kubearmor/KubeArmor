@@ -96,7 +96,11 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	kg.Printf("GlobalCfg.Host=%s, KUBEARMOR_NODENAME=%s", cfg.GlobalCfg.Host, os.Getenv("KUBEARMOR_NODENAME"))
 	for {
 		if resp := K8s.WatchK8sNodes(); resp != nil {
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					kg.Warnf("Error closing http stream %s\n", err)
+				}
+			}()
 
 			decoder := json.NewDecoder(resp.Body)
 			for {
@@ -498,7 +502,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 func (dm *KubeArmorDaemon) WatchK8sPods() {
 	for {
 		if resp := K8s.WatchK8sPods(); resp != nil {
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					kg.Warnf("Error closing http stream %s\n", err)
+				}
+			}()
 
 			decoder := json.NewDecoder(resp.Body)
 			for {
@@ -2285,7 +2293,11 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
 		}
 
 		if resp := K8s.WatchK8sHostSecurityPolicies(); resp != nil {
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					kg.Warnf("Error closing http stream %s\n", err)
+				}
+			}()
 
 			decoder := json.NewDecoder(resp.Body)
 			for {
