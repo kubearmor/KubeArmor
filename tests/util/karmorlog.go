@@ -123,6 +123,16 @@ func getAlertWithInfo(alert *pb.Alert, target *pb.Alert) bool {
 			return false
 		}
 	}
+	if target.NamespaceName != "" {
+		if alert.NamespaceName != target.NamespaceName {
+			return false
+		}
+	}
+	if target.Data != "" {
+		if !strings.Contains(alert.Data, target.Data) {
+			return false
+		}
+	}
 
 	return true
 }

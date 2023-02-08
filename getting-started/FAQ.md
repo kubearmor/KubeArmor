@@ -96,3 +96,53 @@ KubeArmor defines 3 policy actions: Allow, Block and Audit.
 
 If Block policy is used and there are no supported enforcement mechanism on the platform then the policy enforcement wouldn't be observed. But we will still be able to see the observability data for the applied Block policy, which can help us in identifying any suspicious activity.
 </details>
+
+<details>
+  <summary><h4>How to use KubeArmor on Oracle K8s engine?</h4></summary>
+
+KubeArmor supports enforcement on OKE leveraging the BPF-LSM. The default kernel for Oracle Linux 8.6 (OL 8.6) is UEK R6 kernel-uek-5.4.17-2136.307.3 which does not support BPF-LSM.
+
+Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 LTS that supports BPF-LSM and it's available for Oracle Linux 8 Update 5 onwards.
+
+### Installing UEK 7 on OL 8.6
+
+  UEK R7 can be installed on OL 8.6 by following the easy-to-follow instructions provided here in this [Oracle Blog Post](https://blogs.oracle.com/scoter/post/uek-7-oracle-linux-8).
+
+
+> Note: After upgrading to the UEK R7 you may required to enable BPF-LSM if it's not enabled by default.
+
+### Checking if BPF-LSM is enabled
+
+- check if bpf is enabled by verifying if it is in the active lsms.
+
+  ```
+  $ cat /sys/kernel/security/lsm
+  capability,yama,selinux,bpf
+  ```
+  as we can see here `bpf` is in active lsms
+
+### Enabling BPF-LSM manually using boot configs
+
+- Open the `/etc/default/grub` file in privileged mode.
+
+  ```
+  $ sudo vi /etc/default/grub
+  ```
+
+    
+- Append the following to the `GRUB_CMDLINE_LINUX` variable and save.
+
+  ```
+  GRUB_CMDLINE_LINUX="lsm=lockdown,capability,yama,apparmor,bpf"
+  ```
+
+- Update grub config:
+  ```
+  $ sudo grub2-mkconfig -o /boot/grub2.cfg
+  ```
+
+- Reboot into your kernel.
+   ```
+   $ sudo reboot
+   ```
+</details>

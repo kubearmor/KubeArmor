@@ -92,7 +92,8 @@ func init() {
 // SystemMonitor Structure
 type SystemMonitor struct {
 	// node
-	Node *tp.Node
+	Node     *tp.Node
+	NodeLock **sync.RWMutex
 
 	// logs
 	Logger *fd.Feeder
@@ -127,6 +128,8 @@ type SystemMonitor struct {
 
 	execLogMap     map[uint32]tp.Log
 	execLogMapLock *sync.RWMutex
+	// monitor lock
+	MonitorLock **sync.RWMutex
 
 	Status          bool
 	UptimeTimeStamp float64
@@ -134,11 +137,12 @@ type SystemMonitor struct {
 }
 
 // NewSystemMonitor Function
-func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
-	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex) *SystemMonitor {
+func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder, containers *map[string]tp.Container, containersLock **sync.RWMutex,
+	activeHostPidMap *map[string]tp.PidMap, activePidMapLock **sync.RWMutex, monitorLock **sync.RWMutex) *SystemMonitor {
 	mon := new(SystemMonitor)
 
 	mon.Node = node
+	mon.NodeLock = nodeLock
 	mon.Logger = logger
 
 	mon.Containers = containers
@@ -153,6 +157,8 @@ func NewSystemMonitor(node *tp.Node, logger *fd.Feeder, containers *map[string]t
 	mon.ContextChan = make(chan ContextCombined, 4096)
 
 	mon.UntrackedNamespaces = []string{"kube-system", "kubearmor"}
+
+	mon.MonitorLock = monitorLock
 
 	mon.Status = true
 	mon.UptimeTimeStamp = kl.GetUptimeTimestamp()
@@ -259,7 +265,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
@@ -340,6 +346,10 @@ func (mon *SystemMonitor) InitBPF() error {
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
+
+	(*mon.MonitorLock).Lock()
+	defer (*mon.MonitorLock).Unlock()
+
 	mon.Status = false
 
 	if mon.SyscallPerfMap != nil {
@@ -361,7 +371,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -433,6 +442,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}()
 		}
 	}()
+	MonitorLock := *(mon.MonitorLock)
 
 	for {
 		select {
@@ -524,6 +534,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 1 {
 					continue
 				}
+			} else if ctx.EventID == SysMount {
+				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysUmount {
+				if len(args) != 2 {
+					continue
+				}
+
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
 					// build a pid node
@@ -718,9 +737,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 					continue
 				}
 			}
-
+			MonitorLock.Lock()
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
+			MonitorLock.Unlock()
 		}
 	}
 }

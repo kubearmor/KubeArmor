@@ -945,6 +945,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	existNetworkAllowPolicy := false
 	existCapabilitiesAllowPolicy := false
 
+	fd.DefaultPosturesLock.Lock()
+	defer fd.DefaultPosturesLock.Unlock()
+
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
@@ -1430,8 +1433,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		if log.Type == "" {
 			// defaultPosture (audit) or container log
 
-			fd.DefaultPosturesLock.Lock()
-
 			if _, ok := fd.DefaultPostures[log.NamespaceName]; !ok {
 				globalDefaultPosture := tp.DefaultPosture{
 					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
@@ -1440,8 +1441,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 				fd.DefaultPostures[log.NamespaceName] = globalDefaultPosture
 			}
-
-			fd.DefaultPosturesLock.Unlock()
 
 			if log.Operation == "Process" {
 				if setLogFields(&log, existFileAllowPolicy, fd.DefaultPostures[log.NamespaceName].FileAction, log.ProcessVisibilityEnabled, true) {
@@ -1475,7 +1474,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	} else { // host
 		if log.Type == "" {
 			// host log
-
 			if log.Operation == "Process" {
 				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
 					return log
@@ -1493,7 +1491,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					return log
 				}
 			}
-
 		} else if log.Type == "MatchedPolicy" {
 			log.Type = "MatchedHostPolicy"
 

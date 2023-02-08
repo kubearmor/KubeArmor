@@ -264,7 +264,8 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 // Feeder Structure
 type Feeder struct {
 	// node
-	Node *tp.Node
+	Node     *tp.Node
+	NodeLock **sync.RWMutex
 
 	// port
 	Port string
@@ -298,11 +299,12 @@ type Feeder struct {
 }
 
 // NewFeeder Function
-func NewFeeder(node *tp.Node) *Feeder {
+func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 	fd := &Feeder{}
 
 	// node
 	fd.Node = node
+	fd.NodeLock = nodeLock
 
 	// gRPC configuration
 	fd.Port = fmt.Sprintf(":%s", cfg.GlobalCfg.GRPC)
