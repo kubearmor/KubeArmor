@@ -152,6 +152,76 @@ spec:
         - mountPath: /var/lib/docker
           name: docker-storage-path
           readOnly: true
+      - args:
+        - -gRPC=32767
+        - -PPROF=8081
+        - -pprofEnable
+        - -logPath=/tmp/kubearmor.log
+        - -enableKubeArmorHostPolicy
+        - -defaultFilePosture=block
+        - -defaultCapabilitiesPosture=block
+        - -defaultNetworkPosture=block
+        - -hostDefaultCapabilitiesPosture=block
+        - -hostDefaultNetworkPosture=block
+        - -hostDefaultFilePosture=block
+        image: kubearmor/kubearmor:latest-debug
+        imagePullPolicy: Never
+        securityContext:
+          privileged: false
+          capabilities:
+            drop: 
+              - ALL
+            add: 
+              - SETUID 
+              - SETGID
+              - SETPCAP
+              - SYS_ADMIN
+              - SYS_PTRACE 
+              - MAC_ADMIN
+              - SYS_RESOURCE 
+              - IPC_LOCK
+              - CAP_DAC_OVERRIDE
+              - CAP_DAC_READ_SEARCH
+        ports:
+        - containerPort: 32767
+        - containerPort: 8081
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        name: kubearmor
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/kubearmor/BPF
+          name: bpf
+        - mountPath: /lib/modules
+          name: lib-modules-path
+          readOnly: true
+        - mountPath: /sys/fs/bpf
+          name: sys-fs-bpf-path
+        - mountPath: /sys/kernel/security
+          name: sys-kernel-security-path
+        - mountPath: /sys/kernel/debug
+          name: sys-kernel-debug-path
+        - mountPath: /media/root/etc/os-release
+          name: os-release-path
+          readOnly: true
+        - mountPath: /usr/src
+          name: usr-src-path
+          readOnly: true
+        - mountPath: /etc/apparmor.d
+          name: etc-apparmor-d-path
+        - mountPath: /var/run/docker.sock
+          name: docker-sock-path
+          readOnly: true
+        - mountPath: /var/lib/docker
+          name: docker-storage-path
+          readOnly: true 
       terminationGracePeriodSeconds: 30
       volumes:
       - emptyDir: {}

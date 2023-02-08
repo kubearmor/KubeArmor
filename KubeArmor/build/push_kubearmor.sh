@@ -54,4 +54,12 @@ cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor-init.json --pla
 [[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO-init:$VERSION" && exit 1
 echo "[PASSED] Pushed $REPO-init:$VERSION"
 
+# push $REPO:$VERSION-debug
+DTAG="-t $REPO:$VERSION" + "-debug"
+echo "[INFO] Pushing $REPO:$VERSION-debug"
+cd $ARMOR_HOME/..; docker buildx build --metadata-file kubearmor.json --platform $PLATFORMS $DTAG -f Dockerfile --push $LABEL $STABEL_LABEL .
+
+[[ $? -ne 0 ]] && echo "[FAILED] Failed to push $REPO:$VERSION-debug" && exit 1
+echo "[PASSED] Pushed $REPO:$VERSION-debug"
+
 exit 0

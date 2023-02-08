@@ -45,7 +45,7 @@ unset LABEL
 # build a kubearmor image
 DTAG="-t $REPO:$VERSION"
 echo "[INFO] Building $DTAG"
-cd $ARMOR_HOME/..; docker build $DTAG -f Dockerfile --target kubearmor . $LABEL
+cd $ARMOR_HOME/..; docker build $DTAG -f Dockerfile --target kubearmor . $LABEL -e ENABLE_PPROF=false
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO:$VERSION"
@@ -63,5 +63,16 @@ if [ $? != 0 ]; then
     exit 1
 fi
 echo "[PASSED] Built $REPO-init:$VERSION"
+
+# build a debug kubearmor image
+DTAG="-t $REPO:$VERSION" + "-debug"
+echo "[INFO] Building $DTAG"
+cd $ARMOR_HOME/..; docker build $DTAG -f Dockerfile --target kubearmor . $LABEL -e ENABLE_PPROF=true
+
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to build $REPO:$VERSION-debug"
+    exit 1
+fi
+echo "[PASSED] Built $REPO:$VERSION-debug"
 
 exit 0
