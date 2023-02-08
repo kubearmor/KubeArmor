@@ -166,6 +166,9 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 	}
 
 	for _, link := range be.Probes {
+		if link == nil {
+			continue
+		}
 		if err := link.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = true
