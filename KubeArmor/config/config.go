@@ -43,7 +43,8 @@ type KubearmorConfig struct {
 
 	CoverageTest bool // Enable/Disable Coverage Test
 
-	LsmOrder []string // LSM order
+	LsmOrder  []string // LSM order
+	BPFFsPath string   // path to the BPF filesystem
 }
 
 // PolicyDir policy dir path for host policies backup
@@ -115,6 +116,9 @@ const ConfigK8sEnv string = "k8s"
 // LsmOrder Preference order of the LSMs
 const LsmOrder string = "lsm"
 
+// BPFFsPath key
+const BPFFsPath string = "bpfFsPath"
+
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
@@ -144,6 +148,8 @@ func readCmdLineParams() {
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
 	lsmOrder := flag.String(LsmOrder, "bpf,apparmor,selinux", "lsm preference order to use, available lsms [bpf, apparmor, selinux]")
+
+	bpfFsPath := flag.String(BPFFsPath, "/sys/fs/bpf", "Path to the BPF filesystem to use for storing maps")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -181,6 +187,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 
 	viper.SetDefault(LsmOrder, *lsmOrder)
+
+	viper.SetDefault(BPFFsPath, *bpfFsPath)
 }
 
 // LoadConfig Load configuration
@@ -256,6 +264,8 @@ func LoadConfig() error {
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
 
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
+
+	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

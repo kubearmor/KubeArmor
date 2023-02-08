@@ -12,6 +12,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/config"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -64,6 +65,8 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		MaxEntries: 256,
 	}
 
+	be.CheckOrMountBPFFs(config.GlobalCfg.BPFFsPath)
+
 	be.BPFContainerMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.HashOfMaps,
 		KeySize:    8,
@@ -73,7 +76,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		InnerMap:   be.InnerMapSpec,
 		Name:       "kubearmor_containers",
 	}, ebpf.MapOptions{
-		PinPath: "/sys/fs/bpf",
+		PinPath: GetMapRoot(),
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_containers map: %s", err)
@@ -82,7 +85,7 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 
 	if err := loadEnforcerObjects(&be.obj, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
-			PinPath: "/sys/fs/bpf",
+			PinPath: GetMapRoot(),
 		},
 	}); err != nil {
 		be.Logger.Errf("error loading BPF LSM objects: %v", err)
