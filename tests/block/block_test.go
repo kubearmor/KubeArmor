@@ -78,9 +78,6 @@ var _ = Describe("Posture", func() {
 			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
 			Expect(err).To(BeNil())
 
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
 			//curl needs UDP for DNS resolution
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"})
 			Expect(err).To(BeNil())
@@ -108,9 +105,6 @@ var _ = Describe("Posture", func() {
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
-
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
 
 			//curl needs UDP for DNS resolution
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat wp-config.php"})
