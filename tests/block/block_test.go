@@ -21,6 +21,9 @@ var _ = BeforeSuite(func() {
 	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-network-posture=block --overwrite"))
 	Expect(err).To(BeNil())
 
+	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-file-posture=block --overwrite"))
+	Expect(err).To(BeNil())
+
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
@@ -33,6 +36,8 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 	//remove block annotations after tests are done
 	_, err := Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-network-posture- --overwrite"))
+	Expect(err).To(BeNil())
+	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-file-posture- --overwrite"))
 	Expect(err).To(BeNil())
 	KubearmorPortForwardStop()
 })
@@ -87,6 +92,37 @@ var _ = Describe("Posture", func() {
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", out)
 			Expect(out).To(MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"))
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("DefaultPosture"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+		})
+
+		It("can whitelist certain files accessed by a package while blocking all other sensitive content", func() {
+			// Apply policy
+			err := K8sApplyFile("res/ksp-wordpress-allow-file.yaml")
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
+			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
+
+			//curl needs UDP for DNS resolution
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat wp-config.php"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+			Expect(sout).To(MatchRegexp("cat.*Permission denied"))
+
+			//test that tcp is whitelisted
+			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat readme.html"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", out)
+			Expect(out).To(MatchRegexp("<!DOCTYPE html>((?:.*\r?\n?)*)</html>"))
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
