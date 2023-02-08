@@ -11,5 +11,5 @@ import (
 
 func TestSmoke(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Blockposture Suite")
+	RunSpecs(t, "Block Posture Suite")
 }

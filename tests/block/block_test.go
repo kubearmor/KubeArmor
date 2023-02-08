@@ -76,11 +76,17 @@ var _ = Describe("Posture", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
+			//curl needs UDP for DNS resolution
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", sout)
 			Expect(sout).To(MatchRegexp("curl.*Could not resolve host: google.com"))
 
+			//test that tcp is whitelisted
+			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", out)
+			Expect(out).To(MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"))
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
