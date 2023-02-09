@@ -80,6 +80,15 @@ spec:
     spec:
       containers:
       - image: kubearmor/kubearmor-relay-server:latest
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - /grpc_health_probe
+            - -addr=:32767
+          initialDelaySeconds: 60
+          periodSeconds: 10
         name: kubearmor-relay-server
         ports:
         - containerPort: 32767
@@ -125,6 +134,9 @@ spec:
             - /bin/bash
             - -c
             - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
+            - '&&'
+            - /grpc_health_probe
+            - -addr=:32767
           initialDelaySeconds: 60
           periodSeconds: 10
         name: kubearmor
