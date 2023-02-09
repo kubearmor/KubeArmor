@@ -30,7 +30,7 @@ func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 	}
 }
 
-// GetClusterRole Function 
+// GetClusterRole Function
 func GetClusterRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
@@ -63,7 +63,7 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterRoleBindingName,
+			Name: clusterRoleBindingName,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -612,6 +612,9 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 											"/bin/bash",
 											"-c",
 											"if [ -z $(pgrep kubearmor) ]; then exit 1; fi;",
+											"&&",
+											"/grpc_health_probe",
+											"-addr=:32767",
 										},
 									},
 								},
