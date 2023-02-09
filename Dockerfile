@@ -18,7 +18,7 @@ ARG ENABLE_PPROF
 ENV ENABLE_PPROF=$ENABLE_PPROF
 
 RUN go install github.com/golang/protobuf/protoc-gen-go@latest
-RUN make
+RUN ENABLE_PPROF=$ENABLE_PPROF make
 
 ### Make executable image
 
