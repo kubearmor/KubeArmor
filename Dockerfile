@@ -15,6 +15,8 @@ COPY . .
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
 RUN go install github.com/golang/protobuf/protoc-gen-go@latest
+RUN GRPC_HEALTH_PROBE_VERSION=v0.4.15 && \
+    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64
 RUN make
 
 ### Make executable image
@@ -31,6 +33,7 @@ RUN apk add apparmor@community apparmor-utils@community kubectl@testing
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
+COPY --from=builder /bin/grpc_health_probe ./grpc_health_probe
 
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]

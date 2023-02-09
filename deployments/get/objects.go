@@ -149,6 +149,20 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 									ContainerPort: port,
 								},
 							},
+							LivenessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									Exec: &corev1.ExecAction{
+										Command: []string{
+											"/bin/bash",
+											"-c",
+											"/grpc_health_probe",
+											"-addr=:32767",
+										},
+									},
+								},
+								InitialDelaySeconds: 60,
+								PeriodSeconds:       10,
+							},
 						},
 					},
 				},
@@ -612,6 +626,9 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 											"/bin/bash",
 											"-c",
 											"if [ -z $(pgrep kubearmor) ]; then exit 1; fi;",
+											"&&",
+											"/grpc_health_probe",
+											"-addr=:32767",
 										},
 									},
 								},
