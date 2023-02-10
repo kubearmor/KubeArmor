@@ -643,10 +643,10 @@ func KubeArmor() {
 			dm.Logger.Print("Started to monitor host security policies on gRPC")
 		}
 
-		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+		pb.RegisterPolicyServiceServer(dm.Logger.Server, policyService)
 	}
 
-	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
+	reflection.Register(dm.Logger.Server) // Helps grpc clients list out what all svc/endpoints available
 
 	// serve log feeds
 	go dm.ServeLogFeeds()

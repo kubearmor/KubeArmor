@@ -16,7 +16,8 @@ WORKDIR /usr/src/KubeArmor/KubeArmor
 
 RUN go install github.com/golang/protobuf/protoc-gen-go@latest
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.15 && \
-    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64
+    wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
+    chmod +x /bin/grpc_health_probe
 RUN make
 
 ### Make executable image

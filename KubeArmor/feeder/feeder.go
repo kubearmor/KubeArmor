@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"net"
 	"os"
 	"path/filepath"
@@ -257,6 +258,31 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 	return nil
 }
 
+// ====================  //
+// == Health Checker == //
+// ==================== //
+
+// HealthChecker struct
+type HealthChecker struct{}
+
+// Check function
+func (s *HealthChecker) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
+
+	kg.Print("Serving the Check request for health check")
+
+	return &grpc_health_v1.HealthCheckResponse{
+		Status: grpc_health_v1.HealthCheckResponse_SERVING,
+	}, nil
+}
+
+// Watch Function
+func (s *HealthChecker) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
+	kg.Print("Serving the Watch request for health check")
+	return server.Send(&grpc_health_v1.HealthCheckResponse{
+		Status: grpc_health_v1.HealthCheckResponse_SERVING,
+	})
+}
+
 // ============ //
 // == Feeder == //
 // ============ //
@@ -278,7 +304,7 @@ type Feeder struct {
 	Listener net.Listener
 
 	// log server
-	LogServer *grpc.Server
+	Server *grpc.Server
 
 	// wait group
 	WgServer sync.WaitGroup
@@ -356,11 +382,15 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 	}
 
 	// create a log server
-	fd.LogServer = grpc.NewServer()
+	fd.Server = grpc.NewServer()
 
 	// register a log service
 	logService := &LogService{}
-	pb.RegisterLogServiceServer(fd.LogServer, logService)
+	pb.RegisterLogServiceServer(fd.Server, logService)
+
+	//register health checker
+	healthService := &HealthChecker{}
+	grpc_health_v1.RegisterHealthServer(fd.Server, healthService)
 
 	// initialize msg structs
 	MsgStructs = make(map[string]MsgStruct)
@@ -525,7 +555,7 @@ func (fd *Feeder) ServeLogFeeds() {
 	defer fd.WgServer.Done()
 
 	// feed logs
-	if err := fd.LogServer.Serve(fd.Listener); err != nil {
+	if err := fd.Server.Serve(fd.Listener); err != nil {
 		kg.Print("Terminated the gRPC service")
 	}
 }
