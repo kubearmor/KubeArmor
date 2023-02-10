@@ -219,7 +219,7 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 					Containers: []corev1.Container{
 						{
 							Name:  "kube-rbac-proxy",
-							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0",
+							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
 							Args: []string{
 								"--secure-listen-address=0.0.0.0:8443",
 								"--upstream=http://127.0.0.1:8080/",
@@ -340,7 +340,7 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 					Containers: []corev1.Container{
 						{
 							Name:  "kube-rbac-proxy",
-							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0",
+							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
 							Args: []string{
 								"--secure-listen-address=0.0.0.0:8443",
 								"--upstream=http://127.0.0.1:8080/",
