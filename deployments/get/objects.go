@@ -153,10 +153,9 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
 										Command: []string{
-											"/bin/bash",
+											"/bin/sh",
 											"-c",
-											"/grpc_health_probe",
-											"-addr=:32767",
+											"/grpc_health_probe -addr=:32767",
 										},
 									},
 								},
@@ -625,10 +624,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 										Command: []string{
 											"/bin/bash",
 											"-c",
-											"if [ -z $(pgrep kubearmor) ]; then exit 1; fi;",
-											"&&",
-											"/grpc_health_probe",
-											"-addr=:32767",
+											"/grpc_health_probe -addr=:32767 && if [ -z $(pgrep kubearmor) ]; then exit 1; fi;",
 										},
 									},
 								},

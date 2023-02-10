@@ -83,10 +83,9 @@ spec:
         livenessProbe:
           exec:
             command:
-            - /bin/bash
+            - /bin/sh
             - -c
-            - /grpc_health_probe
-            - -addr=:32767
+            - /grpc_health_probe -addr=:32767
           initialDelaySeconds: 60
           periodSeconds: 10
         name: kubearmor-relay-server
@@ -133,10 +132,8 @@ spec:
             command:
             - /bin/bash
             - -c
-            - if [ -z $(pgrep kubearmor) ]; then exit 1; fi;
-            - '&&'
-            - /grpc_health_probe
-            - -addr=:32767
+            - /grpc_health_probe -addr=:32767 && if [ -z $(pgrep kubearmor) ]; then
+              exit 1; fi;
           initialDelaySeconds: 60
           periodSeconds: 10
         name: kubearmor
