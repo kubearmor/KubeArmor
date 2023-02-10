@@ -37,12 +37,12 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage string) *
 		common.SocketLabel:         socket,
 		common.OsLabel:             "linux",
 	}
-	daemonset.Spec.Template.Spec.NodeSelector = labels
-	daemonset.Spec.Template.Labels = labels
-	daemonset.Spec.Template.Spec.ServiceAccountName = "kubearmor"
-	daemonset.Spec.Selector = &metav1.LabelSelector{
-		MatchLabels: labels,
+	for key, value := range labels {
+		daemonset.Spec.Template.Spec.NodeSelector[key] = value
+		daemonset.Spec.Template.Spec.NodeSelector[key] = value
+		daemonset.Spec.Selector.MatchLabels[key] = value
 	}
+	daemonset.Spec.Template.Spec.ServiceAccountName = "kubearmor"
 	if deployment_uuid != "" {
 		daemonset.OwnerReferences = []metav1.OwnerReference{
 			{
