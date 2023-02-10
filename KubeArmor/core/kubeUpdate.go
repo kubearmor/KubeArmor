@@ -188,6 +188,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 		newPoint.NamespaceName = pod.Metadata["namespaceName"]
 		newPoint.EndPointName = pod.Metadata["podName"]
+		newPoint.Owner.Ref = pod.Metadata["owner.controller"]
+		newPoint.Owner.Name = pod.Metadata["owner.controllerName"]
+		newPoint.Owner.Namespace = pod.Metadata["namespaceName"]
 
 		newPoint.Labels = map[string]string{}
 		newPoint.Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
@@ -240,6 +243,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container := dm.Containers[containerID]
 
 			container.NamespaceName = newPoint.NamespaceName
+			container.Owner.Ref = newPoint.Owner.Ref
+			container.Owner.Name = newPoint.Owner.Name
+			container.Owner.Namespace = newPoint.Owner.Namespace
 			container.EndPointName = newPoint.EndPointName
 
 			labels := []string{}
@@ -396,6 +402,9 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				container := dm.Containers[containerID]
 
 				container.NamespaceName = newEndPoint.NamespaceName
+				container.Owner.Ref = newEndPoint.Owner.Ref
+				container.Owner.Name = newEndPoint.Owner.Name
+				container.Owner.Namespace = newEndPoint.Owner.Namespace
 				container.EndPointName = newEndPoint.EndPointName
 
 				labels := []string{}
@@ -540,13 +549,31 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				ownerRef := kl.GetControllingPodOwner(event.Object.ObjectMeta.OwnerReferences)
 				if ownerRef != nil {
 					podOwnerName = ownerRef.Name
+					pod.Metadata["owner.controller"] = ownerRef.Kind
 					if ownerRef.Kind == "ReplicaSet" {
 						deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], podOwnerName)
 						if deploymentName != "" {
 							pod.Metadata["deploymentName"] = deploymentName
+							pod.Metadata["owner.controllerName"] = deploymentName
+							pod.Metadata["owner.controller"] = "Deployment"
+						} else {
+							replicaSetName := K8s.GetReplicaSet(pod.Metadata["namespaceName"], podOwnerName)
+							if replicaSetName != "" {
+								pod.Metadata["owner.controllerName"] = replicaSetName
+							}
 						}
 						// if it belongs to a replicaset, we also remove the pod template hash
 						podOwnerName = strings.TrimSuffix(podOwnerName, fmt.Sprintf("-%s", event.Object.ObjectMeta.Labels["pod-template-hash"]))
+					} else if ownerRef.Kind == "DaemonSet" {
+						daemonSetName := K8s.GetDaemonSet(pod.Metadata["namespaceName"], podOwnerName)
+						if daemonSetName != "" {
+							pod.Metadata["owner.controllerName"] = daemonSetName
+						}
+					} else if ownerRef.Kind == "StatefulSet" {
+						statefulSetName := K8s.GetStatefulSet(pod.Metadata["namespaceName"], podOwnerName)
+						if statefulSetName != "" {
+							pod.Metadata["owner.controllerName"] = statefulSetName
+						}
 					}
 				} else {
 					// static pod

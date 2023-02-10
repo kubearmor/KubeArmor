@@ -315,6 +315,62 @@ func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, repl
 	return rs.ObjectMeta.OwnerReferences[0].Name
 }
 
+// GetReplicaSet Function
+func (kh *K8sHandler) GetReplicaSet(namespaceName, replicaSetName string) string {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return ""
+	}
+
+	// get replicaSet from k8s api client
+	rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		return ""
+	}
+
+	// return the replicaSet name
+	return rs.ObjectMeta.Name
+}
+
+// ================ //
+// == DaemonSet == //
+// ================ //
+
+// GetDaemonSet Function
+func (kh *K8sHandler) GetDaemonSet(namespaceName, replicaSetName string) string {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return ""
+	}
+
+	// get daemonSet from k8s api client
+	ds, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		return ""
+	}
+
+	// return the daemonSet name
+	return ds.ObjectMeta.Name
+}
+
+// ================ //
+// == StatefulSet == //
+// ================ //
+
+// GetStatefulSet Function
+func (kh *K8sHandler) GetStatefulSet(namespaceName, replicaSetName string) string {
+	if !kl.IsK8sEnv() { // not Kubernetes
+		return ""
+	}
+
+	// get statefulSets from k8s api client
+	ss, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		return ""
+	}
+
+	// return the statefulSet name
+	return ss.ObjectMeta.Name
+}
+
 // ========== //
 // == Pods == //
 // ========== //

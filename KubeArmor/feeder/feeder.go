@@ -601,6 +601,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.HostName = fd.Node.NodeName
 
 		pbAlert.NamespaceName = log.NamespaceName
+
+		o := &pb.Podowner{
+			Ref:       log.Owner.Ref,
+			Name:      log.Owner.Name,
+			Namespace: log.Owner.Namespace,
+		}
+
+		if pbAlert.Owner == nil {
+			pbAlert.Owner = o
+		}
+
 		pbAlert.PodName = log.PodName
 		pbAlert.Labels = log.Labels
 
@@ -673,6 +684,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.HostName = fd.Node.NodeName
 
 		pbLog.NamespaceName = log.NamespaceName
+
+		o := &pb.Podowner{
+			Ref:       log.Owner.Ref,
+			Name:      log.Owner.Name,
+			Namespace: log.Owner.Namespace,
+		}
+
+		if pbLog.Owner == nil {
+			pbLog.Owner = o
+		}
+
 		pbLog.PodName = log.PodName
 		pbLog.Labels = log.Labels
 
