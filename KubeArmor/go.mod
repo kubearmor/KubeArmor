@@ -16,24 +16,26 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor/monitor => ./monitor
 	github.com/kubearmor/KubeArmor/KubeArmor/policy => ./policy
 	github.com/kubearmor/KubeArmor/KubeArmor/types => ./types
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
 	github.com/kubearmor/KubeArmor/deployments => ../deployments
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 )
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.2
-	github.com/cilium/ebpf v0.9.1
+	github.com/cilium/cilium v1.12.6
+	github.com/cilium/ebpf v0.10.0
 	github.com/containerd/containerd v1.6.8
 	github.com/containerd/typeurl v1.0.2
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/google/uuid v1.3.0
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230102134750-3c9ddc923c3f
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-00010101000000-000000000000
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230102134750-3c9ddc923c3f
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220908103453-7b92e248beb9
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/spf13/viper v1.13.0
 	go.uber.org/zap v1.23.0
+	golang.org/x/sys v0.3.0
 	google.golang.org/grpc v1.49.0
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
@@ -80,7 +82,6 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
@@ -88,7 +89,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
-	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/client_model v0.2.1-0.20210607210712-147c58e9608a // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
@@ -101,11 +102,10 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
-	golang.org/x/net v0.0.0-20220907135653-1e95f45603a7 // indirect
+	golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10 // indirect
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094 // indirect
-	golang.org/x/sys v0.0.0-20220907062415-87db552b00fd // indirect
-	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
