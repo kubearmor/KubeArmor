@@ -26,7 +26,6 @@ cd $ARMOR_HOME/build
 pwd
 
 VERSION=latest
-ENABLE_PPROF=true
 
 # check version
 if [ ! -z $1 ]; then
