@@ -29,13 +29,14 @@ rules:
   - pods
   - nodes
   - namespaces
+  - configmaps
   verbs:
   - patch
   - list
   - watch
   - update
 - apiGroups:
-  - security.kubearmor.io
+  - security.kubearmor.com
   resources:
   - kubearmorpolicies
   - kubearmorhostpolicies

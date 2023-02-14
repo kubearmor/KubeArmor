@@ -43,11 +43,11 @@ func GetClusterRole() *rbacv1.ClusterRole {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"pods", "nodes", "namespaces"},
+				Resources: []string{"pods", "nodes", "namespaces", "configmaps"},
 				Verbs:     []string{"patch", "list", "watch", "update"},
 			},
 			{
-				APIGroups: []string{"security.kubearmor.io"},
+				APIGroups: []string{"security.kubearmor.com"},
 				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
