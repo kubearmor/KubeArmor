@@ -64,6 +64,8 @@ var _ = Describe("Posture", func() {
 		KarmorLogStop()
 		err := DeleteAllKsp()
 		Expect(err).To(BeNil())
+		// wait for policy deletion
+		time.Sleep(5 * time.Second)
 	})
 
 	Describe("Policy Apply", func() {
@@ -76,13 +78,11 @@ var _ = Describe("Posture", func() {
 			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
 			Expect(err).To(BeNil())
 
-			//curl needs UDP for DNS resolution
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", sout)
 			Expect(sout).To(MatchRegexp("curl.*Could not resolve host: google.com"))
 
-			//test that tcp is whitelisted
 			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", out)
@@ -104,11 +104,13 @@ var _ = Describe("Posture", func() {
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
 			Expect(err).To(BeNil())
 
+			//curl needs UDP for DNS resolution
 			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat wp-config.php"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", sout)
 			Expect(sout).To(MatchRegexp("cat.*Permission denied"))
 
+			//test that tcp is whitelisted
 			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat readme.html"})
 			Expect(err).To(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", out)
