@@ -72,7 +72,6 @@ spec:
   policyTypes:
   - Egress
 ---
-dd
 ```
 
 Highlights of network segmentation:
