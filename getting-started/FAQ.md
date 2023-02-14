@@ -106,7 +106,7 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
 
 ### Installing UEK 7 on OL 8.6
 
-  UEK R7 can be installed on OL 8.6 by following the easy-to-follow instructions provided here in this [Oracle Blog Post](https://blogs.oracle.com/scoter/post/uek-7-oracle-linux-8).
+  UEK R7 can be installed on OL 8.6 by following the easy-to-follow instructions provided here in this [Oracle Blog Post](https://blogs.oracle.com/post/uek-7-oracle-linux-8).
 
 
 > Note: After upgrading to the UEK R7 you may required to enable BPF-LSM if it's not enabled by default.
