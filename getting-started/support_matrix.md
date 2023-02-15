@@ -20,7 +20,8 @@ KubeArmor supports following types of workloads:
 |[IBM Cloud](https://www.ibm.com/cloud/kubernetes-service)| Ubuntu | Yes| Support leveraging `Apparmor`|
 | VMWare Tanzu | * | TBD |
 | Nutanix | * | TBD |
-
+| [AWS Graviton (ARM Based Instances)](https://aws.amazon.com/ec2/graviton/) | Ubuntu | Yes | Supported across Stable/Regular/Rapid/ release channels. Enforced using AppArmor. |
+| [AWS Graviton (ARM Based Instances)](https://aws.amazon.com/ec2/graviton/) | Amazon Linux 2 (kernel version 5.10) | Partial | Audit/Observability mode is supported. |
 ## Supported Linux Distributions
 
 | Provider | Distro | VM / Bare-metal | Kubernetes |
