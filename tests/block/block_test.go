@@ -65,7 +65,7 @@ var _ = Describe("Posture", func() {
 		err := DeleteAllKsp()
 		Expect(err).To(BeNil())
 		// wait for policy deletion
-		// time.Sleep(5 * time.Second)
+		time.Sleep(5 * time.Second)
 	})
 
 	Describe("Policy Apply", func() {
