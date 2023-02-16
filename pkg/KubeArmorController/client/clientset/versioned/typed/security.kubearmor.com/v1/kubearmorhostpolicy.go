@@ -20,7 +20,7 @@ import (
 // KubeArmorHostPoliciesGetter has a method to return a KubeArmorHostPolicyInterface.
 // A group's client should implement this interface.
 type KubeArmorHostPoliciesGetter interface {
-	KubeArmorHostPolicies(namespace string) KubeArmorHostPolicyInterface
+	KubeArmorHostPolicies() KubeArmorHostPolicyInterface
 }
 
 // KubeArmorHostPolicyInterface has methods to work with KubeArmorHostPolicy resources.
@@ -40,14 +40,12 @@ type KubeArmorHostPolicyInterface interface {
 // kubeArmorHostPolicies implements KubeArmorHostPolicyInterface
 type kubeArmorHostPolicies struct {
 	client rest.Interface
-	ns     string
 }
 
 // newKubeArmorHostPolicies returns a KubeArmorHostPolicies
-func newKubeArmorHostPolicies(c *SecurityV1Client, namespace string) *kubeArmorHostPolicies {
+func newKubeArmorHostPolicies(c *SecurityV1Client) *kubeArmorHostPolicies {
 	return &kubeArmorHostPolicies{
 		client: c.RESTClient(),
-		ns:     namespace,
 	}
 }
 
@@ -55,7 +53,6 @@ func newKubeArmorHostPolicies(c *SecurityV1Client, namespace string) *kubeArmorH
 func (c *kubeArmorHostPolicies) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.KubeArmorHostPolicy, err error) {
 	result = &v1.KubeArmorHostPolicy{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
@@ -72,7 +69,6 @@ func (c *kubeArmorHostPolicies) List(ctx context.Context, opts metav1.ListOption
 	}
 	result = &v1.KubeArmorHostPolicyList{}
 	err = c.client.Get().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -89,7 +85,6 @@ func (c *kubeArmorHostPolicies) Watch(ctx context.Context, opts metav1.ListOptio
 	}
 	opts.Watch = true
 	return c.client.Get().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -100,7 +95,6 @@ func (c *kubeArmorHostPolicies) Watch(ctx context.Context, opts metav1.ListOptio
 func (c *kubeArmorHostPolicies) Create(ctx context.Context, kubeArmorHostPolicy *v1.KubeArmorHostPolicy, opts metav1.CreateOptions) (result *v1.KubeArmorHostPolicy, err error) {
 	result = &v1.KubeArmorHostPolicy{}
 	err = c.client.Post().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(kubeArmorHostPolicy).
@@ -113,7 +107,6 @@ func (c *kubeArmorHostPolicies) Create(ctx context.Context, kubeArmorHostPolicy 
 func (c *kubeArmorHostPolicies) Update(ctx context.Context, kubeArmorHostPolicy *v1.KubeArmorHostPolicy, opts metav1.UpdateOptions) (result *v1.KubeArmorHostPolicy, err error) {
 	result = &v1.KubeArmorHostPolicy{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		Name(kubeArmorHostPolicy.Name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -128,7 +121,6 @@ func (c *kubeArmorHostPolicies) Update(ctx context.Context, kubeArmorHostPolicy 
 func (c *kubeArmorHostPolicies) UpdateStatus(ctx context.Context, kubeArmorHostPolicy *v1.KubeArmorHostPolicy, opts metav1.UpdateOptions) (result *v1.KubeArmorHostPolicy, err error) {
 	result = &v1.KubeArmorHostPolicy{}
 	err = c.client.Put().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		Name(kubeArmorHostPolicy.Name).
 		SubResource("status").
@@ -142,7 +134,6 @@ func (c *kubeArmorHostPolicies) UpdateStatus(ctx context.Context, kubeArmorHostP
 // Delete takes name of the kubeArmorHostPolicy and deletes it. Returns an error if one occurs.
 func (c *kubeArmorHostPolicies) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		Name(name).
 		Body(&opts).
@@ -157,7 +148,6 @@ func (c *kubeArmorHostPolicies) DeleteCollection(ctx context.Context, opts metav
 		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
@@ -170,7 +160,6 @@ func (c *kubeArmorHostPolicies) DeleteCollection(ctx context.Context, opts metav
 func (c *kubeArmorHostPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.KubeArmorHostPolicy, err error) {
 	result = &v1.KubeArmorHostPolicy{}
 	err = c.client.Patch(pt).
-		Namespace(c.ns).
 		Resource("kubearmorhostpolicies").
 		Name(name).
 		SubResource(subresources...).

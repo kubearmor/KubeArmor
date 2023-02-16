@@ -22,8 +22,8 @@ type SecurityV1Client struct {
 	restClient rest.Interface
 }
 
-func (c *SecurityV1Client) KubeArmorHostPolicies(namespace string) KubeArmorHostPolicyInterface {
-	return newKubeArmorHostPolicies(c, namespace)
+func (c *SecurityV1Client) KubeArmorHostPolicies() KubeArmorHostPolicyInterface {
+	return newKubeArmorHostPolicies(c)
 }
 
 func (c *SecurityV1Client) KubeArmorPolicies(namespace string) KubeArmorPolicyInterface {

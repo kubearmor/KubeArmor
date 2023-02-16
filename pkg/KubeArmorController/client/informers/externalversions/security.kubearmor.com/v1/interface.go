@@ -30,7 +30,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 
 // KubeArmorHostPolicies returns a KubeArmorHostPolicyInformer.
 func (v *version) KubeArmorHostPolicies() KubeArmorHostPolicyInformer {
-	return &kubeArmorHostPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &kubeArmorHostPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // KubeArmorPolicies returns a KubeArmorPolicyInformer.
