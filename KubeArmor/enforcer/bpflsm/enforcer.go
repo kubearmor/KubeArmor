@@ -122,6 +122,77 @@ func NewBPFEnforcer(node tp.Node, logger *fd.Feeder) (*BPFEnforcer, error) {
 		return be, err
 	}
 
+	/*
+		Path Hooks
+
+		Create, Link, Unlink, Symlink, Rename, MkDir, RmDir, Chowm, Chmod, Truncate
+
+		These will only work if the system has `CONFIG_SECURITY_PATH=y`
+
+		We only warn if we fail to load the following hooks
+	*/
+
+	be.Probes[be.obj.EnforceMknod.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceMknod})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceMknod.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceLinkSrc.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceLinkSrc})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceLinkSrc.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceLinkDst.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceLinkDst})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceLinkDst.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceUnlink.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceUnlink})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceUnlink.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceSymlink.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceSymlink})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceSymlink.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceMkdir.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceMkdir})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceMkdir.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceChmod.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceChmod})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceChmod.String(), err)
+	}
+
+	// We do not support Chown for now because of limitations of bpf_trampoline https://github.com/iovisor/bcc/issues/3657
+	// be.Probes[be.obj.EnforceChown.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceChown})
+	// if err != nil {
+	// 	be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceChown.String(), err)
+	// }
+
+	be.Probes[be.obj.EnforceTruncate.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceTruncate})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceTruncate.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceRenameNew.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceRenameNew})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceRenameNew.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceRenameOld.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceRenameOld})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceRenameOld.String(), err)
+	}
+
+	be.Probes[be.obj.EnforceRmdir.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceRmdir})
+	if err != nil {
+		be.Logger.Warnf("opening lsm %s: %s", be.obj.EnforceRmdir.String(), err)
+	}
+
 	if cfg.GlobalCfg.HostPolicy {
 		be.AddHostToMap()
 	}
