@@ -61,22 +61,11 @@ type enforcerSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerProgramSpecs struct {
-	EnforceChmod      *ebpf.ProgramSpec `ebpf:"enforce_chmod"`
 	EnforceFile       *ebpf.ProgramSpec `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.ProgramSpec `ebpf:"enforce_file_perm"`
-	EnforceLinkDst    *ebpf.ProgramSpec `ebpf:"enforce_link_dst"`
-	EnforceLinkSrc    *ebpf.ProgramSpec `ebpf:"enforce_link_src"`
-	EnforceMkdir      *ebpf.ProgramSpec `ebpf:"enforce_mkdir"`
-	EnforceMknod      *ebpf.ProgramSpec `ebpf:"enforce_mknod"`
 	EnforceNetAccept  *ebpf.ProgramSpec `ebpf:"enforce_net_accept"`
 	EnforceNetConnect *ebpf.ProgramSpec `ebpf:"enforce_net_connect"`
 	EnforceProc       *ebpf.ProgramSpec `ebpf:"enforce_proc"`
-	EnforceRenameNew  *ebpf.ProgramSpec `ebpf:"enforce_rename_new"`
-	EnforceRenameOld  *ebpf.ProgramSpec `ebpf:"enforce_rename_old"`
-	EnforceRmdir      *ebpf.ProgramSpec `ebpf:"enforce_rmdir"`
-	EnforceSymlink    *ebpf.ProgramSpec `ebpf:"enforce_symlink"`
-	EnforceTruncate   *ebpf.ProgramSpec `ebpf:"enforce_truncate"`
-	EnforceUnlink     *ebpf.ProgramSpec `ebpf:"enforce_unlink"`
 }
 
 // enforcerMapSpecs contains maps before they are loaded into the kernel.
@@ -127,42 +116,20 @@ func (m *enforcerMaps) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerPrograms struct {
-	EnforceChmod      *ebpf.Program `ebpf:"enforce_chmod"`
 	EnforceFile       *ebpf.Program `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.Program `ebpf:"enforce_file_perm"`
-	EnforceLinkDst    *ebpf.Program `ebpf:"enforce_link_dst"`
-	EnforceLinkSrc    *ebpf.Program `ebpf:"enforce_link_src"`
-	EnforceMkdir      *ebpf.Program `ebpf:"enforce_mkdir"`
-	EnforceMknod      *ebpf.Program `ebpf:"enforce_mknod"`
 	EnforceNetAccept  *ebpf.Program `ebpf:"enforce_net_accept"`
 	EnforceNetConnect *ebpf.Program `ebpf:"enforce_net_connect"`
 	EnforceProc       *ebpf.Program `ebpf:"enforce_proc"`
-	EnforceRenameNew  *ebpf.Program `ebpf:"enforce_rename_new"`
-	EnforceRenameOld  *ebpf.Program `ebpf:"enforce_rename_old"`
-	EnforceRmdir      *ebpf.Program `ebpf:"enforce_rmdir"`
-	EnforceSymlink    *ebpf.Program `ebpf:"enforce_symlink"`
-	EnforceTruncate   *ebpf.Program `ebpf:"enforce_truncate"`
-	EnforceUnlink     *ebpf.Program `ebpf:"enforce_unlink"`
 }
 
 func (p *enforcerPrograms) Close() error {
 	return _EnforcerClose(
-		p.EnforceChmod,
 		p.EnforceFile,
 		p.EnforceFilePerm,
-		p.EnforceLinkDst,
-		p.EnforceLinkSrc,
-		p.EnforceMkdir,
-		p.EnforceMknod,
 		p.EnforceNetAccept,
 		p.EnforceNetConnect,
 		p.EnforceProc,
-		p.EnforceRenameNew,
-		p.EnforceRenameOld,
-		p.EnforceRmdir,
-		p.EnforceSymlink,
-		p.EnforceTruncate,
-		p.EnforceUnlink,
 	)
 }
 
