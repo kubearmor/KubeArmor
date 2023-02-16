@@ -24,6 +24,7 @@ type EventResult struct {
 }
 
 var eventChan chan klog.EventInfo
+var grpc = "localhost:32767"
 
 const maxEvents = 128
 
@@ -186,13 +187,14 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 		eventChan = make(chan klog.EventInfo, maxEvents)
 	}
 	go func() {
-		err := klog.StartObserver(klog.Options{
+		err := klog.StartObserver(k8sClient, klog.Options{
 			LogFilter: logFilter,
 			Namespace: ns,
 			Operation: op,
 			PodName:   pod,
 			MsgPath:   "none",
 			EventChan: eventChan,
+			GRPC:      grpc,
 		})
 		if err != nil {
 			log.Errorf("failed to start observer. Error=%s", err.Error())

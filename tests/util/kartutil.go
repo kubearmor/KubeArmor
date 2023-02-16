@@ -16,11 +16,9 @@ import (
 	"strings"
 	"time"
 
-	hspV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/api/security.kubearmor.com/v1"
-	hspScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/clientset/versioned/scheme"
-	hsp "github.com/kubearmor/KubeArmor/pkg/KubeArmorHostPolicy/client/clientset/versioned/typed/security.kubearmor.com/v1"
-	kspV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api/security.kubearmor.com/v1"
-	kspScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/client/clientset/versioned/scheme"
+	kcV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
+	kcScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/scheme"
+	kc "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/typed/security.kubearmor.com/v1"
 	kcli "github.com/kubearmor/kubearmor-client/k8s"
 	log "github.com/sirupsen/logrus"
 	appsV1 "k8s.io/api/apps/v1"
@@ -33,7 +31,7 @@ import (
 )
 
 var k8sClient *kcli.Client
-var hspClient *hsp.SecurityV1Client
+var kcClient *kc.SecurityV1Client
 var stopChan chan struct{}
 
 // ConfigMapData hosts the structure which is used to configure Config Map Data
@@ -46,11 +44,11 @@ type ConfigMapData struct {
 	DefaultNetworkPosture      string
 }
 
-func connectHspClient() error {
+func connectKcClient() error {
 	var kubeconfig string
 	var contextName string
 
-	_ = hspV1.AddToScheme(scheme.Scheme)
+	_ = kcV1.AddToScheme(scheme.Scheme)
 	restClientGetter := genericclioptions.ConfigFlags{
 		Context:    &contextName,
 		KubeConfig: &kubeconfig,
@@ -62,12 +60,12 @@ func connectHspClient() error {
 		return err
 	}
 
-	hspClientset, err := hsp.NewForConfig(config)
+	kcClientset, err := kc.NewForConfig(config)
 	if err != nil {
 		return nil
 	}
-
-	hspClient = hspClientset
+	_ = kcScheme.AddToScheme(scheme.Scheme)
+	kcClient = kcClientset
 	return nil
 }
 
@@ -80,9 +78,9 @@ func isK8sEnv() bool {
 		return false
 	}
 	k8sClient = cli
-	err = connectHspClient()
+	err = connectKcClient()
 
-	return err != nil
+	return err == nil
 }
 
 // NewDefaultConfigMapData returns Config Map Data with KubeArmor defaults set
@@ -387,7 +385,7 @@ func KspDeleteAll() {
 
 // DeleteAllHsp delete all the kubearmorhostpolicies
 func DeleteAllHsp() error {
-	hsp, err := hspClient.KubeArmorHostPolicies().List(context.TODO(), metav1.ListOptions{})
+	hsp, err := kcClient.KubeArmorHostPolicies().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		if strings.Contains(err.Error(), "No resource found") {
 			return nil
@@ -395,7 +393,7 @@ func DeleteAllHsp() error {
 		return err
 	}
 	for _, h := range hsp.Items {
-		err = hspClient.KubeArmorHostPolicies().Delete(context.TODO(), h.Name, metav1.DeleteOptions{})
+		err = kcClient.KubeArmorHostPolicies().Delete(context.TODO(), h.Name, metav1.DeleteOptions{})
 		if err != nil {
 			log.Errorf("error deleting hsp %s", h.Name)
 			return err
@@ -443,16 +441,9 @@ func K8sApplyFile(fileName string) error {
 		return err
 	}
 	// register ksp scheme
-	err = kspScheme.AddToScheme(scheme.Scheme)
+	err = kcScheme.AddToScheme(scheme.Scheme)
 	if err != nil {
 		log.Errorf("unable to register ksp scheme error= %s", err)
-		return err
-	}
-
-	// register hsp scheme
-	err = hspScheme.AddToScheme(scheme.Scheme)
-	if err != nil {
-		log.Errorf("unable to register hsp scheme error= %s", err)
 		return err
 	}
 
@@ -487,14 +478,14 @@ func K8sApplyFile(fileName string) error {
 			}
 			log.Printf("Created Deployment %q", result.GetObjectMeta().GetName())
 
-		case *kspV1.KubeArmorPolicy:
+		case *kcV1.KubeArmorPolicy:
 			ksp := obj
 
-			ksp.Spec.Capabilities = kspV1.CapabilitiesType{
-				MatchCapabilities: append([]kspV1.MatchCapabilitiesType{}, ksp.Spec.Capabilities.MatchCapabilities...),
+			ksp.Spec.Capabilities = kcV1.CapabilitiesType{
+				MatchCapabilities: append([]kcV1.MatchCapabilitiesType{}, ksp.Spec.Capabilities.MatchCapabilities...),
 			}
-			ksp.Spec.Network = kspV1.NetworkType{
-				MatchProtocols: append([]kspV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
+			ksp.Spec.Network = kcV1.NetworkType{
+				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
 			}
 
 			result, err := k8sClient.KSPClientset.KubeArmorPolicies(ksp.Namespace).Create(context.TODO(), ksp, metav1.CreateOptions{})
@@ -541,17 +532,17 @@ func K8sApplyFile(fileName string) error {
 				return err
 			}
 			log.Printf("Namespace %s created ...", ns.Name)
-		case *hspV1.KubeArmorHostPolicy:
+		case *kcV1.KubeArmorHostPolicy:
 			hsp := obj
 
-			hsp.Spec.Capabilities = hspV1.CapabilitiesType{
-				MatchCapabilities: append([]hspV1.MatchCapabilitiesType{}, hsp.Spec.Capabilities.MatchCapabilities...),
+			hsp.Spec.Capabilities = kcV1.HostCapabilitiesType{
+				MatchCapabilities: append([]kcV1.MatchHostCapabilitiesType{}, hsp.Spec.Capabilities.MatchCapabilities...),
 			}
-			hsp.Spec.Network = hspV1.NetworkType{
-				MatchProtocols: append([]hspV1.MatchNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
+			hsp.Spec.Network = kcV1.HostNetworkType{
+				MatchProtocols: append([]kcV1.MatchHostNetworkProtocolType{}, hsp.Spec.Network.MatchProtocols...),
 			}
 
-			result, err := hspClient.KubeArmorHostPolicies().Create(context.TODO(), hsp, metav1.CreateOptions{})
+			result, err := kcClient.KubeArmorHostPolicies().Create(context.TODO(), hsp, metav1.CreateOptions{})
 			if err != nil {
 				if strings.Contains(err.Error(), "already exists") {
 					log.Printf("Policy %s already exists ...", hsp.Name)
