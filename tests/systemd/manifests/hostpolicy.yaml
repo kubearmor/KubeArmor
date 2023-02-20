@@ -5,6 +5,6 @@ metadata:
 spec:
   process:
     matchPaths:
-    - path: /usr/bin/sleep # try sleep 1
+    - path: /usr/bin/sleep # try sleep
   action:
     Block
