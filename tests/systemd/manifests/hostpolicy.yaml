@@ -1,0 +1,10 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-proc-path-block
+spec:
+  process:
+    matchPaths:
+    - path: /usr/bin/sleep # try sleep 1
+  action:
+    Block
