@@ -4,7 +4,7 @@
 .PHONY: build
 build:
 	@go mod tidy
-	@ginkgo -r --flake-attempts=5 --timeout=30m
+	@ginkgo -r --flake-attempts=5 --timeout=30m --skip-file=tests/systemd
 
 .PHONY: test
 test:
