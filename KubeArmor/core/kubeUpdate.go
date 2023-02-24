@@ -339,6 +339,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			dm.UpdateEndPointWithPod("ADDED", pod)
 
 		} else {
+			newEndPoint.NamespaceName = pod.Metadata["namespaceName"]
+			newEndPoint.EndPointName = pod.Metadata["podName"]
 			newEndPoint.Labels = map[string]string{}
 			newEndPoint.Identities = []string{"namespaceName=" + pod.Metadata["namespaceName"]}
 
