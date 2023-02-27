@@ -62,6 +62,8 @@ jobs:
       - name: Capture KubeArmor logs
         if: ${{ failure() }}
         run: |
+          kubectl -n kube-system logs $(kubectl get pods -n kube-system -l kubearmor-app=kubearmor --no-headers -o custom-columns=:metadata.name) -c init
+          kubectl -n kube-system logs $(kubectl get pods -n kube-system -l kubearmor-app=kubearmor --no-headers -o custom-columns=:metadata.name) -c kubearmor
           kubectl -n kube-system describe pod $(kubectl get pods -n kube-system -l kubearmor-app=kubearmor --no-headers -o custom-columns=:metadata.name)
           kubectl exec -n kube-system daemonset/kubearmor -- cat /tmp/kubearmor.log > /tmp/kubearmor.log
 
