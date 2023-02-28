@@ -447,9 +447,10 @@ static __always_inline u32 skip_syscall()
     }
 
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
-        return 0;
+    if (bpf_map_lookup_elem(&pid_ns_map,&pid) == 0) {
+        return add_pid_ns();
     }
+    return 0;
 
 #elif defined(MONITOR_CONTAINER)
 
@@ -458,9 +459,10 @@ static __always_inline u32 skip_syscall()
         return 1;
     }
 
-    if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) != 0) {
-        return 0;
+    if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) == 0) {
+        return add_pid_ns();
     }
+    return 0;
 
 #else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
@@ -468,17 +470,17 @@ static __always_inline u32 skip_syscall()
     if (pid_ns == PROC_PID_INIT_INO) { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
         if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
-            return 0;
+            return add_pid_ns();
         }
     } else { // container
-        if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) != 0) {
-            return 0;
+        if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) == 0) {
+            return add_pid_ns();
         }
     }
+    return 0;
 
 #endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
-    return 1;
 }
 
 // == Context Management == //
