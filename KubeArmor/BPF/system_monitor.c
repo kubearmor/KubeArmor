@@ -889,6 +889,13 @@ static __always_inline int security_path_task_arg(struct pt_regs *ctx){
 }
 
 #if defined(SECURITY_PATH)
+SEC("kprobe/security_path_mknod")
+int kprobe__security_path_mknod(struct pt_regs *ctx){
+    if (skip_syscall())
+		return 0;
+    return security_path__dir_path_args(ctx);
+}
+
 SEC("kprobe/security_path_unlink")
 int kprobe__security_path_unlink(struct pt_regs *ctx){
     if (skip_syscall())
