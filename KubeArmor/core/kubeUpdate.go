@@ -1284,7 +1284,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 	factory := kspinformer.NewSharedInformerFactory(K8s.KSPClient, 0)
 
 	informer := factory.Security().V1().KubeArmorPolicies().Informer()
-	informer.AddEventHandler(
+	if _, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				// create a security policy
@@ -1358,7 +1358,11 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				}
 			},
 		},
-	)
+	); err != nil {
+		dm.Logger.Err("Couldn't start watching KubeArmor Security Policies")
+		return
+	}
+
 	go factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
 }
@@ -2668,7 +2672,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
 	informer := factory.Core().V1().Namespaces().Informer()
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if ns, ok := obj.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
@@ -2722,7 +2726,10 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 				dm.UpdateVisibility("DELETED", ns.Name, tp.Visibility{})
 			}
 		},
-	})
+	}); err != nil {
+		dm.Logger.Err("Couldn't start watching Default Posture Annotations and namespace")
+		return
+	}
 
 	go factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
@@ -2736,7 +2743,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 
 	cmNS := dm.GetConfigMapNS()
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok {
 				if cm.Name == get.KubeArmorConfigMapName && cm.Namespace == cmNS {
@@ -2784,7 +2791,10 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 		DeleteFunc: func(obj interface{}) {
 			// nothing to do here
 		},
-	})
+	}); err != nil {
+		dm.Logger.Err("Couldn't start watching Configmap")
+		return
+	}
 
 	go factory.Start(wait.NeverStop)
 	factory.WaitForCacheSync(wait.NeverStop)
