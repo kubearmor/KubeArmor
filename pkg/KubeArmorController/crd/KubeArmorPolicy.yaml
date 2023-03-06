@@ -18,7 +18,11 @@ spec:
     singular: kubearmorpolicy
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.status
+      name: Status
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: KubeArmorPolicy is the Schema for the kubearmorpolicies API
@@ -415,6 +419,12 @@ spec:
                 maximum: 10
                 minimum: 1
                 type: integer
+              status:
+                default: Active
+                enum:
+                - Active
+                - Inactive
+                type: string
               syscalls:
                 properties:
                   matchPaths:

@@ -483,6 +483,7 @@ type SecuritySpec struct {
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
 	Action   string   `json:"action"`
+	Status   string   `json:"status,omitempty"`
 }
 
 // SecurityPolicy Structure

@@ -304,6 +304,10 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 	profile.Init()
 
 	for _, secPolicy := range securityPolicies {
+		// skip profile if not to be enforced
+		if secPolicy.Spec.Status != "Active" {
+			continue
+		}
 		if len(secPolicy.Spec.AppArmor) > 0 {
 			scanner := bufio.NewScanner(strings.NewReader(secPolicy.Spec.AppArmor))
 			for scanner.Scan() {

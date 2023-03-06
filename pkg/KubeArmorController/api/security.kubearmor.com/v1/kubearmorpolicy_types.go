@@ -62,6 +62,9 @@ type KubeArmorPolicySpec struct {
 	Message string `json:"message,omitempty"`
 	// +kubebuilder:validation:optional
 	Action ActionType `json:"action,omitempty"`
+	// +kubebuilder:validation:optional
+	// +kubebuilder:default=Active
+	Status StatusType `json:"status,omitempty,default=Active"`
 }
 
 // KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
@@ -75,6 +78,7 @@ type KubeArmorPolicyStatus struct {
 // +genclient
 // +kubebuilder:resource:shortName=ksp
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".spec.status"
 type KubeArmorPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

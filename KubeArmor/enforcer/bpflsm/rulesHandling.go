@@ -88,6 +88,10 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	// Generate Fresh Rule Set based on Updated Security Policies
 	for _, secPolicy := range securityPolicies {
+		// skip profile if not to be enforced
+		if secPolicy.Spec.Status != "Active" {
+			continue
+		}
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 
 			var val [2]uint8
