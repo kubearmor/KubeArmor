@@ -183,7 +183,7 @@ spec:
       hostNetwork: true
       hostPID: true
       initContainers:
-      - image: kubearmor/kubearmor-init:latest
+      - image: kubearmor/kubearmor-init:stable
         name: init
         securityContext:
           capabilities:
