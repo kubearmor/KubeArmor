@@ -39,7 +39,7 @@ func getMultiContainerPod(name string, ant string) string {
 var _ = Describe("Multicontainer", func() {
 	var multicontainer string
 	BeforeEach(func() {
-		multicontainer = getMultiContainerPod("multicontainer-", "container.apparmor.security.beta.kubernetes.io/container-1: localhost/kubearmor-multicontainer-multicontainer-deployment-container-1")
+		multicontainer = getMultiContainerPod("multicontainer-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {

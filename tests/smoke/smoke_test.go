@@ -42,10 +42,8 @@ var _ = Describe("Smoke", func() {
 	var sql string
 
 	BeforeEach(func() {
-		wp = getWpsqlPod("wordpress-",
-			"container.apparmor.security.beta.kubernetes.io/wordpress: localhost/kubearmor-wordpress-mysql-wordpress-wordpress")
-		sql = getWpsqlPod("mysql-",
-			"container.apparmor.security.beta.kubernetes.io/mysql: localhost/kubearmor-wordpress-mysql-mysql-mysql")
+		wp = getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
+		sql = getWpsqlPod("mysql-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {

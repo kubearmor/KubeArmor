@@ -44,13 +44,9 @@ func getUbuntuPod(name string, ant string) string {
 var _ = Describe("Ksp", func() {
 	var ub1, ub3, ub4 string
 	BeforeEach(func() {
-		ub1 = getUbuntuPod("ubuntu-1",
-			"container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/kubearmor-multiubuntu-ubuntu-1-deployment-ubuntu-1-container")
-		ub3 = getUbuntuPod("ubuntu-3",
-			"container.apparmor.security.beta.kubernetes.io/ubuntu-3-container: localhost/kubearmor-multiubuntu-ubuntu-3-deployment-ubuntu-3-container")
-		ub4 = getUbuntuPod("ubuntu-4",
-			"container.apparmor.security.beta.kubernetes.io/ubuntu-4-container: localhost/kubearmor-multiubuntu-ubuntu-4-deployment-ubuntu-4-container")
-		fmt.Print(ub1, ub4, ub3)
+		ub1 = getUbuntuPod("ubuntu-1", "kubearmor-policy: enabled")
+		ub3 = getUbuntuPod("ubuntu-3", "kubearmor-policy: enabled")
+		ub4 = getUbuntuPod("ubuntu-4", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {

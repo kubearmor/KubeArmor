@@ -41,8 +41,7 @@ var _ = Describe("Syscalls", func() {
 	_ = ubuntu
 
 	BeforeEach(func() {
-		ubuntu = getUbuntuPod("ubuntu-1-deployment-",
-			"container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/kubearmor-syscalls-ubuntu-1-deployment-ubuntu-1-container")
+		ubuntu = getUbuntuPod("ubuntu-1-deployment-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {
