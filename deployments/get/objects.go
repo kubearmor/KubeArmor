@@ -547,8 +547,9 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 					DNSPolicy:     "ClusterFirstWithHostNet",
 					InitContainers: []corev1.Container{
 						{
-							Name:  "init",
-							Image: "kubearmor/kubearmor-init:stable",
+							Name:            "init",
+							Image:           "kubearmor/kubearmor-init:stable",
+							ImagePullPolicy: "Always",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
