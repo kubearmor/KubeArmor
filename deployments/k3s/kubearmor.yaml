@@ -109,7 +109,6 @@ spec:
       containers:
       - args:
         - -gRPC=32767
-        - -enableKubeArmorHostPolicy
         env:
         - name: KUBEARMOR_NODENAME
           valueFrom:
