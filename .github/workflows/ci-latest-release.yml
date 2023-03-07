@@ -148,6 +148,8 @@ jobs:
 
       - name: Install Cosign 
         uses: sigstore/cosign-installer@main
+        with:
+          cosign-release: 'v2.0.0-rc.0'
 
       - name: Get Image Digest
         id: digest
