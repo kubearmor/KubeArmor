@@ -96,11 +96,9 @@ jobs:
           echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
-        env:
-          COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
-          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
+          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
 
   push-stable-version:
     name: Create KubeArmor stable release
@@ -149,7 +147,7 @@ jobs:
       - name: Install Cosign 
         uses: sigstore/cosign-installer@main
         with:
-          cosign-release: 'v2.0.0-rc.0'
+          cosign-release: 'v2.0.0'
 
       - name: Get Image Digest
         id: digest
@@ -161,8 +159,6 @@ jobs:
           echo $initdigest 
 
       - name: Sign the Container Images
-        env:
-          COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
-          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
+          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
