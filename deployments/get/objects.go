@@ -68,7 +68,7 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     clusterRoleName,
+			Name:     "cluster-admin",
 		},
 		Subjects: []rbacv1.Subject{
 			{
