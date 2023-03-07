@@ -6,6 +6,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -26,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/kubectl/pkg/scheme"
@@ -74,6 +76,7 @@ func isK8sEnv() bool {
 	return err != nil
 }
 
+// CreateKAConfigMap function
 func CreateKAConfigMap(file, cap, network string) error {
 
 	data := make(map[string]string)
@@ -109,6 +112,7 @@ func CreateKAConfigMap(file, cap, network string) error {
 	return nil
 }
 
+// DeleteKAConfigMap function
 func DeleteKAConfigMap() error {
 	err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Delete(context.Background(), "kubearmor-config", metav1.DeleteOptions{})
 	return err
@@ -201,6 +205,19 @@ func annotationsMatch(pod v1.Pod, ants []string) bool {
 		}
 	}
 	return true
+}
+
+// AnnotateNS function
+func AnnotateNS(name, key, value string) error {
+	ns := v1.Namespace{}
+	ns.Annotations = make(map[string]string)
+	ns.Annotations[key] = value
+	patch, err := json.Marshal(ns)
+	if err != nil {
+		return err
+	}
+	_, err = k8sClient.K8sClientset.CoreV1().Namespaces().Patch(context.TODO(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 // K8sGetPods Check if Pods exists and is/are Running

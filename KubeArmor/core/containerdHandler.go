@@ -237,6 +237,7 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers map[strin
 
 	for globalContainerID := range ch.containers {
 		if _, ok := containers[globalContainerID]; !ok {
+			deletedContainers[globalContainerID] = context.TODO()
 			delete(ch.containers, globalContainerID)
 		}
 	}
@@ -313,11 +314,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.PidNS, container.MntNS)
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
-		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (added/%s/pidns=%d/mntns=%d)", containerID[:12], container.PidNS, container.MntNS)
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
@@ -348,11 +349,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
-			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID)
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
-		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (removed/%s/pidns=%d/mntns=%d)", containerID[:12], container.PidNS, container.MntNS)
 	}
 
 	return true
@@ -379,11 +380,6 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 
 		default:
 			containers := Containerd.GetContainerdContainers()
-
-			if len(containers) == len(Containerd.containers) {
-				time.Sleep(time.Millisecond * 100)
-				continue
-			}
 
 			invalidContainers := []string{}
 

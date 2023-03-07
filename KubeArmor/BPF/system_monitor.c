@@ -56,117 +56,120 @@
 
 #undef container_of
 #define container_of(ptr, type, member)                    \
-	({                                                     \
-		const typeof(((type *)0)->member) *__mptr = (ptr); \
-		(type *)((char *)__mptr - offsetof(type, member)); \
-	})
+    ({                                                     \
+        const typeof(((type *)0)->member) *__mptr = (ptr); \
+        (type *)((char *)__mptr - offsetof(type, member)); \
+    })
 
 // == Structures == //
 
-#define TASK_COMM_LEN	 16
+#define TASK_COMM_LEN 16
 
-#define MAX_BUFFER_SIZE   32768
-#define MAX_STRING_SIZE   4096
-#define MAX_STR_ARR_ELEM  20
-#define MAX_LOOP_LIMIT    25
+#define MAX_BUFFER_SIZE 32768
+#define MAX_STRING_SIZE 4096
+#define MAX_STR_ARR_ELEM 20
+#define MAX_LOOP_LIMIT 25
 
-#define NONE_T        0UL
-#define INT_T         1UL
-#define STR_T         10UL
-#define STR_ARR_T     11UL
-#define SOCKADDR_T    12UL
-#define OPEN_FLAGS_T  13UL
-#define EXEC_FLAGS_T  14UL
-#define SOCK_DOM_T    15UL
-#define SOCK_TYPE_T   16UL
-#define FILE_TYPE_T   17UL
+#define NONE_T 0UL
+#define INT_T 1UL
+#define STR_T 10UL
+#define STR_ARR_T 11UL
+#define SOCKADDR_T 12UL
+#define OPEN_FLAGS_T 13UL
+#define EXEC_FLAGS_T 14UL
+#define SOCK_DOM_T 15UL
+#define SOCK_TYPE_T 16UL
+#define FILE_TYPE_T 17UL
 #define UNLINKAT_FLAG_T 19UL
 #define PTRACE_REQ_T 23UL
 #define MOUNT_FLAG_T 24UL
 #define UMOUNT_FLAG_T 25UL
 
-#define MAX_ARGS               6
-#define ENC_ARG_TYPE(n, type)  type<<(8*n)
-#define ARG_TYPE0(type)        ENC_ARG_TYPE(0, type)
-#define ARG_TYPE1(type)        ENC_ARG_TYPE(1, type)
-#define ARG_TYPE2(type)        ENC_ARG_TYPE(2, type)
-#define ARG_TYPE3(type)        ENC_ARG_TYPE(3, type)
-#define ARG_TYPE4(type)        ENC_ARG_TYPE(4, type)
-#define ARG_TYPE5(type)        ENC_ARG_TYPE(5, type)
-#define DEC_ARG_TYPE(n, type)  ((type>>(8*n))&0xFF)
+#define MAX_ARGS 6
+#define ENC_ARG_TYPE(n, type) type << (8 * n)
+#define ARG_TYPE0(type) ENC_ARG_TYPE(0, type)
+#define ARG_TYPE1(type) ENC_ARG_TYPE(1, type)
+#define ARG_TYPE2(type) ENC_ARG_TYPE(2, type)
+#define ARG_TYPE3(type) ENC_ARG_TYPE(3, type)
+#define ARG_TYPE4(type) ENC_ARG_TYPE(4, type)
+#define ARG_TYPE5(type) ENC_ARG_TYPE(5, type)
+#define DEC_ARG_TYPE(n, type) ((type >> (8 * n)) & 0xFF)
 
-#define AF_UNIX     1
-#define AF_INET     2
-#define AF_INET6    10
+#define AF_UNIX 1
+#define AF_INET 2
+#define AF_INET6 10
 
 #if defined(bpf_target_x86)
-    #define PT_REGS_PARM6(x) ((x)->r9)
+#define PT_REGS_PARM6(x) ((x)->r9)
 #elif defined(bpf_target_arm64)
-    #define PT_REGS_PARM6(x) ((x)->regs[5])
+#define PT_REGS_PARM6(x) ((x)->regs[5])
 #endif
 
 #define UNDEFINED_SYSCALL 1000
 
 #if defined(bpf_target_x86)
-    enum {
-        // file
-        _SYS_OPEN = 2,
-        _SYS_OPENAT = 257,
-        _SYS_CLOSE = 3,
-        _SYS_UNLINK = 87,
-        _SYS_UNLINKAT = 263,
-        _SYS_CHOWN = 92,
-        _SYS_FCHOWNAT = 260,
-        _SYS_SETUID = 105,
-        _SYS_SETGID = 106,
-        _SYS_MOUNT = 165,
-        _SYS_UMOUNT = 166,
+enum
+{
+    // file
+    _SYS_OPEN = 2,
+    _SYS_OPENAT = 257,
+    _SYS_CLOSE = 3,
+    _SYS_UNLINK = 87,
+    _SYS_UNLINKAT = 263,
+    _SYS_CHOWN = 92,
+    _SYS_FCHOWNAT = 260,
+    _SYS_SETUID = 105,
+    _SYS_SETGID = 106,
+    _SYS_MOUNT = 165,
+    _SYS_UMOUNT = 166,
 
-        // network
-        _SYS_SOCKET = 41,
-        _SYS_CONNECT = 42,
-        _SYS_ACCEPT = 43,
-        _SYS_BIND = 49,
-        _SYS_LISTEN = 50,
+    // network
+    _SYS_SOCKET = 41,
+    _SYS_CONNECT = 42,
+    _SYS_ACCEPT = 43,
+    _SYS_BIND = 49,
+    _SYS_LISTEN = 50,
 
-        // process
-        _SYS_EXECVE = 59,
-        _SYS_EXECVEAT = 322,
-    };
+    // process
+    _SYS_EXECVE = 59,
+    _SYS_EXECVEAT = 322,
+};
 #elif defined(bpf_target_arm64)
-    enum {
-        // file
-        _SYS_OPEN = UNDEFINED_SYSCALL,
-        _SYS_OPENAT = 56,
-        _SYS_CLOSE = 57,
-        _SYS_UNLINK = UNDEFINED_SYSCALL,
-        _SYS_UNLINKAT = 35,
-        _SYS_CHOWN = UNDEFINED_SYSCALL,
-        _SYS_FCHOWNAT = 54,
-        _SYS_SETUID = 146,
-        _SYS_SETGID = 144,
-        _SYS_MOUNT = 165,
-        _SYS_UMOUNT = 166,
+enum
+{
+    // file
+    _SYS_OPEN = UNDEFINED_SYSCALL,
+    _SYS_OPENAT = 56,
+    _SYS_CLOSE = 57,
+    _SYS_UNLINK = UNDEFINED_SYSCALL,
+    _SYS_UNLINKAT = 35,
+    _SYS_CHOWN = UNDEFINED_SYSCALL,
+    _SYS_FCHOWNAT = 54,
+    _SYS_SETUID = 146,
+    _SYS_SETGID = 144,
+    _SYS_MOUNT = 165,
+    _SYS_UMOUNT = 166,
 
-        // network
-        _SYS_SOCKET = 198,
-        _SYS_CONNECT = 203,
-        _SYS_ACCEPT = 202,
-        _SYS_BIND = 200,
-        _SYS_LISTEN = 201,
+    // network
+    _SYS_SOCKET = 198,
+    _SYS_CONNECT = 203,
+    _SYS_ACCEPT = 202,
+    _SYS_BIND = 200,
+    _SYS_LISTEN = 201,
 
-        // process
-        _SYS_EXECVE = 221,
-        _SYS_EXECVEAT = 281,
-    };
+    // process
+    _SYS_EXECVE = 221,
+    _SYS_EXECVEAT = 281,
+};
 #endif
 
 // common event_ids
-enum {
+enum
+{
     _DO_EXIT = 351,
     _SYS_RMDIR = 84,
 
-    _SYS_PTRACE = 101,         
+    _SYS_PTRACE = 101,
     // lsm
     _SECURITY_BPRM_CHECK = 352,
 
@@ -178,22 +181,25 @@ enum {
 };
 
 #ifndef BTF_SUPPORTED
-struct mnt_namespace {
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+struct mnt_namespace
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
     atomic_t count;
-    #endif
+#endif
     struct ns_common ns;
 };
 
-struct mount {
-	struct hlist_node mnt_hash;
-	struct mount *mnt_parent;
-	struct dentry *mnt_mountpoint;
-	struct vfsmount mnt;
+struct mount
+{
+    struct hlist_node mnt_hash;
+    struct mount *mnt_parent;
+    struct dentry *mnt_mountpoint;
+    struct vfsmount mnt;
 };
 #endif
 
-typedef struct __attribute__((__packed__)) sys_context {
+typedef struct __attribute__((__packed__)) sys_context
+{
     u64 ts;
 
     u32 pid_id;
@@ -214,63 +220,65 @@ typedef struct __attribute__((__packed__)) sys_context {
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
-struct bpf_map_def SEC("maps") _name = { \
-  .type = _type, \
-  .key_size = sizeof(_key_type), \
-  .value_size = sizeof(_value_type), \
-  .max_entries = _max_entries, \
-};
+    struct bpf_map_def SEC("maps") _name = {                        \
+        .type = _type,                                              \
+        .key_size = sizeof(_key_type),                              \
+        .value_size = sizeof(_value_type),                          \
+        .max_entries = _max_entries,                                \
+    };
 
 #define BPF_HASH(_name, _key_type, _value_type) \
-BPF_MAP(_name, BPF_MAP_TYPE_HASH, _key_type, _value_type, 10240)
+    BPF_MAP(_name, BPF_MAP_TYPE_HASH, _key_type, _value_type, 10240)
 
 #define BPF_LRU_HASH(_name, _key_type, _value_type) \
-BPF_MAP(_name, BPF_MAP_TYPE_LRU_HASH, _key_type, _value_type, 10240)
+    BPF_MAP(_name, BPF_MAP_TYPE_LRU_HASH, _key_type, _value_type, 10240)
 
 #define BPF_ARRAY(_name, _value_type, _max_entries) \
-BPF_MAP(_name, BPF_MAP_TYPE_ARRAY, u32, _value_type, _max_entries)
+    BPF_MAP(_name, BPF_MAP_TYPE_ARRAY, u32, _value_type, _max_entries)
 
 #define BPF_PERCPU_ARRAY(_name, _value_type, _max_entries) \
-BPF_MAP(_name, BPF_MAP_TYPE_PERCPU_ARRAY, u32, _value_type, _max_entries)
+    BPF_MAP(_name, BPF_MAP_TYPE_PERCPU_ARRAY, u32, _value_type, _max_entries)
 
 #define BPF_PROG_ARRAY(_name, _max_entries) \
-BPF_MAP(_name, BPF_MAP_TYPE_PROG_ARRAY, u32, u32, _max_entries)
+    BPF_MAP(_name, BPF_MAP_TYPE_PROG_ARRAY, u32, u32, _max_entries)
 
 #define BPF_PERF_OUTPUT(_name) \
-BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
+    BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
 BPF_HASH(pid_ns_map, u32, u32);
 
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
 
-#define READ_KERN(ptr)                                                                         \
-    ({                                                                                         \
-        typeof(ptr) _val;                                                                      \
-        __builtin_memset((void *) &_val, 0, sizeof(_val));                                     \
-        bpf_core_read((void *) &_val, sizeof(_val), &ptr);                                     \
-        _val;                                                                                  \
+#define READ_KERN(ptr)                                    \
+    ({                                                    \
+        typeof(ptr) _val;                                 \
+        __builtin_memset((void *)&_val, 0, sizeof(_val)); \
+        bpf_core_read((void *)&_val, sizeof(_val), &ptr); \
+        _val;                                             \
     })
 #else
 #define GET_FIELD_ADDR(field) &field
 
-#define READ_KERN(ptr)                                                  \
-    ({                                                                  \
-        typeof(ptr) _val;                                               \
-        __builtin_memset((void *)&_val, 0, sizeof(_val));               \
-        bpf_probe_read((void *)&_val, sizeof(_val), &ptr);              \
-        _val;                                                           \
+#define READ_KERN(ptr)                                     \
+    ({                                                     \
+        typeof(ptr) _val;                                  \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));  \
+        bpf_probe_read((void *)&_val, sizeof(_val), &ptr); \
+        _val;                                              \
     })
 #endif
 
-typedef struct args {
+typedef struct args
+{
     unsigned long args[6];
 } args_t;
 
 BPF_HASH(args_map, u64, args_t);
 BPF_HASH(file_map, u64, struct path);
 
-typedef struct buffers {
+typedef struct buffers
+{
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
@@ -279,23 +287,57 @@ BPF_PERCPU_ARRAY(bufs_offset, u32, 3);
 
 BPF_PERF_OUTPUT(sys_events);
 
+// == Visibility == //
+
+enum
+{
+    _FILE_PROBE = 0,
+    _PROCESS_PROBE = 1,
+    _NETWORK_PROBE = 2,
+    _CAPS_PROBE = 3,
+
+    _TRACE_SYSCALL = 0,
+    _IGNORE_SYSCALL = 1,
+};
+
+struct outer_key
+{
+    u32 pid_ns;
+    u32 mnt_ns;
+};
+
+struct visibility
+{
+    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+    __type(key, struct outer_key);
+    __type(value, u32);
+    /*
+        https://github.com/kubernetes/community/blob/master/sig-scalability/configs-and-limits/thresholds.md#kubernetes-thresholds
+        The link above mentions that a node can have a maximun of 110 pods.
+    */
+    __uint(max_entries, 65535);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct visibility kubearmor_visibility SEC(".maps");
+
 // == Kernel Helpers == //
 
 static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
 {
-    struct pid_namespace* pidns = READ_KERN(ns->pid_ns_for_children);
+    struct pid_namespace *pidns = READ_KERN(ns->pid_ns_for_children);
     return READ_KERN(pidns->ns.inum);
 }
 
 static __always_inline u32 get_mnt_ns_id(struct nsproxy *ns)
 {
-    struct mnt_namespace* mntns = READ_KERN(ns->mnt_ns);
+    struct mnt_namespace *mntns = READ_KERN(ns->mnt_ns);
     return READ_KERN(mntns->ns.inum);
 }
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
 {
-	return container_of(mnt, struct mount, mnt);
+    return container_of(mnt, struct mount, mnt);
 }
 
 static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
@@ -312,11 +354,11 @@ static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
 {
     struct pid *pid = NULL;
 
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0)  && !defined(BTF_SUPPORTED))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0) && !defined(BTF_SUPPORTED))
     pid = READ_KERN(task->pids[PIDTYPE_PID].pid);
-    #else
+#else
     pid = READ_KERN(task->thread_pid);
-    #endif
+#endif
 
     unsigned int level = READ_KERN(pid->level);
     return READ_KERN(pid->numbers[level].nr);
@@ -343,13 +385,24 @@ static __always_inline u32 get_task_ppid(struct task_struct *task)
 {
     struct task_struct *parent = READ_KERN(task->parent);
     return READ_KERN(parent->pid);
-
 }
 
 static struct file *get_task_file(struct task_struct *task)
 {
-  struct mm_struct *mm = READ_KERN(task->mm);
-  return READ_KERN(mm->exe_file);
+    struct mm_struct *mm = READ_KERN(task->mm);
+    return READ_KERN(mm->exe_file);
+}
+
+static __always_inline void get_outer_key(struct outer_key *pokey,
+                                          struct task_struct *t)
+{
+    pokey->pid_ns = get_task_pid_ns_id(t);
+    pokey->mnt_ns = get_task_mnt_ns_id(t);
+    if (pokey->pid_ns == PROC_PID_INIT_INO)
+    {
+        pokey->pid_ns = 0;
+        pokey->mnt_ns = 0;
+    }
 }
 
 // == Pid NS Management == //
@@ -362,12 +415,14 @@ static __always_inline u32 add_pid_ns()
 #if defined(MONITOR_HOST)
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO) {
+    if (pid_ns != PROC_PID_INIT_INO)
+    {
         return 0;
     }
 
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
+    if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+    {
         return pid;
     }
 
@@ -377,16 +432,21 @@ static __always_inline u32 add_pid_ns()
 #else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) { // host
+    if (pid_ns == PROC_PID_INIT_INO)
+    { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
+        if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+        {
             return pid;
         }
 
         bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
         return pid;
-    } else { // container
-        if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) != 0) {
+    }
+    else
+    { // container
+        if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) != 0)
+        {
             return pid_ns;
         }
 
@@ -404,28 +464,35 @@ static __always_inline u32 remove_pid_ns()
 #if defined(MONITOR_HOST)
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO) {
+    if (pid_ns != PROC_PID_INIT_INO)
+    {
         return 0;
     }
 
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
-        bpf_map_delete_elem(&pid_ns_map,&pid);
+    if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+    {
+        bpf_map_delete_elem(&pid_ns_map, &pid);
         return 0;
     }
 
 #else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) { // host
+    if (pid_ns == PROC_PID_INIT_INO)
+    { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
-            bpf_map_delete_elem(&pid_ns_map,&pid);
+        if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+        {
+            bpf_map_delete_elem(&pid_ns_map, &pid);
             return 0;
         }
-    } else { // container
-        if (get_task_ns_pid(task) == 1) {
-            bpf_map_delete_elem(&pid_ns_map,&pid_ns);
+    }
+    else
+    { // container
+        if (get_task_ns_pid(task) == 1)
+        {
+            bpf_map_delete_elem(&pid_ns_map, &pid_ns);
             return 0;
         }
     }
@@ -435,52 +502,77 @@ static __always_inline u32 remove_pid_ns()
     return 0;
 }
 
+static __always_inline u32 drop_syscall(u32 scope)
+{
+    struct outer_key okey;
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    get_outer_key(&okey, task);
+
+    u32 *ns_visibility = bpf_map_lookup_elem(&kubearmor_visibility, &okey);
+    if (!ns_visibility)
+    {
+        return _TRACE_SYSCALL;
+    }
+
+    u32 *on_off_switch = bpf_map_lookup_elem(ns_visibility, &scope);
+    if (!on_off_switch)
+    {
+        return _TRACE_SYSCALL;
+    }
+
+    if (*on_off_switch)
+        return _IGNORE_SYSCALL;
+    return _TRACE_SYSCALL;
+}
+
 static __always_inline u32 skip_syscall()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    u32 pid_ns = get_task_pid_ns_id(task);
 
 #if defined(MONITOR_HOST)
 
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO) {
-        return 1;
-    }
-
     u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map,&pid) == 0) {
-        return add_pid_ns();
+    if (pid_ns != PROC_PID_INIT_INO)
+    {
+        return _IGNORE_SYSCALL;
     }
-    return 0;
+    else if (bpf_map_lookup_elem(&pid_ns_map, &pid) == 0)
+    {
+        return !add_pid_ns();
+    }
 
 #elif defined(MONITOR_CONTAINER)
 
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) {
-        return 1;
+    if (pid_ns == PROC_PID_INIT_INO)
+    {
+        return _IGNORE_SYSCALL;
     }
-
-    if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) == 0) {
-        return add_pid_ns();
+    else if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) == 0)
+    {
+        return !add_pid_ns();
     }
-    return 0;
 
 #else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO) { // host
+    if (pid_ns == PROC_PID_INIT_INO)
+    { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (bpf_map_lookup_elem(&pid_ns_map,&pid) != 0) {
-            return add_pid_ns();
-        }
-    } else { // container
-        if (bpf_map_lookup_elem(&pid_ns_map,&pid_ns) == 0) {
-            return add_pid_ns();
+        if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+        {
+            return !add_pid_ns();
         }
     }
-    return 0;
+    else
+    { // container
+        if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) == 0)
+        {
+            return !add_pid_ns();
+        }
+    }
 
 #endif /* MONITOR_CONTAINER || MONITOR_HOST */
-
+    return _TRACE_SYSCALL;
 }
 
 // == Context Management == //
@@ -505,13 +597,16 @@ static __always_inline u32 init_context(sys_context_t *context)
 #else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
 
     u32 pid = get_task_ns_tgid(task);
-    if (context->host_pid == pid) { // host
+    if (context->host_pid == pid)
+    { // host
         context->pid_id = 0;
         context->mnt_id = 0;
 
         context->ppid = get_task_ppid(task);
         context->pid = bpf_get_current_pid_tgid() >> 32;
-    } else { // container
+    }
+    else
+    { // container
         context->pid_id = get_task_pid_ns_id(task);
         context->mnt_id = get_task_mnt_ns_id(task);
 
@@ -534,7 +629,7 @@ static __always_inline u32 init_context(sys_context_t *context)
 #define EXEC_BUF_TYPE 1
 #define FILE_BUF_TYPE 2
 
-static __always_inline bufs_t* get_buffer(int buf_type)
+static __always_inline bufs_t *get_buffer(int buf_type)
 {
     return bpf_map_lookup_elem(&bufs, &buf_type);
 }
@@ -544,14 +639,15 @@ static __always_inline void set_buffer_offset(int buf_type, u32 off)
     bpf_map_update_elem(&bufs_offset, &buf_type, &off, BPF_ANY);
 }
 
-static __always_inline u32* get_buffer_offset(int buf_type)
+static __always_inline u32 *get_buffer_offset(int buf_type)
 {
     return bpf_map_lookup_elem(&bufs_offset, &buf_type);
 }
 
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0) {
+    if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0)
+    {
         return sizeof(sys_context_t);
     }
 
@@ -563,27 +659,31 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 
     u32 *off = get_buffer_offset(DATA_BUF_TYPE);
 
-    if (off == NULL) {
+    if (off == NULL)
+    {
         return -1;
     }
 
-    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
+    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int))
+    {
         return 0; // no enough space
     }
 
     u8 type = STR_T;
-    bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE-1)]), 1, &type);
-    
+    bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE - 1)]), 1, &type);
+
     *off += 1;
 
-    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int)) {
+    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int))
+    {
         return 0; // no enough space
     }
 
-
     int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
-    if (sz > 0) {
-        if (*off > MAX_BUFFER_SIZE - sizeof(int)) {
+    if (sz > 0)
+    {
+        if (*off > MAX_BUFFER_SIZE - sizeof(int))
+        {
             return 0; // no enough space
         }
 
@@ -600,131 +700,147 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
 
 static __always_inline bool prepend_path(struct path *path, bufs_t *string_p, int buf_type)
 {
-	char slash  = '/';
-	char null   = '\0';
-	int  offset = MAX_STRING_SIZE;
+    char slash = '/';
+    char null = '\0';
+    int offset = MAX_STRING_SIZE;
 
-	if (path == NULL || string_p == NULL) {
-		return false;
-	}
-
-	struct dentry *dentry = path->dentry;
-	struct vfsmount *vfsmnt = path->mnt;
-
-	struct mount *mnt = real_mount(vfsmnt);
-
-	struct dentry *parent;
-	struct dentry *mnt_root;
-	struct mount *m;
-	struct qstr d_name;
-
-    #pragma unroll
-	for (int i = 0; i < MAX_LOOP_LIMIT; i++) {
-		bpf_probe_read(&parent, sizeof(struct dentry *), &dentry->d_parent);
-		bpf_probe_read(&mnt_root, sizeof(struct dentry *), &vfsmnt->mnt_root);
-
-		if (dentry == mnt_root) {
-			bpf_probe_read(&m, sizeof(struct mount *), &mnt->mnt_parent);
-			if (mnt != m) {
-				bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt->mnt_mountpoint);
-				mnt = m;
-				continue;
-			}
-
-			/* Global root */
-			break;
-		}
-
-		if (dentry == parent) {
-			break;
-		}
-
-		// get d_name
-		bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
-		offset -= (d_name.len + 1);
-		if (offset < 0)
-			break;
-
-		int sz = bpf_probe_read_str(&(string_p->buf[(offset) & (MAX_STRING_SIZE - 1)]), (d_name.len + 1) & (MAX_STRING_SIZE - 1), d_name.name);
-		if (sz > 1) {
-			bpf_probe_read(&(string_p->buf[(offset + d_name.len) & (MAX_STRING_SIZE - 1)]), 1, &slash);
-		} else {
-            offset += (d_name.len + 1);
-		}
-
-		dentry = parent;
-	}
-
-	if (offset == MAX_STRING_SIZE) {
-		return false;
+    if (path == NULL || string_p == NULL)
+    {
+        return false;
     }
 
-	bpf_probe_read(&(string_p->buf[MAX_STRING_SIZE - 1]), 1, &null);
-	offset--;
-	
-    bpf_probe_read(&(string_p->buf[offset & (MAX_STRING_SIZE - 1)]), 1, &slash);
-	set_buffer_offset(buf_type, offset);
+    struct dentry *dentry = path->dentry;
+    struct vfsmount *vfsmnt = path->mnt;
 
-	return true;
+    struct mount *mnt = real_mount(vfsmnt);
+
+    struct dentry *parent;
+    struct dentry *mnt_root;
+    struct mount *m;
+    struct qstr d_name;
+
+#pragma unroll
+    for (int i = 0; i < MAX_LOOP_LIMIT; i++)
+    {
+        bpf_probe_read(&parent, sizeof(struct dentry *), &dentry->d_parent);
+        bpf_probe_read(&mnt_root, sizeof(struct dentry *), &vfsmnt->mnt_root);
+
+        if (dentry == mnt_root)
+        {
+            bpf_probe_read(&m, sizeof(struct mount *), &mnt->mnt_parent);
+            if (mnt != m)
+            {
+                bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt->mnt_mountpoint);
+                mnt = m;
+                continue;
+            }
+
+            /* Global root */
+            break;
+        }
+
+        if (dentry == parent)
+        {
+            break;
+        }
+
+        // get d_name
+        bpf_probe_read(&d_name, sizeof(struct qstr), &dentry->d_name);
+        offset -= (d_name.len + 1);
+        if (offset < 0)
+            break;
+
+        int sz = bpf_probe_read_str(&(string_p->buf[(offset) & (MAX_STRING_SIZE - 1)]), (d_name.len + 1) & (MAX_STRING_SIZE - 1), d_name.name);
+        if (sz > 1)
+        {
+            bpf_probe_read(&(string_p->buf[(offset + d_name.len) & (MAX_STRING_SIZE - 1)]), 1, &slash);
+        }
+        else
+        {
+            offset += (d_name.len + 1);
+        }
+
+        dentry = parent;
+    }
+
+    if (offset == MAX_STRING_SIZE)
+    {
+        return false;
+    }
+
+    bpf_probe_read(&(string_p->buf[MAX_STRING_SIZE - 1]), 1, &null);
+    offset--;
+
+    bpf_probe_read(&(string_p->buf[offset & (MAX_STRING_SIZE - 1)]), 1, &slash);
+    set_buffer_offset(buf_type, offset);
+
+    return true;
 }
 
-static __always_inline struct path* load_file_p()
+static __always_inline struct path *load_file_p()
 {
-    u64	pid_tgid = bpf_get_current_pid_tgid();
+    u64 pid_tgid = bpf_get_current_pid_tgid();
 
-    struct path *p = bpf_map_lookup_elem(&file_map,&pid_tgid);
-    bpf_map_delete_elem(&file_map,&pid_tgid);
+    struct path *p = bpf_map_lookup_elem(&file_map, &pid_tgid);
+    bpf_map_delete_elem(&file_map, &pid_tgid);
     return p;
 }
 
 static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-	struct path *path = load_file_p();
+    struct path *path = load_file_p();
 
-	bufs_t *string_p = get_buffer(FILE_BUF_TYPE);
-	if (string_p == NULL)
-		return save_str_to_buffer(bufs_p, ptr);
+    bufs_t *string_p = get_buffer(FILE_BUF_TYPE);
+    if (string_p == NULL)
+        return save_str_to_buffer(bufs_p, ptr);
 
-	if (!prepend_path(path, string_p, FILE_BUF_TYPE)) {
+    if (!prepend_path(path, string_p, FILE_BUF_TYPE))
+    {
         return save_str_to_buffer(bufs_p, ptr);
     }
 
-	u32 *off = get_buffer_offset(FILE_BUF_TYPE);
-	if (off == NULL)
-		return save_str_to_buffer(bufs_p, ptr);
+    u32 *off = get_buffer_offset(FILE_BUF_TYPE);
+    if (off == NULL)
+        return save_str_to_buffer(bufs_p, ptr);
 
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
 
 static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
 {
-    // the biggest element that can be saved with this function should be defined here
-    #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
+// the biggest element that can be saved with this function should be defined here
+#define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
 
-    if (type == 0) {
+    if (type == 0)
+    {
         return 0;
     }
 
     u32 *off = get_buffer_offset(DATA_BUF_TYPE);
-    if (off == NULL) {
+    if (off == NULL)
+    {
         return -1;
     }
-    
-    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
+
+    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE)
+    {
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
+    {
         return 0;
     }
 
     *off += 1;
 
-    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE) {
+    if (*off > MAX_BUFFER_SIZE - MAX_ELEMENT_SIZE)
+    {
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0) {
+    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
+    {
         *off += size;
         set_buffer_offset(DATA_BUF_TYPE, *off);
         return size;
@@ -738,7 +854,8 @@ static __always_inline int save_argv(bufs_t *bufs_p, void *ptr)
     const char *argp = NULL;
     bpf_probe_read(&argp, sizeof(argp), ptr);
 
-    if (argp) {
+    if (argp)
+    {
         return save_str_to_buffer(bufs_p, (void *)(argp));
     }
 
@@ -749,10 +866,12 @@ static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __u
 {
     save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
 
-    #pragma unroll
-    for (int i = 0; i < MAX_STR_ARR_ELEM; i++) {
-        if (save_argv(bufs_p, (void *)&ptr[i]) == 0) {
-             goto out;
+#pragma unroll
+    for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
+    {
+        if (save_argv(bufs_p, (void *)&ptr[i]) == 0)
+        {
+            goto out;
         }
     }
 
@@ -767,68 +886,74 @@ out:
 
 static __always_inline int save_args_to_buffer(u64 types, args_t *args)
 {
-    if (types == 0) {
+    if (types == 0)
+    {
         return 0;
     }
 
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
-    if (bufs_p == NULL) {
+    if (bufs_p == NULL)
+    {
         return 0;
     }
 
-    #pragma unroll
-    for (int i = 0; i < MAX_ARGS; i++) {
-        switch (DEC_ARG_TYPE(i, types)) {
+#pragma unroll
+    for (int i = 0; i < MAX_ARGS; i++)
+    {
+        switch (DEC_ARG_TYPE(i, types))
+        {
         case NONE_T:
             break;
         case INT_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), INT_T);
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), INT_T);
             break;
         case OPEN_FLAGS_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
             break;
         case FILE_TYPE_T:
             save_file_to_buffer(bufs_p, (void *)args->args[i]);
             break;
         case PTRACE_REQ_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), PTRACE_REQ_T);            
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), PTRACE_REQ_T);
             break;
         case MOUNT_FLAG_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);            
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);
             break;
         case UMOUNT_FLAG_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);            
-            break;          
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);
+            break;
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;
         case SOCK_DOM_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_DOM_T);
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), SOCK_DOM_T);
             break;
         case SOCK_TYPE_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
             break;
         case SOCKADDR_T:
-            if (args->args[i]) {
+            if (args->args[i])
+            {
                 short family = 0;
-                bpf_probe_read(&family, sizeof(short), (void*)args->args[i]);
-                switch (family) {
+                bpf_probe_read(&family, sizeof(short), (void *)args->args[i]);
+                switch (family)
+                {
                 case AF_UNIX:
-                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
                     break;
                 case AF_INET:
-                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
                     break;
                 case AF_INET6:
-                    save_to_buffer(bufs_p, (void*)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
                     break;
                 default:
-                    save_to_buffer(bufs_p, (void*)&family, sizeof(short), SOCKADDR_T);
+                    save_to_buffer(bufs_p, (void *)&family, sizeof(short), SOCKADDR_T);
                 }
             }
             break;
         case UNLINKAT_FLAG_T:
-            save_to_buffer(bufs_p, (void*)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
             break;
         }
     }
@@ -847,7 +972,7 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
         return -1;
 
     void *data = bufs_p->buf;
-    int size = *off & (MAX_BUFFER_SIZE-1);
+    int size = *off & (MAX_BUFFER_SIZE - 1);
 
     return bpf_perf_event_output(ctx, &sys_events, BPF_F_CURRENT_CPU, data, size);
 }
@@ -855,10 +980,12 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx)
 // == Full Path == //
 
 //  args:  const struct path *dir, struct dentry *dentry
-static __always_inline int security_path__dir_path_args(struct pt_regs *ctx){
-    struct path *dir = (struct path*) PT_REGS_PARM1(ctx);
-    struct dentry *dentry = (struct dentry*) PT_REGS_PARM2(ctx);
-    if(dir == NULL || dentry == NULL){
+static __always_inline int security_path__dir_path_args(struct pt_regs *ctx)
+{
+    struct path *dir = (struct path *)PT_REGS_PARM1(ctx);
+    struct dentry *dentry = (struct dentry *)PT_REGS_PARM2(ctx);
+    if (dir == NULL || dentry == NULL)
+    {
         return 0;
     }
 
@@ -866,57 +993,63 @@ static __always_inline int security_path__dir_path_args(struct pt_regs *ctx){
     p.dentry = READ_KERN(dentry);
     p.mnt = READ_KERN(dir->mnt);
 
-    u64	tgid = bpf_get_current_pid_tgid();
+    u64 tgid = bpf_get_current_pid_tgid();
     bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
 
     return 0;
 }
 
 //  args:  struct task_struct *task
-static __always_inline int security_path_task_arg(struct pt_regs *ctx){
-    struct task_struct *task = (struct task_struct*) PT_REGS_PARM1(ctx);
-    if(task == NULL){
+static __always_inline int security_path_task_arg(struct pt_regs *ctx)
+{
+    struct task_struct *task = (struct task_struct *)PT_REGS_PARM1(ctx);
+    if (task == NULL)
+    {
         return 0;
     }
-   
+
     struct file *file_p = get_task_file(task);
     if (file_p == NULL)
-    return 0;
+        return 0;
 
     struct path p = READ_KERN(file_p->f_path);
 
-    u64	tgid = bpf_get_current_pid_tgid();
+    u64 tgid = bpf_get_current_pid_tgid();
     bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
     return 0;
 }
 
 #if defined(SECURITY_PATH)
 SEC("kprobe/security_path_mknod")
-int kprobe__security_path_mknod(struct pt_regs *ctx){
+int kprobe__security_path_mknod(struct pt_regs *ctx)
+{
     if (skip_syscall())
-		return 0;
+        return 0;
     return security_path__dir_path_args(ctx);
 }
 
 SEC("kprobe/security_path_unlink")
-int kprobe__security_path_unlink(struct pt_regs *ctx){
+int kprobe__security_path_unlink(struct pt_regs *ctx)
+{
     if (skip_syscall())
-		return 0;
+        return 0;
     return security_path__dir_path_args(ctx);
 }
 
 SEC("kprobe/security_path_rmdir")
-int kprobe__security_path_rmdir(struct pt_regs *ctx){
+int kprobe__security_path_rmdir(struct pt_regs *ctx)
+{
     if (skip_syscall())
-		return 0;
+        return 0;
     return security_path__dir_path_args(ctx);
 }
 #endif
 
 SEC("kprobe/security_ptrace_access_check")
-int kprobe__security_ptrace_access_check(struct pt_regs *ctx){
+int kprobe__security_ptrace_access_check(struct pt_regs *ctx)
+{
     if (skip_syscall())
-		return 0;
+        return 0;
     return security_path_task_arg(ctx);
 }
 
@@ -936,20 +1069,21 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
     if (f == NULL)
         return 0;
 
-	struct path p;
+    struct path p;
     bpf_probe_read(&p, sizeof(struct path), GET_FIELD_ADDR(f->f_path));
 
-	bufs_t *string_p = get_buffer(EXEC_BUF_TYPE);
-	if (string_p == NULL)
-		return -1;
+    bufs_t *string_p = get_buffer(EXEC_BUF_TYPE);
+    if (string_p == NULL)
+        return -1;
 
-	if (!prepend_path(&p, string_p, EXEC_BUF_TYPE)) {
+    if (!prepend_path(&p, string_p, EXEC_BUF_TYPE))
+    {
         return -1;
     }
 
-	u32 *off = get_buffer_offset(EXEC_BUF_TYPE);
-	if (off == NULL)
-		return -1;
+    u32 *off = get_buffer_offset(EXEC_BUF_TYPE);
+    if (off == NULL)
+        return -1;
 
     //
 
@@ -965,7 +1099,7 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
     save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 
     events_perf_submit(ctx);
@@ -976,17 +1110,17 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
 SEC("kprobe/security_file_open")
 int kprobe__security_file_open(struct pt_regs *ctx)
 {
-	if (skip_syscall())
-		return 0;
+    if (skip_syscall())
+        return 0;
 
     struct file *f = (struct file *)PT_REGS_PARM1(ctx);
 
-	struct path p = READ_KERN(f->f_path);
+    struct path p = READ_KERN(f->f_path);
 
-	u64	tgid = bpf_get_current_pid_tgid();
-	bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
+    u64 tgid = bpf_get_current_pid_tgid();
+    bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
 
-	return 0;
+    return 0;
 }
 
 // == Syscall Hooks (Process) == //
@@ -994,11 +1128,10 @@ int kprobe__security_file_open(struct pt_regs *ctx)
 SEC("kprobe/__x64_sys_execve")
 int kprobe__execve(struct pt_regs *ctx)
 {
-    if (!add_pid_ns())
-        return 0;
-
     if (skip_syscall())
-	    return 0;
+    {
+        return 0;
+    }
 
     sys_context_t context = {};
 
@@ -1006,13 +1139,12 @@ int kprobe__execve(struct pt_regs *ctx)
     char *filename = (char *)PT_REGS_PARM1(ctx);
     unsigned long argv = PT_REGS_PARM2(ctx);
 #else
-    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);  
+    struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
     char *filename = (char *)READ_KERN(PT_REGS_PARM1(ctx2));
     unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
 #endif
 
     init_context(&context);
-
 
     context.event_id = _SYS_EXECVE;
     context.argnum = 2;
@@ -1024,7 +1156,7 @@ int kprobe__execve(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
 
     save_str_to_buffer(bufs_p, filename);
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
@@ -1038,7 +1170,7 @@ SEC("kretprobe/__x64_sys_execve")
 int kretprobe__execve(struct pt_regs *ctx)
 {
     if (skip_syscall())
-	    return 0;
+        return 0;
 
     sys_context_t context = {};
 
@@ -1050,7 +1182,13 @@ int kretprobe__execve(struct pt_regs *ctx)
 
     // skip if No such file/directory or if there is an EINPROGRESS
     // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
-    if (context.retval == -2 || context.retval == -115) {
+    if (context.retval == -2 || context.retval == -115)
+    {
+        return 0;
+    }
+
+    if (context.retval >= 0 && drop_syscall(_PROCESS_PROBE))
+    {
         return 0;
     }
 
@@ -1060,7 +1198,7 @@ int kretprobe__execve(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
 
     events_perf_submit(ctx);
 
@@ -1070,16 +1208,13 @@ int kretprobe__execve(struct pt_regs *ctx)
 SEC("kprobe/__x64_sys_execveat")
 int kprobe__execveat(struct pt_regs *ctx)
 {
-    if (!add_pid_ns())
-        return 0;
-    
     if (skip_syscall())
-	    return 0;
+        return 0;
 
     sys_context_t context = {};
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
-    
+
     const int dirfd = PT_REGS_PARM1(ctx);
 
     const char __user *pathname = (void *)&PT_REGS_PARM2(ctx);
@@ -1089,8 +1224,8 @@ int kprobe__execveat(struct pt_regs *ctx)
     int flags = (int)PT_REGS_PARM5(ctx);
 
 #else
-    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);  
-    
+    struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
+
     const int dirfd = READ_KERN(PT_REGS_PARM1(ctx2));
 
     const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM2(ctx2));
@@ -1112,7 +1247,7 @@ int kprobe__execveat(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
 
     save_to_buffer(bufs_p, (void *)&dirfd, sizeof(int), INT_T);
     save_str_to_buffer(bufs_p, (void *)pathname);
@@ -1128,7 +1263,7 @@ SEC("kretprobe/__x64_sys_execveat")
 int kretprobe__execveat(struct pt_regs *ctx)
 {
     if (skip_syscall())
-		return 0;
+        return 0;
 
     sys_context_t context = {};
 
@@ -1140,7 +1275,13 @@ int kretprobe__execveat(struct pt_regs *ctx)
 
     // skip if No such file/directory or if there is an EINPROGRESS
     // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
-    if (context.retval == -2 || context.retval == -115) {
+    if (context.retval == -2 || context.retval == -115)
+    {
+        return 0;
+    }
+
+    if (context.retval >= 0 && drop_syscall(_PROCESS_PROBE))
+    {
         return 0;
     }
 
@@ -1150,7 +1291,7 @@ int kretprobe__execveat(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
 
     events_perf_submit(ctx);
 
@@ -1161,7 +1302,7 @@ SEC("kprobe/do_exit")
 int kprobe__do_exit(struct pt_regs *ctx)
 {
     if (skip_syscall())
-	    return 0;
+        return 0;
 
     sys_context_t context = {};
 
@@ -1181,7 +1322,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
 
     events_perf_submit(ctx);
 
@@ -1193,7 +1334,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
 static __always_inline int save_args(u32 event_id, struct pt_regs *ctx)
 {
     args_t args = {};
-  
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 0)
     args.args[0] = PT_REGS_PARM1(ctx);
     args.args[1] = PT_REGS_PARM2(ctx);
@@ -1202,7 +1343,7 @@ static __always_inline int save_args(u32 event_id, struct pt_regs *ctx)
     args.args[4] = PT_REGS_PARM5(ctx);
     args.args[5] = PT_REGS_PARM6(ctx);
 #else
-    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);  
+    struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
     bpf_probe_read(&args.args[0], sizeof(args.args[0]), &PT_REGS_PARM1(ctx2));
     bpf_probe_read(&args.args[1], sizeof(args.args[1]), &PT_REGS_PARM2(ctx2));
     bpf_probe_read(&args.args[2], sizeof(args.args[2]), &PT_REGS_PARM3(ctx2));
@@ -1224,8 +1365,9 @@ static __always_inline int load_args(u32 event_id, args_t *args)
     u32 tgid = bpf_get_current_pid_tgid();
     u64 id = ((u64)event_id << 32) | tgid;
 
-    args_t *saved_args = bpf_map_lookup_elem(&args_map,&id);
-    if (saved_args == 0) {
+    args_t *saved_args = bpf_map_lookup_elem(&args_map, &id);
+    if (saved_args == 0)
+    {
         return -1; // missed entry or not a container
     }
 
@@ -1236,7 +1378,7 @@ static __always_inline int load_args(u32 event_id, args_t *args)
     args->args[4] = saved_args->args[4];
     args->args[5] = saved_args->args[5];
 
-    bpf_map_delete_elem(&args_map,&id);
+    bpf_map_delete_elem(&args_map, &id);
 
     return 0;
 }
@@ -1245,8 +1387,9 @@ static __always_inline int get_arg_num(u64 types)
 {
     unsigned int i, argnum = 0;
 
-    #pragma unroll
-    for(i = 0; i < MAX_ARGS; i++) {
+#pragma unroll
+    for (i = 0; i < MAX_ARGS; i++)
+    {
         if (DEC_ARG_TYPE(i, types) != NONE_T)
             argnum++;
     }
@@ -1254,7 +1397,7 @@ static __always_inline int get_arg_num(u64 types)
     return argnum;
 }
 
-static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 types)
+static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 types, u32 scope)
 {
     if (skip_syscall())
         return 0;
@@ -1276,7 +1419,13 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     // skip if No such file/directory or if there is an EINPROGRESS
     // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
-    if (context.retval == -2 || context.retval == -115) {
+    if (context.retval == -2 || context.retval == -115)
+    {
+        return 0;
+    }
+
+    if (context.retval >= 0 && drop_syscall(scope))
+    {
         return 0;
     }
 
@@ -1286,22 +1435,24 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
     events_perf_submit(ctx);
     return 0;
 }
 
 #define DIR_PROC "/proc/"
-static __always_inline int isProcDir(char *path){
+static __always_inline int isProcDir(char *path)
+{
     char procDir[] = DIR_PROC;
     int i = 0;
-    while (i<sizeof(DIR_PROC)-1 && path[i] != '\0' && path[i] == procDir[i] )
+    while (i < sizeof(DIR_PROC) - 1 && path[i] != '\0' && path[i] == procDir[i])
     {
         i++;
     }
 
-    if (i == sizeof(DIR_PROC)-1 ){
+    if (i == sizeof(DIR_PROC) - 1)
+    {
         return 0;
     }
 
@@ -1309,18 +1460,20 @@ static __always_inline int isProcDir(char *path){
 }
 
 #define DIR_SYS "/sys/"
-static __always_inline int isSysDir(char *path){
+static __always_inline int isSysDir(char *path)
+{
     char sysDir[] = DIR_SYS;
     int i = 0;
-    while (i<sizeof(DIR_SYS)-1 && path[i] != '\0' && path[i] == sysDir[i] )
+    while (i < sizeof(DIR_SYS) - 1 && path[i] != '\0' && path[i] == sysDir[i])
     {
         i++;
     }
 
-    if (i == sizeof(DIR_SYS)-1 ){
+    if (i == sizeof(DIR_SYS) - 1)
+    {
         return 0;
     }
-    
+
     return 1;
 }
 
@@ -1330,12 +1483,13 @@ int kprobe__open(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
-    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
+    struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
     const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM1(ctx2));
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-    if(isProcDir(path) == 0 || isSysDir(path) == 0){
+    if (isProcDir(path) == 0 || isSysDir(path) == 0)
+    {
         return 0;
     }
 
@@ -1345,7 +1499,7 @@ int kprobe__open(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_open")
 int kretprobe__open(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(OPEN_FLAGS_T));
+    return trace_ret_generic(_SYS_OPEN, ctx, ARG_TYPE0(FILE_TYPE_T) | ARG_TYPE1(OPEN_FLAGS_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_openat")
@@ -1354,12 +1508,13 @@ int kprobe__openat(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
-    struct pt_regs * ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
+    struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
     const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM2(ctx2));
     char path[8];
     bpf_probe_read(path, 8, pathname);
 
-   if(isProcDir(path) == 0 || isSysDir(path) == 0){
+    if (isProcDir(path) == 0 || isSysDir(path) == 0)
+    {
         return 0;
     }
 
@@ -1369,7 +1524,7 @@ int kprobe__openat(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_openat")
 int kretprobe__openat(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(OPEN_FLAGS_T));
+    return trace_ret_generic(_SYS_OPENAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(OPEN_FLAGS_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_unlink")
@@ -1384,7 +1539,7 @@ int kprobe__unlink(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_unlink")
 int kretprobe__unlink(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_UNLINK, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T));
+    return trace_ret_generic(_SYS_UNLINK, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_unlinkat")
@@ -1396,11 +1551,10 @@ int kprobe__unlinkat(struct pt_regs *ctx)
     return save_args(_SYS_UNLINKAT, ctx);
 }
 
-
 SEC("kretprobe/__x64_sys_unlinkat")
 int kretprobe__unlinkat(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_UNLINKAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(UNLINKAT_FLAG_T));
+    return trace_ret_generic(_SYS_UNLINKAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(UNLINKAT_FLAG_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_rmdir")
@@ -1415,7 +1569,7 @@ int kprobe__rmdir(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_rmdir")
 int kretprobe__rmdir(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_RMDIR, ctx, ARG_TYPE1(FILE_TYPE_T));
+    return trace_ret_generic(_SYS_RMDIR, ctx, ARG_TYPE1(FILE_TYPE_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_close")
@@ -1430,7 +1584,7 @@ int kprobe__close(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_close")
 int kretprobe__close(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T));
+    return trace_ret_generic(_SYS_CLOSE, ctx, ARG_TYPE0(INT_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_chown")
@@ -1444,7 +1598,7 @@ int kprobe__chown(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_chown")
 int kretprobe__chown(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_CHOWN, ctx, ARG_TYPE0(FILE_TYPE_T)|ARG_TYPE1(INT_T)|ARG_TYPE2(INT_T));
+    return trace_ret_generic(_SYS_CHOWN, ctx, ARG_TYPE0(FILE_TYPE_T) | ARG_TYPE1(INT_T) | ARG_TYPE2(INT_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_fchownat")
@@ -1458,7 +1612,7 @@ int kprobe__fchownat(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_fchownat")
 int kretprobe__fchownat(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_FCHOWNAT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(INT_T)|ARG_TYPE3(INT_T)|ARG_TYPE4(INT_T));
+    return trace_ret_generic(_SYS_FCHOWNAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(INT_T) | ARG_TYPE3(INT_T) | ARG_TYPE4(INT_T), _FILE_PROBE);
 }
 
 SEC("kprobe/__x64_sys_setuid")
@@ -1472,7 +1626,7 @@ int kprobe__setuid(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_setuid")
 int kretprobe__setuid(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_SETUID, ctx, ARG_TYPE0(INT_T));
+    return trace_ret_generic(_SYS_SETUID, ctx, ARG_TYPE0(INT_T), _CAPS_PROBE);
 }
 
 SEC("kprobe/__x64_sys_setgid")
@@ -1486,9 +1640,9 @@ int kprobe__setgid(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_setgid")
 int kretprobe__setgid(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T));
+    return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T), _CAPS_PROBE);
 }
-    
+
 SEC("kprobe/__x64_sys_ptrace")
 int kprobe__ptrace(struct pt_regs *ctx)
 {
@@ -1500,7 +1654,7 @@ int kprobe__ptrace(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_ptrace")
 int kretprobe__ptrace(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_PTRACE, ctx, ARG_TYPE0(PTRACE_REQ_T)|ARG_TYPE1(INT_T)|ARG_TYPE2(FILE_TYPE_T));
+    return trace_ret_generic(_SYS_PTRACE, ctx, ARG_TYPE0(PTRACE_REQ_T) | ARG_TYPE1(INT_T) | ARG_TYPE2(FILE_TYPE_T), _CAPS_PROBE);
 }
 
 SEC("kprobe/__x64_sys_mount")
@@ -1514,7 +1668,7 @@ int kprobe__mount(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_mount")
 int kretprobe__mount(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_MOUNT, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(STR_T)|ARG_TYPE2(STR_T)|ARG_TYPE3(MOUNT_FLAG_T)|ARG_TYPE4(STR_T));
+    return trace_ret_generic(_SYS_MOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(STR_T) | ARG_TYPE2(STR_T) | ARG_TYPE3(MOUNT_FLAG_T) | ARG_TYPE4(STR_T), _CAPS_PROBE);
 }
 
 SEC("kprobe/__x64_sys_umount")
@@ -1528,10 +1682,11 @@ int kprobe__umount(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_umount")
 int kretprobe__umount(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_UMOUNT, ctx, ARG_TYPE0(STR_T)|ARG_TYPE1(UMOUNT_FLAG_T));
+    return trace_ret_generic(_SYS_UMOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(UMOUNT_FLAG_T), _CAPS_PROBE);
 }
 
-struct tracepoint_syscalls_sys_exit_t {
+struct tracepoint_syscalls_sys_exit_t
+{
     unsigned short common_type;
     unsigned char common_flags;
     unsigned char common_preempt_count;
@@ -1545,10 +1700,10 @@ SEC("tracepoint/syscalls/sys_exit_openat")
 int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
 {
     if (skip_syscall())
-	    return 0;
+        return 0;
 
     u32 id = _SYS_OPENAT;
-    u64 types = ARG_TYPE0(INT_T)|ARG_TYPE1(FILE_TYPE_T)|ARG_TYPE2(OPEN_FLAGS_T);
+    u64 types = ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(OPEN_FLAGS_T);
 
     sys_context_t context = {};
     args_t orig_args = {};
@@ -1570,7 +1725,13 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
 
     // skip if No such file/directory or if there is an EINPROGRESS
     // EINPROGRESS error, happens when the socket is non-blocking and the connection cannot be completed immediately.
-    if (context.retval == -2 || context.retval == -115) {
+    if (context.retval == -2 || context.retval == -115)
+    {
+        return 0;
+    }
+
+    if (context.retval >= 0 && drop_syscall(_FILE_PROBE))
+    {
         return 0;
     }
 
@@ -1580,10 +1741,10 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &orig_args);
 
-    events_perf_submit((struct pt_regs*)args);
+    events_perf_submit((struct pt_regs *)args);
 
     return 0;
 }
@@ -1602,7 +1763,7 @@ int kprobe__socket(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_socket")
 int kretprobe__socket(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_SOCKET, ctx, ARG_TYPE0(SOCK_DOM_T)|ARG_TYPE1(SOCK_TYPE_T)|ARG_TYPE2(INT_T));
+    return trace_ret_generic(_SYS_SOCKET, ctx, ARG_TYPE0(SOCK_DOM_T) | ARG_TYPE1(SOCK_TYPE_T) | ARG_TYPE2(INT_T), _NETWORK_PROBE);
 }
 
 SEC("kprobe/__x64_sys_connect")
@@ -1614,11 +1775,10 @@ int kprobe__connect(struct pt_regs *ctx)
     return save_args(_SYS_CONNECT, ctx);
 }
 
-
 SEC("kretprobe/__x64_sys_connect")
 int kretprobe__connect(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_CONNECT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
+    return trace_ret_generic(_SYS_CONNECT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(SOCKADDR_T), _NETWORK_PROBE);
 }
 
 SEC("kprobe/__x64_sys_accept")
@@ -1633,7 +1793,7 @@ int kprobe__accept(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_accept")
 int kretprobe__accept(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_ACCEPT, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
+    return trace_ret_generic(_SYS_ACCEPT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(SOCKADDR_T), _NETWORK_PROBE);
 }
 
 SEC("kprobe/__x64_sys_bind")
@@ -1648,7 +1808,7 @@ int kprobe__bind(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_bind")
 int kretprobe__bind(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_BIND, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(SOCKADDR_T));
+    return trace_ret_generic(_SYS_BIND, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(SOCKADDR_T), _NETWORK_PROBE);
 }
 
 SEC("kprobe/__x64_sys_listen")
@@ -1663,26 +1823,27 @@ int kprobe__listen(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_listen")
 int kretprobe__listen(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T)|ARG_TYPE1(INT_T));
+    return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(INT_T), _NETWORK_PROBE);
 }
 
-static __always_inline int get_connection_info(struct sock_common *conn,struct sockaddr_in *sockv4, struct sockaddr_in6 *sockv6,sys_context_t *context, args_t *args, u32 event ) {
+static __always_inline int get_connection_info(struct sock_common *conn, struct sockaddr_in *sockv4, struct sockaddr_in6 *sockv6, sys_context_t *context, args_t *args, u32 event)
+{
     switch (conn->skc_family)
     {
     case AF_INET:
         sockv4->sin_family = conn->skc_family;
         sockv4->sin_addr.s_addr = conn->skc_daddr;
-        sockv4->sin_port = (event == _TCP_CONNECT) ? conn->skc_dport : (conn->skc_num>>8) | (conn->skc_num<<8);
-        args->args[1] = (unsigned long) sockv4;
-        context->event_id = (event == _TCP_CONNECT) ? _TCP_CONNECT : _TCP_ACCEPT ;
+        sockv4->sin_port = (event == _TCP_CONNECT) ? conn->skc_dport : (conn->skc_num >> 8) | (conn->skc_num << 8);
+        args->args[1] = (unsigned long)sockv4;
+        context->event_id = (event == _TCP_CONNECT) ? _TCP_CONNECT : _TCP_ACCEPT;
         break;
-    
+
     case AF_INET6:
         sockv6->sin6_family = conn->skc_family;
-        sockv6->sin6_port = (event == _TCP_CONNECT) ? conn->skc_dport : (conn->skc_num>>8) | (conn->skc_num<<8);
+        sockv6->sin6_port = (event == _TCP_CONNECT) ? conn->skc_dport : (conn->skc_num >> 8) | (conn->skc_num << 8);
         bpf_probe_read(&sockv6->sin6_addr.in6_u.u6_addr16, sizeof(sockv6->sin6_addr.in6_u.u6_addr16), conn->skc_v6_daddr.in6_u.u6_addr16);
-        args->args[1] = (unsigned long) sockv6;
-        context->event_id = (event == _TCP_CONNECT) ? _TCP_CONNECT_v6 : _TCP_ACCEPT_v6 ;
+        args->args[1] = (unsigned long)sockv6;
+        context->event_id = (event == _TCP_CONNECT) ? _TCP_CONNECT_v6 : _TCP_ACCEPT_v6;
         break;
 
     default:
@@ -1693,61 +1854,69 @@ static __always_inline int get_connection_info(struct sock_common *conn,struct s
 }
 
 SEC("kprobe/__x64_sys_tcp_connect")
-int kprobe__tcp_connect(struct pt_regs *ctx){
+int kprobe__tcp_connect(struct pt_regs *ctx)
+{
     if (skip_syscall())
-		return 0;
+        return 0;
 
-    struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct sock_common conn = READ_KERN(sk->__sk_common);
     struct sockaddr_in sockv4;
     struct sockaddr_in6 sockv6;
-    
+
     sys_context_t context = {};
     args_t args = {};
-    u64 types = ARG_TYPE0(STR_T)|ARG_TYPE1(SOCKADDR_T);
+    u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
 
     init_context(&context);
     context.argnum = get_arg_num(types);
-    
-    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_CONNECT) != 0 ) {
+    context.retval = PT_REGS_RC(ctx);
+
+    if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
+    {
         return 0;
     }
 
-    args.args[0] = (unsigned long) conn.skc_prot->name;
+    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_CONNECT) != 0)
+    {
+        return 0;
+    }
+
+    args.args[0] = (unsigned long)conn.skc_prot->name;
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
     events_perf_submit(ctx);
 
     return 0;
 }
 
-
 SEC("kretprobe/__x64_sys_inet_csk_accept")
-int kretprobe__inet_csk_accept(struct pt_regs *ctx){
+int kretprobe__inet_csk_accept(struct pt_regs *ctx)
+{
     if (skip_syscall())
-	    return 0;
+        return 0;
 
-    struct sock *newsk = (struct sock *)PT_REGS_RC(ctx);    
+    struct sock *newsk = (struct sock *)PT_REGS_RC(ctx);
     if (newsk == NULL)
         return 0;
-    
-// Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
+
+    // Code from https://github.com/iovisor/bcc/blob/master/tools/tcpaccept.py with adaptations
     u16 protocol = 1;
     int gso_max_segs_offset = offsetof(struct sock, sk_gso_max_segs);
     int sk_lingertime_offset = offsetof(struct sock, sk_lingertime);
 
-if (sk_lingertime_offset - gso_max_segs_offset == 2)
+    if (sk_lingertime_offset - gso_max_segs_offset == 2)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
         protocol = READ_KERN(newsk->sk_protocol);
 #else
         protocol = newsk->sk_protocol;
 #endif
     else if (sk_lingertime_offset - gso_max_segs_offset == 4)
-        // 4.10+ with little endian
+    // 4.10+ with little endian
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_gso_max_segs - 3));
     else
@@ -1760,9 +1929,9 @@ if (sk_lingertime_offset - gso_max_segs_offset == 2)
         // pre-4.10 with big endian
         protocol = READ_KERN(*(u8 *)((u64)&newsk->sk_wmem_queued - 1));
 #else
-# error "Fix your compiler's __BYTE_ORDER__?!"
-#endif   
-  
+#error "Fix your compiler's __BYTE_ORDER__?!"
+#endif
+
     if (protocol != IPPROTO_TCP)
         return 0;
 
@@ -1771,21 +1940,28 @@ if (sk_lingertime_offset - gso_max_segs_offset == 2)
     struct sockaddr_in6 sockv6;
     sys_context_t context = {};
     args_t args = {};
-    u64 types = ARG_TYPE0(STR_T)|ARG_TYPE1(SOCKADDR_T);
+    u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
     init_context(&context);
     context.argnum = get_arg_num(types);
-    
-    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_ACCEPT) != 0) {
+    context.retval = PT_REGS_RC(ctx);
+
+    if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
+    {
         return 0;
     }
 
-    args.args[0] = (unsigned long) conn.skc_prot->name;    
+    if (get_connection_info(&conn, &sockv4, &sockv6, &context, &args, _TCP_ACCEPT) != 0)
+    {
+        return 0;
+    }
+
+    args.args[0] = (unsigned long)conn.skc_prot->name;
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
 
-    save_context_to_buffer(bufs_p, (void*)&context);
+    save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
     events_perf_submit(ctx);
 

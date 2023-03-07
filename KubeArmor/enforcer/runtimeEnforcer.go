@@ -36,7 +36,7 @@ type RuntimeEnforcer struct {
 }
 
 // selectLsm Function
-func selectLsm(re *RuntimeEnforcer, lsmOrder, availablelsms, supportedlsm []string, node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
+func selectLsm(re *RuntimeEnforcer, lsmOrder, availablelsms, supportedlsm []string, node tp.Node, pinpath string, logger *fd.Feeder) *RuntimeEnforcer {
 	var err error
 	var lsm string
 
@@ -98,7 +98,7 @@ apparmor:
 	goto lsmselection
 
 bpf:
-	re.bpfEnforcer, err = be.NewBPFEnforcer(node, logger)
+	re.bpfEnforcer, err = be.NewBPFEnforcer(node, pinpath, logger)
 	if re.bpfEnforcer != nil {
 		if err != nil {
 			re.Logger.Print("Error Initialising BPF-LSM Enforcer, Cleaning Up")
@@ -121,7 +121,7 @@ nil:
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
+func NewRuntimeEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) *RuntimeEnforcer {
 	availablelsms := []string{"bpf", "selinux", "apparmor"}
 	re := &RuntimeEnforcer{}
 	re.Logger = logger
@@ -150,7 +150,7 @@ func NewRuntimeEnforcer(node tp.Node, logger *fd.Feeder) *RuntimeEnforcer {
 	lsms := string(lsm)
 	re.Logger.Printf("Supported LSMs: %s", lsms)
 
-	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, strings.Split(lsms, ","), node, logger)
+	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, strings.Split(lsms, ","), node, pinpath, logger)
 }
 
 // RegisterContainer registers container identifiers to BPFEnforcer Map

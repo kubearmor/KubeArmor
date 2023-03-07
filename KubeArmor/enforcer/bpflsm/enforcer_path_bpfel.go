@@ -161,5 +161,6 @@ func _Enforcer_pathClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed enforcer_path_bpfel.o
 var _Enforcer_pathBytes []byte

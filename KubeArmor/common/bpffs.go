@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Authors of KubeArmor
 
-package bpflsm
+package common
 
 // This implementation for automounting bpffs has been inspired from
 // Cilium - https://github.com/cilium/cilium/blob/master/pkg/bpf/bpffs_linux.go
@@ -11,8 +11,10 @@ import (
 	"os"
 	"sync"
 
-	"github.com/cilium/cilium/pkg/mountinfo"
 	"golang.org/x/sys/unix"
+
+	"github.com/cilium/cilium/pkg/mountinfo"
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 var (
@@ -52,23 +54,23 @@ var (
 //
 // We also check and error if there have been multiple mounts at
 // the same point. See - https://patchwork.kernel.org/project/netdevbpf/patch/20220223131833.51991-1-laoar.shao@gmail.com/
-func (be *BPFEnforcer) CheckOrMountBPFFs(bpfRoot string) {
+func CheckOrMountBPFFs(bpfRoot string) {
 	mountOnce.Do(func() {
-		if err := be.checkOrMountBPFFs(bpfRoot); err != nil {
-			be.Logger.Err("Unable to mount BPF filesystem")
+		if err := checkOrMountBPFFs(bpfRoot); err != nil {
+			kg.Err("Unable to mount BPF filesystem")
 		}
 	})
 }
 
-func (be *BPFEnforcer) checkOrMountBPFFs(bpfRoot string) error {
+func checkOrMountBPFFs(bpfRoot string) error {
 	if bpfRoot == defaultBPFFsPath {
 		// mount BPFFs at the default path
-		if err := be.checkOrMountDefaultLocations(); err != nil {
+		if err := checkOrMountDefaultLocations(); err != nil {
 			return err
 		}
 	} else {
 		// the user specified a custom path for BPFFs
-		if err := be.checkOrMountCustomLocation(bpfRoot); err != nil {
+		if err := checkOrMountCustomLocation(bpfRoot); err != nil {
 			return err
 		}
 	}
@@ -84,7 +86,7 @@ func (be *BPFEnforcer) checkOrMountBPFFs(bpfRoot string) error {
 	return nil
 }
 
-func (be *BPFEnforcer) checkOrMountDefaultLocations() error {
+func checkOrMountDefaultLocations() error {
 	// Check whether /sys/fs/bpf has a BPFFS mount.
 	mounted, bpffsInstance, err := mountinfo.IsMountFS(mountinfo.FilesystemTypeBPFFS, mapRoot)
 	if err != nil {
@@ -94,7 +96,7 @@ func (be *BPFEnforcer) checkOrMountDefaultLocations() error {
 	// If /sys/fs/bpf is not mounted at all, we should mount
 	// BPFFS there.
 	if !mounted {
-		be.Logger.Printf("Mounting BPF Filesystem at %s", mapRoot)
+		kg.Printf("Mounting BPF Filesystem at %s", mapRoot)
 		if err := mountFs(); err != nil {
 			return err
 		}
@@ -109,7 +111,7 @@ func (be *BPFEnforcer) checkOrMountDefaultLocations() error {
 		// mount BPFFS in /run/kubearmor/bpffs inside the container.
 		// This will allow operation of Kubearmor but will result in
 		// unmounting of the filesystem when the pod is restarted.
-		be.Logger.Warnf("BPF filesystem is going to be mounted automatically "+
+		kg.Warnf("BPF filesystem is going to be mounted automatically "+
 			"in %s. However, it probably means that Kubearmor is running "+
 			"inside container and BPFFS is not mounted on the host. ",
 			mapRoot)
@@ -123,21 +125,21 @@ func (be *BPFEnforcer) checkOrMountDefaultLocations() error {
 			return err
 		}
 		if !cMounted {
-			be.Logger.Printf("Mounting BPF Filesystem at %s", mapRoot)
+			kg.Printf("Mounting BPF Filesystem at %s", mapRoot)
 			if err := mountFs(); err != nil {
 				return err
 			}
 		} else if !cBpffsInstance {
-			be.Logger.Printf("%s is mounted but has a different filesystem than BPFFS", fallbackBPFFsPath)
+			kg.Printf("%s is mounted but has a different filesystem than BPFFS", fallbackBPFFsPath)
 		}
 	}
 
-	be.Logger.Printf("Detected mounted BPF filesystem at %s", mapRoot)
+	kg.Printf("Detected mounted BPF filesystem at %s", mapRoot)
 
 	return nil
 }
 
-func (be *BPFEnforcer) checkOrMountCustomLocation(bpfRoot string) error {
+func checkOrMountCustomLocation(bpfRoot string) error {
 	setMapRoot(bpfRoot)
 
 	// Check whether the custom location has a BPFFS mount.
@@ -149,7 +151,7 @@ func (be *BPFEnforcer) checkOrMountCustomLocation(bpfRoot string) error {
 	// If the custom location has no mount, let's mount BPFFS there.
 	if !mounted {
 		setMapRoot(bpfRoot)
-		be.Logger.Printf("Mounting BPF Filesystem at %s", mapRoot)
+		kg.Printf("Mounting BPF Filesystem at %s", mapRoot)
 		if err := mountFs(); err != nil {
 			return err
 		}
@@ -163,7 +165,7 @@ func (be *BPFEnforcer) checkOrMountCustomLocation(bpfRoot string) error {
 		return fmt.Errorf("mount in the custom directory %s has a different filesystem than BPFFS", bpfRoot)
 	}
 
-	be.Logger.Printf("Detected mounted BPF filesystem at %s", mapRoot)
+	kg.Printf("Detected mounted BPF filesystem at %s", mapRoot)
 
 	return nil
 }

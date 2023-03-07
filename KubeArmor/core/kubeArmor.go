@@ -262,8 +262,8 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 // ====================== //
 
 // InitRuntimeEnforcer Function
-func (dm *KubeArmorDaemon) InitRuntimeEnforcer() bool {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, dm.Logger)
+func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger)
 	return dm.RuntimeEnforcer != nil
 }
 
@@ -447,7 +447,7 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer
-		if !dm.InitRuntimeEnforcer() {
+		if !dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath) {
 			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
 		} else {
 			dm.Logger.Print("Initialized KubeArmor Enforcer")
