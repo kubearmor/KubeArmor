@@ -548,7 +548,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 					InitContainers: []corev1.Container{
 						{
 							Name:  "init",
-							Image: "kubearmor/kubearmor-init:latest",
+							Image: "kubearmor/kubearmor-init:stable",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
