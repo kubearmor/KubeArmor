@@ -112,9 +112,7 @@ var envVar = []corev1.EnvVar{
 // Environment Specific Daemonset Configuration
 var defaultConfigs = map[string]DaemonSetConfig{
 	"generic": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -166,9 +164,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"oke": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -206,9 +202,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"docker": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -284,9 +278,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"microk8s": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -324,9 +316,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"k3s": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -364,9 +354,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"gke": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -418,9 +406,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"eks": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
@@ -473,7 +459,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 	},
 	"bottlerocket": {
 		Args: []string{
-			"-enableKubeArmorHostPolicy",
 			"-criSocket=unix:///run/dockershim.sock",
 		},
 		Envs: envVar,
@@ -527,9 +512,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"aks": {
-		Args: []string{
-			"-enableKubeArmorHostPolicy",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
