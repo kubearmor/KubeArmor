@@ -180,6 +180,7 @@ spec:
       hostPID: true
       initContainers:
       - image: kubearmor/kubearmor-init:stable
+        imagePullPolicy: Always
         name: init
         securityContext:
           capabilities:
