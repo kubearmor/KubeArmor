@@ -126,6 +126,24 @@ endif
 	cd $(CURDIR); curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sh -s -- -b .
 	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate --snapshot
 
+.PHONY: scan
+scan: 
+	go install golang.org/x/vuln/cmd/govulncheck@latest ;\
+	cd $(CURDIR);\
+	govulncheck -v ./... ;\
+	cd $(CURDIR)/BPF/tests;\
+	govulncheck -v ./... ;\
+	cd $(CURDIR)/../deployments;\
+	govulncheck -v ./... ;\
+	cd $(CURDIR)/../pkg/KubeArmorAnnotation ;\
+	govulncheck -v ./... ;\
+	cd $(CURDIR)/../pkg/KubeArmorController ;\
+	govulncheck -v ./... ;\
+	cd $(CURDIR)/../pkg/KubeArmorHostPolicy ;\
+	govulncheck -v ./... ;\
+	cd $(CURDIR)/../pkg/KubeArmorPolicy ;\
+	govulncheck -v ./... ;\
+
 .PHONY: clean
 clean:
 	cd $(CURDIR); sudo rm -rf kubearmor karmor dist /tmp/kubearmor.log
@@ -170,3 +188,4 @@ ifeq ($(KUBEARMOR_PID), )
 	$(error kubearmor must be running - execute 'make run' first)
 endif
 	sudo $(DLV_EXEC) attach $(KUBEARMOR_PID) --headless -l=:$(DLV_LPORT) --log --api-version 2 $(CURDIR)
+
