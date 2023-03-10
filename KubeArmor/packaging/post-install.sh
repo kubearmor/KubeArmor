@@ -22,4 +22,4 @@ fi
 
 # Set default GRPC listening port for kubearmor as environment variable
 echo "export KUBEARMOR_SERVICE=:32767" >> ~/.bashrc
-source ~/.bashrc
+. ~/.bashrc
