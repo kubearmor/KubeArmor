@@ -21,5 +21,5 @@ fi
 /bin/systemctl start kubearmor.service
 
 # Set default GRPC listening port for kubearmor as environment variable
-echo "export KUBEARMOR_SERVICE=:32767" >> ~/.bashrc
-. ~/.bashrc
+echo "KUBEARMOR_SERVICE=:32767" >> /etc/environment
+. /etc/environment
