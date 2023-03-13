@@ -1,5 +1,7 @@
 # Getting Started Guide
 
+If you are a first time contributor to KubeArmor use [this](FAQ.md#what-are-the-steps-to-follow-if-its-your-first-time-contributing-to-kubearmor) guide to make a contribution.
+
 If you do not have a k8s cluster, check the [pre-requisites](#prerequisites) to setup one.
 
 If you want to try KubeArmor directly on the host without k8s, [run KubeArmor in systemd mode](kubearmor_vm.md).
