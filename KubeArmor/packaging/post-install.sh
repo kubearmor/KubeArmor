@@ -22,4 +22,4 @@ fi
 
 # Set default GRPC listening port for kubearmor as environment variable
 echo "KUBEARMOR_SERVICE=:32767" >> /etc/environment
-. /etc/environment
+echo "Please restart shell session to complete installation"
