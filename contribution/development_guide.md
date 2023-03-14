@@ -257,6 +257,8 @@
       
       if you need to setup a local registry to push you image, use `docker-registry.sh` script under `~/KubeArmor/contribution/local-registry` directory
 
+> Note: If you are facing any problems take a look at [this FAQ](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/FAQ.md) etc.
+
 ## Code Directories
 
 Here, we briefly give you an overview of KubeArmor's directories.
