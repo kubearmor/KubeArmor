@@ -286,6 +286,17 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		return
 	}
 
+	if be.ContainerMap[id].Map == nil && !(len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0) {
+		// We create the inner map only when we have policies specific to that
+		be.Logger.Printf("Creating inner map for %s", id)
+		be.CreateContainerInnerMap(id)
+	} else if len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0 {
+		// All Policies removed for the container
+		be.Logger.Printf("Deleting inner map for %s", id)
+		be.DeleteContainerInnerMap(id)
+		return
+	}
+
 	// Check for differences in Fresh Rules Set and Existing Ruleset
 	be.resolveConflicts(newrules.ProcWhiteListPosture, be.ContainerMap[id].Rules.ProcWhiteListPosture, newrules.ProcessRuleList, be.ContainerMap[id].Rules.ProcessRuleList, be.ContainerMap[id].Map)
 	be.resolveConflicts(newrules.FileWhiteListPosture, be.ContainerMap[id].Rules.FileWhiteListPosture, newrules.FileRuleList, be.ContainerMap[id].Rules.FileRuleList, be.ContainerMap[id].Map)
