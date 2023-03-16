@@ -780,7 +780,7 @@ func getErrorMessage(errno int64) string {
 	if msg, ok := errMsg[-errno]; ok {
 		res = msg
 	} else {
-		res = "Unknown error"
+		res = fmt.Sprintf("Unknown (%d)", errno)
 	}
 
 	return res

@@ -804,12 +804,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// get error message
 					if ctx.Retval < 0 {
-						message := getErrorMessage(ctx.Retval)
-						if message != "" {
-							log.Result = message
-						} else {
-							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
-						}
+						log.Result = getErrorMessage(ctx.Retval)
 					} else {
 						log.Result = "Passed"
 					}
@@ -895,12 +890,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					// get error message
 					if ctx.Retval < 0 {
-						message := getErrorMessage(ctx.Retval)
-						if message != "" {
-							log.Result = message
-						} else {
-							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
-						}
+						log.Result = getErrorMessage(ctx.Retval)
 					} else {
 						log.Result = "Passed"
 					}

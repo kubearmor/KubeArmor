@@ -4,7 +4,6 @@
 package monitor
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -519,12 +518,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 			// get error message
 			if msg.ContextSys.Retval < 0 {
-				message := getErrorMessage(msg.ContextSys.Retval)
-				if message != "" {
-					log.Result = message
-				} else {
-					log.Result = fmt.Sprintf("Unknown (%d)", msg.ContextSys.Retval)
-				}
+				log.Result = getErrorMessage(msg.ContextSys.Retval)
 			} else {
 				log.Result = "Passed"
 			}
