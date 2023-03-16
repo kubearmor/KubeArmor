@@ -63,7 +63,7 @@ $ POD_NAME=$(kubectl get pods -n multiubuntu -l "group=group-1,container=ubuntu-
 
 #### Observing logs using karmor cli
 ```
-karmor log
+karmor logs
 ```
 
 ## K8s platforms tested
