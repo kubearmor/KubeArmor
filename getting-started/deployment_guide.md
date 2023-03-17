@@ -6,6 +6,13 @@ If you want to try KubeArmor directly on the host without k8s, [run KubeArmor in
 
 Check the [KubeArmor support matrix](support_matrix.md) to verify if your platform is supported.
 
+## Prerequisites
+You can install any one of the following to develop and test KubeArmor:
+1. [K3s](../deployments/k3s)
+2. [MicroK8s](../contribution/microk8s)
+3. [Minikube](../contribution/minikube)
+4. [Self-managed K8s](../contribution/self-managed-k8s)
+5. [Amazon Elastic Kubernetes Service (EKS)](../deployments/EKS#prerequisite-for-the-deployment)
 ## Deployment Steps
 
 ### 1. Download and install karmor cli-tool
