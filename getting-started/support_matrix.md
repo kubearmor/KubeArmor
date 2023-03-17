@@ -17,6 +17,7 @@ KubeArmor supports following types of workloads:
 | Microsoft  | [AKS] | Ubuntu >= 18.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Oracle     | [OKE] | [UEK] >=7 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] | [Oracle Linux Server 8.7][OLS] |
 | IBM        | [IBM k8s Service][IKS] | Ubuntu | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
+| DOKS       | [Digital Ocean k8s Service][DOKS] | Ubuntu | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | AWS        | [EKS] | Amazon Linux 2 (kernel >=5.8) | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
 | AWS        | [EKS] | Amazon Linux 2 (kernel <=5.4) | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux |
 | AWS        | [EKS] | Ubuntu | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor |
@@ -54,6 +55,7 @@ KubeArmor supports following types of workloads:
 [1084]: https://github.com/kubearmor/KubeArmor/issues/1084
 [BPFLSM]: https://github.com/kubearmor/KubeArmor/issues/484
 [Distros]: #Supported-Linux-Distributions
+[DOKS]: https://www.digitalocean.com/products/kubernetes
 
 ## Supported Linux Distributions
 
