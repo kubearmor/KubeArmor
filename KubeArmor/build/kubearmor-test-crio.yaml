@@ -149,9 +149,10 @@ spec:
         - mountPath: /var/run/crio/crio.sock
           name: crio-sock-path
           readOnly: true
-        - mountPath: /run/crio
+        - mountPath: /var/lib/containers/storage
           name: crio-storage-path
           readOnly: true
+          mountPropagation: HostToContainer
       terminationGracePeriodSeconds: 30
       volumes:
       - emptyDir: {}
@@ -189,6 +190,6 @@ spec:
           type: Socket
         name: crio-sock-path
       - hostPath:
-          path: /run/crio
+          path: /var/lib/containers/storage
           type: DirectoryOrCreate
         name: crio-storage-path

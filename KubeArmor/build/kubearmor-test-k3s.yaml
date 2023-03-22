@@ -152,6 +152,7 @@ spec:
         - mountPath: /run/containerd
           name: containerd-storage-path
           readOnly: true
+          mountPropagation: HostToContainer
       volumes:
       - emptyDir: {}
         name: bpf
