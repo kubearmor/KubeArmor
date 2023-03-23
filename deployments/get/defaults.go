@@ -42,6 +42,7 @@ var hostPathDirectory = corev1.HostPathDirectory
 var hostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 var hostPathFile = corev1.HostPathFile
 var hostPathSocket = corev1.HostPathSocket
+var hostContainerStorageMountPropagation = corev1.MountPropagationHostToContainer
 
 var gkeHostUsrVolMnt = corev1.VolumeMount{
 	Name:      "usr-src-path", // /usr -> /media/root/usr (read-only) check issue #579 for details
@@ -122,13 +123,26 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
+				Name:      "crio-sock-path", // crio socket
+				MountPath: "/var/run/crio/crio.sock",
+				ReadOnly:  true,
+			},
+			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
+				ReadOnly:  true,
+			},
+			{
+				Name:      "crio-storage-path",
+				MountPath: "/var/lib/containers/storage", // crio storage
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -176,6 +190,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "crio-storage-path", // crio storage - stores all of its data, including containers images, in this directory.
 				MountPath: "/var/lib/containers/storage",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -214,6 +229,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -252,6 +268,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -290,6 +307,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -328,6 +346,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -366,11 +385,13 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -418,11 +439,13 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -472,11 +495,13 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},
@@ -524,11 +549,13 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			{
 				Name:      "containerd-storage-path", // containerd storage
 				MountPath: "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 			{
 				Name:      "docker-storage-path", // docker storage
 				MountPath: "/var/lib/docker",
+				MountPropagation: &hostContainerStorageMountPropagation,
 				ReadOnly:  true,
 			},
 		},

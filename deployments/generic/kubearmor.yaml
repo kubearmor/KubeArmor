@@ -172,11 +172,20 @@ spec:
         - mountPath: /var/run/containerd/containerd.sock
           name: containerd-sock-path
           readOnly: true
+        - mountPath: /var/run/crio/crio.sock
+          name: crio-sock-path
+          readOnly: true
         - mountPath: /run/containerd
+          mountPropagation: HostToContainer
           name: containerd-storage-path
           readOnly: true
         - mountPath: /var/lib/docker
+          mountPropagation: HostToContainer
           name: docker-storage-path
+          readOnly: true
+        - mountPath: /var/lib/containers/storage
+          mountPropagation: HostToContainer
+          name: crio-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true

@@ -173,6 +173,7 @@ spec:
           name: crio-sock-path
           readOnly: true
         - mountPath: /var/lib/containers/storage
+          mountPropagation: HostToContainer
           name: crio-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
