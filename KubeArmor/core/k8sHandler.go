@@ -290,45 +290,45 @@ func (kh *K8sHandler) PatchDeploymentWithSELinuxAnnotations(namespaceName, deplo
 // ================ //
 
 // GetDeploymentNameControllingReplicaSet Function
-func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, replicaSetName string) string {
+func (kh *K8sHandler) GetDeploymentNameControllingReplicaSet(namespaceName, podownerName string) (string, string) {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return ""
+		return "", ""
 	}
 
 	// get replicaSet from k8s api client
-	rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), podownerName, metav1.GetOptions{})
 	if err != nil {
-		return ""
+		return "", ""
 	}
 
 	// check if we have ownerReferences
 	if len(rs.ObjectMeta.OwnerReferences) == 0 {
-		return ""
+		return "", ""
 	}
 
 	// check if given ownerReferences are for Deployment
 	if rs.ObjectMeta.OwnerReferences[0].Kind != "Deployment" {
-		return ""
+		return "", ""
 	}
 
 	// return the deployment name
-	return rs.ObjectMeta.OwnerReferences[0].Name
+	return rs.ObjectMeta.OwnerReferences[0].Name, rs.ObjectMeta.Namespace
 }
 
 // GetReplicaSet Function
-func (kh *K8sHandler) GetReplicaSet(namespaceName, replicaSetName string) string {
+func (kh *K8sHandler) GetReplicaSet(namespaceName, podownerName string) (string, string) {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return ""
+		return "", ""
 	}
 
 	// get replicaSet from k8s api client
-	rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), podownerName, metav1.GetOptions{})
 	if err != nil {
-		return ""
+		return "", ""
 	}
 
 	// return the replicaSet name
-	return rs.ObjectMeta.Name
+	return rs.ObjectMeta.Name, rs.ObjectMeta.Namespace
 }
 
 // ================ //
@@ -336,19 +336,19 @@ func (kh *K8sHandler) GetReplicaSet(namespaceName, replicaSetName string) string
 // ================ //
 
 // GetDaemonSet Function
-func (kh *K8sHandler) GetDaemonSet(namespaceName, replicaSetName string) string {
+func (kh *K8sHandler) GetDaemonSet(namespaceName, podownerName string) (string, string) {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return ""
+		return "", ""
 	}
 
 	// get daemonSet from k8s api client
-	ds, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	ds, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Get(context.Background(), podownerName, metav1.GetOptions{})
 	if err != nil {
-		return ""
+		return "", ""
 	}
 
 	// return the daemonSet name
-	return ds.ObjectMeta.Name
+	return ds.ObjectMeta.Name, ds.ObjectMeta.Namespace
 }
 
 // ================ //
@@ -356,19 +356,19 @@ func (kh *K8sHandler) GetDaemonSet(namespaceName, replicaSetName string) string 
 // ================ //
 
 // GetStatefulSet Function
-func (kh *K8sHandler) GetStatefulSet(namespaceName, replicaSetName string) string {
+func (kh *K8sHandler) GetStatefulSet(namespaceName, podownerName string) (string, string) {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return ""
+		return "", ""
 	}
 
 	// get statefulSets from k8s api client
-	ss, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Get(context.Background(), replicaSetName, metav1.GetOptions{})
+	ss, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Get(context.Background(), podownerName, metav1.GetOptions{})
 	if err != nil {
-		return ""
+		return "", ""
 	}
 
 	// return the statefulSet name
-	return ss.ObjectMeta.Name
+	return ss.ObjectMeta.Name, ss.ObjectMeta.Namespace
 }
 
 // ========== //

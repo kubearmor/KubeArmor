@@ -23,7 +23,7 @@ type Container struct {
 	ContainerImage string `json:"containerImage"`
 
 	NamespaceName string   `json:"namespaceName"`
-	Owner         PodOwner `json:"owner"`
+	Owner         PodOwner `json:"owner,omitempty"`
 	EndPointName  string   `json:"endPointName"`
 	Labels        string   `json:"labels"`
 
@@ -48,9 +48,9 @@ type Container struct {
 
 // PodOwner struct
 type PodOwner struct {
-	Ref       string `json:"ref"`
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Ref       string `json:"ref,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
 // EndPoint Structure
@@ -58,7 +58,7 @@ type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
 
 	EndPointName  string   `json:"endPointName"`
-	Owner         PodOwner `json:"owner"`
+	Owner         PodOwner `json:"owner,omitempty"`
 	ContainerName string   `json:"containerName"`
 
 	Labels     map[string]string `json:"labels"`
@@ -191,10 +191,10 @@ type Log struct {
 	HostName    string `json:"hostName"`
 
 	// k8s
-	NamespaceName string   `json:"namespaceName,omitempty"`
-	Owner         PodOwner `json:"owner,omitempty"`
-	PodName       string   `json:"podName,omitempty"`
-	Labels        string   `json:"labels,omitempty"`
+	NamespaceName string    `json:"namespaceName,omitempty"`
+	Owner         *PodOwner `json:"owner,omitempty"`
+	PodName       string    `json:"podName,omitempty"`
+	Labels        string    `json:"labels,omitempty"`
 
 	// container
 	ContainerID    string `json:"containerID,omitempty"`

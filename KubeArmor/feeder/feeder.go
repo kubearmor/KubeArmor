@@ -602,10 +602,13 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.NamespaceName = log.NamespaceName
 
-		o := &pb.Podowner{
-			Ref:       log.Owner.Ref,
-			Name:      log.Owner.Name,
-			Namespace: log.Owner.Namespace,
+		var o *pb.Podowner
+		if log.Owner != nil {
+			o = &pb.Podowner{
+				Ref:       log.Owner.Ref,
+				Name:      log.Owner.Name,
+				Namespace: log.Owner.Namespace,
+			}
 		}
 
 		if pbAlert.Owner == nil {
@@ -685,10 +688,13 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.NamespaceName = log.NamespaceName
 
-		o := &pb.Podowner{
-			Ref:       log.Owner.Ref,
-			Name:      log.Owner.Name,
-			Namespace: log.Owner.Namespace,
+		var o *pb.Podowner
+		if log.Owner != nil {
+			o = &pb.Podowner{
+				Ref:       log.Owner.Ref,
+				Name:      log.Owner.Name,
+				Namespace: log.Owner.Namespace,
+			}
 		}
 
 		if pbLog.Owner == nil {
