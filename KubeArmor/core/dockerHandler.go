@@ -274,7 +274,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 				}
 
-				dm.Logger.Printf("Detected a container (added/%s)", container.ContainerID[:12])
+				dm.Logger.Printf("Detected a container (added/%.12s)", container.ContainerID)
 			}
 		}
 	}
@@ -357,7 +357,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
-		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
 
 	} else if action == "stop" || action == "destroy" {
 		// case 1: kill -> die -> stop
@@ -396,7 +396,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
-		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
 	}
 }
 
