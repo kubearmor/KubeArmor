@@ -132,11 +132,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	// == container base == //
 
 	container.ContainerID = res.Container.ID
-	if len(res.Container.ID) < 12 {
-		container.ContainerName = res.Container.ID
-	} else {
-		container.ContainerName = res.Container.ID[:12]
-	}
+	container.ContainerName = res.Container.ID
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
 
@@ -321,7 +317,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
-		dm.Logger.Printf("Detected a container (added/%s/pidns=%d/mntns=%d)", container.ContainerName, container.PidNS, container.MntNS)
+		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
@@ -356,7 +352,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
-		dm.Logger.Printf("Detected a container (removed/%s/pidns=%d/mntns=%d)", container.ContainerName, container.PidNS, container.MntNS)
+		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 	}
 
 	return true
