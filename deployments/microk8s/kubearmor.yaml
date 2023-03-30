@@ -173,6 +173,7 @@ spec:
           name: containerd-sock-path
           readOnly: true
         - mountPath: /run/containerd
+          mountPropagation: HostToContainer
           name: containerd-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet

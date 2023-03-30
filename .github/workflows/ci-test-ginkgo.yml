@@ -48,14 +48,26 @@ jobs:
       - name: Install an annotation controller
         run: ./.github/workflows/install-annotation-controller.sh
 
-      - name: Run kubectl proxy
-        run: kubectl proxy &
-
-      - name: Run KubeArmor in background
+      - name: Generate KubeArmor artifacts
         run: |
-          make -C KubeArmor/ run &
-          bash -c 'for((i=0;i<300;i++)); do cnt=$(ps -e | grep kubearmor | wc -l); [[ $cnt -gt 0 ]] && echo "Kubearmor is running" && break; sleep 1; done'
-        timeout-minutes: 5
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+
+      - name: Run KubeArmor
+        run: |
+          kubectl apply -f deployments/CRD
+          if [ ${{ matrix.runtime }} == "containerd" ]; then
+            docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
+            kubectl apply -f ./KubeArmor/build/kubearmor-test-k3s.yaml
+          else
+            if [ ${{ matrix.runtime }} == "crio" ]; then
+              sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
+              sudo podman pull docker-daemon:kubearmor/kubearmor:latest
+            fi
+            kubectl apply -f ./KubeArmor/build/kubearmor-test-${{ matrix.runtime }}.yaml
+          fi
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -66,6 +78,7 @@ jobs:
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
+          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 

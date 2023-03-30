@@ -633,6 +633,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 				select {
 				case mon.SyscallChannel <- dataRaw:
 				default:
+					// channel is full, wait for a short time before retrying
+					time.Sleep(1 * time.Second)
 					mon.Logger.Warn("Event droped due to busy event channel")
 				}
 			}()

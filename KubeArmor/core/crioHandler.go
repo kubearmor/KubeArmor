@@ -258,7 +258,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
-		dm.Logger.Printf("Detected a container (added/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
 	} else if action == "destroy" {
 		dm.ContainersLock.Lock()
 		container, ok := dm.Containers[containerID]
@@ -292,7 +292,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 
-		dm.Logger.Printf("Detected a container (removed/%s)", containerID[:12])
+		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
 	}
 
 	return true
