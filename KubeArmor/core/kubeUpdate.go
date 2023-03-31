@@ -93,91 +93,87 @@ func matchHost(hostName string) bool {
 	return nodeName == cfg.GlobalCfg.Host
 }
 
+func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
+	if !matchHost(item.Name) {
+		return
+	}
+
+	node := tp.Node{}
+
+	node.ClusterName = cfg.GlobalCfg.Cluster
+	node.NodeName = cfg.GlobalCfg.Host
+
+	for _, address := range item.Status.Addresses {
+		if address.Type == "InternalIP" {
+			node.NodeIP = address.Address
+			break
+		}
+	}
+
+	node.Annotations = map[string]string{}
+	node.Labels = map[string]string{}
+	node.Identities = []string{}
+
+	// update annotations
+	for k, v := range item.ObjectMeta.Annotations {
+		node.Annotations[k] = v
+	}
+
+	// update labels and identities
+	for k, v := range item.ObjectMeta.Labels {
+		node.Labels[k] = v
+		node.Identities = append(node.Identities, k+"="+v)
+	}
+
+	sort.Slice(node.Identities, func(i, j int) bool {
+		return node.Identities[i] < node.Identities[j]
+	})
+
+	// node info
+	node.Architecture = item.Status.NodeInfo.Architecture
+	node.OperatingSystem = item.Status.NodeInfo.OperatingSystem
+	node.OSImage = item.Status.NodeInfo.OSImage
+	node.KernelVersion = item.Status.NodeInfo.KernelVersion
+	node.KubeletVersion = item.Status.NodeInfo.KubeletVersion
+
+	// container runtime
+	node.ContainerRuntimeVersion = item.Status.NodeInfo.ContainerRuntimeVersion
+
+	dm.HandleNodeAnnotations(&node)
+
+	// update node info
+	dm.NodeLock.Lock()
+	dm.Node = node
+	dm.NodeLock.Unlock()
+}
+
 // WatchK8sNodes Function
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	kg.Printf("GlobalCfg.Host=%s, KUBEARMOR_NODENAME=%s", cfg.GlobalCfg.Host, os.Getenv("KUBEARMOR_NODENAME"))
-	for {
-		if resp := K8s.WatchK8sNodes(); resp != nil {
-			defer func() {
-				if err := resp.Body.Close(); err != nil {
-					kg.Warnf("Error closing http stream %s\n", err)
-				}
-			}()
 
-			decoder := json.NewDecoder(resp.Body)
-			for {
-				event := tp.K8sNodeEvent{}
-				if err := decoder.Decode(&event); err == io.EOF {
-					break
-				} else if err != nil {
-					break
-				}
+	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
+	informer := factory.Core().V1().Nodes().Informer()
 
-				// Kubearmor uses hostname to get the corresponding node information, but there are exceptions.
-				// For example, the node name on EKS can be of the format <hostname>.<region>.compute.internal
-				/* Keeping this past code for near-future ref purpose. Jun-13-2022
-				nodeName := strings.Split(event.Object.ObjectMeta.Name, ".")[0]
-				if nodeName != cfg.GlobalCfg.Host {
-					continue
-				}
-				*/
-				if !matchHost(event.Object.ObjectMeta.Name) {
-					continue
-				}
-
-				node := tp.Node{}
-
-				node.ClusterName = cfg.GlobalCfg.Cluster
-				node.NodeName = cfg.GlobalCfg.Host
-
-				for _, address := range event.Object.Status.Addresses {
-					if address.Type == "InternalIP" {
-						node.NodeIP = address.Address
-						break
-					}
-				}
-
-				node.Annotations = map[string]string{}
-				node.Labels = map[string]string{}
-				node.Identities = []string{}
-
-				// update annotations
-				for k, v := range event.Object.ObjectMeta.Annotations {
-					node.Annotations[k] = v
-				}
-
-				// update labels and identities
-				for k, v := range event.Object.ObjectMeta.Labels {
-					node.Labels[k] = v
-					node.Identities = append(node.Identities, k+"="+v)
-				}
-
-				sort.Slice(node.Identities, func(i, j int) bool {
-					return node.Identities[i] < node.Identities[j]
-				})
-
-				// node info
-				node.Architecture = event.Object.Status.NodeInfo.Architecture
-				node.OperatingSystem = event.Object.Status.NodeInfo.OperatingSystem
-				node.OSImage = event.Object.Status.NodeInfo.OSImage
-				node.KernelVersion = event.Object.Status.NodeInfo.KernelVersion
-				node.KubeletVersion = event.Object.Status.NodeInfo.KubeletVersion
-
-				// container runtime
-				node.ContainerRuntimeVersion = event.Object.Status.NodeInfo.ContainerRuntimeVersion
-
-				dm.HandleNodeAnnotations(&node)
-
-				// update node info
-				dm.NodeLock.Lock()
-				dm.Node = node
-				dm.NodeLock.Unlock()
-
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if item, ok := obj.(*corev1.Node); ok {
+				dm.checkAndUpdateNode(item)
 			}
-		} else {
-			time.Sleep(time.Second * 1)
-		}
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			if item, ok := newObj.(*corev1.Node); ok {
+				dm.checkAndUpdateNode(item)
+			}
+		},
+	}); err != nil {
+		kg.Err("Couldn't Start Watching node information")
+		return
 	}
+
+	go factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
+	kg.Print("Started watching node information")
+
 }
 
 // ================ //
