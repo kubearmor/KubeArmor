@@ -70,6 +70,7 @@ Following distributions are tested for VM/Bare-metal based installations:
 | Rocky Linux | Rocky Linux >= 8.5 | Full | Full |
 | AWS | Amazon Linux 2022 | Full | Full |
 | RaspberryPi (ARM) | Debian | Full | Full |
+| ArchLinux | ArchLinux-6.2.1   | Full | Full |
 
 > **Note**
 > Full: Supports both enforcement and observability  
