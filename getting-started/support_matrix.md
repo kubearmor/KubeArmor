@@ -27,7 +27,7 @@ KubeArmor supports following types of workloads:
 | RedHat     | [OpenShift] | [RHEL] >=8.5 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
 | Rancher    | [RKE] | [SUSE] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Rancher    | [K3S] | [Distros] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
-| Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | :heavy_check_mark: | [1084] |
+| Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux | [1084] |
 | VMWare     | [Tanzu] | TBD | x86_64 | :construction: | :construction: | :construction: | :construction: | :construction: | [1064] |
 | Mirantis     | [MKE] | Ubuntu>=20.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor | [1181] |
 
