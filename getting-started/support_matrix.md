@@ -69,6 +69,7 @@ Following distributions are tested for VM/Bare-metal based installations:
 | Fedora | Fedora 34 / 35 | Full | Full |
 | Rocky Linux | Rocky Linux >= 8.5 | Full | Full |
 | AWS | Amazon Linux 2022 | Full | Full |
+| AWS | Amazon Linux 2023 | Full | Full |
 | RaspberryPi (ARM) | Debian | Full | Full |
 
 > **Note**
