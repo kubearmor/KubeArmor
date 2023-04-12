@@ -27,8 +27,9 @@ KubeArmor supports following types of workloads:
 | RedHat     | [OpenShift] | [RHEL] >=8.5 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
 | Rancher    | [RKE] | [SUSE] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Rancher    | [K3S] | [Distros] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
-| Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | :heavy_check_mark: | [1084] |
+| Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux | [1084] |
 | VMWare     | [Tanzu] | TBD | x86_64 | :construction: | :construction: | :construction: | :construction: | :construction: | [1064] |
+| Mirantis     | [MKE] | Ubuntu>=20.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor | [1181] |
 
 [Observability]: workload_visibility.md
 [Network-Segmentation]: network_segmentation.md
@@ -54,7 +55,8 @@ KubeArmor supports following types of workloads:
 [1084]: https://github.com/kubearmor/KubeArmor/issues/1084
 [BPFLSM]: https://github.com/kubearmor/KubeArmor/issues/484
 [Distros]: #Supported-Linux-Distributions
-
+[MKE]: https://www.mirantis.com/software/mirantis-kubernetes-engine/
+[1181]: https://github.com/kubearmor/KubeArmor/issues/1181
 ## Supported Linux Distributions
 
 Following distributions are tested for VM/Bare-metal based installations:
@@ -69,6 +71,7 @@ Following distributions are tested for VM/Bare-metal based installations:
 | Fedora | Fedora 34 / 35 | Full | Full |
 | Rocky Linux | Rocky Linux >= 8.5 | Full | Full |
 | AWS | Amazon Linux 2022 | Full | Full |
+| AWS | Amazon Linux 2023 | Full | Full |
 | RaspberryPi (ARM) | Debian | Full | Full |
 
 > **Note**
