@@ -477,12 +477,12 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", syscallName, err)
+				mon.Logger.Printf("error loading kprobe %s: %v", syscallName, err)
 			}
 
 			mon.Probes["kretprobe__"+syscallName], err = link.Kretprobe("sys_"+syscallName, mon.BpfModule.Programs["kretprobe__"+syscallName], nil)
 			if err != nil {
-				return fmt.Errorf("error loading kretprobe %s: %v", syscallName, err)
+				mon.Logger.Printf("error loading kretprobe %s: %v", syscallName, err)
 			}
 
 		}
@@ -490,7 +490,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		for _, sysTracepoint := range sysTracepoints {
 			mon.Probes[sysTracepoint[1]], err = link.Tracepoint(sysTracepoint[0], sysTracepoint[1], mon.BpfModule.Programs[sysTracepoint[1]], nil)
 			if err != nil {
-				return fmt.Errorf("error:%s: %v", sysTracepoint, err)
+				mon.Logger.Printf("error:%s: %v", sysTracepoint, err)
 			}
 		}
 
@@ -501,7 +501,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", sysKprobe, err)
+				mon.Logger.Printf("error loading kprobe %s: %v", sysKprobe, err)
 			}
 		}
 
@@ -512,7 +512,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
 			if err != nil {
-				return fmt.Errorf("error loading kprobe %s: %v", netSyscall, err)
+				mon.Logger.Printf("error loading kprobe %s: %v", netSyscall, err)
 			}
 		}
 
@@ -523,7 +523,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
 			if err != nil {
-				return fmt.Errorf("error loading kretprobe %s: %v", netRetSyscall, err)
+				mon.Logger.Printf("error loading kretprobe %s: %v", netRetSyscall, err)
 			}
 		}
 
@@ -531,7 +531,7 @@ func (mon *SystemMonitor) InitBPF() error {
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
-			return fmt.Errorf("error initializing events perf map: %v", err)
+			mon.Logger.Printf("error initializing events perf map: %v", err)
 		}
 	}
 
