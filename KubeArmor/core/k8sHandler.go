@@ -253,6 +253,8 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
 			return err
+		} else {
+			return nil
 		}
 
 	} else if kind == "ReplicaSet" {
