@@ -224,7 +224,7 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 // ================ //
 
 // PatchDeploymentWithAppArmorAnnotations Function
-func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string) error {
+func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
@@ -247,6 +247,44 @@ func (kh *K8sHandler) PatchDeploymentWithAppArmorAnnotations(namespaceName, depl
 	}
 
 	spec = spec + `}}}}}`
+
+	if kind == "StatefulSet" {
+		fmt.Println("stateful set found ", deploymentName)
+		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		if err != nil {
+			return err
+		}
+
+	} else if kind == "ReplicaSet" {
+		rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), deploymentName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		replicas := *rs.Spec.Replicas
+		fmt.Println("Replica set found ", deploymentName, "replicaas are ", replicas)
+		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
+		if err != nil {
+			return err
+		}
+		fmt.Println("Patching replicaset")
+		time.Sleep(1 * time.Second)
+
+		// To update the annotations we need to restart the replicaset,we scale it down and scale it back up
+		patchData := []byte(fmt.Sprintf(`{"spec": {"replicas": 0}}`))
+		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
+		if err != nil {
+			fmt.Printf("Error scaling up ReplicaSet: %v\n", err)
+			os.Exit(1)
+		}
+		time.Sleep(2 * time.Second)
+		patchData2 := []byte(fmt.Sprintf(`{"spec": {"replicas": %d}}`, replicas))
+		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, patchData2, metav1.PatchOptions{})
+		if err != nil {
+			fmt.Printf("Error scaling up ReplicaSet: %v\n", err)
+			os.Exit(1)
+		}
+
+	}
 
 	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 	if err != nil {
