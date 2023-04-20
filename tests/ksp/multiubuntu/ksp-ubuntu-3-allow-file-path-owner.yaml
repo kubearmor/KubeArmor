@@ -24,6 +24,7 @@ spec:
     - path: /home/user1/.bashrc # used by user1
     - path: /run/utmp # required to change root to user1
     - path: /dev/tty
+    - path: /usr/bin
     matchDirectories:
     - dir: /etc/ # required to change root to user1 (coarse-grained way)
       recursive: true
@@ -35,6 +36,8 @@ spec:
       recursive: true
     - dir: /pts/ # used by root and user1
       recursive: true
+    - dir: /bin/
+      recursive: true  
   action:
     Allow
 

@@ -2,15 +2,39 @@
 # Copyright 2021 Authors of KubeArmor
 
 ### Make compiler image
-FROM alpine:3.17 as kubearmor-init
+FROM redhat/ubi9-minimal as kubearmor-init
 
-RUN apk --no-cache update
-RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" | tee -a /etc/apk/repositories
-RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
+ARG VERSION=latest
 
-RUN apk --no-cache update
-RUN apk --no-cache add bash git clang llvm make gcc bpftool@edge
+LABEL name="kubearmor-init" \
+      vendor="Accuknox" \
+      version=${VERSION} \
+      release=${VERSION} \
+      summary="kubearmor-init container image based on redhat ubi" \
+      description="kubearmor-init image for kubearmor init container image"
 
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils git clang llvm make gcc libbpf tar gzip && \
+    microdnf clean all
+
+# install bpftool  
+RUN arch=$(uname -m) bpftool_version=v7.2.0 && \
+    if [[ "$arch" == "aarch64" ]]; then \
+        arch=arm64; \
+    elif [[ "$arch" == "x86_64" ]]; then \
+        arch=amd64; \   
+    fi && \
+    curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
+    tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/bpftool
+
+RUN groupadd --gid 1000 default \
+  && useradd --uid 1000 --gid default --shell /bin/bash --create-home default
+
+COPY LICENSE /licenses/license.txt
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
+RUN chown -R default:default /KubeArmor
+
+USER 1000
 ENTRYPOINT ["/KubeArmor/compile.sh"]

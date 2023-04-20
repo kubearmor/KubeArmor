@@ -32,6 +32,7 @@ jobs:
           helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
           --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
           --set kubearmorController.imagePullPolicy=Never \
+          --set kubearmorInit.imagePullPolicy=Always \
           --set kubearmor.imagePullPolicy=Always \
           --set kubearmor.image.tag=latest \
           -n kube-system;

@@ -21,11 +21,26 @@ COPY handlers/ handlers/
 # Build
 RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static
-WORKDIR /
-COPY --from=builder /workspace/manager .
-USER 65532:65532
+FROM redhat/ubi9-minimal as controller
 
+ARG VERSION=latest
+
+LABEL name="kubearmor-controller" \
+      vendor="AccuKnox" \
+      version=${VERSION} \
+      release=${VERSION} \
+      summary="kubearmor-controller container image based on redhat ubi" \
+      description="kubearmor-controller container image based on redhat ubi"
+
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils && \
+    microdnf clean all
+
+RUN groupadd --gid 1000 default \
+  && useradd --uid 1000 --gid default --shell /bin/bash --create-home default
+      
+WORKDIR /
+COPY --from=builder --chown=default:default /workspace/manager .
+
+USER 1000
 ENTRYPOINT ["/manager"]

@@ -86,10 +86,10 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: build ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest --build-arg VERSION=${TAG} .
 
 docker-buildx: build ## Build docker image with the manager multiple archs.
-	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} .
+	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push -t ${IMG}:${TAG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.

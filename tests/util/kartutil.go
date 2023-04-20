@@ -587,3 +587,14 @@ func K8sCRIRuntime() string {
 	containerRuntime := nodes.Items[0].Status.NodeInfo.ContainerRuntimeVersion
 	return containerRuntime
 }
+
+// K8sRuntimeEnforcer extracts Runtime Enforcer from the Node Labels
+func K8sRuntimeEnforcer() string {
+	nodes, _ := k8sClient.K8sClientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+	if len(nodes.Items) <= 0 {
+		return ""
+	}
+
+	runtimeEnforcer := nodes.Items[0].Labels["kubearmor.io/enforcer"]
+	return runtimeEnforcer
+}

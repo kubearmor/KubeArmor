@@ -80,7 +80,7 @@ spec:
       hostPID: true
       initContainers:
       - image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
-        imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
+        imagePullPolicy: {{ .Values.kubearmorInit.imagePullPolicy }}
         name: init
         securityContext:
           capabilities:
