@@ -5,7 +5,7 @@ The KubeArmor community has adopted the below security disclosures and response 
 Please do not report security vulnerabilities through public GitHub issues.
 
 ## Security bulletins
-For information regarding the security of this project please join our [slack channel](https://kubearmor.herokuapp.com/).
+For information regarding the security of this project please join our [slack channel](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA/).
 
 ## Reporting a Vulnerability
 ### When you should?
@@ -14,7 +14,7 @@ For information regarding the security of this project please join our [slack ch
 - You think you discovered a vulnerability in the dependency of KubeArmor. For those projects, please leverage their reporting policy.
 
 ### When you should not?
-- You need assistance in configuring KubeArmor for security - please discuss this is in the [slack channel](https://kubearmor.herokuapp.com/).
+- You need assistance in configuring KubeArmor for security - please discuss this is in the [slack channel](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA/).
 - You need help applying security-related updates.
 - Your issue is not security-related.
 

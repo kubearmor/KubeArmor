@@ -521,7 +521,7 @@ To recover the KubeArmor from any fault condition, reinstall/upgrade the KubeArm
 
 ## 8. Support
 
-For any problem faced during installation or using the KubeArmor reach out to us by joining our active KubeArmor community on [KubeArmor Slack Channel](https://kubearmor.herokuapp.com/).
+For any problem faced during installation or using the KubeArmor reach out to us by joining our active KubeArmor community on [KubeArmor Slack Channel](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA/)
 
 ## 9. License
 
