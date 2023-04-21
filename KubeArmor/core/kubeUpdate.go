@@ -541,9 +541,11 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				if ownerRef != nil {
 					podOwnerName = ownerRef.Name
 					if ownerRef.Kind == "ReplicaSet" {
-						deploymentName := ownerRef.Name //K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], podOwnerName)
+						deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], podOwnerName)
 						if deploymentName != "" {
 							pod.Metadata["deploymentName"] = deploymentName
+						} else {
+							pod.Metadata["deploymentName"] = ownerRef.Name
 						}
 						// if it belongs to a replicaset, we also remove the pod template hash
 						podOwnerName = strings.TrimSuffix(podOwnerName, fmt.Sprintf("-%s", event.Object.ObjectMeta.Labels["pod-template-hash"]))
