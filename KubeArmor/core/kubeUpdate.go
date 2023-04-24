@@ -543,6 +543,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					if ownerRef.Kind == "ReplicaSet" {
 						deploymentName := K8s.GetDeploymentNameControllingReplicaSet(pod.Metadata["namespaceName"], podOwnerName)
 						if deploymentName != "" {
+							//in this case owner of the replica is a deployment
+							ownerRef.Kind = "Deployment"
 							pod.Metadata["deploymentName"] = deploymentName
 						} else {
 							pod.Metadata["deploymentName"] = ownerRef.Name
@@ -690,12 +692,12 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 										containers = append(containers, c.Name)
 									}
 								}
-							}
-						} else {
-							deploy, err := K8s.K8sClient.AppsV1().Deployments(pod.Metadata["namespaceName"]).Get(context.Background(), deploymentName, metav1.GetOptions{})
-							if err == nil {
-								for _, c := range deploy.Spec.Template.Spec.Containers {
-									containers = append(containers, c.Name)
+							} else {
+								deploy, err := K8s.K8sClient.AppsV1().Deployments(pod.Metadata["namespaceName"]).Get(context.Background(), deploymentName, metav1.GetOptions{})
+								if err == nil {
+									for _, c := range deploy.Spec.Template.Spec.Containers {
+										containers = append(containers, c.Name)
+									}
 								}
 							}
 						}
