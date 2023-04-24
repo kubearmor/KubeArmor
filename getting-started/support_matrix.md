@@ -30,6 +30,7 @@ KubeArmor supports following types of workloads:
 | Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux | [1084] |
 | VMWare     | [Tanzu] | TBD | x86_64 | :construction: | :construction: | :construction: | :construction: | :construction: | [1064] |
 | Mirantis     | [MKE] | Ubuntu>=20.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor | [1181] |
+| Digital Ocean | [DOKS] | Debian GNU/Linux 11 (bullseye) | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] | [1120] |
 
 [Observability]: workload_visibility.md
 [Network-Segmentation]: network_segmentation.md
@@ -57,6 +58,8 @@ KubeArmor supports following types of workloads:
 [Distros]: #Supported-Linux-Distributions
 [MKE]: https://www.mirantis.com/software/mirantis-kubernetes-engine/
 [1181]: https://github.com/kubearmor/KubeArmor/issues/1181
+[DOKS]: https://www.digitalocean.com/products/kubernetes/
+[1120]: https://github.com/kubearmor/KubeArmor/issues/1120
 ## Supported Linux Distributions
 
 Following distributions are tested for VM/Bare-metal based installations:
