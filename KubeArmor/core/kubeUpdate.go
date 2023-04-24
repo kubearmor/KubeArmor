@@ -1774,8 +1774,18 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 			newPoint.FileVisibilityEnabled = true
 			newPoint.NetworkVisibilityEnabled = true
 			newPoint.CapabilitiesVisibilityEnabled = true
-
 			newPoint.Containers = []string{}
+			dm.ContainersLock.Lock()
+			for idx, ctr := range dm.Containers {
+				if ctr.ContainerName == containername {
+					newPoint.Containers = append(newPoint.Containers, ctr.ContainerID)
+					ctr.NamespaceName = newPoint.NamespaceName
+					ctr.EndPointName = newPoint.EndPointName
+					dm.Containers[idx] = ctr
+				}
+			}
+			dm.ContainersLock.Unlock()
+
 			newPoint.AppArmorProfiles = []string{"kubearmor_" + containername}
 
 			// add the endpoint into the endpoint list

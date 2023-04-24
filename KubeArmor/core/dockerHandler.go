@@ -345,16 +345,35 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		if !dm.K8sEnabled {
-			dm.ContainersLock.Lock()
-			dm.SetContainerVisibility(containerID)
-			dm.ContainersLock.Unlock()
-		}
-
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+		}
+
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.SetContainerVisibility(containerID)
+			dm.EndPointsLock.Lock()
+			for _, ep := range dm.EndPoints {
+				if ep.EndPointName == dm.Containers[containerID].ContainerName {
+					ep.Containers = append(ep.Containers, containerID)
+					ctr := dm.Containers[containerID]
+					ctr.NamespaceName = ep.NamespaceName
+					ctr.EndPointName = ep.EndPointName
+					dm.Containers[containerID] = ctr
+					if cfg.GlobalCfg.Policy {
+						// update security policies
+						dm.Logger.UpdateSecurityPolicies("MODIFIED", ep)
+						if dm.RuntimeEnforcer != nil && ep.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							// enforce security policies
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(ep)
+						}
+					}
+				}
+			}
+			dm.EndPointsLock.Unlock()
+			dm.ContainersLock.Unlock()
 		}
 
 		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
@@ -363,6 +382,23 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 1: kill -> die -> stop
 		// case 2: kill -> die -> destroy
 		// case 3: destroy
+
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.EndPointsLock.Lock()
+			for _, ep := range dm.EndPoints {
+				if ep.EndPointName == dm.Containers[containerID].ContainerName {
+					for i, c := range ep.Containers {
+						if c == containerID {
+							ep.Containers = append(ep.Containers[:i], ep.Containers[i+1:]...)
+							break
+						}
+					}
+				}
+			}
+			dm.EndPointsLock.Unlock()
+			dm.ContainersLock.Unlock()
+		}
 
 		dm.ContainersLock.Lock()
 		container, ok := dm.Containers[containerID]
