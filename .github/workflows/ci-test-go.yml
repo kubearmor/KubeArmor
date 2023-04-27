@@ -14,7 +14,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Check gofmt
         run: make gofmt
@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Run Revive Action on KubeArmor
         uses: morphy2k/revive-action@v2
@@ -41,7 +41,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Run Revive Action on KubeArmor tests
         uses: morphy2k/revive-action@v2
@@ -55,7 +55,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Run Gosec Security Scanner
         run: make gosec
