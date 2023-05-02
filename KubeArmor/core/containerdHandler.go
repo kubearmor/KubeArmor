@@ -320,24 +320,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if !dm.K8sEnabled {
 			dm.ContainersLock.Lock()
 			dm.EndPointsLock.Lock()
-			for idx, ep := range dm.EndPoints {
-				if ep.EndPointName == dm.Containers[containerID].ContainerName {
-					ep.Containers = append(ep.Containers, containerID)
-					dm.EndPoints[idx] = ep
-					ctr := dm.Containers[containerID]
-					ctr.NamespaceName = ep.NamespaceName
-					ctr.EndPointName = ep.EndPointName
-					dm.Containers[containerID] = ctr
-					if cfg.GlobalCfg.Policy {
-						// update security policies
-						dm.Logger.UpdateSecurityPolicies("MODIFIED", ep)
-						if dm.RuntimeEnforcer != nil && ep.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-							// enforce security policies
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(ep)
-						}
-					}
-				}
-			}
+			dm.MatchandUpdateContainerSecurityPolicies(containerID)
 			dm.EndPointsLock.Unlock()
 			dm.ContainersLock.Unlock()
 		}
@@ -350,6 +333,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if !ok {
 			dm.ContainersLock.Unlock()
 			return false
+		}
+		if !dm.K8sEnabled {
+			dm.EndPointsLock.Lock()
+			dm.MatchandRemoveContainerFromEndpoint(containerID)
+			dm.EndPointsLock.Unlock()
 		}
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
