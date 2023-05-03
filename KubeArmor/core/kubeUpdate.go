@@ -19,6 +19,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kspinformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
+	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -175,6 +176,9 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 
 // UpdateEndPointWithPod Function
 func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
+	// Visibility Enabled namespaces are stored in this variable
+	var VisibilityEnabledNamespaces []string
+
 	if action == "ADDED" {
 		// create a new endpoint
 		newPoint := tp.EndPoint{}
@@ -204,16 +208,25 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			newPoint.PolicyEnabled = tp.KubeArmorPolicyDisabled
 		}
 
-		// parse annotations and update visibility flags
-		for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-			if visibility == "process" {
-				newPoint.ProcessVisibilityEnabled = true
-			} else if visibility == "file" {
-				newPoint.FileVisibilityEnabled = true
-			} else if visibility == "network" {
-				newPoint.NetworkVisibilityEnabled = true
-			} else if visibility == "capabilities" {
-				newPoint.CapabilitiesVisibilityEnabled = true
+		// check if visibility flag is enabled
+		if cfg.GlobalCfg.Visibility {
+			namespaces := strings.Split(cfg.GlobalCfg.VisibilityNamespace, ",")
+			VisibilityEnabledNamespaces = append(VisibilityEnabledNamespaces, namespaces...)
+			dm.Logger.Printf("Visibility enabled for namespaces:", VisibilityEnabledNamespaces)
+		} else {
+			dm.Logger.Printf("Visibility disabled")
+		}
+		if slices.Contains(VisibilityEnabledNamespaces, pod.Metadata["namespaceName"]) {
+			for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], "disabled: ,") {
+				if visibility == "process" {
+					newPoint.ProcessVisibilityEnabled = true
+				} else if visibility == "file" {
+					newPoint.FileVisibilityEnabled = true
+				} else if visibility == "network" {
+					newPoint.NetworkVisibilityEnabled = true
+				} else if visibility == "capabilities" {
+					newPoint.CapabilitiesVisibilityEnabled = true
+				}
 			}
 		}
 
@@ -358,19 +371,27 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			newEndPoint.NetworkVisibilityEnabled = false
 			newEndPoint.CapabilitiesVisibilityEnabled = false
 
-			// parse annotations and update visibility flags
-			for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], ",") {
-				if visibility == "process" {
-					newEndPoint.ProcessVisibilityEnabled = true
-				} else if visibility == "file" {
-					newEndPoint.FileVisibilityEnabled = true
-				} else if visibility == "network" {
-					newEndPoint.NetworkVisibilityEnabled = true
-				} else if visibility == "capabilities" {
-					newEndPoint.CapabilitiesVisibilityEnabled = true
+			// check if visibility flag is enabled
+			if cfg.GlobalCfg.Visibility {
+				namespaces := strings.Split(cfg.GlobalCfg.VisibilityNamespace, ",")
+				VisibilityEnabledNamespaces = append(VisibilityEnabledNamespaces, namespaces...)
+				dm.Logger.Printf("Visibility enabled for namespaces:", VisibilityEnabledNamespaces)
+			} else {
+				dm.Logger.Printf("Visibility disabled")
+			}
+			if slices.Contains(VisibilityEnabledNamespaces, pod.Metadata["namespaceName"]) {
+				for _, visibility := range strings.Split(pod.Annotations["kubearmor-visibility"], "disabled: ,") {
+					if visibility == "process" {
+						newEndPoint.ProcessVisibilityEnabled = true
+					} else if visibility == "file" {
+						newEndPoint.FileVisibilityEnabled = true
+					} else if visibility == "network" {
+						newEndPoint.NetworkVisibilityEnabled = true
+					} else if visibility == "capabilities" {
+						newEndPoint.CapabilitiesVisibilityEnabled = true
+					}
 				}
 			}
-
 			newEndPoint.Containers = []string{}
 			newEndPoint.AppArmorProfiles = []string{}
 			newEndPoint.SELinuxProfiles = []string{}
@@ -627,7 +648,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				// == Visibility == //
 
 				if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
-					pod.Annotations["kubearmor-visibility"] = cfg.GlobalCfg.Visibility
+					pod.Annotations["kubearmor-visibility"] = cfg.GlobalCfg.VisibilityNamespace
 				}
 
 				// == AppArmor == //

@@ -25,8 +25,9 @@ type KubearmorConfig struct {
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use
 
-	Visibility     string // Container visibility to use
-	HostVisibility string // Host visibility to use
+	Visibility          bool   // Container visibility to use
+	VisibilityNamespace string // Visibility by namespace
+	HostVisibility      string // Host visibility to use
 
 	Policy     bool // Enable/Disable policy enforcement
 	HostPolicy bool // Enable/Disable host policy enforcement
@@ -75,6 +76,7 @@ const ConfigCRISocket string = "criSocket"
 
 // ConfigVisibility Container visibility key
 const ConfigVisibility string = "visibility"
+const ConfigVisibilityNamespaces string = "n"
 
 // ConfigHostVisibility Host visibility key
 const ConfigHostVisibility string = "hostVisibility"
@@ -125,7 +127,9 @@ func readCmdLineParams() {
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
 
-	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
+	visStr := flag.Bool(ConfigVisibility, false, "enable visibility for specified namespace(s) and specified actions process,file,network,capabilities. usage: \"sudo ./kubearmor -visibility -n mynamespace\" ")
+	visNsStr := flag.String(ConfigVisibilityNamespaces, "", "comma-separated list of namespaces to enable visibility")
+
 	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
@@ -163,6 +167,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigCRISocket, *criSocket)
 
 	viper.SetDefault(ConfigVisibility, *visStr)
+	viper.SetDefault(ConfigVisibilityNamespaces, *visNsStr)
+
 	viper.SetDefault(ConfigHostVisibility, *hostVisStr)
 
 	viper.SetDefault(ConfigKubearmorPolicy, *policyB)
@@ -222,7 +228,8 @@ func LoadConfig() error {
 		return fmt.Errorf("CRI socket must start with 'unix://' (%s is invalid)", GlobalCfg.CRISocket)
 	}
 
-	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
+	GlobalCfg.Visibility = viper.GetBool(ConfigVisibility)
+	GlobalCfg.VisibilityNamespace = viper.GetString(ConfigVisibilityNamespaces)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
 
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)

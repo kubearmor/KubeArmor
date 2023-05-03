@@ -179,16 +179,16 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 		return
 	}
 
-	if strings.Contains(cfg.GlobalCfg.Visibility, "process") {
+	if strings.Contains(cfg.GlobalCfg.VisibilityNamespace, "process") {
 		container.ProcessVisibilityEnabled = true
 	}
-	if strings.Contains(cfg.GlobalCfg.Visibility, "file") {
+	if strings.Contains(cfg.GlobalCfg.VisibilityNamespace, "file") {
 		container.FileVisibilityEnabled = true
 	}
-	if strings.Contains(cfg.GlobalCfg.Visibility, "network") {
+	if strings.Contains(cfg.GlobalCfg.VisibilityNamespace, "network") {
 		container.NetworkVisibilityEnabled = true
 	}
-	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
+	if strings.Contains(cfg.GlobalCfg.VisibilityNamespace, "capabilities") {
 		container.CapabilitiesVisibilityEnabled = true
 	}
 
