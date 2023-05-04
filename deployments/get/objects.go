@@ -411,6 +411,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var terminationGracePeriodSeconds = int64(30)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
+		"-visibility=none",
 	}
 
 	var containerVolumeMounts = []corev1.VolumeMount{

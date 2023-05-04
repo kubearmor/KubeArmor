@@ -109,6 +109,7 @@ spec:
       containers:
       - args:
         - -gRPC=32767
+        - -visibility=none
         - -criSocket=unix:///run/dockershim.sock
         env:
         - name: KUBEARMOR_NODENAME
