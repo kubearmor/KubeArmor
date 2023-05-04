@@ -2761,7 +2761,7 @@ data:
   gRPC: "32767"
   hostDefaultCapabilitiesPosture: audit
   hostDefaultNetworkPosture: audit
-  visibility: process,file,network,capabilities
+  visibility: none
 kind: ConfigMap
 metadata:
   labels:
