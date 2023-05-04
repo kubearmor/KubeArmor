@@ -36,7 +36,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 
 ### Biweekly Meetup
 
-- :speaking_head: [Zoom Link](https://bit.ly/kubearmor-zoom)
+- :speaking_head: [Zoom Link](http://zoom.kubearmor.io)
 - :page_facing_up: Minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
 - :calendar: Calendar invite: [Google Calendar](https://calendar.google.com/event?action=TEMPLATE&tmeid=MWN0MTlzYWFoM2tkcXZidTk1cHZjNjNyOGtfMjAyMjAyMTBUMTUwMDAwWiBjXzJmMXRiYnNqNWdrNmdnbGpzMzA4NnAwamw4QGc&tmsrc=c_2f1tbbsj5gk6ggljs3086p0jl8%40group.calendar.google.com&scp=ALL), [ICS file](getting-started/resources/KubeArmorMeetup.ics)
 
