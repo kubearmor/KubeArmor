@@ -38,6 +38,7 @@ type KubeArmorHostPolicyStatus struct {
 
 // KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies API
 // +genclient
+// +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster,shortName=hsp
 // +kubebuilder:subresource:status
 type KubeArmorHostPolicy struct {

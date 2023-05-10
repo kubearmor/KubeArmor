@@ -20,7 +20,6 @@ import (
 // FakeKubeArmorHostPolicies implements KubeArmorHostPolicyInterface
 type FakeKubeArmorHostPolicies struct {
 	Fake *FakeSecurityV1
-	ns   string
 }
 
 var kubearmorhostpoliciesResource = schema.GroupVersionResource{Group: "security.kubearmor.com", Version: "v1", Resource: "kubearmorhostpolicies"}
@@ -30,8 +29,7 @@ var kubearmorhostpoliciesKind = schema.GroupVersionKind{Group: "security.kubearm
 // Get takes name of the kubeArmorHostPolicy, and returns the corresponding kubeArmorHostPolicy object, and an error if there is any.
 func (c *FakeKubeArmorHostPolicies) Get(ctx context.Context, name string, options v1.GetOptions) (result *securitykubearmorcomv1.KubeArmorHostPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(kubearmorhostpoliciesResource, c.ns, name), &securitykubearmorcomv1.KubeArmorHostPolicy{})
-
+		Invokes(testing.NewRootGetAction(kubearmorhostpoliciesResource, name), &securitykubearmorcomv1.KubeArmorHostPolicy{})
 	if obj == nil {
 		return nil, err
 	}
@@ -41,8 +39,7 @@ func (c *FakeKubeArmorHostPolicies) Get(ctx context.Context, name string, option
 // List takes label and field selectors, and returns the list of KubeArmorHostPolicies that match those selectors.
 func (c *FakeKubeArmorHostPolicies) List(ctx context.Context, opts v1.ListOptions) (result *securitykubearmorcomv1.KubeArmorHostPolicyList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(kubearmorhostpoliciesResource, kubearmorhostpoliciesKind, c.ns, opts), &securitykubearmorcomv1.KubeArmorHostPolicyList{})
-
+		Invokes(testing.NewRootListAction(kubearmorhostpoliciesResource, kubearmorhostpoliciesKind, opts), &securitykubearmorcomv1.KubeArmorHostPolicyList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -63,15 +60,13 @@ func (c *FakeKubeArmorHostPolicies) List(ctx context.Context, opts v1.ListOption
 // Watch returns a watch.Interface that watches the requested kubeArmorHostPolicies.
 func (c *FakeKubeArmorHostPolicies) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(kubearmorhostpoliciesResource, c.ns, opts))
-
+		InvokesWatch(testing.NewRootWatchAction(kubearmorhostpoliciesResource, opts))
 }
 
 // Create takes the representation of a kubeArmorHostPolicy and creates it.  Returns the server's representation of the kubeArmorHostPolicy, and an error, if there is any.
 func (c *FakeKubeArmorHostPolicies) Create(ctx context.Context, kubeArmorHostPolicy *securitykubearmorcomv1.KubeArmorHostPolicy, opts v1.CreateOptions) (result *securitykubearmorcomv1.KubeArmorHostPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(kubearmorhostpoliciesResource, c.ns, kubeArmorHostPolicy), &securitykubearmorcomv1.KubeArmorHostPolicy{})
-
+		Invokes(testing.NewRootCreateAction(kubearmorhostpoliciesResource, kubeArmorHostPolicy), &securitykubearmorcomv1.KubeArmorHostPolicy{})
 	if obj == nil {
 		return nil, err
 	}
@@ -81,8 +76,7 @@ func (c *FakeKubeArmorHostPolicies) Create(ctx context.Context, kubeArmorHostPol
 // Update takes the representation of a kubeArmorHostPolicy and updates it. Returns the server's representation of the kubeArmorHostPolicy, and an error, if there is any.
 func (c *FakeKubeArmorHostPolicies) Update(ctx context.Context, kubeArmorHostPolicy *securitykubearmorcomv1.KubeArmorHostPolicy, opts v1.UpdateOptions) (result *securitykubearmorcomv1.KubeArmorHostPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(kubearmorhostpoliciesResource, c.ns, kubeArmorHostPolicy), &securitykubearmorcomv1.KubeArmorHostPolicy{})
-
+		Invokes(testing.NewRootUpdateAction(kubearmorhostpoliciesResource, kubeArmorHostPolicy), &securitykubearmorcomv1.KubeArmorHostPolicy{})
 	if obj == nil {
 		return nil, err
 	}
@@ -93,8 +87,7 @@ func (c *FakeKubeArmorHostPolicies) Update(ctx context.Context, kubeArmorHostPol
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 func (c *FakeKubeArmorHostPolicies) UpdateStatus(ctx context.Context, kubeArmorHostPolicy *securitykubearmorcomv1.KubeArmorHostPolicy, opts v1.UpdateOptions) (*securitykubearmorcomv1.KubeArmorHostPolicy, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(kubearmorhostpoliciesResource, "status", c.ns, kubeArmorHostPolicy), &securitykubearmorcomv1.KubeArmorHostPolicy{})
-
+		Invokes(testing.NewRootUpdateSubresourceAction(kubearmorhostpoliciesResource, "status", kubeArmorHostPolicy), &securitykubearmorcomv1.KubeArmorHostPolicy{})
 	if obj == nil {
 		return nil, err
 	}
@@ -104,14 +97,13 @@ func (c *FakeKubeArmorHostPolicies) UpdateStatus(ctx context.Context, kubeArmorH
 // Delete takes name of the kubeArmorHostPolicy and deletes it. Returns an error if one occurs.
 func (c *FakeKubeArmorHostPolicies) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(kubearmorhostpoliciesResource, c.ns, name), &securitykubearmorcomv1.KubeArmorHostPolicy{})
-
+		Invokes(testing.NewRootDeleteAction(kubearmorhostpoliciesResource, name), &securitykubearmorcomv1.KubeArmorHostPolicy{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeKubeArmorHostPolicies) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(kubearmorhostpoliciesResource, c.ns, listOpts)
+	action := testing.NewRootDeleteCollectionAction(kubearmorhostpoliciesResource, listOpts)
 
 	_, err := c.Fake.Invokes(action, &securitykubearmorcomv1.KubeArmorHostPolicyList{})
 	return err
@@ -120,8 +112,7 @@ func (c *FakeKubeArmorHostPolicies) DeleteCollection(ctx context.Context, opts v
 // Patch applies the patch and returns the patched kubeArmorHostPolicy.
 func (c *FakeKubeArmorHostPolicies) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *securitykubearmorcomv1.KubeArmorHostPolicy, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(kubearmorhostpoliciesResource, c.ns, name, pt, data, subresources...), &securitykubearmorcomv1.KubeArmorHostPolicy{})
-
+		Invokes(testing.NewRootPatchSubresourceAction(kubearmorhostpoliciesResource, name, pt, data, subresources...), &securitykubearmorcomv1.KubeArmorHostPolicy{})
 	if obj == nil {
 		return nil, err
 	}
