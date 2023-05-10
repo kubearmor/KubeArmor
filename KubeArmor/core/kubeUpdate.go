@@ -23,7 +23,6 @@ import (
 	kspinformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
@@ -2614,30 +2613,8 @@ func validateGlobalDefaultPosture(posture string) string {
 // == Default Visibility == //
 // ======================== //
 
-func (dm *KubeArmorDaemon) validateVisibility(scope string, ns *corev1.Namespace, DefaultVisibility string) bool {
-	key := "kubearmor-visibility"
-	if ns.Annotations != nil && ns.Annotations[key] != "" {
-		if strings.Contains(ns.Annotations[key], scope) {
-			return true
-		}
-	} else {
-		nsPatch := corev1.Namespace{}
-		nsPatch.Annotations = make(map[string]string)
-		nsPatch.Annotations[key] = DefaultVisibility
-		if kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, ns.Name) {
-			nsPatch.Annotations[key] = "none"
-		}
-		patch, err := json.Marshal(nsPatch)
-		if err != nil {
-			dm.Logger.Warnf("Cannot marshal namespace patch for %s, err=%s", ns.Name, err)
-			return false
-		}
-		_, err = K8s.K8sClient.CoreV1().Namespaces().Patch(context.Background(), ns.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			dm.Logger.Warnf("Cannot patch namespace %s, err=%s", ns.Name, err)
-		}
-	}
-	return false
+func (dm *KubeArmorDaemon) validateVisibility(scope string, visibility string) bool {
+	return strings.Contains(visibility, scope)
 }
 
 // UpdateVisibility Function
@@ -2653,12 +2630,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			val.Process = visibility.Process
 			dm.SystemMonitor.NamespacePidsMap[namespace] = val
 			for _, nskey := range val.NsKeys {
-				dm.SystemMonitor.UpdateNsKeyMap("MODIFIED", nskey, tp.Visibility{
-					File:         visibility.File,
-					Process:      visibility.Process,
-					Capabilities: visibility.Capabilities,
-					Network:      visibility.Network,
-				})
+				dm.SystemMonitor.UpdateNsKeyMap("MODIFIED", nskey, visibility)
 			}
 		} else {
 			dm.SystemMonitor.NamespacePidsMap[namespace] = monitor.NsVisibility{
@@ -2669,7 +2641,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 				Network:    visibility.Network,
 			}
 		}
-		dm.Logger.Printf("Namespace %s visibiliy configured", namespace)
+		dm.Logger.Printf("Namespace %s visibiliy configured %+v", namespace, visibility)
 	} else if action == "DELETED" {
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {
@@ -2678,6 +2650,36 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			}
 		}
 		delete(dm.SystemMonitor.NamespacePidsMap, namespace)
+	}
+}
+
+var visibilityKey string = "kubearmor-visibility"
+
+func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, action string) {
+
+	// we overwrite
+
+	// get all namespaces
+	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		kg.Err("unable to fetch namespace list")
+		return
+	}
+
+	// for each namespace if needed change the visibility
+	for _, ns := range nsList.Items {
+		// if namespace is annotated with visibility annotation don't update on config map change
+		if _, found := ns.Annotations[visibilityKey]; found || kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, ns.Name) {
+			continue
+		}
+
+		visibility := tp.Visibility{
+			File:         strings.Contains(cm.Data[cfg.ConfigVisibility], "file"),
+			Process:      strings.Contains(cm.Data[cfg.ConfigVisibility], "process"),
+			Network:      strings.Contains(cm.Data[cfg.ConfigVisibility], "network"),
+			Capabilities: strings.Contains(cm.Data[cfg.ConfigVisibility], "capabilities"),
+		}
+		dm.UpdateVisibility("MODIFIED", ns.Name, visibility)
 	}
 }
 
@@ -2693,7 +2695,7 @@ func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
 	cfg.GlobalCfg.DefaultNetworkPosture = validateGlobalDefaultPosture(posture.NetworkAction)
 	cfg.GlobalCfg.DefaultCapabilitiesPosture = validateGlobalDefaultPosture(posture.CapabilitiesAction)
 
-	dm.Logger.Printf("[Update] Gloabal DefaultPosture {File:%v, Capabilities:%v, Network:%v}",
+	dm.Logger.Printf("[Update] Global DefaultPosture {File:%v, Capabilities:%v, Network:%v}",
 		cfg.GlobalCfg.DefaultFilePosture,
 		cfg.GlobalCfg.DefaultCapabilitiesPosture,
 		cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2717,17 +2719,28 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 					CapabilitiesAction: cp,
 				}
 				annotated := fa || na || ca
+				// Set Visibility to Global Default
 				visibility := tp.Visibility{
-					File:         dm.validateVisibility("file", ns, cfg.GlobalCfg.Visibility),
-					Process:      dm.validateVisibility("process", ns, cfg.GlobalCfg.Visibility),
-					Network:      dm.validateVisibility("network", ns, cfg.GlobalCfg.Visibility),
-					Capabilities: dm.validateVisibility("capabilities", ns, cfg.GlobalCfg.Visibility),
+					File:         dm.validateVisibility("file", cfg.GlobalCfg.Visibility),
+					Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
+					Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
+					Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+				}
+
+				// Set Visibility to Namespace Annotation if exists
+				if ns.Annotations != nil && ns.Annotations[visibilityKey] != "" {
+					visibility = tp.Visibility{
+						File:         dm.validateVisibility("file", ns.Annotations[visibilityKey]),
+						Process:      dm.validateVisibility("process", ns.Annotations[visibilityKey]),
+						Network:      dm.validateVisibility("network", ns.Annotations[visibilityKey]),
+						Capabilities: dm.validateVisibility("capabilities", ns.Annotations[visibilityKey]),
+					}
 				}
 				dm.UpdateDefaultPosture("ADDED", ns.Name, defaultPosture, annotated)
 				dm.UpdateVisibility("ADDED", ns.Name, visibility)
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(_, new interface{}) {
 			if ns, ok := new.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				np, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2738,11 +2751,22 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 					CapabilitiesAction: cp,
 				}
 				annotated := fa || na || ca
+				// Set Visibility to Global Default
 				visibility := tp.Visibility{
-					File:         dm.validateVisibility("file", ns, cfg.GlobalCfg.Visibility),
-					Process:      dm.validateVisibility("process", ns, cfg.GlobalCfg.Visibility),
-					Network:      dm.validateVisibility("network", ns, cfg.GlobalCfg.Visibility),
-					Capabilities: dm.validateVisibility("capabilities", ns, cfg.GlobalCfg.Visibility),
+					File:         dm.validateVisibility("file", cfg.GlobalCfg.Visibility),
+					Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
+					Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
+					Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+				}
+
+				// Set Visibility to Namespace Annotation if exists
+				if ns.Annotations != nil && ns.Annotations[visibilityKey] != "" {
+					visibility = tp.Visibility{
+						File:         dm.validateVisibility("file", ns.Annotations[visibilityKey]),
+						Process:      dm.validateVisibility("process", ns.Annotations[visibilityKey]),
+						Network:      dm.validateVisibility("network", ns.Annotations[visibilityKey]),
+						Capabilities: dm.validateVisibility("capabilities", ns.Annotations[visibilityKey]),
+					}
 				}
 				dm.UpdateDefaultPosture("MODIFIED", ns.Name, defaultPosture, annotated)
 				dm.UpdateVisibility("MODIFIED", ns.Name, visibility)
@@ -2780,7 +2804,8 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 		AddFunc: func(obj interface{}) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok {
 				if cm.Name == get.KubeArmorConfigMapName && cm.Namespace == cmNS {
-					cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigVisibility]
+					cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
+					cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
 					globalPosture := tp.DefaultPosture{
 						FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 						NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
@@ -2796,13 +2821,16 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 
 					// update default posture for endpoints
 					dm.updatEndpointsWithCM(cm, "ADDED")
+					// update visibility for namespaces
+					dm.updateVisibilityWithCM(cm, "ADDED")
 				}
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(_, new interface{}) {
 			if cm, ok := new.(*corev1.ConfigMap); ok {
 				if cm.Name == get.KubeArmorConfigMapName && cm.Namespace == cmNS {
-					cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigVisibility]
+					cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
+					cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
 					globalPosture := tp.DefaultPosture{
 						FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 						NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
@@ -2818,6 +2846,8 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 
 					// update default posture for endpoints
 					dm.updatEndpointsWithCM(cm, "MODIFIED")
+					// update visibility for namespaces
+					dm.updateVisibilityWithCM(cm, "MODIFIED")
 				}
 			}
 		},

@@ -328,40 +328,41 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		mon.NsVisibilityMap[nsKey] = visibilityMap
 		err = mon.BpfNsVisibilityMap.Put(nsKey, visibilityMap)
 		if err != nil {
-			mon.Logger.Warnf("Cannot insert insert visibiliy map into kernel nskey=%+v, error=%s", nsKey, err)
+			mon.Logger.Warnf("Cannot insert insert visibility map into kernel nskey=%+v, error=%s", nsKey, err)
 		}
-		mon.Logger.Printf("Successfully added visibiliy map with key=%+v to the kernel", nsKey)
+		mon.Logger.Printf("Successfully added visibility map with key=%+v to the kernel", nsKey)
 	} else if action == "MODIFIED" {
 		visibilityMap := mon.NsVisibilityMap[nsKey]
 		if visibilityMap == nil {
-			mon.Logger.Warnf("Cannot locate visibiliy map. nskey=%+v, action=modified", nsKey)
+			mon.Logger.Warnf("Cannot locate visibility map. nskey=%+v, action=modified", nsKey)
 			return
 		}
+
 		err = visibilityMap.Put(file.Key, file.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=file", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=file", nsKey)
 		}
 		err = visibilityMap.Put(process.Key, process.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=process", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=process", nsKey)
 		}
 		err = visibilityMap.Put(network.Key, network.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=network", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=network", nsKey)
 		}
 		err = visibilityMap.Put(capability.Key, capability.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibiliy map. nskey=%+v, value=%+v, scope=capability", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey)
 		}
-		mon.Logger.Printf("Updated visibiliy map with key=%+v", nsKey)
+		mon.Logger.Printf("Updated visibility map with key=%+v for cid %s", nsKey, mon.NsMap[nsKey])
 	} else if action == "DELETED" {
 		err := mon.BpfNsVisibilityMap.Delete(nsKey)
 		if err != nil {
-			mon.Logger.Warnf("Cannot locate visibiliy map. nskey=%+v, action=deleted", nsKey)
+			mon.Logger.Warnf("Cannot locate visibility map. nskey=%+v, action=deleted", nsKey)
 			return
 		}
 		delete(mon.NsVisibilityMap, nsKey)
-		mon.Logger.Printf("Successfully deleted visibiliy map with key=%+v from the kernel", nsKey)
+		mon.Logger.Printf("Successfully deleted visibility map with key=%+v from the kernel", nsKey)
 	}
 }
 
