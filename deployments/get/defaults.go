@@ -123,27 +123,16 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "crio-sock-path", // crio socket
-				MountPath: "/var/run/crio/crio.sock",
-				ReadOnly:  true,
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
+				ReadOnly:         true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
-			},
-			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
-			},
-			{
-				Name:      "crio-storage-path",
-				MountPath: "/var/lib/containers/storage", // crio storage
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -188,10 +177,10 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "crio-storage-path", // crio storage - stores all of its data, including containers images, in this directory.
-				MountPath: "/var/lib/containers/storage",
+				Name:             "crio-storage-path", // crio storage - stores all of its data, including containers images, in this directory.
+				MountPath:        "/var/lib/containers/storage",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -227,10 +216,10 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -266,10 +255,10 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -305,10 +294,10 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -344,10 +333,10 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -383,16 +372,16 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -437,16 +426,16 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -493,16 +482,16 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -547,16 +536,16 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				ReadOnly:  true,
 			},
 			{
-				Name:      "containerd-storage-path", // containerd storage
-				MountPath: "/run/containerd",
+				Name:             "containerd-storage-path", // containerd storage
+				MountPath:        "/run/containerd",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 			{
-				Name:      "docker-storage-path", // docker storage
-				MountPath: "/var/lib/docker",
+				Name:             "docker-storage-path", // docker storage
+				MountPath:        "/var/lib/docker",
 				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:  true,
+				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{

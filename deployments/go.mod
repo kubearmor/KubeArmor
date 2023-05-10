@@ -13,8 +13,8 @@ require (
 	github.com/clarketm/json v1.17.1
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20230510133055-4e30a28b6352
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230510133055-4e30a28b6352
-	k8s.io/api v0.26.4
-	k8s.io/apimachinery v0.26.4
+	k8s.io/api v0.27.1
+	k8s.io/apimachinery v0.27.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -46,7 +46,7 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.26.4 // indirect
+	k8s.io/apiextensions-apiserver v0.27.1 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
