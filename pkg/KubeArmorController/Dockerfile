@@ -2,7 +2,7 @@
 # Copyright 2022 Authors of KubeArmor
 
 # Build the manager binary
-FROM golang:1.18 as builder
+FROM golang:1.20 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
