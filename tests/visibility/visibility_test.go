@@ -38,26 +38,6 @@ func getWpsqlPod(name string, ant string) string {
 	return pods[0]
 }
 
-func isOperationsExpected(operations []string, expected []string) bool {
-	if len(operations) != len(expected) {
-		return true
-	}
-	for _, operation := range operations {
-		found := false
-		for _, expectedOp := range expected {
-			if operation == expectedOp {
-				found = true
-				break
-			}
-		}
-		if !found {
-			fmt.Printf("Operation not found %v %v", operation, expected)
-			return false
-		}
-	}
-	return true
-}
-
 var _ = Describe("Visibility", func() {
 	var wp string
 
@@ -100,7 +80,7 @@ var _ = Describe("Visibility", func() {
 			}
 			operations := GetOperations(logs)
 
-			Expect(isOperationsExpected(operations, expected)).To(BeTrue())
+			Expect(IsOperationsExpected(operations, expected)).To(BeTrue())
 
 		})
 
@@ -126,7 +106,7 @@ var _ = Describe("Visibility", func() {
 			}
 			operations := GetOperations(logs)
 
-			Expect(isOperationsExpected(operations, expected)).To(BeTrue())
+			Expect(IsOperationsExpected(operations, expected)).To(BeTrue())
 
 		})
 
