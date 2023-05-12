@@ -19,7 +19,9 @@ replace (
 	github.com/kubearmor/KubeArmor/deployments => ../deployments
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
-
+	k8s.io/api => k8s.io/api v0.26.4
+	k8s.io/apimachinery => k8s.io/apimachinery v0.26.4
+	k8s.io/client-go => k8s.io/client-go v0.26.4
 )
 
 require (
