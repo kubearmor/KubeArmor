@@ -20,7 +20,7 @@ import (
 	pb "github.com/containerd/containerd/api/services/containers/v1"
 	pt "github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/typeurl"
+	"github.com/containerd/typeurl/v2"
 	"google.golang.org/grpc"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
