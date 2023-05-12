@@ -13,6 +13,7 @@ require (
 	github.com/clarketm/json v1.17.1
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20221130063629-a2dd0301b858
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20220908103453-7b92e248beb9
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy v0.0.0-00010101000000-000000000000
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
 	sigs.k8s.io/yaml v1.3.0

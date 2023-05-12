@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
+	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorPolicy/api/security.kubearmor.com/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1131,5 +1132,39 @@ func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 			Labels:    kubearmorConfigLabels,
 		},
 		Data: data,
+	}
+}
+
+// GetKubeArmorPolicy Function
+func GetKubeArmorPolicy() *ksp.KubeArmorPolicy {
+	return &ksp.KubeArmorPolicy{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "KubeArmorPolicy",
+			APIVersion: "security.kubearmor.com/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kubearmor-sa-token-dir-block",
+			Namespace: "kube-system",
+		},
+		Spec: ksp.KubeArmorPolicySpec{
+			Severity: 3,
+			Tags:     []string{"WARNING"},
+			Action:   "Block",
+			Selector: ksp.SelectorType{
+				MatchLabels: map[string]string{"kubearmor-app": "kubearmor"},
+			},
+			File: ksp.FileType{
+				MatchDirectories: []ksp.FileDirectoryType{
+					{
+						Directory: ksp.MatchDirectoryType("/var/run/secrets/kubernetes.io/serviceaccount/"),
+						Recursive: true,
+					},
+					{
+						Directory: ksp.MatchDirectoryType("/run/secrets/kubernetes.io/serviceaccount/"),
+						Recursive: true,
+					},
+				},
+			},
+		},
 	}
 }

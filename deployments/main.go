@@ -44,6 +44,7 @@ func main() {
 			kcrd.GetKspCRD(),
 			kcrd.GetHspCRD(),
 			dp.GetKubearmorConfigMap(namespace, dp.KubeArmorConfigMapName),
+			dp.GetKubeArmorPolicy(),
 		}
 
 		currDir, err := os.Getwd()

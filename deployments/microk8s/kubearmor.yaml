@@ -2759,3 +2759,23 @@ metadata:
     kubearmor-app: kubearmor-configmap
   name: kubearmor-config
   namespace: kube-system
+---
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: kubearmor-sa-token-dir-block
+  namespace: kube-system
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /var/run/secrets/kubernetes.io/serviceaccount/
+      recursive: true
+    - dir: /run/secrets/kubernetes.io/serviceaccount/
+      recursive: true
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor
+  severity: 3
+  tags:
+  - WARNING
