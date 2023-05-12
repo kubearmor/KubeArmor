@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.18-alpine3.15 as builder
+FROM golang:1.20-alpine3.17 as builder
 
 RUN apk --no-cache update
 RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev llvm make gcc protobuf
@@ -19,7 +19,7 @@ RUN make
 
 ### Make executable image
 
-FROM alpine:3.15 as kubearmor
+FROM alpine:3.17 as kubearmor
 
 RUN apk --no-cache update
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories

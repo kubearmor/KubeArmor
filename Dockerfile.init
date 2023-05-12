@@ -3,7 +3,7 @@
 
 ### build syscall checker
 
-FROM golang:1.19-alpine3.17 as init-builder
+FROM golang:1.20-alpine3.17 as init-builder
 WORKDIR /usr/src/KubeArmor
 COPY ./KubeArmor/BPF/tests/main.go main.go
 COPY ./KubeArmor/BPF/tests/go.mod go.mod
