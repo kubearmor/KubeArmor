@@ -12,7 +12,7 @@ COPY ./KubeArmor/BPF/tests/go.sum go.sum
 RUN go build -o syscheck main.go
 
 ### Make compiler image
-FROM alpine:3.17 as kubearmor-init
+FROM alpine:3 as kubearmor-init
 
 RUN apk --no-cache update
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" | tee -a /etc/apk/repositories
