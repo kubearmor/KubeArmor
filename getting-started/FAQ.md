@@ -1,5 +1,12 @@
 ## FAQs
 
+<details><summary><h4>What are the steps to follow if it's your first time contributing to KubeArmor?</h4></summary>
+  
+**Hi, If it is the first time that you contribute to KubeArmor, follow these steps:**
+  
+* Write a comment in the issue thread to let other possible contributors know that you are working on that bug. For eg : `Hey all, I would like to work on this issue.`, checkout [Contributing Guide](https://github.com/kubearmor/KubeArmor/blob/main/CONTRIBUTING.md) 🔥✨ and feel free to ask anything related to the issue in the thread or on our [slack channel](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA) ✌🏽
+</details>
+
 <details><summary><h4>What platforms are supported by KubeArmor? How can I check whether my deployment will be supported?</h4></summary>
 
 * Please check [Support matrix for KubeArmor](default_posture.md).
