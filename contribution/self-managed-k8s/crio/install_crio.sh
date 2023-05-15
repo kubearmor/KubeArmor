@@ -10,7 +10,10 @@ if [ "$NAME" != "Ubuntu" ]; then
 fi
 
 OS="x${NAME}_${VERSION_ID}"
-VERSION=1.23
+
+# install cri-o corresponding to the latest k3s version
+VERSION=$(curl -w '%{url_effective}' -L -s -S https://update.k3s.io/v1-release/channels/stable -o /dev/null | sed -e 's|.*/v||' | cut -d '.' -f1,2)
+echo "Installing CRI-O version $VERSION"
 
 # get signing keys
 echo "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
