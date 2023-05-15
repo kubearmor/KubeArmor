@@ -29,7 +29,12 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	KubearmorPortForwardStop()
-	CreateKAConfigMap("block", "block", "block")
+	cm := NewDefaultConfigMapData()
+	cm.DefaultFilePosture = "block"
+	cm.DefaultCapabilitiesPosture = "block"
+	cm.DefaultNetworkPosture = "block"
+	cm.Visibility = "process,file,network,capabilities"
+	cm.CreateKAConfigMap()
 	DeleteKAConfigMap()
 })
 
@@ -62,7 +67,8 @@ var _ = Describe("KubeArmor-Config", func() {
 		unannotated = getUnannotatedPod("unannotated-", "container.apparmor.security.beta.kubernetes.io/ubuntu-1: localhost/kubearmor-unannotated-unannotated-deployment-ubuntu-1")
 		partialyAnnotated = getPartialyAnnotatedPod("partialyannotated-", "container.apparmor.security.beta.kubernetes.io/ubuntu-1: localhost/kubearmor-partialyannotated-partialyannotated-deployment-ubuntu-1")
 		fullyAnnotated = getFullyAnnotatedPod("fullyannotated-", "container.apparmor.security.beta.kubernetes.io/ubuntu-1: localhost/kubearmor-fullyannotated-fullyannotated-deployment-ubuntu-1")
-		CreateKAConfigMap("audit", "audit", "audit")
+		cm := NewDefaultConfigMapData()
+		cm.CreateKAConfigMap()
 	})
 
 	AfterEach(func() {
@@ -72,6 +78,51 @@ var _ = Describe("KubeArmor-Config", func() {
 	})
 
 	Describe("Unannotated", func() {
+
+		It("visibility will be set to configmap's value", Label("unannotated"), func() {
+			// default global visibility is none
+			cm := NewDefaultConfigMapData()
+			err := cm.CreateKAConfigMap()
+
+			err = KarmorLogStart("all", "unannotated", "", unannotated)
+			Expect(err).To(BeNil())
+
+			// this won't return anything
+			sout, _, err := K8sExecInPodWithContainer(unannotated, "unannotated", "ubuntu-1", []string{"bash", "-c", "cat /credentials/keys/priv.key"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+
+			// check for audit logs, we shouldn't get any
+			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			Expect(err).To(BeNil())
+			Expect(len(logs)).To(Equal(0))
+
+			// update global visibility to file
+			cm.Visibility = "file"
+			err = cm.CreateKAConfigMap()
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("all", "unannotated", "", unannotated)
+			Expect(err).To(BeNil())
+
+			// file event
+			sout, _, err = K8sExecInPodWithContainer(unannotated, "unannotated", "ubuntu-1", []string{"bash", "-c", "cat /credentials/keys/priv.key"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+
+			// check for logs, we should get logs for file events
+			logs, _, err = KarmorGetLogs(5*time.Second, 50)
+			Expect(err).To(BeNil())
+			Expect(len(logs)).NotTo(Equal(0))
+
+			expected := []string{
+				"file",
+			}
+			operations := GetOperations(logs)
+
+			Expect(IsOperationsExpected(operations, expected)).To(BeTrue())
+
+		})
 
 		It("default posture will be set to global posture configs", Label("unannotated"), func() {
 			// apply a allow based policy
@@ -88,7 +139,11 @@ var _ = Describe("KubeArmor-Config", func() {
 			Expect(sout).NotTo(MatchRegexp(".*Permission denied"))
 
 			// change global default posture to block using configmap
-			err = CreateKAConfigMap("block", "block", "block") // will create a configMap with default posture as block
+			cm := NewDefaultConfigMapData()
+			cm.DefaultFilePosture = "block"
+			cm.DefaultCapabilitiesPosture = "block"
+			cm.DefaultNetworkPosture = "block"
+			err = cm.CreateKAConfigMap() // will create a configMap with default posture as block
 			Expect(err).To(BeNil())
 
 			// wait for policy updation due to defaultPosture change
@@ -135,7 +190,11 @@ var _ = Describe("KubeArmor-Config", func() {
 			Expect(res.Found).To(BeTrue())
 
 			// change global default posture to block using configmap
-			err = CreateKAConfigMap("block", "block", "block") // will create a configMap with default posture as block
+			cm := NewDefaultConfigMapData()
+			cm.DefaultFilePosture = "block"
+			cm.DefaultCapabilitiesPosture = "block"
+			cm.DefaultNetworkPosture = "block"
+			err = cm.CreateKAConfigMap() // will create a configMap with default posture as block
 			Expect(err).To(BeNil())
 
 			// wait for policy updation due to defaultPosture change
@@ -178,6 +237,35 @@ var _ = Describe("KubeArmor-Config", func() {
 
 	Describe("Fully Annotated", Label("full"), func() {
 
+		It("visibility will default to ns annotation's value", Label("full"), func() {
+			// default global visibility is none
+			cm := NewDefaultConfigMapData()
+			err := cm.CreateKAConfigMap()
+
+			err = KarmorLogStart("all", "fullyannotated", "", fullyAnnotated)
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "cat /credentials/keys/priv.key"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+
+			// check for audit logs, we should get all
+			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			Expect(err).To(BeNil())
+			Expect(len(logs)).NotTo(Equal(0))
+
+			expected := []string{
+				"file",
+				"process",
+				"syscall",
+				"network",
+			}
+			operations := GetOperations(logs)
+
+			Expect(IsOperationsExpected(operations, expected)).To(BeTrue())
+
+		})
+
 		It("default posture will be unchanged after global configs changed", func() {
 
 			// apply a allow based policy
@@ -208,7 +296,11 @@ var _ = Describe("KubeArmor-Config", func() {
 			Expect(res.Found).To(BeTrue())
 
 			// change global default posture to block using configmap
-			err = CreateKAConfigMap("block", "block", "block") // will create a configMap with default posture as block
+			cm := NewDefaultConfigMapData()
+			cm.DefaultFilePosture = "block"
+			cm.DefaultCapabilitiesPosture = "block"
+			cm.DefaultNetworkPosture = "block"
+			err = cm.CreateKAConfigMap() // will create a configMap with default posture as block
 			Expect(err).To(BeNil())
 
 			// wait for policy updation due to defaultPosture change
@@ -221,6 +313,7 @@ var _ = Describe("KubeArmor-Config", func() {
 			Expect(sout).To(MatchRegexp(".*has moved"))
 
 		})
+
 	})
 
 })

@@ -259,3 +259,24 @@ func GetOperations(logs []*pb.Log) []string {
 
 	return opts
 }
+
+// IsOperationsExpected validates what KubeArmor Operation is expected based on visibility configuration
+func IsOperationsExpected(operations []string, expected []string) bool {
+	if len(operations) != len(expected) {
+		return true
+	}
+	for _, operation := range operations {
+		found := false
+		for _, expectedOp := range expected {
+			if operation == expectedOp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			fmt.Printf("Operation not found %v %v", operation, expected)
+			return false
+		}
+	}
+	return true
+}

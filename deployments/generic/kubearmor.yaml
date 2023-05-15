@@ -172,9 +172,6 @@ spec:
         - mountPath: /var/run/containerd/containerd.sock
           name: containerd-sock-path
           readOnly: true
-        - mountPath: /var/run/crio/crio.sock
-          name: crio-sock-path
-          readOnly: true
         - mountPath: /run/containerd
           mountPropagation: HostToContainer
           name: containerd-storage-path
@@ -182,10 +179,6 @@ spec:
         - mountPath: /var/lib/docker
           mountPropagation: HostToContainer
           name: docker-storage-path
-          readOnly: true
-        - mountPath: /var/lib/containers/storage
-          mountPropagation: HostToContainer
-          name: crio-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
@@ -2763,11 +2756,11 @@ spec:
 apiVersion: v1
 data:
   cluster: default
+  defaultCapabilitiesPosture: audit
   defaultFilePosture: audit
+  defaultNetworkPosture: audit
   gRPC: "32767"
-  hostDefaultCapabilitiesPosture: audit
-  hostDefaultNetworkPosture: audit
-  visibility: process,file,network,capabilities
+  visibility: none
 kind: ConfigMap
 metadata:
   labels:

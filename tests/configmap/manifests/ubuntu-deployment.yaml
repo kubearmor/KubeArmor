@@ -30,6 +30,7 @@ metadata:
   name: partialyannotated
   annotations:
     "kubearmor-file-posture": "audit"
+    "kubearmor-visibility": "file"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -60,6 +61,7 @@ metadata:
     "kubearmor-file-posture": "audit"
     "kubearmor-network-posture": "audit"
     "kubearmor-capabilities-posture": "audit"
+    "kubearmor-visibility": "process,file,capabilities,network"
 ---
 apiVersion: apps/v1
 kind: Deployment

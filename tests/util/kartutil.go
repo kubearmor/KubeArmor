@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -25,7 +25,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	appsV1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -36,6 +35,16 @@ import (
 var k8sClient *kcli.Client
 var hspClient *hsp.SecurityV1Client
 var stopChan chan struct{}
+
+// ConfigMapData hosts the structure which is used to configure Config Map Data
+type ConfigMapData struct {
+	GRPC                       string
+	Visibility                 string
+	Cluster                    string
+	DefaultFilePosture         string
+	DefaultCapabilitiesPosture string
+	DefaultNetworkPosture      string
+}
 
 func connectHspClient() error {
 	var kubeconfig string
@@ -76,17 +85,21 @@ func isK8sEnv() bool {
 	return err != nil
 }
 
+// NewDefaultConfigMapData returns Config Map Data with KubeArmor defaults set
+func NewDefaultConfigMapData() *ConfigMapData {
+	data := &ConfigMapData{}
+	data.GRPC = "32767"
+	data.Visibility = "none"
+	data.Cluster = "default"
+	data.DefaultFilePosture = "audit"
+	data.DefaultCapabilitiesPosture = "audit"
+	data.DefaultNetworkPosture = "audit"
+
+	return data
+}
+
 // CreateKAConfigMap function
-func CreateKAConfigMap(file, cap, network string) error {
-
-	data := make(map[string]string)
-	data["gRPC"] = "32767"
-	data["visibility"] = "process,file,network,capabilities"
-	data["cluster"] = "default"
-	data["defaultFilePosture"] = file
-	data["defaultCapabilitiesPosture"] = cap
-	data["defaultNetworkPosture"] = network
-
+func (data *ConfigMapData) CreateKAConfigMap() error {
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -96,7 +109,14 @@ func CreateKAConfigMap(file, cap, network string) error {
 			Name:      "kubearmor-config",
 			Namespace: "kube-system",
 		},
-		Data: data,
+		Data: map[string]string{
+			"gRPC":                       data.GRPC,
+			"cluster":                    data.Cluster,
+			"visibility":                 data.Visibility,
+			"defaultFilePosture":         data.DefaultFilePosture,
+			"defaultCapabilitiesPosture": data.DefaultCapabilitiesPosture,
+			"defaultNetworkPosture":      data.DefaultNetworkPosture,
+		},
 	}
 
 	_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Create(context.Background(), cm, metav1.CreateOptions{})
@@ -187,7 +207,7 @@ func K8sDeploymentCheck(depname string, ns string, timeout time.Duration) error 
 	return waitForCondition(timeout, isDeploymentReady(depname, ns))
 }
 
-func annotationsMatch(pod v1.Pod, ants []string) bool {
+func annotationsMatch(pod corev1.Pod, ants []string) bool {
 	if ants == nil || len(ants) <= 0 {
 		return true
 	}
@@ -209,7 +229,7 @@ func annotationsMatch(pod v1.Pod, ants []string) bool {
 
 // AnnotateNS function
 func AnnotateNS(name, key, value string) error {
-	ns := v1.Namespace{}
+	ns := corev1.Namespace{}
 	ns.Annotations = make(map[string]string)
 	ns.Annotations[key] = value
 	patch, err := json.Marshal(ns)
@@ -232,7 +252,7 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 		}
 		pods = []string{}
 		for _, p := range podList.Items {
-			if p.Status.Phase != v1.PodRunning || p.DeletionTimestamp != nil {
+			if p.Status.Phase != corev1.PodRunning || p.DeletionTimestamp != nil {
 				continue
 			}
 			if p.Status.Reason != "" {
@@ -262,7 +282,7 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 // K8sExecInPod Exec into the pod. Output: stdout, stderr, err
 func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	req := k8sClient.K8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(ns).SubResource("exec")
-	option := &v1.PodExecOptions{
+	option := &corev1.PodExecOptions{
 		Command: cmd,
 		Stdout:  true,
 		Stderr:  true,
@@ -288,7 +308,7 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 // K8sExecInPodWithContainer Exec into the pod. Output: stdout, stderr, err
 func K8sExecInPodWithContainer(pod string, ns string, container string, cmd []string) (string, string, error) {
 	req := k8sClient.K8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(pod).Namespace(ns).SubResource("exec")
-	option := &v1.PodExecOptions{
+	option := &corev1.PodExecOptions{
 		Command:   cmd,
 		Stdout:    true,
 		Stderr:    true,
@@ -416,7 +436,7 @@ func DeleteAllKsp() error {
 
 // K8sApplyFile can apply deployments, services, namespace, and kubearmorhostpolicy
 func K8sApplyFile(fileName string) error {
-	f, err := ioutil.ReadFile(fileName)
+	f, err := os.ReadFile(fileName)
 
 	if err != nil {
 		log.Errorf("error reading file %v", err.Error())
@@ -452,9 +472,9 @@ func K8sApplyFile(fileName string) error {
 			log.Errorf("unable to decode yaml error=%s", err)
 			return err
 		}
-		switch obj.(type) {
+		switch obj := obj.(type) {
 		case *appsV1.Deployment:
-			deployment := obj.(*appsV1.Deployment)
+			deployment := obj
 			namespace := deployment.Namespace
 
 			result, err := k8sClient.K8sClientset.AppsV1().Deployments(namespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
@@ -468,7 +488,7 @@ func K8sApplyFile(fileName string) error {
 			log.Printf("Created Deployment %q", result.GetObjectMeta().GetName())
 
 		case *kspV1.KubeArmorPolicy:
-			ksp := obj.(*kspV1.KubeArmorPolicy)
+			ksp := obj
 
 			ksp.Spec.Capabilities = kspV1.CapabilitiesType{
 				MatchCapabilities: append([]kspV1.MatchCapabilitiesType{}, ksp.Spec.Capabilities.MatchCapabilities...),
@@ -486,8 +506,8 @@ func K8sApplyFile(fileName string) error {
 				return err
 			}
 			log.Printf("Created policy %q", result.GetObjectMeta().GetName())
-		case *v1.Service:
-			svc := obj.(*v1.Service)
+		case *corev1.Service:
+			svc := obj
 			ns := svc.Namespace
 
 			_, err := k8sClient.K8sClientset.CoreV1().Services(ns).Create(context.TODO(), svc, metav1.CreateOptions{})
@@ -510,8 +530,8 @@ func K8sApplyFile(fileName string) error {
 				return err
 			}
 			log.Printf("Service %s created ...", svc.Name)
-		case *v1.Namespace:
-			ns := obj.(*v1.Namespace)
+		case *corev1.Namespace:
+			ns := obj
 			_, err := k8sClient.K8sClientset.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 			if err != nil {
 				if strings.Contains(err.Error(), "already exists") {
@@ -522,7 +542,7 @@ func K8sApplyFile(fileName string) error {
 			}
 			log.Printf("Namespace %s created ...", ns.Name)
 		case *hspV1.KubeArmorHostPolicy:
-			hsp := obj.(*hspV1.KubeArmorHostPolicy)
+			hsp := obj
 
 			hsp.Spec.Capabilities = hspV1.CapabilitiesType{
 				MatchCapabilities: append([]hspV1.MatchCapabilitiesType{}, hsp.Spec.Capabilities.MatchCapabilities...),
