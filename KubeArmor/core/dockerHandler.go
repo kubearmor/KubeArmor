@@ -345,16 +345,19 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
-		if !dm.K8sEnabled {
-			dm.ContainersLock.Lock()
-			dm.SetContainerVisibility(containerID)
-			dm.ContainersLock.Unlock()
-		}
-
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+		}
+
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.SetContainerVisibility(containerID)
+			dm.EndPointsLock.Lock()
+			dm.MatchandUpdateContainerSecurityPolicies(containerID)
+			dm.EndPointsLock.Unlock()
+			dm.ContainersLock.Unlock()
 		}
 
 		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
@@ -363,6 +366,14 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		// case 1: kill -> die -> stop
 		// case 2: kill -> die -> destroy
 		// case 3: destroy
+
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.EndPointsLock.Lock()
+			dm.MatchandRemoveContainerFromEndpoint(containerID)
+			dm.EndPointsLock.Unlock()
+			dm.ContainersLock.Unlock()
+		}
 
 		dm.ContainersLock.Lock()
 		container, ok := dm.Containers[containerID]

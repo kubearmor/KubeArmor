@@ -317,6 +317,14 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.EndPointsLock.Lock()
+			dm.MatchandUpdateContainerSecurityPolicies(containerID)
+			dm.EndPointsLock.Unlock()
+			dm.ContainersLock.Unlock()
+		}
+
 		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 
 	} else if action == "destroy" {
@@ -325,6 +333,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		if !ok {
 			dm.ContainersLock.Unlock()
 			return false
+		}
+		if !dm.K8sEnabled {
+			dm.EndPointsLock.Lock()
+			dm.MatchandRemoveContainerFromEndpoint(containerID)
+			dm.EndPointsLock.Unlock()
 		}
 		delete(dm.Containers, containerID)
 		dm.ContainersLock.Unlock()
