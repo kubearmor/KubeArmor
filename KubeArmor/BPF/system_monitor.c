@@ -1943,7 +1943,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
     init_context(&context);
     context.argnum = get_arg_num(types);
-    context.retval = PT_REGS_RC(ctx);
+    context.retval = PT_REGS_PARM3(ctx);
 
     if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
     {
