@@ -143,7 +143,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "kubearmor-relay-server",
 							Image: "kubearmor/kubearmor-relay-server:latest",
-							//imagePullPolicy is Always since image has latest tag
+							ImagePullPolicy: "IfNotPresent",
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: port,
@@ -220,6 +220,7 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "kube-rbac-proxy",
 							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+							ImagePullPolicy: "IfNotPresent",
 							Args: []string{
 								"--secure-listen-address=0.0.0.0:8443",
 								"--upstream=http://127.0.0.1:8080/",
@@ -246,6 +247,7 @@ func GetPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "kubearmor-policy-manager",
 							Image: "kubearmor/kubearmor-policy-manager:latest",
+							ImagePullPolicy: "IfNotPresent",
 							Args: []string{
 								"--metrics-addr=127.0.0.1:8080",
 								"--enable-leader-election",
@@ -341,6 +343,7 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "kube-rbac-proxy",
 							Image: "gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0",
+							ImagePullPolicy: "IfNotPresent",
 							Args: []string{
 								"--secure-listen-address=0.0.0.0:8443",
 								"--upstream=http://127.0.0.1:8080/",
@@ -367,6 +370,7 @@ func GetHostPolicyManagerDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "kubearmor-host-policy-manager",
 							Image: "kubearmor/kubearmor-host-policy-manager:latest",
+							ImagePullPolicy: "IfNotPresent",
 							Args: []string{
 								"--metrics-addr=127.0.0.1:8080",
 								"--enable-leader-election",
@@ -549,7 +553,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 						{
 							Name:            "init",
 							Image:           "kubearmor/kubearmor-init:stable",
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: "IfNotPresent",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
@@ -577,7 +581,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 						{
 							Name:            kubearmor,
 							Image:           "kubearmor/kubearmor:stable",
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: "IfNotPresent",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
@@ -775,6 +779,7 @@ func GetAnnotationsControllerDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "manager",
 							Image: "kubearmor/kubearmor-annotation-manager:latest",
+							ImagePullPolicy: "IfNotPresent",
 							Args: []string{
 								"--metrics-bind-address=127.0.0.1:8080",
 								"--leader-elect",
@@ -905,6 +910,7 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 						{
 							Name:  "manager",
 							Image: "kubearmor/kubearmor-controller:latest",
+							ImagePullPolicy: "IfNotPresent",
 							Args: []string{
 								"--metrics-bind-address=127.0.0.1:8080",
 								"--leader-elect",
@@ -1114,11 +1120,11 @@ var kubearmorConfigLabels = map[string]string{
 func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data := make(map[string]string)
 	data[cfg.ConfigGRPC] = "32767"
-	data[cfg.ConfigVisibility] = "none"
+	data[cfg.ConfigVisibility] = "process,file,network,capabilities"
 	data[cfg.ConfigCluster] = "default"
 	data[cfg.ConfigDefaultFilePosture] = "audit"
-	data[cfg.ConfigDefaultCapabilitiesPosture] = "audit"
-	data[cfg.ConfigDefaultNetworkPosture] = "audit"
+	data[cfg.ConfigHostDefaultCapabilitiesPosture] = "audit"
+	data[cfg.ConfigHostDefaultNetworkPosture] = "audit"
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
