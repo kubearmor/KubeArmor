@@ -549,7 +549,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 						{
 							Name:            "init",
 							Image:           "kubearmor/kubearmor-init:stable",
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: "IfNotPresent",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
@@ -577,7 +577,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 						{
 							Name:            kubearmor,
 							Image:           "kubearmor/kubearmor:stable",
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: "IfNotPresent",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
