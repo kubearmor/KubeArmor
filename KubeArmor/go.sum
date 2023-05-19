@@ -253,7 +253,7 @@ github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RR
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae h1:O4SWKdcHVCvYqyDV+9CJA1fcDN2L11Bule0iFy3YlAI=
+github.com/moby/term v0.0.0-20221205130635-1aeaba878587 h1:HfkjXDfhgVaN5rmueG8cL8KKeFNecRCXFhaJ2qZ5SKA=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w8PVh93nsPXa1VrQ6jlwL5oN8l14QlcNfg=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
@@ -355,7 +355,7 @@ go.opentelemetry.io/otel/trace v1.14.0 h1:wp2Mmvj41tDsyAJXiWDWpfNsOiIyd38fy85pyK
 go.opentelemetry.io/proto/otlp v0.7.0/go.mod h1:PqfVotwruBrMGOCsRd/89rSnXhoiJIqeYNgFYFoEGnI=
 go.uber.org/atomic v1.11.0 h1:ZvwS0R+56ePWxUNi+Atn9dWONBPp/AUETXlHW0DxSjE=
 go.uber.org/atomic v1.11.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
-go.uber.org/goleak v1.2.0 h1:xqgm/S+aQvhWFTtR0XK3Jvg7z8kGV8P4X14IzwN3Eqk=
+go.uber.org/goleak v1.2.1 h1:NBol2c7O1ZokfZ0LEU9K6Whx/KnwvepVetCUhtKja4A=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.uber.org/zap v1.24.0 h1:FiJd5l1UOLj0wCgbSE0rwwXHzEdAZS6hiiSnxJN/D60=
@@ -719,7 +719,8 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C
 gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-gotest.tools/v3 v3.0.3 h1:4AuOwCGf4lLR9u3YOe2awrHygurzhO/HeQ6laiA6Sx0=
+gotest.tools/v3 v3.4.0 h1:ZazjZUfuVeZGLAmlKKuyv3IKP5orXcwtOwDQH6YVr6o=
+gotest.tools/v3 v3.4.0/go.mod h1:CtbdzLSsqVhDgMtKsx03ird5YTGB3ar27v0u/yKBW5g=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190418001031-e561f6794a2a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
@@ -729,14 +730,14 @@ honnef.co/go/tools v0.0.1-2020.1.3/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9
 honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 k8s.io/api v0.26.4 h1:qSG2PmtcD23BkYiWfoYAcak870eF/hE7NNYBYavTT94=
 k8s.io/api v0.26.4/go.mod h1:WwKEXU3R1rgCZ77AYa7DFksd9/BAIKyOmRlbVxgvjCk=
-k8s.io/apiextensions-apiserver v0.26.4 h1:9D2RTxYGxrG5uYg6D7QZRcykXvavBvcA59j5kTaedQI=
-k8s.io/apiextensions-apiserver v0.26.4/go.mod h1:cd4uGFGIgzEqUghWpRsr9KE8j2KNTjY8Ji8pnMMazyw=
+k8s.io/apiextensions-apiserver v0.27.1 h1:Hp7B3KxKHBZ/FxmVFVpaDiXI6CCSr49P1OJjxKO6o4g=
+k8s.io/apiextensions-apiserver v0.27.1/go.mod h1:8jEvRDtKjVtWmdkhOqE84EcNWJt/uwF8PC4627UZghY=
 k8s.io/apimachinery v0.26.4 h1:rZccKdBLg9vP6J09JD+z8Yr99Ce8gk3Lbi9TCx05Jzs=
 k8s.io/apimachinery v0.26.4/go.mod h1:ats7nN1LExKHvJ9TmwootT00Yz05MuYqPXEXaVeOy5I=
 k8s.io/client-go v0.26.4 h1:/7P/IbGBuT73A+G97trf44NTPSNqvuBREpOfdLbHvD4=
 k8s.io/client-go v0.26.4/go.mod h1:6qOItWm3EwxJdl/8p5t7FWtWUOwyMdA8N9ekbW4idpI=
-k8s.io/component-base v0.26.4 h1:Bg2xzyXNKL3eAuiTEu3XE198d6z22ENgFgGQv2GGOUk=
-k8s.io/component-base v0.26.4/go.mod h1:lTuWL1Xz/a4e80gmIC3YZG2JCO4xNwtKWHJWeJmsq20=
+k8s.io/component-base v0.27.1 h1:kEB8p8lzi4gCs5f2SPU242vOumHJ6EOsOnDM3tTuDTM=
+k8s.io/component-base v0.27.1/go.mod h1:UGEd8+gxE4YWoigz5/lb3af3Q24w98pDseXcXZjw+E0=
 k8s.io/cri-api v0.27.1 h1:KWO+U8MfI9drXB/P4oU9VchaWYOlwDglJZVHWMpTT3Q=
 k8s.io/cri-api v0.27.1/go.mod h1:+Ts/AVYbIo04S86XbTD73UPp/DkTiYxtsFeOFEu32L0=
 k8s.io/klog/v2 v2.100.1 h1:7WCHKK6K8fNhTqfBhISHQ97KrnJNFZMcQvKp7gP/tmg=

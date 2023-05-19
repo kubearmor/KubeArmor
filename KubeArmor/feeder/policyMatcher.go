@@ -48,16 +48,16 @@ func getFileProcessUID(path string) string {
 }
 
 // getOperationAndCapabilityFromName Function
-func getOperationAndCapabilityFromName(capName string) (op, cap string) {
+func getOperationAndCapabilityFromName(capName string) (op, capability string) {
 	switch strings.ToLower(capName) {
 	case "net_raw":
 		op = "Network"
-		cap = "SOCK_RAW"
+		capability = "SOCK_RAW"
 	default:
 		return "", "unknown"
 	}
 
-	return op, cap
+	return op, capability
 }
 
 // newMatchPolicy Function
@@ -914,13 +914,13 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 		return true
 	}
 
-	if visibility {
-		if containerEvent {
-			(*log).Type = "ContainerLog"
-		} else {
-			(*log).Type = "HostLog"
-		}
+	if containerEvent {
+		(*log).Type = "ContainerLog"
+		return true
+	}
 
+	if visibility {
+		(*log).Type = "HostLog"
 		return true
 	}
 
