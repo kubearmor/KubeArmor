@@ -5,6 +5,8 @@ CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALNAME:KubeArmor
 X-WR-TIMEZONE:Asia/Kolkata
+X-WR-CALDESC:Agenda:\n\nTriage\, priorities\nCommunity questions/feedback\n
+ Design discussions\, open sessions
 BEGIN:VTIMEZONE
 TZID:Asia/Kolkata
 X-LIC-LOCATION:Asia/Kolkata
@@ -16,31 +18,19 @@ DTSTART:19700101T000000
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-DTSTART;TZID=Asia/Kolkata:20211021T203000
-DTEND;TZID=Asia/Kolkata:20211021T210000
-RRULE:FREQ=WEEKLY;WKST=SU;INTERVAL=2;BYDAY=TH
-DTSTAMP:20211009T145956Z
-UID:7guj00sfdq2f2vcqfn3a9nqi0d@google.com
-CREATED:20211009T145900Z
-DESCRIPTION:Agenda:\n* Triage\, priorities\n* Community questions/feedback\
- n* Design discussions\, open sessions\n\nMinutes Document:\nhttps://docs.go
- ogle.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit\n\nVe
- nue: https://bit.ly/kubearmor-zoom
-LAST-MODIFIED:20211009T145900Z
-LOCATION:https://bit.ly/kubearmor-zoom
+DTSTART;TZID=Asia/Kolkata:20220210T203000
+DTEND;TZID=Asia/Kolkata:20220210T210000
+RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TH
+DTSTAMP:20230519T124521Z
+UID:776aeb03rp0bner7utadmvtoph@google.com
+CREATED:20230519T124511Z
+DESCRIPTION:<a href="https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0
+ u99KYEM1mtnYe6BHrson4NqEs/edit">Minutes of Meeting</a>\n\n<a href=" http://
+ zoom.kubearmor.io">Zoom Link</a>
+LAST-MODIFIED:20230519T124511Z
 SEQUENCE:0
 STATUS:CONFIRMED
-SUMMARY:KubeArmor Community Meetup
+SUMMARY:KubeArmor Community Call
 TRANSP:OPAQUE
-BEGIN:VALARM
-ACTION:DISPLAY
-DESCRIPTION:This is an event reminder
-TRIGGER:-P0DT0H10M0S
-END:VALARM
-BEGIN:VALARM
-ACTION:DISPLAY
-DESCRIPTION:This is an event reminder
-TRIGGER:-P0DT0H1M0S
-END:VALARM
 END:VEVENT
 END:VCALENDAR
