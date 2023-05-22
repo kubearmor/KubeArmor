@@ -467,6 +467,8 @@ func KubeArmor() {
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
 
+		dm.SetContainerNSVisibility()
+
 		// Check if cri socket set, if not then auto detect
 		if cfg.GlobalCfg.CRISocket == "" {
 			if kl.GetCRISocket("") == "" {
