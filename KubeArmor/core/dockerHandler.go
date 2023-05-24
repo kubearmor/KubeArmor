@@ -192,10 +192,10 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 		container.CapabilitiesVisibilityEnabled = true
 	}
 
-	dm.Containers[container.ContainerID] = container
-
 	container.EndPointName = container.ContainerName
 	container.NamespaceName = "container_namespace"
+
+	dm.Containers[container.ContainerID] = container
 }
 
 // GetAlreadyDeployedDockerContainers Function
@@ -265,6 +265,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				if !dm.K8sEnabled {
 					dm.ContainersLock.Lock()
 					dm.SetContainerVisibility(dcontainer.ID)
+					container = dm.Containers[dcontainer.ID]
 					dm.ContainersLock.Unlock()
 				}
 
@@ -345,6 +346,13 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			return
 		}
 
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.SetContainerVisibility(containerID)
+			container = dm.Containers[containerID]
+			dm.ContainersLock.Unlock()
+		}
+
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
@@ -353,7 +361,6 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		if !dm.K8sEnabled {
 			dm.ContainersLock.Lock()
-			dm.SetContainerVisibility(containerID)
 			dm.EndPointsLock.Lock()
 			dm.MatchandUpdateContainerSecurityPolicies(containerID)
 			dm.EndPointsLock.Unlock()

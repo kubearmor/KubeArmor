@@ -15,6 +15,27 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
+// SetContainerVisibility function enables visibility flag arguments for un-orchestrated container and updates the visibility map
+func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
+
+	visibility := tp.Visibility{}
+
+	if strings.Contains(cfg.GlobalCfg.Visibility, "process") {
+		visibility.Process = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "file") {
+		visibility.File = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "network") {
+		visibility.Network = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
+		visibility.Capabilities = true
+	}
+
+	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
+}
+
 // ====================================== //
 // == Container Security Policy Update == //
 // ====================================== //
