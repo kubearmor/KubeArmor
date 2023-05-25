@@ -662,7 +662,7 @@ func KubeArmor() {
 
 	if cfg.GlobalCfg.KVMAgent || !dm.K8sEnabled {
 		// Restore and apply all kubearmor host security policies
-		dm.restoreKubeArmorHostPolicies()
+		dm.restoreKubeArmorPolicies()
 	}
 
 	// == //

@@ -597,7 +597,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 	}
 }
 
-func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
+func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 	if _, err := os.Stat(cfg.PolicyDir); err != nil {
 		kg.Warn("Policies dir not found for restoration")
 		return
@@ -607,15 +607,42 @@ func (dm *KubeArmorDaemon) restoreKubeArmorHostPolicies() {
 	if policyFiles, err := os.ReadDir(cfg.PolicyDir); err == nil {
 		for _, file := range policyFiles {
 			if data, err := os.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
-				var hostPolicy tp.HostSecurityPolicy
-				if err := json.Unmarshal(data, &hostPolicy); err == nil {
-					dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)
+
+				var k struct {
+					Metadata map[string]string `json:"metadata"`
+				}
+
+				err := json.Unmarshal(data, &k)
+				if err != nil {
+					kg.Errf("Failed to unmarshal policy: %v", err)
+					continue
+				}
+
+				if _, ok := k.Metadata["namespaceName"]; ok { // ContainerPolicy contains namespaceName
+					var containerPolicy tp.K8sKubeArmorPolicy
+					if err := json.Unmarshal(data, &containerPolicy); err == nil {
+						containerPolicy.Metadata.Name = k.Metadata["policyName"]
+						dm.ParseAndUpdateContainerSecurityPolicy(tp.K8sKubeArmorPolicyEvent{
+							Type:   "ADDED",
+							Object: containerPolicy,
+						})
+					}
+
+				} else { // HostSecurityPolicy
+					var hostPolicy tp.HostSecurityPolicy
+					if err := json.Unmarshal(data, &hostPolicy); err == nil {
+						dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)
+					} else {
+						kg.Errf("Failed to unmarshal host policy: %v", err)
+					}
 				}
 			}
 		}
 
 		if len(policyFiles) != 0 {
-			dm.UpdateHostSecurityPolicies()
+			if len(dm.HostSecurityPolicies) != 0 {
+				dm.UpdateHostSecurityPolicies()
+			}
 		} else {
 			kg.Warn("No policies found for restoration")
 		}
