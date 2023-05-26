@@ -1,0 +1,55 @@
+# Default values for kubearmor.
+# Declare variables to be passed into your templates.
+
+environment:
+  name: aws
+
+version: 0.9.0
+
+kubearmorrelay:
+  enabled: true
+
+kubearmorInit:
+  image:
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-init
+
+kubearmorRelay:
+  image:
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-relay-server
+
+kubeRbacProxy:
+  image: 
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    tag: v0.12.0
+
+kubearmorPolicyManager:
+  name: kubearmor-policy-manager
+  replicas: 1
+  image:
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-policy-manager
+
+kubearmorHostPolicyManager:
+  name: kubearmor-host-policy-manager
+  replicas: 1
+  image:
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-host-policy-manager
+
+caps:
+  capabilities:
+    add:
+    - SETUID
+    - SETGID
+    - SETPCAP
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - MAC_ADMIN
+    - SYS_RESOURCE
+    - IPC_LOCK
+    - CAP_DAC_OVERRIDE
+    - CAP_DAC_READ_SEARCH
+    drop:
+    - ALL
+#volume mounts and volumes
+kubearmor:
+  image:
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor

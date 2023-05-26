@@ -7,6 +7,25 @@ kubearmorrelay:
 environment:
   name: generic
 
+kubearmorInit:
+  image:
+    repository: kubearmor/kubearmor-init
+    tag: stable
+
+kubearmorPolicyManager:
+  name: kubearmor-policy-manager
+  replicas: 1
+  image:
+    repository: kubearmor/kubearmor-policy-manager
+    tag: latest
+
+kubearmorHostPolicyManager:
+  name: kubearmor-host-policy-manager
+  replicas: 1
+  image:
+    repository: kubearmor/kubearmor-host-policy-manager
+    tag: latest
+
 kubearmorRelay:
   image:
     repository: kubearmor/kubearmor-relay-server
@@ -25,6 +44,22 @@ kubearmorAnnotationManager:
     tag: latest
   mutation:
     failurePolicy: Fail 
+
+caps:
+  capabilities:
+    add:
+    - SETUID
+    - SETGID
+    - SETPCAP
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - MAC_ADMIN
+    - SYS_RESOURCE
+    - IPC_LOCK
+    - CAP_DAC_OVERRIDE
+    - CAP_DAC_READ_SEARCH
+    drop:
+    - ALL
 
 #volume mounts and volumes
 kubearmor:

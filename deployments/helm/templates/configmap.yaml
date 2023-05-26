@@ -1,0 +1,12 @@
+apiVersion: v1
+data:
+  defaultFilePosture: audit
+  defaultCapabilitiesPosture: audit
+  defaultNetworkPosture: audit
+  visibility: none
+kind: ConfigMap
+metadata:
+  labels:
+    kubearmor-app: kubearmor-configmap
+  name: kubearmor-config
+  

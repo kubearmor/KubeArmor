@@ -1,0 +1,63 @@
+# Default values for kubearmor.
+# Declare variables to be passed into your templates.
+
+environment:
+  name: oke
+
+version: v0.10.0
+
+kubearmorrelay:
+  enabled: true
+
+kubearmorInit:
+  image:
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-init
+
+kubearmorRelay:
+  image:
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-relay-server
+
+kubeRbacProxy:
+  image: 
+    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    tag: v0.12.0
+
+kubearmorPolicyManager:
+  name: kubearmor-policy-manager
+  replicas: 1
+  image:
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-policy-manager
+
+kubearmorHostPolicyManager:
+  name: kubearmor-host-policy-manager
+  replicas: 1
+  image:
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-host-policy-manager
+
+kubearmorAnnotationManager:
+  name: kubearmor-annotation-manager
+  replicas: 1
+  image:
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-annotation-manager
+  mutation:
+    failurePolicy: Fail
+
+caps:
+  capabilities:
+    add:
+    - SETUID
+    - SETGID
+    - SETPCAP
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - MAC_ADMIN
+    - SYS_RESOURCE
+    - IPC_LOCK
+    - CAP_DAC_OVERRIDE
+    - CAP_DAC_READ_SEARCH
+    drop:
+    - ALL
+#volume mounts and volumes
+kubearmor:
+  image:
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor

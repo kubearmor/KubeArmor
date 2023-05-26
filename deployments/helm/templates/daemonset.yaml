@@ -18,12 +18,7 @@ spec:
       containers:
       - args:
         - -gRPC=32767
-        - -logPath=/tmp/kubearmor.log
-      {{- if ne .Values.environment.name "minikube" }}  
-        - -enableKubeArmorHostPolicy
-      {{- end }}
-
-        image: "{{ .Values.kubearmor.image.repository }}:{{ .Values.kubearmor.image.tag }}"
+        image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}} {{- end}}
         livenessProbe:
           exec:
             command:
@@ -36,7 +31,8 @@ spec:
         ports:
         - containerPort: 32767
         securityContext:
-          privileged: true
+          {{ toYaml .Values.caps | nindent 10}}
+          privileged: false
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
@@ -57,7 +53,7 @@ spec:
       hostNetwork: true
       hostPID: true
       initContainers:
-      - image: kubearmor/kubearmor-init:latest
+      - image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}} {{- end}}
         name: init
         securityContext:
           privileged: true
