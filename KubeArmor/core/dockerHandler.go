@@ -5,7 +5,6 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -41,46 +40,34 @@ type DockerHandler struct {
 }
 
 // NewDockerHandler Function
-func NewDockerHandler() *DockerHandler {
+func NewDockerHandler() (*DockerHandler, error) {
 	docker := &DockerHandler{}
 
-	// specify the docker api version that we want to use
-	// Versioned API: https://docs.docker.com/engine/api/
-
-	versionStr, err := kl.GetCommandOutputWithErr("curl", []string{"--silent", "--unix-socket", strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://"), "http://localhost/version"})
-	if err != nil {
-		return nil
-	}
-
-	if err := json.Unmarshal([]byte(versionStr), &docker.Version); err != nil {
-		kg.Warnf("Unable to get Docker version (%s)", err.Error())
-	}
-
-	apiVersion, _ := strconv.ParseFloat(docker.Version.APIVersion, 64)
-
-	if apiVersion >= 1.39 {
-		// downgrade the api version to 1.39
-		if err := os.Setenv("DOCKER_API_VERSION", "1.39"); err != nil {
-			kg.Warnf("Unable to set DOCKER_API_VERSION (%s)", err.Error())
-		}
-	} else {
-		// set the current api version
-		if err := os.Setenv("DOCKER_API_VERSION", docker.Version.APIVersion); err != nil {
-			kg.Warnf("Unable to set DOCKER_API_VERSION (%s)", err.Error())
-		}
-	}
-
-	// create a new client with the above env variable
-
+	// try to create a new docker client
+	// If env DOCKER_API_VERSION set - NegotiateAPIVersion() won't do anything
 	DockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		return nil
+		return nil, err
 	}
+	DockerClient.NegotiateAPIVersion(context.Background())
+	clientVersion := DockerClient.ClientVersion()
+
+	kg.Printf("Verifying Docker API client version: %s", clientVersion)
+
+	serverVersion, err := DockerClient.ServerVersion(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	if clientVersion != serverVersion.APIVersion {
+		kg.Warnf("Docker client (%s) and Docker server (%s) API versions don't match", clientVersion, serverVersion.APIVersion)
+	}
+
 	docker.DockerClient = DockerClient
 
-	kg.Printf("Initialized Docker Handler (version: %s)", docker.Version.APIVersion)
+	kg.Printf("Initialized Docker Handler (version: %s)", clientVersion)
 
-	return docker
+	return docker, nil
 }
 
 // Close Function
@@ -202,7 +189,11 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 	// check if Docker exists else instantiate
 	if Docker == nil {
-		Docker = NewDockerHandler()
+		var err error
+		Docker, err = NewDockerHandler()
+		if err != nil {
+			dm.Logger.Errf("Failed to create new Docker client: %s", err)
+		}
 	}
 
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
@@ -278,6 +269,8 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				dm.Logger.Printf("Detected a container (added/%.12s)", container.ContainerID)
 			}
 		}
+	} else {
+		dm.Logger.Warnf("Error while listing containers: %s", err)
 	}
 }
 
@@ -425,7 +418,11 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 
 	// check if Docker exists else instantiate
 	if Docker == nil {
-		Docker = NewDockerHandler()
+		var err error
+		Docker, err = NewDockerHandler()
+		if err != nil {
+			dm.Logger.Errf("Failed to create new Docker client: %s", err)
+		}
 	}
 
 	dm.Logger.Print("Started to monitor Docker events")

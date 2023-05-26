@@ -32,7 +32,7 @@ ifneq (, $(shell which llvm-strip))
 	fi
 endif
 endif
-	cd $(CURDIR); go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
+	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
 
 .PHONY: protobuf
 protobuf:
