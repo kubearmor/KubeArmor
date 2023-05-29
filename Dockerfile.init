@@ -9,7 +9,7 @@ COPY ./KubeArmor/BPF/tests/main.go main.go
 COPY ./KubeArmor/BPF/tests/go.mod go.mod
 COPY ./KubeArmor/BPF/tests/go.sum go.sum
 
-RUN go build -o syscheck main.go
+RUN CGO_ENABLED=0 go build -o syscheck main.go
 
 ### Make compiler image
 FROM alpine:3.17 as kubearmor-init
@@ -20,7 +20,6 @@ RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /e
 
 RUN apk --no-cache update
 RUN apk --no-cache add bash git clang llvm make gcc bpftool@edge
-
 
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh

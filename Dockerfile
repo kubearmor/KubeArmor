@@ -6,7 +6,7 @@
 FROM golang:1.20-alpine3.17 as builder
 
 RUN apk --no-cache update
-RUN apk add --no-cache bash git wget python3 linux-headers build-base clang clang-dev libc-dev llvm make gcc protobuf
+RUN apk add --no-cache git clang llvm make gcc protobuf
 
 WORKDIR /usr/src/KubeArmor
 
@@ -21,16 +21,12 @@ RUN make
 
 FROM alpine:3.17 as kubearmor
 
-RUN apk --no-cache update
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
-RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" | tee -a /etc/apk/repositories
 
 RUN apk --no-cache update
-RUN apk add bash curl procps
-RUN apk add apparmor@community apparmor-utils@community kubectl@testing
+RUN apk add apparmor@community apparmor-utils@community bash
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
-
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
