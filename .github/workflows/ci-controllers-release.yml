@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.20
+          go-version: "v1.20"
 
       - uses: actions/checkout@v3
 
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.20
+          go-version: "v1.20"
 
       - uses: actions/checkout@v3
 
@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: v1.20
+          go-version: "v1.20"
 
       - uses: actions/checkout@v3
 
