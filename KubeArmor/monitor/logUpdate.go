@@ -6,7 +6,6 @@ package monitor
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -95,25 +94,22 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 
 // UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
 func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
-	if log.ParentProcessName == "" || !strings.HasPrefix(log.ParentProcessName, "/") {
-		parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID))
-		if parentProcessName != "" {
-			log.ParentProcessName = parentProcessName
-		}
+
+	// update the process paths, since we would have received actual exec paths from bprm hook
+
+	parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID))
+	if parentProcessName != "" {
+		log.ParentProcessName = parentProcessName
 	}
 
-	if log.ProcessName == "" || !strings.HasPrefix(log.ProcessName, "/") {
-		processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
-		if processName != "" {
-			log.ProcessName = processName
-		}
+	processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+	if processName != "" {
+		log.ProcessName = processName
 	}
 
-	if log.Source == "" || !strings.HasPrefix(log.Source, "/") {
-		source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
-		if source != "" {
-			log.Source = source
-		}
+	source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
+	if source != "" {
+		log.Source = source
 	}
 
 	return log
