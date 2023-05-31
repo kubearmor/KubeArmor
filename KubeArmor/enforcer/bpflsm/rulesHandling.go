@@ -415,7 +415,7 @@ func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint8, val [2]uint8) {
 		}
 		if oldval, ok := m[key]; ok {
 			if oldval[idx]&DIR != 0 {
-				val[idx] = val[idx] | DIR
+				val[idx] = oldval[idx] | HINT
 			}
 		}
 		m[key] = val
