@@ -3,9 +3,9 @@
 Install KubeArmor using helm
 
 ```
-helm upgrade --install kubearmor . --set kubearmorrelay.enabled=true -n kube-system
+helm upgrade --install kubearmor . --set kubearmorRelay.enabled=true -n kube-system
 ```
-* [kubearmorrelay](https://github.com/kubearmor/kubearmor-relay-server/).enabled = {true | false} (default: true)
+* [kubearmorRelay](https://github.com/kubearmor/kubearmor-relay-server/).enabled = {true | false} (default: true)
 
 ## Verify if all the pods are up and running
 

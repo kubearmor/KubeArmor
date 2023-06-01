@@ -4,6 +4,7 @@ metadata:
   labels:
     kubearmor-app: kubearmor
   name: kubearmor
+  namespace: {{.Release.Namespace}}
 spec:
   selector:
     matchLabels:
@@ -18,7 +19,24 @@ spec:
       containers:
       - args:
         - -gRPC=32767
-        image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}} {{- end}}
+        image:
+        {{- if eq .Values.environment.name "aws" }}
+          {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}}
+        {{- else if eq .Values.environment.name "oke"}}
+          {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}}
+        {{- else}}
+          {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
+        {{- end}}
+        imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
+        env:
+        - name: KUBEARMOR_NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: KUBEARMOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         livenessProbe:
           exec:
             command:
@@ -46,17 +64,38 @@ spec:
         {{ else if eq .Values.environment.name "minikube" }}
           {{- toYaml .Values.kubearmor.volumeMountsMinikube | nindent 10 }}
         {{- else }} # generic
-          {{- toYaml .Values.kubearmor.volumeMountsGeneric | nindent 10 }}  
+          {{- toYaml .Values.kubearmor.volumeMountsGeneric | nindent 10 }}
         {{- end }}
 
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       hostPID: true
       initContainers:
-      - image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}} {{- end}}
+      - image:
+        {{- if eq .Values.environment.name "aws" }}
+          {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.version}}
+        {{- else if eq .Values.environment.name "oke"}}
+          {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.version}}
+        {{- else}}
+          {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
+        {{- end}}
         name: init
         securityContext:
-          privileged: true
+          capabilities:
+            add:
+            - SETUID
+            - SETGID
+            - SETPCAP
+            - SYS_ADMIN
+            - SYS_PTRACE
+            - MAC_ADMIN
+            - SYS_RESOURCE
+            - IPC_LOCK
+            - CAP_DAC_OVERRIDE
+            - CAP_DAC_READ_SEARCH
+            drop:
+            - ALL
+          privileged: false
         volumeMounts:
         {{ toYaml .Values.kubearmor.initMounts | nindent 10 }}
       nodeSelector:

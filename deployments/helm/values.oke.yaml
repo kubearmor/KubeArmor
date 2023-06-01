@@ -6,41 +6,31 @@ environment:
 
 version: v0.10.0
 
-kubearmorrelay:
-  enabled: true
-
 kubearmorInit:
   image:
     repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-init
+  imagePullPolicy: Always
 
 kubearmorRelay:
+  enabled: true
   image:
     repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-relay-server
+  imagePullPolicy: Always
 
 kubeRbacProxy:
-  image: 
+  image:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     tag: v0.12.0
+  imagePullPolicy: Always
 
-kubearmorPolicyManager:
-  name: kubearmor-policy-manager
+kubearmorController:
+  name: kubearmor-controller
   replicas: 1
   image:
-    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-policy-manager
-
-kubearmorHostPolicyManager:
-  name: kubearmor-host-policy-manager
-  replicas: 1
-  image:
-    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-host-policy-manager
-
-kubearmorAnnotationManager:
-  name: kubearmor-annotation-manager
-  replicas: 1
-  image:
-    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-annotation-manager
+    repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor-controller
   mutation:
     failurePolicy: Fail
+  imagePullPolicy: Always
 
 caps:
   capabilities:
@@ -61,3 +51,4 @@ caps:
 kubearmor:
   image:
     repository: ap-mumbai-1.ocir.io/bmqapmqgbyc4/kubearmor
+  imagePullPolicy: Always

@@ -17,10 +17,6 @@ var (
 	clusterRoleName                     = "kubearmor-clusterrole"
 	relayServiceName                    = kubearmor
 	relayDeploymentName                 = "kubearmor-relay"
-	policyManagerServiceName            = "kubearmor-policy-manager-metrics-service"
-	policyManagerDeploymentName         = "kubearmor-policy-manager"
-	hostPolicyManagerServiceName        = "kubearmor-host-policy-manager-metrics-service"
-	hostPolicyManagerDeploymentName     = "kubearmor-host-policy-manager"
 	AnnotationsControllerServiceName    = "kubearmor-annotation-manager-metrics-service"
 	AnnotationsControllerDeploymentName = "kubearmor-annotation-manager"
 	KubeArmorControllerServiceName      = "kubearmor-controller-metrics-service"

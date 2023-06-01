@@ -13,35 +13,11 @@ on:
       - "pkg/**"
 
 jobs:
-  check:
-    name: Check what controllers were updated
-    if: github.repository == 'kubearmor/kubearmor'
-    runs-on: ubuntu-20.04
-    timeout-minutes: 5
-    outputs:
-      annotation: ${{ steps.filter.outputs.annotation }}
-      hostpolicy: ${{ steps.filter.outputs.hostpolicy }}
-      policy: ${{ steps.filter.outputs.policy }}
-    steps:
-    - uses: actions/checkout@v3
-    - uses: dorny/paths-filter@v2
-      id: filter
-      with:
-        filters: |
-          annotation:
-            - 'pkg/KubeArmorAnnotation/**'
-          hostpolicy:
-            - 'pkg/KubeArmorHostPolicy/**'
-          policy:
-            - 'pkg/KubeArmorPolicy/**'
-
-  annotation-controller-release:
-    name: Build annotation controller
-    needs: check
+  kubearmor-controller-build:
+    name: Build and Deploy KubeArmorController
     defaults:
       run:
-        working-directory: ./pkg/KubeArmorAnnotation
-    if: needs.check.outputs.annotation == 'true'
+        working-directory: ./pkg/KubeArmorController
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -51,43 +27,5 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: Build annotation controller
-        run: make docker-build TAG=latest
-
-  hostpolicy-controller-release:
-    name: Build hostpolicy controller
-    needs: check
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorHostPolicy
-    if: needs.check.outputs.hostpolicy == 'true'
-    runs-on: ubuntu-20.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "v1.20"
-
-      - uses: actions/checkout@v3
-
-      - name: Build hostpolicy controller
-        run: make docker-build TAG=latest
-
-  policy-controller-release:
-    name: Build policy controller
-    needs: check
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorPolicy
-    if: needs.check.outputs.policy == 'true'
-    runs-on: ubuntu-20.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "v1.20"
-
-      - uses: actions/checkout@v3
-
-      - name: Build policy controller
+      - name: Build KubeArmorController
         run: make docker-build TAG=latest

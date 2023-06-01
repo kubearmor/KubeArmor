@@ -1,9 +1,6 @@
 # Default values for kubearmor.
 # Declare variables to be passed into your templates.
 
-kubearmorrelay:
-  enabled: true
-
 environment:
   name: generic
 
@@ -11,39 +8,30 @@ kubearmorInit:
   image:
     repository: kubearmor/kubearmor-init
     tag: stable
-
-kubearmorPolicyManager:
-  name: kubearmor-policy-manager
-  replicas: 1
-  image:
-    repository: kubearmor/kubearmor-policy-manager
-    tag: latest
-
-kubearmorHostPolicyManager:
-  name: kubearmor-host-policy-manager
-  replicas: 1
-  image:
-    repository: kubearmor/kubearmor-host-policy-manager
-    tag: latest
+  imagePullPolicy: Always
 
 kubearmorRelay:
+  enabled: true
   image:
     repository: kubearmor/kubearmor-relay-server
     tag: latest
+  imagePullPolicy: Always
 
 kubeRbacProxy:
-  image: 
+  image:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     tag: v0.12.0
+  imagePullPolicy: Always
 
-kubearmorAnnotationManager:
-  name: kubearmor-annotation-manager
+kubearmorController:
+  name: kubearmor-controller
   replicas: 1
   image:
-    repository: kubearmor/kubearmor-annotation-manager
+    repository: kubearmor/kubearmor-controller
     tag: latest
   mutation:
-    failurePolicy: Fail 
+    failurePolicy: Fail
+  imagePullPolicy: Always
 
 caps:
   capabilities:
@@ -66,6 +54,7 @@ kubearmor:
   image:
     repository: kubearmor/kubearmor
     tag: latest
+  imagePullPolicy: Always
   commonMounts:
   - mountPath: /opt/kubearmor/BPF
     name: bpf

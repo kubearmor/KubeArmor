@@ -9,4 +9,4 @@ metadata:
   labels:
     kubearmor-app: kubearmor-configmap
   name: kubearmor-config
-  
+  namespace: {{ .Release.Namespace }}

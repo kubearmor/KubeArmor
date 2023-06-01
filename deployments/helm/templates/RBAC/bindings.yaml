@@ -2,36 +2,34 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Values.kubearmorAnnotationManager.name }}-leader-election-rolebinding
-  
+  name: {{ .Values.kubearmorController.name }}-leader-election-rolebinding
+  namespace: {{.Release.Namespace}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ .Values.kubearmorAnnotationManager.name }}-leader-election-role
+  name: {{ .Values.kubearmorController.name }}-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.kubearmorAnnotationManager.name }}
+  name: {{ .Values.kubearmorController.name }}
   namespace: {{.Release.Namespace}}
-  
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.kubearmorAnnotationManager.name }}-clusterrolebinding
+  name: {{ .Values.kubearmorController.name }}-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Values.kubearmorAnnotationManager.name }}-role
+  name: {{ .Values.kubearmorController.name }}-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor-annotation-manager
+  name: {{ .Values.kubearmorController.name }}
   namespace: {{.Release.Namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: kubearmor
-  
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -42,41 +40,14 @@ subjects:
   namespace: {{.Release.Namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ .Values.kubearmorPolicyManager.name}}-leader-election-rolebinding
-  namespace: kube-system
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ .Values.kubearmorPolicyManager.name}}-leader-election-role
-subjects:
-- kind: ServiceAccount
-  name: {{ .Values.kubearmorPolicyManager.name}}
-  namespace: {{.Release.Namespace}}
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.kubearmorPolicyManager.name}}-rolebinding
+  name: {{ .Values.kubearmorController.name}}-proxy-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Values.kubearmorPolicyManager.name}}-role
+  name: {{ .Values.kubearmorController.name}}-proxy-role
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.kubearmorPolicyManager.name}}
-  namespace: {{.Release.Namespace}}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ .Values.kubearmorPolicyManager.name}}-proxy-rolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ .Values.kubearmorPolicyManager.name}}-role
-subjects:
-- kind: ServiceAccount
-  name: {{ .Values.kubearmorPolicyManager.name}}
+  name: {{ .Values.kubearmorController.name}}
   namespace: {{.Release.Namespace}}

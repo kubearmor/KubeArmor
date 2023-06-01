@@ -1,10 +1,11 @@
-{{- if .Values.kubearmorrelay.enabled }}
+{{- if .Values.kubearmorRelay.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     kubearmor-app: kubearmor-relay
   name: kubearmor-relay
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
   selector:
@@ -18,7 +19,15 @@ spec:
         kubearmor-app: kubearmor-relay
     spec:
       containers:
-      - image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}} {{- end}}
+      - image:
+        {{- if eq .Values.environment.name "aws" }}
+          {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.version}}
+        {{- else if eq .Values.environment.name "oke"}}
+          {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.version}}
+        {{- else}}
+          {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
+        {{- end}}
+        imagePullPolicy: {{ .Values.kubearmorRelay.imagePullPolicy }}
         name: kubearmor-relay-server
         ports:
         - containerPort: 32767
@@ -31,20 +40,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    kubearmor-app: {{ .Values.kubearmorAnnotationManager.name }}
-  name: {{ .Values.kubearmorAnnotationManager.name }}
-  
+    kubearmor-app: {{ .Values.kubearmorController.name }}
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ .Values.kubearmorAnnotationManager.replicas }}
+  replicas: {{ .Values.kubearmorController.replicas }}
   selector:
     matchLabels:
-      kubearmor-app: {{ .Values.kubearmorAnnotationManager.name }}
+      kubearmor-app: {{ .Values.kubearmorController.name }}
   template:
     metadata:
       annotations:
         container.apparmor.security.beta.kubernetes.io/manager: unconfined
+        kubectl.kubernetes.io/default-container: manager
       labels:
-        kubearmor-app: {{ .Values.kubearmorAnnotationManager.name }}
+        kubearmor-app: {{ .Values.kubearmorController.name }}
     spec:
       containers:
       - args:
@@ -53,7 +63,15 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmorAnnotationManager.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmorAnnotationManager.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmorAnnotationManager.image.repository .Values.kubearmorAnnotationManager.image.tag}} {{- end}}
+        image:
+        {{- if eq .Values.environment.name "aws" }}
+          {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.version}}
+        {{- else if eq .Values.environment.name "oke"}}
+          {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.version}}
+        {{- else}}
+          {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
+        {{- end}}
+        imagePullPolicy: {{ .Values.kubearmorController.imagePullPolicy }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -73,13 +91,16 @@ spec:
           periodSeconds: 10
         resources:
           limits:
-            cpu: 100m
-            memory: 30Mi
+            cpu: 500m
+            memory: 128Mi
           requests:
-            cpu: 100m
-            memory: 20Mi
+            cpu: 10m
+            memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
           name: cert
@@ -90,141 +111,35 @@ spec:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
-        - --v=10
+        - --v=0
         image: {{printf "%s:%s" .Values.kubeRbacProxy.image.repository .Values.kubeRbacProxy.image.tag}}
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
           name: https
-      serviceAccountName: {{ .Values.kubearmorAnnotationManager.name }}
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: {{ .Values.kubearmorController.name }}
       terminationGracePeriodSeconds: 10
       volumes:
       - name: cert
         secret:
           defaultMode: 420
-          secretName: {{ .Values.kubearmorAnnotationManager.name }}
+          secretName: {{ .Values.kubearmorController.name }}
       - hostPath:
           path: /sys/kernel/security
           type: Directory
         name: sys-path
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    kubearmor-app: {{ .Values.kubearmorPolicyManager.name}}
-  name: {{ .Values.kubearmorPolicyManager.name}}
-  
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      kubearmor-app: {{ .Values.kubearmorPolicyManager.name}}
-  template:
-    metadata:
-      annotations:
-        kubearmor-policy: audited
-      labels:
-        kubearmor-app: {{ .Values.kubearmorPolicyManager.name}}
-    spec:
-      containers:
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        image: {{printf "%s:%s" .Values.kubeRbacProxy.image.repository .Values.kubeRbacProxy.image.tag}}
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      - args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        command:
-        - /manager
-        image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmorPolicyManager.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmorPolicyManager.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmorPolicyManager.image.repository .Values.kubearmorPolicyManager.image.tag}} {{- end}}
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        name: {{ .Values.kubearmorPolicyManager.name }}
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      serviceAccountName: {{ .Values.kubearmorPolicyManager.name}}
-      terminationGracePeriodSeconds: 10
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    kubearmor-app: {{ .Values.kubearmorHostPolicyManager.name}}
-  name: {{ .Values.kubearmorHostPolicyManager.name}}
-  
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      kubearmor-app: {{ .Values.kubearmorHostPolicyManager.name}}
-  template:
-    metadata:
-      annotations:
-        kubearmor-policy: audited
-      labels:
-        kubearmor-app: {{ .Values.kubearmorHostPolicyManager.name}}
-    spec:
-      containers:
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=10
-        image: {{printf "%s:%s" .Values.kubeRbacProxy.image.repository .Values.kubeRbacProxy.image.tag}}
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      - args:
-        - --metrics-addr=127.0.0.1:8080
-        - --enable-leader-election
-        command:
-        - /manager
-        image: {{- if eq .Values.environment.name "aws" }} {{printf "%s:%s" .Values.kubearmorHostPolicyManager.image.repository .Values.version}} {{- else if eq .Values.environment.name "oke"}} {{printf "%s:%s" .Values.kubearmorHostPolicyManager.image.repository .Values.version}} {{- else}} {{printf "%s:%s" .Values.kubearmorHostPolicyManager.image.repository .Values.kubearmorHostPolicyManager.image.tag}} {{- end}}
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        name: {{ .Values.kubearmorHostPolicyManager.name }}
-        resources:
-          limits:
-            cpu: 100m
-            memory: 40Mi
-          requests:
-            cpu: 100m
-            memory: 20Mi
-      # both kubearmor-policy and kubearmor-host-policy deployments share same service account      
-      serviceAccountName: {{ .Values.kubearmorPolicyManager.name}} 
-      terminationGracePeriodSeconds: 10

@@ -35,12 +35,8 @@ func main() {
 			dp.GetRelayService(namespace),
 			dp.GetRelayDeployment(namespace),
 			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
-			// To be removed in KubeArmor v0.7
-			dp.GetPolicyManagerService(namespace),
-			dp.GetPolicyManagerDeployment(namespace),
-			dp.GetHostPolicyManagerService(namespace),
-			dp.GetHostPolicyManagerDeployment(namespace),
-			//
+			dp.GetKubeArmorControllerService(namespace),
+			dp.GetKubeArmorControllerDeployment(namespace),
 			kcrd.GetKspCRD(),
 			kcrd.GetHspCRD(),
 			dp.GetKubearmorConfigMap(namespace, dp.KubeArmorConfigMapName),
