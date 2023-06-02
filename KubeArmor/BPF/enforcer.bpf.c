@@ -349,11 +349,23 @@ decision:
     return 0;                                                                  \
   }
 
+SEC("lsm/socket_accept")
+LSM_NET(enforce_net_accept, "accept");
+
+SEC("lsm/socket_bind")
+LSM_NET(enforce_net_bind, "bind");
+
 SEC("lsm/socket_connect")
 LSM_NET(enforce_net_connect, "connect");
 
-SEC("lsm/socket_accept")
-LSM_NET(enforce_net_accept, "accept");
+SEC("lsm/socket_listen")
+LSM_NET(enforce_net_listen, "listen");
+
+SEC("lsm/socket_recvmsg")
+LSM_NET(enforce_net_recvmsg, "recvmsg");
+
+SEC("lsm/socket_sendmsg")
+LSM_NET(enforce_net_sendmsg, "sendmsg");
 
 SEC("lsm/file_open")
 int BPF_PROG(enforce_file, struct file *file) { // check if ret code available

@@ -64,7 +64,11 @@ type enforcerProgramSpecs struct {
 	EnforceFile       *ebpf.ProgramSpec `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.ProgramSpec `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.ProgramSpec `ebpf:"enforce_net_accept"`
+	EnforceNetBind    *ebpf.ProgramSpec `ebpf:"enforce_net_bind"`
 	EnforceNetConnect *ebpf.ProgramSpec `ebpf:"enforce_net_connect"`
+	EnforceNetListen  *ebpf.ProgramSpec `ebpf:"enforce_net_listen"`
+	EnforceNetRecvmsg *ebpf.ProgramSpec `ebpf:"enforce_net_recvmsg"`
+	EnforceNetSendmsg *ebpf.ProgramSpec `ebpf:"enforce_net_sendmsg"`
 	EnforceProc       *ebpf.ProgramSpec `ebpf:"enforce_proc"`
 }
 
@@ -119,7 +123,11 @@ type enforcerPrograms struct {
 	EnforceFile       *ebpf.Program `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.Program `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.Program `ebpf:"enforce_net_accept"`
+	EnforceNetBind    *ebpf.Program `ebpf:"enforce_net_bind"`
 	EnforceNetConnect *ebpf.Program `ebpf:"enforce_net_connect"`
+	EnforceNetListen  *ebpf.Program `ebpf:"enforce_net_listen"`
+	EnforceNetRecvmsg *ebpf.Program `ebpf:"enforce_net_recvmsg"`
+	EnforceNetSendmsg *ebpf.Program `ebpf:"enforce_net_sendmsg"`
 	EnforceProc       *ebpf.Program `ebpf:"enforce_proc"`
 }
 
@@ -128,7 +136,11 @@ func (p *enforcerPrograms) Close() error {
 		p.EnforceFile,
 		p.EnforceFilePerm,
 		p.EnforceNetAccept,
+		p.EnforceNetBind,
 		p.EnforceNetConnect,
+		p.EnforceNetListen,
+		p.EnforceNetRecvmsg,
+		p.EnforceNetSendmsg,
 		p.EnforceProc,
 	)
 }

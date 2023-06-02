@@ -110,15 +110,39 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) (*BPFEnforc
 		return be, err
 	}
 
+	be.Probes[be.obj.EnforceNetAccept.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetAccept})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetAccept.String(), err)
+		return be, err
+	}
+
+	be.Probes[be.obj.EnforceNetBind.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetBind})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetBind.String(), err)
+		return be, err
+	}
+
 	be.Probes[be.obj.EnforceNetConnect.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetConnect})
 	if err != nil {
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetConnect.String(), err)
 		return be, err
 	}
 
-	be.Probes[be.obj.EnforceNetAccept.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetAccept})
+	be.Probes[be.obj.EnforceNetListen.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetListen})
 	if err != nil {
-		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetAccept.String(), err)
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetListen.String(), err)
+		return be, err
+	}
+
+	be.Probes[be.obj.EnforceNetRecvmsg.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetRecvmsg})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetRecvmsg.String(), err)
+		return be, err
+	}
+
+	be.Probes[be.obj.EnforceNetSendmsg.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetSendmsg})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetSendmsg.String(), err)
 		return be, err
 	}
 
