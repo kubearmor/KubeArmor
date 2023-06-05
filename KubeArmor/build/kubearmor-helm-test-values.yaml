@@ -1,0 +1,28 @@
+kubearmorRelay:
+  enabled: true
+  image:
+    tag: latest
+kubearmorInit:
+  image:
+    tag: latest
+  imagePullPolicy: Never
+kubearmorController:
+  image:
+    tag: latest
+  imagePullPolicy: Never
+environment:
+  name: docker
+kubearmor:
+  image:
+    tag: latest
+  imagePullPolicy: Never
+  args:
+    - -logPath=/tmp/kubearmor.log
+    - -enableKubeArmorHostPolicy
+    - -defaultFilePosture=block
+    - -defaultCapabilitiesPosture=block
+    - -defaultNetworkPosture=block
+    - -hostDefaultCapabilitiesPosture=block
+    - -hostDefaultNetworkPosture=block
+    - -hostDefaultFilePosture=block
+    - -lsm=apparmor,bpf,selinux

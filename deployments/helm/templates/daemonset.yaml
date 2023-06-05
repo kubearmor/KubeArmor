@@ -19,6 +19,9 @@ spec:
       containers:
       - args:
         - -gRPC=32767
+        {{- with .Values.kubearmor.args }}
+        {{- toYaml . | trim | nindent 8 }}
+        {{- end }}
         image:
         {{- if eq .Values.environment.name "aws" }}
           {{printf "%s:%s" .Values.kubearmor.image.repository .Values.version}}
@@ -79,6 +82,7 @@ spec:
         {{- else}}
           {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
         {{- end}}
+        imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         name: init
         securityContext:
           capabilities:
