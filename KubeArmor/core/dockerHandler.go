@@ -182,6 +182,11 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 	container.EndPointName = container.ContainerName
 	container.NamespaceName = "container_namespace"
 
+	// owner info
+	container.Owner.Name = container.ContainerName
+	container.Owner.Namespace = container.NamespaceName
+	container.Owner.Ref = "Container"
+
 	dm.Containers[container.ContainerID] = container
 }
 
@@ -298,14 +303,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
-			fmt.Printf("WE ARE HERE ______________________------------------------+++++++++++++++++++++++----------\n")
-
 			dm.Containers[containerID] = container
 			dm.ContainersLock.Unlock()
 		} else if dm.Containers[containerID].PidNS == 0 && dm.Containers[containerID].MntNS == 0 {
 			// this entry was updated by kubernetes before docker detects it
 			// thus, we here use the info given by kubernetes instead of the info given by docker
-			fmt.Printf("YAAAAAAAAAAAAAAAAAAA HERE ______________________------------------------+++++++++++++++++++++++----------\n")
 			container.NamespaceName = dm.Containers[containerID].NamespaceName
 			container.EndPointName = dm.Containers[containerID].EndPointName
 			container.Labels = dm.Containers[containerID].Labels
