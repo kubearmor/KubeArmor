@@ -182,6 +182,11 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 	container.EndPointName = container.ContainerName
 	container.NamespaceName = "container_namespace"
 
+	// owner info
+	container.Owner.Name = container.ContainerName
+	container.Owner.Namespace = container.NamespaceName
+	container.Owner.Ref = "Container"
+
 	dm.Containers[container.ContainerID] = container
 }
 
