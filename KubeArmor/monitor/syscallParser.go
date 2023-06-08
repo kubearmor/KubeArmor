@@ -522,8 +522,8 @@ var socketTypes = map[uint32]string{
 	10: "SOCK_PACKET",
 }
 
-// getSocketType Function
-func getSocketType(st uint32) string {
+// GetSocketType Function
+func GetSocketType(st uint32) string {
 	// readSocketType prints the `type` bitmask argument of the `socket` syscall
 	// http://man7.org/linux/man-pages/man2/socket.2.html
 	// https://elixir.bootlin.com/linux/v5.5.3/source/arch/mips/include/asm/socket.h
@@ -553,7 +553,7 @@ var protocols = map[int32]string{
 }
 
 // getProtocol Function
-func getProtocol(proto int32) string {
+func GetProtocol(proto int32) string {
 	var res string
 
 	if protoName, ok := protocols[proto]; ok {
@@ -622,8 +622,8 @@ func getCapabilityName(cap int32) string {
 	return res
 }
 
-// getSyscallName Function
-func getSyscallName(sc int32) string {
+// GetSyscallName Function
+func GetSyscallName(sc int32) string {
 	// source: /usr/include/x86_64-linux-gnu/asm/unistd_64.h
 
 	var res string
@@ -844,7 +844,7 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error reading syscall type: %v", err)
 		}
-		res = getSyscallName(sc)
+		res = GetSyscallName(sc)
 	case sockAddrT:
 		sockaddr, err := readSockaddrFromBuff(dataBuff)
 		if err != nil {
@@ -898,7 +898,7 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		res = getSocketType(t)
+		res = GetSocketType(t)
 	default:
 		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}

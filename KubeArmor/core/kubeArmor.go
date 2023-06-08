@@ -263,7 +263,7 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger)
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger, dm.SystemMonitor)
 	return dm.RuntimeEnforcer != nil
 }
 
