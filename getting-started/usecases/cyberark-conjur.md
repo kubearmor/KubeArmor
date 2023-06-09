@@ -9,7 +9,7 @@ Conjur manages the secrets required by applications and other non-human identiti
 CyberArk Conjur when deployed in the Kubernetes cluster stores sensitive information in the volume mount points. In the conjure-oss pod, the Conjur-nginx container stores the sensitive information in the etc/ssl and etc/nginx volume mount points. Conjur-oss container has /conjure-server volume mount point where the sensitive information is stored. In the Conjur-Postgres pod the sensitive information and secrets are stored in the /var/lib/postgresql/data and /etc/certs Volume mount points.
 
 
-<img src="../.gitbook/assets/conjur.png" width="784" class="center" alt="Attack points in Conjur">
+<img src=".././.gitbook/assets/conjur.png" width="784" class="center" alt="Attack points in Conjur">
 
 So if any attacker who gets access to these Volume mount points through lateral movements might see this sensitive information and secrets. Also, they can do encryption of the data and ask for ransomware. We can prevent these types of attacks AccuKnox’s runtime security engine KubeArmor. With the help of KubeArmor policies we can protect the access to these volume mount points and deny such attacks.
 
