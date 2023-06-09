@@ -227,6 +227,7 @@ TODO
 [conjur usecase](./../getting-started/usecases/cyberark-conjur.md)
 
 </details>
+
 ## Generic use-cases
 - Restrict the behavior of containers and nodes (VMs) at the system level
 
