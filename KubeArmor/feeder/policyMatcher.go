@@ -976,6 +976,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 			firstLogResource := strings.Split(log.Resource, " ")[0]
 			firstLogResourceDir := getDirectoryPart(firstLogResource)
 			firstLogResourceDirCount := strings.Count(firstLogResourceDir, "/")
+			procDirCount := strings.Count(getDirectoryPart(log.ProcessName), "/")
 
 			switch log.Operation {
 			case "Process", "File":
@@ -990,19 +991,27 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					switch secPolicy.ResourceType {
 					case "Glob":
 						// Match using a globbing syntax very similar to the AppArmor's
-						matchedRegex, _ = filepath.Match(secPolicy.Resource, log.Resource) // pattern (secPolicy.Resource) -> string (log.Resource)
+						fileMatch, _ := filepath.Match(secPolicy.Resource, log.Resource)
+						procMatch, _ := filepath.Match(secPolicy.Resource, log.ProcessName) // pattern (secPolicy.Resource) -> string (log.Resource)
+						matchedRegex = fileMatch || procMatch
 					case "Regexp":
 						if secPolicy.Regexp != nil {
 							// Match using compiled regular expression
-							matchedRegex = secPolicy.Regexp.MatchString(log.Resource) // regexp (secPolicy.Regexp) -> string (log.Resource)
+							fileMatch := secPolicy.Regexp.MatchString(log.Resource)    // regexp (secPolicy.Regexp) -> string (log.Resource)
+							procMatch := secPolicy.Regexp.MatchString(log.ProcessName) // pattern (secPolicy.Resource) -> string (log.Resource)
+							matchedRegex = fileMatch || procMatch
 						}
 					}
 
 					// match resources
-					if matchedRegex || (secPolicy.ResourceType == "Path" && secPolicy.Resource == firstLogResource) ||
-						(secPolicy.ResourceType == "Directory" && strings.HasPrefix(firstLogResourceDir, secPolicy.Resource) &&
+					if matchedRegex || (secPolicy.Operation == "File" && secPolicy.ResourceType == "Path" && secPolicy.Resource == firstLogResource) ||
+						(secPolicy.Operation == "Process" && secPolicy.ResourceType == "Path" && secPolicy.Resource == log.ProcessName) ||
+						(secPolicy.Operation == "File" && secPolicy.ResourceType == "Directory" && strings.HasPrefix(firstLogResourceDir, secPolicy.Resource) &&
 							((!secPolicy.Recursive && firstLogResourceDirCount == strings.Count(secPolicy.Resource, "/")) ||
-								(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) {
+								(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) ||
+						(secPolicy.Operation == "Process" && secPolicy.ResourceType == "Directory" && strings.HasPrefix(getDirectoryPart(log.ProcessName), secPolicy.Resource) &&
+							((!secPolicy.Recursive && procDirCount == strings.Count(secPolicy.Resource, "/")) ||
+								(secPolicy.Recursive && procDirCount >= strings.Count(secPolicy.Resource, "/")))) {
 
 						matchedFlags := false
 
