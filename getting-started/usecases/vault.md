@@ -3,19 +3,19 @@ HashiCorp Vault helps organizations reduce the risk of breaches and data exposur
 
 Usually on /bin/vault accesses this volume mount points to get the secrets stored. If any ransomware attacker gets access to these volume mount points then the secrets can be accessed by them.
 
-<img src="../.gitbook/assets/vault1.png"  width="512" class="center" alt="vault">
+<img src="./../../.gitbook/assets/vault1.png"  width="512" class="center" alt="vault">
 
 **Ransomware Attacks on HashiCorp Vault:**
 
 If any ransomware attacker tries to compromise the security of the pod and gets access to the vault pod, they can do a command injection and encrypt the secrets stored in the Volume mount points. Then the organizations have to pay millions of dollars to get back their secrets decrypted. This will be a major challenge that organizations want to protect.
 
-<img src="../.gitbook/assets/vault2.png"  width="512" class="center" alt="Ransomeware Attack on Vault">
+<img src="./../../.gitbook/assets/vault2.png"  width="512" class="center" alt="Ransomeware Attack on Vault">
 
 **KubeArmor Protection:**
 
 AccuKnox CNCF sandbox open-source project KubeArmor can prevent this type of attack even before it happens. KubeArmor uses the eBPF for observability and LSMs Like AppArmor, SELinux, and BPF-LSM for policy enforcement. Using the eBPF, KubeArmor monitors the workload default Security Posture and also gets the file, process, and network access that are happening in the pod.
 
-<img src="../.gitbook/assets/vault3.png"  width="512" class="center" alt="KubeArmor Protection">
+<img src="./../../.gitbook/assets/vault3.png"  width="512" class="center" alt="KubeArmor Protection">
 
 Based on the default Security Posture of the workload, policies will be auto-generated with the help of Compliance frameworks like MITRE, NIST, and PCI DSS. Using KubeArmor we can apply policies to restrict malicious activities like remote code execution and command injection at the time of the attack. KubeArmor gives inline remediation so that attack is prevented at the runtime as and when it happens.
 
