@@ -1,8 +1,6 @@
 # Least Permissive Access (enforcing Zero Trust Posture)
 
-Zero trust is a security concept that involves verifying the identity and trustworthiness of users and devices before granting them access to resources, rather than assuming that all users and devices within a network are trusted. In a zero trust posture, access to resources is strictly controlled and constantly evaluated, and any deviations from the expected behavior are immediately detected and addressed.
-
-KubeArmor is a tool that helps organizations enforce a zero trust posture within their Kubernetes clusters. It allows users to define an allow-based policy that specifies the specific system behavior that is allowed, and denies or audits all other behavior. This helps to ensure that only authorized activities are allowed within the cluster, and that any deviations from the expected behavior are flagged for further investigation.
+KubeArmor helps organizations enforce a zero trust posture within their Kubernetes clusters. It allows users to define an allow-based policy that allows specific operations, and denies or audits all other operations. This helps to ensure that only authorized activities are allowed within the cluster, and that any deviations from the expected behavior are denied and flagged for further investigation.
 
 By implementing a zero trust posture with KubeArmor, organizations can increase their security posture and reduce the risk of unauthorized access or activity within their Kubernetes clusters. This can help to protect sensitive data, prevent system breaches, and maintain the integrity of the cluster.
 
@@ -10,43 +8,50 @@ KubeArmor supports allow-based policies which results in specific actions to be 
 
 <img src="../.gitbook/assets/zero-trust.png" width="512" class="center" alt="KubeArmor enforcing Zero Trust Posture">
 
-## Sample use-cases for allow based policies
+## Allow execution of only specific processes within the pod
 
-### Allow execution of only specific processes within the pod
+1. Install the nginx deployment using
+	* `kubectl create deployment nginx --image=nginx`.
+2. Set the default security posture to default-deny.
+	* `kubectl annotate ns default kubearmor-file-posture=block --overwrite`
+3. Apply the following policy:
 
-The sample [DVWA application](https://github.com/cytopia/docker-dvwa) has two deployments (dvwa-sql and dvwa-web). DVWA web application by default executes only `/usr/sbin/apache2` and `/usr/bin/ping`. The following policy would restrict execution of unknown processes (i.e, allow only specific processes and deny everything else):
-
-```yaml
+```
+cat <<EOF | kubectl apply -f -
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: allow-specific-process
-  namespace: dvwa
+  name: only-allow-nginx-exec
 spec:
-  action: Allow
+  selector:
+    matchLabels:
+      app: nginx
   file:
     matchDirectories:
     - dir: /
-      recursive: true
+      recursive: true  
   process:
     matchPaths:
+    - path: /usr/sbin/nginx
     - path: /bin/bash
-    - fromSource:
-      - path: /bin/dash
-      path: /bin/ping
-    - fromSource:
-      - path: /usr/sbin/apache2
-      path: /bin/sh
-    - path: /usr/sbin/apache2
-  selector: 
-    matchLabels:
-      app: dvwa-web
-      tier: frontend
-  severity: 1
+  action:
+    Allow
+EOF
 ```
+Observe that the policy contains Allow action. Once there is any KubeArmor policy having Allow action then the pods enter least permissive mode, allowing only explicitly allowed operations.
+
+> Note: Use kubectl port-forward $POD --address 0.0.0.0 8080:80 to access nginx and you can see that the nginx web access still works normally.
+
+Lets try to execute some other processes:
+
+```
+kubectl exec -it $POD -- bash -c "chroot"
+```
+
+This would be permission denied.
 
 ## Challenges with maintaining Zero Trust Security Posture
 
-Achieving Zero Trust Security Posture is difficult. However, the more difficult part is to maintain the Zero Trust posture across application updates. There is also a risk of application downtime if the security posture is not correctly identified. While KubeArmor provides a way to enforce Zero Trust Security Posture, identifying the policies/rules for achieving this is handled by [Discovery Engine](https://github.com/kubearmor/discovery-engine/).
+Achieving Zero Trust Security Posture is difficult. However, the more difficult part is to maintain the Zero Trust posture across application updates. There is also a risk of application downtime if the security posture is not correctly identified. While KubeArmor provides a way to enforce Zero Trust Security Posture, identifying the policies/rules for achieving this is non-trivial and requires that you keep the policies in dry-run mode (or default audit mode) before using the default-deny mode.
 
-KubeArmor additionally provides tooling, gaurdrails so as to smoothen the journey to Zero Trust posture. For e.g., it is possible to set dry-run/audit mode at the namespace level by [configuring security posture](default-posture.md). Thus, you can have different namespaces in different default security posture modes (default-deny vs default-audit). Users can switch to default-deny mode once they are comfortable (i.e., they do not see any alerts) with the settings.
+KubeArmor provides framework so as to smoothen the journey to Zero Trust posture. For e.g., it is possible to set dry-run/audit mode at the namespace level by [configuring security posture](default-posture.md). Thus, you can have different namespaces in different default security posture modes (default-deny vs default-audit). Users can switch to default-deny mode once they are comfortable (i.e., they do not see any alerts) with the settings.

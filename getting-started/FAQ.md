@@ -32,7 +32,7 @@ KubeArmor solves all the above mentioned problems.
 
 <details><summary><h4>What is visibility that I hear of in KubeArmor and how to get visibility information?</h4></summary>  
 
-KubeArmor, apart from been a policy enforcement engine also emits pod/container visibility data. It uses an eBPF-based system monitor which keeps track of process life cycles in containers and even nodes, and converts system metadata to container/node identities. This information can then be used for observability use-cases. Further, this observability information could in turn be used for generating KubeArmor security policies using [Discovery Engine](https://github.com/accuknox/discovery-engine). To get observability data, one can use [KubeArmor cli tool aka `karmor`](https://github.com/kubearmor/kubearmor-client).
+KubeArmor, apart from been a policy enforcement engine also emits pod/container visibility data. It uses an eBPF-based system monitor which keeps track of process life cycles in containers and even nodes, and converts system metadata to container/node identities. This information can then be used for observability use-cases.
 
 Sample output `karmor log --json`:
 ```json

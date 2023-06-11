@@ -29,10 +29,9 @@ The rules in hardening policies are based on inputs from:
 Pre-requisites:
 1. Install KubeArmor
 	* `curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin && karmor install`
-2. Install [Discovery-engine](https://github.com/kubearmor/discovery-engine)
-	* `kubectl apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml`
-3. Get the hardening policies in context of all the deployment in namespace NAMESPACE:
+2. Get the hardening policies in context of all the deployment in namespace NAMESPACE:
 	* `karmor recommend -n NAMESPACE`
+	* The recommended policies would be available in the `out` folder.
 
 ## Sample recommended hardening policies
 
