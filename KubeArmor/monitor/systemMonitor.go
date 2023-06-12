@@ -271,6 +271,10 @@ func (mon *SystemMonitor) initBPFMaps() error {
 
 // DestroyBPFMaps Function
 func (mon *SystemMonitor) DestroyBPFMaps() {
+	if mon.BpfNsVisibilityMap == nil {
+		return
+	}
+
 	err := mon.BpfNsVisibilityMap.Unpin()
 	if err != nil {
 		mon.Logger.Warnf("error unpinning bpf map kubearmor_visibility %v", err)
@@ -340,19 +344,19 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 
 		err = visibilityMap.Put(file.Key, file.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=file", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=file", nsKey, file.Value)
 		}
 		err = visibilityMap.Put(process.Key, process.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=process", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=process", nsKey, process.Value)
 		}
 		err = visibilityMap.Put(network.Key, network.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=network", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=network", nsKey, network.Value)
 		}
 		err = visibilityMap.Put(capability.Key, capability.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey, capability.Value)
 		}
 		mon.Logger.Printf("Updated visibility map with key=%+v for cid %s", nsKey, mon.NsMap[nsKey])
 	} else if action == "DELETED" {
