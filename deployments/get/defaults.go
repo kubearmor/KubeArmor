@@ -12,18 +12,27 @@ var port int32 = 32767
 
 // K8s Object Name Defaults
 var (
-	serviceAccountName                  = kubearmor
-	clusterRoleBindingName              = "kubearmor-clusterrolebinding"
-	clusterRoleName                     = "kubearmor-clusterrole"
-	relayServiceName                    = kubearmor
-	relayDeploymentName                 = "kubearmor-relay"
-	AnnotationsControllerServiceName    = "kubearmor-annotation-manager-metrics-service"
-	AnnotationsControllerDeploymentName = "kubearmor-annotation-manager"
-	KubeArmorControllerServiceName      = "kubearmor-controller-metrics-service"
-	KubeArmorControllerDeploymentName   = "kubearmor-controller"
-	KubeArmorControllerSecretName       = "kubearmor-webhook-server-cert"
-	AnnotationsControllerSecretName     = "kubearmor-webhook-server-cert"
-	KubeArmorConfigMapName              = "kubearmor-config"
+	KubeArmorServiceAccountName                      = kubearmor
+	KubeArmorClusterRoleBindingName                  = "kubearmor-clusterrolebinding"
+	KubeArmorClusterRoleName                         = "kubearmor-clusterrole"
+	RelayServiceName                                 = kubearmor
+	RelayDeploymentName                              = "kubearmor-relay"
+	AnnotationsControllerServiceName                 = "kubearmor-annotation-manager-metrics-service"
+	AnnotationsControllerDeploymentName              = "kubearmor-annotation-manager"
+	KubeArmorControllerServiceName                   = "kubearmor-controller-metrics-service"
+	KubeArmorControllerDeploymentName                = "kubearmor-controller"
+	KubeArmorControllerServiceAccountName            = KubeArmorControllerDeploymentName
+	KubeArmorControllerClusterRoleName               = "kubearmor-controller-clusterrole"
+	KubeArmorControllerClusterRoleBindingName        = "kubearmor-controller-clusterrolebinding"
+	KubeArmorControllerLeaderElectionRoleName        = "kubearmor-controller-leader-election-role"
+	KubeArmorControllerLeaderElectionRoleBindingName = "kubearmor-controller-leader-election-rolebinding"
+	KubeArmorControllerProxyRoleName                 = "kubearmor-controller-proxy-role"
+	KubeArmorControllerProxyRoleBindingName          = "kubearmor-controller-proxy-rolebinding"
+	KubeArmorControllerMetricsReaderRoleName         = "kubearmor-controller-metrics-reader-role"
+	KubeArmorControllerMetricsReaderRoleBindingName  = "kubearmor-controller-metrics-reader-rolebinding"
+	KubeArmorControllerSecretName                    = "kubearmor-webhook-server-cert"
+	AnnotationsControllerSecretName                  = "kubearmor-webhook-server-cert"
+	KubeArmorConfigMapName                           = "kubearmor-config"
 )
 
 // DaemonSetConfig Structure

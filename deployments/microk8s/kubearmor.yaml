@@ -12,7 +12,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: kubearmor-clusterrole
 subjects:
 - kind: ServiceAccount
   name: kubearmor
@@ -31,10 +31,31 @@ rules:
   - namespaces
   - configmaps
   verbs:
+  - get
   - patch
   - list
   - watch
   - update
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - patch
+  - list
+  - watch
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -46,6 +67,11 @@ rules:
   - watch
   - update
   - delete
+- nonResourceURLs:
+  - /apis
+  - /apis/*
+  verbs:
+  - get
 ---
 apiVersion: v1
 kind: Service

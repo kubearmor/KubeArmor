@@ -6,6 +6,7 @@
 OS=$(go env GOOS); ARCH=$(go env GOARCH); curl -sSL -o cmctl.tar.gz https://github.com/cert-manager/cert-manager/releases/download/v1.7.2/cmctl-$OS-$ARCH.tar.gz
 tar xzf cmctl.tar.gz
 sudo mv cmctl /usr/local/bin
+rm -rf LICENSES cmctl.tar.gz
 
 # install kubearmor controller
 kubectl apply -f deployments/controller/cert-manager.yaml

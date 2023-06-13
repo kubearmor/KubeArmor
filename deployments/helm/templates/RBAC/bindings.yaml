@@ -1,17 +1,15 @@
----
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.kubearmorController.name }}-leader-election-rolebinding
-  namespace: {{.Release.Namespace}}
+  name: kubearmor-clusterrolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ .Values.kubearmorController.name }}-leader-election-role
+  kind: ClusterRole
+  name: kubearmor-clusterrole
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.kubearmorController.name }}
-  namespace: {{.Release.Namespace}}
+  name: kubearmor
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -27,17 +25,18 @@ subjects:
   namespace: {{.Release.Namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: kubearmor
+  name: {{ .Values.kubearmorController.name }}-leader-election-rolebinding
+  namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
+  kind: Role
+  name: {{ .Values.kubearmorController.name }}-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor
-  namespace: {{.Release.Namespace}}
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -47,6 +46,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ .Values.kubearmorController.name}}-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorController.name}}
+  namespace: {{.Release.Namespace}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorController.name }}-metrics-reader-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorController.name}}-metrics-reader
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.kubearmorController.name}}

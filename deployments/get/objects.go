@@ -24,7 +24,7 @@ func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
+			Name:      KubeArmorServiceAccountName,
 			Namespace: namespace,
 		},
 	}
@@ -38,18 +38,32 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
+			Name: KubeArmorClusterRoleName,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
 				Resources: []string{"pods", "nodes", "namespaces", "configmaps"},
-				Verbs:     []string{"patch", "list", "watch", "update"},
+				Verbs:     []string{"get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments"},
+				Verbs:     []string{"get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"replicasets", "daemonsets", "statefulsets"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
 				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
+			},
+			{
+				NonResourceURLs: []string{"/apis", "/apis/*"},
+				Verbs:           []string{"get"},
 			},
 		},
 	}
@@ -63,12 +77,12 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleBindingName,
+			Name: KubeArmorClusterRoleBindingName,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "cluster-admin",
+			Name:     KubeArmorClusterRoleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -88,7 +102,7 @@ func GetRelayService(namespace string) *corev1.Service {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      relayServiceName,
+			Name:      RelayServiceName,
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -118,7 +132,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 			APIVersion: "apps/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      relayDeploymentName,
+			Name:      RelayDeploymentName,
 			Labels:    relayDeploymentLabels,
 			Namespace: namespace,
 		},
@@ -568,6 +582,226 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 					},
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 				},
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerServiceAccount Function
+func GetKubeArmorControllerServiceAccount(namespace string) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ServiceAccount",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerServiceAccountName,
+			Namespace: namespace,
+		},
+	}
+}
+
+// GetKubeArmorControllerClusterRole Function
+func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRole",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: KubeArmorControllerClusterRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{"security.kubearmor.com"},
+				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{"security.kubearmor.com"},
+				Resources: []string{"kubearmorpolicies/status", "kubearmorhostpolicies/status"},
+				Verbs:     []string{"get", "patch", "update"},
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerClusterRoleBinding Function
+func GetKubeArmorControllerClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: KubeArmorControllerClusterRoleBindingName,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     KubeArmorControllerClusterRoleName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      KubeArmorControllerServiceAccountName,
+				Namespace: namespace,
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerRole Function
+func GetKubeArmorControllerRole(namespace string) *rbacv1.Role {
+	return &rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Role",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerLeaderElectionRoleName,
+			Namespace: namespace,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"configmaps"},
+				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{"coordination.k8s.io"},
+				Resources: []string{"leases"},
+				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"events"},
+				Verbs:     []string{"create", "patch"},
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerClusterRoleBinding Function
+func GetKubeArmorControllerRoleBinding(namespace string) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerLeaderElectionRoleBindingName,
+			Namespace: namespace,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "kubearmor-controller-leader-election-role",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      KubeArmorControllerServiceAccountName,
+				Namespace: namespace,
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerProxyRole Function
+func GetKubeArmorControllerProxyRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRole",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: KubeArmorControllerProxyRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"authentication.k8s.io"},
+				Resources: []string{"tokenreviews"},
+				Verbs:     []string{"create"},
+			},
+			{
+				APIGroups: []string{"authorization.k8s.io"},
+				Resources: []string{"subjectaccessreviews"},
+				Verbs:     []string{"create"},
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerProxyRoleBinding Function
+func GetKubeArmorControllerProxyRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: KubeArmorControllerProxyRoleBindingName,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "kubearmor-controller-proxy-role",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      KubeArmorControllerServiceAccountName,
+				Namespace: namespace,
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerMetricsReaderRole Function
+func GetKubeArmorControllerMetricsReaderRole(namespace string) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRole",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: KubeArmorControllerMetricsReaderRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				NonResourceURLs: []string{"/metrics"},
+				Verbs:           []string{"get"},
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerMetricsReaderRoleBinding Function
+func GetKubeArmorControllerMetricsReaderRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: KubeArmorControllerMetricsReaderRoleBindingName,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "kubearmor-controller-metrics-reader-role",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      KubeArmorControllerServiceAccountName,
+				Namespace: namespace,
 			},
 		},
 	}

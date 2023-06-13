@@ -68,7 +68,7 @@ jobs:
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           charts_dir: deployments
           # repo where charts would be published
-          owner: kubermor
+          owner: kubearmor
           repository: charts
           branch: gh-pages
           charts_url: https://kubearmor.github.io/charts

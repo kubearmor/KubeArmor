@@ -19,14 +19,7 @@ spec:
         kubearmor-app: kubearmor-relay
     spec:
       containers:
-      - image:
-        {{- if eq .Values.environment.name "aws" }}
-          {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.version}}
-        {{- else if eq .Values.environment.name "oke"}}
-          {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.version}}
-        {{- else}}
-          {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
-        {{- end}}
+      - image: {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorRelay.imagePullPolicy }}
         name: kubearmor-relay-server
         ports:
@@ -63,14 +56,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image:
-        {{- if eq .Values.environment.name "aws" }}
-          {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.version}}
-        {{- else if eq .Values.environment.name "oke"}}
-          {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.version}}
-        {{- else}}
-          {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
-        {{- end}}
+        image: {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorController.imagePullPolicy }}
         livenessProbe:
           httpGet:

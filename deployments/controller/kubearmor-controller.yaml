@@ -7,7 +7,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: kubearmor-leader-election-role
+  name: kubearmor-controller-leader-election-role
   namespace: kube-system
 rules:
 - apiGroups:
@@ -45,7 +45,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: kubearmor-controller-role
 rules:
 - apiGroups:
@@ -63,25 +62,6 @@ rules:
   - security.kubearmor.com
   resources:
   - kubearmorhostpolicies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - security.kubearmor.com
-  resources:
-  - kubearmorhostpolicies/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - security.kubearmor.com
-  resources:
   - kubearmorpolicies
   verbs:
   - create
@@ -94,6 +74,7 @@ rules:
 - apiGroups:
   - security.kubearmor.com
   resources:
+  - kubearmorhostpolicies/status
   - kubearmorpolicies/status
   verbs:
   - get
@@ -103,7 +84,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubearmor-metrics-reader
+  name: kubearmor-controller-metrics-reader
 rules:
 - nonResourceURLs:
   - /metrics
@@ -113,7 +94,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubearmor-proxy-role
+  name: kubearmor-controller-proxy-role
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -131,12 +112,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: kubearmor-leader-election-rolebinding
+  name: kubearmor-controller-leader-election-rolebinding
   namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: kubearmor-leader-election-role
+  name: kubearmor-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
   name: kubearmor-controller
@@ -158,43 +139,14 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kubearmor-proxy-rolebinding
+  name: kubearmor-controller-proxy-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kubearmor-proxy-role
+  name: kubearmor-controller-proxy-role
 subjects:
 - kind: ServiceAccount
   name: kubearmor-controller
-  namespace: kube-system
----
-apiVersion: v1
-data:
-  controller_manager_config.yaml: |
-    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
-    kind: ControllerManagerConfig
-    health:
-      healthProbeBindAddress: :8081
-    metrics:
-      bindAddress: 127.0.0.1:8080
-    webhook:
-      port: 9443
-    leaderElection:
-      leaderElect: true
-      resourceName: 5c4b1500.kubearmor.com
-    # leaderElectionReleaseOnCancel defines if the leader should step down volume
-    # when the Manager ends. This requires the binary to immediately end when the
-    # Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-    # speeds up voluntary leader transitions as the new leader don't have to wait
-    # LeaseDuration time first.
-    # In the default scaffold provided, the program ends immediately after
-    # the manager stops, so would be fine to enable this option. However,
-    # if you are doing or is intended to do any operation such as perform cleanups
-    # after the manager stops then its usage might be unsafe.
-    # leaderElectionReleaseOnCancel: true
-kind: ConfigMap
-metadata:
-  name: kubearmor-controller-config
   namespace: kube-system
 ---
 apiVersion: v1
@@ -216,7 +168,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: kubearmor-webhook-service
+  name: kubearmor-controller-webhook-service
   namespace: kube-system
 spec:
   ports:
@@ -254,7 +206,7 @@ spec:
         command:
         - /manager
         image: kubearmor/kubearmor-controller:latest
-        imagePullPolicy: Never
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz
@@ -330,21 +282,21 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: kubearmor-serving-cert
+  name: kubearmor-controller-serving-cert
   namespace: kube-system
 spec:
   dnsNames:
-  - kubearmor-webhook-service.kube-system.svc
-  - kubearmor-webhook-service.kube-system.svc.cluster.local
+  - kubearmor-controller-webhook-service.kube-system.svc
+  - kubearmor-controller-webhook-service.kube-system.svc.cluster.local
   issuerRef:
     kind: Issuer
-    name: kubearmor-selfsigned-issuer
+    name: kubearmor-controller-selfsigned-issuer
   secretName: webhook-server-cert
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: kubearmor-selfsigned-issuer
+  name: kubearmor-controller-selfsigned-issuer
   namespace: kube-system
 spec:
   selfSigned: {}
@@ -353,14 +305,14 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: kube-system/kubearmor-serving-cert
-  name: kubearmor-mutating-webhook-configuration
+    cert-manager.io/inject-ca-from: kube-system/kubearmor-controller-serving-cert
+  name: kubearmor-controller-mutating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
-      name: kubearmor-webhook-service
+      name: kubearmor-controller-webhook-service
       namespace: kube-system
       path: /mutate-pods
   failurePolicy: Ignore

@@ -3,7 +3,7 @@ data:
   defaultFilePosture: audit
   defaultCapabilitiesPosture: audit
   defaultNetworkPosture: audit
-  visibility: none
+  visibility: process,file,network
 kind: ConfigMap
 metadata:
   labels:
