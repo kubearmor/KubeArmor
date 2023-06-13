@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [self-hosted]
         runtime: ["docker", "containerd", "crio"]
     steps:
       - uses: actions/checkout@v3
@@ -109,3 +109,8 @@ jobs:
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
+      - name: Run cleanup
+        if: ${{ always() }}
+        run: ./cleanup_script.sh
+    
+
