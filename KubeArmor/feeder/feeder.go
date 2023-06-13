@@ -602,17 +602,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.NamespaceName = log.NamespaceName
 
-		var o *pb.Podowner
-		if log.Owner != nil {
-			o = &pb.Podowner{
+		var owner *pb.Podowner
+		if log.Owner != nil && (log.Owner.Ref != "" || log.Owner.Name != "" || log.Owner.Namespace != "") {
+			owner = &pb.Podowner{
 				Ref:       log.Owner.Ref,
 				Name:      log.Owner.Name,
 				Namespace: log.Owner.Namespace,
 			}
 		}
 
-		if pbAlert.Owner == nil {
-			pbAlert.Owner = o
+		if pbAlert.Owner == nil && owner != nil {
+			pbAlert.Owner = owner
 		}
 
 		pbAlert.PodName = log.PodName
@@ -688,17 +688,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.NamespaceName = log.NamespaceName
 
-		var o *pb.Podowner
-		if log.Owner != nil {
-			o = &pb.Podowner{
+		var owner *pb.Podowner
+		if log.Owner != nil && (log.Owner.Ref != "" || log.Owner.Name != "" || log.Owner.Namespace != "") {
+			owner = &pb.Podowner{
 				Ref:       log.Owner.Ref,
 				Name:      log.Owner.Name,
 				Namespace: log.Owner.Namespace,
 			}
 		}
 
-		if pbLog.Owner == nil {
-			pbLog.Owner = o
+		if pbLog.Owner == nil && owner != nil {
+			pbLog.Owner = owner
 		}
 
 		pbLog.PodName = log.PodName
