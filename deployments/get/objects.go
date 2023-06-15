@@ -1114,7 +1114,7 @@ var kubearmorConfigLabels = map[string]string{
 func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data := make(map[string]string)
 	data[cfg.ConfigGRPC] = "32767"
-	data[cfg.ConfigVisibility] = "none"
+	data[cfg.ConfigVisibility] = "process,file,network"
 	data[cfg.ConfigCluster] = "default"
 	data[cfg.ConfigDefaultFilePosture] = "audit"
 	data[cfg.ConfigDefaultCapabilitiesPosture] = "audit"

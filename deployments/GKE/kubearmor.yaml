@@ -2760,7 +2760,7 @@ data:
   defaultFilePosture: audit
   defaultNetworkPosture: audit
   gRPC: "32767"
-  visibility: none
+  visibility: process,file,network
 kind: ConfigMap
 metadata:
   labels:
