@@ -518,25 +518,24 @@ func (ae *AppArmorEnforcer) BlockedHostCapabilitiesMatchCapabilities(cap tp.Capa
 
 // GenerateHostProfileHead Function
 func (ae *AppArmorEnforcer) GenerateHostProfileHead() string {
-	profileHead := "## == Managed by KubeArmor == ##\n" +
-		"\n" +
-		"#include <tunables/global>\n" +
-		"\n" +
-		"profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {\n" +
-		"  ## == PRE START == ##\n" +
-		"  #include <abstractions/base>\n" +
-		"  mount,\n" +
-		"  umount,\n" +
-		"  signal,\n" +
-		"  unix,\n" +
-		"  ptrace,\n" +
-		"\n" +
-		"  file,\n" +
-		"  network,\n" +
-		"  capability,\n" +
-		"  ## == PRE END == ##\n" +
-		"\n"
+	profileHead := `## == Managed by KubeArmor == ##
 
+#include <tunables/global>
+
+profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {
+	## == PRE START == ##
+	#include <abstractions/base>
+	mount,
+	umount,
+	signal,
+	unix,
+	ptrace,
+
+	file,
+	network,
+	capability,
+	## == PRE END == ##
+	`
 	return profileHead
 }
 

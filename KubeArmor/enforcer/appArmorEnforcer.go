@@ -49,43 +49,42 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 	ae.Logger = logger
 
 	// default profile
-	ae.ApparmorDefault = "## == Managed by KubeArmor == ##\n" +
-		"\n" +
-		"#include <tunables/global>\n" +
-		"\n" +
-		"profile apparmor-default flags=(attach_disconnected,mediate_deleted) {\n" +
-		"  ## == PRE START == ##\n" +
-		"  #include <abstractions/base>\n" +
-		"  umount,\n" +
-		"  file,\n" +
-		"  network,\n" +
-		"  capability,\n" +
-		"  ## == PRE END == ##\n" +
-		"\n" +
-		"  ## == POLICY START == ##\n" +
-		"  ## == POLICY END == ##\n" +
-		"\n" +
-		"  ## == POST START == ##\n" +
-		"  /lib/x86_64-linux-gnu/{*,**} rm,\n" +
-		"\n" +
-		"  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,\n" +
-		"  deny @{PROC}/sysrq-trigger rwklx,\n" +
-		"  deny @{PROC}/mem rwklx,\n" +
-		"  deny @{PROC}/kmem rwklx,\n" +
-		"  deny @{PROC}/kcore rwklx,\n" +
-		"\n" +
-		"  deny mount,\n" +
-		"\n" +
-		"  deny /sys/[^f]*/** wklx,\n" +
-		"  deny /sys/f[^s]*/** wklx,\n" +
-		"  deny /sys/fs/[^c]*/** wklx,\n" +
-		"  deny /sys/fs/c[^g]*/** wklx,\n" +
-		"  deny /sys/fs/cg[^r]*/** wklx,\n" +
-		"  deny /sys/firmware/efi/efivars/** rwklx,\n" +
-		"  deny /sys/kernel/security/** rwklx,\n" +
-		"  ## == POST END == ##\n" +
-		"}\n"
+	ae.ApparmorDefault = `## == Managed by KubeArmor == ##
+	
+#include <tunables/global>
+profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
+	## == PRE START == ##	
+	#include <abstractions/base>	
+	umount,
+	file,
+	network,
+	capability,
+	## == PRE END == ##
 
+	## == POLICY START == ##
+	## == POLICY END == ##
+
+	## == POST START == ##
+	/lib/x86_64-linux-gnu/{*,**} rm,
+
+	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+	deny @{PROC}/sysrq-trigger rwklx,
+	deny @{PROC}/mem rwklx,
+	deny @{PROC}/kmem rwklx,
+	deny @{PROC}/kcore rwklx,
+
+	deny mount,
+
+	deny /sys/[^f]*/** wklx,
+	deny /sys/f[^s]*/** wklx,
+	deny /sys/fs/[^c]*/** wklx,
+	deny /sys/fs/c[^g]*/** wklx,
+	deny /sys/fs/cg[^r]*/** wklx,
+	deny /sys/firmware/efi/efivars/** rwklx,
+	deny /sys/kernel/security/** rwklx,
+	## == POST END == ##
+	}
+`
 	// host profile
 	ae.HostProfile = ""
 
@@ -340,28 +339,27 @@ func (ae *AppArmorEnforcer) CreateAppArmorHostProfile() error {
 		return nil
 	}
 
-	apparmorHostDefault := "## == Managed by KubeArmor == ##\n" +
-		"\n" +
-		"#include <tunables/global>\n" +
-		"\n" +
-		"profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {\n" +
-		"  ## == PRE START == ##\n" +
-		"  #include <abstractions/base>\n" +
-		"  mount,\n" +
-		"  umount,\n" +
-		"  signal,\n" +
-		"  unix,\n" +
-		"  ptrace,\n" +
-		"\n" +
-		"  file,\n" +
-		"  network,\n" +
-		"  capability,\n" +
-		"  ## == PRE END == ##\n" +
-		"\n" +
-		"  ## == POLICY START == ##\n" +
-		"  ## == POLICY END == ##\n" +
-		"}\n"
+	apparmorHostDefault := `## == Managed by KubeArmor == ##
+#include <tunables/global>
 
+profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {
+## == PRE START == ##
+#include <abstractions/base>
+mount,
+umount,
+signal,
+unix,
+ptrace,
+
+file,
+network,
+capability,
+## == PRE END == ##
+
+## == POLICY START == ##
+## == POLICY END == ##
+}
+	`
 	newfile, err := os.Create(filepath.Clean(appArmorHostFile))
 	if err != nil {
 		ae.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
