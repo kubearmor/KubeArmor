@@ -50,6 +50,10 @@ helm uninstall kubearmor -n kube-system
 | kubearmor.image.tag | string | stable | kubearmor image tag |
 | kubearmor.imagePullPolicy | string | Always | kubearmor imagePullPolicy |
 | kubearmor.args | list | [] | Specify additional args to the kubearmor daemon. See [kubearmor-args](#kubearmor-args) |
+| kubearmor.configMap.defaultFilePosture | string | audit | Default file posture for KubeArmor |
+| kubearmor.configMap.defaultNetworkPosture | string | audit | Default network posture for KubeArmor |
+| kubearmor.configMap.defaultCapabilitiesPosture | string | audit | Default capabilities posture for KubeArmor |
+| kubearmor.configMap.visibility | string | audit | Default visibility for KubeArmor |
 | kubearmorRelay.enable | bool | true | to enable/disable kubearmor-relay |
 | kubearmorRelay.image.repository | string | kubearmor/kubearmor-relay | kubearmor-relay image repo |
 | kubearmorRelay.image.tag | string | latest | kubearmor-relay image tag |

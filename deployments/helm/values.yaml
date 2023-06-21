@@ -49,6 +49,12 @@ kubearmorController:
   # kubearmor-controller imagePullPolicy
   imagePullPolicy: Always
 
+kubearmorConfigMap:
+  defaultFilePosture: audit
+  defaultCapabilitiesPosture: audit
+  defaultNetworkPosture: audit
+  visibility: process,file,network
+
 #volume mounts and volumes
 kubearmor:
   image:
@@ -159,6 +165,32 @@ kubearmor:
     - mountPath: /var/lib/docker
       mountPropagation: HostToContainer
       name: docker-storage-path
+      readOnly: true
+
+  volumeMountsCRIO:
+    - mountPath: /usr/src
+      name: usr-src-path
+      readOnly: true
+    - mountPath: /lib/modules
+      name: lib-modules-path
+      readOnly: true
+    - mountPath: /sys/fs/bpf
+      name: sys-fs-bpf-path
+    - mountPath: /sys/kernel/security
+      name: sys-kernel-security-path
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /media/root/etc/os-release
+      name: os-release-path
+      readOnly: true
+    - mountPath: /etc/apparmor.d
+      name: etc-apparmor-d-path
+    - mountPath: /var/run/crio/crio.sock
+      name: crio-sock-path
+      readOnly: true
+    - mountPath: /var/lib/containers/storage
+      mountPropagation: HostToContainer
+      name: crio-storage-path
       readOnly: true
 
   volumeMountsMicroK8s:
@@ -403,6 +435,44 @@ kubearmor:
         path: /var/lib/docker
         type: DirectoryOrCreate
       name: docker-storage-path
+
+  volumesCRIO:
+    - hostPath:
+        path: /usr/src
+        type: Directory
+      name: usr-src-path
+    - hostPath:
+        path: /lib/modules
+        type: DirectoryOrCreate
+      name: lib-modules-path
+    - hostPath:
+        path: /sys/fs/bpf
+        type: Directory
+      name: sys-fs-bpf-path
+    - hostPath:
+        path: /sys/kernel/security
+        type: Directory
+      name: sys-kernel-security-path
+    - hostPath:
+        path: /sys/kernel/debug
+        type: Directory
+      name: sys-kernel-debug-path
+    - hostPath:
+        path: /etc/os-release
+        type: File
+      name: os-release-path
+    - hostPath:
+        path: /etc/apparmor.d
+        type: DirectoryOrCreate
+      name: etc-apparmor-d-path
+    - hostPath:
+        path: /var/run/crio/crio.sock
+        type: Socket
+      name: crio-sock-path
+    - hostPath:
+        path: /var/lib/containers/storage
+        type: DirectoryOrCreate
+      name: crio-storage-path
 
   volumesMicrok8s:
     - hostPath:

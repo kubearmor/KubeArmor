@@ -34,11 +34,10 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	//remove block annotations after tests are done
-	_, err := Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-network-posture- --overwrite"))
+	// delete wordpress-mysql app
+	err := K8sDelete([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-file-posture- --overwrite"))
-	Expect(err).To(BeNil())
+
 	KubearmorPortForwardStop()
 })
 

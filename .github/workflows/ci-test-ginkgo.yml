@@ -45,28 +45,31 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
-      - name: Install KubeArmor Controller
-        run: ./.github/workflows/install-kubearmor-controller.sh
-
       - name: Generate KubeArmor artifacts
         run: |
           GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
       - name: Run KubeArmor
         run: |
-          kubectl apply -f deployments/CRD
           if [ ${{ matrix.runtime }} == "containerd" ]; then
             docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
-            kubectl apply -f ./KubeArmor/build/kubearmor-test-k3s.yaml
+
+            helm upgrade --install kubearmor ./deployments/helm \
+            --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
+            --set environment.name=k3s \
+            -n kube-system;
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor:latest
             fi
-            kubectl apply -f ./KubeArmor/build/kubearmor-test-${{ matrix.runtime }}.yaml
+            helm upgrade --install kubearmor ./deployments/helm \
+            --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
+            --set environment.name=${{ matrix.runtime }} \
+            -n kube-system;
           fi
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
