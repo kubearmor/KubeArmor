@@ -84,6 +84,13 @@ spec:
         name: kubearmor-relay-server
         ports:
         - containerPort: 32767
+        resources:
+          limits:
+            cpu: "4"
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 512Mi
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: kubearmor
@@ -132,6 +139,13 @@ spec:
         name: kubearmor
         ports:
         - containerPort: 32767
+        resources:
+          limits:
+            cpu: "4"
+            memory: 4Gi
+          requests:
+            cpu: 100m
+            memory: 512Mi
         securityContext:
           capabilities:
             add:
