@@ -1,7 +1,103 @@
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - namespaces
+  - configmaps
+  verbs:
+  - get
+  - patch
+  - list
+  - watch
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - patch
+  - list
+  - watch
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - replicasets
+  - daemonsets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmorpolicies
+  - kubearmorhostpolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - delete
+- nonResourceURLs:
+  - /apis
+  - /apis/*
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.kubearmorController.name }}-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmorhostpolicies
+  - kubearmorpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmorhostpolicies/status
+  - kubearmorpolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+# kubearmor controller needs this for leader election in kube-system
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ .Values.kubearmorAnnotationManager.name }}-leader-election-role
+  name: {{ .Values.kubearmorController.name }}-leader-election-role
+  namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
@@ -38,23 +134,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Values.kubearmorAnnotationManager.name }}-role
+  name: {{ .Values.kubearmorController.name }}-proxy-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
 - apiGroups:
   - authentication.k8s.io
   resources:
@@ -67,3 +148,13 @@ rules:
   - subjectaccessreviews
   verbs:
   - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.kubearmorController.name }}-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get

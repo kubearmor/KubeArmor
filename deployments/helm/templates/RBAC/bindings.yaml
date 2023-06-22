@@ -1,41 +1,65 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorController.name }}-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorController.name }}-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{.Release.Namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Values.kubearmorAnnotationManager.name }}-leader-election-rolebinding
+  name: {{ .Values.kubearmorController.name }}-leader-election-rolebinding
   namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ .Values.kubearmorAnnotationManager.name }}-leader-election-role
+  name: {{ .Values.kubearmorController.name }}-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor-annotation-manager
-  namespace: kube-system
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.kubearmorAnnotationManager.name }}-clusterrolebinding
+  name: {{ .Values.kubearmorController.name}}-proxy-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Values.kubearmorAnnotationManager.name }}-role
+  name: {{ .Values.kubearmorController.name}}-proxy-role
 subjects:
 - kind: ServiceAccount
-  name: kubearmor-annotation-manager
-  namespace: kube-system
+  name: {{ .Values.kubearmorController.name}}
+  namespace: {{.Release.Namespace}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kubearmor
-  namespace: kube-system
+  name: {{ .Values.kubearmorController.name }}-metrics-reader-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: {{ .Values.kubearmorController.name}}-metrics-reader
 subjects:
 - kind: ServiceAccount
-  name: kubearmor
-  namespace: kube-system
+  name: {{ .Values.kubearmorController.name}}
+  namespace: {{.Release.Namespace}}

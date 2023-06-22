@@ -1,0 +1,85 @@
+name: ci-test-helm-charts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "deployments/**"
+      - "tests/**"
+      - ".github/workflows/ci-test-helm-charts.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "deployments/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-helm-charts.yml"
+
+jobs:
+  build:
+    name: Helm Chart Tests / ubuntu 22.04 / docker
+    runs-on: "ubuntu-20.04"
+    env:
+      RUNTIME: "docker"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "v1.20"
+
+      - uses: azure/setup-helm@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: helm lint
+        run: |
+          helm lint ./deployments/helm
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
+
+      - name: Generate KubeArmor artifacts
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+          make --directory=./pkg/KubeArmorController docker-build
+
+      - name: Install KubeArmor using Helm
+        run: |
+          helm upgrade --install kubearmor ./deployments/helm \
+            --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
+            -n kube-system;
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
+          kubectl get pods -A
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/
+        timeout-minutes: 30
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*

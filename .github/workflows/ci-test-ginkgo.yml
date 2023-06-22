@@ -45,8 +45,8 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
-      - name: Install an annotation controller
-        run: ./.github/workflows/install-annotation-controller.sh
+      - name: Install KubeArmor Controller
+        run: ./.github/workflows/install-kubearmor-controller.sh
 
       - name: Generate KubeArmor artifacts
         run: |

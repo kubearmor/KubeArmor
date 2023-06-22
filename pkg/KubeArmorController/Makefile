@@ -86,6 +86,9 @@ run: manifests generate fmt vet ## Run a controller from your host.
 docker-build: build ## Build docker image with the manager.
 	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
 
+docker-buildx: build ## Build docker image with the manager multiple archs.
+	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} -t ${IMG}:latest .
+
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:${TAG}
@@ -136,12 +139,12 @@ delete-cert-manager: ## Delete cert-manager when deleting the admission controll
 deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller-manager/g' | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
 		sed -e "1,7d" | kubectl apply -f -
 
 delete-controller:  ## Delete controller from the K8s cluster specified in ~/.kube/config.
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller-manager/g' | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
 		sed -e "1,7d" | kubectl delete -f -
 
 delete: delete-controller delete-cert-manager ## Delete controller and cert manager from the K8s cluster specified in ~/.kube/config.
@@ -150,8 +153,8 @@ delete: delete-controller delete-cert-manager ## Delete controller and cert mana
 deployment: manifests kustomize
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller-manager/g' | \
-		sed -e "1,7d" > ../../deployments/controller/kubearmor-controller-manager.yaml
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
+		sed -e "1,7d" > ../../deployments/controller/kubearmor-controller.yaml
 
 ifndef ignore-not-found
   ignore-not-found = false
@@ -186,7 +189,7 @@ go mod init tmp ;\
 echo "Downloading $(2)" ;\
 go mod tidy ;\
 go get $(2) ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
+GOBIN=$(HOME)/go/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef

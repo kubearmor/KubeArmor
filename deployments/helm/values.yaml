@@ -1,42 +1,91 @@
 # Default values for kubearmor.
 # Declare variables to be passed into your templates.
 
-kubearmorrelay:
-  enabled: true
-
 environment:
+  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k3s, minikube, microk8s
   name: generic
 
 kubearmorRelay:
+  # to enable/disable kubearmor-relay
+  enabled: true
   image:
+    # kubearmor-init image repo
     repository: kubearmor/kubearmor-relay-server
+    # kubearmor-init image tag
     tag: latest
+  # kubearmor-init imagePullPolicy
+  imagePullPolicy: Always
+
+kubearmorInit:
+  image:
+    # kubearmor-init image repo
+    repository: kubearmor/kubearmor-init
+    # kubearmor-init image tag
+    tag: stable
+  # kubearmor-init imagePullPolicy
+  imagePullPolicy: Always
 
 kubeRbacProxy:
-  image: 
+  image:
+    # kube-rbac-proxy image repo
     repository: gcr.io/kubebuilder/kube-rbac-proxy
+    # kube-rbac-proxy image tag
     tag: v0.12.0
+  # kube-rbac-proxy imagePullPolicy
+  imagePullPolicy: Always
 
-kubearmorAnnotationManager:
-  name: kubearmor-annotation-manager
+kubearmorController:
+  name: kubearmor-controller
+  # kubearmor-controller replicas
   replicas: 1
   image:
-    repository: kubearmor/kubearmor-annotation-manager
+    # kubearmor-controller image repo
+    repository: kubearmor/kubearmor-controller
+    # kubearmor-controller image tag
     tag: latest
   mutation:
-    failurePolicy: Fail 
+    # kubearmor-controller failure policy
+    failurePolicy: Ignore
+  # kubearmor-controller imagePullPolicy
+  imagePullPolicy: Always
 
 #volume mounts and volumes
 kubearmor:
   image:
+    # kubearmor daemonset image repo
     repository: kubearmor/kubearmor
-    tag: latest
+    # kubearmor daemonset image tag
+    tag: stable
+
+  # kubearmor daemonset imagePullPolicy
+  imagePullPolicy: Always
+
+  # kubearmor daemonset arguments. See `kubearmor --help`
+  args: []
+
+  capabilities:
+    add:
+    - SETUID
+    - SETGID
+    - SETPCAP
+    - SYS_ADMIN
+    - SYS_PTRACE
+    - MAC_ADMIN
+    - SYS_RESOURCE
+    - IPC_LOCK
+    - CAP_DAC_OVERRIDE
+    - CAP_DAC_READ_SEARCH
+    drop:
+    - ALL
+
   commonMounts:
   - mountPath: /opt/kubearmor/BPF
     name: bpf
+
   commonVolumes:
   - emptyDir: {}
     name: bpf
+
   initMounts:
   - mountPath: /opt/kubearmor/BPF
     name: bpf
@@ -55,6 +104,7 @@ kubearmor:
   - mountPath: /usr/src
     name: usr-src-path
     readOnly: true
+
   volumeMountsGeneric:
     - mountPath: /usr/src
       name: usr-src-path
@@ -77,9 +127,11 @@ kubearmor:
       name: containerd-sock-path
       readOnly: true
     - mountPath: /run/containerd
+      mountPropagation: HostToContainer
       name: containerd-storage-path
       readOnly: true
     - mountPath: /var/lib/docker
+      mountPropagation: HostToContainer
       name: docker-storage-path
       readOnly: true
 
@@ -105,6 +157,7 @@ kubearmor:
       name: docker-sock-path
       readOnly: true
     - mountPath: /var/lib/docker
+      mountPropagation: HostToContainer
       name: docker-storage-path
       readOnly: true
 
@@ -130,6 +183,7 @@ kubearmor:
       name: containerd-sock-path
       readOnly: true
     - mountPath: /run/containerd
+      mountPropagation: HostToContainer
       name: containerd-storage-path
       readOnly: true
 
@@ -155,6 +209,7 @@ kubearmor:
       name: containerd-sock-path
       readOnly: true
     - mountPath: /run/containerd
+      mountPropagation: HostToContainer
       name: containerd-storage-path
       readOnly: true
 
@@ -179,6 +234,96 @@ kubearmor:
     - mountPath: /var/run/docker.sock
       name: docker-sock-path
 
+  volumeMountsGKE:
+    - mountPath: /lib/modules
+      name: lib-modules-path
+      readOnly: true
+    - mountPath: /sys/fs/bpf
+      name: sys-fs-bpf-path
+    - mountPath: /sys/kernel/security
+      name: sys-kernel-security-path
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /media/root/etc/os-release
+      name: os-release-path
+      readOnly: true
+    - mountPath: /media/root/usr
+      name: usr-src-path
+      readOnly: true
+    - mountPath: /etc/apparmor.d
+      name: etc-apparmor-d-path
+    - mountPath: /var/run/containerd/containerd.sock
+      name: containerd-sock-path
+      readOnly: true
+    - mountPath: /run/containerd
+      mountPropagation: HostToContainer
+      name: containerd-storage-path
+      readOnly: true
+    - mountPath: /var/lib/docker
+      mountPropagation: HostToContainer
+      name: docker-storage-path
+      readOnly: true
+
+  volumeMountsBottleRocket:
+    - mountPath: /lib/modules
+      name: lib-modules-path
+      readOnly: true
+    - mountPath: /sys/fs/bpf
+      name: sys-fs-bpf-path
+    - mountPath: /sys/kernel/security
+      name: sys-kernel-security-path
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /media/root/etc/os-release
+      name: os-release-path
+      readOnly: true
+    - mountPath: /usr/src
+      name: usr-src-path
+      readOnly: true
+    - mountPath: /etc/apparmor.d
+      name: etc-apparmor-d-path
+    - mountPath: /run/dockershim.sock
+      name: containerd-sock-path
+      readOnly: true
+    - mountPath: /run/containerd
+      mountPropagation: HostToContainer
+      name: containerd-storage-path
+      readOnly: true
+    - mountPath: /var/lib/docker
+      mountPropagation: HostToContainer
+      name: docker-storage-path
+      readOnly: true
+
+  volumeMountsEKS:
+    - mountPath: /lib/modules
+      name: lib-modules-path
+      readOnly: true
+    - mountPath: /sys/fs/bpf
+      name: sys-fs-bpf-path
+    - mountPath: /sys/kernel/security
+      name: sys-kernel-security-path
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /media/root/etc/os-release
+      name: os-release-path
+      readOnly: true
+    - mountPath: /usr/src
+      name: usr-src-path
+      readOnly: true
+    - mountPath: /etc/apparmor.d
+      name: etc-apparmor-d-path
+    - mountPath: /var/run/containerd/containerd.sock
+      name: containerd-sock-path
+      readOnly: true
+    - mountPath: /run/containerd
+      mountPropagation: HostToContainer
+      name: containerd-storage-path
+      readOnly: true
+    - mountPath: /var/lib/docker
+      mountPropagation: HostToContainer
+      name: docker-storage-path
+      readOnly: true
+
   volumesGeneric:
     - hostPath:
         path: /usr/src
@@ -186,7 +331,7 @@ kubearmor:
       name: usr-src-path
     - hostPath:
         path: /lib/modules
-        type: Directory
+        type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
         path: /sys/fs/bpf
@@ -228,7 +373,7 @@ kubearmor:
       name: usr-src-path
     - hostPath:
         path: /lib/modules
-        type: Directory
+        type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
         path: /sys/fs/bpf
@@ -266,7 +411,7 @@ kubearmor:
       name: usr-src-path
     - hostPath:
         path: /lib/modules
-        type: Directory
+        type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
         path: /sys/fs/bpf
@@ -305,6 +450,7 @@ kubearmor:
     - hostPath:
         path: /lib/modules
         type: Directory
+        type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
         path: /sys/fs/bpf
@@ -342,7 +488,7 @@ kubearmor:
       name: usr-src-path
     - hostPath:
         path: /lib/modules
-        type: Directory
+        type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
         path: /sys/fs/bpf
@@ -368,6 +514,132 @@ kubearmor:
         path: /var/run/docker.sock
         type: Socket
       name: docker-sock-path
+    - hostPath:
+        path: /var/lib/docker
+        type: DirectoryOrCreate
+      name: docker-storage-path
+
+  volumesGKE:
+    - hostPath:
+        path: /usr
+        type: Directory
+      name: usr-src-path
+    - hostPath:
+        path: /lib/modules
+        type: DirectoryOrCreate
+      name: lib-modules-path
+    - hostPath:
+        path: /sys/fs/bpf
+        type: Directory
+      name: sys-fs-bpf-path
+    - hostPath:
+        path: /sys/kernel/security
+        type: Directory
+      name: sys-kernel-security-path
+    - hostPath:
+        path: /sys/kernel/debug
+        type: Directory
+      name: sys-kernel-debug-path
+    - hostPath:
+        path: /etc/os-release
+        type: File
+      name: os-release-path
+    - hostPath:
+        path: /etc/apparmor.d
+        type: DirectoryOrCreate
+      name: etc-apparmor-d-path
+    - hostPath:
+        path: /var/run/containerd/containerd.sock
+        type: Socket
+      name: containerd-sock-path
+    - hostPath:
+        path: /run/containerd
+        type: DirectoryOrCreate
+      name: containerd-storage-path
+    - hostPath:
+        path: /var/lib/docker
+        type: DirectoryOrCreate
+      name: docker-storage-path
+
+  volumesBottleRocket:
+    - hostPath:
+        path: /lib/modules
+        type: DirectoryOrCreate
+      name: lib-modules-path
+    - hostPath:
+        path: /sys/fs/bpf
+        type: Directory
+      name: sys-fs-bpf-path
+    - hostPath:
+        path: /sys/kernel/security
+        type: Directory
+      name: sys-kernel-security-path
+    - hostPath:
+        path: /sys/kernel/debug
+        type: Directory
+      name: sys-kernel-debug-path
+    - hostPath:
+        path: /etc/os-release
+        type: File
+      name: os-release-path
+    - hostPath:
+        path: /usr/src
+        type: Directory
+      name: usr-src-path
+    - hostPath:
+        path: /etc/apparmor.d
+        type: DirectoryOrCreate
+      name: etc-apparmor-d-path
+    - hostPath:
+        path: /run/dockershim.sock
+        type: Socket
+      name: containerd-sock-path
+    - hostPath:
+        path: /run/containerd
+        type: DirectoryOrCreate
+      name: containerd-storage-path
+    - hostPath:
+        path: /var/lib/docker
+        type: DirectoryOrCreate
+      name: docker-storage-path
+
+  volumesEKS:
+    - hostPath:
+        path: /lib/modules
+        type: DirectoryOrCreate
+      name: lib-modules-path
+    - hostPath:
+        path: /sys/fs/bpf
+        type: Directory
+      name: sys-fs-bpf-path
+    - hostPath:
+        path: /sys/kernel/security
+        type: Directory
+      name: sys-kernel-security-path
+    - hostPath:
+        path: /sys/kernel/debug
+        type: Directory
+      name: sys-kernel-debug-path
+    - hostPath:
+        path: /etc/os-release
+        type: File
+      name: os-release-path
+    - hostPath:
+        path: /usr/src
+        type: Directory
+      name: usr-src-path
+    - hostPath:
+        path: /etc/apparmor.d
+        type: DirectoryOrCreate
+      name: etc-apparmor-d-path
+    - hostPath:
+        path: /var/run/containerd/containerd.sock
+        type: Socket
+      name: containerd-sock-path
+    - hostPath:
+        path: /run/containerd
+        type: DirectoryOrCreate
+      name: containerd-storage-path
     - hostPath:
         path: /var/lib/docker
         type: DirectoryOrCreate
