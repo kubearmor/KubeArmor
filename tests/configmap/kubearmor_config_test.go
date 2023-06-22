@@ -64,9 +64,9 @@ var _ = Describe("KubeArmor-Config", func() {
 	var partialyAnnotated string
 	var fullyAnnotated string
 	BeforeEach(func() {
-		unannotated = getUnannotatedPod("unannotated-", "container.apparmor.security.beta.kubernetes.io/ubuntu-1: localhost/kubearmor-unannotated-unannotated-deployment-ubuntu-1")
-		partialyAnnotated = getPartialyAnnotatedPod("partialyannotated-", "container.apparmor.security.beta.kubernetes.io/ubuntu-1: localhost/kubearmor-partialyannotated-partialyannotated-deployment-ubuntu-1")
-		fullyAnnotated = getFullyAnnotatedPod("fullyannotated-", "container.apparmor.security.beta.kubernetes.io/ubuntu-1: localhost/kubearmor-fullyannotated-fullyannotated-deployment-ubuntu-1")
+		unannotated = getUnannotatedPod("unannotated-", "kubearmor-policy: enabled")
+		partialyAnnotated = getPartialyAnnotatedPod("partialyannotated-", "kubearmor-policy: enabled")
+		fullyAnnotated = getFullyAnnotatedPod("fullyannotated-", "kubearmor-policy: enabled")
 		cm := NewDefaultConfigMapData()
 		cm.CreateKAConfigMap()
 	})
