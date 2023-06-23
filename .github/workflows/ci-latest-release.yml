@@ -7,7 +7,6 @@ on:
       - "v*"
     paths:
       - "KubeArmor/**"
-      - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-latest-release.yml"
       - "!STABLE-RELEASE"
