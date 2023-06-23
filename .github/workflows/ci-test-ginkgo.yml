@@ -25,8 +25,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted]
+        os: ["apparmor" , "bpflsm"]
+        
         runtime: ["docker", "containerd", "crio"]
+  
+
     steps:
       - uses: actions/checkout@v3
         with:
@@ -35,7 +38,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: "v1.20"
-
+ 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
 
@@ -103,14 +106,13 @@ jobs:
           go tool cover -func=gover.coverprofile
         working-directory: KubeArmor
         env:
-          GOPATH: /home/runner/go
-
+          GOPATH: /home/vagrant/go
       - uses: codecov/codecov-action@v3
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
       - name: Run cleanup
         if: ${{ always() }}
-        run: ./cleanup_script.sh
+        run: ./.github/workflows/cleanup.sh
     
 

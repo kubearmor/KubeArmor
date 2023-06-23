@@ -25,6 +25,7 @@ if [ "$RUNTIME" == "docker" ]; then # docker
 elif [ "$RUNTIME" == "crio" ]; then # cri-o
   curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --container-runtime-endpoint unix:///var/run/crio/crio.sock --kubelet-arg cgroup-driver=systemd" sh -
   [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
+ 
 else # use containerd by default
   curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik" sh -
   [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
@@ -52,11 +53,14 @@ fi
 echo "wait for initialization"
 sleep 15
 
-runtime="15 minute"
+runtime="5 minute"
 endtime=$(date -ud "$runtime" +%s)
 
 while [[ $(date -u +%s) -le $endtime ]]
 do
+    if [ "$RUNTIME" == "crio" ]; then
+        sudo sysctl -w net.ipv6.conf.cni0.disable_ipv6=0
+    fi    
     status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
     [[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break
     echo "wait for initialization"

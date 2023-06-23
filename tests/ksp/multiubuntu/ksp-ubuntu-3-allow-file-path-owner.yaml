@@ -35,6 +35,8 @@ spec:
       recursive: true
     - dir: /pts/ # used by root and user1
       recursive: true
+    - dir: /bin/
+      recursive: true
   action:
     Allow
 
