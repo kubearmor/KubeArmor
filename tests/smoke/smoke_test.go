@@ -28,6 +28,8 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	KubearmorPortForwardStop()
+	err := K8sDelete([]string{"res/wordpress-mysql-deployment.yaml"})
+        Expect(err).To(BeNil())
 })
 
 func getWpsqlPod(name string, ant string) string {
