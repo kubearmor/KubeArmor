@@ -29,17 +29,42 @@ func main() {
 
 	for _, env := range envs {
 		v := []interface{}{
+			// ServiceAccounts
 			dp.GetServiceAccount(namespace),
-			dp.GetClusterRoleBinding(namespace),
-			dp.GetClusterRole(),
-			dp.GetRelayService(namespace),
-			dp.GetRelayDeployment(namespace),
-			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
-			dp.GetKubeArmorControllerService(namespace),
-			dp.GetKubeArmorControllerDeployment(namespace),
-			kcrd.GetKspCRD(),
-			kcrd.GetHspCRD(),
+			dp.GetKubeArmorControllerServiceAccount(namespace),
+
+			// Configmap
 			dp.GetKubearmorConfigMap(namespace, dp.KubeArmorConfigMapName),
+
+			// CRDs
+			kcrd.GetHspCRD(),
+			kcrd.GetKspCRD(),
+
+			// ClusterRoles
+			dp.GetClusterRole(),
+			dp.GetKubeArmorControllerClusterRole(),
+			dp.GetKubeArmorControllerProxyRole(),
+			dp.GetKubeArmorControllerMetricsReaderRole(),
+
+			// ClusterRoleBindings
+			dp.GetClusterRoleBinding(namespace),
+			dp.GetKubeArmorControllerClusterRoleBinding(namespace),
+			dp.GetKubeArmorControllerProxyRoleBinding(namespace),
+			dp.GetKubeArmorControllerMetricsReaderRoleBinding(namespace),
+
+			// Roles
+			dp.GetKubeArmorControllerLeaderElectionRole(namespace),
+			dp.GetKubeArmorControllerLeaderElectionRoleBinding(namespace),
+
+			// Services
+			dp.GetRelayService(namespace),
+			dp.GetKubeArmorControllerMetricsService(namespace),
+			dp.GetKubeArmorControllerWebhookService(namespace),
+
+			// Apps
+			dp.GenerateDaemonSet(strings.ToLower(env), namespace),
+			dp.GetRelayDeployment(namespace),
+			dp.GetKubeArmorControllerDeployment(namespace),
 		}
 
 		currDir, err := os.Getwd()

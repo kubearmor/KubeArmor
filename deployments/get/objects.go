@@ -408,14 +408,14 @@ var KubeArmorControllerLabels = map[string]string{
 }
 
 // GetKubeArmorControllerService Function
-func GetKubeArmorControllerService(namespace string) *corev1.Service {
+func GetKubeArmorControllerMetricsService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerServiceName,
+			Name:      KubeArmorControllerMetricsServiceName,
 			Labels:    KubeArmorControllerLabels,
 			Namespace: namespace,
 		},
@@ -425,8 +425,8 @@ func GetKubeArmorControllerService(namespace string) *corev1.Service {
 				{
 					Name:       "https",
 					Protocol:   corev1.ProtocolTCP,
-					Port:       int32(443),
-					TargetPort: intstr.FromInt(9443),
+					Port:       int32(8443),
+					TargetPort: intstr.FromString("https"),
 				},
 			},
 		},
@@ -485,7 +485,7 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 				},
 				Spec: corev1.PodSpec{
 					PriorityClassName:  "system-node-critical",
-					ServiceAccountName: kubearmor,
+					ServiceAccountName: KubeArmorControllerServiceAccountName,
 					Volumes: []corev1.Volume{
 						KubeArmorControllerCertVolume,
 						KubeArmorControllerHostPathVolume,
@@ -656,8 +656,8 @@ func GetKubeArmorControllerClusterRoleBinding(namespace string) *rbacv1.ClusterR
 	}
 }
 
-// GetKubeArmorControllerRole Function
-func GetKubeArmorControllerRole(namespace string) *rbacv1.Role {
+// GetKubeArmorControllerLeaderElectionRole Function
+func GetKubeArmorControllerLeaderElectionRole(namespace string) *rbacv1.Role {
 	return &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Role",
@@ -687,8 +687,8 @@ func GetKubeArmorControllerRole(namespace string) *rbacv1.Role {
 	}
 }
 
-// GetKubeArmorControllerClusterRoleBinding Function
-func GetKubeArmorControllerRoleBinding(namespace string) *rbacv1.RoleBinding {
+// GetKubeArmorControllerLeaderElectionRoleBinding Function
+func GetKubeArmorControllerLeaderElectionRoleBinding(namespace string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RoleBinding",
@@ -701,7 +701,7 @@ func GetKubeArmorControllerRoleBinding(namespace string) *rbacv1.RoleBinding {
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
-			Name:     "kubearmor-controller-leader-election-role",
+			Name:     KubeArmorControllerLeaderElectionRoleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -751,7 +751,7 @@ func GetKubeArmorControllerProxyRoleBinding(namespace string) *rbacv1.ClusterRol
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "kubearmor-controller-proxy-role",
+			Name:     KubeArmorControllerProxyRoleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -764,7 +764,7 @@ func GetKubeArmorControllerProxyRoleBinding(namespace string) *rbacv1.ClusterRol
 }
 
 // GetKubeArmorControllerMetricsReaderRole Function
-func GetKubeArmorControllerMetricsReaderRole(namespace string) *rbacv1.ClusterRole {
+func GetKubeArmorControllerMetricsReaderRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ClusterRole",
@@ -795,13 +795,37 @@ func GetKubeArmorControllerMetricsReaderRoleBinding(namespace string) *rbacv1.Cl
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "kubearmor-controller-metrics-reader-role",
+			Name:     KubeArmorControllerMetricsReaderRoleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
 				Name:      KubeArmorControllerServiceAccountName,
 				Namespace: namespace,
+			},
+		},
+	}
+}
+
+// GetKubeArmorControllerWebhookService Function
+func GetKubeArmorControllerWebhookService(namespace string) *corev1.Service {
+	return &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      KubeArmorControllerWebhookServiceName,
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: KubeArmorControllerLabels,
+			Ports: []corev1.ServicePort{
+				{
+					Port:       443,
+					TargetPort: intstr.FromInt(9443),
+					Protocol:   "TCP",
+				},
 			},
 		},
 	}
@@ -820,7 +844,7 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 			APIVersion: "admissionregistration.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      KubeArmorControllerDeploymentName,
+			Name:      KubeArmorControllerMutatingWebhookConfiguration,
 			Namespace: namespace,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
@@ -830,7 +854,7 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: namespace,
-						Name:      KubeArmorControllerServiceName,
+						Name:      KubeArmorControllerWebhookServiceName,
 						Path:      &KubeArmorControllerPodMutationPath,
 					},
 					CABundle: caCert,

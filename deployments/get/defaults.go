@@ -17,9 +17,7 @@ var (
 	KubeArmorClusterRoleName                         = "kubearmor-clusterrole"
 	RelayServiceName                                 = kubearmor
 	RelayDeploymentName                              = "kubearmor-relay"
-	AnnotationsControllerServiceName                 = "kubearmor-annotation-manager-metrics-service"
-	AnnotationsControllerDeploymentName              = "kubearmor-annotation-manager"
-	KubeArmorControllerServiceName                   = "kubearmor-controller-metrics-service"
+	KubeArmorConfigMapName                           = "kubearmor-config"
 	KubeArmorControllerDeploymentName                = "kubearmor-controller"
 	KubeArmorControllerServiceAccountName            = KubeArmorControllerDeploymentName
 	KubeArmorControllerClusterRoleName               = "kubearmor-controller-clusterrole"
@@ -30,9 +28,10 @@ var (
 	KubeArmorControllerProxyRoleBindingName          = "kubearmor-controller-proxy-rolebinding"
 	KubeArmorControllerMetricsReaderRoleName         = "kubearmor-controller-metrics-reader-role"
 	KubeArmorControllerMetricsReaderRoleBindingName  = "kubearmor-controller-metrics-reader-rolebinding"
-	KubeArmorControllerSecretName                    = "kubearmor-webhook-server-cert"
-	AnnotationsControllerSecretName                  = "kubearmor-webhook-server-cert"
-	KubeArmorConfigMapName                           = "kubearmor-config"
+	KubeArmorControllerMetricsServiceName            = "kubearmor-controller-metrics-service"
+	KubeArmorControllerWebhookServiceName            = "kubearmor-controller-webhook-service"
+	KubeArmorControllerSecretName                    = "kubearmor-controller-webhook-server-cert"
+	KubeArmorControllerMutatingWebhookConfiguration  = "kubearmor-controller-mutating-webhook-configuration"
 )
 
 // DaemonSetConfig Structure

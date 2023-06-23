@@ -56,7 +56,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Values.kubearmorController.name }}-role
+  name: {{ .Values.kubearmorController.name }}-clusterrole
 rules:
 - apiGroups:
   - ""
@@ -66,14 +66,15 @@ rules:
   - create
   - delete
   - get
+  - patch
   - list
-  - update
   - watch
+  - update
 - apiGroups:
   - security.kubearmor.com
   resources:
-  - kubearmorhostpolicies
   - kubearmorpolicies
+  - kubearmorhostpolicies
   verbs:
   - create
   - delete
@@ -85,8 +86,8 @@ rules:
 - apiGroups:
   - security.kubearmor.com
   resources:
-  - kubearmorhostpolicies/status
   - kubearmorpolicies/status
+  - kubearmorhostpolicies/status
   verbs:
   - get
   - patch
@@ -152,7 +153,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Values.kubearmorController.name }}-metrics-reader
+  name: {{ .Values.kubearmorController.name }}-metrics-reader-role
 rules:
 - nonResourceURLs:
   - /metrics
