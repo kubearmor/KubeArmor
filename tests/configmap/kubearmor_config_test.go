@@ -36,6 +36,10 @@ var _ = AfterSuite(func() {
 	cm.Visibility = "process,file,network,capabilities"
 	cm.CreateKAConfigMap()
 	DeleteKAConfigMap()
+
+	// these deployments are not needed after this suite
+	err := K8sDelete([]string{"manifests/ubuntu-deployment.yaml"})
+	Expect(err).To(BeNil())
 })
 
 func getUnannotatedPod(name string, ant string) string {

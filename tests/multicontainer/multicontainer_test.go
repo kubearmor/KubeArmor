@@ -13,7 +13,7 @@ import (
 )
 
 var _ = BeforeSuite(func() {
-	// install wordpress-mysql app
+	// install wordpress-mysql app in multicontainer ns
 	err := K8sApply([]string{"manifests/multicontainer-deployment.yaml"})
 	Expect(err).To(BeNil())
 
@@ -26,6 +26,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	// delete wordpress-mysql app from multicontainer ns
+	err := K8sDelete([]string{"manifests/multicontainer-deployment.yaml"})
+	Expect(err).To(BeNil())
 	KubearmorPortForwardStop()
 })
 

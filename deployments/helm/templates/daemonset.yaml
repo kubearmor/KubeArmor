@@ -19,6 +19,9 @@ spec:
       containers:
       - args:
         - -gRPC=32767
+        {{- if eq .Values.environment.name "BottleRocket" }}
+        - {{ printf "-criSocket=unix:///run/dockershim.sock" | trim }}
+        {{- end }}
         {{- with .Values.kubearmor.args }}
         {{- toYaml . | trim | nindent 8 }}
         {{- end }}
@@ -54,17 +57,19 @@ spec:
         {{- toYaml .Values.kubearmor.commonMounts | trim | nindent 10 }}
         {{- if eq .Values.environment.name "docker" }}
           {{- toYaml .Values.kubearmor.volumeMountsDocker | trim | nindent 10 }}
-        {{ else if eq .Values.environment.name "microk8s" }}
+        {{- else if eq .Values.environment.name "crio" }}
+          {{- toYaml .Values.kubearmor.volumeMountsCRIO | trim | nindent 10 }}
+        {{- else if eq .Values.environment.name "microk8s" }}
           {{- toYaml .Values.kubearmor.volumeMountsMicroK8s | trim | nindent 10 }}
-        {{ else if eq .Values.environment.name "k3s" }}
+        {{- else if eq .Values.environment.name "k3s" }}
           {{- toYaml .Values.kubearmor.volumeMountsK3s | trim | nindent 10 }}
-        {{ else if eq .Values.environment.name "minikube" }}
+        {{- else if eq .Values.environment.name "minikube" }}
           {{- toYaml .Values.kubearmor.volumeMountsMinikube | trim | nindent 10 }}
-        {{ else if eq .Values.environment.name "GKE" }}
+        {{- else if eq .Values.environment.name "GKE" }}
           {{- toYaml .Values.kubearmor.volumeMountsGke | trim | nindent 10 }}
-        {{ else if eq .Values.environment.name "BottleRocket" }}
+        {{- else if eq .Values.environment.name "BottleRocket" }}
           {{- toYaml .Values.kubearmor.volumeMountsBottleRocket | trim | nindent 10 }}
-        {{ else if eq .Values.environment.name "EKS" }}
+        {{- else if eq .Values.environment.name "EKS" }}
           {{- toYaml .Values.kubearmor.volumeMountsEKS | trim | nindent 10 }}
         {{- else }} # generic
           {{- toYaml .Values.kubearmor.volumeMountsGeneric | trim | nindent 10 }}
@@ -106,17 +111,19 @@ spec:
       {{- toYaml .Values.kubearmor.commonVolumes | trim | nindent 8}}
       {{- if eq .Values.environment.name "docker" }}
         {{- toYaml .Values.kubearmor.volumesDocker | trim | nindent 8 }}
-      {{ else if eq .Values.environment.name "microk8s" }}
+      {{- else if eq .Values.environment.name "crio" }}
+        {{- toYaml .Values.kubearmor.volumesCRIO | trim | nindent 8 }}
+      {{- else if eq .Values.environment.name "microk8s" }}
         {{- toYaml .Values.kubearmor.volumesMicroK8s | trim | nindent 8 }}
-      {{ else if eq .Values.environment.name "k3s" }}
+      {{- else if eq .Values.environment.name "k3s" }}
         {{- toYaml .Values.kubearmor.volumesK3s | trim | nindent 8 }}
-      {{ else if eq .Values.environment.name "minikube" }}
+      {{- else if eq .Values.environment.name "minikube" }}
         {{- toYaml .Values.kubearmor.volumesMinikube | trim | nindent 8 }}
-      {{ else if eq .Values.environment.name "GKE" }}
+      {{- else if eq .Values.environment.name "GKE" }}
         {{- toYaml .Values.kubearmor.volumesGKE | trim | nindent 8 }}
-      {{ else if eq .Values.environment.name "BottleRocket" }}
+      {{- else if eq .Values.environment.name "BottleRocket" }}
         {{- toYaml .Values.kubearmor.volumesBottleRocket | trim | nindent 8 }}
-      {{ else if eq .Values.environment.name "EKS" }}
+      {{- else if eq .Values.environment.name "EKS" }}
         {{- toYaml .Values.kubearmor.volumesEKS | trim | nindent 8 }}
       {{- else }} # generic
         {{- toYaml .Values.kubearmor.volumesGeneric | trim | nindent 8 }}

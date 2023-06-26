@@ -56,11 +56,11 @@ jobs:
 
       - name: Deploy KubeArmor into Kubernetes
         run: |
-          sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
-          sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
-          kubectl apply -f deployments/CRD
-          kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          helm upgrade --install kubearmor ./deployments/helm \
+          --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
+          -n kube-system;
+
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
 
       - name: Test KubeArmor using Ginkgo
         run: |

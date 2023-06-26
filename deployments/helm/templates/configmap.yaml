@@ -1,9 +1,9 @@
 apiVersion: v1
 data:
-  defaultFilePosture: audit
-  defaultCapabilitiesPosture: audit
-  defaultNetworkPosture: audit
-  visibility: process,file,network
+  defaultFilePosture: {{ .Values.kubearmorConfigMap.defaultFilePosture }}
+  defaultCapabilitiesPosture: {{ .Values.kubearmorConfigMap.defaultCapabilitiesPosture }}
+  defaultNetworkPosture: {{ .Values.kubearmorConfigMap.defaultNetworkPosture }}
+  visibility: {{ .Values.kubearmorConfigMap.visibility }}
 kind: ConfigMap
 metadata:
   labels:
