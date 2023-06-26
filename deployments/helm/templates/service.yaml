@@ -4,6 +4,8 @@ kind: Service
 metadata:
   name: kubearmor
   namespace: {{.Release.Namespace}}
+  labels:
+    kubearmor-app: kubearmor-relay
 spec:
   ports:
   - port: 32767
