@@ -32,7 +32,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v23.0.6+incompatible
 	github.com/google/uuid v1.3.0
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230510133055-4e30a28b6352
+	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230626074341-9dd6514be74f
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230510133055-4e30a28b6352
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230510133055-4e30a28b6352
 	github.com/opencontainers/runtime-spec v1.1.0-rc.2
