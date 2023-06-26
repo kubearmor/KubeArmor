@@ -44,6 +44,11 @@ type ConfigMapData struct {
 	DefaultNetworkPosture      string
 }
 
+// GetK8sClient function return instance of k8s client
+func GetK8sClient() *kcli.Client {
+	return k8sClient
+}
+
 func connectKcClient() error {
 	var kubeconfig string
 	var contextName string
@@ -208,7 +213,7 @@ func K8sDeploymentCheck(depname string, ns string, timeout time.Duration) error 
 	return waitForCondition(timeout, isDeploymentReady(depname, ns))
 }
 
-func annotationsMatch(pod corev1.Pod, ants []string) bool {
+func AnnotationsMatch(pod corev1.Pod, ants []string) bool {
 	if ants == nil || len(ants) <= 0 {
 		return true
 	}
@@ -259,7 +264,7 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 			if p.Status.Reason != "" {
 				continue
 			}
-			if !annotationsMatch(p, ants) {
+			if !AnnotationsMatch(p, ants) {
 				continue
 			}
 			if strings.HasPrefix(p.ObjectMeta.Name, podstr) {

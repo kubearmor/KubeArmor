@@ -54,6 +54,12 @@ jobs:
         run: |
           make docker-build
 
+      - name: deploy pre existing pod 
+        run: |
+          kubectl apply -f ./tests/ksp/pre-run-pod.yaml
+          sleep 60
+          kubectl get pods -A
+
       - name: Run KubeArmor
         working-directory: pkg/KubeArmorOperator
         run: |

@@ -187,12 +187,15 @@ rules:
   resources:
   - deployments
   - daemonsets
+  - replicasets
+  - statefulsets
   verbs:
   - list
   - get
   - create
   - delete
   - update
+  - patch
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
@@ -342,6 +345,9 @@ rules:
   - apps
   resources:
   - deployments
+  - replicasets
+  - daemonsets
+  - statefulsets
   verbs:
   - get
   - patch
