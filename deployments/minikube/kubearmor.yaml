@@ -76,6 +76,8 @@ rules:
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    kubearmor-app: kubearmor-relay
   name: kubearmor
   namespace: kube-system
 spec:
