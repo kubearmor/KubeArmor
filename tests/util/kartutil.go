@@ -106,6 +106,9 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kubearmor-config",
 			Namespace: "kube-system",
+			Labels: map[string]string{
+				"kubearmor-app": "kubearmor-configmap",
+			},
 		},
 		Data: map[string]string{
 			"gRPC":                       data.GRPC,
