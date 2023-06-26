@@ -3,7 +3,7 @@ Install KubeArmor using Helm chart repo. Also see [values](#Values) for your res
 ```
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
-helm upgrade --install kubearmor/kubearmor -n kube-system
+helm upgrade --install kubearmor kubearmor/kubearmor -n kube-system
 ```
 
 Install KubeArmor using Helm charts locally (for testing)
