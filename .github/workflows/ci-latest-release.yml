@@ -48,9 +48,6 @@ jobs:
           fi
           RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
-      - name: Install KubeArmor controller
-        run: ./.github/workflows/install-kubearmor-controller.sh
-
       - name: Generate KubeArmor artifacts
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 

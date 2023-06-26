@@ -12,5 +12,5 @@ rm -rf LICENSES cmctl.tar.gz
 kubectl apply -f deployments/controller/cert-manager.yaml
 kubectl wait pods --for=condition=ready -n cert-manager -l app.kubernetes.io/instance=cert-manager
 cmctl check api --wait 300s
-kubectl apply -f deployments/controller/kubearmor-controller.yaml
+kubectl apply -f deployments/controller/kubearmor-controller-mutating-webhook-config.yaml
 kubectl wait pods --for=condition=ready -n kube-system -l kubearmor-app=kubearmor-controller

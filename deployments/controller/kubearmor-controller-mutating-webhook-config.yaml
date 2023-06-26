@@ -10,7 +10,7 @@ spec:
   issuerRef:
     kind: Issuer
     name: kubearmor-controller-selfsigned-issuer
-  secretName: webhook-server-cert
+  secretName: kubearmor-controller-webhook-server-cert
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -26,6 +26,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: kube-system/kubearmor-controller-serving-cert
   name: kubearmor-controller-mutating-webhook-configuration
+  namespace: kube-system
 webhooks:
 - admissionReviewVersions:
   - v1

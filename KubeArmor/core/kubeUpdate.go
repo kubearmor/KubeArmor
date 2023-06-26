@@ -18,7 +18,6 @@ import (
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
-	get "github.com/kubearmor/KubeArmor/deployments/get"
 	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kspinformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
@@ -2242,60 +2241,59 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 
 // WatchConfigMap function
 func (dm *KubeArmorDaemon) WatchConfigMap() {
-	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
+	configMapLabelOption := informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
+		opts.LabelSelector = fmt.Sprintf("kubearmor-app=%s", "kubearmor-configmap")
+	})
+	factory := informers.NewSharedInformerFactoryWithOptions(K8s.K8sClient, 0, configMapLabelOption)
 	informer := factory.Core().V1().ConfigMaps().Informer()
 
 	cmNS := dm.GetConfigMapNS()
 
 	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if cm, ok := obj.(*corev1.ConfigMap); ok {
-				if cm.Name == get.KubeArmorConfigMapName && cm.Namespace == cmNS {
-					cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
-					cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
-					globalPosture := tp.DefaultPosture{
-						FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
-						NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
-						CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
-					}
-					currentGlobalPosture := tp.DefaultPosture{
-						FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-						NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-						CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-					}
-					dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
-					dm.UpdateGlobalPosture(globalPosture)
-
-					// update default posture for endpoints
-					dm.updatEndpointsWithCM(cm, "ADDED")
-					// update visibility for namespaces
-					dm.updateVisibilityWithCM(cm, "ADDED")
+			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
+				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
+				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				globalPosture := tp.DefaultPosture{
+					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
+					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
+					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
 				}
+				currentGlobalPosture := tp.DefaultPosture{
+					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+				}
+				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
+				dm.UpdateGlobalPosture(globalPosture)
+
+				// update default posture for endpoints
+				dm.updatEndpointsWithCM(cm, "ADDED")
+				// update visibility for namespaces
+				dm.updateVisibilityWithCM(cm, "ADDED")
 			}
 		},
 		UpdateFunc: func(_, new interface{}) {
-			if cm, ok := new.(*corev1.ConfigMap); ok {
-				if cm.Name == get.KubeArmorConfigMapName && cm.Namespace == cmNS {
-					cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
-					cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
-					globalPosture := tp.DefaultPosture{
-						FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
-						NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
-						CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
-					}
-					currentGlobalPosture := tp.DefaultPosture{
-						FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-						NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-						CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-					}
-					dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
-					dm.UpdateGlobalPosture(globalPosture)
-
-					// update default posture for endpoints
-					dm.updatEndpointsWithCM(cm, "MODIFIED")
-					// update visibility for namespaces
-					dm.updateVisibilityWithCM(cm, "MODIFIED")
+			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
+				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
+				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				globalPosture := tp.DefaultPosture{
+					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
+					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
+					CapabilitiesAction: cm.Data[cfg.ConfigDefaultCapabilitiesPosture],
 				}
+				currentGlobalPosture := tp.DefaultPosture{
+					FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+					NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+					CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+				}
+				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
+				dm.UpdateGlobalPosture(globalPosture)
+
+				// update default posture for endpoints
+				dm.updatEndpointsWithCM(cm, "MODIFIED")
+				// update visibility for namespaces
+				dm.updateVisibilityWithCM(cm, "MODIFIED")
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
