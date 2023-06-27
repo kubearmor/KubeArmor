@@ -66,7 +66,7 @@ spec:
         {{- else if eq .Values.environment.name "minikube" }}
           {{- toYaml .Values.kubearmor.volumeMountsMinikube | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "GKE" }}
-          {{- toYaml .Values.kubearmor.volumeMountsGke | trim | nindent 10 }}
+          {{- toYaml .Values.kubearmor.volumeMountsGKE | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "BottleRocket" }}
           {{- toYaml .Values.kubearmor.volumeMountsBottleRocket | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "EKS" }}

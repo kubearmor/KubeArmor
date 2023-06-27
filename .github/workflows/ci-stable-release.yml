@@ -55,7 +55,7 @@ jobs:
       - name: Commit updated chart to main
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
-          git add .
+          git add deployments/helm/Chart.yaml
           git config user.name $GITHUB_ACTOR
           git config user.email $GITHUB_ACTOR@users.noreply.github.com
           git commit -m "[Automated] Update Helm Chart To $STABLE_VERSION" --signoff

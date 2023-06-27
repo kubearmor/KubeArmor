@@ -474,7 +474,7 @@ kubearmor:
         type: DirectoryOrCreate
       name: crio-storage-path
 
-  volumesMicrok8s:
+  volumesMicroK8s:
     - hostPath:
         path: /usr/src
         type: Directory
