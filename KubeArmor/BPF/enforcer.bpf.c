@@ -235,118 +235,138 @@ decision:
   return ret;
 }
 
+static inline int match_net_rules(int type, int protocol, char *string) {
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  bool match = false;
+
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+
+  if (!inner) {
+    return 0;
+  }
+
+  u32 zero = 0;
+  bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
+  if (z == NULL)
+    return 0;
+
+  u32 one = 1;
+  bufs_k *p = bpf_map_lookup_elem(&bufk, &one);
+  if (p == NULL)
+    return 0;
+
+  u32 two = 2;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &two);
+  if (store == NULL)
+    return 0;
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    return 0;
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    return 0;
+  struct path f_src = BPF_CORE_READ(file_p, f_path);
+  if (!prepend_path(&f_src, src_buf))
+    return 0;
+
+  u32 *src_offset = get_buf_off(PATH_BUFFER);
+  if (src_offset == NULL)
+    return 0;
+
+  void *ptr = &src_buf->buf[*src_offset];
+  bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+
+  int p0;
+  int p1;
+
+  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
+    p0 = sock_proto;
+    p1 = IPPROTO_TCP;
+  } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
+    p0 = sock_proto;
+    p1 = IPPROTO_UDP;
+  } else if (protocol == IPPROTO_ICMP &&
+             (type == SOCK_DGRAM || type == SOCK_RAW)) {
+    p0 = sock_proto;
+    p1 = IPPROTO_ICMP;
+  } else if (type == SOCK_RAW && protocol == 0) {
+    p0 = sock_type;
+    p1 = SOCK_RAW;
+  } else {
+    p0 = sock_proto;
+    p1 = protocol;
+  }
+
+  p->path[0] = p0;
+  p->path[1] = p1;
+
+  struct data_t *val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+
+  p->path[0] = p0;
+  p->path[1] = p1;
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+decision:
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = dnet;
+  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+
+  if (allow) {
+    if (!match) {
+      bpf_printk("denying sock %s - type %d, protocol %d due "
+                 "to not in allowlist\n",
+                 string, type, protocol);
+      if (p->source[0] != '\0') {
+        bpf_printk("denying from source from %s", store->source);
+      }
+      return -EPERM;
+    }
+  } else {
+    if (match) {
+      if (val && (val->processmask & RULE_DENY)) {
+        bpf_printk("denying sock %s - type %d, protocol %d due to in "
+                   "blacklist\n",
+                   string, type, protocol);
+        return -EPERM;
+      }
+    }
+  }
+  return 0;
+}
+
+SEC("lsm/socket_create")
+int BPF_PROG(enforce_net_create, int family, int type, int protocol) {
+  return match_net_rules(type, protocol, "create");
+}
+
 #define LSM_NET(name, string)                                                  \
   int BPF_PROG(name, struct socket *sock) {                                    \
-    struct task_struct *t = (struct task_struct *)bpf_get_current_task();      \
-                                                                               \
-    bool match = false;                                                        \
-                                                                               \
-    struct outer_key okey;                                                     \
-    get_outer_key(&okey, t);                                                   \
-                                                                               \
-    u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);            \
-                                                                               \
-    if (!inner) {                                                              \
-      return 0;                                                                \
-    }                                                                          \
-                                                                               \
-    u32 zero = 0;                                                              \
-    bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);                             \
-    if (z == NULL)                                                             \
-      return 0;                                                                \
-                                                                               \
-    u32 one = 1;                                                               \
-    bufs_k *p = bpf_map_lookup_elem(&bufk, &one);                              \
-    if (p == NULL)                                                             \
-      return 0;                                                                \
-                                                                               \
-    u32 two = 2;                                                               \
-    bufs_k *store = bpf_map_lookup_elem(&bufk, &two);                          \
-    if (store == NULL)                                                         \
-      return 0;                                                                \
-                                                                               \
-    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);                              \
-                                                                               \
-    p->path[0] = sock_proto; /* Protocol Check   */                            \
-    p->path[1] = sock->sk->sk_protocol;                                        \
-                                                                               \
-    struct data_t *val = bpf_map_lookup_elem(inner, p);                        \
-                                                                               \
-    if (val) {                                                                 \
-      match = true;                                                            \
-      goto decision;                                                           \
-    }                                                                          \
-                                                                               \
-    struct file *file_p = get_task_file(t);                                    \
-    if (file_p == NULL)                                                        \
-      return 0;                                                                \
-    bufs_t *src_buf = get_buf(PATH_BUFFER);                                    \
-    if (src_buf == NULL)                                                       \
-      return 0;                                                                \
-    struct path f_src = BPF_CORE_READ(file_p, f_path);                         \
-    if (!prepend_path(&f_src, src_buf))                                        \
-      return 0;                                                                \
-                                                                               \
-    u32 *src_offset = get_buf_off(PATH_BUFFER);                                \
-    if (src_offset == NULL)                                                    \
-      return 0;                                                                \
-                                                                               \
-    void *ptr = &src_buf->buf[*src_offset];                                    \
-    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);                       \
-    bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);                   \
-                                                                               \
-    val = bpf_map_lookup_elem(inner, p);                                       \
-                                                                               \
-    if (val) {                                                                 \
-      match = true;                                                            \
-      goto decision;                                                           \
-    }                                                                          \
-                                                                               \
-    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);                              \
-                                                                               \
-    p->path[0] = sock_type; /* Type Check */                                   \
-    p->path[1] = sock->type;                                                   \
-                                                                               \
-    val = bpf_map_lookup_elem(inner, p);                                       \
-                                                                               \
-    if (val) {                                                                 \
-      match = true;                                                            \
-      goto decision;                                                           \
-    }                                                                          \
-                                                                               \
-    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);                       \
-                                                                               \
-    val = bpf_map_lookup_elem(inner, p);                                       \
-                                                                               \
-    if (val) {                                                                 \
-      match = true;                                                            \
-      goto decision;                                                           \
-    }                                                                          \
-  decision:                                                                    \
-                                                                               \
-    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);                              \
-    p->path[0] = dnet;                                                         \
-    struct data_t *allow = bpf_map_lookup_elem(inner, p);                      \
-                                                                               \
-    if (allow) {                                                               \
-      if (!match) {                                                            \
-        bpf_printk("denying sock %s - type %d, protocol %d due "               \
-                   "to not in allowlist\n",                                    \
-                   string, sock->type, sock->sk->sk_protocol);                 \
-        if (store->source[0] != '\0') {                                        \
-          bpf_printk("denying from source from %s", store->source);            \
-        }                                                                      \
-        return -EPERM;                                                         \
-      }                                                                        \
-    } else {                                                                   \
-      if (match) {                                                             \
-        bpf_printk("denying sock %s - type %d, protocol %d due to in "         \
-                   "blacklist\n",                                              \
-                   string, sock->type, sock->sk->sk_protocol);                 \
-        return -EPERM;                                                         \
-      }                                                                        \
-    }                                                                          \
-    return 0;                                                                  \
+    int type = sock->type;                                                     \
+    int protocol = sock->sk->sk_protocol;                                      \
+    return match_net_rules(type, protocol, string);                            \
   }
 
 SEC("lsm/socket_connect")
