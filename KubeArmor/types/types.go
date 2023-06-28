@@ -22,9 +22,10 @@ type Container struct {
 	ContainerName  string `json:"containerName"`
 	ContainerImage string `json:"containerImage"`
 
-	NamespaceName string `json:"namespaceName"`
-	EndPointName  string `json:"endPointName"`
-	Labels        string `json:"labels"`
+	NamespaceName string   `json:"namespaceName"`
+	Owner         PodOwner `json:"owner"`
+	EndPointName  string   `json:"endPointName"`
+	Labels        string   `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
 
@@ -45,11 +46,20 @@ type Container struct {
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
 }
 
+// PodOwner struct
+type PodOwner struct {
+	Ref       string `json:"ref"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
 // EndPoint Structure
 type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
-	EndPointName  string `json:"endPointName"`
-	ContainerName string `json:"containerName"`
+
+	EndPointName  string   `json:"endPointName"`
+	Owner         PodOwner `json:"owner"`
+	ContainerName string   `json:"containerName"`
 
 	Labels     map[string]string `json:"labels"`
 	Identities []string          `json:"identities"`
@@ -181,9 +191,10 @@ type Log struct {
 	HostName    string `json:"hostName"`
 
 	// k8s
-	NamespaceName string `json:"namespaceName,omitempty"`
-	PodName       string `json:"podName,omitempty"`
-	Labels        string `json:"labels,omitempty"`
+	NamespaceName string   `json:"namespaceName,omitempty"`
+	Owner         PodOwner `json:"owner,omitempty"`
+	PodName       string   `json:"podName,omitempty"`
+	Labels        string   `json:"labels,omitempty"`
 
 	// container
 	ContainerID    string `json:"containerID,omitempty"`

@@ -27,6 +27,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 	if val, ok := Containers[log.ContainerID]; ok {
 		// update pod info
 		log.NamespaceName = val.NamespaceName
+		log.Owner = val.Owner
 		log.PodName = val.EndPointName
 		log.Labels = val.Labels
 

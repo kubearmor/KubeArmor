@@ -24,6 +24,13 @@ message Message {
   string Message = 8;
 }
 
+// podowner struct
+message Podowner {
+  string Ref = 1;
+  string Name = 2;
+  string Namespace = 3;
+}
+
 // alert struct
 message Alert {
   int64 Timestamp = 1;
@@ -33,6 +40,7 @@ message Alert {
   string HostName = 4;
 
   string NamespaceName = 5;
+  Podowner Owner = 31;
   string PodName = 6;
   string Labels = 29;
 
@@ -76,6 +84,7 @@ message Log {
   string HostName = 4;
 
   string NamespaceName = 5;
+  Podowner Owner = 24;
   string PodName = 6;
   string Labels = 23;
 
