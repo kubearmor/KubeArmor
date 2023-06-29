@@ -285,7 +285,7 @@ Observe that the policy contains `Allow` action. Once there is any KubeArmor pol
 
 Lets try to execute some other processes:
 ```
-❯ kubectl exec -it $POD -- bash -c "chroot"
+kubectl exec -it $POD -- bash -c "chroot"
 ```
 Any binary other than `bash` and `nginx` would be permission denied.
 
