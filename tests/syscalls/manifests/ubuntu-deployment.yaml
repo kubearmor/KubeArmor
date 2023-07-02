@@ -10,6 +10,8 @@ metadata:
   namespace: syscalls
   labels:
     deployment: ubuntu-1
+  annotations:
+    kubearmor-policy: enabled
 spec:
   replicas: 1
   selector:
@@ -19,6 +21,8 @@ spec:
     metadata:
       labels:
         container: ubuntu-1
+      annotations:
+        kubearmor-policy: enabled
     spec:
       containers:
       - name: ubuntu-1-container
