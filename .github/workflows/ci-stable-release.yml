@@ -43,32 +43,25 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
 
       - name: Update Chart.yaml
+        id: update
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/Chart.yaml
           sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/Chart.yaml
+          echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Commit updated chart to main
-        run: |
-          STABLE_VERSION=`cat STABLE-RELEASE`
-          git add deployments/helm/Chart.yaml
-          git config user.name $GITHUB_ACTOR
-          git config user.email $GITHUB_ACTOR@users.noreply.github.com
-          git commit -m "[Automated] Update Helm Chart To $STABLE_VERSION" --signoff
-          git push
-
-      - name: Publish Helm chart
-        uses: stefanprodan/helm-gh-pages@master
+      - name: Create PR to update Helm chart version in KubeArmor repo
+        uses: peter-evans/create-pull-request@v5
         with:
-          # Access token which can push to a different repo in the same org
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-          charts_dir: deployments
-          # repo where charts would be published
-          owner: kubearmor
-          repository: charts
-          branch: gh-pages
-          charts_url: https://kubearmor.github.io/charts
+          branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
+          add-paths: "deployments/helm/Chart.yaml"
+          commit-message: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          title: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          base: main
+          signoff: true
+          delete-branch: true
