@@ -193,6 +193,6 @@ output report in out/report.txt ...
 
 Key highlights:
 1. The hardening policies are available by default in the `out` folder separated out in directories based on deployment names.
-2. Get an HTML report by using the option `--report report.html` with `karmor recommend`. [Sample HTML Report](https://githtmlpreview.netlify.app/?https://github.com/kubearmor/KubeArmor/blob/main/getting-started/hardening-report.html).
+2. Get an HTML report by using the option `--report report.html` with `karmor recommend`.
 3. Get hardening policies in context to specific compliance by specifying `--tag <CIS/MITRE/...>` option.
 
