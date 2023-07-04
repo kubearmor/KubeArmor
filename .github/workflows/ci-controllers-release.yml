@@ -13,6 +13,7 @@ env:
 jobs:
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
+    if: github.repository == 'kubearmor/kubearmor'
     defaults:
       run:
         working-directory: ./pkg/KubeArmorController
