@@ -12,7 +12,6 @@
 
 * [Harden Infrastructure](getting-started/hardening_guide.md)
 * [Least Permissive Access](getting-started/least_permissive_access.md)
-* [Network Segmentation](getting-started/network_segmentation.md)
 * [Application Behavior](getting-started/workload_visibility.md)
 * [Use-Cases](getting-started/use-cases.md)
 
