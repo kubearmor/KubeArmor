@@ -26,6 +26,8 @@ func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorServiceAccountName,
 			Namespace: namespace,
+			Labels:    serviceAccountLabels,
+			
 		},
 	}
 }
@@ -39,6 +41,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: KubeArmorClusterRoleName,
+			Labels:  	clusterRoleLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -78,6 +81,7 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: KubeArmorClusterRoleBindingName,
+            Labels:  	clusterRoleBindingLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
