@@ -108,10 +108,10 @@ func GetRelayService(namespace string) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      RelayServiceName,
 			Namespace: namespace,
-			Labels:    relayDeploymentLabels,
+			Labels:    relayServiceLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: relayDeploymentLabels,
+			Selector: relayServiceLabels,
 			Ports: []corev1.ServicePort{
 				{
 					Port:       port,
