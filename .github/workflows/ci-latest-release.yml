@@ -14,6 +14,9 @@ on:
   create:
     branches:
       - "v*"
+      
+env:
+  PLATFORM: linux/amd64,linux/arm64/v8
 
 jobs:
   build:
@@ -143,3 +146,8 @@ jobs:
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
+
+      - name: Build & Push KubeArmorController
+        if: steps.match.outputs.tag == 'true'
+        working-directory: ./pkg/KubeArmorController
+        run: PLATFORM=$PLATFORM make docker-buildx TAG=$STABLE_VERSION
