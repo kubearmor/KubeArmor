@@ -10,7 +10,7 @@ maturity, and momentum. Thank you to all adopters and contributors of the KubeAr
 ## Updating this list
 
 To add your organization to this list, [open a PR](https://github.com/kubearmor/kubearmor/pulls)
-to directly update this list, or [edit this file](https://github.com/kubearmor/kubearmor/edit/master/ADOPTERS.md)
+to directly update this list, or [edit this file](https://github.com/kubearmor/kubearmor/edit/main/ADOPTERS.md)
 directly in GitHub.
 
 ## KubeArmor Adopters
