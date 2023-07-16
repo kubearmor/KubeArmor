@@ -2,7 +2,7 @@
 
 <details><summary><h4>What platforms are supported by KubeArmor? How can I check whether my deployment will be supported?</h4></summary>
 
-* Please check [Support matrix for KubeArmor](default_posture.md).
+* Please check [Support matrix for KubeArmor](support_matrix.md).
 * Use `karmor probe` to check if the platform is supported.
 </details>
 
@@ -145,4 +145,16 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
    ```
    $ sudo reboot
    ```
+</details>
+
+<details><summary><h4>Troubleshoot Checklist and Requesting help from KubeArmor team?</h4></summary>
+
+The following are list of checks that you should perform before asking for online help:
+* Download the latest release of KubeArmor, decide on the platform(K3s,minikube etc.) where you want the KubeArmor to run, deploy it and install kubearmor.
+* You can check if kubearmor is installed by running the command `karmor` in the terminal.
+* If karmor is installed but not running, do a `systemctl daemon-reload`.
+* Use `karmor probe` to check if the platform that you are using is actually supported.Please check [Support matrix for KubeArmor](support_matrix.md).
+* Use `karmor sysdump`, this will create a zip file in your present working directory. The archive contains the detailed info of your system and if you set up a   cluster it contains the info of the cluster and the running pods. If the policies are applied, the sysdump has the info related to policies as well.
+* Check "node-info.yaml" to check the details of your host machine.
+* You can contact KubeArmor team on [slack](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA) with appropriate info if you encounter any issues. Providing the output of `karmor probe` and `karmor sysdump` would be helpful for the team to resolve the issue soon.
 </details>
