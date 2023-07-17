@@ -1,27 +1,28 @@
-# Default values for kubearmor.
+# Default values for kubearmor on AWS Marketplace.
 # Declare variables to be passed into your templates.
+version: 0.10.2
 
 environment:
-  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k3s, minikube, microk8s
-  name: generic
+  # The target environment to install KubeArmor in.
+  name: EKS
 
 kubearmorRelay:
   # to enable/disable kubearmor-relay
   enabled: true
   image:
     # kubearmor-init image repo
-    repository: kubearmor/kubearmor-relay-server
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-relay-server
     # kubearmor-init image tag
-    tag: latest
+    tag: v0.1.0
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
 
 kubearmorInit:
   image:
     # kubearmor-init image repo
-    repository: kubearmor/kubearmor-init
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-init
     # kubearmor-init image tag
-    tag: stable
+    tag: v0.10.2
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
 
@@ -40,9 +41,9 @@ kubearmorController:
   replicas: 1
   image:
     # kubearmor-controller image repo
-    repository: kubearmor/kubearmor-controller
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor-controller
     # kubearmor-controller image tag
-    tag: latest
+    tag: v0.10.2
   mutation:
     # kubearmor-controller failure policy
     failurePolicy: Ignore
@@ -59,9 +60,9 @@ kubearmorConfigMap:
 kubearmor:
   image:
     # kubearmor daemonset image repo
-    repository: kubearmor/kubearmor
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/accuknox/kubearmor
     # kubearmor daemonset image tag
-    tag: stable
+    tag: v0.10.2
 
   # kubearmor daemonset imagePullPolicy
   imagePullPolicy: Always
