@@ -268,6 +268,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 
 			dm.Containers[containerID] = container
+			dm.SystemMonitor.UpdateNsKeyMap("ADDED", monitor.NsKey{
+				PidNS: container.PidNS,
+				MntNS: container.MntNS,
+			}, tp.Visibility{
+				Process:      container.ProcessVisibilityEnabled,
+				File:         container.FileVisibilityEnabled,
+				Network:      container.NetworkVisibilityEnabled,
+				Capabilities: container.CapabilitiesVisibilityEnabled,
+			})
 		}
 		dm.ContainersLock.Unlock()
 
@@ -427,6 +436,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 
 				dm.Containers[containerID] = container
+				dm.SystemMonitor.UpdateNsKeyMap("ADDED", monitor.NsKey{
+					PidNS: container.PidNS,
+					MntNS: container.MntNS,
+				}, tp.Visibility{
+					Process:      container.ProcessVisibilityEnabled,
+					File:         container.FileVisibilityEnabled,
+					Network:      container.NetworkVisibilityEnabled,
+					Capabilities: container.CapabilitiesVisibilityEnabled,
+				})
 			}
 			dm.ContainersLock.Unlock()
 
