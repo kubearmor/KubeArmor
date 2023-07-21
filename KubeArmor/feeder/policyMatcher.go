@@ -947,7 +947,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 	fd.DefaultPosturesLock.Lock()
 	defer fd.DefaultPosturesLock.Unlock()
-
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
 		fd.SecurityPoliciesLock.RLock()
 
@@ -1167,9 +1166,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
-					// defaultPosture = block + audit mode
+				// apply the default postures when log.type isn't yet known
 
+				if fd.DefaultPostures[log.NamespaceName].FileAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" && log.Type == "" {
+					// defaultPosture = block + audit mode
 					log.Type = "MatchedPolicy"
 
 					log.PolicyName = "DefaultPosture"
@@ -1183,9 +1183,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit (Block)"
 				}
 
-				if fd.DefaultPostures[log.NamespaceName].FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+				if fd.DefaultPostures[log.NamespaceName].FileAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" && log.Type == "" {
 					// defaultPosture = audit
-
 					log.Type = "MatchedPolicy"
 
 					log.PolicyName = "DefaultPosture"
