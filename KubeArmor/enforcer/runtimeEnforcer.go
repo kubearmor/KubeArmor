@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/features"
+	features "github.com/daemon1024/bpflsmprobe/probe"
+
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	be "github.com/kubearmor/KubeArmor/KubeArmor/enforcer/bpflsm"
@@ -155,7 +155,7 @@ func NewRuntimeEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) *Runtim
 
 probeBPFLSM:
 	if !kl.ContainsElement(lsms, "bpf") {
-		err := features.HaveProgramType(ebpf.LSM)
+		err := features.CheckBPFLSMSupport()
 		if err == nil {
 			lsms = append(lsms, "bpf")
 		} else {
@@ -165,7 +165,7 @@ probeBPFLSM:
 
 	re.Logger.Printf("Supported LSMs: %s", strings.Join(lsms, ","))
 
-	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, lsms, node, logger)
+	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, lsms, node, pinpath, logger)
 }
 
 // RegisterContainer registers container identifiers to BPFEnforcer Map
