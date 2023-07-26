@@ -30,7 +30,6 @@ require (
 	github.com/cilium/ebpf v0.11.0
 	github.com/containerd/containerd v1.7.1
 	github.com/containerd/typeurl/v2 v2.1.1
-	github.com/daemon1024/bpflsmprobe v0.0.0-20230724205136-8b744a822dbe
 	github.com/docker/docker v23.0.6+incompatible
 	github.com/google/uuid v1.3.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230510133055-4e30a28b6352

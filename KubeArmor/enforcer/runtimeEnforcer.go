@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	features "github.com/daemon1024/bpflsmprobe/probe"
+	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -155,7 +155,7 @@ func NewRuntimeEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) *Runtim
 
 probeBPFLSM:
 	if !kl.ContainsElement(lsms, "bpf") {
-		err := features.CheckBPFLSMSupport()
+		err := probe.CheckBPFLSMSupport()
 		if err == nil {
 			lsms = append(lsms, "bpf")
 		} else {
