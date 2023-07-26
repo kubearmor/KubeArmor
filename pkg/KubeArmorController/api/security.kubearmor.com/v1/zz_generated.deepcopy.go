@@ -768,7 +768,7 @@ func (in *SyscallMatchPathType) DeepCopyInto(out *SyscallMatchPathType) {
 	*out = *in
 	if in.Syscalls != nil {
 		in, out := &in.Syscalls, &out.Syscalls
-		*out = make([]syscall, len(*in))
+		*out = make([]Syscall, len(*in))
 		copy(*out, *in)
 	}
 	if in.FromSource != nil {
@@ -793,7 +793,7 @@ func (in *SyscallMatchType) DeepCopyInto(out *SyscallMatchType) {
 	*out = *in
 	if in.Syscalls != nil {
 		in, out := &in.Syscalls, &out.Syscalls
-		*out = make([]syscall, len(*in))
+		*out = make([]Syscall, len(*in))
 		copy(*out, *in)
 	}
 	if in.FromSource != nil {
