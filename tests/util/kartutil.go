@@ -266,7 +266,7 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 	pods := []string{}
 	log.Printf("K8sGetPods pod=%s ns=%s ants=%v timeout=%d", podstr, ns, ants, timeout)
 	for t := 0; t <= timeout; t++ {
-		podList, err := k8sClient.K8sClientset.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
+		podList, err := k8sClient.K8sClientset.CoreV1().Pods(ns).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			log.Errorf("k8s list pods failed. error=%s", err)
 			return nil, err
