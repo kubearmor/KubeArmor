@@ -11,7 +11,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,6 +26,7 @@ import (
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/informer"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -100,15 +101,6 @@ func main() {
 		},
 	})
 
-	setupLog.Info("Adding pod refresher controller")
-	if err = (&controllers.PodRefresherReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
-	}
-
 	setupLog.Info("Adding KubeArmor Host policy controller")
 	if err = (&controllers.KubeArmorHostPolicyReconciler{
 		Client: mgr.GetClient(),
@@ -129,6 +121,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	client, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "Cannot init kuberntes client")
+		os.Exit(1)
+	}
+
+	cluster := informer.InitCluster()
+	setupLog.Info("Starting node watcher")
+	go informer.NodeWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("NodeWatcher"))
+	setupLog.Info("Starting pod watcher")
+	go informer.PodWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("PodWatcher"))
+
+	setupLog.Info("Adding pod refresher controller")
+	if err = (&controllers.PodRefresherReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Cluster: &cluster,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

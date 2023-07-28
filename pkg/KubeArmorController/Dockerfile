@@ -17,6 +17,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY handlers/ handlers/
+COPY informer/ informer/
 
 # Build
 RUN CGO_ENABLED=0 GO111MODULE=on go build -a -o manager main.go
