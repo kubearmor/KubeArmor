@@ -35,6 +35,8 @@ import (
 // Running flag
 var Running bool
 
+const QueueSize = 1000
+
 func init() {
 	Running = true
 }
@@ -116,7 +118,7 @@ func (ls *LogService) removeMsgStruct(uid string) {
 // WatchMessages Function
 func (ls *LogService) WatchMessages(req *pb.RequestMessage, svr pb.LogService_WatchMessagesServer) error {
 	uid := uuid.Must(uuid.NewRandom()).String()
-	conn := make(chan *pb.Message)
+	conn := make(chan *pb.Message, QueueSize)
 	defer close(conn)
 	ls.addMsgStruct(uid, conn, req.Filter)
 	defer ls.removeMsgStruct(uid)
@@ -173,7 +175,7 @@ func (ls *LogService) WatchAlerts(req *pb.RequestMessage, svr pb.LogService_Watc
 	if req.Filter != "all" && req.Filter != "policy" {
 		return nil
 	}
-	conn := make(chan *pb.Alert)
+	conn := make(chan *pb.Alert, QueueSize)
 	defer close(conn)
 	ls.addAlertStruct(uid, conn, req.Filter)
 	defer ls.removeAlertStruct(uid)
@@ -230,7 +232,7 @@ func (ls *LogService) WatchLogs(req *pb.RequestMessage, svr pb.LogService_WatchL
 	if req.Filter != "all" && req.Filter != "system" {
 		return nil
 	}
-	conn := make(chan *pb.Log)
+	conn := make(chan *pb.Log, QueueSize)
 	defer close(conn)
 	ls.addLogStruct(uid, conn, req.Filter)
 	defer ls.removeLogStruct(uid)
@@ -551,11 +553,18 @@ func (fd *Feeder) PushMessage(level, message string) {
 
 	MsgLock.Lock()
 	defer MsgLock.Unlock()
-
+	counter := 0
+	lenMsg := len(MsgStructs)
 	for uid := range MsgStructs {
 		select {
 		case MsgStructs[uid].Broadcast <- &pbMsg:
 		default:
+			counter++
+			if counter == lenMsg {
+				//Default on the last uid in Messagestruct means the msg isnt pushed into Broadcast
+				kg.Printf("msg channel busy, msg dropped")
+			}
+
 		}
 	}
 }
@@ -670,11 +679,19 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		AlertLock.Lock()
 		defer AlertLock.Unlock()
+		counter := 0
+		lenAlert := len(AlertStructs)
 
 		for uid := range AlertStructs {
 			select {
 			case AlertStructs[uid].Broadcast <- &pbAlert:
 			default:
+				counter++
+				if counter == lenAlert {
+					//Default on the last uid in Alterstruct means the Alert isnt pushed into Broadcast
+					kg.Printf("log channel busy, alert dropped.")
+				}
+
 			}
 		}
 	} else { // ContainerLog || HostLog
@@ -731,11 +748,17 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		LogLock.Lock()
 		defer LogLock.Unlock()
-
+		counter := 0
+		lenlog := len(LogStructs)
 		for uid := range LogStructs {
 			select {
 			case LogStructs[uid].Broadcast <- &pbLog:
 			default:
+				counter++
+				if counter == lenlog {
+					//Default on the last uid in Logstuct means the log isnt pushed into Broadcase
+					kg.Printf("log channel busy, log dropped.")
+				}
 			}
 		}
 	}
