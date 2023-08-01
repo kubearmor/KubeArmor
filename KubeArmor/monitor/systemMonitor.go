@@ -112,7 +112,7 @@ type SystemMonitor struct {
 	// logs
 	Logger *fd.Feeder
 
-	// container id -> cotnainer
+	// container id -> container
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
 

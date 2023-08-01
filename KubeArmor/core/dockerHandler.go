@@ -262,7 +262,12 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// update NsMap
-					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
+					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, tp.Visibility{
+						Process:      container.ProcessVisibilityEnabled,
+						File:         container.FileVisibilityEnabled,
+						Network:      container.NetworkVisibilityEnabled,
+						Capabilities: container.CapabilitiesVisibilityEnabled,
+					}, container.PidNS, container.MntNS)
 					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 				}
 
@@ -348,7 +353,12 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
+			dm.SystemMonitor.AddContainerIDToNsMap(containerID, tp.Visibility{
+				Process:      container.ProcessVisibilityEnabled,
+				File:         container.FileVisibilityEnabled,
+				Network:      container.NetworkVisibilityEnabled,
+				Capabilities: container.CapabilitiesVisibilityEnabled,
+			}, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 		}
 
@@ -403,7 +413,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
-			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
+			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
 		}
 

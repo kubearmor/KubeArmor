@@ -39,12 +39,6 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 
 		// update policy flag
 		log.PolicyEnabled = val.PolicyEnabled
-
-		// update visibility flags
-		log.ProcessVisibilityEnabled = val.ProcessVisibilityEnabled
-		log.FileVisibilityEnabled = val.FileVisibilityEnabled
-		log.NetworkVisibilityEnabled = val.NetworkVisibilityEnabled
-		log.CapabilitiesVisibilityEnabled = val.CapabilitiesVisibilityEnabled
 	}
 
 	return log
@@ -65,12 +59,6 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 	} else {
 		// update host policy flag
 		log.PolicyEnabled = mon.Node.PolicyEnabled
-
-		// update host visibility flags
-		log.ProcessVisibilityEnabled = mon.Node.ProcessVisibilityEnabled
-		log.FileVisibilityEnabled = mon.Node.FileVisibilityEnabled
-		log.NetworkVisibilityEnabled = mon.Node.NetworkVisibilityEnabled
-		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
 	}
 
 	log.HostPPID = int32(msg.ContextSys.HostPPID)

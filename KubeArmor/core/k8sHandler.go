@@ -371,46 +371,6 @@ func (kh *K8sHandler) GetStatefulSet(namespaceName, podownerName string) (string
 	return ss.ObjectMeta.Name, ss.ObjectMeta.Namespace
 }
 
-// ========== //
-// == Pods == //
-// ========== //
-
-// WatchK8sPods Function
-func (kh *K8sHandler) WatchK8sPods() *http.Response {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return nil
-	}
-
-	if kl.IsInK8sCluster() { // kube-apiserver
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
-
-		req, err := http.NewRequest("GET", URL, nil)
-		if err != nil {
-			return nil
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-
-		resp, err := kh.WatchClient.Do(req)
-		if err != nil {
-			return nil
-		}
-
-		return resp
-	}
-
-	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
-
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
-		return resp
-	}
-
-	return nil
-}
-
 // ====================== //
 // == Custom Resources == //
 // ====================== //

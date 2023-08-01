@@ -239,11 +239,6 @@ type Log struct {
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled,omitempty"`
-
-	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled,omitempty"`
-	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled,omitempty"`
-	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled,omitempty"`
-	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled,omitempty"`
 }
 
 // MatchPolicy Structure

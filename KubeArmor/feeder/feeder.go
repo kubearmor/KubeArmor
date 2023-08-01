@@ -583,13 +583,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	// remove MergedDir
 	log.MergedDir = ""
 
-	// remove flags
-	log.PolicyEnabled = 0
-	log.ProcessVisibilityEnabled = false
-	log.FileVisibilityEnabled = false
-	log.NetworkVisibilityEnabled = false
-	log.CapabilitiesVisibilityEnabled = false
-
 	// standard output / file output
 	if fd.Output == "stdout" {
 		arr, _ := json.Marshal(log)
