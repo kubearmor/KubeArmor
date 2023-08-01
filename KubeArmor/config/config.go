@@ -11,8 +11,10 @@ import (
 
 	"flag"
 
-	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
+
+	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
 // KubearmorConfig Structure
@@ -214,6 +216,25 @@ func LoadConfig() error {
 		}
 	}
 
+	kg.Printf("Configuration [%+v]", GlobalCfg)
+
+	if err := viperConfig(); err != nil {
+		return err
+	}
+
+	viper.WatchConfig()
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		kg.Print("configuration file has been modified...")
+		if err := viperConfig(); err != nil {
+			kg.Printf("reload configuration err:%v", err)
+		}
+	})
+
+	kg.Printf("Final Configuration [%+v]", GlobalCfg)
+	return nil
+}
+
+func viperConfig() error {
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.Host = viper.GetString(ConfigHost)
 
@@ -246,8 +267,6 @@ func LoadConfig() error {
 	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
 	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
 
-	kg.Printf("Configuration [%+v]", GlobalCfg)
-
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
@@ -267,7 +286,6 @@ func LoadConfig() error {
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
 
-	kg.Printf("Final Configuration [%+v]", GlobalCfg)
-
+	kg.Printf("viperConfig load Configuration [%+v]", GlobalCfg)
 	return nil
 }
