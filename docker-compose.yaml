@@ -1,0 +1,21 @@
+version: '3'
+services:
+  kubearmor-init:
+    image: kubearmor/kubearmor-init:stable
+    volumes:
+      - /opt/kubearmor/BPF:/opt/kubearmor/BPF
+    
+
+  kubearmor:
+    image: kubearmor/kubearmor:latest
+    volumes:
+      - /opt/kubearmor/BPF:/opt/kubearmor/BPF
+      - /sys/fs/bpf:/sys/fs/bpf
+      - /sys/kernel/security:/sys/kernel/security
+      - /sys/kernel/debug:/sys/kernel/debug
+      - /var/run/containerd/containerd.sock:/var/run/containerd/containerd.sock
+      - /run/containerd:/run/containerd
+      - /var/lib/docker:/var/lib/docker
+    pid: host
+    ipc: host
+    network_mode: host
