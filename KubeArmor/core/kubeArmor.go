@@ -488,7 +488,7 @@ func KubeArmor() {
 		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 			// monitor containerd events
 			go dm.MonitorContainerdEvents()
-		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "crio") {
+		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 			// monitor crio events
 			go dm.MonitorCrioEvents()
 		} else {
@@ -520,7 +520,7 @@ func KubeArmor() {
 			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") {
 				// monitor containerd events
 				go dm.MonitorContainerdEvents()
-			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "crio") {
+			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
 			} else {
@@ -582,7 +582,7 @@ func KubeArmor() {
 					return
 				}
 			} else if strings.HasPrefix(dm.Node.ContainerRuntimeVersion, "cri-o") { // cri-o
-				socketFile := kl.GetCRISocket("crio")
+				socketFile := kl.GetCRISocket("cri-o")
 
 				if socketFile != "" {
 					cfg.GlobalCfg.CRISocket = "unix://" + socketFile

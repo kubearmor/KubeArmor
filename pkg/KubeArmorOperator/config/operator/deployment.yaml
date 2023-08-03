@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubearmor-operator
+spec:
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-operator
+  template:
+    metadata:
+      labels:
+        kubearmor-app: kubearmor-operator
+    spec:
+      serviceAccountName: kubearmor-operator
+      containers:
+      - name: operator
+        image: kubearmor/kubearmor-operator:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - "/operator"
+        - "kubearmor-operator"
+        env: 
+        - name: KUBEARMOR_OPERATOR_NS
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorOperator.name }}-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorOperator.name }}-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorOperator.name }}
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorOperator.name }}-manage-kubearmor-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorOperator.name }}-manage-kubearmor-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorOperator.name }}
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorOperator.name }}-manage-controller-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorOperator.name }}-manage-controller-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorOperator.name }}
+  namespace: {{ .Release.Namespace }} 
