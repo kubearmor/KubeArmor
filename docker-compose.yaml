@@ -4,7 +4,10 @@ services:
     image: kubearmor/kubearmor-init:stable
     volumes:
       - /opt/kubearmor/BPF:/opt/kubearmor/BPF
-    
+    privileged: false
+    cap_add:
+      - CAP_SYS_ADMIN
+      - CAP_NET_ADMIN    
 
   kubearmor:
     image: kubearmor/kubearmor:latest
@@ -16,6 +19,10 @@ services:
       - /var/run/containerd/containerd.sock:/var/run/containerd/containerd.sock
       - /run/containerd:/run/containerd
       - /var/lib/docker:/var/lib/docker
+    privileged: false
+    cap_add:
+      - CAP_SYS_ADMIN
+      - CAP_NET_ADMIN
     pid: host
     ipc: host
     network_mode: host
