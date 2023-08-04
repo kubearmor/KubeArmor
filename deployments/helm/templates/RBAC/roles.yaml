@@ -20,22 +20,15 @@ rules:
   - apps
   resources:
   - deployments
+  - replicasets
+  - daemonsets
+  - statefulsets
   verbs:
   - get
   - patch
   - list
   - watch
   - update
-- apiGroups:
-  - apps
-  resources:
-  - replicasets
-  - daemonsets
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - security.kubearmor.com
   resources:
