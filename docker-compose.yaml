@@ -33,5 +33,5 @@ services:
     network_mode: host
     depends_on:
       kubearmor-init:
-        condition: service_healthy
+        condition: service_healthy # container will wait for the kubearmor-init container 
           
