@@ -57,6 +57,16 @@ Sample output `karmor log --json`:
 }
 ```
 Here the log implies that the process /usr/bin/sleep execution by 'zsh' was denied on the Host using a block based host policy.
+
+The logs are also exportable in OpenTelemetry format using [kubearmor/OTel-receiver](https://github.com/kubearmor/OTel-receiver).
+
+</details>
+
+<details><summary><h4>How to visualize KubeArmor visibility logs</h4></summary>
+
+There are a couple of community maintained dashboards available at [kubearmor/kubearmor-dashboards](https://github.com/kubearmor/kubearmor-dashboards).
+
+If you don't find an existing dashboard particular to your needs, feel free to create an issue. It would be really great if you could also contribute one!
 </details>
 
 <details><summary><h4>How to get process events in the context of a specific pods?</h4></summary>  
@@ -145,4 +155,12 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
    ```
    $ sudo reboot
    ```
+</details>
+
+<details><summary><h4>ICMP block/audit does not work with AppArmor as the enforcer</h4></summary>
+There is some problem with AppArmor due to which ICMP rules don't work as expected.
+
+The KubeArmor team has brought this to the attention of the [AppArmor community](https://stackoverflow.com/questions/76768503/apparmor-deny-icmp-issue) on StackOverflow and await their response.
+
+In the same environment we've found that ICMP rules with BPFLSM work as expected.
 </details>
