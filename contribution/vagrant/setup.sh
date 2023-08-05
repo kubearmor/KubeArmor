@@ -49,6 +49,30 @@ elif [ "$ID" == "ubuntu" ]; then
     vagrant plugin install vagrant-reload
 
     echo "Please reboot the machine."
+elif [ "$(uname -om)" == "Darwin arm64" ]; then
+  if [ `command -v brew` ]; then
+    # Install vagrant
+    if [ ! `command -v vagrant` ]; then
+      echo "Installing vagrant..."
+      brew install hashicorp/tap/hashicorp-vagrant
+    fi
+
+    vagrant plugin install vagrant-vmware-desktop
+
+    # Install VMware Fusion
+    if [ ! -d /Applications/VMware\ Fusion.app/ ]; then
+        echo "Installing VMware Fusion and utils..."
+        brew install --cask vmware-fusion
+        brew install --cask vagrant-vmware-utility
+        echo
+        echo "Please Configure VMware Fusion License"
+        # Wait so that user can see the above message
+        sleep 2
+        open /opt/homebrew/Caskroom/vmware-fusion/*/VMware\ Fusion.app
+    fi
+  else
+    echo "Please install brew or find out how to install VirtualBox/VMware and Vagrant on your OS."
+  fi
 else
     echo "Please find out how to install VirtualBox and Vagrant on your OS."
 fi

@@ -45,7 +45,8 @@ fi
 
 # install golang
 echo "Installing golang binaries..."
-goBinary=$(curl -s https://go.dev/dl/ | grep linux | head -n 1 | cut -d'"' -f4 | cut -d"/" -f3)
+version=1.20.7
+goBinary=$(curl -s https://go.dev/dl/ | grep -w "go$version.linux-$(dpkg --print-architecture).tar.gz" | tail -1 | cut -d'"' -f6 | cut -d"/" -f3)
 wget --quiet https://dl.google.com/go/$goBinary -O /tmp/build/$goBinary
 sudo tar -C /usr/local -xzf /tmp/build/$goBinary
 
@@ -77,10 +78,14 @@ sudo apt-get install -y unzip
 # download protoc
 mkdir -p /tmp/build/protoc
 cd /tmp/build/protoc
-wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip -O /tmp/build/protoc/protoc-3.19.4-linux-x86_64.zip
+if [ $(uname -m) == "aarch64" ]; then
+  wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-aarch_64.zip -O /tmp/build/protoc/protoc-3.19.4-linux-aarch_64.zip
+else
+  wget --quiet https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-$(uname -m).zip -O /tmp/build/protoc/protoc-3.19.4-linux-$(uname -m).zip
+fi
 
 # install protoc
-unzip protoc-3.19.4-linux-x86_64.zip
+unzip protoc-3.19.4-linux*.zip
 sudo mv bin/protoc /usr/local/bin/
 sudo chmod 755 /usr/local/bin/protoc
 
@@ -100,7 +105,7 @@ go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 
 # install kubebuilder
-wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_amd64 -O /tmp/build/kubebuilder
+wget --quiet https://github.com/kubernetes-sigs/kubebuilder/releases/download/v3.1.0/kubebuilder_linux_$(dpkg --print-architecture) -O /tmp/build/kubebuilder
 chmod +x /tmp/build/kubebuilder
 sudo mv /tmp/build/kubebuilder /usr/local/bin
 

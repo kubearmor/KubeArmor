@@ -7,6 +7,10 @@ K8S       = ENV['K8S'] || "k3s"
 RUNTIME   = ENV['RUNTIME'] || "docker"
 NODEV     = ENV['NODEV'] || "0"
 
+if Vagrant::Util::Platform.darwin? then
+  OS = "darwin"
+end
+
 if OS == "centos" then
   if NETNEXT == "1" then
     VM_IMG = "generic/centos9s"
@@ -15,6 +19,9 @@ if OS == "centos" then
     VM_IMG = "generic/centos8s" # 4.18
     VM_NAME = "kubearmor-dev"
   end
+elsif OS == "darwin" then
+    VM_NAME = "kubearmor-dev-next"
+    VM_IMG = "bento/ubuntu-22.04-arm64"
 else # ubuntu
   if NETNEXT == "1" then
     VM_IMG = "generic/ubuntu2204" # jammy (5.15)
@@ -54,6 +61,13 @@ Vagrant.configure("2") do |config|
 
   config.vm.define VM_NAME do |cfg|
     cfg.vm.box = VM_IMG
+
+    # only for apple silicon
+    cfg.vm.provider "vmware_desktop" do |v|
+      v.memory = 4096
+      v.cpus = 4
+    end
+
     cfg.vm.provider "virtualbox" do |vb|
       vb.name = VM_NAME
       vb.memory = 4096

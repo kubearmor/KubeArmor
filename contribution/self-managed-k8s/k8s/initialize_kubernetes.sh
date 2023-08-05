@@ -70,10 +70,10 @@ elif [ "$CNI" == "calico" ]; then
     kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
 elif [ "$CNI" == "cilium" ]; then
     # install a pod network (cilium)
-    curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz{,.sha256sum}
-    sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
-    sudo tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
-    rm cilium-linux-amd64.tar.gz{,.sha256sum}
+    curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-$(dpkg --print-architecture).tar.gz{,.sha256sum}
+    sha256sum --check cilium-linux-$(dpkg --print-architecture).tar.gz.sha256sum
+    sudo tar xzvfC cilium-linux*.tar.gz /usr/local/bin
+    rm cilium-linux*.tar.gz{,.sha256sum}
     /usr/local/bin/cilium install
 fi
 
