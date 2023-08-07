@@ -75,7 +75,7 @@ jobs:
 
       - name: Deploy KubeArmor into Kubernetes
         run: |
-          helm upgrade --install kubearmor ./deployments/helm \
+          helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
           --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
           --set kubearmor.image.tag=${{ steps.vars.outputs.tag }} \
           --set kubearmorInit.image.tag=${{ steps.vars.outputs.tag }} \
