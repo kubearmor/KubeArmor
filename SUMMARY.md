@@ -22,6 +22,7 @@
 * [Testing Guide](contribution/testing_guide.md)
 
 ## Specification
+
 * [Policy Spec for Containers](getting-started/security_policy_specification.md)
 * [Policy Examples for Containers](getting-started/security_policy_examples.md)
 * [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)

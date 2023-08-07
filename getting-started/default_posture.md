@@ -4,14 +4,15 @@ KubeArmor supports configurable default security posture. The security posture c
 
 There are two default mode of operations available `block` and `audit`. `block` mode blocks all the operations that are not allowed in the policy. `audit` generates telemetry events for operations that would have been blocked otherwise.
 
-KubeArmor has 4 types of resources: Process, File, Network and Capabilities. Default Posture is configurable for each of the resources seperately except Process. Process based operations are treated under File resource only.
+KubeArmor has 4 types of resources: Process, File, Network, and Capabilities. Default Posture is configurable for each of the resources separately except Process. Process-based operations are treated under File resource only.
+
 ## Configuring Default Posture
 
 ### Global Default Posture
 
 > **Note** By default, KubeArmor set the Global default posture to `audit`
 
-Global default posture is configured using configuration options passed to KubeArmor using configuration file
+Global default posture is configured using configuration options passed to KubeArmor using a configuration file
 
 ```yaml
 defaultFilePosture: block # or audit
@@ -23,31 +24,33 @@ Or using command line flags with the KubeArmor binary
 
 ```sh
   -defaultFilePosture string
-    	configuring default enforcement action in global file context [audit,block] (default "block")
+     configuring default enforcement action in global file context [audit,block] (default "block")
   -defaultNetworkPosture string
-    	configuring default enforcement action in global network context [audit,block] (default "block")
+     configuring default enforcement action in global network context [audit,block] (default "block")
   -defaultCapabilitiesPosture string
-    	configuring default enforcement action in global capability context [audit,block] (default "block")
+     configuring default enforcement action in global capability context [audit,block] (default "block")
 ```
 
 ### Namespace Default Posture
 
-We use namespace annotations to configure default posture per namespace. Supported annotations keys are `kubearmor-file-posture`,`kubearmor-network-posture` and `kubearmor-capabilities-posture` with values `block` or `audit`. If a namespace is annotated with a supported key and an invalid value ( like `kubearmor-file-posture=invalid`), KubeArmor will update the value with the global default posture ( i.e. to `kubearmor-file-posture=block`).
+We use namespace annotations to configure the default posture per namespace. Supported annotations keys are `kubearmor-file-posture`, `kubearmor-network-posture`, and `kubearmor-capabilities-posture` with values `block` or `audit`. If a namespace is annotated with a supported key and an invalid value ( like `kubearmor-file-posture=invalid`), KubeArmor will update the value with the global default posture ( i.e. to `kubearmor-file-posture=block`).
 
 ## Example
 
-Let's start KubeArmor with configuring default network posture to audit in the following YAML.
+Let's start KubeArmor by configuring default network posture to audit in the following YAML.
 
 ```sh
  sudo env KUBEARMOR_CFG=/path/to/kubearmor.yaml ./kubearmor
 ```
 
 Contents of `kubearmor.yaml`
+
 ```yaml
 defaultNetworkPosture: audit
 ```
 
-Here's a sample policy to allow `tcp` connections from `curl` binary.
+Here's a sample policy to allow `tcp` connections from the `curl` binary.
+
 ```yaml
 apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
@@ -67,9 +70,11 @@ spec:
   action:
     Allow
 ```
+
 > Note: This example is in the [multiubuntu](https://github.com/kubearmor/KubeArmor/blob/main/examples/multiubuntu.md) environment.
 
 Inside the `ubuntu-5-deployment`, if we try to access `tcp` using `curl`. It works as expected with no telemetry generated.
+
 ```sh
 root@ubuntu-5-deployment-7778f46c67-hk6k6:/# curl 142.250.193.46
 <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
@@ -80,7 +85,8 @@ The document has moved
 </BODY></HTML>
 ```
 
-If we try to access `udp` using `curl`, a bunch of telemetry is generated for the `udp` access.
+If we try to access `udp` using `curl`, a bunch of telemetries is generated for the `udp` access.
+
 ```sh
 root@ubuntu-5-deployment-7778f46c67-hk6k6:/# curl google.com
 <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
@@ -90,9 +96,11 @@ The document has moved
 <A HREF="http://www.google.com/">here</A>.
 </BODY></HTML>
 ```
+
 > `curl google.com` requires UDP for DNS resolution.
 
-Generated alert has Policy Name `DefaultPosture` and Action as `Audit`
+The generated alert has Policy Name `DefaultPosture` and Action as `Audit`
+
 ```sh
 == Alert / 2022-03-21 12:56:32.999475 ==
 Cluster Name: default
@@ -159,4 +167,5 @@ Labels:       kubernetes.io/metadata.name=multiubuntu
 Annotations:  kubearmor-network-posture: audit
 Status:       Active
 ```
-We can see that, annotation value was automatically updated to audit since that was global mode of operation for network in the KubeArmor configuration.
+
+We can see that, the annotation value was automatically updated to audit since that was the global mode of operation for the network in the KubeArmor configuration.

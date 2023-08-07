@@ -2,7 +2,7 @@
 
 KubeArmor currently supports enabling visibility for containers and hosts.
 
-Visibility for hosts is not enabled by default, however it is enabled by default for containers . 
+Visibility for hosts is not enabled by default, however, it is enabled by default for containers.
 
 The `karmor` tool provides access to both using `karmor logs`.
 
@@ -10,30 +10,30 @@ The `karmor` tool provides access to both using `karmor logs`.
   <summary>Available visibility options:</summary>
 
 #### KubeArmor provides visibility on the following behavior of containers
+
 * Process
 * Files
 * Networks
 
 </details>
 
-
-
 ### Prerequisites
 
 * If you don't have access to a K8s cluster, please follow  [this](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md#prerequisites) to set one up.
 * karmor CLI tool: [Download and install karmor-cli](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md#1-download-and-install-karmor-cli-tool)
 
-### Example: wordpress-mysql
+### Example: WordPress-MySQL
 
 * To deploy [wordpress-mysql](https://github.com/kubearmor/KubeArmor/blob/main/examples/wordpress-mysql/wordpress-mysql-deployment.yaml) app follow [this](https://github.com/kubearmor/KubeArmor/blob/main//examples/wordpress-mysql.md)
 * Now we need to deploy some sample policies
+
 ```
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/examples/wordpress-mysql/security-policies/ksp-wordpress-block-process.yaml
 ```
-This sample policy blocks execution of the `apt` and `apt-get` commands in wordpress pods with label selector `app: wordpress`.
+
+This sample policy blocks execution of the `apt` and `apt-get` commands in WordPress pods with label selector `app: wordpress`.
 
 ### Getting Container Visibility
-
 
 * Checking default visibility
 
@@ -44,20 +44,26 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
 
   kubearmor-visibility: process, file, network, capabilities
   ```
+
   * **For pre-existing workloads :** Enable visibility using `kubectl annotate`. Currently KubeArmor supports `process`, `file`, `network`, `capabilities`
+
    ```text
   kubectl annotate pods <pod-name> -n wordpress-mysql "kubearmor-visibility=process,file,network,capabilities"
   ```
+
 * Open up a terminal, and watch logs using the `karmor` cli
+
   ```text
   karmor logs
   ```
+
 * In another terminal, simulate a policy violation . Try `sleep` inside a pod
 
   ```text
   POD_NAME=$(kubectl get pods -n wordpress-mysql -l app=wordpress -o jsonpath='{.items[0].metadata.name}') && kubectl -n wordpress-mysql exec -it $POD_NAME -- bash
   # apt update
   ```
+
 * In the terminal running `karmor logs`, the policy violation along with container visibility is shown, in this case for example
   <details>
   <summary>Click to expand</summary>
@@ -92,8 +98,7 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
 
   </details>
 
-
-* The logs can also be generated in JSON format using `karmor logs --json `
+* The logs can also be generated in JSON format using `karmor logs --json`
 
   <details>
   <summary>Click to expand</summary>
@@ -133,16 +138,18 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
 ### Getting Host Visibility
 
 * Host Visibility is not enabled by default . To enable Host  Visibility we need to annotate the node using `kubectl annotate node`
+
 ```
   kubectl annotate node <node-name> "kubearmor-visibility=process,file,network,capabilities" 
 ```
 
 * To confirm it use `kubectl describe` and grep `kubearmor-visibility`
+
 ```text
 kubectl describe node <node-name> | grep kubearmor-visibility
 ```
 
-* Now we can get general telemetry events in the context of the host using `karmor logs` .The logs related to Host Visibility will have type `Type: HostLog`and `Operation: File | Process | Network ` 
+* Now we can get general telemetry events in the context of the host using `karmor logs` .The logs related to Host Visibility will have type `Type: HostLog`and `Operation: File | Process | Network`
 
 ```text
 karmor logs --logFilter=all
@@ -215,7 +222,8 @@ ParentProcessName: /var/lib/rancher/k3s/data/2949af7261ce923f6a5091396d266a0e9d9
 ProcessName: /var/lib/rancher/k3s/data/2949af7261ce923f6a5091396d266a0e9d9436dcee976fcd548edc324eb277bb/bin/portmap
 
   ```
-* The logs can also be generated in JSON format using `karmor logs --logFilter=all --json `
+
+* The logs can also be generated in JSON format using `karmor logs --logFilter=all --json`
 
   <details>
   <summary>Click to expand</summary>
@@ -298,6 +306,7 @@ ProcessName: /var/lib/rancher/k3s/data/2949af7261ce923f6a5091396d266a0e9d9436dce
 
 
   ```
+
 </details>
 
 ### Updating Namespace Visibility
@@ -306,24 +315,27 @@ KubeArmor has the ability to let the user select what kind of events have to be 
 
 * Checking Namespace visibility
 
-  * Namespace visibility can be checked using `kubectl describe`. 
+  * Namespace visibility can be checked using `kubectl describe`.
 
   ```text
   kubectl describe ns wordpress-mysql | grep kubearmor-visibility
 
   kubearmor-visibility: process, file, network, capabilities
   ```
+
   * **To update the visibility of namespace :** Now let's update Kubearmor visibility using `kubectl annotate`. Currently KubeArmor supports `process`, `file`, `network`, `capabilities`.
   Lets try to update visibility for the namespace `wordpress-mysql`
- 
+
    ```text
     kubectl annotate ns wordpress-mysql kubearmor-visibility=network --overwrite
     "namespace/wordpress-mysql annotated"
 
   ```
+
     > Note: To turn off the visibility across all aspects, use `kubearmor-visibility=none`. Note that any policy violations or events that results in non-success returns would still be reported in the logs.
 
 * Open up a terminal, and watch logs using the `karmor` cli
+
   ```text
   karmor logs --logFilter=all -n wordpress-mysql
 
@@ -335,17 +347,20 @@ KubeArmor has the ability to let the user select what kind of events have to be 
     POD_NAME=$(kubectl get pods -n wordpress-mysql -l app=wordpress -o jsonpath='{.items[0].metadata.name}') && kubectl -n wordpress-mysql exec -it $POD_NAME -- bash
   # ls
   ```
+
   Now, we can notice that no logs have been generated for the above command and logs with only `Operation: Network` are shown.
   >**Note** If telemetry is disabled, the user wont get audit event even if there is an audit rule.
 
   >**Note** Only the logs are affected by changing the visibility, we still get all the alerts that are generated.
 
 * Let's simulate a sample policy violation, and see whether we still get alerts or not.
-    * **Policy violation :**
+  * **Policy violation :**
+
     ```text
     POD_NAME=$(kubectl get pods -n wordpress-mysql -l app=wordpress -o jsonpath='{.items[0].metadata.name}') && kubectl -n wordpress-mysql exec -it $POD_NAME -- bash
     #apt 
     ```
+
     Here, note that the alert with `Operation: Process` is reported.
   <details>
   <summary>Click to expand</summary>
@@ -378,4 +393,5 @@ KubeArmor has the ability to let the user select what kind of events have to be 
   ProcessName: /usr/bin/apt
 
   ```
+
   </details>

@@ -29,7 +29,7 @@ Here, we demonstrate how to define host security policies.
     ---
     **NOTE**
 
-    The given policy works with almost every linux distribution. If it is not working in your case, check the process location. The following location shows location of `sleep` binary in different ubuntu distributions:
+    The given policy works with almost every Linux distribution. If it is not working in your case, check the process location. The following location shows the `sleep` binary in different Ubuntu distributions:
 
     * In case of *Ubuntu 20.04* : /usr/bin/sleep
     * In case of *Ubuntu 18.04* : /bin/sleep
@@ -61,6 +61,7 @@ Here, we demonstrate how to define host security policies.
 
 * System calls alerting
   * Alert for all `unlink` syscalls
+
   ```text
   apiVersion: security.kubearmor.com/v1
   kind: KubeArmorHostPolicy
@@ -105,9 +106,10 @@ Here, we demonstrate how to define host security policies.
   "Result": "Passed"
 }
 ```
+
 </details>
 
-  * Alert on all `rmdir` syscalls targeting anything in `/home/` directory and sub-directories
+* Alert on all `rmdir` syscalls targeting anything in `/home/` directory and sub-directories
   
   ```text
   apiVersion: security.kubearmor.com/v1
@@ -154,4 +156,5 @@ Here, we demonstrate how to define host security policies.
   "Result": "Passed"
 }
 ```
+
 </details>
