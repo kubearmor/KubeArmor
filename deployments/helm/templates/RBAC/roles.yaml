@@ -64,6 +64,14 @@ rules:
   - watch
   - update
 - apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch    
+- apiGroups:
   - security.kubearmor.com
   resources:
   - kubearmorpolicies
