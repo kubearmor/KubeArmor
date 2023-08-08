@@ -48,6 +48,7 @@ var (
 	RandLabel                       string = "kubearmor.io/rand"
 	OsLabel                         string = "kubernetes.io/os"
 	ArchLabel                       string = "kubernetes.io/arch"
+	BTFLabel                        string = "kubearmor.io/btf"
 	DeletAction                     string = "DELETE"
 	AddAction                       string = "ADD"
 	Namespace                       string = "kube-system"
