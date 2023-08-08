@@ -1,0 +1,82 @@
+name: build-and-push-aws-helm-chart
+
+on:
+    # workflow_dispatch:
+    push:
+      branches: main
+      paths:
+        - "KubeArmor/deployments/helm/values.aws.yaml"
+
+env:
+    AWS_REGION: us-east-1
+    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+    ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+    AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+    
+jobs:
+    push_to_registry:
+        runs-on: ubuntu-latest
+        permissions:
+          contents: write
+        defaults:
+          run:
+            working-directory: ./deployments
+        steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
+
+        - name: Configure AWS credentials
+          uses: aws-actions/configure-aws-credentials@v1
+          with:
+            aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
+        
+        # - name: Configure AWS Credentials
+        #   uses: aws-actions/configure-aws-credentials@v2
+        #   with:
+        #     aws-region: ${{ env.AWS_REGION }}
+        #     role-to-assume: $AWS_ROLE_TO_ASSUME
+        
+        - name: Install yq
+          run: | 
+            sudo apt-get update
+            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod a+x /usr/local/bin/yq
+            yq --version  
+        
+        - name: get helm version
+          id: version
+          run: |
+            echo "version=$(cat ./helm/values.aws.yaml | yq e '.version')" >> $GITHUB_OUTPUT
+            echo ${{ steps.version.outputs.version }}
+
+        - name: build and package helm chart
+          run: |
+            chmod +x ./helm/values.yaml
+            cat ./helm/values.aws.yaml > ./helm/values.yaml
+            sed -i -e "s/version:.*/version: ${{ steps.version.outputs.version }}/g" ./helm/Chart.yaml
+            helm package ./helm
+
+        - name: Check if chart/image already exists
+          id: chart_exist
+          run: |
+            output=$(aws ecr describe-images --registry-id $AWS_ACCOUNT_ID --repository-name accuknox/kubearmor --region us-east-1 --query 'imageDetails[?contains(imageTags, `${{ steps.version.outputs.version }}`)]')
+            if [[ $output == *"imageDigest"* ]]; then
+              echo "exists=true" >> $GITHUB_OUTPUT
+            else
+              echo "exists=false" >> $GITHUB_OUTPUT
+            fi
+
+        - name: Login to AWS Helm
+          if: steps.chart_exist.outputs.exists == 'false'
+          run: |
+            aws ecr get-login-password --region $AWS_REGION | helm registry login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+        - name: Push helm chart to AWS ECR repo
+          if: steps.chart_exist.outputs.exists == 'false'
+          run: |
+            helm push kubearmor-${{ steps.version.outputs.version }}.tgz oci://$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/accuknox/
+
