@@ -3,16 +3,16 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 go 1.20
 
 require (
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20230804143049-f7f820045b85
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230804143049-f7f820045b85
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230804143049-f7f820045b85
+	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20230809083125-e2d5d5709d2c
+	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230809083125-e2d5d5709d2c
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230808073138-46a1e116bcd7
 	github.com/spf13/cobra v1.7.0
 	go.uber.org/zap v1.25.0
 	k8s.io/api v0.27.4
 	k8s.io/apiextensions-apiserver v0.27.4
 	k8s.io/apimachinery v0.27.4
 	k8s.io/client-go v0.27.4
-	k8s.io/kubectl v0.27.2
+	k8s.io/kubectl v0.27.4
 	sigs.k8s.io/controller-runtime v0.15.0
 )
 
