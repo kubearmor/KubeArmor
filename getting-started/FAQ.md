@@ -121,11 +121,37 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
 
 > Note: After upgrading to the UEK R7 you may required to enable BPF-LSM if it's not enabled by default.
 
+</details>
+
+<details>
+  <summary><h4>Checking and Enabling support for BPF-LSM</h4></summary>
+
+
+### Checking if BPF-LSM is supported in the Kernel
+
+We check for BPF LSM Support in Kernel Config
+
+```sh
+cat /boot/config-$(uname -r) | grep -e "BPF" -e "BTF"
+```
+
+Following flags need to exist and set to `y`
+```ini
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_BPF_JIT=y
+CONFIG_BPF_LSM=y
+CONFIG_DEBUG_INFO=y
+CONFIG_DEBUG_INFO_BTF=y
+```
+
+**Note**: These config could be in other places too like `/boot/config`, `/usr/src/linux-headers-$(uname -r)/.config`, `/lib/modules/$(uname -r)/config`, `/proc/config.gz`.
+
 ### Checking if BPF-LSM is enabled
 
 - check if bpf is enabled by verifying if it is in the active lsms.
 
-  ```
+  ```sh
   $ cat /sys/kernel/security/lsm
   capability,yama,selinux,bpf
   ```
@@ -135,8 +161,8 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
 
 - Open the `/etc/default/grub` file in privileged mode.
 
-  ```
-  $ sudo vi /etc/default/grub
+  ```sh
+  sudo vi /etc/default/grub
   ```
 
     
@@ -147,13 +173,13 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
   ```
 
 - Update grub config:
-  ```
-  $ sudo grub2-mkconfig -o /boot/grub2.cfg
+  ```sh
+  sudo grub2-mkconfig -o /boot/grub2.cfg
   ```
 
 - Reboot into your kernel.
-   ```
-   $ sudo reboot
+   ```sh
+   sudo reboot
    ```
 </details>
 
