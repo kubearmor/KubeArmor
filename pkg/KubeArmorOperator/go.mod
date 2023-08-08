@@ -8,7 +8,6 @@ require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230804143049-f7f820045b85
 	github.com/spf13/cobra v1.7.0
 	go.uber.org/zap v1.25.0
-	golang.org/x/mod v0.10.0
 	k8s.io/api v0.27.4
 	k8s.io/apiextensions-apiserver v0.27.4
 	k8s.io/apimachinery v0.27.4
@@ -19,7 +18,6 @@ require (
 
 require (
 	github.com/cilium/ebpf v0.11.0 // indirect
-	github.com/clarketm/json v1.17.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
@@ -53,7 +51,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.16.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/net v0.14.0 // indirect
