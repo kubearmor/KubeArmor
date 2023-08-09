@@ -48,6 +48,7 @@ var (
 	RandLabel                       string = "kubearmor.io/rand"
 	OsLabel                         string = "kubernetes.io/os"
 	ArchLabel                       string = "kubernetes.io/arch"
+	BTFLabel                        string = "kubearmor.io/btf"
 	DeletAction                     string = "DELETE"
 	AddAction                       string = "ADD"
 	Namespace                       string = "kube-system"
@@ -184,15 +185,6 @@ var CommonVolumes = []corev1.Volume{
 		},
 	},
 	{
-		Name: "sys-kernel-security-path",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/sys/kernel/security",
-				Type: &HostPathDirectory,
-			},
-		},
-	},
-	{
 		Name: "sys-kernel-debug-path",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
@@ -216,10 +208,6 @@ var CommonVolumesMount = []corev1.VolumeMount{
 	{
 		Name:      "bpf",
 		MountPath: "/opt/kubearmor/BPF",
-	},
-	{
-		Name:      "sys-kernel-security-path",
-		MountPath: "/sys/kernel/security",
 	},
 	{
 		Name:      "sys-kernel-debug-path",

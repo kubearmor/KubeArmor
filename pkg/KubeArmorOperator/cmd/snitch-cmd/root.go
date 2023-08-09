@@ -123,6 +123,10 @@ func snitch() {
 		os.Exit(1)
 	}
 
+	// Check BTF support
+	btfPresent := enforcer.CheckBtfSupport(PathPrefix, *Logger)
+	Logger.Infof("Kernel has BTF: %s", btfPresent)
+
 	patchNode := metadata{}
 	patchNode.Metadata.Labels = map[string]string{}
 	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
@@ -130,6 +134,7 @@ func snitch() {
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
 	patchNode.Metadata.Labels[common.RuntimeStorageLabel] = strings.ReplaceAll(runtimeStorage[1:], "/", "_")
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
+	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
 	patch, err := json.Marshal(patchNode)
 
 	if err != nil {
