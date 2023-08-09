@@ -76,7 +76,7 @@ build: snitch kubearmor-operator
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest -f ./Dockerfile ../../
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -84,7 +84,7 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:latest
 
 docker-buildx:
-	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} .
+	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} -f ./Dockerfile ../../
 
 KUSTOMIZE = /usr/local/bin/kustomize
 .PHONY: kustomize
