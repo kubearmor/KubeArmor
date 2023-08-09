@@ -8,7 +8,7 @@ helm upgrade --install kubearmor kubearmor/kubearmor -n kube-system
 
 Install KubeArmor using Helm charts locally (for testing)
 ```
-cd deployments/helm
+cd deployments/helm/KubeArmor
 helm upgrade --install kubearmor . -n kube-system
 ```
 

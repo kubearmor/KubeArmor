@@ -29,7 +29,7 @@ jobs:
       - name: Install KubeArmor Latest and KubeArmorController using Helm
         run: |
           # install kubearmor latest and controller built in this PR
-          helm upgrade --install kubearmor ./deployments/helm \
+          helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
           --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
           --set kubearmorController.imagePullPolicy=Never \
           --set kubearmor.imagePullPolicy=Always \

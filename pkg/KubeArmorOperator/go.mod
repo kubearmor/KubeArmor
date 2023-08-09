@@ -2,6 +2,12 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 
 go 1.20
 
+replace (
+	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
+	github.com/kubearmor/KubeArmor/deployments => ../../deployments
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../KubeArmorController
+)
+
 require (
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20230809083125-e2d5d5709d2c
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230809083125-e2d5d5709d2c

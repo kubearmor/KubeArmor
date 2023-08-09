@@ -52,16 +52,20 @@ jobs:
         id: update
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
-          sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/Chart.yaml
-          sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/Chart.yaml
+
+          sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
+          sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
+
           echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create PR to update Helm chart version in KubeArmor repo
         uses: peter-evans/create-pull-request@v5
         with:
           branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
-          add-paths: "deployments/helm/Chart.yaml"
+          add-paths: "deployments/helm/*/Chart.yaml"
           commit-message: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          committer: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           title: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
           base: main
           signoff: true

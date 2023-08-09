@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
-CURDIR := $(shell pwd)
+CURDIR    := $(shell pwd)
+DEPLOYDIR := $(realpath $(CURDIR)/../../deployments)
+CHARTDIR  := $(realpath $(DEPLOYDIR)/helm/KubeArmorOperator)
+CRDDIR    := $(realpath $(CHARTDIR)/crds)
 
 # Image URL to use all building/pushing image targets
 IMG ?= kubearmor/kubearmor-operator
@@ -73,7 +76,7 @@ build: snitch kubearmor-operator
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest -f ./Dockerfile ../../
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -81,7 +84,7 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}:latest
 
 docker-buildx:
-	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} .
+	docker buildx build --platform ${PLATFORM} --push -t ${IMG}:${TAG} -f ./Dockerfile ../../
 
 KUSTOMIZE = /usr/local/bin/kustomize
 .PHONY: kustomize
@@ -106,7 +109,7 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -	
+	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
 deploy: kustomize ## Deploy Operator Deployment, ClusterRole and ServiceAccount objects.
@@ -119,9 +122,10 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 .PHONY: manifests
 manifests: controller-gen kustomize## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	go mod tidy; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	rm -r deployments/helm/crds/* && cp config/crd/bases/* deployments/helm/crds/	
-	$(KUSTOMIZE) build config/default | tee deployments/operator.yaml
-	
+
+	rm -r $(CRDDIR)/* && cp config/crd/bases/* $(CRDDIR)/
+	$(KUSTOMIZE) build config/default | tee $(DEPLOYDIR)/operator/operator.yaml
+
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	go mod tidy; $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -140,7 +144,7 @@ client/gen:
 	GOPATH= GOROOT= ./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api operator.kubearmor.com:v1 --go-header-file hack/boilerplate.go.txt
 	# check generated client at ./pkg/client
 	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/* ./client/
-	@rm -rf ./github.com ./tmp/code-generator		
+	@rm -rf ./github.com ./tmp/code-generator
 
 .PHONY: bundle
 bundle: operator-sdk
