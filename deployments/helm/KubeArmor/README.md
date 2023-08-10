@@ -12,36 +12,6 @@ cd deployments/helm/KubeArmor
 helm upgrade --install kubearmor . -n kube-system
 ```
 
-## Verify if all the resources are up and running
-```
-kubectl get all -n kube-system -l kubearmor-app
-NAME                                        READY   STATUS    RESTARTS   AGE
-pod/kubearmor-controller-7b48cf777f-bn7d8   2/2     Running   0          24s
-pod/kubearmor-relay-5656cc5bf7-jl56q        1/1     Running   0          24s
-pod/kubearmor-cnc7b                         1/1     Running   0          24s
-
-NAME                                           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-service/kubearmor-controller-metrics-service   ClusterIP   10.43.208.188   <none>        8443/TCP   24s
-
-NAME                       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
-daemonset.apps/kubearmor   1         1         1       1            1           kubernetes.io/os=linux   24s
-
-NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/kubearmor-controller   1/1     1            1           24s
-deployment.apps/kubearmor-relay        1/1     1            1           24s
-
-NAME                                              DESIRED   CURRENT   READY   AGE
-replicaset.apps/kubearmor-controller-7b48cf777f   1         1         1       24s
-replicaset.apps/kubearmor-relay-5656cc5bf7        1         1         1       24s
-```
-
-## Remove KubeArmor
-Uninstall KubeArmor using helm
-
-```
-helm uninstall kubearmor -n kube-system
-```
-
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -118,4 +88,33 @@ Usage of ./kubearmor:
         SELinux profile directory (default "/tmp/kubearmor.selinux")
   -visibility string
         Container Visibility to use [process,file,network,capabilities,none] (default "process,file,network,capabilities")
+```
+
+## Verify if all the resources are up and running
+```
+kubectl get all -n kube-system -l kubearmor-app
+NAME                                        READY   STATUS    RESTARTS   AGE
+pod/kubearmor-controller-7b48cf777f-bn7d8   2/2     Running   0          24s
+pod/kubearmor-relay-5656cc5bf7-jl56q        1/1     Running   0          24s
+pod/kubearmor-cnc7b                         1/1     Running   0          24s
+
+NAME                                           TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+service/kubearmor-controller-metrics-service   ClusterIP   10.43.208.188   <none>        8443/TCP   24s
+
+NAME                       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+daemonset.apps/kubearmor   1         1         1       1            1           kubernetes.io/os=linux   24s
+
+NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/kubearmor-controller   1/1     1            1           24s
+deployment.apps/kubearmor-relay        1/1     1            1           24s
+
+NAME                                              DESIRED   CURRENT   READY   AGE
+replicaset.apps/kubearmor-controller-7b48cf777f   1         1         1       24s
+replicaset.apps/kubearmor-relay-5656cc5bf7        1         1         1       24s
+```
+
+## Remove KubeArmor
+Uninstall KubeArmor using helm
+```
+helm uninstall kubearmor -n kube-system
 ```
