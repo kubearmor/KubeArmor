@@ -551,7 +551,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				podOwnerName = controllerName
-				pod.Metadata["deploymentName"] = controllerName
+				pod.Metadata["owner.controllerName"] = controllerName
 				pod.Metadata["owner.controller"] = controller
 				pod.Metadata["owner.namespace"] = namespace
 
@@ -670,7 +670,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					appArmorAnnotations := map[string]string{}
 					updateAppArmor := false
 
-					if _, ok := pod.Metadata["deploymentName"]; ok {
+					if _, ok := pod.Metadata["owner.controllerName"]; ok {
 						if pod.Metadata["owner.controller"] == "StatefulSet" {
 							statefulset, err := K8s.K8sClient.AppsV1().StatefulSets(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 							if err == nil {
@@ -736,7 +736,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
-							if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+							if deploymentName, ok := pod.Metadata["owner.controllerName"]; ok {
 								// patch the deployment with apparmor annotations
 								if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, pod.Metadata["owner.controller"]); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
@@ -756,7 +756,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 
 								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
-									if deploymentName, ok := pod.Metadata["deploymentName"]; ok {
+									if deploymentName, ok := pod.Metadata["owner.controllerName"]; ok {
 										// patch the deployment with apparmor annotations
 										if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, pod.Metadata["owner.controller"]); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
