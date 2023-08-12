@@ -69,7 +69,7 @@ karmor vm policy add hostpolicy.yaml
 ## Get Alerts for policies and telemetry
 
 ```
-karmor log --json
+karmor logs --json
 ```
 
 ```json=
