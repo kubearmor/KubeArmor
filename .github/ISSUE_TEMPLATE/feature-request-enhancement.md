@@ -9,13 +9,9 @@ assignees: ''
 
 ## Feature Request
 
-**Short Description**
+**Description / Release Note**
 
 E.g., KubeArmor could support protecting the earth from malicious aliens.
-
-**Is your feature request related to a problem? Please describe the use case.**
-
-A description of what the problem/use case is. E.g. Protect the earth from being decimated by nefarious aliens.
 
 **Describe the solution you'd like**
 
