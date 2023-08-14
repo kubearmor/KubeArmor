@@ -41,4 +41,4 @@ The following licenses and contributor agreements will be used for KubeArmor pro
 * [Developer Certificate of Origin](https://developercertificate.org/) for new contributions
 
 ## Credits
-This policy was created with guidance from documentation provided by [Containerd](https://github.com/containerd/project/blob/master/GOVERNANCE.md), [CoreDNS](https://github.com/coredns/coredns/blob/master/GOVERNANCE.md) and [Helm](https://github.com/coredns/coredns/blob/master/GOVERNANCE.md?plain=1)
+This policy was created with guidance from documentation provided by [Containerd](https://github.com/containerd/project/blob/master/GOVERNANCE.md), [CoreDNS](https://github.com/coredns/coredns/blob/master/GOVERNANCE.md) and [Helm](https://github.com/helm/community/blob/main/governance/governance.md).
