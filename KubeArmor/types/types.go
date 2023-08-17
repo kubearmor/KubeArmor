@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"time"
 
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -605,4 +606,4 @@ type PidNode struct {
 // =============== //
 
 // KubeArmorHostPolicyEventCallback Function
-type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent)
+type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent) pb.PolicyStatus

@@ -16,8 +16,8 @@ import (
 // ServiceServer provides structure to serve Policy gRPC service
 type ServiceServer struct {
 	pb.PolicyServiceServer
-	UpdateContainerPolicy func(tp.K8sKubeArmorPolicyEvent)
-	UpdateHostPolicy      func(tp.K8sKubeArmorHostPolicyEvent)
+	UpdateContainerPolicy func(tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus
+	UpdateHostPolicy      func(tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
 }
 
 // ContainerPolicy accepts container events on gRPC and update container security policies
@@ -31,20 +31,18 @@ func (p *ServiceServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb
 
 		if policyEvent.Object.Metadata.Name != "" {
 
-			p.UpdateContainerPolicy(policyEvent)
-
-			res.Status = 1
+			res.Status = p.UpdateContainerPolicy(policyEvent)
 
 		} else {
-
+			res.Status = pb.PolicyStatus_Invalid
 			kg.Warn("Empty Container Policy Event")
-
-			res.Status = 0
 		}
 
 	} else {
+
 		kg.Warn("Invalid Container Policy Event")
-		res.Status = 0
+
+		res.Status = pb.PolicyStatus_Invalid
 	}
 
 	return res, nil
@@ -61,21 +59,19 @@ func (p *ServiceServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Resp
 
 		if policyEvent.Object.Metadata.Name != "" {
 
-			p.UpdateHostPolicy(policyEvent)
-
-			res.Status = 1
+			res.Status = p.UpdateHostPolicy(policyEvent)
 
 		} else {
 
 			kg.Warn("Empty Host Policy Event")
 
-			res.Status = 0
+			res.Status = pb.PolicyStatus_Invalid
 
 		}
 
 	} else {
 		kg.Warn("Invalid Host Policy Event")
-		res.Status = 0
+		res.Status = pb.PolicyStatus_Invalid
 	}
 
 	return res, nil
