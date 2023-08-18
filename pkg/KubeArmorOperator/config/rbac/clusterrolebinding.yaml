@@ -9,7 +9,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -22,7 +22,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -35,4 +35,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kube-system  
+  namespace: kubearmor  

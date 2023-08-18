@@ -3,13 +3,13 @@ Install KubeArmor using Helm chart repo. Also see [values](#Values) for your res
 ```
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
-helm upgrade --install kubearmor kubearmor/kubearmor -n kube-system
+helm upgrade --install kubearmor kubearmor/kubearmor -n kubearmor --create-namespace
 ```
 
 Install KubeArmor using Helm charts locally (for testing)
 ```
 cd deployments/helm/KubeArmor
-helm upgrade --install kubearmor . -n kube-system
+helm upgrade --install kubearmor . -n kubearmor --create-namespace
 ```
 
 ## Values
@@ -92,7 +92,7 @@ Usage of ./kubearmor:
 
 ## Verify if all the resources are up and running
 ```
-kubectl get all -n kube-system -l kubearmor-app
+kubectl get all -n kubearmor -l kubearmor-app
 NAME                                        READY   STATUS    RESTARTS   AGE
 pod/kubearmor-controller-7b48cf777f-bn7d8   2/2     Running   0          24s
 pod/kubearmor-relay-5656cc5bf7-jl56q        1/1     Running   0          24s
@@ -116,5 +116,5 @@ replicaset.apps/kubearmor-relay-5656cc5bf7        1         1         1       24
 ## Remove KubeArmor
 Uninstall KubeArmor using helm
 ```
-helm uninstall kubearmor -n kube-system
+helm uninstall kubearmor -n kubearmor
 ```

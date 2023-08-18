@@ -145,12 +145,12 @@ function start_and_wait_for_kubearmor_initialization() {
         SKIP_HOST_POLICY=1
     fi
 
-    ka_podname=`kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o custom-columns=":metadata.name" --no-headers`
+    ka_podname=`kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o custom-columns=":metadata.name" --no-headers`
     if [ "$ka_podname" != "" ]; then
         echo "Found KubeArmor from Kubernetes"
 
-        CAT_LOG="kubectl exec -n kube-system $ka_podname -- cat $ARMOR_LOG"
-        CAT_MSG="kubectl logs -n kube-system $ka_podname"
+        CAT_LOG="kubectl exec -n kubearmor $ka_podname -- cat $ARMOR_LOG"
+        CAT_MSG="kubectl logs -n kubearmor $ka_podname"
 
         sleep 10
 

@@ -75,12 +75,12 @@ jobs:
               sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
             fi
           fi
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kube-system
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor-operator
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
-          kubectl wait -n kube-system --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kube-system
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
@@ -93,7 +93,7 @@ jobs:
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
-          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 

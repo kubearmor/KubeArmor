@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: kubearmoroperator
   name: kubearmorconfig-test
-  namespace: kube-system
+  namespace: kubearmor
 spec:
   defaultCapabilitiesPosture: block
   defaultFilePosture: block

@@ -2326,8 +2326,8 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 
 	if envNamespace == "" {
 		// kubearmor is running as system process,
-		// return "kube-system" for testing purpose in dev env
-		return "kube-system"
+		// return "kubearmor" for testing purpose in dev env
+		return "kubearmor"
 	}
 	return envNamespace
 }

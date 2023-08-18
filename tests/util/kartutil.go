@@ -110,7 +110,7 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kubearmor-config",
-			Namespace: "kube-system",
+			Namespace: "kubearmor",
 			Labels: map[string]string{
 				"kubearmor-app": "kubearmor-configmap",
 			},
@@ -125,12 +125,12 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 		},
 	}
 
-	_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Create(context.Background(), cm, metav1.CreateOptions{})
+	_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kubearmor").Create(context.Background(), cm, metav1.CreateOptions{})
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			return err
 		}
-		_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Update(context.Background(), cm, metav1.UpdateOptions{})
+		_, err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kubearmor").Update(context.Background(), cm, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -140,7 +140,7 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 
 // DeleteKAConfigMap function
 func DeleteKAConfigMap() error {
-	err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kube-system").Delete(context.Background(), "kubearmor-config", metav1.DeleteOptions{})
+	err := k8sClient.K8sClientset.CoreV1().ConfigMaps("kubearmor").Delete(context.Background(), "kubearmor-config", metav1.DeleteOptions{})
 	return err
 }
 

@@ -3,13 +3,13 @@ Install KubeArmorOperator using the official `kubearmor` Helm chart repo.Also se
 ```
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
-helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kube-system
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
 ```
 
 Install KubeArmorOperator using Helm charts locally (for testing)
 ```
 cd deployments/helm/KubeArmorOperator
-helm upgrade --install kubearmor-operator . -n kube-system
+helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 ```
 
 ## Values
@@ -76,7 +76,7 @@ If a valid configuration is received, the operator will deploy jobs to your node
 
 Once done, the following resources related to KubeArmor will exist in your cluster:
 ```
-$ kubectl get all -n kube-system -l kubearmor-app
+$ kubectl get all -n kubearmor -l kubearmor-app
 NAME                                        READY   STATUS      RESTARTS   AGE
 pod/kubearmor-operator-66fbff5559-qb7dh     1/1     Running     0          11m
 pod/kubearmor-relay-557dfcc57b-c8t55        1/1     Running     0          2m53s
@@ -108,5 +108,5 @@ job.batch/kubearmor-snitch-lglbd   1/1           3s         11m
 ## Uninstall The Operator
 Uninstalling the Operator will also uninstall KubeArmor from all your nodes. To uninstall, just run:
 ```bash
-helm uninstall kubearmor -n kube-system
+helm uninstall kubearmor -n kubearmor
 ```

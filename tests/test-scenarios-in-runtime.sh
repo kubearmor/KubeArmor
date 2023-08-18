@@ -150,10 +150,10 @@ function should_not_find_any_log() {
     sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kubearmor exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -181,10 +181,10 @@ function should_find_passed_log() {
     sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kubearmor exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -212,10 +212,10 @@ function should_find_blocked_log() {
     sleep 5
 
     NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kubearmor exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -243,10 +243,10 @@ function should_not_find_any_host_log() {
     sleep 5
 
     NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kubearmor exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? == 0 ]; then
             echo $audit_log
             FAIL "Found the log from logs"
@@ -274,10 +274,10 @@ function should_find_passed_host_log() {
     sleep 5
 
     NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
+        audit_log=$(kubectl -n kubearmor exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"
@@ -305,10 +305,10 @@ function should_find_blocked_host_log() {
     sleep 5
 
     NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
+    KUBEARMOR=$(kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
 
     if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
+        audit_log=$(kubectl -n kubearmor exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
         if [ $? != 0 ]; then
             audit_log="<No Log>"
             FAIL "Failed to find the log from logs"

@@ -74,7 +74,7 @@ func KubearmorPortForward() error {
 		log.Error("kubearmor port forward is already in progress")
 		return errors.New("kubearmor port forward is already in progress")
 	}
-	ns := "kube-system"
+	ns := "kubearmor"
 	pods, err := K8sGetPods("^kubearmor-.....$", ns, nil, 0)
 	if err != nil {
 		log.Printf("could not get kubearmor pods assuming process mode")

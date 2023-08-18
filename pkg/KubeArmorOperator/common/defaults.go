@@ -51,7 +51,7 @@ var (
 	BTFLabel                string = "kubearmor.io/btf"
 	DeleteAction            string = "DELETE"
 	AddAction               string = "ADD"
-	Namespace               string = "kube-system"
+	Namespace               string = "kubearmor"
 	Privileged              bool   = false
 	HostPID                 bool   = false
 	SnitchName              string = "kubearmor-snitch"
