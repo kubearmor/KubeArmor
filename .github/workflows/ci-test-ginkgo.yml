@@ -8,6 +8,8 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +17,8 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
 
 jobs:
   build:
@@ -78,8 +82,6 @@ jobs:
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
-          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
-          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
           kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
 

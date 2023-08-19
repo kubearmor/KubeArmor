@@ -1,28 +1,35 @@
-## Install KubeArmorOperator
-Install KubeArmorOperator using the official `kubearmor` Helm chart repo.Also see [values](#Values) for your respective environment.
-```
+# Install KubeArmorOperator
+
+Install KubeArmorOperator using the official `kubearmor` Helm chart repo. Also see [values](#values) for your respective environment.
+
+```bash
 helm repo add kubearmor https://kubearmor.github.io/charts
 helm repo update kubearmor
 helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
 ```
 
 Install KubeArmorOperator using Helm charts locally (for testing)
-```
+
+```bash
 cd deployments/helm/KubeArmorOperator
 helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 ```
 
 ## Values
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | kubearmorOperator.name | string | kubearmor-operator | name of the operator's deployment |
 | kubearmorOperator.image.repository | string | kubearmor/kubearmor-operator | image repository to pull KubeArmorOperator from |
 | kubearmorOperator.image.tag | string | latest | KubeArmorOperator image tag |
 | kubearmorOperator.imagePullPolicy | string | IfNotPresent | pull policy for operator image |
+| kubearmorOperator.configSpec | object | [values.yaml](values.yaml) | KubeArmor default configurations |
 
-Once installed, the operator waits for the user to create a `KubeArmorConfig` object.
+The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install.
+It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
 
 ## KubeArmorConfig specification
+
 ```yaml
 apiVersion: operator.kubearmor.com/v1
 kind: KubeArmorConfig
@@ -56,7 +63,7 @@ spec:
 
     # KubeArmor relay image and pull policy
     kubearmorRelayImage:
-        image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-relay:latest
+        image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor-relay-server:latest
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 
     # KubeArmor controller image and pull policy
@@ -69,7 +76,6 @@ spec:
         image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 ```
-**A [sample configuration](../../../pkg/KubeArmorOperator/config/samples/sample-config.yml) is also available for reference.**
 
 ## Verify if all the resources are up and running
 If a valid configuration is received, the operator will deploy jobs to your nodes to get the environment information and then start installing KubeArmor components.
@@ -105,8 +111,10 @@ NAME                               COMPLETIONS   DURATION   AGE
 job.batch/kubearmor-snitch-lglbd   1/1           3s         11m
 ```
 
-## Uninstall The Operator
+## Uninstall the Operator
+
 Uninstalling the Operator will also uninstall KubeArmor from all your nodes. To uninstall, just run:
+
 ```bash
 helm uninstall kubearmor -n kubearmor
 ```
