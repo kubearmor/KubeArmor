@@ -5,12 +5,17 @@ on:
     branches:
       - "main"
     paths:
-      - "pkg/KubeArmorOperator/**"
+      - "pkg/**"
+      - "deployments/get/**"
+      - "KubeArmor/utils/**"
   pull_request:
     branches:
       - "main"
     paths:
-      - "pkg/KubeArmorOperator/**"
+      # test on dep or helm changes
+      - "pkg/**"
+      - "deployments/**"
+      - "KubeArmor/utils/**"
 
 jobs:
   kubearmor-operator-test:

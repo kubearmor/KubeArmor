@@ -4,6 +4,7 @@
 package ksp
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = BeforeSuite(func() {
@@ -57,6 +59,49 @@ var _ = Describe("Ksp", func() {
 		KarmorLogStop()
 		err := DeleteAllKsp()
 		Expect(err).To(BeNil())
+	})
+
+	Describe("Annotation", func() {
+		It("can annotate pre existing pod", func() {
+			k8sClient := GetK8sClient()
+			// ReplicaSet
+			podSelector := metav1.ListOptions{
+				LabelSelector: "pre-run-pod-test=true",
+			}
+			pods, err := k8sClient.K8sClientset.CoreV1().Pods("nginx").List(context.TODO(), podSelector)
+			Expect(err).To(BeNil())
+
+			if len(pods.Items) == 0 {
+				fmt.Printf(" No pods with label pre-run-pod-test=true found ")
+				return
+			}
+
+			for _, item := range pods.Items {
+				annotated := false
+				for key, value := range item.Annotations {
+					fmt.Printf("K8sGetPods pod=%s ns=%s Annotation Key=%v value=%s", item.Name, "nginx", key, value)
+					if key == "kubearmor-policy" {
+						annotated = true
+					}
+
+				}
+				Expect(annotated).To(BeTrue())
+			}
+
+			err = KarmorLogStart("all", "nginx", "", pods.Items[0].Name)
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPod(pods.Items[0].Name, "nginx", []string{"ls"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+
+			// check audit logs
+			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			Expect(err).To(BeNil())
+			Expect(len(logs)).NotTo(Equal(0))
+
+		})
+
 	})
 
 	Describe("Apply Network Policies", func() {

@@ -4,6 +4,3 @@ kubearmorOperator:
     repository: kubearmor/kubearmor-operator
     tag: latest
   imagePullPolicy: IfNotPresent
-  serviceAccount:
-    annotations: {}
-kubernetesClusterDomain: cluster.local

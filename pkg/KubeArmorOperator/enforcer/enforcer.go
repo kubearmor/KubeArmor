@@ -18,6 +18,15 @@ func GetAvailableLsms() []string {
 	return []string{"bpf", "selinux", "apparmor"}
 }
 
+// CheckBtfSupport checks if BTF is present
+func CheckBtfSupport(PathPrefix string, log zap.SugaredLogger) string {
+	btfPath := PathPrefix + "/sys/kernel/btf/vmlinux"
+	if _, err := os.Stat(filepath.Clean(btfPath)); err == nil {
+		return "yes"
+	}
+	return "no"
+}
+
 // DetectEnforcer: detect the enforcer on the node
 func DetectEnforcer(lsmOrder []string, PathPrefix string, log zap.SugaredLogger) string {
 	supportedLsms := []string{}

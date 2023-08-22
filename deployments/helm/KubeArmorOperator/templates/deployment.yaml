@@ -23,8 +23,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: KUBERNETES_CLUSTER_DOMAIN
-          value: {{ quote .Values.kubernetesClusterDomain }}
         image: {{ printf "%s:%s" .Values.kubearmorOperator.image.repository .Values.kubearmorOperator.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
         name: {{ .Values.kubearmorOperator.name }}

@@ -31,7 +31,8 @@ jobs:
 
       - name: helm lint
         run: |
-          helm lint ./deployments/helm
+          helm lint ./deployments/helm/KubeArmor
+          helm lint ./deployments/helm/KubeArmorOperator
 
       - name: Validate helm environment template values
         run: |

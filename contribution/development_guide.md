@@ -292,12 +292,9 @@ Here, we briefly give you an overview of KubeArmor's directories.
     controller              - Deployments for installing KubeArmorController alongwith cert-manager
     CRD                     - KubeArmorPollicy and KubeArmorHostPolicy CRDs
     get                     - Stores source code for deploygen, a tool used for specifying kubearmor deployments
-    helm/                   - KubeArmor's helm chart
-        templates/          - Deployment templates
-        Chart.yaml          - Chart metadata
-        values.yaml         - Values for the helm chart
-        values.aws.yaml     - Values specific to AWS
-        values.oke.yaml     - Values specific to OKE
+    helm/
+        KubeArmor           - KubeArmor's Helm chart
+        KubeArmorOperator   - KubeArmorOperator's Helm chart
   ```
 
 * Files for testing

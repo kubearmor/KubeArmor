@@ -9,9 +9,16 @@
 
 <details><summary><h4>I am applying a blocking policy but it is not blocking the action. What can I check?</h4></summary>
 
+### Checkout Platform Support
 Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.ma) and if the platform is not listed there then raise a new issue or connect to kubearmor community of slack.
 
-If you are applying an Allow-based policy and expecting unknown actions to be blocked, please make sure to check the [default security posture](default_posture.md). The default security posture is set to Audit by default since KubeArmor v0.7.
+### Checkout Default Posture
+If you are applying an Allow-based policies and expecting unknown actions to be blocked, please make sure to check the [default security posture](default_posture.md). The default security posture is set to Audit by default since KubeArmor v0.7.
+
+### Checkout Binary Path
+If the path in your process rule is not an absolute path but a symlink, policy enforcement won't work. This is because KubeArmor sees the actual executable path in events received from kernel space and is not aware about symlinks.
+
+So policy enforcement on symbolic links like `/usr/bin/python` doesn't work and one has to specify the path of the actual executable that they link to.
 </details>
 
 <details><summary><h4>How is KubeArmor different from PodSecurityPolicy/PodSecurityContext?</h4></summary>
@@ -68,14 +75,31 @@ The logs are also exportable in OpenTelemetry format using [kubearmor/OTel-recei
 
 </details>
 
-<details><summary><h4>How to visualize KubeArmor visibility logs</h4></summary>
+<details><summary><h4>How to visualize KubeArmor visibility logs?</h4></summary>
 
 There are a couple of community-maintained dashboards available at [kubearmor/kubearmor-dashboards](https://github.com/kubearmor/kubearmor-dashboards).
 
 If you don't find an existing dashboard particular to your needs, feel free to create an issue. It would be great if you could also contribute one!
 </details>
 
-<details><summary><h4>How to get process events in the context of specific pods?</h4></summary>  
+<details><summary><h4>How to fix `karmor logs` timing out?</h4></summary>
+
+`karmor logs` internally uses Kubernetes' client's port-forward. Port forward is not meant for long running connection and it times out if left idle. Checkout this [StackOverflow answer](https://stackoverflow.com/questions/47484312/kubectl-port-forwarding-timeout-issue) for more info.
+
+If you want to stream logs reliably there are a couple of solutions you can try:
+1. Modiy the `kubearmor` service in `kube-system` namespace and change the service type to `NodePort`. Then run karmor with:
+```bash
+karmor logs --gRPC=<address of the kubearmor node-port service>
+```
+This will create a direct, more reliable connection with the service, without any internal port-forward.
+
+2. If you want to stream logs to external tools (fluentd/splunk/ELK etc) checkout [Streaming KubeArmor events](https://github.com/kubearmor/kubearmor-relay-server#streaming-kubearmor-events-to-external-siem-tools).
+
+The community has created adapters and dashboards for some of these tools which can be used out of the box or as reference for creating new adapters. Checkout the previous question for more information.
+
+</details>
+
+<details><summary><h4>How to get process events in the context of a specific pods?</h4></summary>  
 
 The following command can be used to get pod specific events:  
 
@@ -128,11 +152,37 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
 
 > Note: After upgrading to the UEK R7 you may required to enable BPF-LSM if it's not enabled by default.
 
+</details>
+
+<details>
+  <summary><h4>Checking and Enabling support for BPF-LSM</h4></summary>
+
+
+### Checking if BPF-LSM is supported in the Kernel
+
+We check for BPF LSM Support in Kernel Config
+
+```sh
+cat /boot/config-$(uname -r) | grep -e "BPF" -e "BTF"
+```
+
+Following flags need to exist and set to `y`
+```ini
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_BPF_JIT=y
+CONFIG_BPF_LSM=y
+CONFIG_DEBUG_INFO=y
+CONFIG_DEBUG_INFO_BTF=y
+```
+
+**Note**: These config could be in other places too like `/boot/config`, `/usr/src/linux-headers-$(uname -r)/.config`, `/lib/modules/$(uname -r)/config`, `/proc/config.gz`.
+
 ### Checking if BPF-LSM is enabled
 
 * check if bpf is enabled by verifying if it is in the active lsms.
 
-  ```
+  ```sh
   $ cat /sys/kernel/security/lsm
   capability,yama,selinux,bpf
   ```
@@ -143,7 +193,7 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
 
 * Open the `/etc/default/grub` file in privileged mode.
 
-  ```
+  ```sh
   sudo vi /etc/default/grub
   ```
 
@@ -153,15 +203,13 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
   GRUB_CMDLINE_LINUX="lsm=lockdown,capability,yama,apparmor,bpf"
   ```
 
-* Update grub config:
-
-  ```
+- Update grub config:
+  ```sh
   sudo grub2-mkconfig -o /boot/grub2.cfg
   ```
 
-* Reboot into your kernel.
-
-   ```
+- Reboot into your kernel.
+   ```sh
    sudo reboot
    ```
 
@@ -173,4 +221,6 @@ There is some problem with AppArmor due to which ICMP rules don't work as expect
 The KubeArmor team has brought this to the attention of the [AppArmor community](https://stackoverflow.com/questions/76768503/apparmor-deny-icmp-issue) on StackOverflow and await their response.
 
 In the same environment we've found that ICMP rules with BPFLSM work as expected.
+
+For more such differences checkout [Enforce Feature Parity Wiki](https://github.com/kubearmor/KubeArmor/wiki/Enforcer-Feature-Parity).
 </details>

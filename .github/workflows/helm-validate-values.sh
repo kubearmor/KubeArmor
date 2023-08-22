@@ -7,7 +7,7 @@ envs=("docker" "crio" "k3s" "microk8s" "minikube" "GKE" "BottleRocket" "EKS" "ge
 echo "Testing environment specific helm templates..."
 for env in ${envs[@]}; do
 	echo "Generating templates for $env..."
-	helm template kubearmor ./deployments/helm --set environment.name=$env > $env.yml
+	helm template kubearmor ./deployments/helm/KubeArmor --set environment.name=$env > $env.yml
 	if [[ "$?" -eq 1 ]]
 	then
 		echo "Failed to generate template for $env!"

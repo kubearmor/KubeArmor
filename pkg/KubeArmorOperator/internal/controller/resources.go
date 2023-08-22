@@ -13,7 +13,6 @@ import (
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	crds "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/crd"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
-	"golang.org/x/mod/semver"
 	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -24,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, kernelVersion string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, btfPresent string) *appsv1.DaemonSet {
 	enforcerVolumes, enforcerVolumeMounts := genEnforcerVolumes(enforcer)
 	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket, runtimeStorage)
 	vols := []corev1.Volume{}
@@ -35,7 +34,7 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, kernelVe
 	volMnts = append(volMnts, runtimeVolumeMounts...)
 	commonVols := common.CommonVolumes
 	commonVolMnts := common.CommonVolumesMount
-	if isKernelHeaderMountsRequired(kernelVersion) {
+	if btfPresent == "no" {
 		commonVols = append(commonVols, common.KernelHeaderVolumes...)
 		commonVolMnts = append(commonVolMnts, common.KernelHeaderVolumesMount...)
 	}
@@ -49,6 +48,7 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, kernelVe
 		common.RuntimeStorageLabel: runtimeStorage,
 		common.SocketLabel:         socket,
 		common.OsLabel:             "linux",
+		common.BTFLabel:            btfPresent,
 	}
 	daemonset.Spec.Template.Spec.NodeSelector = common.CopyStrMap(labels)
 	labels["kubearmor-app"] = "kubearmor"
@@ -80,17 +80,6 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, kernelVe
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
-}
-
-func isKernelHeaderMountsRequired(version string) bool {
-	target := "v5.2"
-	switch semver.Compare("v"+version, target) {
-	case 1:
-		return false
-	case -1:
-		return true
-	}
-	return false
 }
 
 func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {

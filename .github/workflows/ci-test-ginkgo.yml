@@ -48,14 +48,19 @@ jobs:
       - name: Generate KubeArmor artifacts
         run: |
           GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
-      
+
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
         run: |
           make docker-build
 
+      - name: deploy pre existing pod 
+        run: |
+          kubectl apply -f ./tests/ksp/pre-run-pod.yaml
+          sleep 60
+          kubectl get pods -A
+
       - name: Run KubeArmor
-        working-directory: pkg/KubeArmorOperator
         run: |
           if [ ${{ matrix.runtime }} == "containerd" ]; then
             docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
@@ -68,10 +73,10 @@ jobs:
               sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
             fi
           fi
-          helm upgrade --install kubearmor-operator ./deployments/helm -n kube-system
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kube-system
           kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
-          kubectl apply -f ./config/samples/kubearmor-test.yaml
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
           kubectl wait -n kube-system --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
           kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kube-system
           kubectl get pods -A
