@@ -20,29 +20,29 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 
 ## Documentation :notebook:
 
-* :point_right: [Getting Started](getting-started/deployment_guide.md)
-* :dart: [Use Cases](getting-started/use-cases.md)
-* :heavy_check_mark: [KubeArmor Support Matrix](getting-started/support_matrix.md)
-* :medal_sports: [How is KubeArmor different?](getting-started/differentiation.md)
-* :scroll: Security Policy for Pods/Containers [[Spec](getting-started/security_policy_specification.md)] [[Examples](getting-started/security_policy_examples.md)]
-* :scroll: Security Policy for Hosts/Nodes [[Spec](getting-started/host_security_policy_specification.md)] [[Examples](getting-started/host_security_policy_examples.md)]
+- :point_right: [Getting Started](getting-started/deployment_guide.md)
+- :dart: [Use Cases](getting-started/use-cases.md)
+- :heavy_check_mark: [KubeArmor Support Matrix](getting-started/support_matrix.md)
+- :medal_sports: [How is KubeArmor different?](getting-started/differentiation.md)
+- :scroll: Security Policy for Pods/Containers [[Spec](getting-started/security_policy_specification.md)] [[Examples](getting-started/security_policy_examples.md)]
+- :scroll: Security Policy for Hosts/Nodes [[Spec](getting-started/host_security_policy_specification.md)] [[Examples](getting-started/host_security_policy_examples.md)]
 
 ### Contributors :busts_in_silhouette:
 
-* :octocat: [Contribution Guide](contribution/contribution_guide.md)
-* :technologist: [Development Guide](contribution/development_guide.md), [Testing Guide](contribution/testing_guide.md)
-* :raising_hand_woman: [Join KubeArmor Slack](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA)
-* :question: [FAQs](getting-started/FAQ.md)
+- :octocat: [Contribution Guide](contribution/contribution_guide.md)
+- :technologist: [Development Guide](contribution/development_guide.md), [Testing Guide](contribution/testing_guide.md)
+- :raising_hand_woman: [Join KubeArmor Slack](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA)
+- :question: [FAQs](getting-started/FAQ.md)
 
 ### Biweekly Meeting
 
-* :speaking_head: [Zoom Link](http://zoom.kubearmor.io)
-* :page_facing_up: Meeting minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
-* :calendar: Calendar invite: [Google Calendar](http://www.google.com/calendar/event?action=TEMPLATE&dates=20220210T150000Z%2F20220210T153000Z&text=KubeArmor%20Community%20Call&location=&details=%3Ca%20href%3D%22https%3A%2F%2Fdocs.google.com%2Fdocument%2Fd%2F1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs%2Fedit%22%3EMinutes%20of%20Meeting%3C%2Fa%3E%0A%0A%3Ca%20href%3D%22%20http%3A%2F%2Fzoom.kubearmor.io%22%3EZoom%20Link%3C%2Fa%3E&recur=RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TH&ctz=Asia/Calcutta), [ICS file](getting-started/resources/KubeArmorMeetup.ics)
+- :speaking_head: [Zoom Link](http://zoom.kubearmor.io)
+- :page_facing_up: Meeting minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
+- :calendar: Calendar invite: [Google Calendar](http://www.google.com/calendar/event?action=TEMPLATE&dates=20220210T150000Z%2F20220210T153000Z&text=KubeArmor%20Community%20Call&location=&details=%3Ca%20href%3D%22https%3A%2F%2Fdocs.google.com%2Fdocument%2Fd%2F1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs%2Fedit%22%3EMinutes%20of%20Meeting%3C%2Fa%3E%0A%0A%3Ca%20href%3D%22%20http%3A%2F%2Fzoom.kubearmor.io%22%3EZoom%20Link%3C%2Fa%3E&recur=RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TH&ctz=Asia/Calcutta), [ICS file](getting-started/resources/KubeArmorMeetup.ics)
 
 ## Notice/Credits :handshake:
 
-* KubeArmor uses [Tracee](https://github.com/aquasecurity/tracee/)'s system call utility functions.
+- KubeArmor uses [Tracee](https://github.com/aquasecurity/tracee/)'s system call utility functions.
 
 ## CNCF
 
