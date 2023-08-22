@@ -34,7 +34,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 * :raising_hand_woman: [Join KubeArmor Slack](https://join.slack.com/t/kubearmor/shared_invite/zt-1ltmqdbc6-rSHw~LM6MesZZasmP2hAcA)
 * :question: [FAQs](getting-started/FAQ.md)
 
-### Biweekly Meetup
+### Biweekly Meeting
 
 * :speaking_head: [Zoom Link](http://zoom.kubearmor.io)
 * :page_facing_up: Minutes: [Document](https://docs.google.com/document/d/1IqIIG9Vz-PYpbUwrH0u99KYEM1mtnYe6BHrson4NqEs/edit)
