@@ -30,7 +30,7 @@ KubeArmor solves all the above-mentioned problems.
 * Consistent Alerting: KubeArmor handles kernel events and maps k8s metadata using ebpf.  
 * KubeArmor also runs in systemd mode so can directly run and protect Virtual Machines or Bare-metal machines too.  
 * Pod Security Context cannot leverage BPF-LSM at all today. BPF-LSM provides more programmatic control over the policy rules.  
-* Pod Security Context does not manage abstractions. As an example, you might have two nodes with Ubuntu, and two nodes with Bottlerocket. Ubuntu, by default, has AppArmor and Bottlerocket has BPF-LSM and SELinux. KubeArmor internally picks the right primitives to use for enforcement and the user does not have to bother explicitly stating what to use.
+* The Pod Security Context does not handle abstractions. For instance, consider a scenario where you have a node running Ubuntu and another node running Bottlerocket. Ubuntu inherently utilizes AppArmor, while Bottlerocket employs BPF-LSM and SELinux as its default LSMs. KubeArmor internally selects the appropriate primitives for enforcement, eliminating the need for users to explicitly specify the enforcement method.
 
 </details>
 
