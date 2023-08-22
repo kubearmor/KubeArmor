@@ -80,7 +80,7 @@ If you don't find an existing dashboard particular to your needs, feel free to c
 The following command can be used to get pod specific events:  
 
 `karmor log --pod <pod_name>`  
-`karmor log` has the following filter to provide more granularity:
+`karmor logs` has the following filter to provide more granularity:
 
 ```
 --container - Specify container name for container-specific logs
