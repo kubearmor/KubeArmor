@@ -590,7 +590,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 	Containers := *(mon.Containers)
 	ContainersLock := *(mon.ContainersLock)
-
 	ReplayChannel := make(chan []byte, SyscallChannelSize)
 
 	go func() {
@@ -604,10 +603,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 			if err != nil {
 				continue
 			}
-
+			containerID := ""
+			containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
 			now := time.Now()
 			if now.After(time.Unix(int64(ctx.Ts), 0).Add(5 * time.Second)) {
-				mon.Logger.Warn("Event dropped due to replay timeout")
+				mon.Logger.Warnf("Event dropped due to replay timeout in container:, %s", containerID)
 				continue
 			}
 
