@@ -216,3 +216,40 @@ In the same environment we've found that ICMP rules with BPFLSM work as expected
 
 For more such differences checkout [Enforce Feature Parity Wiki](https://github.com/kubearmor/KubeArmor/wiki/Enforcer-Feature-Parity).
 </details>
+
+<details><summary><h4>How to enable `KubeArmorHostPolicy` for k8s cluster?</h4></summary>
+By default the host policies and visibility is disabled for k8s hosts.
+
+If you use following command, `kubectl logs -n kube-system <KUBEARMOR-POD> | grep "Started to protect"`<br>
+you will see, `2023-08-21 12:58:34.641665      INFO    Started to protect containers.`<br>
+This indicates that only container/pod protection is enabled.<br>
+If you have hostpolicy enabled you should see something like this, `2023-08-22 18:07:43.335232      INFO    Started to protect a host and containers`<br>
+
+One can enable the host policy by patching the daemonset (`kubectl edit daemonsets.apps -n kube-system kubearmor`):
+```diff
+...
+  template:
+    metadata:
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+      creationTimestamp: null
+      labels:
+        kubearmor-app: kubearmor
+    spec:
+      containers:
+      - args:
+        - -gRPC=32767
++       - -enableKubeArmorHostPolicy
++       - -hostVisibility=process,file,network,capabilities
+        env:
+        - name: KUBEARMOR_NODENAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+...
+```
+
+This will enable the `KubeArmorHostPolicy` and host based visibility for the k8s worker nodes.
+
+</details>
