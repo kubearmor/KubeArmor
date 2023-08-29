@@ -2379,22 +2379,15 @@ rules:
   - apps
   resources:
   - deployments
+  - replicasets
+  - daemonsets
+  - statefulsets
   verbs:
   - get
   - patch
   - list
   - watch
   - update
-- apiGroups:
-  - apps
-  resources:
-  - replicasets
-  - daemonsets
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -2721,7 +2714,6 @@ spec:
           name: docker-storage-path
           readOnly: true
       dnsPolicy: ClusterFirstWithHostNet
-      hostNetwork: true
       hostPID: true
       initContainers:
       - image: kubearmor/kubearmor-init:stable
@@ -2904,12 +2896,9 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
           requests:
-            cpu: 100m
-            memory: 20Mi
+            cpu: 10m
+            memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
         volumeMounts:
