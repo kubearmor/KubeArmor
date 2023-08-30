@@ -103,7 +103,7 @@ The community has created adapters and dashboards for some of these tools which 
 
 The following command can be used to get pod specific events:  
 
-`karmor log --pod <pod_name>`  
+`karmor logs --pod <pod_name>`  
 `karmor logs` has the following filter to provide more granularity:
 
 ```
