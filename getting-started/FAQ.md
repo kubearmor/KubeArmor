@@ -2,23 +2,24 @@
 
 <details><summary><h4>What platforms are supported by KubeArmor? How can I check whether my deployment will be supported?</h4></summary>
 
-* Please check [Support matrix for KubeArmor](default_posture.md).
+* Please check [Support matrix for KubeArmor](support_matrix.md).
 * Use `karmor probe` to check if the platform is supported.
 
 </details>
 
 <details><summary><h4>I am applying a blocking policy but it is not blocking the action. What can I check?</h4></summary>
 
+### Checkout Binary Path
+If the path in your process rule is not an absolute path but a symlink, policy enforcement won't work. This is because KubeArmor sees the actual executable path in events received from kernel space and is not aware about symlinks.
+
+Policy enforcement on symbolic links like `/usr/bin/python` doesn't work and one has to specify the path of the actual executable that they link to.
+
 ### Checkout Platform Support
-Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.ma) and if the platform is not listed there then raise a new issue or connect to kubearmor community of slack.
+Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.md) and if the platform is not listed there then raise a new issue or connect to kubearmor community of slack.
 
 ### Checkout Default Posture
 If you are applying an Allow-based policies and expecting unknown actions to be blocked, please make sure to check the [default security posture](default_posture.md). The default security posture is set to Audit by default since KubeArmor v0.7.
 
-### Checkout Binary Path
-If the path in your process rule is not an absolute path but a symlink, policy enforcement won't work. This is because KubeArmor sees the actual executable path in events received from kernel space and is not aware about symlinks.
-
-So policy enforcement on symbolic links like `/usr/bin/python` doesn't work and one has to specify the path of the actual executable that they link to.
 </details>
 
 <details><summary><h4>How is KubeArmor different from PodSecurityPolicy/PodSecurityContext?</h4></summary>
@@ -41,7 +42,7 @@ KubeArmor solves all the above-mentioned problems.
 
 </details>
 
-<details><summary><h4>What is visibility that I hear of in KubeArmor and how to get visibility information?</h4></summary>  
+<details><summary><h4>What is visibility that I hear of in KubeArmor and how to get visibility information?</h4></summary>
 
 KubeArmor, apart from being a policy enforcement engine also emits pod/container visibility data. It uses an eBPF-based system monitor which keeps track of process life cycles in containers and even nodes and converts system metadata to container/node identities. This information can then be used for observability use cases.
 
@@ -71,7 +72,9 @@ Sample output `karmor log --json`:
 
 Here the log implies that the process /usr/bin/sleep execution by 'zsh' was denied on the Host using a block-based host policy.
 
-The logs are also exportable in OpenTelemetry format using [kubearmor/OTel-receiver](https://github.com/kubearmor/OTel-receiver).
+The logs are also exportable in [OpenTelemetry format](https://github.com/kubearmor/otel-adapter).
+
+[Detailed KubeArmor events spec](kubearmor-events.md).
 
 </details>
 
@@ -223,4 +226,41 @@ The KubeArmor team has brought this to the attention of the [AppArmor community]
 In the same environment we've found that ICMP rules with BPFLSM work as expected.
 
 For more such differences checkout [Enforce Feature Parity Wiki](https://github.com/kubearmor/KubeArmor/wiki/Enforcer-Feature-Parity).
+</details>
+
+<details><summary><h4>How to enable `KubeArmorHostPolicy` for k8s cluster?</h4></summary>
+By default the host policies and visibility is disabled for k8s hosts.
+
+If you use following command, `kubectl logs -n kube-system <KUBEARMOR-POD> | grep "Started to protect"`<br>
+you will see, `2023-08-21 12:58:34.641665      INFO    Started to protect containers.`<br>
+This indicates that only container/pod protection is enabled.<br>
+If you have hostpolicy enabled you should see something like this, `2023-08-22 18:07:43.335232      INFO    Started to protect a host and containers`<br>
+
+One can enable the host policy by patching the daemonset (`kubectl edit daemonsets.apps -n kube-system kubearmor`):
+```diff
+...
+  template:
+    metadata:
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+      creationTimestamp: null
+      labels:
+        kubearmor-app: kubearmor
+    spec:
+      containers:
+      - args:
+        - -gRPC=32767
++       - -enableKubeArmorHostPolicy
++       - -hostVisibility=process,file,network,capabilities
+        env:
+        - name: KUBEARMOR_NODENAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+...
+```
+
+This will enable the `KubeArmorHostPolicy` and host based visibility for the k8s worker nodes.
+
 </details>

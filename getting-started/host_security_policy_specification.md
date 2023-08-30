@@ -80,21 +80,20 @@ Now, we will briefly explain how to define a host security policy.
 
 * Common
 
-  A security policy starts with the base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the names of a policy and a namespace where you want to apply the policy.
+  A security policy starts with the base information such as apiVersion, kind, and metadata. The apiVersion and kind would be the same in any security policies. In the case of metadata, you need to specify the name of a policy.
 
   ```text
     apiVersion: security.kubearmor.com/v1
-    kind:KubeArmorHostPolicy
+    kind: KubeArmorHostPolicy
     metadata:
       name: [policy name]
-      namespace: [namespace name]
   ```
 
-  Make sure that you need to use KubeArmorHostPolicy, not KubeArmorPolicy.
+  Make sure that you need to use `KubeArmorHostPolicy`, not `KubeArmorPolicy`.
 
 * Severity
 
-  The severity part is somewhat important. You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts when policy violations happen.
+  You can specify the severity of a given policy from 1 to 10. This severity will appear in alerts when policy violations happen.
 
   ```text
   severity: [1-10]
