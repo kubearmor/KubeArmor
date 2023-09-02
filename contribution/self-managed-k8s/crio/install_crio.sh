@@ -27,6 +27,19 @@ curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/
 # install
 sudo apt-get update
 sudo apt-get install -y cri-o cri-o-runc
+sudo systemctl start crio
+sudo systemctl enable crio
+sudo systemctl status crio
+#By default, there is no CNI plugin installed and configured for CRIO
+sudo apt install containernetworking-plugins -y
+
+crio_config_file="/etc/crio/crio.conf"
+# Uncomment network_dir and plugin_dirs sections
+sed -i '/^[[:space:]]*#[[:space:]]*network_dir =/s/^[[:space:]]*#//' "$crio_config_file"
+sed -i '/^# *plugin_dirs = \[/,/\]$/ s/^# *//' "$crio_config_file"
+sed -i '/\/opt\/cni\/bin\// a "/usr/lib/cni/",' "$crio_onfig_file"
+
+sudo systemctl restart crio
 
 # this option is not supported in ubuntu 18.04
 if [ "$VERSION_ID" == "18.04" ]; then

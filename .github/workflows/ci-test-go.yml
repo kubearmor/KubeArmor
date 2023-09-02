@@ -33,6 +33,7 @@ jobs:
         uses: morphy2k/revive-action@v2
         with:
           path: "./KubeArmor/..."
+    
 
   go-lint-tests:
     runs-on: ubuntu-20.04
@@ -47,6 +48,7 @@ jobs:
         uses: morphy2k/revive-action@v2
         with:
           path: "./tests/..."
+      
 
   go-sec:
     runs-on: ubuntu-20.04
@@ -60,6 +62,7 @@ jobs:
       - name: Run Gosec Security Scanner
         run: make gosec
         working-directory: KubeArmor
+     
 
   go-test:
     runs-on: ubuntu-20.04
@@ -83,3 +86,4 @@ jobs:
         uses: apache/skywalking-eyes@9bd5feb86b5817aa6072b008f9866a2c3bbc8587
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      

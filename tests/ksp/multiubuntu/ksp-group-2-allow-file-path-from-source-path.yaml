@@ -19,9 +19,12 @@ spec:
       fromSource:
       - path: /bin/cat
     - path: /dev/tty
+    - path: /lib/terminfo/x/xterm
     matchDirectories:
       - dir: /pts/
         recursive: true
+      - dir: /lib/x86_64-linux-gnu/
+      - dir: /bin/
   action:
     Allow
 
