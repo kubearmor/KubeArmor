@@ -10,6 +10,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// TODO: fix typos
+
 func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, log zap.SugaredLogger) (string, string) {
 	log.Infof("Checking for %s socket\n", k8sRuntime)
 	if k8sRuntime != "" {

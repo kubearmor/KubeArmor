@@ -114,8 +114,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 			break
 		}
 	}
-	// lookup runtime storage location
 
+	// lookup runtime storage location
 	for _, storageLocation := range common.RuntimeStorageVolumes[runtime] {
 		if strings.ReplaceAll(storageLocation[1:], "/", "_") == runtimeStorage {
 			vol = append(vol, corev1.Volume{
@@ -127,6 +127,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 					},
 				},
 			})
+
+			storageLocation = common.RuntimeStorageLocation[runtime]
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:             runtime + "-storage",
 				MountPath:        storageLocation,

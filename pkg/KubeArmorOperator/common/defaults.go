@@ -103,6 +103,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 	"containerd": {
 		"/var/snap/microk8s/common/run/containerd.sock",
+		"/run/k0s/containerd.sock",
 		"/run/k3s/containerd/containerd.sock",
 		"/run/containerd/containerd.sock",
 		"/var/run/containerd/containerd.sock",
@@ -168,9 +169,16 @@ var RuntimeStorageVolumes = map[string][]string{
 		"/var/lib/containers/storage",
 	},
 	"containerd": {
+		"/run/k0s/containerd",
 		"/run/k3s/containerd",
 		"/run/containerd",
 	},
+}
+
+var RuntimeStorageLocation = map[string]string{
+	"docker":     "/var/lib/docker",
+	"containerd": "/run/containerd",
+	"cri-o":      "/var/lib/containers/storage",
 }
 
 func ShortSHA(s string) string {

@@ -326,6 +326,44 @@ var defaultConfigs = map[string]DaemonSetConfig{
 			},
 		},
 	},
+	"k0s": {
+		Args: []string{},
+		Envs: envVar,
+		VolumeMounts: []corev1.VolumeMount{
+			apparmorVolMnt,
+			{
+				Name:      "containerd-sock-path",
+				MountPath: "/var/run/containerd/containerd.sock",
+				ReadOnly:  true,
+			},
+			{
+				Name:             "containerd-storage-path",
+				MountPath:        "/run/containerd",
+				MountPropagation: &hostContainerStorageMountPropagation,
+			},
+		},
+		Volumes: []corev1.Volume{
+			apparmorVol,
+			{
+				Name: "containerd-sock-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/run/k0s/containerd.sock",
+						Type: &hostPathSocket,
+					},
+				},
+			},
+			{
+				Name: "containerd-storage-path",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/run/k0s/containerd",
+						Type: &hostPathDirectory,
+					},
+				},
+			},
+		},
+	},
 	"k3s": {
 		Args: []string{},
 		Envs: envVar,
