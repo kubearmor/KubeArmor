@@ -126,3 +126,10 @@ service LogService {
   rpc WatchAlerts(RequestMessage) returns (stream Alert);
   rpc WatchLogs(RequestMessage) returns (stream Log);
 }
+
+service PushLogService {
+  rpc HealthCheck(NonceMessage) returns (ReplyMessage);
+  rpc PushMessages(stream Message) returns (stream ReplyMessage);
+  rpc PushAlerts(stream Alert) returns (stream ReplyMessage);
+  rpc PushLogs(stream Log) returns (stream ReplyMessage);
+}
