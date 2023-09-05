@@ -9,6 +9,7 @@ on:
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
   pull_request:
     branches: [main]
     paths:
@@ -42,6 +43,9 @@ jobs:
 
       - name: Compile libbpf
         run: ./.github/workflows/install-libbpf.sh
+
+      - name: Install socat
+        run: sudo apt-get -y install socat
 
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
