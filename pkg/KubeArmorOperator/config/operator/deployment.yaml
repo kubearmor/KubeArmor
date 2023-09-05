@@ -19,7 +19,15 @@ spec:
         command:
         - "/operator"
         - "kubearmor-operator"
-        env: 
+        securityContext:
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - SYS_RESOURCE
+            - IPC_LOCK
+            - DAC_OVERRIDE
+            - DAC_READ_SEARCH
+        env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:
             fieldRef:
