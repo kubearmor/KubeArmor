@@ -27,6 +27,9 @@ spec:
             - IPC_LOCK
             - DAC_OVERRIDE
             - DAC_READ_SEARCH
+            drop:
+            - ALL
+          privileged: false
         env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:

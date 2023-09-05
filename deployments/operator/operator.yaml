@@ -441,4 +441,7 @@ spec:
             - IPC_LOCK
             - DAC_OVERRIDE
             - DAC_READ_SEARCH
+            drop:
+            - ALL
+          privileged: false
       serviceAccountName: kubearmor-operator

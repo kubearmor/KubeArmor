@@ -236,14 +236,21 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						SecurityContext: &corev1.SecurityContext{
 							Capabilities: &corev1.Capabilities{
 								Add: []corev1.Capability{
+									"DAC_OVERRIDE",
+									"DAC_READ_SEARCH",
 									"IPC_LOCK",
 									"SYS_ADMIN",
 									"SYS_RESOURCE",
 								},
 							},
+							Privileged: &(common.Privileged),
 						},
 					},
 				},
+				// For Unknown Reasons hostPID will be true if snitch gets deployed on OpenShift
+				// for some reasons github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe will
+				// not work if hostPID is set false.
+				HostPID:            common.HostPID,
 				NodeName:           nodename,
 				RestartPolicy:      corev1.RestartPolicyOnFailure,
 				ServiceAccountName: common.KubeArmorSnitchRoleName,
