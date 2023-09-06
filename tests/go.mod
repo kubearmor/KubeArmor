@@ -2,6 +2,10 @@ module github.com/kubearmor/KubeArmor/tests
 
 go 1.20
 
+replace(
+    github.com/kubearmor/KubeArmor/protobuf => /home/vagrant/xyz3/KubeArmor/protobuf/
+)
+
 require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230519075515-e8b45043a53d
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230519075515-e8b45043a53d

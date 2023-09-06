@@ -1,5 +1,7 @@
 syntax = "proto3";
  
+import "google/protobuf/empty.proto";
+
 package policy;
 
 option go_package="github.com/kubearmor/KubeArmor/protobuf";
@@ -29,6 +31,22 @@ message response {
 
 message policy {
     bytes policy = 1;
+}
+
+message ContainerData {
+  repeated string policyList = 1;
+  int32 policyEnabled = 2;
+}
+message HostSecurityPolicies {
+  repeated string policyList = 1; 
+}
+message karmorresponse {
+   repeated string containerList = 1;
+   map<string, ContainerData> containerMap = 2;
+   map<string , HostSecurityPolicies> hostMap = 3;
+}
+service karmor {
+    rpc getKarmorData(google.protobuf.Empty) returns (karmorresponse);
 }
 
 service PolicyService {

@@ -644,8 +644,12 @@ func KubeArmor() {
 			dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 			dm.Logger.Print("Started to monitor host security policies on gRPC")
 		}
-
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+		//Enable grpc service to send kubearmor data to client in unorchestrated mode
+		karmor := &Karmor{}
+		karmor.GetContainerData = dm.SetKarmorContainerData
+		pb.RegisterKarmorServer(dm.Logger.LogServer, karmor)
+
 	}
 
 	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
@@ -657,14 +661,12 @@ func KubeArmor() {
 	// == //
 	go dm.SetKarmorData()
 	dm.Logger.Print("Initialized KubeArmor")
-
 	// == //
 
 	if cfg.GlobalCfg.KVMAgent || !dm.K8sEnabled {
 		// Restore and apply all kubearmor host security policies
 		dm.restoreKubeArmorPolicies()
 	}
-
 	// == //
 
 	// Init KvmAgent
