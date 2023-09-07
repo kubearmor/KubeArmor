@@ -4,6 +4,16 @@ package policy;
 
 option go_package="github.com/kubearmor/KubeArmor/protobuf";
 
+// Health check
+message HealthCheckReq {
+  int32 nonce = 1;
+}
+
+// healthcheck reply message
+message HealthCheckReply {
+  int32 Retval = 1;
+}
+
 message response {
     int32 status = 1;
 }
@@ -15,4 +25,10 @@ message policy {
 service PolicyService {
     rpc containerPolicy (policy) returns (response);
     rpc hostPolicy (policy) returns (response);
+}
+
+service PolicyStreamService {
+    rpc HealthCheck(HealthCheckReq) returns (HealthCheckReply);
+    rpc containerPolicy (stream response) returns (stream policy);
+    rpc hostPolicy (stream response) returns (stream policy);
 }

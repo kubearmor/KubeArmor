@@ -1,0 +1,39 @@
+kubearmorRelay:
+  enabled: true
+  image:
+    tag: latest
+
+kubearmorInit:
+  image:
+    tag: latest
+  imagePullPolicy: Never
+
+# we pull the latest controller image by default
+kubearmorController:
+  image:
+    tag: latest
+  imagePullPolicy: Always
+
+environment:
+  name: docker
+
+kubearmorConfigMap:
+  defaultFilePosture: block
+  defaultCapabilitiesPosture: block
+  defaultNetworkPosture: block
+  visibility: process,file,network
+
+kubearmor:
+  image:
+    tag: latest
+  imagePullPolicy: Never
+  args:
+    - -logPath=/tmp/kubearmor.log
+    - -enableKubeArmorHostPolicy
+    - -defaultFilePosture=block
+    - -defaultCapabilitiesPosture=block
+    - -defaultNetworkPosture=block
+    - -hostDefaultCapabilitiesPosture=block
+    - -hostDefaultNetworkPosture=block
+    - -hostDefaultFilePosture=block
+    - -lsm=apparmor,bpf,selinux

@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Install regctl
         run: |
           curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
@@ -35,3 +35,39 @@ jobs:
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
+
+  update-helm-chart:
+    name: Update KubeArmor Helm chart version
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-20.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Update Chart.yaml
+        id: update
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+
+          sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
+          sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
+
+          echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create PR to update Helm chart version in KubeArmor repo
+        uses: peter-evans/create-pull-request@v5
+        with:
+          branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
+          add-paths: "deployments/helm/*/Chart.yaml"
+          commit-message: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          committer: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          title: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          base: main
+          signoff: true
+          delete-branch: true

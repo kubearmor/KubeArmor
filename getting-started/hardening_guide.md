@@ -29,10 +29,9 @@ The rules in hardening policies are based on inputs from:
 Pre-requisites:
 1. Install KubeArmor
 	* `curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin && karmor install`
-2. Install [Discovery-engine](https://github.com/kubearmor/discovery-engine)
-	* `kubectl apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml`
-3. Get the hardening policies in context of all the deployment in namespace NAMESPACE:
+2. Get the hardening policies in context of all the deployment in namespace NAMESPACE:
 	* `karmor recommend -n NAMESPACE`
+	* The recommended policies would be available in the `out` folder.
 
 ## Sample recommended hardening policies
 
@@ -194,6 +193,6 @@ output report in out/report.txt ...
 
 Key highlights:
 1. The hardening policies are available by default in the `out` folder separated out in directories based on deployment names.
-2. Get an HTML report by using the option `--report report.html` with `karmor recommend`. [Sample HTML Report](https://githtmlpreview.netlify.app/?https://github.com/kubearmor/KubeArmor/blob/main/getting-started/hardening-report.html).
+2. Get an HTML report by using the option `--report report.html` with `karmor recommend`.
 3. Get hardening policies in context to specific compliance by specifying `--tag <CIS/MITRE/...>` option.
 

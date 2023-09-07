@@ -44,6 +44,11 @@ type ConfigMapData struct {
 	DefaultNetworkPosture      string
 }
 
+// GetK8sClient function return instance of k8s client
+func GetK8sClient() *kcli.Client {
+	return k8sClient
+}
+
 func connectKcClient() error {
 	var kubeconfig string
 	var contextName string
@@ -106,6 +111,9 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kubearmor-config",
 			Namespace: "kube-system",
+			Labels: map[string]string{
+				"kubearmor-app": "kubearmor-configmap",
+			},
 		},
 		Data: map[string]string{
 			"gRPC":                       data.GRPC,
@@ -205,7 +213,7 @@ func K8sDeploymentCheck(depname string, ns string, timeout time.Duration) error 
 	return waitForCondition(timeout, isDeploymentReady(depname, ns))
 }
 
-func annotationsMatch(pod corev1.Pod, ants []string) bool {
+func AnnotationsMatch(pod corev1.Pod, ants []string) bool {
 	if ants == nil || len(ants) <= 0 {
 		return true
 	}
@@ -256,7 +264,7 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 			if p.Status.Reason != "" {
 				continue
 			}
-			if !annotationsMatch(p, ants) {
+			if !AnnotationsMatch(p, ants) {
 				continue
 			}
 			if strings.HasPrefix(p.ObjectMeta.Name, podstr) {
@@ -578,4 +586,15 @@ func K8sCRIRuntime() string {
 
 	containerRuntime := nodes.Items[0].Status.NodeInfo.ContainerRuntimeVersion
 	return containerRuntime
+}
+
+// K8sRuntimeEnforcer extracts Runtime Enforcer from the Node Labels
+func K8sRuntimeEnforcer() string {
+	nodes, _ := k8sClient.K8sClientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+	if len(nodes.Items) <= 0 {
+		return ""
+	}
+
+	runtimeEnforcer := nodes.Items[0].Labels["kubearmor.io/enforcer"]
+	return runtimeEnforcer
 }

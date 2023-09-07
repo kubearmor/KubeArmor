@@ -1,0 +1,130 @@
+{{- if .Values.kubearmorRelay.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    kubearmor-app: kubearmor-relay
+  name: kubearmor-relay
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      kubearmor-app: kubearmor-relay
+  template:
+    metadata:
+      annotations:
+        kubearmor-policy: audited
+      labels:
+        kubearmor-app: kubearmor-relay
+    spec:
+      containers:
+      - image: {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
+        imagePullPolicy: {{ .Values.kubearmorRelay.imagePullPolicy }}
+        name: kubearmor-relay-server
+        ports:
+        - containerPort: 32767
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: kubearmor
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    kubearmor-app: {{ .Values.kubearmorController.name }}
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.kubearmorController.replicas }}
+  selector:
+    matchLabels:
+      kubearmor-app: {{ .Values.kubearmorController.name }}
+  template:
+    metadata:
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/kube-rbac-proxy: unconfined
+        container.apparmor.security.beta.kubernetes.io/manager: unconfined
+        kubectl.kubernetes.io/default-container: manager
+        kubearmor-policy: audited
+      labels:
+        kubearmor-app: {{ .Values.kubearmorController.name }}
+    spec:
+      containers:
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        image: {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
+        imagePullPolicy: {{ .Values.kubearmorController.imagePullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+        - mountPath: /sys/kernel/security
+          name: sys-path
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=0
+        image: {{printf "%s:%s" .Values.kubeRbacProxy.image.repository .Values.kubeRbacProxy.image.tag}}
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: {{ .Values.kubearmorController.name }}
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: {{ .Values.kubearmorController.name }}-webhook-server-cert
+      - hostPath:
+          path: /sys/kernel/security
+          type: Directory
+        name: sys-path

@@ -28,6 +28,10 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	// delete wordpress-mysql app
+	err := K8sDelete([]string{"../smoke/res/wordpress-mysql-deployment.yaml"})
+	Expect(err).To(BeNil())
+
 	KubearmorPortForwardStop()
 })
 
@@ -42,8 +46,7 @@ var _ = Describe("Visibility", func() {
 	var wp string
 
 	BeforeEach(func() {
-		wp = getWpsqlPod("wordpress-",
-			"container.apparmor.security.beta.kubernetes.io/wordpress: localhost/kubearmor-wordpress-mysql-wordpress-wordpress")
+		wp = getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {

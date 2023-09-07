@@ -1,0 +1,36 @@
+name: ci-test-operator
+
+on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "pkg/**"
+      - "deployments/get/**"
+      - "KubeArmor/utils/**"
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      # test on dep or helm changes
+      - "pkg/**"
+      - "deployments/**"
+      - "KubeArmor/utils/**"
+
+jobs:
+  kubearmor-operator-test:
+    name: Build KubeArmor Operator
+    defaults:
+      run:
+        working-directory: ./pkg/KubeArmorOperator
+    runs-on: ubuntu-20.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: v1.20
+
+      - uses: actions/checkout@v3
+
+      - name: Build kubearmor operator
+        run: make docker-build TAG=latest

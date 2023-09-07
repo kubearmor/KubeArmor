@@ -10,10 +10,25 @@ spec:
     matchLabels:
       app: wordpress
   file:
+    matchDirectories:
+    - dir: /etc/
+      recursive: true
+    - dir: /lib/x86_64-linux-gnu/
+    - dir: /bin/
+    - dir: /pts/
+      recursive: true
     matchPaths:
-    - path: /var/www/html/readme.html
-      fromSource:
+    - path: /root/.bashrc
+    - path: /root/.bash_history
+    - path: /dev/tty
+    - path: /lib/terminfo/x/xterm
+    - fromSource:
       - path: /bin/cat
+      path: /var/www/html/readme.html
+  process:
+    matchDirectories:
+    - dir: /bin/
+      recursive: true
 
       # http://[NodeIP]:30080
       # cat /var/www/html/wp-config.php

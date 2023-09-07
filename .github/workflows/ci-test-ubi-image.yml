@@ -1,0 +1,107 @@
+name: ci-test-ubi-ginkgo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-ginkgo.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-ginkgo.yml"
+
+jobs:
+  build:
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["bpflsm"]
+        
+        runtime: ["crio"]
+  
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "v1.20"
+ 
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
+
+      - name: Generate KubeArmor artifacts
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+
+      - name: Run KubeArmor
+        run: |
+          sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
+          sudo podman pull docker-daemon:kubearmor/kubearmor-ubi:latest
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kube-system
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml
+          kubectl wait -n kube-system --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kube-system
+          kubectl get pods -A
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make
+        working-directory: ./tests
+        timeout-minutes: 30
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
+
+      - name: Measure code coverage
+        if: ${{ always() }}
+        run: |
+          go install github.com/modocache/gover@latest
+          gover
+          go tool cover -func=gover.coverprofile
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/vagrant/go
+      - uses: codecov/codecov-action@v3
+        if: ${{ always() }}
+        with:
+          files: ./KubeArmor/gover.coverprofile
+      - name: Run cleanup
+        if: ${{ always() }}
+        run: ./.github/workflows/cleanup.sh
+    
+

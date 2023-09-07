@@ -271,6 +271,10 @@ func (mon *SystemMonitor) initBPFMaps() error {
 
 // DestroyBPFMaps Function
 func (mon *SystemMonitor) DestroyBPFMaps() {
+	if mon.BpfNsVisibilityMap == nil {
+		return
+	}
+
 	err := mon.BpfNsVisibilityMap.Unpin()
 	if err != nil {
 		mon.Logger.Warnf("error unpinning bpf map kubearmor_visibility %v", err)
@@ -340,19 +344,19 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 
 		err = visibilityMap.Put(file.Key, file.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=file", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=file", nsKey, file.Value)
 		}
 		err = visibilityMap.Put(process.Key, process.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=process", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=process", nsKey, process.Value)
 		}
 		err = visibilityMap.Put(network.Key, network.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=network", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=network", nsKey, network.Value)
 		}
 		err = visibilityMap.Put(capability.Key, capability.Value)
 		if err != nil {
-			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey)
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey, capability.Value)
 		}
 		mon.Logger.Printf("Updated visibility map with key=%+v for cid %s", nsKey, mon.NsMap[nsKey])
 	} else if action == "DELETED" {
@@ -416,11 +420,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 	}
 
-	ignoreList, err := loadIgnoreList(bpfPath)
-	if err != nil {
-		return err
-	}
-
 	mon.Logger.Print("Initializing eBPF system monitor")
 
 	// Allow the current process to lock memory for eBPF resources.
@@ -472,10 +471,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes = make(map[string]link.Link)
 
 		for _, syscallName := range systemCalls {
-			if isIgnored(syscallName, ignoreList) {
-				mon.Logger.Printf("Ignoring syscall %s", syscallName)
-				continue
-			}
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", syscallName, err)
@@ -496,10 +491,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, sysKprobe := range sysKprobes {
-			if isIgnored(sysKprobe, ignoreList) {
-				mon.Logger.Printf("Ignoring kprobe %s", sysKprobe)
-				continue
-			}
 			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", sysKprobe, err)
@@ -507,10 +498,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, netSyscall := range netSyscalls {
-			if isIgnored(netSyscall, ignoreList) {
-				mon.Logger.Printf("Ignoring syscall %s", netSyscall)
-				continue
-			}
 			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", netSyscall, err)
@@ -518,10 +505,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		}
 
 		for _, netRetSyscall := range netRetSyscalls {
-			if isIgnored(netRetSyscall, ignoreList) {
-				mon.Logger.Printf("Ignoring syscall %s", netRetSyscall)
-				continue
-			}
 			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kretprobe %s: %v", netRetSyscall, err)

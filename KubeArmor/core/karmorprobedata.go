@@ -58,7 +58,7 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 	kd.HostVisibility = dm.Node.Annotations["kubearmor-visibility"]
 	err := kl.WriteToFile(kd, "/tmp/karmorProbeData.cfg")
 	if err != nil {
-		dm.Logger.Errf("Error writing karmor config data", err)
+		dm.Logger.Errf("Error writing karmor config data (%s)", err.Error())
 	}
 
 }

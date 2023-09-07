@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: nginx-replicaset
+  namespace: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-replicaset
+  template:
+    metadata:
+      labels:
+        app: nginx-replicaset
+        pre-run-pod-test: "true"
+    spec:
+      containers:
+      - name: my-container
+        image: nginx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nginx-statefulset
+  namespace: nginx
+spec:
+  serviceName: "my-service"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-statefulset
+  template:
+    metadata:
+      labels:
+        app: nginx-statefulset
+        pre-run-pod-test: "true"
+    spec:
+      containers:
+      - name: my-container
+        image: nginx

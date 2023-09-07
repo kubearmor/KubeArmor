@@ -7,9 +7,9 @@ on:
       - "v*"
     paths:
       - "KubeArmor/**"
-      - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-latest-release.yml"
+      - "pkg/**"
       - "!STABLE-RELEASE"
 
   create:
@@ -17,9 +17,30 @@ on:
       - "v*"
 
 jobs:
+  check:
+    name: Check what pkg were updated
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    outputs:
+      kubearmor: ${{ steps.filter.outputs.kubearmor}}
+      controller: ${{ steps.filter.outputs.controller }}
+    steps:
+    - uses: actions/checkout@v3
+    - uses: dorny/paths-filter@v2
+      id: filter
+      with:
+        filters: |
+          kubearmor:
+            - "KubeArmor/**"
+            - "protobuf/**"
+          controller:
+            - 'pkg/KubeArmorController/**'
+
   build:
     name: Create KubeArmor latest release
-    if: github.repository == 'kubearmor/kubearmor'
+    needs: check
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
     runs-on: ubuntu-20.04
     permissions:
       id-token: write 
@@ -49,19 +70,19 @@ jobs:
           fi
           RUNTIME=docker ./contribution/k3s/install_k3s.sh
 
-      - name: Install an annotation controller
-        run: ./.github/workflows/install-annotation-controller.sh
-
       - name: Generate KubeArmor artifacts
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
       - name: Deploy KubeArmor into Kubernetes
         run: |
-          sed -i 's/kubearmor\/kubearmor:latest/kubearmor\/kubearmor:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
-          sed -i 's/kubearmor\/kubearmor-init:latest/kubearmor\/kubearmor-init:${{ steps.vars.outputs.tag }}/g' ./KubeArmor/build/kubearmor-test-docker.yaml
-          kubectl apply -f deployments/CRD
-          kubectl apply -f ./KubeArmor/build/kubearmor-test-docker.yaml
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor
+          helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
+          --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
+          --set kubearmor.image.tag=${{ steps.vars.outputs.tag }} \
+          --set kubearmorInit.image.tag=${{ steps.vars.outputs.tag }} \
+          -n kube-system;
+
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
+          kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -94,15 +115,17 @@ jobs:
         run: | 
           echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
           echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
+          echo "ubidigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
         run: |
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
+          cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
 
   push-stable-version:
     name: Create KubeArmor stable release
-    needs: build
+    needs: [build, check]
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-20.04
     permissions:
@@ -144,3 +167,47 @@ jobs:
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
+  
+  kubearmor-controller-release:
+    name: Build & Push KubeArmorController
+    needs: check
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.controller == 'true' || ${{ github.ref }} != 'refs/heads/main')
+    defaults:
+      run:
+        working-directory: ./pkg/KubeArmorController
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "v1.20"
+  
+      - uses: actions/checkout@v3
+  
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Get tag
+        id: tag
+        run: |
+          if [ ${{ github.ref }} == "refs/heads/main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build & Push KubeArmorController
+        run: make docker-buildx TAG=${{ steps.tag.outputs.tag }}

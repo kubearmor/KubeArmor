@@ -1,7 +1,0 @@
-domain: kubearmor.com
-repo: k8s
-resources:
-- group: security
-  kind: KubeArmorHostPolicy
-  version: v1
-version: "2"

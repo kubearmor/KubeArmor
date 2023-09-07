@@ -9,6 +9,8 @@ IMG ?= kubearmor/kubearmor-controller
 TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+# Target platforms for build
+PLATFORM ?= "linux/amd64,linux/arm64/v8"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -84,7 +86,10 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: build ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
+	docker build -t ${IMG}:${TAG} -t ${IMG}:latest --build-arg VERSION=${TAG} .
+
+docker-buildx: build ## Build docker image with the manager multiple archs.
+	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push -t ${IMG}:${TAG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -136,12 +141,12 @@ delete-cert-manager: ## Delete cert-manager when deleting the admission controll
 deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller-manager/g' | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
 		sed -e "1,7d" | kubectl apply -f -
 
 delete-controller:  ## Delete controller from the K8s cluster specified in ~/.kube/config.
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller-manager/g' | \
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
 		sed -e "1,7d" | kubectl delete -f -
 
 delete: delete-controller delete-cert-manager ## Delete controller and cert manager from the K8s cluster specified in ~/.kube/config.
@@ -150,8 +155,8 @@ delete: delete-controller delete-cert-manager ## Delete controller and cert mana
 deployment: manifests kustomize
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
-		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller-manager/g' | \
-		sed -e "1,7d" > ../../deployments/controller/kubearmor-controller-manager.yaml
+		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
+		sed -e "1,7d" > ../../deployments/controller/kubearmor-controller.yaml
 
 ifndef ignore-not-found
   ignore-not-found = false
@@ -186,7 +191,7 @@ go mod init tmp ;\
 echo "Downloading $(2)" ;\
 go mod tidy ;\
 go get $(2) ;\
-GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
+GOBIN=$(HOME)/go/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef

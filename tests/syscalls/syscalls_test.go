@@ -4,15 +4,17 @@
 package syscalls
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/protobuf"
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = BeforeSuite(func() {
-	// install wordpress-mysql app
+	// install wordpress-mysql app in syscalls ns
 	err := K8sApply([]string{"manifests/ubuntu-deployment.yaml"})
 	Expect(err).To(BeNil())
 
@@ -26,6 +28,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	// delete wordpress-mysql app from syscalls ns
+	err := K8sDelete([]string{"manifests/ubuntu-deployment.yaml"})
+	Expect(err).To(BeNil())
 	KubearmorPortForwardStop()
 })
 
@@ -41,8 +46,7 @@ var _ = Describe("Syscalls", func() {
 	_ = ubuntu
 
 	BeforeEach(func() {
-		ubuntu = getUbuntuPod("ubuntu-1-deployment-",
-			"container.apparmor.security.beta.kubernetes.io/ubuntu-1-container: localhost/kubearmor-syscalls-ubuntu-1-deployment-ubuntu-1-container")
+		ubuntu = getUbuntuPod("ubuntu-1-deployment-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {
@@ -474,6 +478,55 @@ var _ = Describe("Syscalls", func() {
 			Expect(alerts[0].Severity).To(Equal("7"))
 			Expect(alerts[0].Tags).To(Equal("Global tag"))
 			Expect(alerts[0].Message).To(Equal("Local message"))
+		})
+
+		It("mount will be blocked by default for a pod", func() {
+			// Start KubeArmor Logs
+			err := KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
+			Expect(err).To(BeNil())
+
+			// execute mount inside the pod
+			sout, _, err := K8sExecInPod(ubuntu, "syscalls",
+				[]string{"bash", "-c", "mkdir /mnt/test"})
+			Expect(err).To(BeNil())
+			sout, _, err = K8sExecInPod(ubuntu, "syscalls",
+				[]string{"bash", "-c", "mount /home /mnt/test"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+
+			expect := protobuf.Alert{
+				PolicyName: "DefaultPosture",
+				Action:     "Block",
+				Result:     "Permission denied",
+				Data:       "syscall=SYS_MOUNT",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("umount will be blocked by default for a pod as the capability not added", func() {
+			// Start KubeArmor Logs
+			err := KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
+			Expect(err).To(BeNil())
+
+			// execute umount inside the pod
+			sout, _, err := K8sExecInPod(ubuntu, "syscalls",
+				[]string{"bash", "-c", "umount /mnt"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+
+			expect := protobuf.Alert{
+				PolicyName: "DefaultPosture",
+				Action:     "Block",
+				Result:     "Operation not permitted",
+				Data:       "syscall=SYS_UMOUNT2",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
 		})
 	})
 

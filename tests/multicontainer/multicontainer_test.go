@@ -13,7 +13,7 @@ import (
 )
 
 var _ = BeforeSuite(func() {
-	// install wordpress-mysql app
+	// install wordpress-mysql app in multicontainer ns
 	err := K8sApply([]string{"manifests/multicontainer-deployment.yaml"})
 	Expect(err).To(BeNil())
 
@@ -26,6 +26,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	// delete wordpress-mysql app from multicontainer ns
+	err := K8sDelete([]string{"manifests/multicontainer-deployment.yaml"})
+	Expect(err).To(BeNil())
 	KubearmorPortForwardStop()
 })
 
@@ -39,7 +42,7 @@ func getMultiContainerPod(name string, ant string) string {
 var _ = Describe("Multicontainer", func() {
 	var multicontainer string
 	BeforeEach(func() {
-		multicontainer = getMultiContainerPod("multicontainer-", "container.apparmor.security.beta.kubernetes.io/container-1: localhost/kubearmor-multicontainer-multicontainer-deployment-container-1")
+		multicontainer = getMultiContainerPod("multicontainer-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {

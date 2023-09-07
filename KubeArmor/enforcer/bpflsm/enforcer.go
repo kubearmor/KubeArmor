@@ -110,6 +110,12 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) (*BPFEnforc
 		return be, err
 	}
 
+	be.Probes[be.obj.EnforceNetCreate.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetCreate})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetCreate.String(), err)
+		return be, err
+	}
+
 	be.Probes[be.obj.EnforceNetConnect.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceNetConnect})
 	if err != nil {
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetConnect.String(), err)

@@ -18,11 +18,14 @@ spec:
       - path: /root/.bashrc # used by root
       - path: /root/.bash_history # used by root
       - path: /dev/tty
+      - path: /lib/terminfo/x/xterm
     matchDirectories:
     - dir: /credentials/
       recursive: true
     - dir: /pts/
-      recursive: true   
+      recursive: true
+    - dir: /lib/x86_64-linux-gnu/
+    - dir: /bin/     
     # - dir: /etc/ # required to change root to user1 (coarse-grained way)
     #   recursive: true  
     # - dir: /lib/ # used by root and user1

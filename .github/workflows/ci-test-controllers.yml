@@ -1,49 +1,18 @@
 name: ci-test-controllers
 
 on:
-  push:
-    branches:
-      - "main"
-    paths:
-      - "pkg/**"
   pull_request:
     branches:
       - "main"
     paths:
       - "pkg/**"
+      - ".github/workflows/ci-test-controllers.yml"
 
 jobs:
-  check:
-    name: Check what controllers were updated
-    if: github.repository == 'kubearmor/kubearmor'
+  kubearmor-controller-test:
+    name: Build and Test KubeArmorController Using Ginkgo
     runs-on: ubuntu-20.04
-    timeout-minutes: 5
-    outputs:
-      annotation: ${{ steps.filter.outputs.annotation }}
-      hostpolicy: ${{ steps.filter.outputs.hostpolicy }}
-      policy: ${{ steps.filter.outputs.policy }}
-    steps:
-    - uses: actions/checkout@v3
-    - uses: dorny/paths-filter@v2
-      id: filter
-      with:
-        filters: |
-          annotation:
-            - 'pkg/KubeArmorAnnotation/**'
-          hostpolicy:
-            - 'pkg/KubeArmorHostPolicy/**'
-          policy:
-            - 'pkg/KubeArmorPolicy/**'
-
-  annotation-controller-release:
-    name: Build annotation controller
-    needs: check
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorAnnotation
-    if: needs.check.outputs.annotation == 'true'
-    runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -51,43 +20,43 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: Build annotation controller
-        run: make docker-build TAG=latest
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
 
-  hostpolicy-controller-release:
-    name: Build hostpolicy controller
-    needs: check
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorHostPolicy
-    if: needs.check.outputs.hostpolicy == 'true'
-    runs-on: ubuntu-20.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/setup-go@v3
+      - name: Build KubeArmorController
+        run: make -C pkg/KubeArmorController/ docker-build TAG=latest
+
+      - name: Install KubeArmor Latest and KubeArmorController using Helm
+        run: |
+          # install kubearmor latest and controller built in this PR
+          helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
+          --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
+          --set kubearmorController.imagePullPolicy=Never \
+          --set kubearmorInit.imagePullPolicy=Always \
+          --set kubearmor.imagePullPolicy=Always \
+          --set kubearmor.image.tag=latest \
+          -n kube-system;
+          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
+          kubectl get pods -A
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/
+        timeout-minutes: 20
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
         with:
-          go-version: "v1.20"
-
-      - uses: actions/checkout@v3
-
-      - name: Build hostpolicy controller
-        run: make docker-build TAG=latest
-
-  policy-controller-release:
-    name: Build policy controller
-    needs: check
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorPolicy
-    if: needs.check.outputs.policy == 'true'
-    runs-on: ubuntu-20.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "v1.20"
-
-      - uses: actions/checkout@v3
-
-      - name: Build policy controller
-        run: make docker-build TAG=latest
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*

@@ -1,0 +1,39 @@
+name: ci-test-helm-charts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deployments/helm/**"
+      - ".github/workflows/ci-test-helm-charts.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "deployments/helm/**"
+      - ".github/workflows/ci-test-helm-charts.yml"
+
+jobs:
+  lint:
+    name: Helm Chart Tests / ubuntu 20.04
+    runs-on: "ubuntu-20.04"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "v1.20"
+
+      - uses: azure/setup-helm@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: helm lint
+        run: |
+          helm lint ./deployments/helm/KubeArmor
+          helm lint ./deployments/helm/KubeArmorOperator
+
+      - name: Validate helm environment template values
+        run: |
+          ./.github/workflows/helm-validate-values.sh

@@ -1,0 +1,54 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kubearmor-controller-serving-cert
+  namespace: kube-system
+spec:
+  dnsNames:
+  - kubearmor-controller-webhook-service.kube-system.svc
+  - kubearmor-controller-webhook-service.kube-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: kubearmor-controller-selfsigned-issuer
+  secretName: kubearmor-controller-webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kubearmor-controller-selfsigned-issuer
+  namespace: kube-system
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: kube-system/kubearmor-controller-serving-cert
+  name: kubearmor-controller-mutating-webhook-configuration
+  namespace: kube-system
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: kubearmor-controller-webhook-service
+      namespace: kube-system
+      path: /mutate-pods
+  failurePolicy: Ignore
+  name: annotation.kubearmor.com
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods
+  sideEffects: NoneOnDryRun
+  objectSelector:
+    matchExpressions:
+    - key: "kubearmor-app"
+      operator: DoesNotExist

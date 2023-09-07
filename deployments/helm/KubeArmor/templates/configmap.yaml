@@ -1,0 +1,12 @@
+apiVersion: v1
+data:
+  defaultFilePosture: {{ .Values.kubearmorConfigMap.defaultFilePosture }}
+  defaultCapabilitiesPosture: {{ .Values.kubearmorConfigMap.defaultCapabilitiesPosture }}
+  defaultNetworkPosture: {{ .Values.kubearmorConfigMap.defaultNetworkPosture }}
+  visibility: {{ .Values.kubearmorConfigMap.visibility }}
+kind: ConfigMap
+metadata:
+  labels:
+    kubearmor-app: kubearmor-configmap
+  name: kubearmor-config
+  namespace: {{ .Release.Namespace }}

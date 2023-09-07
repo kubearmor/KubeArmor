@@ -1,0 +1,65 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorController.name }}-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorController.name }}-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{.Release.Namespace}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.kubearmorController.name }}-leader-election-rolebinding
+  namespace: {{.Release.Namespace}}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Values.kubearmorController.name }}-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorController.name }}
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorController.name}}-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorController.name}}-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorController.name}}
+  namespace: {{.Release.Namespace}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorController.name }}-metrics-reader-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorController.name}}-metrics-reader-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorController.name}}
+  namespace: {{.Release.Namespace}}

@@ -34,11 +34,10 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	//remove block annotations after tests are done
-	_, err := Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-network-posture- --overwrite"))
+	// delete wordpress-mysql app
+	err := K8sDelete([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-file-posture- --overwrite"))
-	Expect(err).To(BeNil())
+
 	KubearmorPortForwardStop()
 })
 
@@ -54,10 +53,7 @@ var _ = Describe("Posture", func() {
 	// var sql string
 
 	BeforeEach(func() {
-		wp = getWpsqlPod("wordpress-",
-			"container.apparmor.security.beta.kubernetes.io/wordpress: localhost/kubearmor-wordpress-mysql-wordpress-wordpress")
-		// sql = getWpsqlPod("mysql-",
-		// 	"container.apparmor.security.beta.kubernetes.io/mysql: localhost/kubearmor-wordpress-mysql-mysql-mysql")
+		wp = getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
 	})
 
 	AfterEach(func() {

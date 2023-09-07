@@ -13,8 +13,13 @@ import (
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
+// GitCommit represents build-time info for git commit
 var GitCommit string
+
+// GitBranch represents build-time info for git branch
 var GitBranch string
+
+// BuildDate represents build-time info for build date
 var BuildDate string
 
 func printBuildDetails() {
@@ -31,8 +36,10 @@ func init() {
 
 func main() {
 	if os.Geteuid() != 0 {
-		kg.Printf("Need to have root privileges to run %s\n", os.Args[0])
-		return
+		if os.Getenv("KUBEARMOR_UBI") == "" {
+			kg.Printf("Need to have root privileges to run %s\n", os.Args[0])
+			return
+		}
 	}
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))

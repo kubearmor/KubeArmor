@@ -1,0 +1,45 @@
+{{- if .Values.kubearmorRelay.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubearmor
+  namespace: {{.Release.Namespace}}
+  labels:
+    kubearmor-app: kubearmor-relay
+spec:
+  ports:
+  - port: 32767
+    protocol: TCP
+    targetPort: 32767
+  selector:
+    kubearmor-app: kubearmor-relay
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    kubearmor-app: {{ .Values.kubearmorController.name }}
+  name: {{ .Values.kubearmorController.name }}-metrics-service
+  namespace: {{.Release.Namespace}}
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    kubearmor-app: {{ .Values.kubearmorController.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.kubearmorController.name }}-webhook-service
+  namespace: {{.Release.Namespace}}
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    kubearmor-app: {{ .Values.kubearmorController.name }}
