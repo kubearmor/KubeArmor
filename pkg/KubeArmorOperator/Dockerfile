@@ -37,7 +37,28 @@ COPY $OPERATOR_DIR/runtime runtime
 # Build
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o operator cmd/main.go
 
-FROM scratch
+FROM redhat/ubi9-minimal
+
+ARG VERSION=latest
+
+LABEL name="kubearmor-operator" \
+      vendor="Accuknox" \
+      version=${VERSION} \
+      release=${VERSION} \
+      summary="kubearmor-operator container image based on redhat ubi" \
+      description="kubearmor-operator to deploy and manage KubeArmor"
+
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils libcap && \
+    microdnf clean all
+
+RUN groupadd --gid 1000 default \
+  && useradd --uid 1000 --gid default --shell /bin/bash --create-home default          
+
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
-COPY --from=builder /KubeArmor/$OPERATOR_DIR/operator /operator
+COPY --from=builder --chown=1000:1000 /KubeArmor/$OPERATOR_DIR/operator /operator
+RUN setcap "cap_sys_admin=+ep cap_ipc_lock=+ep cap_sys_resource=+ep cap_dac_override=+ep cap_dac_read_search=+ep" /operator
+  
+USER 1000
+
 ENTRYPOINT ["/operator"]

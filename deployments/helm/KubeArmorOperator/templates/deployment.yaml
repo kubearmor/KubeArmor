@@ -26,4 +26,8 @@ spec:
         image: {{ printf "%s:%s" .Values.kubearmorOperator.image.repository .Values.kubearmorOperator.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
         name: {{ .Values.kubearmorOperator.name }}
+        securityContext:
+          capabilities:
+          {{- toYaml .Values.kubearmorOperator.capabilities | trim | nindent 12 }}
+          privileged: false
       serviceAccountName: {{ .Values.kubearmorOperator.name }}

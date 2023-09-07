@@ -52,7 +52,8 @@ var (
 	DeletAction                     string = "DELETE"
 	AddAction                       string = "ADD"
 	Namespace                       string = "kube-system"
-	Privileged                      bool   = true
+	Privileged                      bool   = false
+	HostPID                         bool   = false
 	OperatorName                    string = "kubearmor-operator"
 	OperatorImage                   string = "kubearmor/kubearmor-operator:latest"
 	KubeArmorServiceAccountName     string = "kubearmor"
@@ -284,6 +285,14 @@ func GetOperatorNamespace() string {
 	return ns
 }
 
+func IsCertifiedOperator() bool {
+	certified := os.Getenv("REDHAT_CERTIFIED_OP")
+	if certified == "" {
+		return false
+	}
+	return true
+}
+
 func CopyStrMap(src map[string]string) map[string]string {
 	newMap := make(map[string]string)
 	for key, value := range src {
@@ -294,4 +303,8 @@ func CopyStrMap(src map[string]string) map[string]string {
 
 func init() {
 	Namespace = GetOperatorNamespace()
+	if IsCertifiedOperator() {
+		KubeArmorImage = "kubearmor/kubearmor-ubi:stable"
+		HostPID = true
+	}
 }
