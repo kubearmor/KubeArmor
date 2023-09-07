@@ -17,7 +17,16 @@ spec:
       recursive: true
     - dir: /pts/
       recursive: true
+    - dir: /lib/x86_64-linux-gnu/
+      recursive: true
+    - dir: /var/lib/
+      recursive: true
+    - dir: /etc/
+      recursive: true    
     matchPaths:
+    - path: /root/.bashrc
+    - path: /lib/terminfo/x/xterm
+    - path: /readwrite
     - path: /credentials/password
       readOnly: true
       fromSource:

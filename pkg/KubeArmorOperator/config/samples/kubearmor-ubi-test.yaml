@@ -15,7 +15,7 @@ spec:
   defaultNetworkPosture: block
   defaultVisibility: process,file,network,capabilities
   kubearmorImage:
-    image: kubearmor/kubearmor:latest
+    image: kubearmor/kubearmor-ubi:latest
     imagePullPolicy: Never
   kubearmorInitImage:
     image: kubearmor/kubearmor-init:latest

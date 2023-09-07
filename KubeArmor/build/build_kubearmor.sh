@@ -4,6 +4,8 @@
 
 [[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
 
+UBIREPO="kubearmor/kubearmor-ubi"
+
 realpath() {
     CURR=$PWD
 
@@ -56,12 +58,23 @@ echo "[PASSED] Built $REPO:$VERSION"
 # build a kubearmor-init image
 DTAGINI="-t $REPO-init:$VERSION"
 echo "[INFO] Building $DTAGINI"
-cd $ARMOR_HOME/..; docker build $DTAGINI -f Dockerfile.init --target kubearmor-init . $LABEL
+cd $ARMOR_HOME/..; docker build $DTAGINI -f Dockerfile.init --build-arg VERSION=$VERSION --target kubearmor-init . $LABEL
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to build $REPO-init:$VERSION"
     exit 1
 fi
 echo "[PASSED] Built $REPO-init:$VERSION"
+
+# build a kubearmor-ubi image
+DTAGUBI="-t $UBIREPO:$VERSION"
+echo "[INFO] Building $UBIREPO"
+cd $ARMOR_HOME/..; docker build $DTAGUBI -f Dockerfile --build-arg VERSION=$VERSION --target kubearmor-ubi . $LABEL
+
+if [ $? != 0 ]; then
+    echo "[FAILED] Failed to build $DTAGUBI:$VERSION"
+    exit 1
+fi
+echo "[PASSED] Built $DTAGUBI:$VERSION"
 
 exit 0
