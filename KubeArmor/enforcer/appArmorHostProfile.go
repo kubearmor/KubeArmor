@@ -523,19 +523,19 @@ func (ae *AppArmorEnforcer) GenerateHostProfileHead() string {
 #include <tunables/global>
 
 profile kubearmor.host /{usr/,}bin/*sh flags=(attach_disconnected,mediate_deleted) {
-	## == PRE START == ##
-	#include <abstractions/base>
-	mount,
-	umount,
-	signal,
-	unix,
-	ptrace,
+## == PRE START == ##
+#include <abstractions/base>
+mount,
+umount,
+signal,
+unix,
+ptrace,
 
-	file,
-	network,
-	capability,
-	## == PRE END == ##
-	`
+file,
+network,
+capability,
+## == PRE END == ##
+`
 	return profileHead
 }
 

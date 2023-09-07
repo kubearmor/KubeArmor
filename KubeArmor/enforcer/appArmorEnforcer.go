@@ -53,37 +53,37 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 	
 #include <tunables/global>
 profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
-	## == PRE START == ##	
-	#include <abstractions/base>	
-	umount,
-	file,
-	network,
-	capability,
-	## == PRE END == ##
+## == PRE START == ##	
+#include <abstractions/base>	
+umount,
+file,
+network,
+capability,
+## == PRE END == ##
 
-	## == POLICY START == ##
-	## == POLICY END == ##
+## == POLICY START == ##
+## == POLICY END == ##
 
-	## == POST START == ##
-	/lib/x86_64-linux-gnu/{*,**} rm,
+## == POST START == ##
+/lib/x86_64-linux-gnu/{*,**} rm,
 
-	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-	deny @{PROC}/sysrq-trigger rwklx,
-	deny @{PROC}/mem rwklx,
-	deny @{PROC}/kmem rwklx,
-	deny @{PROC}/kcore rwklx,
+deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+deny @{PROC}/sysrq-trigger rwklx,
+deny @{PROC}/mem rwklx,
+deny @{PROC}/kmem rwklx,
+deny @{PROC}/kcore rwklx,
 
-	deny mount,
+deny mount,
 
-	deny /sys/[^f]*/** wklx,
-	deny /sys/f[^s]*/** wklx,
-	deny /sys/fs/[^c]*/** wklx,
-	deny /sys/fs/c[^g]*/** wklx,
-	deny /sys/fs/cg[^r]*/** wklx,
-	deny /sys/firmware/efi/efivars/** rwklx,
-	deny /sys/kernel/security/** rwklx,
-	## == POST END == ##
-	}
+deny /sys/[^f]*/** wklx,
+deny /sys/f[^s]*/** wklx,
+deny /sys/fs/[^c]*/** wklx,
+deny /sys/fs/c[^g]*/** wklx,
+deny /sys/fs/cg[^r]*/** wklx,
+deny /sys/firmware/efi/efivars/** rwklx,
+deny /sys/kernel/security/** rwklx,
+## == POST END == ##
+}
 `
 	// host profile
 	ae.HostProfile = ""
@@ -359,7 +359,7 @@ capability,
 ## == POLICY START == ##
 ## == POLICY END == ##
 }
-	`
+`
 	newfile, err := os.Create(filepath.Clean(appArmorHostFile))
 	if err != nil {
 		ae.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
