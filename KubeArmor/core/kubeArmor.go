@@ -243,7 +243,7 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		go dm.SystemMonitor.TraceSyscall()
-		go dm.SystemMonitor.UpdateLogs()
+		go dm.SystemMonitor.UpdateLogs(cfg.LogPassedResults)
 		go dm.SystemMonitor.CleanUpExitedHostPids()
 	}
 }

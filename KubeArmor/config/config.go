@@ -24,6 +24,7 @@ type KubearmorConfig struct {
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use
+	LogPassedResults  string // Should passed results be logged
 
 	Visibility     string // Container visibility to use
 	HostVisibility string // Host visibility to use
@@ -73,6 +74,9 @@ const ConfigSELinuxProfileDir string = "seLinuxProfileDir"
 
 // ConfigCRISocket key
 const ConfigCRISocket string = "criSocket"
+
+// Config LogPassedResults key
+const LogPassedResults string = "true"
 
 // ConfigVisibility Container visibility key
 const ConfigVisibility string = "visibility"
@@ -128,6 +132,7 @@ func readCmdLineParams() {
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
+	logPassedResults := flag.String(LogPassedResults, "true", "should passed be logged")
 
 	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
 	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
@@ -167,6 +172,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.SetDefault(ConfigCRISocket, *criSocket)
+	viper.SetDefault(LogPassedResults, *logPassedResults)
 
 	viper.SetDefault(ConfigVisibility, *visStr)
 	viper.SetDefault(ConfigHostVisibility, *hostVisStr)
@@ -230,6 +236,7 @@ func LoadConfig() error {
 		return fmt.Errorf("CRI socket must start with 'unix://' (%s is invalid)", GlobalCfg.CRISocket)
 	}
 
+	GlobalCfg.LogPassedResults = viper.GetString(LogPassedResults)
 	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
 
