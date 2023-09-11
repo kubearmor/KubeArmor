@@ -487,13 +487,11 @@ type SecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
-
-	AppArmor string `json:"apparmor,omitempty"`
-
-	Severity int      `json:"severity"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action"`
+	AppArmor     string           `json:"apparmor,omitempty"`
+	Severity     int              `json:"severity"`
+	Tags         []string         `json:"tags,omitempty"`
+	Message      string           `json:"message,omitempty"`
+	Action       string           `json:"action"`
 }
 
 // SecurityPolicy Structure

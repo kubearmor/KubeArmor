@@ -38,6 +38,8 @@ spec:
           spec:
             description: KubeArmorPolicySpec defines the desired state of KubeArmorPolicy
             properties:
+              protectedPods:
+                type: string
               action:
                 enum:
                 - Allow

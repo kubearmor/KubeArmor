@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"sort"
 	"strings"
@@ -398,7 +399,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			dm.ContainersLock.Lock()
 			for _, containerID := range newEndPoint.Containers {
 				container := dm.Containers[containerID]
-
 				container.NamespaceName = newEndPoint.NamespaceName
 				container.Owner.Ref = newEndPoint.Owner.Ref
 				container.Owner.Name = newEndPoint.Owner.Name
@@ -1303,6 +1303,35 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policy ksp.KubeArmorPolicy) (sec
 	return
 }
 
+type patchStringValue struct {
+	Op    string   `json:"op"`
+	Path  string   `json:"path"`
+	Value []string `json:"value"`
+}
+
+// PatchProtectedPods patches current KSP with protected pod list
+func (dm *KubeArmorDaemon) PatchProtectedPods(secPolicy tp.SecurityPolicy) {
+	var podList []string
+	for _, endpoint := range dm.EndPoints {
+		for _, sec := range endpoint.SecurityPolicies {
+			if sec.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				podList = append(podList, endpoint.EndPointName)
+			}
+		}
+	}
+	payload := []patchStringValue{{
+		Op:    "replace",
+		Path:  "/spec/protectedPods",
+		Value: podList,
+	}}
+	spec, _ := json.Marshal(payload)
+	crd := K8s.KSPClient.SecurityV1()
+	_, err := crd.KubeArmorPolicies(secPolicy.Metadata["namespaceName"]).Patch(context.Background(), secPolicy.Metadata["policyName"], types.JSONPatchType, spec, metav1.PatchOptions{})
+	if err != nil {
+		dm.Logger.Printf("error: ", err)
+	}
+}
+
 // WatchSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 	for {
@@ -1322,7 +1351,6 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 			AddFunc: func(obj interface{}) {
 				// create a security policy
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
-
 					secPolicy, err := dm.CreateSecurityPolicy(*policy)
 					if err != nil {
 						dm.Logger.Warnf("Error ADD, %s", err)
@@ -1345,6 +1373,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy("ADDED", secPolicy)
 
+					dm.PatchProtectedPods(secPolicy)
 				}
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
@@ -1367,6 +1396,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy("MODIFIED", secPolicy)
+					dm.PatchProtectedPods(secPolicy)
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
