@@ -57,6 +57,7 @@ RUN groupadd --gid 1000 default \
 
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
 COPY --from=builder --chown=1000:1000 /KubeArmor/$OPERATOR_DIR/operator /operator
+COPY LICENSE /licenses/license.txt
 RUN setcap "cap_sys_admin=+ep cap_ipc_lock=+ep cap_sys_resource=+ep cap_dac_override=+ep cap_dac_read_search=+ep" /operator
   
 USER 1000
