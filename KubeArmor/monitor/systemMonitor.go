@@ -641,6 +641,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 			if err != nil {
 				continue
 			}
+			if ctx.PPID == ctx.HostPPID {
+				ctx.PPID = 0
+			}
 			args, err := GetArgs(dataBuff, ctx.Argnum)
 			if err != nil {
 				continue
