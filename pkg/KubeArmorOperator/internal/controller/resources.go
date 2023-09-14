@@ -194,7 +194,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
 	job.GenerateName = "kubearmor-snitch-"
-
+	var rootUser int64 = 0
 	job.Spec = batchv1.JobSpec{
 		TTLSecondsAfterFinished: &ttls,
 		Template: corev1.PodTemplateSpec{
@@ -207,11 +207,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 				Containers: []corev1.Container{
 					{
 						Name:  "snitch",
-						Image: common.OperatorImage,
-						Command: []string{
-							"/operator",
-							"snitch",
-						},
+						Image: common.GetSnitchImage(),
 						Args: []string{
 							"--nodename=$(NODE_NAME)",
 							"--pathprefix=" + PathPrefix,
@@ -234,13 +230,16 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							},
 						},
 						SecurityContext: &corev1.SecurityContext{
+							RunAsUser:  &rootUser,
+							RunAsGroup: &rootUser,
 							Capabilities: &corev1.Capabilities{
 								Add: []corev1.Capability{
-									"DAC_OVERRIDE",
-									"DAC_READ_SEARCH",
 									"IPC_LOCK",
 									"SYS_ADMIN",
 									"SYS_RESOURCE",
+								},
+								Drop: []corev1.Capability{
+									"ALL",
 								},
 							},
 							Privileged: &(common.Privileged),

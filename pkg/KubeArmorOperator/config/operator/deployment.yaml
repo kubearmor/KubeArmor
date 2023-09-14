@@ -16,20 +16,6 @@ spec:
       - name: operator
         image: kubearmor/kubearmor-operator:latest
         imagePullPolicy: IfNotPresent
-        command:
-        - "/operator"
-        - "kubearmor-operator"
-        securityContext:
-          capabilities:
-            add:
-            - SYS_ADMIN
-            - SYS_RESOURCE
-            - IPC_LOCK
-            - DAC_OVERRIDE
-            - DAC_READ_SEARCH
-            drop:
-            - ALL
-          privileged: false
         env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:

@@ -422,10 +422,7 @@ spec:
         kubearmor-app: kubearmor-operator
     spec:
       containers:
-      - command:
-        - /operator
-        - kubearmor-operator
-        env:
+      - env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:
             fieldRef:
@@ -433,15 +430,4 @@ spec:
         image: kubearmor/kubearmor-operator:latest
         imagePullPolicy: IfNotPresent
         name: operator
-        securityContext:
-          capabilities:
-            add:
-            - SYS_ADMIN
-            - SYS_RESOURCE
-            - IPC_LOCK
-            - DAC_OVERRIDE
-            - DAC_READ_SEARCH
-            drop:
-            - ALL
-          privileged: false
       serviceAccountName: kubearmor-operator
