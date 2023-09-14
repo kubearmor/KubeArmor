@@ -19,8 +19,12 @@ import (
 	kcV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kcScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/scheme"
 	kc "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/typed/security.kubearmor.com/v1"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 	kcli "github.com/kubearmor/kubearmor-client/k8s"
+	kclient "github.com/kubearmor/kubearmor-client/vm"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 	appsV1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -597,4 +601,45 @@ func K8sRuntimeEnforcer() string {
 
 	runtimeEnforcer := nodes.Items[0].Labels["kubearmor.io/enforcer"]
 	return runtimeEnforcer
+}
+
+// RunDockerCommand() executes docker commmands
+func RunDockerCommand(cmdstr string) (string, error) {
+	cmdf := strings.Fields(cmdstr)
+	cmd := exec.Command("docker", cmdf...)
+	sout, err := cmd.Output()
+	return string(sout), err
+}
+
+// SendPolicy sends kubearmor policy using grpc client
+func SendPolicy(eventType, path string) error {
+	var policyOptions kclient.PolicyOptions
+	err := kclient.PolicyHandling(eventType, path, policyOptions, "", false)
+
+	return err
+}
+
+// ContainerInfo function receives container info from kuberamor in nonk8s mode using grpc client
+func ContainerInfo() (*pb.ProbeResponse, error) {
+	gRPC := ""
+
+	if val, ok := os.LookupEnv("KUBEARMOR_SERVICE"); ok {
+		gRPC = val
+	} else {
+		gRPC = "localhost:32767"
+	}
+
+	conn, err := grpc.Dial(gRPC, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+
+	client := pb.NewProbeServiceClient(conn)
+
+	resp, err := client.GetProbeData(context.Background(), &emptypb.Empty{})
+
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }

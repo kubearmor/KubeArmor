@@ -646,9 +646,9 @@ func KubeArmor() {
 		}
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
 		//Enable grpc service to send kubearmor data to client in unorchestrated mode
-		karmor := &Karmor{}
-		karmor.GetContainerData = dm.SetKarmorContainerData
-		pb.RegisterKarmorServer(dm.Logger.LogServer, karmor)
+		probe := &Probe{}
+		probe.GetContainerData = dm.SetProbeContainerData
+		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
 
 	}
 

@@ -1,4 +1,6 @@
-package systemd_test
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 Authors of KubeArmor
+package smoke_test
 
 import (
 	"testing"
@@ -9,5 +11,5 @@ import (
 
 func TestSystemd(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Systemd Suite")
+	RunSpecs(t, "Smoke Suite")
 }

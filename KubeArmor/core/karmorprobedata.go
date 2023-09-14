@@ -29,8 +29,8 @@ type KarmorData struct {
 }
 
 // Karmor provides structure to serve Policy gRPC service
-type Karmor struct {
-	pb.KarmorServer
+type Probe struct {
+	pb.ProbeServiceServer
 	GetContainerData func() ([]string, map[string]*pb.ContainerData, map[string]*pb.HostSecurityPolicies)
 }
 
@@ -74,7 +74,7 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 }
 
 // SetKarmorContainerData() keeps track of containers and the applied policies
-func (dm *KubeArmorDaemon) SetKarmorContainerData() ([]string, map[string]*pb.ContainerData, map[string]*pb.HostSecurityPolicies) {
+func (dm *KubeArmorDaemon) SetProbeContainerData() ([]string, map[string]*pb.ContainerData, map[string]*pb.HostSecurityPolicies) {
 	var containerlist []string
 	dm.ContainersLock.Lock()
 	for _, value := range dm.Containers {
@@ -108,10 +108,8 @@ func (dm *KubeArmorDaemon) SetKarmorContainerData() ([]string, map[string]*pb.Co
 	dm.HostSecurityPoliciesLock.Lock()
 	for _, hp := range dm.HostSecurityPolicies {
 
-		hostName := ""
-		for _, v := range hp.Spec.NodeSelector.MatchLabels {
-			hostName = v
-		}
+		hostName := dm.Node.NodeName
+
 		if val, ok := hostMap[hostName]; ok {
 
 			val.PolicyList = append(val.PolicyList, hp.Metadata["policyName"])
@@ -131,18 +129,15 @@ func (dm *KubeArmorDaemon) SetKarmorContainerData() ([]string, map[string]*pb.Co
 
 }
 
-// GetKarmorData() sends policy data through grpc client
-func (p *Karmor) GetKarmorData(c context.Context, in *empty.Empty) (*pb.Karmorresponse, error) {
-
-	var containerMap map[string]*pb.ContainerData
+// GetProbeData() sends policy data through grpc client
+func (p *Probe) GetProbeData(c context.Context, in *empty.Empty) (*pb.ProbeResponse, error) {
 
 	containerList, containerMap, hostMap := p.GetContainerData()
-	res := &pb.Karmorresponse{
+	res := &pb.ProbeResponse{
 		ContainerList: containerList,
 		ContainerMap:  containerMap,
 		HostMap:       hostMap,
 	}
 
 	return res, nil
-
 }

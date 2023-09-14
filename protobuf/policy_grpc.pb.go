@@ -19,84 +19,84 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// KarmorClient is the client API for Karmor service.
+// ProbeServiceClient is the client API for ProbeService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type KarmorClient interface {
-	GetKarmorData(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Karmorresponse, error)
+type ProbeServiceClient interface {
+	GetProbeData(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ProbeResponse, error)
 }
 
-type karmorClient struct {
+type probeServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewKarmorClient(cc grpc.ClientConnInterface) KarmorClient {
-	return &karmorClient{cc}
+func NewProbeServiceClient(cc grpc.ClientConnInterface) ProbeServiceClient {
+	return &probeServiceClient{cc}
 }
 
-func (c *karmorClient) GetKarmorData(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*Karmorresponse, error) {
-	out := new(Karmorresponse)
-	err := c.cc.Invoke(ctx, "/policy.karmor/getKarmorData", in, out, opts...)
+func (c *probeServiceClient) GetProbeData(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ProbeResponse, error) {
+	out := new(ProbeResponse)
+	err := c.cc.Invoke(ctx, "/policy.ProbeService/getProbeData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// KarmorServer is the server API for Karmor service.
-// All implementations should embed UnimplementedKarmorServer
+// ProbeServiceServer is the server API for ProbeService service.
+// All implementations should embed UnimplementedProbeServiceServer
 // for forward compatibility
-type KarmorServer interface {
-	GetKarmorData(context.Context, *empty.Empty) (*Karmorresponse, error)
+type ProbeServiceServer interface {
+	GetProbeData(context.Context, *empty.Empty) (*ProbeResponse, error)
 }
 
-// UnimplementedKarmorServer should be embedded to have forward compatible implementations.
-type UnimplementedKarmorServer struct {
+// UnimplementedProbeServiceServer should be embedded to have forward compatible implementations.
+type UnimplementedProbeServiceServer struct {
 }
 
-func (UnimplementedKarmorServer) GetKarmorData(context.Context, *empty.Empty) (*Karmorresponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetKarmorData not implemented")
+func (UnimplementedProbeServiceServer) GetProbeData(context.Context, *empty.Empty) (*ProbeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProbeData not implemented")
 }
 
-// UnsafeKarmorServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to KarmorServer will
+// UnsafeProbeServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProbeServiceServer will
 // result in compilation errors.
-type UnsafeKarmorServer interface {
-	mustEmbedUnimplementedKarmorServer()
+type UnsafeProbeServiceServer interface {
+	mustEmbedUnimplementedProbeServiceServer()
 }
 
-func RegisterKarmorServer(s grpc.ServiceRegistrar, srv KarmorServer) {
-	s.RegisterService(&Karmor_ServiceDesc, srv)
+func RegisterProbeServiceServer(s grpc.ServiceRegistrar, srv ProbeServiceServer) {
+	s.RegisterService(&ProbeService_ServiceDesc, srv)
 }
 
-func _Karmor_GetKarmorData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ProbeService_GetProbeData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(KarmorServer).GetKarmorData(ctx, in)
+		return srv.(ProbeServiceServer).GetProbeData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/policy.karmor/getKarmorData",
+		FullMethod: "/policy.ProbeService/getProbeData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KarmorServer).GetKarmorData(ctx, req.(*empty.Empty))
+		return srv.(ProbeServiceServer).GetProbeData(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Karmor_ServiceDesc is the grpc.ServiceDesc for Karmor service.
+// ProbeService_ServiceDesc is the grpc.ServiceDesc for ProbeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Karmor_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "policy.karmor",
-	HandlerType: (*KarmorServer)(nil),
+var ProbeService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "policy.ProbeService",
+	HandlerType: (*ProbeServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "getKarmorData",
-			Handler:    _Karmor_GetKarmorData_Handler,
+			MethodName: "getProbeData",
+			Handler:    _ProbeService_GetProbeData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
