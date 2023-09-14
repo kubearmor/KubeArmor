@@ -268,6 +268,10 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 			},
 		},
 	}
+	if runtime == "containerd" {
+		privilegeEscalation := true
+		job.Spec.Template.Spec.Containers[0].SecurityContext.AllowPrivilegeEscalation = &privilegeEscalation
+	}
 	return &job
 }
 
