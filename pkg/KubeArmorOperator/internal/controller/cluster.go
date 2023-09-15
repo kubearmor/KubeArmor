@@ -331,9 +331,9 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				res = err
 			} else {
 				for _, ds := range dsList.Items {
-					ds.Spec.Template.Spec.Containers[0].Image = common.KubeArmorImage
+					ds.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
-					ds.Spec.Template.Spec.InitContainers[0].Image = common.KubeArmorInitImage
+					ds.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 					ds.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 					_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
 					if err != nil {
@@ -350,7 +350,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
 				res = err
 			} else {
-				relay.Spec.Template.Spec.Containers[0].Image = common.KubeArmorRelayImage
+				relay.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 				relay.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
 				if err != nil {
@@ -370,10 +370,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				containers := &controller.Spec.Template.Spec.Containers
 				for i, container := range *containers {
 					if container.Name == "manager" {
-						(*containers)[i].Image = common.KubeArmorControllerImage
+						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 					} else {
-						(*containers)[i].Image = common.KubeRbacProxyImage
+						(*containers)[i].Image = common.GetApplicationImage(common.KubeRbacProxyName)
 					}
 				}
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
