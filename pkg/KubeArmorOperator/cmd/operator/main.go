@@ -2,7 +2,7 @@
 // Copyright 2021 Authors of KubeArmor
 
 // Package cmd is the collection of all the subcommands available in kArmor while providing relevant options for the same
-package operator
+package main
 
 import (
 	"errors"
@@ -75,4 +75,8 @@ func init() {
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(Cmd.Execute())
+}
+
+func main() {
+	Execute()
 }

@@ -54,8 +54,8 @@ var (
 	Namespace                       string = "kube-system"
 	Privileged                      bool   = false
 	HostPID                         bool   = false
-	OperatorName                    string = "kubearmor-operator"
-	OperatorImage                   string = "kubearmor/kubearmor-operator:latest"
+	SnitchImage                     string = "kubearmor/kubearmor-snitch"
+	SnitchImageTag                  string = "latest"
 	KubeArmorServiceAccountName     string = "kubearmor"
 	KubeArmorClusterRoleBindingName string = KubeArmorServiceAccountName
 	KubeArmorSnitchRoleName         string = "kubearmor-snitch"
@@ -283,6 +283,13 @@ func GetOperatorNamespace() string {
 	}
 
 	return ns
+}
+
+func GetSnitchImage() string {
+	if image := os.Getenv("SNITCH_IMAGE"); image != "" {
+		return image
+	}
+	return SnitchImage + ":" + SnitchImageTag
 }
 
 func IsCertifiedOperator() bool {

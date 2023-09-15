@@ -2,7 +2,7 @@
 // Copyright 2021 Authors of KubeArmor
 
 // Package cmd is the collection of all the subcommands available in kArmor while providing relevant options for the same
-package snitch
+package main
 
 import (
 	"context"
@@ -148,4 +148,8 @@ func snitch() {
 	} else {
 		Logger.Infof("Patched node %s, patch=%s", NodeName, string(patch))
 	}
+}
+
+func main() {
+	Execute()
 }

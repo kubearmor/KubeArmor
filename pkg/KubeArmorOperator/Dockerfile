@@ -35,9 +35,10 @@ COPY $OPERATOR_DIR/k8s k8s
 COPY $OPERATOR_DIR/runtime runtime
 
 # Build
-RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o operator cmd/main.go
+RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o operator cmd/operator/main.go
+RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o snitch cmd/snitch-cmd/main.go
 
-FROM redhat/ubi9-minimal
+FROM redhat/ubi9-minimal as operator
 
 ARG VERSION=latest
 
@@ -58,8 +59,24 @@ RUN groupadd --gid 1000 default \
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
 COPY --from=builder --chown=1000:1000 /KubeArmor/$OPERATOR_DIR/operator /operator
 COPY LICENSE /licenses/license.txt
-RUN setcap "cap_sys_admin=+ep cap_ipc_lock=+ep cap_sys_resource=+ep cap_dac_override=+ep cap_dac_read_search=+ep" /operator
   
 USER 1000
 
 ENTRYPOINT ["/operator"]
+
+FROM redhat/ubi9-minimal as snitch
+
+ARG VERSION=latest
+
+LABEL name="kubearmor-snitch" \
+      vendor="Accuknox" \
+      version=${VERSION} \
+      release=${VERSION} \
+      summary="kubearmor-snitch container image based on redhat ubi" \
+      description="KubeArmor-Snitch, A CLI Utility to Detect node related informations for KubeArmor"
+
+ARG OPERATOR_DIR=pkg/KubeArmorOperator
+COPY --from=builder /KubeArmor/$OPERATOR_DIR/snitch /snitch
+COPY LICENSE /licenses/license.txt
+
+ENTRYPOINT ["/snitch"]

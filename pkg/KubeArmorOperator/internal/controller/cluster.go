@@ -61,7 +61,8 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 			log.Warnf("Cannot get deployment %s, error=%s", deployment_name, err.Error())
 		} else {
 			deployment_uuid = deploy.GetUID()
-			common.OperatorImage = deploy.Spec.Template.Spec.Containers[0].Image
+			operatorImage := deploy.Spec.Template.Spec.Containers[0].Image
+			common.SnitchImageTag = strings.Split(operatorImage, ":")[1]
 		}
 	}
 	PathPrefix = pathPrefix
