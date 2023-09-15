@@ -2,7 +2,7 @@
 # Declare variables to be passed into your templates.
 
 environment:
-  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k3s, minikube, microk8s
+  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s
   name: generic
 
 kubearmorRelay:
