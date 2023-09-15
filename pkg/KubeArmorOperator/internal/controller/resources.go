@@ -72,9 +72,9 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, btfPrese
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, "-criSocket=unix:///"+strings.ReplaceAll(socket, "_", "/"))
 	// update images
-	daemonset.Spec.Template.Spec.Containers[0].Image = common.KubeArmorImage
+	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
-	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.KubeArmorInitImage
+	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
@@ -207,7 +207,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 				Containers: []corev1.Container{
 					{
 						Name:  "snitch",
-						Image: common.GetSnitchImage(),
+						Image: common.GetApplicationImage(common.SnitchName),
 						Args: []string{
 							"--nodename=$(NODE_NAME)",
 							"--pathprefix=" + PathPrefix,
@@ -409,14 +409,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	containers := &controller.Spec.Template.Spec.Containers
 	for i, container := range *containers {
 		if container.Name == "manager" {
-			(*containers)[i].Image = common.KubeArmorControllerImage
+			(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 		} else {
-			(*containers)[i].Image = common.KubeRbacProxyImage
+			(*containers)[i].Image = common.GetApplicationImage(common.KubeRbacProxyName)
 			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeRbacProxyImagePullPolicy)
 		}
 	}
-	relayServer.Spec.Template.Spec.Containers[0].Image = common.KubeArmorRelayImage
+	relayServer.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 	relayServer.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 	deploys := []*appsv1.Deployment{
 		addOwnership(controller).(*appsv1.Deployment),
