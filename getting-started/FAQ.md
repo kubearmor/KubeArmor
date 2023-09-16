@@ -256,3 +256,35 @@ One can enable the host policy by patching the daemonset (`kubectl edit daemonse
 This will enable the `KubeArmorHostPolicy` and host based visibility for the k8s worker nodes.
 
 </details>
+
+<details><summary><h4>Unable to get KubeArmor policy enforcement with Kind clusters</h4></summary>
+
+KubeArmor works out of the box with Kind clusters supporting BPF-LSM. However, with AppArmor only mode, Kind cluster needs additional provisional steps. You can check if BPF-LSM is supported/enabled on your host (on which the kind cluster is to be deployed) by using following:
+```
+cat /sys/kernel/security/lsm
+```
+* If it has `bpf` in the list, then everything should work out of the box
+* If it has `apparmor` in the list, then follow the steps mentioned in this FAQ.
+
+## 1. Create Kind cluster
+```sh
+cat <<EOF | kind create cluster --config -
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- extraMounts:
+  - hostPath: /sys/kernel/security
+    containerPath: /sys/kernel/security
+EOF
+```
+
+## 2. Exec into kind node & install apparmor util
+```sh
+docker exec -it kind-control-plane bash
+apt update && apt install apparmor-utils -y && systemctl restart containerd
+```
+
+After this, exit out of the node shell and follow the [getting-started guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md).
+
+</details>
+
