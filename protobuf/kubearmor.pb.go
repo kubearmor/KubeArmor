@@ -255,9 +255,9 @@ type Alert struct {
 	ContainerImage    string    `protobuf:"bytes,24,opt,name=ContainerImage,proto3" json:"ContainerImage,omitempty"`
 	HostPPID          int32     `protobuf:"varint,27,opt,name=HostPPID,proto3" json:"HostPPID,omitempty"`
 	HostPID           int32     `protobuf:"varint,9,opt,name=HostPID,proto3" json:"HostPID,omitempty"`
-	PPID              int32     `protobuf:"varint,10,opt,name=PPID,proto3" json:"PPID,omitempty"`
+	PPID              int32     `protobuf:"varint,10,opt,name=PPID,proto3" json:"PPID,"`
 	PID               int32     `protobuf:"varint,11,opt,name=PID,proto3" json:"PID,omitempty"`
-	UID               int32     `protobuf:"varint,12,opt,name=UID,proto3" json:"UID,omitempty"`
+	UID               int32     `protobuf:"varint,12,opt,name=UID,proto3" json:"UID,"`
 	ParentProcessName string    `protobuf:"bytes,25,opt,name=ParentProcessName,proto3" json:"ParentProcessName,omitempty"`
 	ProcessName       string    `protobuf:"bytes,26,opt,name=ProcessName,proto3" json:"ProcessName,omitempty"`
 	PolicyName        string    `protobuf:"bytes,13,opt,name=PolicyName,proto3" json:"PolicyName,omitempty"`
@@ -545,9 +545,9 @@ type Log struct {
 	ProcessName       string    `protobuf:"bytes,21,opt,name=ProcessName,proto3" json:"ProcessName,omitempty"`
 	HostPPID          int32     `protobuf:"varint,22,opt,name=HostPPID,proto3" json:"HostPPID,omitempty"`
 	HostPID           int32     `protobuf:"varint,9,opt,name=HostPID,proto3" json:"HostPID,omitempty"`
-	PPID              int32     `protobuf:"varint,10,opt,name=PPID,proto3" json:"PPID,omitempty"`
+	PPID              int32     `protobuf:"varint,10,opt,name=PPID,proto3" json:"PPID,"`
 	PID               int32     `protobuf:"varint,11,opt,name=PID,proto3" json:"PID,omitempty"`
-	UID               int32     `protobuf:"varint,12,opt,name=UID,proto3" json:"UID,omitempty"`
+	UID               int32     `protobuf:"varint,12,opt,name=UID,proto3" json:"UID,"`
 	Type              string    `protobuf:"bytes,13,opt,name=Type,proto3" json:"Type,omitempty"`
 	Source            string    `protobuf:"bytes,14,opt,name=Source,proto3" json:"Source,omitempty"`
 	Operation         string    `protobuf:"bytes,15,opt,name=Operation,proto3" json:"Operation,omitempty"`
