@@ -114,8 +114,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 			break
 		}
 	}
-	// lookup runtime storage location
 
+	// lookup runtime storage location
 	for _, storageLocation := range common.RuntimeStorageVolumes[runtime] {
 		if strings.ReplaceAll(storageLocation[1:], "/", "_") == runtimeStorage {
 			vol = append(vol, corev1.Volume{
@@ -127,6 +127,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 					},
 				},
 			})
+
+			storageLocation = common.RuntimeStorageLocation[runtime]
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:             runtime + "-storage",
 				MountPath:        storageLocation,
@@ -432,7 +434,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		if kGenErr == nil {
 			break
 		}
-		clusterWatcher.Log.Infof("Couldnt generate TLS secret, re-trying in 3 seconds ...")
+		clusterWatcher.Log.Infof("Couldn't generate TLS secret, re-trying in 3 seconds ...")
 		time.Sleep(3 * time.Second)
 	}
 
@@ -582,14 +584,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 
 		// update operatingConfigCrd status to Running
-		if common.OperatigConfigCrd != nil {
+		if common.OperatorConfigCrd != nil {
 			if installErr != nil {
 				installErr = nil
-				go clusterWatcher.UpdateCrdStatus(common.OperatigConfigCrd.Name, common.ERROR, common.INSTALLATION_ERR_MSG)
+				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.ERROR, common.INSTALLATION_ERR_MSG)
 			} else if clusterWatcher.AreAllNodesProcessed() {
-				go clusterWatcher.UpdateCrdStatus(common.OperatigConfigCrd.Name, common.RUNNING, common.RUNNING_MSG)
+				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.RUNNING, common.RUNNING_MSG)
 			} else {
-				go clusterWatcher.UpdateCrdStatus(common.OperatigConfigCrd.Name, common.PENDING, common.PENDING_MSG)
+				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.PENDING, common.PENDING_MSG)
 			}
 		}
 
@@ -628,7 +630,7 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		if err == nil {
 			break
 		}
-		clusterWatcher.Log.Infof("Could'nt generate TLS secret, retrying in 3 seconds")
+		clusterWatcher.Log.Infof("Couldn't generate TLS secret, retrying in 3 seconds")
 		time.Sleep(3 * time.Second)
 	}
 	tmpsecret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())

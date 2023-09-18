@@ -2,7 +2,7 @@
 # Declare variables to be passed into your templates.
 
 environment:
-  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k3s, minikube, microk8s
+  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s
   name: generic
 
 kubearmorRelay:
@@ -218,6 +218,31 @@ kubearmor:
       mountPropagation: HostToContainer
       name: containerd-storage-path
       readOnly: true
+
+  volumeMountsK0s:
+    - mountPath: /usr/src
+      name: usr-src-path
+      readOnly: true
+    - mountPath: /lib/modules
+      name: lib-modules-path
+      readOnly: true
+    - mountPath: /sys/fs/bpf
+      name: sys-fs-bpf-path
+    - mountPath: /sys/kernel/security
+      name: sys-kernel-security-path
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /media/root/etc/os-release
+      name: os-release-path
+      readOnly: true
+    - mountPath: /etc/apparmor.d
+      name: etc-apparmor-d-path
+    - mountPath: /var/run/containerd/containerd.sock
+      name: containerd-sock-path
+      readOnly: true
+    - mountPath: /run/containerd
+      mountPropagation: HostToContainer
+      name: containerd-storage-path
 
   volumeMountsK3s:
     - mountPath: /usr/src
@@ -510,6 +535,44 @@ kubearmor:
     - hostPath:
         path: /var/snap/microk8s/common/run/containerd
         type: DirectoryOrCreate
+      name: containerd-storage-path
+
+  volumesK0s:
+    - hostPath:
+        path: /usr/src
+        type: Directory
+      name: usr-src-path
+    - hostPath:
+        path: /lib/modules
+        type: DirectoryOrCreate
+      name: lib-modules-path
+    - hostPath:
+        path: /sys/fs/bpf
+        type: Directory
+      name: sys-fs-bpf-path
+    - hostPath:
+        path: /sys/kernel/security
+        type: Directory
+      name: sys-kernel-security-path
+    - hostPath:
+        path: /sys/kernel/debug
+        type: Directory
+      name: sys-kernel-debug-path
+    - hostPath:
+        path: /etc/os-release
+        type: File
+      name: os-release-path
+    - hostPath:
+        path: /etc/apparmor.d
+        type: DirectoryOrCreate
+      name: etc-apparmor-d-path
+    - hostPath:
+        path: /run/k0s/containerd.sock
+        type: Socket
+      name: containerd-sock-path
+    - hostPath:
+        path: /run/k0s/containerd
+        type: Directory
       name: containerd-storage-path
 
   volumesK3s:

@@ -15,7 +15,7 @@ helm upgrade --install kubearmor . -n kube-system
 ## Values
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| environment.name | string | generic | The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k3s, minikube, microk8s |
+| environment.name | string | generic | The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s |
 | kubearmor.image.repository | string | kubearmor/kubearmor | kubearmor image repo |
 | kubearmor.image.tag | string | stable | kubearmor image tag |
 | kubearmor.imagePullPolicy | string | Always | kubearmor imagePullPolicy |

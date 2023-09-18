@@ -61,6 +61,8 @@ spec:
           {{- toYaml .Values.kubearmor.volumeMountsCRIO | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "microk8s" }}
           {{- toYaml .Values.kubearmor.volumeMountsMicroK8s | trim | nindent 10 }}
+        {{- else if eq .Values.environment.name "k0s" }}
+          {{- toYaml .Values.kubearmor.volumeMountsK0s | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "k3s" }}
           {{- toYaml .Values.kubearmor.volumeMountsK3s | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "minikube" }}
@@ -115,6 +117,8 @@ spec:
         {{- toYaml .Values.kubearmor.volumesCRIO | trim | nindent 8 }}
       {{- else if eq .Values.environment.name "microk8s" }}
         {{- toYaml .Values.kubearmor.volumesMicroK8s | trim | nindent 8 }}
+      {{- else if eq .Values.environment.name "k0s" }}
+        {{- toYaml .Values.kubearmor.volumesK0s | trim | nindent 8 }}
       {{- else if eq .Values.environment.name "k3s" }}
         {{- toYaml .Values.kubearmor.volumesK3s | trim | nindent 8 }}
       {{- else if eq .Values.environment.name "minikube" }}

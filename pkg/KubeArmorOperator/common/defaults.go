@@ -27,8 +27,8 @@ const (
 	ERROR    string = "Error"
 
 	// Status Messages
-	CREATED_MSG  string = "Installaltion has been created"
-	PENDING_MSG  string = "Kubearmor Installation is in-progess"
+	CREATED_MSG  string = "Installation has been created"
+	PENDING_MSG  string = "Kubearmor Installation is in-progress"
 	RUNNING_MSG  string = "Kubearmor Application is Up and Running"
 	UPDATING_MSG string = "Updating the Application Configuration"
 
@@ -38,7 +38,7 @@ const (
 	UPDATION_FAILED_ERR_MSG string = "Failed to update KubeArmor configuration"
 )
 
-var OperatigConfigCrd *opv1.KubeArmorConfig
+var OperatorConfigCrd *opv1.KubeArmorConfig
 
 var (
 	EnforcerLabel           string = "kubearmor.io/enforcer"
@@ -49,7 +49,7 @@ var (
 	OsLabel                 string = "kubernetes.io/os"
 	ArchLabel               string = "kubernetes.io/arch"
 	BTFLabel                string = "kubearmor.io/btf"
-	DeletAction             string = "DELETE"
+	DeleteAction            string = "DELETE"
 	AddAction               string = "ADD"
 	Namespace               string = "kube-system"
 	Privileged              bool   = false
@@ -103,6 +103,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 	"containerd": {
 		"/var/snap/microk8s/common/run/containerd.sock",
+		"/run/k0s/containerd.sock",
 		"/run/k3s/containerd/containerd.sock",
 		"/run/containerd/containerd.sock",
 		"/var/run/containerd/containerd.sock",
@@ -168,9 +169,16 @@ var RuntimeStorageVolumes = map[string][]string{
 		"/var/lib/containers/storage",
 	},
 	"containerd": {
+		"/run/k0s/containerd",
 		"/run/k3s/containerd",
 		"/run/containerd",
 	},
+}
+
+var RuntimeStorageLocation = map[string]string{
+	"docker":     "/var/lib/docker",
+	"containerd": "/run/containerd",
+	"cri-o":      "/var/lib/containers/storage",
 }
 
 func ShortSHA(s string) string {

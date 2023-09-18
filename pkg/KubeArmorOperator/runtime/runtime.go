@@ -21,7 +21,7 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, log zap.SugaredLo
 			}
 		}
 	}
-	log.Warn("Could'nt detect k8s runtime localtion, searching for other runtime sockets")
+	log.Warn("Couldn't detect k8s runtime location, searching for other runtime sockets")
 	for runtime, paths := range common.ContainerRuntimeSocketMap {
 		for _, path := range paths {
 			if _, err := os.Stat(pathPrefix + path); err == nil || os.IsPermission(err) {
@@ -31,15 +31,15 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, log zap.SugaredLo
 			}
 		}
 	}
-	log.Warn("Could'nt detect runtime")
+	log.Warn("Couldn't detect runtime")
 	return "NA", "NA"
 }
 
 func DetectRuntimeStorage(pathPrefix, runtime string, log zap.SugaredLogger) string {
 
-	for _, storagelocaltion := range common.RuntimeStorageVolumes[runtime] {
-		if _, err := os.Stat(pathPrefix + storagelocaltion); err == nil {
-			return storagelocaltion
+	for _, storageLocation := range common.RuntimeStorageVolumes[runtime] {
+		if _, err := os.Stat(pathPrefix + storageLocation); err == nil {
+			return storageLocation
 		}
 	}
 	return "NA"
