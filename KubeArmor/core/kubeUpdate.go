@@ -20,6 +20,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kspinformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -1435,7 +1436,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 }
 
 // ParseAndUpdateHostSecurityPolicy Function
-func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmorHostPolicyEvent) {
+func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus {
 	// create a host security policy
 
 	secPolicy := tp.HostSecurityPolicy{}
@@ -1445,7 +1446,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 
 	if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
 		dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
-		return
+		return pb.PolicyStatus_Failure
 	}
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
@@ -1843,11 +1844,18 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 			}
 		}
 	} else if event.Type == "DELETED" {
+		// check that a security policy should exist before performing delete operation
+		policymatch := false
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 				dm.HostSecurityPolicies = append(dm.HostSecurityPolicies[:idx], dm.HostSecurityPolicies[idx+1:]...)
+				policymatch = true
 				break
 			}
+		}
+		if !policymatch {
+			dm.Logger.Warnf("Failed to delete security policy. Policy doesn't exist")
+			return pb.PolicyStatus_NotExist
 		}
 	}
 
@@ -1866,6 +1874,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
 		}
 	}
+	if event.Type == "ADDED" {
+		return pb.PolicyStatus_Applied
+	} else if event.Type == "DELETED" {
+		return pb.PolicyStatus_Deleted
+	}
+	return pb.PolicyStatus_Modified
 }
 
 // WatchHostSecurityPolicies Function
