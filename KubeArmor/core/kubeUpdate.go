@@ -509,6 +509,32 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 	}
 }
 
+func (dm *KubeArmorDaemon) PatchSecPolicyForPods() {
+	var podList []string
+	for _, endpoint := range dm.EndPoints {
+		if len(endpoint.SecurityPolicies) != 0 {
+			podList = append(podList, endpoint.EndPointName)
+		}
+	}
+	dm.Logger.Printf("%v", podList)
+	payload := []patchStringValue{{
+		Op:    "replace",
+		Path:  "/spec/protectedPods",
+		Value: podList,
+	}}
+	spec, _ := json.Marshal(payload)
+	for _, endpoint := range dm.EndPoints {
+		for _, secPol := range endpoint.SecurityPolicies {
+			crd := K8s.KSPClient.SecurityV1()
+			_, err := crd.KubeArmorPolicies(secPol.Metadata["namespaceName"]).Patch(context.Background(), secPol.Metadata["policyName"], types.JSONPatchType, spec, metav1.PatchOptions{})
+			if err != nil {
+				dm.Logger.Printf("error: ", err)
+			}
+		}
+	}
+
+}
+
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
 	for {
@@ -816,6 +842,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				// update a endpoint corresponding to the pod
 				dm.UpdateEndPointWithPod(event.Type, pod)
+				dm.PatchSecPolicyForPods()
+
 			}
 		} else {
 			time.Sleep(time.Second * 1)
@@ -1396,7 +1424,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy("MODIFIED", secPolicy)
-					dm.PatchProtectedPods(secPolicy)
+					//dm.PatchProtectedPods()
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
