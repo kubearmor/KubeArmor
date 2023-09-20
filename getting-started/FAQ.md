@@ -257,7 +257,7 @@ This will enable the `KubeArmorHostPolicy` and host based visibility for the k8s
 
 </details>
 
-<details><summary><h4>Unable to get KubeArmor policy enforcement with Kind clusters</h4></summary>
+<details><summary><h4>Using KubeArmor with Kind clusters</h4></summary>
 
 KubeArmor works out of the box with Kind clusters supporting BPF-LSM. However, with AppArmor only mode, Kind cluster needs additional provisional steps. You can check if BPF-LSM is supported/enabled on your host (on which the kind cluster is to be deployed) by using following:
 ```
@@ -280,11 +280,15 @@ EOF
 
 ## 2. Exec into kind node & install apparmor util
 ```sh
-docker exec -it kind-control-plane bash
-apt update && apt install apparmor-utils -y && systemctl restart containerd
+docker exec -it kind-control-plane bash -c "apt update && apt install apparmor-utils -y && systemctl restart containerd"
 ```
 
 After this, exit out of the node shell and follow the [getting-started guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md).
+
+If the `kubearmor-relay` pod goes into CrashLoopBackOff, apply the following patch:
+```sh
+kubectl patch deploy -n $(kubectl get deploy -l kubearmor-app=kubearmor-relay -A -o custom-columns=:'{.metadata.namespace}',:'{.metadata.name}') --type=json -p='[{"op": "add", "path": "/spec/template/metadata/annotations/container.apparmor.security.beta.kubernetes.io~1kubearmor-relay-server", "value": "unconfined"}]'
+```
 
 </details>
 
