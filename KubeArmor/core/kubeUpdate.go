@@ -583,16 +583,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				pod.ContainerImages = map[string]string{}
 				for _, container := range event.Object.Status.ContainerStatuses {
 					if len(container.ContainerID) > 0 {
-						if strings.HasPrefix(container.ContainerID, "docker://") {
-							containerID := strings.TrimPrefix(container.ContainerID, "docker://")
-							pod.Containers[containerID] = container.Name
-							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
-						} else if strings.HasPrefix(container.ContainerID, "containerd://") {
-							containerID := strings.TrimPrefix(container.ContainerID, "containerd://")
-							pod.Containers[containerID] = container.Name
-							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
-						} else if strings.HasPrefix(container.ContainerID, "cri-o://") {
-							containerID := strings.TrimPrefix(container.ContainerID, "cri-o://")
+						cid := strings.Split(container.ContainerID, "://")
+						if len(cid) == 2 { // always true because k8s spec defines format as '<type>://<container_id>'
+							containerID := cid[1]
 							pod.Containers[containerID] = container.Name
 							pod.ContainerImages[containerID] = container.Image + kl.GetSHA256ofImage(container.ImageID)
 						}
