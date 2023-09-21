@@ -76,6 +76,8 @@ To make a contribution, please follow the steps below.
 
    First, go to your repository on GitHub.
 
+   ![commit ahead](../.gitbook/assets/commit_ahead.png)  
+
    Then, click "Pull request" button.
 
    ![after pull request](../.gitbook/assets/after_pull_request.png)  
