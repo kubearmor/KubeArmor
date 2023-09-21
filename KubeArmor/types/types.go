@@ -137,7 +137,8 @@ type K8sPodEvent struct {
 
 // K8sPolicyStatus Structure
 type K8sPolicyStatus struct {
-	Status string `json:"status,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	ProtectedPods []string `json:"protectedpods,omitempty"`
 }
 
 // K8sKubeArmorPolicyEvent Structure
