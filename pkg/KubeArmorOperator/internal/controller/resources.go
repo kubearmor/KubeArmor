@@ -70,7 +70,6 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, btfPrese
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
-	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, "-criSocket=unix:///"+strings.ReplaceAll(socket, "_", "/"))
 	// update images
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
@@ -106,6 +105,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 					},
 				},
 			})
+
+			socket = common.RuntimeSocketLocation[runtime]
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:      runtime + "-socket",
 				MountPath: socket,

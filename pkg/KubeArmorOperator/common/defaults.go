@@ -181,6 +181,12 @@ var RuntimeStorageLocation = map[string]string{
 	"cri-o":      "/var/lib/containers/storage",
 }
 
+var RuntimeSocketLocation = map[string]string{
+	"docker":     "/var/run/docker.sock",
+	"containerd": "/var/run/containerd/containerd.sock",
+	"cri-o":      "/var/run/crio/crio.sock",
+}
+
 func ShortSHA(s string) string {
 	sBytes := []byte(s)
 
