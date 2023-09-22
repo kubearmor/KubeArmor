@@ -84,7 +84,7 @@ If you don't find an existing dashboard particular to your needs, feel free to c
 `karmor logs` internally uses Kubernetes' client's port-forward. Port forward is not meant for long running connection and it times out if left idle. Checkout this [StackOverflow answer](https://stackoverflow.com/questions/47484312/kubectl-port-forwarding-timeout-issue) for more info.
 
 If you want to stream logs reliably there are a couple of solutions you can try:
-1. Modiy the `kubearmor` service in `kube-system` namespace and change the service type to `NodePort`. Then run karmor with:
+1. Modiy the `kubearmor` service in `kubearmor` namespace and change the service type to `NodePort`. Then run karmor with:
 ```bash
 karmor logs --gRPC=<address of the kubearmor node-port service>
 ```
@@ -223,12 +223,12 @@ For more such differences checkout [Enforce Feature Parity Wiki](https://github.
 <details><summary><h4>How to enable `KubeArmorHostPolicy` for k8s cluster?</h4></summary>
 By default the host policies and visibility is disabled for k8s hosts.
 
-If you use following command, `kubectl logs -n kube-system <KUBEARMOR-POD> | grep "Started to protect"`<br>
+If you use following command, `kubectl logs -n kubearmor <KUBEARMOR-POD> | grep "Started to protect"`<br>
 you will see, `2023-08-21 12:58:34.641665      INFO    Started to protect containers.`<br>
 This indicates that only container/pod protection is enabled.<br>
 If you have hostpolicy enabled you should see something like this, `2023-08-22 18:07:43.335232      INFO    Started to protect a host and containers`<br>
 
-One can enable the host policy by patching the daemonset (`kubectl edit daemonsets.apps -n kube-system kubearmor`):
+One can enable the host policy by patching the daemonset (`kubectl edit daemonsets.apps -n kubearmor kubearmor`):
 ```diff
 ...
   template:
