@@ -509,25 +509,58 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 	}
 }
 
-func (dm *KubeArmorDaemon) PatchSecPolicyForPods() {
-	policytoPod := make(map[string][]string)
+type PodContainers struct {
+	Pod       string
+	Container string
+}
+
+func (dm *KubeArmorDaemon) PodContainerInfo() map[string][]PodContainers {
+	policyPods := make(map[string][]PodContainers)
+	//var PodC PodContainers
 	for _, endpoint := range dm.EndPoints {
 		for _, secPol := range endpoint.SecurityPolicies {
-			policytoPod[secPol.Metadata["policyName"]] = append(policytoPod[secPol.Metadata["policyName"]], endpoint.EndPointName)
+			policyPods[secPol.Metadata["policyName"]] = append(policyPods[secPol.Metadata["policyName"]], PodContainers{
+				Pod:       endpoint.EndPointName,
+				Container: endpoint.ContainerName,
+			})
 		}
 	}
 
-	for policy, pods := range policytoPod {
-		jsonPod, err := json.Marshal(pods)
-		if err != nil {
-			dm.Logger.Printf("error: %s", err.Error())
+	combinedMap := make(map[string][]PodContainers)
+
+	for policy, podContainers := range policyPods {
+		podContainerMap := make(map[string][]string)
+
+		for _, container := range podContainers {
+			if _, exists := podContainerMap[container.Pod]; !exists {
+				podContainerMap[container.Pod] = []string{}
+			}
+			podContainerMap[container.Pod] = append(podContainerMap[container.Pod], container.Container)
 		}
-		spec := `{"status": {"protectedPods":` + string(jsonPod) + `}}`
+
+		var combinedContainers []PodContainers
+		for pod, containers := range podContainerMap {
+			combinedContainers = append(combinedContainers, PodContainers{Pod: pod, Container: `[` + strings.Join(containers, ",") + `]`})
+		}
+
+		combinedMap[policy] = combinedContainers
+	}
+
+	return combinedMap
+}
+
+func (dm *KubeArmorDaemon) PatchSecPolicyForPods() {
+	policytoPod := dm.PodContainerInfo()
+	var podList string
+	for policy, pods := range policytoPod {
+
 		crd := K8s.KSPClient.SecurityV1()
-		dm.Logger.Printf("%v", pods)
+
 		for _, p := range pods {
+			podList = fmt.Sprintf(`["%v %v"]`, p.Pod, p.Container)
+			spec := `{"status": {"protectedPods":` + podList + `}}`
 			for _, dmPods := range dm.K8sPods {
-				if dmPods.Metadata["podName"] == p {
+				if dmPods.Metadata["podName"] == p.Pod {
 					_, err := crd.KubeArmorPolicies(dmPods.Metadata["namespaceName"]).Patch(context.Background(), policy, types.MergePatchType, []byte(spec), metav1.PatchOptions{}, "status")
 					if err != nil {
 						dm.Logger.Printf("error: %v", err)
@@ -846,7 +879,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				// update a endpoint corresponding to the pod
 				dm.UpdateEndPointWithPod(event.Type, pod)
-				dm.PatchSecPolicyForPods()
+				if cfg.GlobalCfg.ProtectedPods {
+					dm.PatchSecPolicyForPods()
+				}
 
 			}
 		} else {
@@ -1335,32 +1370,23 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policy ksp.KubeArmorPolicy) (sec
 	return
 }
 
-type patchStringValue struct {
-	Op    string `json:"op"`
-	Path  string `json:"path"`
-	Value string `json:"value"`
-}
-
 // PatchProtectedPods patches current KSP with protected pod list
 func (dm *KubeArmorDaemon) PatchProtectedPods(secPolicy tp.SecurityPolicy) {
-	var podList []string
-	for _, endpoint := range dm.EndPoints {
-		for _, sec := range endpoint.SecurityPolicies {
-			if sec.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-				podList = append(podList, endpoint.EndPointName)
+	policyPods := dm.PodContainerInfo()
+	var podList string
+
+	for policy, pods := range policyPods {
+		for _, p := range pods {
+			podList = fmt.Sprintf(`["%v %v"]`, p.Pod, p.Container)
+			spec := `{"status": {"protectedPods":` + podList + `}}`
+			crd := K8s.KSPClient.SecurityV1()
+			if policy == secPolicy.Metadata["policyName"] {
+				_, err := crd.KubeArmorPolicies(secPolicy.Metadata["namespaceName"]).Patch(context.Background(), secPolicy.Metadata["policyName"], types.MergePatchType, []byte(spec), metav1.PatchOptions{}, "status")
+				if err != nil {
+					dm.Logger.Printf("error: %v", err)
+				}
 			}
 		}
-	}
-	jsonPod, err := json.Marshal(podList)
-	if err != nil {
-		dm.Logger.Printf("Error: %s", err.Error())
-	}
-	spec := `{"status": {"protectedPods":` + string(jsonPod) + `}}`
-	dm.Logger.Print(spec)
-	crd := K8s.KSPClient.SecurityV1()
-	_, err = crd.KubeArmorPolicies(secPolicy.Metadata["namespaceName"]).Patch(context.Background(), secPolicy.Metadata["policyName"], types.MergePatchType, []byte(spec), metav1.PatchOptions{}, "status")
-	if err != nil {
-		dm.Logger.Printf("error: %v", err)
 	}
 }
 
@@ -1404,8 +1430,9 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 
 					// apply security policies to pods
 					dm.UpdateSecurityPolicy("ADDED", secPolicy)
-
-					dm.PatchProtectedPods(secPolicy)
+					if cfg.GlobalCfg.ProtectedPods {
+						dm.PatchProtectedPods(secPolicy)
+					}
 				}
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
