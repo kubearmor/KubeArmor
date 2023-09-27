@@ -16,10 +16,14 @@
 * [Application Behavior](getting-started/workload_visibility.md)
 * [Advanced](getting-started/use-cases.md)
 
-## Documentation
-* [KubeArmor Events](getting-started/kubearmor-events.md)
-* [Control Telemetry/Visibility](getting-started/kubearmor_visibility.md)
-* [Security Posture](getting-started/default_posture.md)
+## Contribution
+
+* [Contribution Guide](contribution/contribution_guide.md)
+* [Development Guide](contribution/development_guide.md)
+* [Testing Guide](contribution/testing_guide.md)
+
+## Specification
+
 * [Policy Spec for Containers](getting-started/security_policy_specification.md)
 * [Policy Examples for Containers](getting-started/security_policy_examples.md)
 * [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)

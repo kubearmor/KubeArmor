@@ -2,22 +2,23 @@
 
 <img src="../.gitbook/assets/harden-workloads.png" width="512" class="center" alt="Hardening Policies">
 
-KubeArmor is a security solution for the Kubernetes and cloud native platforms that helps protect your workloads from attacks and threats. It does this by providing a set of hardening policies that are based on industry-leading compliance and attack frameworks such as CIS, MITRE, NIST-800-53, and STIGs. These policies are designed to help you secure your workloads in a way that is compliant with these frameworks and recommended best practices.
+KubeArmor is a security solution for the Kubernetes and cloud native platforms that help protect your workloads from attacks and threats. It does this by providing a set of hardening policies that are based on industry-leading compliance and attack frameworks such as CIS, MITRE, NIST-800-53, and STIGs. These policies are designed to help you secure your workloads in a way that is compliant with these frameworks and recommended best practices.
 
 One of the key features of KubeArmor is that it provides these hardening policies out-of-the-box, meaning that you don't have to spend time researching and configuring them yourself. Instead, you can simply apply the policies to your workloads and immediately start benefiting from the added security that they provide.
 
-Additionally, KubeArmor presents these hardening policies in the context of your workload, so you can see how they will be applied and what impact they will have on your system. This allows you to make informed decisions about which policies to apply, and helps you understand the trade-offs between security and functionality.
+Additionally, KubeArmor presents these hardening policies in the context of your workload, so you can see how they will be applied and what impact they will have on your system. This allows you to make informed decisions about which policies to apply and helps you understand the trade-offs between security and functionality.
 
 Overall, KubeArmor is a powerful tool for securing your Kubernetes workloads, and its out-of-the-box hardening policies based on industry-leading compliance and attack frameworks make it easy to get started and ensure that your system is as secure as possible.
 
 ## What is the source of these hardening policies?
 
-Hardening policies are derived from industry leading compliance standards and attack frameworks such as CIS, MITRE, NIST, STIGs, and several others.
+Hardening policies are derived from industry-leading compliance standards and attack frameworks such as CIS, MITRE, NIST, STIGs, and several others.
 [KubeArmor Policy Templates](https://github.com/kubearmor/policy-templates/) contains the latest hardening policies.
-KubeArmor client tool (karmor) provides a way (`karmor recommend`) to fetch the policies in the context of the kubernetes workloads or specific container using command line.
+KubeArmor client tool (karmor) provides a way (`karmor recommend`) to fetch the policies in the context of the Kubernetes workloads or specific containers using the command line.
 The output is a set of [`KubeArmorPolicy`](security_policy_specification.md) or [`KubeArmorHostPolicy`](host_security_policy_specification.md) that can be applied using k8s native tools (such as `kubectl apply`).
 
 The rules in hardening policies are based on inputs from:
+
 1. [MITRE TTPs](https://github.com/kubearmor/policy-templates/)
 2. [Security Technical Implementation Guides (STIGs)](https://public.cyber.mil/stigs/)
 3. [NIST SP 800-53A](https://csrc.nist.gov/publications/detail/sp/800-53a/rev-4/final)
@@ -27,11 +28,12 @@ The rules in hardening policies are based on inputs from:
 ## How to fetch hardening policies?
 
 Pre-requisites:
+
 1. Install KubeArmor
-	* `curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin && karmor install`
-2. Get the hardening policies in context of all the deployment in namespace NAMESPACE:
-	* `karmor recommend -n NAMESPACE`
-	* The recommended policies would be available in the `out` folder.
+ * `curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin && karmor install`
+2. Get the hardening policies in the context of all the deployment in namespace NAMESPACE:
+ * `karmor recommend -n NAMESPACE`
+ * The recommended policies would be available in the `out` folder.
 
 ## Sample recommended hardening policies
 
@@ -192,7 +194,7 @@ output report in out/report.txt ...
 ```
 
 Key highlights:
+
 1. The hardening policies are available by default in the `out` folder separated out in directories based on deployment names.
 2. Get an HTML report by using the option `--report report.html` with `karmor recommend`.
 3. Get hardening policies in context to specific compliance by specifying `--tag <CIS/MITRE/...>` option.
-
