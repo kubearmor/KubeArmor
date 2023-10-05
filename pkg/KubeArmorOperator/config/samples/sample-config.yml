@@ -13,7 +13,7 @@ spec:
   defaultCapabilitiesPosture: audit
   defaultFilePosture: audit
   defaultNetworkPosture: audit
-  defaultVisibility: process,file,network
+  defaultVisibility: process,network
   kubearmorImage:
     image: kubearmor/kubearmor:stable
     imagePullPolicy: Always

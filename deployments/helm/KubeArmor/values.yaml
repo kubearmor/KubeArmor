@@ -53,7 +53,7 @@ kubearmorConfigMap:
   defaultFilePosture: audit
   defaultCapabilitiesPosture: audit
   defaultNetworkPosture: audit
-  visibility: process,file,network
+  visibility: process,network
 
 #volume mounts and volumes
 kubearmor:
