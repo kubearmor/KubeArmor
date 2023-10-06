@@ -84,7 +84,7 @@ If you don't find an existing dashboard particular to your needs, feel free to c
 `karmor logs` internally uses Kubernetes' client's port-forward. Port forward is not meant for long running connection and it times out if left idle. Checkout this [StackOverflow answer](https://stackoverflow.com/questions/47484312/kubectl-port-forwarding-timeout-issue) for more info.
 
 If you want to stream logs reliably there are a couple of solutions you can try:
-1. Modiy the `kubearmor` service in `kube-system` namespace and change the service type to `NodePort`. Then run karmor with:
+1. Modiy the `kubearmor` service in `kubearmor` namespace and change the service type to `NodePort`. Then run karmor with:
 ```bash
 karmor logs --gRPC=<address of the kubearmor node-port service>
 ```
@@ -223,12 +223,12 @@ For more such differences checkout [Enforce Feature Parity Wiki](https://github.
 <details><summary><h4>How to enable `KubeArmorHostPolicy` for k8s cluster?</h4></summary>
 By default the host policies and visibility is disabled for k8s hosts.
 
-If you use following command, `kubectl logs -n kube-system <KUBEARMOR-POD> | grep "Started to protect"`<br>
+If you use following command, `kubectl logs -n kubearmor <KUBEARMOR-POD> | grep "Started to protect"`<br>
 you will see, `2023-08-21 12:58:34.641665      INFO    Started to protect containers.`<br>
 This indicates that only container/pod protection is enabled.<br>
 If you have hostpolicy enabled you should see something like this, `2023-08-22 18:07:43.335232      INFO    Started to protect a host and containers`<br>
 
-One can enable the host policy by patching the daemonset (`kubectl edit daemonsets.apps -n kube-system kubearmor`):
+One can enable the host policy by patching the daemonset (`kubectl edit daemonsets.apps -n kubearmor kubearmor`):
 ```diff
 ...
   template:
@@ -256,3 +256,39 @@ One can enable the host policy by patching the daemonset (`kubectl edit daemonse
 This will enable the `KubeArmorHostPolicy` and host based visibility for the k8s worker nodes.
 
 </details>
+
+<details><summary><h4>Using KubeArmor with Kind clusters</h4></summary>
+
+KubeArmor works out of the box with Kind clusters supporting BPF-LSM. However, with AppArmor only mode, Kind cluster needs additional provisional steps. You can check if BPF-LSM is supported/enabled on your host (on which the kind cluster is to be deployed) by using following:
+```
+cat /sys/kernel/security/lsm
+```
+* If it has `bpf` in the list, then everything should work out of the box
+* If it has `apparmor` in the list, then follow the steps mentioned in this FAQ.
+
+## 1. Create Kind cluster
+```sh
+cat <<EOF | kind create cluster --config -
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- extraMounts:
+  - hostPath: /sys/kernel/security
+    containerPath: /sys/kernel/security
+EOF
+```
+
+## 2. Exec into kind node & install apparmor util
+```sh
+docker exec -it kind-control-plane bash -c "apt update && apt install apparmor-utils -y && systemctl restart containerd"
+```
+
+After this, exit out of the node shell and follow the [getting-started guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md).
+
+If the `kubearmor-relay` pod goes into CrashLoopBackOff, apply the following patch:
+```sh
+kubectl patch deploy -n $(kubectl get deploy -l kubearmor-app=kubearmor-relay -A -o custom-columns=:'{.metadata.namespace}',:'{.metadata.name}') --type=json -p='[{"op": "add", "path": "/spec/template/metadata/annotations/container.apparmor.security.beta.kubernetes.io~1kubearmor-relay-server", "value": "unconfined"}]'
+```
+
+</details>
+

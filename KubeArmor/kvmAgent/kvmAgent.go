@@ -31,7 +31,7 @@ type KVMAgent struct {
 	gRPCServer       string
 	gRPCConnection   *grpc.ClientConn
 	gRPCClient       pb.KVMClient
-	UpdateHostPolicy func(tp.K8sKubeArmorHostPolicyEvent)
+	UpdateHostPolicy func(tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
 }
 
 func getgRPCAddress() (string, error) {

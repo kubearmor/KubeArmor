@@ -27,8 +27,8 @@ const (
 	ERROR    string = "Error"
 
 	// Status Messages
-	CREATED_MSG  string = "Installaltion has been created"
-	PENDING_MSG  string = "Kubearmor Installation is in-progess"
+	CREATED_MSG  string = "Installation has been created"
+	PENDING_MSG  string = "Kubearmor Installation is in-progress"
 	RUNNING_MSG  string = "Kubearmor Application is Up and Running"
 	UPDATING_MSG string = "Updating the Application Configuration"
 
@@ -38,27 +38,26 @@ const (
 	UPDATION_FAILED_ERR_MSG string = "Failed to update KubeArmor configuration"
 )
 
-var OperatigConfigCrd *opv1.KubeArmorConfig
+var OperatorConfigCrd *opv1.KubeArmorConfig
 
 var (
-	EnforcerLabel                   string = "kubearmor.io/enforcer"
-	RuntimeLabel                    string = "kubearmor.io/runtime"
-	RuntimeStorageLabel             string = "kubearmor.io/runtime-storage"
-	SocketLabel                     string = "kubearmor.io/socket"
-	RandLabel                       string = "kubearmor.io/rand"
-	OsLabel                         string = "kubernetes.io/os"
-	ArchLabel                       string = "kubernetes.io/arch"
-	BTFLabel                        string = "kubearmor.io/btf"
-	DeletAction                     string = "DELETE"
-	AddAction                       string = "ADD"
-	Namespace                       string = "kube-system"
-	Privileged                      bool   = false
-	HostPID                         bool   = false
-	OperatorName                    string = "kubearmor-operator"
-	OperatorImage                   string = "kubearmor/kubearmor-operator:latest"
-	KubeArmorServiceAccountName     string = "kubearmor"
-	KubeArmorClusterRoleBindingName string = KubeArmorServiceAccountName
-	KubeArmorSnitchRoleName         string = "kubearmor-snitch"
+	EnforcerLabel           string = "kubearmor.io/enforcer"
+	RuntimeLabel            string = "kubearmor.io/runtime"
+	RuntimeStorageLabel     string = "kubearmor.io/runtime-storage"
+	SocketLabel             string = "kubearmor.io/socket"
+	RandLabel               string = "kubearmor.io/rand"
+	OsLabel                 string = "kubernetes.io/os"
+	ArchLabel               string = "kubernetes.io/arch"
+	BTFLabel                string = "kubearmor.io/btf"
+	DeleteAction            string = "DELETE"
+	AddAction               string = "ADD"
+	Namespace               string = "kubearmor"
+	Privileged              bool   = false
+	HostPID                 bool   = false
+	SnitchName              string = "kubearmor-snitch"
+	SnitchImage             string = "kubearmor/kubearmor-snitch"
+	SnitchImageTag          string = "latest"
+	KubeArmorSnitchRoleName string = "kubearmor-snitch"
 
 	// KubeArmorConfigMapName string = "kubearmor-config"
 
@@ -71,14 +70,19 @@ var (
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
 
 	// Images
+	KubeArmorName                      string = "kubearmor"
 	KubeArmorImage                     string = "kubearmor/kubearmor:stable"
 	KubeArmorImagePullPolicy           string = "Always"
+	KubeArmorInitName                  string = "kubearmor-init"
 	KubeArmorInitImage                 string = "kubearmor/kubearmor-init:stable"
 	KubeArmorInitImagePullPolicy       string = "Always"
+	KubeArmorRelayName                 string = "kubearmor-relay"
 	KubeArmorRelayImage                string = "kubearmor/kubearmor-relay-server:latest"
 	KubeArmorRelayImagePullPolicy      string = "Always"
+	KubeArmorControllerName            string = "kubearmor-controller"
 	KubeArmorControllerImage           string = "kubearmor/kubearmor-controller:latest"
 	KubeArmorControllerImagePullPolicy string = "Always"
+	KubeRbacProxyName                  string = "kube-rbac-proxy"
 	KubeRbacProxyImage                 string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0"
 	KubeRbacProxyImagePullPolicy       string = "Always"
 )
@@ -99,6 +103,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 	"containerd": {
 		"/var/snap/microk8s/common/run/containerd.sock",
+		"/run/k0s/containerd.sock",
 		"/run/k3s/containerd/containerd.sock",
 		"/run/containerd/containerd.sock",
 		"/var/run/containerd/containerd.sock",
@@ -164,9 +169,22 @@ var RuntimeStorageVolumes = map[string][]string{
 		"/var/lib/containers/storage",
 	},
 	"containerd": {
+		"/run/k0s/containerd",
 		"/run/k3s/containerd",
 		"/run/containerd",
 	},
+}
+
+var RuntimeStorageLocation = map[string]string{
+	"docker":     "/var/lib/docker",
+	"containerd": "/run/containerd",
+	"cri-o":      "/var/lib/containers/storage",
+}
+
+var RuntimeSocketLocation = map[string]string{
+	"docker":     "/var/run/docker.sock",
+	"containerd": "/var/run/containerd/containerd.sock",
+	"cri-o":      "/var/run/crio/crio.sock",
 }
 
 func ShortSHA(s string) string {
@@ -285,6 +303,43 @@ func GetOperatorNamespace() string {
 	return ns
 }
 
+func GetApplicationImage(app string) string {
+	// RELATED_IMAGE_* env variables will be present in case of redhat certified operator
+	switch app {
+	case KubeArmorName:
+		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR"); image != "" {
+			return image
+		}
+		return KubeArmorImage
+	case KubeArmorInitName:
+		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_INIT"); image != "" {
+			return image
+		}
+		return KubeArmorInitImage
+	case KubeArmorRelayName:
+		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_RELAY_SERVER"); image != "" {
+			return image
+		}
+		return KubeArmorRelayImage
+	case KubeArmorControllerName:
+		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_CONTROLLER"); image != "" {
+			return image
+		}
+		return KubeArmorControllerImage
+	case KubeRbacProxyName:
+		if image := os.Getenv("RELATED_IMAGE_KUBE_RBAC_PROXY"); image != "" {
+			return image
+		}
+		return KubeRbacProxyImage
+	case SnitchName:
+		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_SNITCH"); image != "" {
+			return image
+		}
+		return SnitchImage + ":" + SnitchImageTag
+	}
+	return ""
+}
+
 func IsCertifiedOperator() bool {
 	certified := os.Getenv("REDHAT_CERTIFIED_OP")
 	if certified == "" {
@@ -304,7 +359,6 @@ func CopyStrMap(src map[string]string) map[string]string {
 func init() {
 	Namespace = GetOperatorNamespace()
 	if IsCertifiedOperator() {
-		KubeArmorImage = "kubearmor/kubearmor-ubi:stable"
 		HostPID = true
 	}
 }

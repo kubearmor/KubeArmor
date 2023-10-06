@@ -15,9 +15,7 @@ spec:
         kubearmor-app: {{ .Values.kubearmorOperator.name }}
     spec:
       containers:
-      - command:
-        - /operator
-        - kubearmor-operator
+      - name: {{ .Values.kubearmorOperator.name }}
         env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:
@@ -25,9 +23,4 @@ spec:
               fieldPath: metadata.namespace
         image: {{ printf "%s:%s" .Values.kubearmorOperator.image.repository .Values.kubearmorOperator.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
-        name: {{ .Values.kubearmorOperator.name }}
-        securityContext:
-          capabilities:
-          {{- toYaml .Values.kubearmorOperator.capabilities | trim | nindent 12 }}
-          privileged: false
       serviceAccountName: {{ .Values.kubearmorOperator.name }}

@@ -20,18 +20,18 @@ func NewClient(log zap.SugaredLogger, kubeconfig string) *kubernetes.Clientset {
 	log.Info("Trying to load InCluster configuration")
 	inClusterConfig, err := rest.InClusterConfig()
 	if err == rest.ErrNotInCluster {
-		log.Info("Not inside a k8s Cluser, Loading kubeconfig")
+		log.Info("Not inside a k8s Cluster, Loading kubeconfig")
 		kubeConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 			&clientcmd.ConfigOverrides{}).ClientConfig()
 		if err != nil {
-			log.Errorf("Could'nt load configuration from kubeconfig Error=%s", err.Error())
+			log.Errorf("Couldn't load configuration from kubeconfig Error=%s", err.Error())
 			os.Exit(1)
 		}
 		log.Info("Loaded configuration from kubeconfig")
 		cfg = kubeConfig
 	} else if err != nil {
-		log.Errorf("Could'nt load inCluster configuration Error=%s", err.Error())
+		log.Errorf("Couldn't load inCluster configuration Error=%s", err.Error())
 		os.Exit(1)
 
 	} else {
@@ -41,7 +41,7 @@ func NewClient(log zap.SugaredLogger, kubeconfig string) *kubernetes.Clientset {
 
 	client, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Errorf("Could'nt create k8s clientset Error=%s", err.Error())
+		log.Errorf("Couldn't create k8s clientset Error=%s", err.Error())
 		os.Exit(1)
 	}
 
@@ -53,18 +53,18 @@ func NewExtClient(log zap.SugaredLogger, kubeconfig string) *apiextensionsclient
 	log.Info("Trying to load InCluster configuration")
 	inClusterConfig, err := rest.InClusterConfig()
 	if err == rest.ErrNotInCluster {
-		log.Info("Not inside a k8s Cluser, Loading kubeconfig")
+		log.Info("Not inside a k8s Cluster, Loading kubeconfig")
 		kubeConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 			&clientcmd.ConfigOverrides{}).ClientConfig()
 		if err != nil {
-			log.Errorf("Could'nt load configuration from kubeconfig Error=%s", err.Error())
+			log.Errorf("Couldn't load configuration from kubeconfig Error=%s", err.Error())
 			os.Exit(1)
 		}
 		log.Info("Loaded configuration from kubeconfig")
 		cfg = kubeConfig
 	} else if err != nil {
-		log.Errorf("Could'nt load inCluster configuration Error=%s", err.Error())
+		log.Errorf("Couldn't load inCluster configuration Error=%s", err.Error())
 		os.Exit(1)
 
 	} else {
@@ -74,7 +74,7 @@ func NewExtClient(log zap.SugaredLogger, kubeconfig string) *apiextensionsclient
 
 	client, err := apiextensionsclientset.NewForConfig(cfg)
 	if err != nil {
-		log.Errorf("Could'nt create k8s extensions clientset Error=%s", err.Error())
+		log.Errorf("Couldn't create k8s extensions clientset Error=%s", err.Error())
 		os.Exit(1)
 	}
 
@@ -86,18 +86,18 @@ func NewOpv1Client(log zap.SugaredLogger, kubeconfig string) *opv1client.Clients
 	log.Info("Trying to load InCluster configuration")
 	inClusterConfig, err := rest.InClusterConfig()
 	if err == rest.ErrNotInCluster {
-		log.Info("Not inside a k8s Cluser, Loading kubeconfig")
+		log.Info("Not inside a k8s Cluster, Loading kubeconfig")
 		kubeConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
 			&clientcmd.ConfigOverrides{}).ClientConfig()
 		if err != nil {
-			log.Errorf("Could'nt load configuration from kubeconfig Error=%s", err.Error())
+			log.Errorf("Couldn't load configuration from kubeconfig Error=%s", err.Error())
 			os.Exit(1)
 		}
 		log.Info("Loaded configuration from kubeconfig")
 		cfg = kubeConfig
 	} else if err != nil {
-		log.Errorf("Could'nt load inCluster configuration Error=%s", err.Error())
+		log.Errorf("Couldn't load inCluster configuration Error=%s", err.Error())
 		os.Exit(1)
 
 	} else {
@@ -107,7 +107,7 @@ func NewOpv1Client(log zap.SugaredLogger, kubeconfig string) *opv1client.Clients
 
 	client, err := opv1client.NewForConfig(cfg)
 	if err != nil {
-		log.Errorf("Could'nt create operatorv1 clientset Error=%s", err.Error())
+		log.Errorf("Couldn't create operatorv1 clientset Error=%s", err.Error())
 		os.Exit(1)
 	}
 

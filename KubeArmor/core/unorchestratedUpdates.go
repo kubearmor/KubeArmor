@@ -13,6 +13,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
 // SetContainerVisibility function enables visibility flag arguments for un-orchestrated container and updates the visibility map
@@ -80,7 +81,8 @@ func (dm *KubeArmorDaemon) MatchandRemoveContainerFromEndpoint(cid string) {
 }
 
 // ParseAndUpdateContainerSecurityPolicy Function
-func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKubeArmorPolicyEvent) {
+func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus {
+
 	// create a container security policy
 	secPolicy := tp.SecurityPolicy{}
 
@@ -90,7 +92,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 
 	if err := kl.Clone(event.Object.Spec, &secPolicy.Spec); err != nil {
 		dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
-		return
+		return pb.PolicyStatus_Failure
 	}
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
@@ -121,7 +123,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 			containername = v
 		} else {
 			dm.Logger.Warnf("Fail to apply policy. The MatchLabels container name key should be `kubearmor.io/container.name` ")
-			return
+			return pb.PolicyStatus_Invalid
 		}
 	}
 
@@ -455,7 +457,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	// policy doesn't exist and the policy is being removed
 	if policymatch == 0 && event.Type == "DELETED" {
 		dm.Logger.Warnf("Failed to delete security policy. Policy doesn't exist")
-		return
+		return pb.PolicyStatus_NotExist
 	}
 
 	for idx, policy := range newPoint.SecurityPolicies {
@@ -543,6 +545,13 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 			dm.removeBackUpPolicy(secPolicy.Metadata["policyName"])
 		}
 	}
+	if event.Type == "ADDED" {
+		return pb.PolicyStatus_Applied
+	} else if event.Type == "DELETED" {
+		return pb.PolicyStatus_Deleted
+	}
+	return pb.PolicyStatus_Modified
+
 }
 
 // ================================= //

@@ -2,7 +2,7 @@
 // Copyright 2021 Authors of KubeArmor
 
 // Package cmd is the collection of all the subcommands available in kArmor while providing relevant options for the same
-package snitch
+package main
 
 import (
 	"context"
@@ -50,7 +50,7 @@ var Cmd = &cobra.Command{
 		K8sClient = k8s.NewClient(*Logger, KubeConfig)
 		//Initialise k8sClient for all child commands to inherit
 		if K8sClient == nil {
-			return errors.New("could'nt create k8s client")
+			return errors.New("couldn't create k8s client")
 		}
 		return nil
 	},
@@ -64,8 +64,8 @@ var Cmd = &cobra.Command{
 
 	},
 	Use:   "snitch",
-	Short: "A CLI Utility to Detect node related informations for KubeArmor",
-	Long: `CLI Utility to Detect node related informations for KubeArmor
+	Short: "A CLI Utility to Detect node related information for KubeArmor",
+	Long: `CLI Utility to Detect node related information for KubeArmor
 	
 KubeArmor is a container-aware runtime security enforcement system that
 restricts the behavior (such as process execution, file access, and networking
@@ -105,14 +105,13 @@ func snitch() {
 		nodeEnforcer = "none"
 	}
 
-	//Detecting runtime
-
+	// Detecting runtime
 	runtime, socket := runtimepkg.DetectRuntimeViaMap(PathPrefix, Runtime, *Logger)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
 		// don't throw an error instead print info that no lsm is present
-		Logger.Errorf("Not able to runtime")
+		Logger.Errorf("Not able to detect runtime")
 		os.Exit(1)
 	}
 	runtimeStorage := runtimepkg.DetectRuntimeStorage(PathPrefix, runtime, *Logger)
@@ -148,4 +147,8 @@ func snitch() {
 	} else {
 		Logger.Infof("Patched node %s, patch=%s", NodeName, string(patch))
 	}
+}
+
+func main() {
+	Execute()
 }

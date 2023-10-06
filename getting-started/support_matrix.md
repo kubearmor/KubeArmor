@@ -11,7 +11,7 @@ KubeArmor supports following types of workloads:
 
 | Provider   | K8s engine   | OS Image    | Arch   | [Observability] | Audit Rules | Blocking Rules | [Network-Segmentation] | LSM Enforcer | Remarks |
 |:----------:|:------------:|:-----------:|:------:|:---------------:|:-----------:|:--------------:|:----------------------:|:------------:|:-------:|
-| Onprem     | kubeadm, [k3s], microk8s | [Distros] | x86_64, ARM | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
+| Onprem     | kubeadm, [k0s], [k3s], microk8s | [Distros] | x86_64, ARM | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Google     | [GKE] | [COS] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor | All [release channels][GKE-REL] |
 | Google     | [GKE] | Ubuntu >= 16.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor | All [release channels][GKE-REL] |
 | Microsoft  | [AKS] | Ubuntu >= 18.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
@@ -28,7 +28,7 @@ KubeArmor supports following types of workloads:
 | Rancher    | [RKE] | [SUSE] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Rancher    | [K3S] | [Distros] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux | [1084] |
-| VMWare     | [Tanzu] | TBD | x86_64 | :construction: | :construction: | :construction: | :construction: | :construction: | [1064] |
+| VMware     | [Tanzu] | TBD | x86_64 | :construction: | :construction: | :construction: | :construction: | :construction: | [1064] |
 | Mirantis     | [MKE] | Ubuntu>=20.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor | [1181] |
 | Digital Ocean | [DOKS] | Debian GNU/Linux 11 (bullseye) | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] | [1120] |
 
@@ -44,6 +44,7 @@ KubeArmor supports following types of workloads:
 [SUSE]: https://www.suse.com/
 [RHEL]: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
 [RKE]: https://rancher.com/docs/rke/latest/en/
+[K0S]: https://k0sproject.io
 [K3S]: https://www.rancher.com/products/k3s
 [OKE]: https://www.oracle.com/cloud/cloud-native/container-engine-kubernetes/
 [UEK]: https://docs.oracle.com/en/operating-systems/uek/

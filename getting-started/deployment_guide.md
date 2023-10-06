@@ -69,7 +69,7 @@ EOF
 
 Now execute the `apt` command to download the `masscan` tool.
 ```
-kubectl exec -it $POD -- sh -c "apt update && apt install masscan"
+kubectl exec -it $POD -- bash -c "apt update && apt install masscan"
 ```
 
 It will be denied permission to execute.

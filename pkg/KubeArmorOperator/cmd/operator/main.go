@@ -2,7 +2,7 @@
 // Copyright 2021 Authors of KubeArmor
 
 // Package cmd is the collection of all the subcommands available in kArmor while providing relevant options for the same
-package operator
+package main
 
 import (
 	"errors"
@@ -28,7 +28,7 @@ var DeploymentName string
 var ExtClient *apiextensionsclientset.Clientset
 var Opv1Client *opv1client.Clientset
 
-// rootCmd represents the base command when called without any subcommands
+// Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		log, _ := zap.NewProduction()
@@ -38,7 +38,7 @@ var Cmd = &cobra.Command{
 		Opv1Client = k8s.NewOpv1Client(*Logger, KubeConfig)
 		//Initialise k8sClient for all child commands to inherit
 		if K8sClient == nil {
-			return errors.New("could'nt create k8s client")
+			return errors.New("couldn't create k8s client")
 		}
 		return nil
 	},
@@ -75,4 +75,8 @@ func init() {
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(Cmd.Execute())
+}
+
+func main() {
+	Execute()
 }

@@ -512,15 +512,15 @@ func KubeArmor() {
 			}
 
 			// monitor containers
-			if strings.Contains(dm.Node.ContainerRuntimeVersion, "docker") {
+			if strings.Contains(dm.Node.ContainerRuntimeVersion, "docker") || strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 				// update already deployed containers
 				dm.GetAlreadyDeployedDockerContainers()
 				// monitor docker events
 				go dm.MonitorDockerEvents()
-			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") {
+			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") || strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// monitor containerd events
 				go dm.MonitorContainerdEvents()
-			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") {
+			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") || strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
 			} else {

@@ -2,11 +2,11 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: kubearmor-controller-serving-cert
-  namespace: kube-system
+  namespace: kubearmor
 spec:
   dnsNames:
-  - kubearmor-controller-webhook-service.kube-system.svc
-  - kubearmor-controller-webhook-service.kube-system.svc.cluster.local
+  - kubearmor-controller-webhook-service.kubearmor.svc
+  - kubearmor-controller-webhook-service.kubearmor.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: kubearmor-controller-selfsigned-issuer
@@ -16,7 +16,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: kubearmor-controller-selfsigned-issuer
-  namespace: kube-system
+  namespace: kubearmor
 spec:
   selfSigned: {}
 ---
@@ -24,16 +24,16 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   annotations:
-    cert-manager.io/inject-ca-from: kube-system/kubearmor-controller-serving-cert
+    cert-manager.io/inject-ca-from: kubearmor/kubearmor-controller-serving-cert
   name: kubearmor-controller-mutating-webhook-configuration
-  namespace: kube-system
+  namespace: kubearmor
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
       name: kubearmor-controller-webhook-service
-      namespace: kube-system
+      namespace: kubearmor
       path: /mutate-pods
   failurePolicy: Ignore
   name: annotation.kubearmor.com
