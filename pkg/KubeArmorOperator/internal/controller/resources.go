@@ -93,6 +93,7 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 }
 
 func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
+	isK0s := false
 	// lookup socket
 	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 		if strings.ReplaceAll(socket[1:], "/", "_") == runtimeSocket {
@@ -105,6 +106,10 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 					},
 				},
 			})
+
+			if socket == "/run/k0s/containerd.sock" {
+				isK0s = true
+			}
 
 			socket = common.RuntimeSocketLocation[runtime]
 			volMnt = append(volMnt, corev1.VolumeMount{
@@ -130,12 +135,17 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 			})
 
 			storageLocation = common.RuntimeStorageLocation[runtime]
-			volMnt = append(volMnt, corev1.VolumeMount{
+			runtimeStorageVolMnt := corev1.VolumeMount{
 				Name:             runtime + "-storage",
 				MountPath:        storageLocation,
 				MountPropagation: &common.HostToContainerMountPropagation,
 				ReadOnly:         true,
-			})
+			}
+
+			if isK0s {
+				runtimeStorageVolMnt.ReadOnly = false
+			}
+			volMnt = append(volMnt, runtimeStorageVolMnt)
 			break
 		}
 	}
