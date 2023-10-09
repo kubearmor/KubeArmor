@@ -68,12 +68,8 @@ type KubeArmorPolicySpec struct {
 
 // KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
 type KubeArmorPolicyStatus struct {
-	PolicyStatus string `json:"status,omitempty"`
-}
-
-// KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
-type KubeArmorProtectedPods struct {
-	ProtectedPods []string `json:"protected_pods,omitempty"`
+	PolicyStatus  string   `json:"status,omitempty"`
+	ProtectedPods []string `json:"protectedPods,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -86,9 +82,8 @@ type KubeArmorPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec          KubeArmorPolicySpec    `json:"spec,omitempty"`
-	Status        KubeArmorPolicyStatus  `json:"status,omitempty"`
-	ProtectedPods KubeArmorProtectedPods `json:"protected_pods,omitempty"`
+	Spec   KubeArmorPolicySpec   `json:"spec,omitempty"`
+	Status KubeArmorPolicyStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

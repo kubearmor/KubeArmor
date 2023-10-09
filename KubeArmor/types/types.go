@@ -499,6 +499,7 @@ type SecuritySpec struct {
 type SecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     SecuritySpec      `json:"spec"`
+	Status   K8sPolicyStatus   `json:"status,omitempty"`
 }
 
 // ========================== //
