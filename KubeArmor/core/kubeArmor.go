@@ -16,6 +16,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
+	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"google.golang.org/grpc/reflection"
 
@@ -87,6 +88,9 @@ type KubeArmorDaemon struct {
 
 	// kvm agent
 	KVMAgent *kvm.KVMAgent
+
+	// state agent
+	StateAgent *state.StateAgent
 
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
@@ -163,6 +167,13 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		dm.Logger.Print("Terminated KubeArmor")
 	} else {
 		kg.Print("Terminated KubeArmor")
+	}
+
+	if dm.StateAgent != nil {
+		//go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
+		if dm.CloseStateAgent() {
+			kg.Print("Destroyed StateAgent")
+		}
 	}
 
 	// wait for a while
@@ -300,6 +311,29 @@ func (dm *KubeArmorDaemon) CloseKVMAgent() bool {
 	return true
 }
 
+// ================= //
+// == State Agent == //
+// ================= //
+
+// InitStateAgent Function
+func (dm *KubeArmorDaemon) InitStateAgent() bool {
+	dm.StateAgent = state.NewStateAgent(cfg.GlobalCfg.StateAgentAddr, &dm.Node, dm.NodeLock, dm.Containers, dm.ContainersLock)
+	return dm.StateAgent != nil
+}
+
+func (dm *KubeArmorDaemon) RunStateAgent() {
+	go dm.StateAgent.RunStateAgent()
+}
+
+// CloseStateAgent Function
+func (dm *KubeArmorDaemon) CloseStateAgent() bool {
+	if err := dm.StateAgent.DestroyStateAgent(); err != nil {
+		dm.Logger.Errf("Failed to destory State Agent (%s)", err.Error())
+		return false
+	}
+	return true
+}
+
 // ==================== //
 // == Signal Handler == //
 // ==================== //
@@ -426,6 +460,33 @@ func KubeArmor() {
 		return
 	}
 	dm.Logger.Print("Initialized KubeArmor Logger")
+
+	// == //
+
+	// Init StateAgent
+	if !dm.K8sEnabled && cfg.GlobalCfg.StateAgent {
+		dm.NodeLock.Lock()
+		dm.Node.ClusterName = cfg.GlobalCfg.Cluster
+		dm.NodeLock.Unlock()
+
+		// initialize state agent
+		if !dm.InitStateAgent() {
+			dm.Logger.Err("Failed to initialize State Agent Client")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Initialized State Agent Client")
+
+		// connect to state agent server
+		go dm.RunStateAgent()
+	}
+
+	if dm.StateAgent != nil {
+		go dm.StateAgent.PushNodeEvent(dm.Node, state.EventAdded)
+	}
 
 	// == //
 

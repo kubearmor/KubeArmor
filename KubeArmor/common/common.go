@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 
 	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -375,6 +378,12 @@ func IsK8sEnv() bool {
 	return false
 }
 
+// IsECSEnv Function
+func IsECSEnv() bool {
+	_, ok := os.LookupEnv("ECS_CONTAINER_METADATA_URI_V4")
+	return ok
+}
+
 // ContainerRuntimeSocketMap Structure
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
@@ -454,5 +463,50 @@ func WriteToFile(val interface{}, destFile string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// ParseURL with/without scheme and return host, port or error
+func ParseURL(address string) (string, string, error) {
+	var host string
+	port := "80"
+
+	addr, err := url.Parse(address)
+	if err != nil || addr.Host == "" {
+		// URL without scheme
+		u, repErr := url.ParseRequestURI("http://" + address)
+		if repErr != nil {
+			return "", "", fmt.Errorf("Error while parsing URL: %s", err)
+		}
+
+		addr = u
+	}
+
+	if addr.Port() != "" {
+		host = strings.Split(addr.Host, ":")[0]
+		port = addr.Port()
+	}
+
+	return host, port, nil
+}
+
+// handle gRPC errors
+func HandleGRPCErrors(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if status, ok := status.FromError(err); ok {
+		switch status.Code() {
+		case codes.OK:
+			// noop
+			return nil
+		//case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+		//	return status.Err()
+		default:
+			return status.Err()
+		}
+	}
+
 	return nil
 }

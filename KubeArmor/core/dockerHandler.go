@@ -18,6 +18,7 @@ import (
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -37,6 +38,9 @@ type DockerVersion struct {
 type DockerHandler struct {
 	DockerClient *client.Client
 	Version      DockerVersion
+
+	// needed for container info
+	NodeIP string
 }
 
 // NewDockerHandler Function
@@ -64,6 +68,8 @@ func NewDockerHandler() (*DockerHandler, error) {
 	}
 
 	docker.DockerClient = DockerClient
+
+	docker.NodeIP = kl.GetExternalIPAddr()
 
 	kg.Printf("Initialized Docker Handler (version: %s)", clientVersion)
 
@@ -112,6 +118,10 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
 			container.EndPointName = val
 		}
+	} else if val, ok := containerLabels["kubearmor.io/namespace"]; ok {
+		container.NamespaceName = val
+	} else {
+		container.NamespaceName = "container_namespace"
 	}
 
 	container.AppArmorProfile = inspect.AppArmorProfile
@@ -133,6 +143,48 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	}
 
 	// == //
+
+	if cfg.GlobalCfg.StateAgent && !cfg.GlobalCfg.K8sEnv {
+		container.ContainerImage = inspect.Config.Image //+ kl.GetSHA256ofImage(inspect.Image)
+
+		// TODO
+		container.ProtocolPort = "0"
+
+		container.NodeName = cfg.GlobalCfg.Host
+
+		labels := []string{}
+		for k, v := range inspect.Config.Labels {
+			labels = append(labels, k+"="+v)
+		}
+
+		if _, ok := containerLabels["kubearmor.io/container.name"]; !ok {
+			labels = append(labels, "kubearmor.io/container.name="+container.ContainerName)
+		}
+
+		container.Labels = strings.Join(labels, ",")
+
+		var podIP string
+		if inspect.HostConfig.NetworkMode.IsNone() || inspect.HostConfig.NetworkMode.IsContainer() {
+			podIP = ""
+		} else if inspect.HostConfig.NetworkMode.IsHost() {
+			podIP = dh.NodeIP
+		} else if inspect.HostConfig.NetworkMode.IsDefault() {
+			podIP = inspect.NetworkSettings.Networks["bridge"].IPAddress
+		} else {
+			networkName := inspect.HostConfig.NetworkMode.NetworkName()
+			podIP = inspect.NetworkSettings.Networks[networkName].IPAddress
+		}
+		container.ContainerIP = podIP
+
+		/*
+		container.Owner = tp.PodOwner{
+			Name: container.ContainerName,
+			Namespace: container.NamespaceName,
+			Ref: "Deployment",
+		}
+		*/
+
+	}
 
 	return container, nil
 }
@@ -258,6 +310,10 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					dm.ContainersLock.Unlock()
 				}
 
+				if cfg.GlobalCfg.StateAgent {
+					go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
+				}
+
 				if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
@@ -358,6 +414,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			dm.ContainersLock.Unlock()
 		}
 
+		if cfg.GlobalCfg.StateAgent {
+			container.Status = "running"
+			go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
+		}
+
 		dm.Logger.Printf("Detected a container (added/%.12s)", containerID)
 
 	} else if action == "stop" || action == "destroy" {
@@ -399,6 +460,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 		dm.EndPointsLock.Unlock()
 
+		if cfg.GlobalCfg.StateAgent {
+			container.Status = "terminated"
+			go dm.StateAgent.PushContainerEvent(container, state.EventDeleted)
+		}
+
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
@@ -406,6 +472,18 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
+	} else if action == "die" && cfg.GlobalCfg.StateAgent {
+		// handle die - keep map but update state
+		dm.ContainersLock.Lock()
+		container, ok := dm.Containers[containerID]
+		if !ok {
+			dm.ContainersLock.Unlock()
+			return
+		}
+		dm.ContainersLock.Unlock()
+
+		container.Status = "waiting"
+		go dm.StateAgent.PushContainerEvent(container, state.EventUpdated)
 	}
 }
 

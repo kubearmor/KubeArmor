@@ -50,6 +50,8 @@ type KubearmorConfig struct {
 	EnforcerAlerts     bool     // policy enforcer
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
+	StateAgent     bool   // Enable/Disable State Agent Client
+	StateAgentAddr string // Address to State Agent Server
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -85,6 +87,12 @@ const (
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 )
+
+// ConfigStateAgent state agent key
+const ConfigStateAgent string = "enableStateAgent"
+
+// ConfigStateAgentAddr state agent address key
+const ConfigStateAgentAddr string = "stateAgentAddr"
 
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
@@ -124,6 +132,9 @@ func readCmdLineParams() {
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
+
+	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
+	stateAgentAddr := flag.String(ConfigStateAgentAddr, "localhost:8801", "address of State Agent Server")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -171,6 +182,9 @@ func readCmdLineParams() {
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
+
+	viper.SetDefault(ConfigStateAgent, *stateAgent)
+	viper.SetDefault(ConfigStateAgentAddr, *stateAgentAddr)
 }
 
 // LoadConfig Load configuration
@@ -255,6 +269,9 @@ func LoadConfig() error {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+	GlobalCfg.StateAgentAddr = viper.GetString(ConfigStateAgentAddr)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

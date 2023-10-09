@@ -37,6 +37,13 @@ type Container struct {
 
 	// == //
 
+	NodeName     string `json:"node_name"`
+	ProtocolPort string `json:"protocolPort"`
+	Status       string `json:"status"`
+	ContainerIP  string `json:"container_ip"`
+
+	// == //
+
 	PolicyEnabled int `json:"policyEnabled"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
@@ -50,6 +57,14 @@ type PodOwner struct {
 	Ref       string `json:"ref,omitempty"`
 	Name      string `json:"name,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
+}
+
+// Namespace struct
+type Namespace struct {
+	Name                    string `json:"name,omitempty"`
+	Labels                  string `json:"labels,omitempty"`
+	KubearmorFilePosture    string `json:"kubearmor_file_posture,omitempty"`
+	KubearmorNetworkPosture string `json:"kubearmor_network_posture,omitempty"`
 }
 
 // EndPoint Structure
