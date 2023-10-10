@@ -5,7 +5,6 @@
 package monitor
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -177,8 +176,6 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 
 	mon.ContextChan = make(chan ContextCombined, 4096)
 
-	mon.UntrackedNamespaces = []string{"kube-system", "kubearmor"}
-
 	mon.MonitorLock = monitorLock
 
 	mon.Status = true
@@ -198,55 +195,14 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 		MaxEntries: 4,
 	}
 
+	// assign the value of untracked ns from GlobalCfg
+	mon.UntrackedNamespaces = make([]string, len(cfg.GlobalCfg.ConfigUntrackedNs))
+	copy(mon.UntrackedNamespaces, cfg.GlobalCfg.ConfigUntrackedNs)
+
 	kl.CheckOrMountBPFFs(cfg.GlobalCfg.BPFFsPath)
 	mon.PinPath = kl.GetMapRoot()
 
 	return mon
-}
-
-func loadIgnoreList(bpfPath string) ([]string, error) {
-
-	ignoreListName := bpfPath + "ignore.lst"
-	if _, err := os.Stat(filepath.Clean(ignoreListName)); err != nil {
-		return []string{}, nil
-	}
-
-	file, err := os.Open(filepath.Clean(ignoreListName))
-	if err != nil {
-		return []string{}, err
-	}
-
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-
-	ignoreList := []string{}
-	for scanner.Scan() {
-		ignoreList = append(ignoreList, scanner.Text()[1:])
-	}
-
-	if err := file.Close(); err != nil {
-		return []string{}, err
-	}
-
-	return ignoreList, nil
-}
-
-var syscallsInKernelFeatureFlag = map[string][]string{
-	"DSECURITY_PATH": {
-		"security_path_unlink",
-		"security_path_rmdir",
-	},
-}
-
-func isIgnored(item string, ignoreList []string) bool {
-	for _, ignoreFlag := range ignoreList {
-		for _, syscall := range syscallsInKernelFeatureFlag[ignoreFlag] {
-			if syscall == item {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // InitBPFMaps Function
