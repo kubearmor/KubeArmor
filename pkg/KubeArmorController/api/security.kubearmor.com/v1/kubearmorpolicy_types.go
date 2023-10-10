@@ -57,6 +57,8 @@ type KubeArmorPolicySpec struct {
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
 	// +kubebuilder:validation:optional
+	ProtectedPods []string `json:"protected_pods,omitempty"`
+	// +kubebuilder:validation:optional
 	Tags []string `json:"tags,omitempty"`
 	// +kubebuilder:validation:optional
 	Message string `json:"message,omitempty"`
@@ -66,7 +68,8 @@ type KubeArmorPolicySpec struct {
 
 // KubeArmorPolicyStatus defines the observed state of KubeArmorPolicy
 type KubeArmorPolicyStatus struct {
-	PolicyStatus string `json:"status,omitempty"`
+	PolicyStatus  string   `json:"status,omitempty"`
+	ProtectedPods []string `json:"protectedPods,omitempty"`
 }
 
 // +kubebuilder:object:root=true

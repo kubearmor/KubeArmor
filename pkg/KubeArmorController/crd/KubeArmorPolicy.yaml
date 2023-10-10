@@ -1157,6 +1157,10 @@ spec:
             properties:
               status:
                 type: string
+              protectedPods:
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

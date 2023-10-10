@@ -138,7 +138,8 @@ type K8sPodEvent struct {
 
 // K8sPolicyStatus Structure
 type K8sPolicyStatus struct {
-	Status string `json:"status,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	ProtectedPods []string `json:"protectedpods,omitempty"`
 }
 
 // K8sKubeArmorPolicyEvent Structure
@@ -488,19 +489,18 @@ type SecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
-
-	AppArmor string `json:"apparmor,omitempty"`
-
-	Severity int      `json:"severity"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action"`
+	AppArmor     string           `json:"apparmor,omitempty"`
+	Severity     int              `json:"severity"`
+	Tags         []string         `json:"tags,omitempty"`
+	Message      string           `json:"message,omitempty"`
+	Action       string           `json:"action"`
 }
 
 // SecurityPolicy Structure
 type SecurityPolicy struct {
 	Metadata map[string]string `json:"metadata"`
 	Spec     SecuritySpec      `json:"spec"`
+	Status   K8sPolicyStatus   `json:"status,omitempty"`
 }
 
 // ========================== //
