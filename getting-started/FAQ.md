@@ -201,6 +201,12 @@ CONFIG_DEBUG_INFO_BTF=y
 
 - Update grub config:
   ```sh
+  # On Debian like systems
+  sudo update-grub
+  ```
+  OR
+  ```sh
+  # On RHEL like systems
   sudo grub2-mkconfig -o /boot/grub2.cfg
   ```
 
