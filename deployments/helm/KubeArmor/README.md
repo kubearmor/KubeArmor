@@ -87,7 +87,7 @@ Usage of ./kubearmor:
   -seLinuxProfileDir string
         SELinux profile directory (default "/tmp/kubearmor.selinux")
   -visibility string
-        Container Visibility to use [process,file,network,capabilities,none] (default "process,file,network,capabilities")
+        Container Visibility to use, available visibility [process,file,network,capabilities,none] (default "process,network")
 ```
 
 ## Verify if all the resources are up and running

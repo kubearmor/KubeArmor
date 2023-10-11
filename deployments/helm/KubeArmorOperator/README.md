@@ -42,7 +42,7 @@ spec:
     defaultNetworkPosture: audit|block                         # DEFAULT - audit
 
     # default visibility configuration
-    defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,file,network
+    defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,network
 
     # KubeArmor image and pull policy
     kubearmorImage:

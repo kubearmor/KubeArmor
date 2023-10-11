@@ -93,7 +93,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultFilePosture:         "audit",
 	ConfigDefaultCapabilitiesPosture: "audit",
 	ConfigDefaultNetworkPosture:      "audit",
-	ConfigVisibility:                 "process,file,network,capabilities",
+	ConfigVisibility:                 "process,network,capabilities",
 }
 
 var ContainerRuntimeSocketMap = map[string][]string{
