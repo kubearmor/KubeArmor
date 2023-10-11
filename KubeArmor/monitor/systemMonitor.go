@@ -82,6 +82,7 @@ type SyscallContext struct {
 	Retval  int64
 
 	Comm [16]byte
+	Cwd  [80]byte
 }
 
 // ContextCombined Structure

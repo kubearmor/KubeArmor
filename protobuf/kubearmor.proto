@@ -73,6 +73,7 @@ message Alert {
   string Enforcer = 28;
   string Action = 22;
   string Result = 23;
+  string Cwd = 32;
 }
 
 // log struct
@@ -108,6 +109,7 @@ message Log {
   string Data = 17;
 
   string Result = 18;
+  string Cwd = 25;
 }
 
 // request message

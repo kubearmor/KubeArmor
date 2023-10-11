@@ -6,6 +6,7 @@ package monitor
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -85,6 +86,8 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 	} else {
 		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
 	}
+
+	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
 
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
 	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)

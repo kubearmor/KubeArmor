@@ -666,6 +666,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Source = log.Source
 		pbAlert.Operation = log.Operation
 		pbAlert.Resource = strings.ToValidUTF8(log.Resource, "")
+		pbAlert.Cwd = log.Cwd
 
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
@@ -739,6 +740,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.Source = log.Source
 		pbLog.Operation = log.Operation
 		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
+		pbLog.Cwd = log.Cwd
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data

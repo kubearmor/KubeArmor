@@ -64,6 +64,7 @@
 // == Structures == //
 
 #define TASK_COMM_LEN 16
+#define CWD_LEN 80
 
 #define MAX_BUFFER_SIZE 32768
 #define MAX_STRING_SIZE 4096
@@ -217,6 +218,7 @@ typedef struct __attribute__((__packed__)) sys_context
     s64 retval;
 
     char comm[TASK_COMM_LEN];
+    char cwd[CWD_LEN];
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
@@ -282,8 +284,8 @@ typedef struct buffers
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 3);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 3);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 4);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 4);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -575,59 +577,12 @@ static __always_inline u32 skip_syscall()
     return _TRACE_SYSCALL;
 }
 
-// == Context Management == //
-
-static __always_inline u32 init_context(sys_context_t *context)
-{
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-
-    context->ts = bpf_ktime_get_ns();
-
-    context->host_ppid = get_task_ppid(task);
-    context->host_pid = bpf_get_current_pid_tgid() >> 32;
-
-#if defined(MONITOR_HOST)
-
-    context->pid_id = 0;
-    context->mnt_id = 0;
-
-    context->ppid = get_task_ppid(task);
-    context->pid = bpf_get_current_pid_tgid() >> 32;
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    u32 pid = get_task_ns_tgid(task);
-    if (context->host_pid == pid)
-    { // host
-        context->pid_id = 0;
-        context->mnt_id = 0;
-
-        context->ppid = get_task_ppid(task);
-        context->pid = bpf_get_current_pid_tgid() >> 32;
-    }
-    else
-    { // container
-        context->pid_id = get_task_pid_ns_id(task);
-        context->mnt_id = get_task_mnt_ns_id(task);
-
-        context->ppid = get_task_ns_ppid(task);
-        context->pid = pid;
-    }
-
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
-
-    context->uid = bpf_get_current_uid_gid();
-
-    bpf_get_current_comm(&context->comm, sizeof(context->comm));
-
-    return 0;
-}
-
 // == Buffer Management == //
 
 #define DATA_BUF_TYPE 0
 #define EXEC_BUF_TYPE 1
 #define FILE_BUF_TYPE 2
+#define CWD_BUF_TYPE 3
 
 static __always_inline bufs_t *get_buffer(int buf_type)
 {
@@ -1018,6 +973,75 @@ static __always_inline int security_path_task_arg(struct pt_regs *ctx)
     bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
     return 0;
 }
+
+// == Context Management == //
+
+static __always_inline u32 init_context(sys_context_t *context)
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct fs_struct *fs;
+
+    context->ts = bpf_ktime_get_ns();
+
+    context->host_ppid = get_task_ppid(task);
+    context->host_pid = bpf_get_current_pid_tgid() >> 32;
+
+#if defined(MONITOR_HOST)
+
+    context->pid_id = 0;
+    context->mnt_id = 0;
+
+    context->ppid = get_task_ppid(task);
+    context->pid = bpf_get_current_pid_tgid() >> 32;
+
+#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
+
+    u32 pid = get_task_ns_tgid(task);
+    if (context->host_pid == pid)
+    { // host
+        context->pid_id = 0;
+        context->mnt_id = 0;
+
+        context->ppid = get_task_ppid(task);
+        context->pid = bpf_get_current_pid_tgid() >> 32;
+    }
+    else
+    { // container
+        context->pid_id = get_task_pid_ns_id(task);
+        context->mnt_id = get_task_mnt_ns_id(task);
+
+        context->ppid = get_task_ns_ppid(task);
+        context->pid = pid;
+    }
+
+#endif /* MONITOR_CONTAINER || MONITOR_HOST */
+
+    context->uid = bpf_get_current_uid_gid();
+
+    bpf_get_current_comm(&context->comm, sizeof(context->comm));
+
+    // get cwd
+    fs = READ_KERN(task->fs);
+    struct path path = READ_KERN(fs->pwd);
+
+    bufs_t *string_p = get_buffer(CWD_BUF_TYPE);
+    if (string_p == NULL)
+       return 0;
+
+    if (!prepend_path(&path, string_p, CWD_BUF_TYPE))
+    {
+       return 0;
+    }
+
+    u32 *off = get_buffer_offset(CWD_BUF_TYPE);
+    if (off == NULL)
+        return 0;
+
+    bpf_probe_read_str(&context->cwd, CWD_LEN,(void *)&string_p->buf[*off]);
+
+    return 0;
+}
+
 
 SEC("kprobe/security_path_mknod")
 int kprobe__security_path_mknod(struct pt_regs *ctx)
