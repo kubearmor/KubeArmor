@@ -426,15 +426,50 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	appArmorAnnotations := map[string]string{}
 	appArmorAnnotations[containername] = "kubearmor_" + containername
 
+	i := -1
+	endPointIndex := -1
 	newPoint := tp.EndPoint{}
 
-	i := -1
-
 	for idx, endPoint := range dm.EndPoints {
-		if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) {
-			i = idx
+		endPointIndex++
+
+		// update container rules if there exists another container with same policy.Metadata["policyName"]
+		for policyIndex, policy := range endPoint.SecurityPolicies {
+			if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] && endPoint.EndPointName != containername {
+				if len(endPoint.SecurityPolicies) == 1 {
+					dm.EndPoints = append(dm.EndPoints[:idx], dm.EndPoints[idx+1:]...)
+
+					// delete unnecessary security policies
+					dm.Logger.UpdateSecurityPolicies("DELETED", endPoint)
+					endPoint.SecurityPolicies = append(endPoint.SecurityPolicies[:0], endPoint.SecurityPolicies[1:]...)
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
+
+					endPoint = tp.EndPoint{}
+					endPointIndex--
+				} else if len(endPoint.SecurityPolicies) > 1 {
+					dm.EndPoints[idx].SecurityPolicies = append(
+						dm.EndPoints[idx].SecurityPolicies[:policyIndex],
+						dm.EndPoints[idx].SecurityPolicies[policyIndex+1:]...,
+					)
+					endPoint = dm.EndPoints[idx]
+
+					if cfg.GlobalCfg.Policy {
+						// update security policies
+						dm.Logger.UpdateSecurityPolicies("MODIFIED", endPoint)
+
+						if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							// enforce security policies
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
+						}
+					}
+				}
+				break
+			}
+		}
+
+		if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) && i < 0 {
+			i = endPointIndex
 			newPoint = endPoint
-			break
 		}
 	}
 
