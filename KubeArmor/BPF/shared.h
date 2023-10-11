@@ -17,6 +17,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define MAX_STRING_SIZE 256
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0
+#define TASK_COMM_LEN 80
 
 enum file_hook_type { dpath = 0, dfileread, dfilewrite };
 
@@ -59,7 +60,7 @@ struct {
   __uint(max_entries, MAX_BUFFERS);
 } bufs_off SEC(".maps");
 
-struct {
+struct {  
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __type(key, u32);
   __type(value, bufs_k);
@@ -70,6 +71,33 @@ struct outer_key {
   u32 pid_ns;
   u32 mnt_ns;
 };
+
+typedef struct {
+  u64 ts;
+
+  u32 pid_id;
+  u32 mnt_id;
+
+  u32 host_ppid;
+  u32 host_pid;
+
+  u32 ppid;
+  u32 pid;
+  u32 uid;
+
+  u32 event_id;
+  s64 retval;
+
+  u8 comm[TASK_COMM_LEN];
+
+  bufs_k data;
+} event;
+
+struct {
+  __uint(type, BPF_MAP_TYPE_RINGBUF);
+  __uint(max_entries, 1 << 24);
+  __uint(pinning, LIBBPF_PIN_BY_NAME);
+} events SEC(".maps");
 
 #define RULE_EXEC 1 << 0
 #define RULE_WRITE 1 << 1
@@ -194,6 +222,26 @@ static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task) {
   return BPF_CORE_READ(task, nsproxy, mnt_ns, ns).inum;
 }
 
+static __always_inline u32 get_task_pid_vnr(struct task_struct *task) {
+  struct pid *pid = BPF_CORE_READ(task, thread_pid);
+  unsigned int level = BPF_CORE_READ(pid, level);
+  return BPF_CORE_READ(pid, numbers[level].nr);
+}
+
+static __always_inline u32 get_task_ns_ppid(struct task_struct *task) {
+  struct task_struct *real_parent = BPF_CORE_READ(task, real_parent);
+  return get_task_pid_vnr(real_parent);
+}
+
+static __always_inline u32 get_task_ns_tgid(struct task_struct *task) {
+  struct task_struct *group_leader = BPF_CORE_READ(task, group_leader);
+  return get_task_pid_vnr(group_leader);
+}
+
+static __always_inline u32 get_task_ppid(struct task_struct *task) {
+  return BPF_CORE_READ(task, parent, pid);
+}
+
 static struct file *get_task_file(struct task_struct *task) {
   return BPF_CORE_READ(task, mm, exe_file);
 }
@@ -206,6 +254,40 @@ static inline void get_outer_key(struct outer_key *pokey,
     pokey->pid_ns = 0;
     pokey->mnt_ns = 0;
   }
+}
+
+// == Context Management == //
+
+static __always_inline u32 init_context(event *event_data) {
+  struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+
+  event_data->ts = bpf_ktime_get_ns();
+
+  event_data->host_ppid = get_task_ppid(task);
+  event_data->host_pid = bpf_get_current_pid_tgid() >> 32;
+
+  u32 pid = get_task_ns_tgid(task);
+  if (event_data->host_pid == pid) { // host
+    event_data->pid_id = 0;
+    event_data->mnt_id = 0;
+
+    event_data->ppid = get_task_ppid(task);
+    event_data->pid = bpf_get_current_pid_tgid() >> 32;
+  } else { // container
+    event_data->pid_id = get_task_pid_ns_id(task);
+    event_data->mnt_id = get_task_mnt_ns_id(task);
+
+    event_data->ppid = get_task_ns_ppid(task);
+    event_data->pid = pid;
+  }
+
+  event_data->uid = bpf_get_current_uid_gid();
+
+// Clearing array to avoid garbage values
+  __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
+  bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
+
+  return 0;
 }
 
 static bool is_owner(struct file *file_p) {
@@ -224,8 +306,10 @@ static bool is_owner_path(struct dentry *dent) {
   return true;
 }
 
-static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id) {
+static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32 eventID) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  event *task_info;
 
   bool match = false;
 
@@ -325,10 +409,6 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id) {
       if (dirval) {
         if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
-                     (dirval->filemask & RULE_RECURSIVE),
-                     (dirval->filemask & RULE_HINT));
-          bpf_printk("and from source %s\n", pk->source);
           if ((dirval->filemask &
                RULE_RECURSIVE)) { /* true directory match and */
                                   /* not a hint suggests */
@@ -390,9 +470,6 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id) {
       }
       if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
         match = true;
-        bpf_printk("dir match %s with recursive %d and hint %d ", pk,
-                   (dirval->filemask & RULE_RECURSIVE),
-                   (dirval->filemask & RULE_HINT));
         if (!(dirval->filemask & RULE_RECURSIVE)) {
           continue; /* continue the loop to see if we have more nested dirs */
         }
@@ -418,18 +495,34 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id) {
 
 decision:
 
+  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  if (!task_info) {
+    return 0;
+  }
+
+  init_context(task_info);
+  // Clearing arrays to avoid garbage values
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+
+  task_info->event_id = eventID;
+  task_info->retval = -EPERM;
+  
   if (id == dpath) { // Path Hooks
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
-          bpf_printk("denying path %s due to not owner\n", store);
+          bpf_ringbuf_submit(task_info, 0);
           return -EPERM;
         }
-        bpf_printk("allowing path %s for owner\n", store);
+        bpf_ringbuf_discard(task_info, 0);
         return 0;
       }
       if (val && (val->filemask & RULE_DENY)) {
-        bpf_printk("denying path %s due to in blacklist\n", store->path);
+        bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
       }
     }
@@ -440,8 +533,7 @@ decision:
 
     if (allow) {
       if (!match) {
-        bpf_printk("denying path %s due to not in allowlist, source -> %s\n",
-                   store->path, store->source);
+        bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
       }
     }
@@ -450,18 +542,19 @@ decision:
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
-          bpf_printk("denying file %s due to not owner\n", store);
+          bpf_ringbuf_submit(task_info, 0);
           return -EPERM;
         }
-        bpf_printk("allowing file %s for owner\n", store);
+        bpf_ringbuf_discard(task_info, 0);
         return 0;
       }
       if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
+        bpf_ringbuf_discard(task_info, 0);
         // Read Only Policy, Decision making will be done in lsm/file_permission
         return 0;
       }
       if (val && (val->filemask & RULE_DENY)) {
-        bpf_printk("denying file %s due to in blacklist\n", store->path);
+        bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
       }
     }
@@ -471,14 +564,13 @@ decision:
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
     if (allow && !match) {
-      bpf_printk("denying file %s due to not in allowlist, source -> %s\n",
-                 store->path, store->source);
+      bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
     }
   } else if (id == dfilewrite) { // fule write
     if (match) {
       if (val && (val->filemask & RULE_DENY)) {
-        bpf_printk("denying file %s due to in blacklist\n", store->path);
+        bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
       }
     }
@@ -488,11 +580,11 @@ decision:
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
     if (allow && !match) {
-      bpf_printk("denying file %s due to not in allowlist, source -> %s\n",
-                 store->path, store->source);
+      bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
     }
   }
+  bpf_ringbuf_discard(task_info, 0);
 
   return 0;
 }

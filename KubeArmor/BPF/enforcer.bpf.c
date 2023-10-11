@@ -3,10 +3,12 @@
 /* Copyright 2023 Authors of KubeArmor */
 
 #include "shared.h"
+#include "syscalls.h"
 
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+  event *task_info;
 
   bool match = false;
 
@@ -98,10 +100,6 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
         if ((dirval->processmask & RULE_DIR) &&
             (dirval->processmask & RULE_EXEC)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d and hint %d ", pk,
-                     (dirval->processmask & RULE_RECURSIVE),
-                     (dirval->processmask & RULE_HINT));
-          bpf_printk("and from source %s\n", pk->source);
           if ((dirval->processmask & RULE_RECURSIVE) &&
               (~dirval->processmask &
                RULE_HINT)) { // true directory match and not a hint suggests
@@ -166,9 +164,6 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
         if ((dirval->processmask & RULE_DIR) &&
             (dirval->processmask & RULE_EXEC)) {
           match = true;
-          bpf_printk("dir match %s with recursive %d and hint %d\n", pk,
-                     (dirval->processmask & RULE_RECURSIVE),
-                     (dirval->processmask & RULE_HINT));
           if ((dirval->processmask & RULE_RECURSIVE) &&
               (~dirval->processmask &
                RULE_HINT)) { // true directory match and not a hint suggests
@@ -203,39 +198,61 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   }
 
 decision:
+  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  if (!task_info) {
+    return 0;
+  }
+
+// Clearing arrays to avoid garbage values 
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  init_context(task_info);
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE,
+  store->source); task_info->event_id = _SECURITY_BPRM_CHECK;
+  task_info->retval = -EPERM;
 
   if (match) {
     if (val && (val->processmask & RULE_OWNER)) {
       if (!is_owner(bprm->file)) {
-        bpf_printk("denying proc %s due to not owner\n", store);
+        bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
       } else {
-        bpf_printk("allowing proc %s for owner\n", store);
+        bpf_ringbuf_discard(task_info, 0);
         return ret;
       }
     }
     if (val && (val->processmask & RULE_DENY)) {
-      bpf_printk("denying proc %s due to in blacklist\n", store->path);
+        bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
     }
-  }
+  } 
 
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   pk->path[0] = dproc;
   struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
   if (allow) {
+
     if (!match) {
-      bpf_printk("denying proc %s due to not in allowlist, source -> %s\n",
-                 store->path, store->source);
+      bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
+    }
+    // Do not remove this else block 
+    else {
+       bpf_ringbuf_discard(task_info, 0);
+       return ret;
     }
   }
 
+  bpf_ringbuf_discard(task_info, 0);
   return ret;
 }
 
-static inline int match_net_rules(int type, int protocol, char *string) {
+static inline int match_net_rules(int type, int protocol, u32 eventID) {
+  event *task_info;
+
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
   bool match = false;
@@ -330,55 +347,66 @@ static inline int match_net_rules(int type, int protocol, char *string) {
 
 decision:
 
+  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  if (!task_info) {
+    return 0;
+  }
+ // Clearing arrays to avoid garbage values to be parsed
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  init_context(task_info);
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, p->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, ptr);
+
+  task_info->event_id = eventID;
+
+  task_info->retval = -EPERM;
+
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
   p->path[0] = dnet;
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
 
   if (allow) {
     if (!match) {
-      bpf_printk("denying sock %s - type %d, protocol %d due "
-                 "to not in allowlist\n",
-                 string, type, protocol);
-      if (p->source[0] != '\0') {
-        bpf_printk("denying from source from %s", store->source);
-      }
+      bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
     }
   } else {
     if (match) {
       if (val && (val->processmask & RULE_DENY)) {
-        bpf_printk("denying sock %s - type %d, protocol %d due to in "
-                   "blacklist\n",
-                   string, type, protocol);
+        bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
       }
     }
   }
+
+  bpf_ringbuf_discard(task_info, 0);
   return 0;
 }
 
 SEC("lsm/socket_create")
 int BPF_PROG(enforce_net_create, int family, int type, int protocol) {
-  return match_net_rules(type, protocol, "create");
+  return match_net_rules(type, protocol, _SOCKET_CREATE);
 }
 
-#define LSM_NET(name, string)                                                  \
+#define LSM_NET(name, ID)                                                      \
   int BPF_PROG(name, struct socket *sock) {                                    \
     int type = sock->type;                                                     \
     int protocol = sock->sk->sk_protocol;                                      \
-    return match_net_rules(type, protocol, string);                            \
+    return match_net_rules(type, protocol, ID);                                \
   }
 
 SEC("lsm/socket_connect")
-LSM_NET(enforce_net_connect, "connect");
+LSM_NET(enforce_net_connect, _SOCKET_CONNECT);
 
 SEC("lsm/socket_accept")
-LSM_NET(enforce_net_accept, "accept");
+LSM_NET(enforce_net_accept, _SOCKET_ACCEPT);
 
 SEC("lsm/file_open")
 int BPF_PROG(enforce_file, struct file *file) { // check if ret code available
   struct path f_path = BPF_CORE_READ(file, f_path);
-  return match_and_enforce_path_hooks(&f_path, dfileread);
+  return match_and_enforce_path_hooks(&f_path, dfileread, _FILE_OPEN);
 }
 
 SEC("lsm/file_permission")
@@ -390,5 +418,5 @@ int BPF_PROG(enforce_file_perm, struct file *file, int mask) {
   }
 
   struct path f_path = BPF_CORE_READ(file, f_path);
-  return match_and_enforce_path_hooks(&f_path, dfilewrite);
+  return match_and_enforce_path_hooks(&f_path, dfilewrite, _FILE_PERMISSION);
 }

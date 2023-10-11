@@ -41,11 +41,12 @@ type KubearmorConfig struct {
 	HostDefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
-	CoverageTest bool // Enable/Disable Coverage Test
-
+	CoverageTest      bool     // Enable/Disable Coverage Test
 	ConfigUntrackedNs []string // untracked namespaces
 	LsmOrder          []string // LSM order
 	BPFFsPath         string   // path to the BPF filesystem
+	EnforcerAlerts    bool     // policy enforcer
+
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -77,6 +78,7 @@ const (
 	ConfigUntrackedNs                    string = "untrackedNs"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
+	EnforcerAlerts                       string = "enforcerAlerts"
 )
 
 func readCmdLineParams() {
@@ -112,6 +114,7 @@ func readCmdLineParams() {
 	lsmOrder := flag.String(LsmOrder, "bpf,apparmor,selinux", "lsm preference order to use, available lsms [bpf, apparmor, selinux]")
 
 	bpfFsPath := flag.String(BPFFsPath, "/sys/fs/bpf", "Path to the BPF filesystem to use for storing maps")
+	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -153,6 +156,8 @@ func readCmdLineParams() {
 	viper.SetDefault(LsmOrder, *lsmOrder)
 
 	viper.SetDefault(BPFFsPath, *bpfFsPath)
+
+	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 }
 
 // LoadConfig Load configuration
@@ -183,7 +188,6 @@ func LoadConfig() error {
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
-	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
 	if GlobalCfg.CRISocket == "" {
@@ -232,6 +236,7 @@ func LoadConfig() error {
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
+	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

@@ -718,7 +718,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					log.Operation = "Process"
-					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID))
+					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -809,7 +809,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					log.Operation = "Process"
-					log.Data = "syscall=" + getSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
+					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()

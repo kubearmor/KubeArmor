@@ -19,8 +19,8 @@ import (
 // == Security Policies == //
 // ======================= //
 
-// getProtocolFromName Function
-func getProtocolFromName(proto string) string {
+// GetProtocolFromName() Function
+func GetProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
 		return "protocol=TCP,type=SOCK_STREAM"
@@ -185,7 +185,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = npt.Message
 
 		match.Operation = "Network"
-		match.Resource = getProtocolFromName(npt.Protocol)
+		match.Resource = GetProtocolFromName(npt.Protocol)
 		match.ResourceType = "Protocol"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Allow" {

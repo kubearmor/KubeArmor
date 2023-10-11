@@ -47,6 +47,10 @@ spec:
           value: mysql
         - name: WORDPRESS_DB_PASSWORD
           value: root-password
+        securityContext:
+         allowPrivilegeEscalation: true
+         capabilities:
+          add: ["NET_RAW"]
         ports:
         - name: wordpress
           containerPort: 80
