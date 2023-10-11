@@ -233,6 +233,7 @@ type Log struct {
 	Source    string `json:"source"`
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
+	Cwd       string `json:"cwd"`
 	Data      string `json:"data,omitempty"`
 	Action    string `json:"action,omitempty"`
 	Result    string `json:"result"`
