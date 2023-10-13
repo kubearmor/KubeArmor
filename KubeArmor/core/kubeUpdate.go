@@ -1612,7 +1612,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 				}
 			}
 		}
-	} else if len(secPolicy.Spec.File.MatchDirectories) > 0 {
+	}
+
+	if len(secPolicy.Spec.File.MatchDirectories) > 0 {
 		for idx, dir := range secPolicy.Spec.File.MatchDirectories {
 			if dir.Severity == 0 {
 				if secPolicy.Spec.File.Severity != 0 {
@@ -1646,7 +1648,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 				}
 			}
 		}
-	} else if len(secPolicy.Spec.File.MatchPatterns) > 0 {
+	}
+
+	if len(secPolicy.Spec.File.MatchPatterns) > 0 {
 		for idx, pat := range secPolicy.Spec.File.MatchPatterns {
 			if pat.Severity == 0 {
 				if secPolicy.Spec.File.Severity != 0 {
