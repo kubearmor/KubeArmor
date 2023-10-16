@@ -26,6 +26,9 @@ jobs:
       - name: Build KubeArmorController
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
+      - name: Install socat
+        run: sudo apt-get -y install socat
+
       - name: Install KubeArmor Latest and KubeArmorController using Helm
         run: |
           # install kubearmor latest and controller built in this PR

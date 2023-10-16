@@ -6,6 +6,7 @@ replace (
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
 	github.com/kubearmor/KubeArmor/deployments => ../../deployments
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../KubeArmorController
+	github.com/kubearmor/KubeArmor/deployments/get => ../../deployments/get
 )
 
 require (

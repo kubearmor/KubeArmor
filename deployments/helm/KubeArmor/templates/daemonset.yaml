@@ -78,7 +78,6 @@ spec:
         {{- end }}
 
       dnsPolicy: ClusterFirstWithHostNet
-      hostNetwork: true
       hostPID: true
       initContainers:
       - image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}

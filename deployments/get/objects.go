@@ -310,7 +310,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 						},
 					},
 					HostPID:       true,
-					HostNetwork:   true,
+					HostNetwork:   false,
 					RestartPolicy: "Always",
 					DNSPolicy:     "ClusterFirstWithHostNet",
 					InitContainers: []corev1.Container{
