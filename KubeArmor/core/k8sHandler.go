@@ -449,8 +449,7 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
 	}
 
@@ -529,8 +528,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
 	}
 
@@ -565,8 +563,7 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorhostpolicies?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
 	}
 
