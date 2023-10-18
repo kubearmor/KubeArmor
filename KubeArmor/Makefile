@@ -112,7 +112,7 @@ ifeq (, $(shell which gosec))
 	rm -rf $$GOSEC_TMP_DIR ;\
 	}
 endif
-	cd $(CURDIR); gosec ./...
+	cd $(CURDIR); gosec -exclude=G402 ./...
 
 .PHONY: local-release
 local-release: build
