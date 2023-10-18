@@ -51,3 +51,12 @@ jobs:
 
       - name: Check journalctl
         run: sudo journalctl -u kubearmor --no-pager
+      
+      - name: Test kubearmor using ginkgo 
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make
+        working-directory: ./tests/nonk8s_env
+        timeout-minutes: 30
+        
+      

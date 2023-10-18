@@ -56,7 +56,7 @@ jobs:
 
       - name: deploy pre existing pod 
         run: |
-          kubectl apply -f ./tests/ksp/pre-run-pod.yaml
+          kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
           sleep 60
           kubectl get pods -A
 
@@ -87,7 +87,7 @@ jobs:
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
-        working-directory: ./tests
+        working-directory: ./tests/k8s_env
         timeout-minutes: 30
 
       - name: Get karmor sysdump

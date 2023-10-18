@@ -75,7 +75,7 @@ jobs:
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
-        working-directory: ./tests
+        working-directory: ./tests/k8s_env
         timeout-minutes: 30
 
       - name: Get karmor sysdump
