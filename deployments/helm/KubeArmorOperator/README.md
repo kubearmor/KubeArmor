@@ -49,6 +49,10 @@ spec:
     defaultFilePosture: audit|block                            # DEFAULT - audit
     defaultNetworkPosture: audit|block                         # DEFAULT - audit
 
+    enableStdOutLogs: [show stdout logs for relay server]      # DEFAULT - false
+    enableStdOutAlerts: [show stdout alerts for relay server]  # DEFAULT - false
+    enableStdOutMsgs: [show stdout messages for relay server]  # DEFAULT - false 
+
     # default visibility configuration
     defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,network
 
@@ -117,5 +121,5 @@ job.batch/kubearmor-snitch-lglbd   1/1           3s         11m
 Uninstalling the Operator will also uninstall KubeArmor from all your nodes. To uninstall, just run:
 
 ```bash
-helm uninstall kubearmor -n kubearmor
+helm uninstall kubearmor-operator -n kubearmor
 ```

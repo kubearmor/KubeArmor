@@ -119,6 +119,20 @@ var replicas = int32(1)
 var relayDeploymentLabels = map[string]string{
 	"kubearmor-app": "kubearmor-relay",
 }
+var envVars = []corev1.EnvVar{
+	{
+		Name:  "ENABLE_STDOUT_LOGS",
+		Value: "false",
+	},
+	{
+		Name:  "ENABLE_STDOUT_ALERTS",
+		Value: "false",
+	},
+	{
+		Name:  "ENABLE_STDOUT_MSGS",
+		Value: "false",
+	},
+}
 
 // GetRelayDeployment Function
 func GetRelayDeployment(namespace string) *appsv1.Deployment {
@@ -159,6 +173,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 									ContainerPort: port,
 								},
 							},
+							Env: envVars,
 						},
 					},
 				},

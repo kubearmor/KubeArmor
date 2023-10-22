@@ -15,6 +15,10 @@ kubearmorRelay:
     tag: latest
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
+  # Add environment variables for STDOUT logging
+  enableStdoutLogs: "false"
+  enableStdoutAlerts: "false"
+  enableStdoutMsg: "false"
 
 kubearmorInit:
   image:

@@ -22,6 +22,13 @@ spec:
       - image: {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorRelay.imagePullPolicy }}
         name: kubearmor-relay-server
+        env:
+        - name: ENABLE_STDOUT_LOGS
+          value: {{ quote .Values.kubearmorRelay.enableStdoutLogs }}
+        - name: ENABLE_STDOUT_ALERTS
+          value: {{ quote .Values.kubearmorRelay.enableStdoutAlerts }}
+        - name: ENABLE_STDOUT_MSGS
+          value: {{ quote .Values.kubearmorRelay.enableStdoutMsg }}
         ports:
         - containerPort: 32767
       nodeSelector:
