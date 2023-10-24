@@ -25,6 +25,7 @@ KubeArmor supports following types of workloads:
 | AWS        | [Graviton] | Amazon Linux 2 | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux |
 | RedHat     | [OpenShift] | [RHEL] <=8.4 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :x:  | :heavy_check_mark: | SELinux |
 | RedHat     | [OpenShift] | [RHEL] >=8.5 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
+| RedHat     | [MicroShift] | [RHEL] >=9.2 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
 | Rancher    | [RKE] | [SUSE] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Rancher    | [K3S] | [Distros] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM], AppArmor |
 | Oracle     | [Ampere] | [UEK] | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux | [1084] |
@@ -41,6 +42,7 @@ KubeArmor supports following types of workloads:
 [GKE-REL]: https://cloud.google.com/kubernetes-engine/docs/concepts/release-channels
 [bottlerocket]: https://github.com/bottlerocket-os/bottlerocket#bottlerocket-os
 [OPENSHIFT]: https://www.redhat.com/en/technologies/cloud-computing/openshift
+[MicroShift]: https://microshift.io/
 [SUSE]: https://www.suse.com/
 [RHEL]: https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux
 [RKE]: https://rancher.com/docs/rke/latest/en/
