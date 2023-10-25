@@ -13,15 +13,15 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-// ServiceServer provides structure to serve Policy gRPC service
-type ServiceServer struct {
+// PolicyServer provides structure to serve Policy gRPC service
+type PolicyServer struct {
 	pb.PolicyServiceServer
 	UpdateContainerPolicy func(tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus
 	UpdateHostPolicy      func(tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
 }
 
 // ContainerPolicy accepts container events on gRPC and update container security policies
-func (p *ServiceServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
+func (p *PolicyServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
 	policyEvent := tp.K8sKubeArmorPolicyEvent{}
 	res := new(pb.Response)
 
@@ -49,7 +49,7 @@ func (p *ServiceServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb
 }
 
 // HostPolicy accepts host policy event on gRPC service and updates host security policies. It responds with 1 if success else 0.
-func (p *ServiceServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
+func (p *PolicyServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
 
 	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 	res := new(pb.Response)

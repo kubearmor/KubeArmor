@@ -50,6 +50,9 @@ type KubearmorConfig struct {
 	EnforcerAlerts     bool     // policy enforcer
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
+	ReverseGRPCServer bool   // to enable/disable reverse grpc server
+	RelayServerURL    string // URL of relay server
+
 	StateAgent     bool   // Enable/Disable State Agent Client
 	StateAgentAddr string // Address to State Agent Server
 }
@@ -87,6 +90,12 @@ const (
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 )
+
+// ConfigReverseGRPCServer state agent key
+const ConfigReverseGRPCServer string = "enableReverseGRPC"
+
+// ConfigRelayServerURL Path key
+const ConfigRelayServerURL string = "relayServerURL"
 
 // ConfigStateAgent state agent key
 const ConfigStateAgent string = "enableStateAgent"
@@ -132,6 +141,9 @@ func readCmdLineParams() {
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
+
+	reverseGRPCServer := flag.Bool(ConfigReverseGRPCServer, false, "enabling KubeArmor Reverse Log and Policy gRPC Service")
+	relayServerURLStr := flag.String(ConfigRelayServerURL, "http://localhost:2801/", "relay-server http URL listening for logs")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 	stateAgentAddr := flag.String(ConfigStateAgentAddr, "localhost:8801", "address of State Agent Server")
@@ -183,6 +195,9 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
 
+	viper.SetDefault(ConfigReverseGRPCServer, *reverseGRPCServer)
+	viper.SetDefault(ConfigRelayServerURL, *relayServerURLStr)
+
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
 	viper.SetDefault(ConfigStateAgentAddr, *stateAgentAddr)
 }
@@ -212,6 +227,9 @@ func LoadConfig() error {
 
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.Host = viper.GetString(ConfigHost)
+	if hostname, err := os.Hostname(); GlobalCfg.Host == "" && err == nil {
+		GlobalCfg.Host = strings.Split(hostname, ".")[0]
+	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
@@ -269,6 +287,9 @@ func LoadConfig() error {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.ReverseGRPCServer = viper.GetBool(ConfigReverseGRPCServer)
+	GlobalCfg.RelayServerURL = viper.GetString(ConfigRelayServerURL)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 	GlobalCfg.StateAgentAddr = viper.GetString(ConfigStateAgentAddr)

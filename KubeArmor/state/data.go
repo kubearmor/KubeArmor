@@ -5,8 +5,8 @@ package state
 
 import (
 	"encoding/json"
+	"time"
 
-	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/types"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -27,30 +27,36 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 
 		// create this kubearmor ns if it doesn't exist
 		// currently only "container_namespace" until we have config agent
-		if _, ok := sa.KubeArmorNamespaces[namespace]; !ok {
-			sa.KubeArmorNamespaces[namespace] = []string{}
-			sa.KubeArmorNamespaces[namespace] = append(sa.KubeArmorNamespaces[container.NamespaceName], container.ContainerID)
+		if ns, ok := sa.KubeArmorNamespaces[namespace]; !ok {
+			nsObj := types.Namespace{
+				Name: namespace,
+				//Labels: "",
+				KubearmorFilePosture:    "audit",
+				KubearmorNetworkPosture: "audit",
+				LastUpdatedAt:           container.LastUpdatedAt,
 
-			sa.PushNamespaceEvent(namespace, EventAdded)
+				ContainerCount: 1,
+			}
+			sa.KubeArmorNamespaces[namespace] = nsObj
+
+			sa.PushNamespaceEvent(nsObj, EventAdded)
 		} else {
-			sa.KubeArmorNamespaces[namespace] = append(sa.KubeArmorNamespaces[container.NamespaceName], container.ContainerID)
+			// update the container count
+			ns.ContainerCount++
+			sa.KubeArmorNamespaces[namespace] = ns
 		}
 
 	} else if event == EventDeleted {
 
-		if containers, ok := sa.KubeArmorNamespaces[namespace]; ok {
-			containerDeleted := false
-			for i, c := range containers {
-				if c == container.ContainerID {
-					newNSList := common.RemoveStringElement(containers, i)
-					sa.KubeArmorNamespaces[namespace] = newNSList
-					break
-				}
-			}
+		if ns, ok := sa.KubeArmorNamespaces[namespace]; ok {
+			ns.ContainerCount--
+			sa.KubeArmorNamespaces[namespace] = ns
 
-			// no containers left - namespace deleted
-			if containerDeleted && len(sa.KubeArmorNamespaces[namespace]) > 0 {
-				sa.PushNamespaceEvent(namespace, EventDeleted)
+			// delete ns if no containers left in it
+			if ns.ContainerCount == 0 {
+				ns.LastUpdatedAt = time.Now().UTC().String()
+				sa.PushNamespaceEvent(ns, EventDeleted)
+				delete(sa.KubeArmorNamespaces, namespace)
 			}
 		}
 
@@ -119,15 +125,8 @@ func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 	return
 }
 
-func (sa *StateAgent) PushNamespaceEvent(namespace string, event string) {
-	ns := types.Namespace{
-		Name: namespace,
-		//Labels: "",
-		KubearmorFilePosture: "audit",
-		KubearmorNetworkPosture: "audit",
-	}
-
-	nsBytes, err := json.Marshal(ns)
+func (sa *StateAgent) PushNamespaceEvent(namespace tp.Namespace, event string) {
+	nsBytes, err := json.Marshal(namespace)
 	if err != nil {
 		kg.Warnf("Failed to marshal ns event: %s", err.Error())
 		return
@@ -136,7 +135,7 @@ func (sa *StateAgent) PushNamespaceEvent(namespace string, event string) {
 	nsEvent := &pb.StateEvent{
 		Kind:   KindNamespace,
 		Type:   event,
-		Name:   namespace,
+		Name:   namespace.Name,
 		Object: nsBytes,
 	}
 

@@ -192,11 +192,11 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 		container.Labels = strings.Join(labels, ",")
 
 		/*
-		container.Owner = tp.PodOwner{
-			Name: container.ContainerName,
-			Namespace: container.NamespaceName,
-			Ref: "Deployment",
-		}
+			container.Owner = tp.PodOwner{
+				Name: container.ContainerName,
+				Namespace: container.NamespaceName,
+				Ref: "Deployment",
+			}
 		*/
 	}
 

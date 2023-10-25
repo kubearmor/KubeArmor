@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
@@ -147,9 +148,6 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	if cfg.GlobalCfg.StateAgent && !cfg.GlobalCfg.K8sEnv {
 		container.ContainerImage = inspect.Config.Image //+ kl.GetSHA256ofImage(inspect.Image)
 
-		// TODO
-		container.ProtocolPort = "0"
-
 		container.NodeName = cfg.GlobalCfg.Host
 
 		labels := []string{}
@@ -176,12 +174,26 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 		}
 		container.ContainerIP = podIP
 
-		/*
-		container.Owner = tp.PodOwner{
-			Name: container.ContainerName,
-			Namespace: container.NamespaceName,
-			Ref: "Deployment",
+		// time format used by docker engine is RFC3339Nano
+		lastUpdatedAt, err := time.Parse(time.RFC3339Nano, inspect.State.StartedAt)
+		if err == nil {
+			container.LastUpdatedAt = lastUpdatedAt.UTC().String()
 		}
+		// finished at is IsZero until a container exits
+		timeFinished, err := time.Parse(time.RFC3339Nano, inspect.State.FinishedAt)
+		if err == nil && !timeFinished.IsZero() && timeFinished.After(lastUpdatedAt) {
+			lastUpdatedAt = timeFinished
+		}
+
+		// TODO
+		container.ProtocolPort = "0"
+
+		/*
+			container.Owner = tp.PodOwner{
+				Name: container.ContainerName,
+				Namespace: container.NamespaceName,
+				Ref: "Deployment",
+			}
 		*/
 
 	}

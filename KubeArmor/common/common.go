@@ -20,6 +20,7 @@ import (
 
 	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -378,12 +379,6 @@ func IsK8sEnv() bool {
 	return false
 }
 
-// IsECSEnv Function
-func IsECSEnv() bool {
-	_, ok := os.LookupEnv("ECS_CONTAINER_METADATA_URI_V4")
-	return ok
-}
-
 // ContainerRuntimeSocketMap Structure
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
@@ -509,4 +504,17 @@ func HandleGRPCErrors(err error) error {
 	}
 
 	return nil
+}
+
+// get boot time
+// credits: https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/util/boottime_util_linux.go
+func GetBootTime() string {
+	currentTime := time.Now()
+
+	var info unix.Sysinfo_t
+	if err := unix.Sysinfo(&info); err != nil {
+		return ""
+	}
+
+	return currentTime.Add(-time.Duration(info.Uptime) * time.Second).Truncate(time.Second).UTC().String()
 }

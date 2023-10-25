@@ -13,8 +13,8 @@ import (
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/types"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
@@ -31,10 +31,6 @@ const (
 	KindPod       = "pod"
 	KindNode      = "node"
 	KindNamespace = "namespace"
-
-	PodEntityK8s = "pod"
-	PodEntityECS = "task"
-	PodEntityNone = "none"
 )
 
 type StateAgent struct {
@@ -42,8 +38,7 @@ type StateAgent struct {
 
 	StateAgentAddr string
 
-	Running   bool
-	PodEntity string
+	Running bool
 
 	SAClient *StateAgentClient
 
@@ -53,16 +48,16 @@ type StateAgent struct {
 	Containers     map[string]tp.Container
 	ContainersLock *sync.RWMutex
 
-	KubeArmorNamespaces     map[string][]string
+	KubeArmorNamespaces     map[string]types.Namespace
 	KubeArmorNamespacesLock *sync.RWMutex
 
-	Wg *sync.WaitGroup
+	Wg      *sync.WaitGroup
 	Context context.Context
-	Cancel context.CancelFunc
+	Cancel  context.CancelFunc
 }
 
 type StateAgentClient struct {
-	Conn   *grpc.ClientConn
+	Conn *grpc.ClientConn
 
 	WatchClient pb.StateAgent_WatchStateClient
 	GetClient   pb.StateAgent_GetStateClient
@@ -75,40 +70,25 @@ func NewStateAgent(addr string, node *tp.Node, nodeLock *sync.RWMutex, container
 		return nil
 	}
 
-	var podEntity string
-	if ok := kl.IsK8sEnv(); ok && cfg.GlobalCfg.K8sEnv {
-		// pod == K8s pod
-		podEntity = PodEntityK8s
-	} else if ok := kl.IsECSEnv(); ok {
-		// pod == ECS task
-		// taskMetaURL, ok := os.LookupEnv("ECS_CONTAINER_METADATA_URI_V4")
-		podEntity = PodEntityECS
-	} else {
-		// pod == Container
-		// PodEntity == ""
-		podEntity = PodEntityNone
-	}
-
 	context, cancel := context.WithCancel(context.Background())
 
 	sa := &StateAgent{
 		StateAgentAddr: fmt.Sprintf("%s:%s", host, port),
 
-		Running:   true,
-		PodEntity: podEntity,
+		Running: true,
 
-		Node: node,
+		Node:     node,
 		NodeLock: nodeLock,
 
-		Containers: containers,
+		Containers:     containers,
 		ContainersLock: containersLock,
 
-		KubeArmorNamespaces:     make(map[string][]string),
+		KubeArmorNamespaces:     make(map[string]tp.Namespace),
 		KubeArmorNamespacesLock: new(sync.RWMutex),
 
-		Wg: new(sync.WaitGroup),
+		Wg:      new(sync.WaitGroup),
 		Context: context,
-		Cancel: cancel,
+		Cancel:  cancel,
 	}
 
 	return sa
@@ -253,6 +233,24 @@ func (sa *StateAgent) GetStateClient() {
 			}
 			stateEventList = append(stateEventList, nodeEvent)
 
+			sa.KubeArmorNamespacesLock.RLock()
+			for nsName, ns := range sa.KubeArmorNamespaces {
+				nsBytes, err := json.Marshal(ns)
+				if err != nil {
+					kg.Warnf("Failed to marshal ns event: %s", err.Error())
+				}
+
+				nsEvent := &pb.StateEvent{
+					Kind:   KindNamespace,
+					Type:   EventAdded,
+					Name:   nsName,
+					Object: nsBytes,
+				}
+
+				stateEventList = append(stateEventList, nsEvent)
+			}
+			sa.KubeArmorNamespacesLock.RUnlock()
+
 			for _, container := range sa.Containers {
 				containerBytes, err := json.Marshal(container)
 				if err != nil {
@@ -268,24 +266,6 @@ func (sa *StateAgent) GetStateClient() {
 
 				stateEventList = append(stateEventList, containerEvent)
 			}
-
-			sa.KubeArmorNamespacesLock.RLock()
-			for ns := range sa.KubeArmorNamespaces {
-				nsBytes, err := json.Marshal(ns)
-				if err != nil {
-					kg.Warnf("Failed to marshal ns event: %s", err.Error())
-				}
-
-				nsEvent := &pb.StateEvent{
-					Kind:   KindNamespace,
-					Type:   EventAdded,
-					Name:   ns,
-					Object: nsBytes,
-				}
-
-				stateEventList = append(stateEventList, nsEvent)
-			}
-			sa.KubeArmorNamespacesLock.RUnlock()
 
 			stateEvents := &pb.StateEvents{
 				StateEvents: stateEventList,
@@ -303,8 +283,8 @@ func (sa *StateAgent) GetStateClient() {
 
 func (sa *StateAgent) connectWithStateAgentService() (*StateAgentClient, error) {
 	var (
-		err error
-		conn *grpc.ClientConn
+		err    error
+		conn   *grpc.ClientConn
 		client pb.StateAgentClient
 	)
 
@@ -320,14 +300,14 @@ func (sa *StateAgent) connectWithStateAgentService() (*StateAgentClient, error) 
 		conn, err = grpc.DialContext(sa.Context, sa.StateAgentAddr, grpc.WithInsecure(), grpc.WithKeepaliveParams(kacp))
 		if err != nil {
 			time.Sleep(time.Second * 5)
-			conn.Close()
+			_ = conn.Close()
 			continue
 		}
 
 		client = pb.NewStateAgentClient(conn)
 		if client == nil {
 			time.Sleep(time.Second * 5)
-			conn.Close()
+			_ = conn.Close()
 			continue
 		}
 
@@ -340,7 +320,7 @@ func (sa *StateAgent) connectWithStateAgentService() (*StateAgentClient, error) 
 		grpcErr := kl.HandleGRPCErrors(err)
 		if grpcErr != nil {
 			kg.Debugf("State Agent Service unhealthy. Error: %s", grpcErr.Error())
-			conn.Close()
+			_ = conn.Close()
 			time.Sleep(time.Second * 5)
 			continue
 		}
@@ -349,11 +329,11 @@ func (sa *StateAgent) connectWithStateAgentService() (*StateAgentClient, error) 
 		case grpc_health_v1.HealthCheckResponse_SERVING:
 			break
 		case grpc_health_v1.HealthCheckResponse_NOT_SERVING:
-			conn.Close()
+			_ = conn.Close()
 			return nil, fmt.Errorf("State Agent server is not serving")
 		default:
 			kg.Debugf("State Agent Service unhealthy. Status: %s", resp.Status.String())
-			conn.Close()
+			_ = conn.Close()
 			time.Sleep(time.Second * 5)
 			continue
 		}
@@ -374,9 +354,9 @@ func (sa *StateAgent) connectWithStateAgentService() (*StateAgentClient, error) 
 	}
 
 	saClient := &StateAgentClient{
-		Conn: conn,
+		Conn:        conn,
 		WatchClient: watchClient,
-		GetClient: getClient,
+		GetClient:   getClient,
 	}
 
 	return saClient, nil
