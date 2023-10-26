@@ -1326,6 +1326,11 @@ int kprobe__do_exit(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
+    u64 tgid = bpf_get_current_pid_tgid();
+
+    // delete entry for file access which are not successful and are not deleted from file_map since kretprobe/__x64_sys_openat hook is not triggered
+    bpf_map_delete_elem(&file_map, &tgid);
+
     sys_context_t context = {};
 
     const long code = PT_REGS_PARM1(ctx);
