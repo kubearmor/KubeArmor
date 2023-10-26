@@ -379,6 +379,9 @@ func IsK8sEnv() bool {
 	return false
 }
 
+// ContainerRuntimeSocketKeys contains FIFO ordered keys of container runtimes
+var ContainerRuntimeSocketKeys = []string{"docker", "containerd", "cri-o"}
+
 // ContainerRuntimeSocketMap Structure
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
@@ -400,7 +403,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 
 // GetCRISocket Function
 func GetCRISocket(ContainerRuntime string) string {
-	for k := range ContainerRuntimeSocketMap {
+	for _, k := range ContainerRuntimeSocketKeys {
 		if ContainerRuntime != "" && k != ContainerRuntime {
 			continue
 		}
