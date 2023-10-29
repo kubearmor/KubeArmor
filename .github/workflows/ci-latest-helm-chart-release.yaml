@@ -11,10 +11,13 @@ jobs:
     name: Update Stable Helm Chart With Latest Changes
     if: ${{ (github.repository == 'kubearmor/kubearmor') && (!contains(github.event.head_commit.message, '[skip ci]')) }}
     runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
+        runtime: ["docker", "containerd", "crio"]
     permissions:
       contents: write
     steps:
