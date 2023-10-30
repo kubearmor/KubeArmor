@@ -393,7 +393,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
   bool recursivebuthint = false;
 
 #pragma unroll
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < MAX_STRING_SIZE; i++) {
     if (store->path[i] == '\0')
       break;
 
@@ -456,7 +456,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
   recursivebuthint = false;
 
 #pragma unroll
-  for (int i = 0; i < 64; i++) {
+  for (int i = 0; i < MAX_STRING_SIZE; i++) {
     if (store->path[i] == '\0')
       break;
 
