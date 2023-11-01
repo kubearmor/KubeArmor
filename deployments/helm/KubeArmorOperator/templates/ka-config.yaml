@@ -1,0 +1,17 @@
+{{- if .Values.autoDeploy }}
+apiVersion: operator.kubearmor.com/v1
+kind: KubeArmorConfig
+metadata:
+    annotations:
+        "helm.sh/hook": post-install,post-upgrade
+    labels:
+        app.kubernetes.io/name: kubearmorconfig
+        app.kubernetes.io/instance: kubearmorconfig-sample
+        app.kubernetes.io/part-of: kubearmoroperator
+        app.kubernetes.io/managed-by: kustomize
+        app.kubernetes.io/created-by: kubearmoroperator
+    name: kubearmor-default
+    namespace: {{ .Release.Namespace }}
+spec:
+    {{- toYaml .Values.kubearmorConfig | nindent 4}}
+{{- end}}
