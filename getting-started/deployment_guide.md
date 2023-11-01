@@ -6,29 +6,23 @@ Check the [KubeArmor support matrix](support_matrix.md) to verify if your platfo
 
 ## Install KubeArmor
 ```
+helm repo add kubearmor https://kubearmor.github.io/charts
+helm repo update kubearmor
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/KubeArmorOperator/config/samples/sample-config.yml
+```
+
+You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
+
+## Install kArmor CLI (Optional)
+
+```
 curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
-karmor install
+# sudo access is needed to install it in /usr/local/bin directory. But, if you prefer not to use sudo, you can install it in a different directory which is in your PATH.
 ```
 
-<details>
-  <summary>Output of karmor install</summary>
-
-```
-aws@pandora:~$ karmor install
-Auto Detected Environment : docker
-CRD kubearmorpolicies.security.kubearmor.com ...
-CRD kubearmorhostpolicies.security.kubearmor.com ...
-Service Account ...
-Cluster Role Bindings ...
-KubeArmor Relay Service ...
-KubeArmor Relay Deployment ...
-KubeArmor DaemonSet ...
-KubeArmor Policy Manager Service ...
-KubeArmor Policy Manager Deployment ...
-KubeArmor Host Policy Manager Service ...
-KubeArmor Host Policy Manager Deployment ...
-```
-</details>
+> [!NOTE] 
+> kArmor CLI provides a Developer Friendly way to interact with KubeArmor Telemetry. You can stream KubeArmor telemetry independently of kArmor CLI tool and integrate it with your chosen SIEM (Security Information and Event Management) solutions. [Here's a guide](https://github.com/kubearmor/kubearmor-relay-server/blob/main/README.md#streaming-kubearmor-telemetry-to-external-siem-tools) on how to achieve this integration. This guide assumes you have kArmor CLI to access KubeArmor Telemetry but you can view it on your SIEM tool once integrated.
 
 ## Deploy test nginx app
 
@@ -37,7 +31,8 @@ kubectl create deployment nginx --image=nginx
 POD=$(kubectl get pod -l app=nginx -o name)
 ```
 
-> Note: `$POD` is used to refer to the target nginx pod in many cases below.
+> [!NOTE] 
+> `$POD` is used to refer to the target nginx pod in many cases below.
 
 ## Sample policies
 
@@ -69,7 +64,7 @@ EOF
 
 Now execute the `apt` command to download the `masscan` tool.
 ```
-kubectl exec -it $POD -- sh -c "apt update && apt install masscan"
+kubectl exec -it $POD -- bash -c "apt update && apt install masscan"
 ```
 
 It will be denied permission to execute.
@@ -82,7 +77,7 @@ command terminated with exit code 126
 </details>
 
 <details>
-  <summary><h4>Get policy violations notifications</h4></summary>
+  <summary><h4>Get policy violations notifications using kArmor CLI</h4></summary>
 
 ```
 karmor logs -n default --json

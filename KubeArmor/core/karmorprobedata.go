@@ -4,9 +4,13 @@
 package core
 
 import (
+	"context"
+
+	"github.com/golang/protobuf/ptypes/empty"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
 // KarmorData Structure
@@ -22,6 +26,12 @@ type KarmorData struct {
 	ContainerDefaultPosture tp.DefaultPosture
 	HostDefaultPosture      tp.DefaultPosture
 	HostVisibility          string
+}
+
+// Karmor provides structure to serve Policy gRPC service
+type Probe struct {
+	pb.ProbeServiceServer
+	GetContainerData func() ([]string, map[string]*pb.ContainerData, map[string]*pb.HostSecurityPolicies)
 }
 
 // SetKarmorData generates runtime configuration for KubeArmor to be consumed by kArmor
@@ -61,4 +71,73 @@ func (dm *KubeArmorDaemon) SetKarmorData() {
 		dm.Logger.Errf("Error writing karmor config data (%s)", err.Error())
 	}
 
+}
+
+// SetKarmorContainerData() keeps track of containers and the applied policies
+func (dm *KubeArmorDaemon) SetProbeContainerData() ([]string, map[string]*pb.ContainerData, map[string]*pb.HostSecurityPolicies) {
+	var containerlist []string
+	dm.ContainersLock.Lock()
+	for _, value := range dm.Containers {
+
+		containerlist = append(containerlist, value.ContainerName)
+	}
+	dm.ContainersLock.Unlock()
+
+	containerMap := make(map[string]*pb.ContainerData)
+	dm.EndPointsLock.Lock()
+
+	for _, ep := range dm.EndPoints {
+
+		var policyNames []string
+
+		for _, policy := range ep.SecurityPolicies {
+
+			policyNames = append(policyNames, policy.Metadata["policyName"])
+
+		}
+		containerMap[ep.EndPointName] = &pb.ContainerData{
+			PolicyList:    policyNames,
+			PolicyEnabled: int32(ep.PolicyEnabled),
+		}
+	}
+	dm.EndPointsLock.Unlock()
+
+	// Mapping Hostpolicies to their host hostName : HostPolicy
+	hostMap := make(map[string]*pb.HostSecurityPolicies)
+
+	dm.HostSecurityPoliciesLock.Lock()
+	for _, hp := range dm.HostSecurityPolicies {
+
+		hostName := dm.Node.NodeName
+
+		if val, ok := hostMap[hostName]; ok {
+
+			val.PolicyList = append(val.PolicyList, hp.Metadata["policyName"])
+			hostMap[hostName] = val
+
+		} else {
+
+			hostMap[hostName] = &pb.HostSecurityPolicies{
+				PolicyList: []string{hp.Metadata["policyName"]},
+			}
+
+		}
+	}
+	dm.HostSecurityPoliciesLock.Unlock()
+
+	return containerlist, containerMap, hostMap
+
+}
+
+// GetProbeData() sends policy data through grpc client
+func (p *Probe) GetProbeData(c context.Context, in *empty.Empty) (*pb.ProbeResponse, error) {
+
+	containerList, containerMap, hostMap := p.GetContainerData()
+	res := &pb.ProbeResponse{
+		ContainerList: containerList,
+		ContainerMap:  containerMap,
+		HostMap:       hostMap,
+	}
+
+	return res, nil
 }

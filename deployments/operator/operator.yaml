@@ -148,7 +148,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -379,7 +379,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -392,7 +392,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -405,13 +405,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubearmor-operator
-  namespace: kube-system
+  namespace: kubearmor
 spec:
   selector:
     matchLabels:
@@ -422,10 +422,7 @@ spec:
         kubearmor-app: kubearmor-operator
     spec:
       containers:
-      - command:
-        - /operator
-        - kubearmor-operator
-        env:
+      - env:
         - name: KUBEARMOR_OPERATOR_NS
           valueFrom:
             fieldRef:
@@ -433,15 +430,4 @@ spec:
         image: kubearmor/kubearmor-operator:latest
         imagePullPolicy: IfNotPresent
         name: operator
-        securityContext:
-          capabilities:
-            add:
-            - SYS_ADMIN
-            - SYS_RESOURCE
-            - IPC_LOCK
-            - DAC_OVERRIDE
-            - DAC_READ_SEARCH
-            drop:
-            - ALL
-          privileged: false
       serviceAccountName: kubearmor-operator

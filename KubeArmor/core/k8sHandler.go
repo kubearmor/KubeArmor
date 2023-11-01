@@ -23,7 +23,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	kspclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 )
@@ -84,13 +83,13 @@ func NewK8sHandler() *K8sHandler {
 	}
 	config, err := ctrl.GetConfig()
 	if err != nil {
-		log.Warnf("Error creating kubernetes config, %s", err)
+		kg.Warnf("Error creating kubernetes config, %s", err)
 		return kh
 	}
 
 	kh.KSPClient, err = kspclient.NewForConfig(config)
 	if err != nil {
-		log.Warnf("Error creating ksp clientset, %s", err)
+		kg.Warnf("Error creating ksp clientset, %s", err)
 		return kh
 	}
 
@@ -449,8 +448,7 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
 	}
 
@@ -529,8 +527,7 @@ func (kh *K8sHandler) WatchK8sSecurityPolicies() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorpolicies?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
 	}
 
@@ -565,8 +562,7 @@ func (kh *K8sHandler) WatchK8sHostSecurityPolicies() *http.Response {
 	// kube-proxy (local)
 	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/apis/security.kubearmor.com/v1/kubearmorhostpolicies?watch=true"
 
-	// #nosec
-	if resp, err := http.Get(URL); err == nil {
+	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
 	}
 

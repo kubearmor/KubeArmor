@@ -1,5 +1,7 @@
 syntax = "proto3";
  
+import public "google/protobuf/empty.proto";
+
 package policy;
 
 option go_package="github.com/kubearmor/KubeArmor/protobuf";
@@ -14,12 +16,37 @@ message HealthCheckReply {
   int32 Retval = 1;
 }
 
+enum PolicyStatus {
+  Failure = 0 ;
+  Applied = 1 ;
+  Deleted = 2 ;
+  Modified = 3 ;
+  NotExist = 4;
+  Invalid = 5;  
+
+}
 message response {
-    int32 status = 1;
+    PolicyStatus status = 1;
 }
 
 message policy {
     bytes policy = 1;
+}
+
+message ContainerData {
+  repeated string policyList = 1;
+  int32 policyEnabled = 2;
+}
+message HostSecurityPolicies {
+  repeated string policyList = 1; 
+}
+message ProbeResponse {
+   repeated string containerList = 1;
+   map<string, ContainerData> containerMap = 2;
+   map<string , HostSecurityPolicies> hostMap = 3;
+}
+service ProbeService {
+    rpc getProbeData(google.protobuf.Empty) returns (ProbeResponse);
 }
 
 service PolicyService {

@@ -4,11 +4,16 @@ on:
   push:
     branches:
       - "main"
+      - "v*"
     paths:
       # release on any dependency change
       - "pkg/**"
       - "deployments/get/**"
       - "KubeArmor/utils/**"
+  create:
+    branches:
+      - "v*"
+
 
 env:
   PLATFORM: linux/amd64,linux/arm64/v8
@@ -16,11 +21,11 @@ env:
 jobs:
   kubearmor-operator-release:
     name: Build & Push KubeArmor Operator
-    defaults:
-      run:
-        working-directory: ./pkg/KubeArmorOperator
+    if: github.repository == 'kubearmor/kubearmor'        
     runs-on: ubuntu-20.04
-    timeout-minutes: 60
+    permissions:
+      id-token: write
+    timeout-minutes: 90
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -41,6 +46,48 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
+      
+      - name: Get Tag
+        id: vars
+        run: |
+          if [ ${{ github.ref }} == "refs/heads/main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build & Push KubeArmor Operator
-        run: PLATFORM=$PLATFORM make docker-buildx TAG=latest
+        working-directory: ./pkg/KubeArmorOperator
+        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }}
+
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+      
+      - name: Get and Match Stable Tag
+        id: stable
+        run: |
+          value=`cat STABLE-RELEASE`
+          if [ ${{ github.ref }} == "refs/heads/$value" ]; then
+            echo "match=true" >> $GITHUB_OUTPUT
+          else
+            echo "match=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install regctl
+        if: steps.stable.outputs.match == 'true'
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+  
+      - name: Check install
+        if: steps.stable.outputs.match == 'true'
+        run: regctl version
+      
+      - name: Generate the stable version of Operator and Snitch in Docker Hub
+        if: steps.stable.outputs.match == 'true'
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags

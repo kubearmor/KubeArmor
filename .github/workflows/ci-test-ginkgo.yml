@@ -8,6 +8,8 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
   pull_request:
     branches: [main]
     paths:
@@ -15,7 +17,8 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
-
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
 jobs:
   build:
     name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
@@ -56,7 +59,7 @@ jobs:
 
       - name: deploy pre existing pod 
         run: |
-          kubectl apply -f ./tests/ksp/pre-run-pod.yaml
+          kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
           sleep 60
           kubectl get pods -A
 
@@ -66,32 +69,34 @@ jobs:
             docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
+              sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
             fi
           fi
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kube-system
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app=kubearmor-operator
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
-          kubectl wait -n kube-system --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kube-system
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
-        working-directory: ./tests
+        working-directory: ./tests/k8s_env
         timeout-minutes: 30
 
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
-          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 

@@ -7,7 +7,8 @@ CHARTDIR  := $(realpath $(DEPLOYDIR)/helm/KubeArmorOperator)
 CRDDIR    := $(realpath $(CHARTDIR)/crds)
 
 # Image URL to use all building/pushing image targets
-IMG ?= kubearmor/kubearmor-operator
+OPERATOR_IMG ?= kubearmor/kubearmor-operator
+SNITCH_IMG ?= kubearmor/kubearmor-snitch
 # Image Tag to use all building/pushing image targets
 TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -65,25 +66,28 @@ tidy:
 
 .PHONY: kubearmor-operator
 kubearmor-operator: get
-	go build -o kubearmor-operator cmd/main.go
+	go build -o kubearmor-operator cmd/operator/main.go
 
 .PHONY: snitch
 snitch: get
-	go build -o snitch cmd/main.go
+	go build -o snitch cmd/snitch-cmd/main.go
 
 .PHONY: build
 build: snitch kubearmor-operator
 
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG}:${TAG} -t ${IMG}:latest --build-arg VERSION=${TAG} -f ./Dockerfile ../../
+	docker build -t ${OPERATOR_IMG}:${TAG} -t ${OPERATOR_IMG}:latest --build-arg VERSION=${TAG} --target operator -f ./Dockerfile ../../
+	docker build -t ${SNITCH_IMG}:${TAG} -t ${SNITCH_IMG}:latest --build-arg VERSION=${TAG} --target snitch -f ./Dockerfile ../../
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}:${TAG}
+	docker push ${OPERATOR_IMG}:${TAG}
+	docker push ${SNITCH_IMG}:${TAG}
 
 docker-buildx:
-	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push -t ${IMG}:${TAG} -f ./Dockerfile ../../
+	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push --target operator -t ${OPERATOR_IMG}:${TAG} -f ./Dockerfile ../../
+	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push --target snitch -t ${SNITCH_IMG}:${TAG} -f ./Dockerfile ../../
 
 KUSTOMIZE = /usr/local/bin/kustomize
 .PHONY: kustomize

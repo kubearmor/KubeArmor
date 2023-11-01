@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-block-policy
+spec:
+  severity: 3
+  selector:
+    matchLabels:
+      kubearmor.io/container.name: wordpress-mysql
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+    - path: /usr/bin/apt-get
+
+      # apt update
+      # apt-get update
+
+  action:
+    Block

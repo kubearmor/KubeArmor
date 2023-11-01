@@ -41,6 +41,7 @@ RUN groupadd --gid 1000 default \
       
 WORKDIR /
 COPY --from=builder --chown=default:default /workspace/manager .
+COPY LICENSE /licenses/license.txt
 
 USER 1000
 ENTRYPOINT ["/manager"]

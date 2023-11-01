@@ -5,7 +5,7 @@ Here, we demonstrate how to define security policies using our example microserv
 * Process Execution Restriction
   * Block a specific executable \([ksp-group-1-proc-path-block.yaml](../examples/multiubuntu/security-policies/ksp-group-1-proc-path-block.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -28,7 +28,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
   * Block all executables in a specific directory \([ksp-ubuntu-1-proc-dir-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-1-proc-dir-block.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -51,7 +51,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
   * Block all executables in a specific directory and its subdirectories \([ksp-ubuntu-2-proc-dir-recursive-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-2-proc-dir-recursive-block.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -75,7 +75,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
   * Allow specific executables to access certain files only \([ksp-ubuntu-3-file-dir-allow-from-source-path.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-3-file-dir-allow-from-source-path.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -104,7 +104,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
   * Allow a specific executable to be launched by its owner only \([ksp-ubuntu-3-proc-path-owner-allow.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-3-proc-path-owner-allow.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -148,7 +148,7 @@ Here, we demonstrate how to define security policies using our example microserv
 * File Access Restriction
   * Allow accessing specific files only \([ksp-ubuntu-4-file-path-readonly-allow.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-4-file-path-readonly-allow.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -190,7 +190,7 @@ Here, we demonstrate how to define security policies using our example microserv
 
   * Block all file accesses in a specific directory and its subdirectories \([ksp-ubuntu-5-file-dir-recursive-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-5-file-dir-recursive-block.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -215,7 +215,7 @@ Here, we demonstrate how to define security policies using our example microserv
 * Network Operation Restriction
   * Audit ICMP packets \([ksp-ubuntu-5-net-icmp-audit](../examples/multiubuntu/security-policies/ksp-ubuntu-5-net-icmp-audit.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -240,7 +240,7 @@ Here, we demonstrate how to define security policies using our example microserv
 * Capabilities Restriction
   * Block Raw Sockets \(i.e., non-TCP/UDP packets\) \([ksp-ubuntu-1-cap-net-raw-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-1-cap-net-raw-block.yaml)\)
 
-    ```text
+    ```yaml
     apiVersion: security.kubearmor.com/v1
     kind: KubeArmorPolicy
     metadata:
@@ -264,25 +264,25 @@ Here, we demonstrate how to define security policies using our example microserv
 
 * System calls alerting
   * Alert for all `unlink` syscalls
-  ```text
-  apiVersion: security.kubearmor.com/v1
-  kind: KubeArmorPolicy
-  metadata:
-    name: audit-all-unlink
-    namespace: default
-  spec:
-    severity: 3
-    selector:
-      matchLabels:
-        container: ubuntu-1
-    syscalls:
-      matchSyscalls:
-      - syscall:
-        - unlink
-    action:
-      Audit
-  ```
 
+    ```yaml
+    apiVersion: security.kubearmor.com/v1
+    kind: KubeArmorPolicy
+    metadata:
+      name: audit-all-unlink
+      namespace: default
+    spec:
+      severity: 3
+      selector:
+        matchLabels:
+          container: ubuntu-1
+      syscalls:
+        matchSyscalls:
+        - syscall:
+          - unlink
+      action:
+        Audit
+    ```
 
 <details>
 <summary>Generated telemetry</summary>
@@ -316,29 +316,30 @@ Here, we demonstrate how to define security policies using our example microserv
   "Result": "Passed"
 }
 ```
+
 </details>
 
   * Alert on all `rmdir` syscalls targeting anything in `/home/` directory and sub-directories
-  
-  ```text
-  apiVersion: security.kubearmor.com/v1
-  kind: KubeArmorPolicy
-  metadata:
-    name: audit-home-rmdir
-    namespace: default
-  spec:
-    selector:
-      matchLabels:
-        container: ubuntu-1
-    syscalls:
-      matchPaths:
-      - syscall:
-        - rmdir
-        path: /home/
-        recursive: true
-    action:
-      Audit
-  ```
+
+    ```yaml
+    apiVersion: security.kubearmor.com/v1
+    kind: KubeArmorPolicy
+    metadata:
+      name: audit-home-rmdir
+      namespace: default
+    spec:
+      selector:
+        matchLabels:
+          container: ubuntu-1
+      syscalls:
+        matchPaths:
+        - syscall:
+          - rmdir
+          path: /home/
+          recursive: true
+      action:
+        Audit
+    ```
 
 <details>
 <summary>Generated telemetry</summary>
@@ -372,4 +373,5 @@ Here, we demonstrate how to define security policies using our example microserv
   "Result": "Passed"
 }
 ```
+
 </details>

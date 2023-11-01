@@ -37,6 +37,8 @@ jobs:
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
           regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
           regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
 
   update-helm-chart:
     name: Update KubeArmor Helm chart version

@@ -6,6 +6,7 @@ package monitor
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -86,6 +87,8 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
 	}
 
+	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
+
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
 	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)
 
@@ -148,7 +151,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileOpenFlags
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileOpenFlags
 
 			case SysOpenAt:
 				if len(msg.ContextArgs) != 3 {
@@ -171,7 +174,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd + " flags=" + fileOpenFlags
 
 			case SysUnlink:
 				if len(msg.ContextArgs) != 2 {
@@ -185,7 +188,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID))
 
 			case SysUnlinkAt:
 				if len(msg.ContextArgs) != 3 {
@@ -204,7 +207,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileUnlinkAtFlags
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " flags=" + fileUnlinkAtFlags
 
 			case SysRmdir:
 				if len(msg.ContextArgs) != 1 {
@@ -218,7 +221,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID))
 
 			case SysChown:
 				if len(msg.ContextArgs) != 3 {
@@ -240,7 +243,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid)
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid)
 
 			case SysFChownAt:
 				if len(msg.ContextArgs) != 5 {
@@ -269,7 +272,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = fileName
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid) + " mode=" + strconv.Itoa(mode)
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid) + " mode=" + strconv.Itoa(mode)
 
 			case SysSetuid, SysSetgid:
 				if len(msg.ContextArgs) != 1 {
@@ -281,7 +284,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 					uid = int(val)
 				}
 				log.Operation = "Syscall"
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid)
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid)
 
 			case SysMount:
 				if len(msg.ContextArgs) != 5 {
@@ -307,7 +310,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 				}
 
 				log.Operation = "Syscall"
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " source=" + source + " target=" + target + " filesystem=" + fstype + " mountflag=" + strconv.Itoa(flags) + " data=" + data
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " source=" + source + " target=" + target + " filesystem=" + fstype + " mountflag=" + strconv.Itoa(flags) + " data=" + data
 
 			case SysUmount:
 				if len(msg.ContextArgs) != 2 {
@@ -324,7 +327,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 				}
 
 				log.Operation = "Syscall"
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " target=" + target + " flag=" + strconv.Itoa(flags)
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " target=" + target + " flag=" + strconv.Itoa(flags)
 
 			case SysClose:
 				if len(msg.ContextArgs) != 1 {
@@ -339,7 +342,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "File"
 				log.Resource = ""
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			case SysPtrace:
 				if len(msg.ContextArgs) != 3 {
@@ -364,7 +367,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Resource = binary
 				log.Operation = "Process"
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " request=" + request + " pid=" + pid + " process=" + binary
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " request=" + request + " pid=" + pid + " process=" + binary
 
 			case SysSocket: // domain, type, proto
 				if len(msg.ContextArgs) != 3 {
@@ -386,8 +389,8 @@ func (mon *SystemMonitor) UpdateLogs() {
 				}
 
 				log.Operation = "Network"
-				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + getProtocol(sockProtocol)
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID))
+				log.Resource = "domain=" + sockDomain + " type=" + sockType + " protocol=" + GetProtocol(sockProtocol)
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID))
 
 			case TCPConnect, TCPConnectv6, TCPAccept, TCPAcceptv6:
 				if len(msg.ContextArgs) != 2 {
@@ -438,7 +441,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 					}
 				}
 
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			case SysAccept: // fd, sockaddr
 				if len(msg.ContextArgs) != 2 {
@@ -457,7 +460,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "Network"
 				log.Resource = ""
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 				for k, v := range sockAddr {
 					if log.Resource == "" {
@@ -493,7 +496,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 					}
 				}
 
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			case SysListen: // fd
 				if len(msg.ContextArgs) != 2 {
@@ -508,7 +511,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 				log.Operation = "Network"
 				log.Resource = ""
-				log.Data = "syscall=" + getSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
 			default:
 				continue

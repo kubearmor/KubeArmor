@@ -70,11 +70,10 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, btfPrese
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
-	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, "-criSocket=unix:///"+strings.ReplaceAll(socket, "_", "/"))
 	// update images
-	daemonset.Spec.Template.Spec.Containers[0].Image = common.KubeArmorImage
+	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
-	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.KubeArmorInitImage
+	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
@@ -106,6 +105,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 					},
 				},
 			})
+
+			socket = common.RuntimeSocketLocation[runtime]
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:      runtime + "-socket",
 				MountPath: socket,
@@ -114,8 +115,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 			break
 		}
 	}
-	// lookup runtime storage location
 
+	// lookup runtime storage location
 	for _, storageLocation := range common.RuntimeStorageVolumes[runtime] {
 		if strings.ReplaceAll(storageLocation[1:], "/", "_") == runtimeStorage {
 			vol = append(vol, corev1.Volume{
@@ -127,6 +128,8 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 					},
 				},
 			})
+
+			storageLocation = common.RuntimeStorageLocation[runtime]
 			volMnt = append(volMnt, corev1.VolumeMount{
 				Name:             runtime + "-storage",
 				MountPath:        storageLocation,
@@ -194,7 +197,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
 	job.GenerateName = "kubearmor-snitch-"
-
+	var rootUser int64 = 0
 	job.Spec = batchv1.JobSpec{
 		TTLSecondsAfterFinished: &ttls,
 		Template: corev1.PodTemplateSpec{
@@ -207,11 +210,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 				Containers: []corev1.Container{
 					{
 						Name:  "snitch",
-						Image: common.OperatorImage,
-						Command: []string{
-							"/operator",
-							"snitch",
-						},
+						Image: common.GetApplicationImage(common.SnitchName),
 						Args: []string{
 							"--nodename=$(NODE_NAME)",
 							"--pathprefix=" + PathPrefix,
@@ -234,13 +233,16 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							},
 						},
 						SecurityContext: &corev1.SecurityContext{
+							RunAsUser:  &rootUser,
+							RunAsGroup: &rootUser,
 							Capabilities: &corev1.Capabilities{
 								Add: []corev1.Capability{
-									"DAC_OVERRIDE",
-									"DAC_READ_SEARCH",
 									"IPC_LOCK",
 									"SYS_ADMIN",
 									"SYS_RESOURCE",
+								},
+								Drop: []corev1.Capability{
+									"ALL",
 								},
 							},
 							Privileged: &(common.Privileged),
@@ -410,14 +412,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	containers := &controller.Spec.Template.Spec.Containers
 	for i, container := range *containers {
 		if container.Name == "manager" {
-			(*containers)[i].Image = common.KubeArmorControllerImage
+			(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 		} else {
-			(*containers)[i].Image = common.KubeRbacProxyImage
+			(*containers)[i].Image = common.GetApplicationImage(common.KubeRbacProxyName)
 			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeRbacProxyImagePullPolicy)
 		}
 	}
-	relayServer.Spec.Template.Spec.Containers[0].Image = common.KubeArmorRelayImage
+	relayServer.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 	relayServer.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 	deploys := []*appsv1.Deployment{
 		addOwnership(controller).(*appsv1.Deployment),
@@ -433,7 +435,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		if kGenErr == nil {
 			break
 		}
-		clusterWatcher.Log.Infof("Couldnt generate TLS secret, re-trying in 3 seconds ...")
+		clusterWatcher.Log.Infof("Couldn't generate TLS secret, re-trying in 3 seconds ...")
 		time.Sleep(3 * time.Second)
 	}
 
@@ -583,14 +585,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 
 		// update operatingConfigCrd status to Running
-		if common.OperatigConfigCrd != nil {
+		if common.OperatorConfigCrd != nil {
 			if installErr != nil {
 				installErr = nil
-				go clusterWatcher.UpdateCrdStatus(common.OperatigConfigCrd.Name, common.ERROR, common.INSTALLATION_ERR_MSG)
+				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.ERROR, common.INSTALLATION_ERR_MSG)
 			} else if clusterWatcher.AreAllNodesProcessed() {
-				go clusterWatcher.UpdateCrdStatus(common.OperatigConfigCrd.Name, common.RUNNING, common.RUNNING_MSG)
+				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.RUNNING, common.RUNNING_MSG)
 			} else {
-				go clusterWatcher.UpdateCrdStatus(common.OperatigConfigCrd.Name, common.PENDING, common.PENDING_MSG)
+				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.PENDING, common.PENDING_MSG)
 			}
 		}
 
@@ -629,7 +631,7 @@ func (clusterWatcher *ClusterWatcher) RotateTlsCerts() {
 		if err == nil {
 			break
 		}
-		clusterWatcher.Log.Infof("Could'nt generate TLS secret, retrying in 3 seconds")
+		clusterWatcher.Log.Infof("Couldn't generate TLS secret, retrying in 3 seconds")
 		time.Sleep(3 * time.Second)
 	}
 	tmpsecret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())

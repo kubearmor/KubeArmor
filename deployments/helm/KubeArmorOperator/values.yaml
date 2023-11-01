@@ -1,15 +1,14 @@
+autoDeploy: false
+
 kubearmorOperator:
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
     tag: latest
   imagePullPolicy: IfNotPresent
-  capabilities:
-    add:
-    - SYS_ADMIN
-    - SYS_RESOURCE
-    - IPC_LOCK
-    - CAP_DAC_OVERRIDE
-    - CAP_DAC_READ_SEARCH
-    drop:
-    - ALL
+  
+kubearmorConfig:
+  defaultCapabilitiesPosture: audit
+  defaultFilePosture: audit
+  defaultNetworkPosture: audit
+  defaultVisibility: process,network

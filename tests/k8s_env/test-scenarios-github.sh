@@ -20,6 +20,8 @@ realpath() {
 }
 
 TEST_HOME=`dirname $(realpath "$0")`
+CRD_HOME=`dirname $(realpath "$0")`/../deployments/CRD
+ARMOR_HOME=`dirname $(realpath "$0")`/../KubeArmor
 
 LSM="none"
 
@@ -37,6 +39,8 @@ if [ "$DEFAULT_POSTURE" == "" ]; then
     DEFAULT_POSTURE="block"
 fi
 
+ARMOR_OPTIONS=()
+
 SKIP_CONTAINER_POLICY=1
 SKIP_NATIVE_POLICY=1
 SKIP_HOST_POLICY=1
@@ -47,8 +51,8 @@ case $1 in
         ARMOR_OPTIONS=${@:2}
         ;;
     "-testHostPolicy")
-        SKIP_HOST_POLICY=0
-        ARMOR_OPTIONS=${@:2}
+        echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
+        exit
         ;;
     "-testNativePolicy")
         if [ "$LSM" != "apparmor" ]; then
@@ -59,17 +63,21 @@ case $1 in
         ARMOR_OPTIONS=${@:2}
         ;;
     *)
-        if [ "$LSM" == "apparmor" ]; then
+        if [ "$LSM" == "selinux" ]; then
+            echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
+            echo "KubeArmor does not support native policies if AppArmor is not enabled"
+        elif [ "$LSM" == "apparmor" ]; then
+            echo "If you want to test host policies, please run KubeArmor separately and use test-scenarios-in-runtime.sh"
             SKIP_NATIVE_POLICY=0
-        else
+        else # none
             echo "KubeArmor does not support native policies if AppArmor is not enabled"
         fi
         SKIP_CONTAINER_POLICY=0
-        SKIP_HOST_POLICY=0
         ARMOR_OPTIONS=$@
         ;;
 esac
 
+ARMOR_MSG=/tmp/kubearmor.msg
 ARMOR_LOG=/tmp/kubearmor.log
 TEST_LOG=/tmp/kubearmor.test
 
@@ -107,12 +115,113 @@ FAIL()
 
 ## == Functions == ##
 
+function start_and_wait_for_kubearmor_initialization() {
+    cd $CRD_HOME
+
+    kubectl apply -f .
+    if [ $? != 0 ]; then
+        FAIL "Failed to apply $1"
+        exit 1
+    fi
+
+    cd $ARMOR_HOME
+
+    if [ "$DEFAULT_POSTURE" == "allow" ]; then
+        ARMOR_OPTIONS+=("-defaultFilePosture=allow")
+        ARMOR_OPTIONS+=("-defaultNetworkPosture=allow")
+        ARMOR_OPTIONS+=("-defaultCapabilitiesPosture=allow")
+    elif [ "$DEFAULT_POSTURE" == "audit" ]; then # Current default posture is "audit" and for testing we need block based posture
+        ARMOR_OPTIONS+=("-defaultFilePosture=block")
+        ARMOR_OPTIONS+=("-defaultNetworkPosture=block")
+        ARMOR_OPTIONS+=("-defaultCapabilitiesPosture=block")
+    else # block
+        ARMOR_OPTIONS+=("-defaultFilePosture=block")
+        ARMOR_OPTIONS+=("-defaultNetworkPosture=block")
+        ARMOR_OPTIONS+=("-defaultCapabilitiesPosture=block")
+    fi
+
+    echo "Options: -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]}"
+    if [[ ! " ${ARMOR_OPTIONS[@]} " =~ "-enableKubeArmorHostPolicy" ]]; then
+        SKIP_HOST_POLICY=1
+    fi
+
+    ka_podname=`kubectl get pods -n kubearmor -l kubearmor-app=kubearmor -o custom-columns=":metadata.name" --no-headers`
+    if [ "$ka_podname" != "" ]; then
+        echo "Found KubeArmor from Kubernetes"
+
+        CAT_LOG="kubectl exec -n kubearmor $ka_podname -- cat $ARMOR_LOG"
+        CAT_MSG="kubectl logs -n kubearmor $ka_podname"
+
+        sleep 10
+
+        for count in {1..120}
+        do
+            $CAT_MSG | grep "Initialized KubeArmor$" &> /dev/null
+            [[ $? -eq 0 ]] && break
+
+            $CAT_MSG | grep "Terminated KubeArmor$" &> /dev/null
+            [[ $? -eq 0 ]] && $CAT_MSG && exit 1
+
+            sleep 1
+        done
+
+        $CAT_MSG
+    else # start kubearmor as local process
+        echo "Not found KubeArmor from Kubernetes, executing KubeArmor as a local process"
+
+        CAT_LOG="cat $ARMOR_LOG"
+        CAT_MSG="cat $ARMOR_MSG"
+
+        PROXY=$(sudo netstat -ntlp | grep kubectl | grep 8001 | wc -l)
+        if [ $PROXY != 1 ]; then
+           FAIL "Proxy is not running"
+           exit 1
+        fi
+
+        cd $ARMOR_HOME
+
+        make clean; make build-test
+        sudo -E ./kubearmor -test.coverprofile=.coverprofile -logPath=$ARMOR_LOG ${ARMOR_OPTIONS[@]} > $ARMOR_MSG &
+        echo "Executed KubeArmor"
+
+        sleep 10
+
+        for count in {1..120}
+        do
+            $CAT_MSG | grep "Initialized KubeArmor$" &> /dev/null
+            [[ $? -eq 0 ]] && break
+
+            $CAT_MSG | grep "Terminated KubeArmor$" &> /dev/null
+            [[ $? -eq 0 ]] && $CAT_MSG && exit 1
+
+            sleep 1
+        done
+
+        $CAT_MSG
+    fi
+}
+
+function stop_and_wait_for_kubearmor_termination() {
+    [[ "$ka_podname" != "" ]] && echo "kubearmor not started by this script, hence not stopping" && return
+    ps -e | grep kubearmor | awk '{print $1}' | xargs -I {} sudo kill {}
+
+    for count in {1..60}
+    do
+        ps -e | grep kubearmor &> /dev/null
+        if [ $? != 0 ]; then
+            break
+        fi
+
+        sleep 1
+    done
+}
+
 function apply_and_wait_for_microservice_creation() {
     cd $TEST_HOME/microservices/$1
 
     kubectl apply -f .
     if [ $? != 0 ]; then
-        FAIL "Failed to apply $1"
+        FAIL "Failed to apply $1$"
         res_microservice=1
         return
     fi
@@ -130,8 +239,6 @@ function apply_and_wait_for_microservice_creation() {
 
         sleep 1
     done
-
-    sleep 1
 }
 
 function delete_and_wait_for_microservice_deletion() {
@@ -149,29 +256,14 @@ function should_not_find_any_log() {
 
     sleep 5
 
-    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
-
-    if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
-        else
-            audit_log="<No Log>"
-            DBG "Found no log from logs"
-        fi
-    else # local
-        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
-        else
-            audit_log="<No Log>"
-            DBG "Found no log from logs"
-        fi
+    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*$2.*MatchedPolicy.*$6.*operation.*$3.*resource.*$4.*data.*action.*$5" | grep -v grep | tail -n 1 | grep -v Passed)
+    if [ $? == 0 ]; then
+        echo $audit_log
+        FAIL "Found the log from logs"
+        res_cmd=1
+    else
+        audit_log="<No Log>"
+        DBG "Found no log from logs"
     fi
 }
 
@@ -180,29 +272,14 @@ function should_find_passed_log() {
 
     sleep 5
 
-    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
-
-    if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
-    else # local
-        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
+    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" | grep -v grep | tail -n 1 | grep Passed)
+    if [ $? != 0 ]; then
+        audit_log="<No Log>"
+        FAIL "Failed to find the log from logs"
+        res_cmd=1
+    else
+        echo $audit_log
+        DBG "Found the log from logs"
     fi
 }
 
@@ -211,29 +288,14 @@ function should_find_blocked_log() {
 
     sleep 5
 
-    NODE=$(kubectl get pods -A -o wide | grep $1 | awk '{print $8}')
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
-
-    if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
-    else # local
-        audit_log=$(grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
+    audit_log=$($CAT_LOG | grep -E "$1.*policyName.*$2.*MatchedPolicy.*operation.*$3.*resource.*$4.*data.*action.*$5" | grep -v grep | tail -n 1 | grep -v Passed)
+    if [ $? != 0 ]; then
+        audit_log="<No Log>"
+        FAIL "Failed to find the log from logs"
+        res_cmd=1
+    else
+        echo $audit_log
+        DBG "Found the log from logs"
     fi
 }
 
@@ -242,29 +304,14 @@ function should_not_find_any_host_log() {
 
     sleep 5
 
-    NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
-
-    if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
-        else
-            audit_log="<No Log>"
-            DBG "Found no log from logs"
-        fi
-    else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? == 0 ]; then
-            echo $audit_log
-            FAIL "Found the log from logs"
-            res_cmd=1
-        else
-            audit_log="<No Log>"
-            DBG "Found no log from logs"
-        fi
+    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*$5.*operation.*$2.*resource.*$3.*data.*action.*$4" | grep -v grep | tail -n 1 | grep -v Passed)
+    if [ $? == 0 ]; then
+        echo $audit_log
+        FAIL "Found the log from logs"
+        res_cmd=1
+    else
+        audit_log="<No Log>"
+        DBG "Found no log from logs"
     fi
 }
 
@@ -273,29 +320,14 @@ function should_find_passed_host_log() {
 
     sleep 5
 
-    NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
-
-    if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi    
-    else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
+    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" | grep -v grep | tail -n 1 | grep Passed)
+    if [ $? != 0 ]; then
+        audit_log="<No Log>"
+        FAIL "Failed to find the log from logs"
+        res_cmd=1
+    else
+        echo $audit_log
+        DBG "Found the log from logs"
     fi
 }
 
@@ -304,29 +336,14 @@ function should_find_blocked_host_log() {
 
     sleep 5
 
-    NODE=$(hostname)
-    KUBEARMOR=$(kubectl get pods -n kube-system -l kubearmor-app=kubearmor -o wide 2> /dev/null | grep $NODE | grep kubearmor | awk '{print $1}')
-
-    if [[ $KUBEARMOR = "kubearmor"* ]]; then
-        audit_log=$(kubectl -n kube-system exec $KUBEARMOR -- grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
-    else # local
-        audit_log=$(grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" $ARMOR_LOG | grep -v grep | tail -n 1 | grep -v Passed)
-        if [ $? != 0 ]; then
-            audit_log="<No Log>"
-            FAIL "Failed to find the log from logs"
-            res_cmd=1
-        else
-            echo $audit_log
-            DBG "Found the log from logs"
-        fi
+    audit_log=$($CAT_LOG | grep -E "$HOST_NAME.*policyName.*$1.*MatchedHostPolicy.*operation.*$2.*resource.*$3.*data.*action.*$4" | grep -v grep | tail -n 1 | grep -v Passed)
+    if [ $? != 0 ]; then
+        audit_log="<No Log>"
+        FAIL "Failed to find the log from logs"
+        res_cmd=1
+    else
+        echo $audit_log
+        DBG "Found the log from logs"
     fi
 }
 
@@ -382,7 +399,7 @@ function run_test_scenario() {
     else
         kubectl apply -n $2 -f $YAML_FILE
     fi
-    
+
     if [ $? != 0 ]; then
         FAIL "Failed to apply $YAML_FILE into $2"
         res_case=1
@@ -564,8 +581,6 @@ function run_test_scenario() {
         fi
 
         sleep 1
-
-        # read -p "Press enter to continue"
     done
 
     if [ $res_case != 0 ]; then
@@ -594,9 +609,7 @@ function run_test_scenario() {
 
 ## == KubeArmor == ##
 
-if [[ ! "$(ps -f --pid $(pidof kubearmor) 2> /dev/null | cat | grep enableKubeArmorHostPolicy)" != "" ]]; then
-    SKIP_HOST_POLICY=1
-fi
+sudo rm -f $ARMOR_MSG $ARMOR_LOG $TEST_LOG
 
 total_testcases=$(expr $(ls -l $TEST_HOME/scenarios | grep ^d | wc -l) + $(ls -ld $TEST_HOME/host_scenarios/$(hostname)_* 2> /dev/null | grep ^d | wc -l))
 
@@ -613,6 +626,10 @@ echo >> $TEST_LOG
 echo "== Testcases ==" >> $TEST_LOG
 echo >> $TEST_LOG
 
+INFO "Starting KubeArmor"
+start_and_wait_for_kubearmor_initialization
+INFO "Started KubeArmor"
+
 ## == Test Scenarios == ##
 
 res_microservice=0
@@ -620,6 +637,14 @@ res_microservice=0
 is_test_ignored()
 {
     IGN_FILE=$TEST_HOME/tests.ignore
+
+    # skip tests that don't work with some runtimes
+    if [ "$RUNTIME" == "crio" ]; then
+        # skip tests for net_raw capability (see #697)
+        echo "github_test_09" | tee -a $IGN_FILE
+        echo "github_test_13" | tee -a $IGN_FILE
+    fi
+
     [[ ! -f $IGN_FILE ]] && return 0
     for line in `grep "^[a-zA-Z].*" $IGN_FILE`; do
         echo $testcase | grep $line >/dev/null
@@ -645,78 +670,68 @@ is_test_allowed()
 if [[ $SKIP_CONTAINER_POLICY -eq 0 || $SKIP_NATIVE_POLICY -eq 0 ]]; then
     INFO "Running Container Scenarios"
 
-    for microservice in $(ls $TEST_HOME/microservices)
+    microservice="github"
+
+    ## == ##
+
+    INFO "Applying $microservice"
+    apply_and_wait_for_microservice_creation $microservice
+
+    ## == ##
+
+    DBG "Applied $microservice"
+
+    DBG "Wait for initialization (20s)"
+    sleep 20
+    DBG "Started to run testcases"
+
+    cd $TEST_HOME/scenarios
+
+    for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
     do
-        ## == ##
+        is_test_ignored
+        [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue
 
-        if [ "$microservice" == "github" ]; then
-            continue
-        fi
+        is_test_allowed
+        [[ $? -eq 0 ]] && WARN "Testcase $testcase disallowed" && continue
 
-        ## == ##
+        res_case=0
 
-        INFO "Applying $microservice"
-        apply_and_wait_for_microservice_creation $microservice
+        INFO "Testing $testcase"
+        run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
-        ## == ##
+        if [ $res_case != 0 ]; then
+            res_case=0
 
-        if [ $res_microservice == 0 ]; then
-            DBG "Applied $microservice"
+            INFO "Re-testing $testcase"
+            total_testcases=$(expr $total_testcases + 1)
+            retried_testcases+=("$testcase")
+            run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
 
-            DBG "Wait for initialization (20s)"
-            sleep 20
-            DBG "Started to run testcases"
-
-            cd $TEST_HOME/scenarios
-
-            for testcase in $(find -maxdepth 1 -mindepth 1 -type d  -name "${microservice}_*")
-            do
-                is_test_ignored
-                [[ $? -eq 1 ]] && WARN "Testcase $testcase ignored" && continue
-
-                is_test_allowed
-                [[ $? -eq 0 ]] && WARN "Testcase $testcase disallowed" && continue
-
-                res_case=0
-
-                INFO "Testing $testcase"
-                run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
-
-                if [ $res_case != 0 ]; then
-                    res_case=0
-
-                    INFO "Re-testing $testcase"
-                    total_testcases=$(expr $total_testcases + 1)
-                    retried_testcases+=("$testcase")
-                    run_test_scenario $TEST_HOME/scenarios/$testcase $microservice $testcase
-
-                    if [ $res_case != 0 ]; then
-                        FAIL "Failed to test $testcase"
-                        res_microservice=1
-                    else
-                        PASS "Successfully tested $testcase"
-                    fi
-                else
-                    PASS "Successfully tested $testcase"
-                fi
-            done
-
-            res_delete=0
-
-            INFO "Deleting $microservice"
-            delete_and_wait_for_microservice_deletion $microservice
-
-            if [ $res_delete == 0 ]; then
-                DBG "Deleted $microservice"
+            if [ $res_case != 0 ]; then
+                FAIL "Failed to test $testcase"
+                res_microservice=1
+            else
+                PASS "Successfully tested $testcase"
             fi
+        else
+            PASS "Successfully tested $testcase"
         fi
-    done    
+    done
+
+    res_delete=0
+
+    INFO "Deleting $microservice"
+    delete_and_wait_for_microservice_deletion $microservice
+
+    if [ $res_delete == 0 ]; then
+        DBG "Deleted $microservice"
+    fi
+
     DBG "Finished Container Scenarios"
-else
-    WARN "Skipped Container Scenarios"
 fi
 
-HOST_NAME="$(hostname)"
+HOST_NAME=$(hostname)
 res_host=0
 
 if [[ $SKIP_HOST_POLICY -eq 0 ]]; then
@@ -800,10 +815,18 @@ echo >> $TEST_LOG
 
 ## == KubeArmor == ##
 
+INFO "Stopping KubeArmor"
+stop_and_wait_for_kubearmor_termination
+DBG "Stopped KubeArmor"
+
 if [[ $res_microservice -eq 1 ]] || [[ $res_host -eq 1 ]]; then
     FAIL "Failed to test KubeArmor"
+else
+    PASS "Successfully tested KubeArmor"
+fi
+
+if [[ $res_microservice -ne 0 ]] || [[ $res_host -ne 0 ]]; then
     exit 1
 fi
 
-PASS "Successfully tested KubeArmor"
 exit 0

@@ -41,83 +41,45 @@ type KubearmorConfig struct {
 	HostDefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
-	CoverageTest bool // Enable/Disable Coverage Test
+	CoverageTest      bool     // Enable/Disable Coverage Test
+	ConfigUntrackedNs []string // untracked namespaces
+	LsmOrder          []string // LSM order
+	BPFFsPath         string   // path to the BPF filesystem
+	EnforcerAlerts    bool     // policy enforcer
 
-	LsmOrder  []string // LSM order
-	BPFFsPath string   // path to the BPF filesystem
 }
-
-// PolicyDir policy dir path for host policies backup
-const PolicyDir string = "/opt/kubearmor/policies/"
-
-// PIDFilePath for pid file path
-const PIDFilePath string = "/opt/kubearmor/kubearmor.pid"
 
 // GlobalCfg Global configuration for Kubearmor
 var GlobalCfg KubearmorConfig
 
-// ConfigCluster Cluster name key
-const ConfigCluster string = "cluster"
-
-// ConfigHost Host name key
-const ConfigHost string = "host"
-
-// ConfigGRPC GRPC Port key
-const ConfigGRPC string = "gRPC"
-
-// ConfigLogPath Log Path key
-const ConfigLogPath string = "logPath"
-
-// ConfigSELinuxProfileDir SELinux Profile Directory key
-const ConfigSELinuxProfileDir string = "seLinuxProfileDir"
-
-// ConfigCRISocket key
-const ConfigCRISocket string = "criSocket"
-
-// ConfigVisibility Container visibility key
-const ConfigVisibility string = "visibility"
-
-// ConfigHostVisibility Host visibility key
-const ConfigHostVisibility string = "hostVisibility"
-
-// ConfigKubearmorPolicy Kubearmor policy key
-const ConfigKubearmorPolicy string = "enableKubeArmorPolicy"
-
-// ConfigKubearmorHostPolicy Kubearmor host policy key
-const ConfigKubearmorHostPolicy string = "enableKubeArmorHostPolicy"
-
-// ConfigKubearmorVM Kubearmor VM key
-const ConfigKubearmorVM string = "enableKubeArmorVm"
-
-// ConfigDefaultFilePosture KubeArmor Default Global File Posture key
-const ConfigDefaultFilePosture string = "defaultFilePosture"
-
-// ConfigDefaultNetworkPosture KubeArmor Default Global Network Posture key
-const ConfigDefaultNetworkPosture string = "defaultNetworkPosture"
-
-// ConfigDefaultCapabilitiesPosture KubeArmor Default Global Capabilities Posture key
-const ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
-
-// ConfigHostDefaultFilePosture KubeArmor Default Global File Posture key
-const ConfigHostDefaultFilePosture string = "hostDefaultFilePosture"
-
-// ConfigHostDefaultNetworkPosture KubeArmor Default Global Network Posture key
-const ConfigHostDefaultNetworkPosture string = "hostDefaultNetworkPosture"
-
-// ConfigHostDefaultCapabilitiesPosture KubeArmor Default Global Capabilities Posture key
-const ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
-
-// ConfigCoverageTest Coverage Test key
-const ConfigCoverageTest string = "coverageTest"
-
-// ConfigK8sEnv VM key
-const ConfigK8sEnv string = "k8s"
-
-// LsmOrder Preference order of the LSMs
-const LsmOrder string = "lsm"
-
-// BPFFsPath key
-const BPFFsPath string = "bpfFsPath"
+// Config const
+const (
+	PolicyDir                            string = "/opt/kubearmor/policies/"
+	PIDFilePath                          string = "/opt/kubearmor/kubearmor.pid"
+	ConfigCluster                        string = "cluster"
+	ConfigHost                           string = "host"
+	ConfigGRPC                           string = "gRPC"
+	ConfigLogPath                        string = "logPath"
+	ConfigSELinuxProfileDir              string = "seLinuxProfileDir"
+	ConfigCRISocket                      string = "criSocket"
+	ConfigVisibility                     string = "visibility"
+	ConfigHostVisibility                 string = "hostVisibility"
+	ConfigKubearmorPolicy                string = "enableKubeArmorPolicy"
+	ConfigKubearmorHostPolicy            string = "enableKubeArmorHostPolicy"
+	ConfigKubearmorVM                    string = "enableKubeArmorVm"
+	ConfigDefaultFilePosture             string = "defaultFilePosture"
+	ConfigDefaultNetworkPosture          string = "defaultNetworkPosture"
+	ConfigDefaultCapabilitiesPosture     string = "defaultCapabilitiesPosture"
+	ConfigHostDefaultFilePosture         string = "hostDefaultFilePosture"
+	ConfigHostDefaultNetworkPosture      string = "hostDefaultNetworkPosture"
+	ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
+	ConfigCoverageTest                   string = "coverageTest"
+	ConfigK8sEnv                         string = "k8s"
+	ConfigUntrackedNs                    string = "untrackedNs"
+	LsmOrder                             string = "lsm"
+	BPFFsPath                            string = "bpfFsPath"
+	EnforcerAlerts                       string = "enforcerAlerts"
+)
 
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
@@ -147,9 +109,12 @@ func readCmdLineParams() {
 
 	coverageTestB := flag.Bool(ConfigCoverageTest, false, "enabling CoverageTest")
 
+	untrackedNs := flag.String(ConfigUntrackedNs, "kube-system,kubearmor", "Namespaces which are not being tracked, default untracked:[kube-system, kubearmor]")
+
 	lsmOrder := flag.String(LsmOrder, "bpf,apparmor,selinux", "lsm preference order to use, available lsms [bpf, apparmor, selinux]")
 
 	bpfFsPath := flag.String(BPFFsPath, "/sys/fs/bpf", "Path to the BPF filesystem to use for storing maps")
+	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -186,9 +151,13 @@ func readCmdLineParams() {
 
 	viper.SetDefault(ConfigCoverageTest, *coverageTestB)
 
+	viper.SetDefault(ConfigUntrackedNs, *untrackedNs)
+
 	viper.SetDefault(LsmOrder, *lsmOrder)
 
 	viper.SetDefault(BPFFsPath, *bpfFsPath)
+
+	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 }
 
 // LoadConfig Load configuration
@@ -219,7 +188,6 @@ func LoadConfig() error {
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
-	GlobalCfg.SELinuxProfileDir = viper.GetString(ConfigSELinuxProfileDir)
 
 	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
 	if GlobalCfg.CRISocket == "" {
@@ -263,9 +231,12 @@ func LoadConfig() error {
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
 
+	GlobalCfg.ConfigUntrackedNs = strings.Split(viper.GetString(ConfigUntrackedNs), ",")
+
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
+	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

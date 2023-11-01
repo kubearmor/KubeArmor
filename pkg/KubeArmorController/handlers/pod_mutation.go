@@ -58,9 +58,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 
 	// == LSM == //
 
-	if a.Enforcer == "" || a.Enforcer == "SELinux" {
-		pod.Annotations["kubearmor-policy"] = "audited"
-	} else if a.Enforcer == "AppArmor" {
+	if a.Enforcer == "AppArmor" {
 		appArmorAnnotator(pod)
 	}
 

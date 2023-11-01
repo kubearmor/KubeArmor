@@ -35,20 +35,20 @@ jobs:
           --set kubearmorInit.imagePullPolicy=Always \
           --set kubearmor.imagePullPolicy=Always \
           --set kubearmor.image.tag=latest \
-          -n kube-system;
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
+          -n kubearmor --create-namespace;
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          make -C tests/
+          make -C tests/k8s_env/
         timeout-minutes: 20
 
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
-          kubectl describe pod -n kube-system -l kubearmor-app=kubearmor
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 

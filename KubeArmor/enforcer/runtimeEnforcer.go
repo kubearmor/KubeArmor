@@ -16,6 +16,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	be "github.com/kubearmor/KubeArmor/KubeArmor/enforcer/bpflsm"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
+	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -38,7 +39,7 @@ type RuntimeEnforcer struct {
 }
 
 // selectLsm Function
-func selectLsm(re *RuntimeEnforcer, lsmOrder, availablelsms, supportedlsm []string, node tp.Node, pinpath string, logger *fd.Feeder) *RuntimeEnforcer {
+func selectLsm(re *RuntimeEnforcer, lsmOrder, availablelsms, supportedlsm []string, node tp.Node, pinpath string, logger *fd.Feeder, monitor *mon.SystemMonitor) *RuntimeEnforcer {
 	var err error
 	var lsm string
 
@@ -100,7 +101,7 @@ apparmor:
 	goto lsmselection
 
 bpf:
-	re.bpfEnforcer, err = be.NewBPFEnforcer(node, pinpath, logger)
+	re.bpfEnforcer, err = be.NewBPFEnforcer(node, pinpath, logger, monitor)
 	if re.bpfEnforcer != nil {
 		if err != nil {
 			re.Logger.Print("Error Initialising BPF-LSM Enforcer, Cleaning Up")
@@ -123,7 +124,7 @@ nil:
 }
 
 // NewRuntimeEnforcer Function
-func NewRuntimeEnforcer(node tp.Node, pinpath string, logger *fd.Feeder) *RuntimeEnforcer {
+func NewRuntimeEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mon.SystemMonitor) *RuntimeEnforcer {
 	availablelsms := []string{"bpf", "selinux", "apparmor"}
 	re := &RuntimeEnforcer{}
 	re.Logger = logger
@@ -165,7 +166,7 @@ probeBPFLSM:
 
 	re.Logger.Printf("Supported LSMs: %s", strings.Join(lsms, ","))
 
-	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, lsms, node, pinpath, logger)
+	return selectLsm(re, cfg.GlobalCfg.LsmOrder, availablelsms, lsms, node, pinpath, logger, monitor)
 }
 
 // RegisterContainer registers container identifiers to BPFEnforcer Map

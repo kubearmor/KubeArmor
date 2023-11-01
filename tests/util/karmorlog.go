@@ -24,7 +24,7 @@ type EventResult struct {
 }
 
 var eventChan chan klog.EventInfo
-var grpc = "localhost:32767"
+var gRPC = "localhost:32767"
 
 const maxEvents = 128
 
@@ -194,7 +194,7 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 			PodName:   pod,
 			MsgPath:   "none",
 			EventChan: eventChan,
-			GRPC:      grpc,
+			GRPC:      gRPC,
 		})
 		if err != nil {
 			log.Errorf("failed to start observer. Error=%s", err.Error())
@@ -245,7 +245,9 @@ func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert
 
 // KarmorLogStop stops the kubearmor-client observer
 func KarmorLogStop() {
-	klog.StopObserver()
+
+	klog.UnblockSignal = errors.New("stop karmor logs")
+
 }
 
 // GetOperations Function

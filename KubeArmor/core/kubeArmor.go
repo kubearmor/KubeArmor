@@ -263,7 +263,7 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 
 // InitRuntimeEnforcer Function
 func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
-	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger)
+	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger, dm.SystemMonitor)
 	return dm.RuntimeEnforcer != nil
 }
 
@@ -512,15 +512,15 @@ func KubeArmor() {
 			}
 
 			// monitor containers
-			if strings.Contains(dm.Node.ContainerRuntimeVersion, "docker") {
+			if strings.Contains(dm.Node.ContainerRuntimeVersion, "docker") || strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 				// update already deployed containers
 				dm.GetAlreadyDeployedDockerContainers()
 				// monitor docker events
 				go dm.MonitorDockerEvents()
-			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") {
+			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") || strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// monitor containerd events
 				go dm.MonitorContainerdEvents()
-			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") {
+			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") || strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
 			} else {
@@ -644,8 +644,12 @@ func KubeArmor() {
 			dm.Node.PolicyEnabled = tp.KubeArmorPolicyEnabled
 			dm.Logger.Print("Started to monitor host security policies on gRPC")
 		}
-
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+		//Enable grpc service to send kubearmor data to client in unorchestrated mode
+		probe := &Probe{}
+		probe.GetContainerData = dm.SetProbeContainerData
+		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
+
 	}
 
 	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
@@ -657,14 +661,12 @@ func KubeArmor() {
 	// == //
 	go dm.SetKarmorData()
 	dm.Logger.Print("Initialized KubeArmor")
-
 	// == //
 
 	if cfg.GlobalCfg.KVMAgent || !dm.K8sEnabled {
 		// Restore and apply all kubearmor host security policies
 		dm.restoreKubeArmorPolicies()
 	}
-
 	// == //
 
 	// Init KvmAgent

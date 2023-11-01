@@ -13,7 +13,7 @@ import (
 	"k8s.io/kubectl/pkg/util/slice"
 )
 
-// GetAvailableLsms Functio
+// GetAvailableLsms Function
 func GetAvailableLsms() []string {
 	return []string{"bpf", "selinux", "apparmor"}
 }

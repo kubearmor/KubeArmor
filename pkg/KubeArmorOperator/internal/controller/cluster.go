@@ -61,7 +61,8 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 			log.Warnf("Cannot get deployment %s, error=%s", deployment_name, err.Error())
 		} else {
 			deployment_uuid = deploy.GetUID()
-			common.OperatorImage = deploy.Spec.Template.Spec.Containers[0].Image
+			operatorImage := deploy.Spec.Template.Spec.Containers[0].Image
+			common.SnitchImageTag = strings.Split(operatorImage, ":")[1]
 		}
 	}
 	PathPrefix = pathPrefix
@@ -150,7 +151,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.NodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.UpdateDaemonsets(common.DeletAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.RuntimeStorage, newNode.BTF)
+						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.RuntimeStorage, newNode.BTF)
 					}
 					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.RuntimeStorage, newNode.BTF)
 				}
@@ -171,7 +172,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 				}
 				clusterWatcher.NodesLock.Unlock()
-				clusterWatcher.UpdateDaemonsets(common.DeletAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.RuntimeStorage, deletedNode.BTF)
+				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.RuntimeStorage, deletedNode.BTF)
 			}
 		},
 	})
@@ -196,7 +197,7 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		if err != nil {
 			newDaemonSet = true
 		}
-	} else if action == common.DeletAction {
+	} else if action == common.DeleteAction {
 		if val, ok := clusterWatcher.Daemonsets[daemonsetName]; ok {
 			if val < 2 {
 				clusterWatcher.Daemonsets[daemonsetName] = 0
@@ -251,7 +252,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					// if there's any crd with Running status
 					// mark it as current operating config crd
 					if cfg.Status.Phase == common.RUNNING {
-						common.OperatigConfigCrd = &cfg
+						common.OperatorConfigCrd = &cfg
 						if firstRun {
 							go clusterWatcher.WatchRequiredResources()
 							firstRun = false
@@ -261,8 +262,8 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 				}
 				if cfg, ok := obj.(*opv1.KubeArmorConfig); ok {
 					// if there's no operating crd exist
-					if common.OperatigConfigCrd == nil {
-						common.OperatigConfigCrd = cfg
+					if common.OperatorConfigCrd == nil {
+						common.OperatorConfigCrd = cfg
 						UpdateConfigMapData(&cfg.Spec)
 						UpdateImages(&cfg.Spec)
 						// update status to (Installation) Created
@@ -272,7 +273,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					}
 					// if it's not the operating crd
 					// update this crd status as Error and return
-					if cfg.Name != common.OperatigConfigCrd.Name {
+					if cfg.Name != common.OperatorConfigCrd.Name {
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.ERROR, common.MULTIPLE_CRD_ERR_MSG)
 						return
 					}
@@ -282,7 +283,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				if cfg, ok := newObj.(*opv1.KubeArmorConfig); ok {
 					// update configmap only if it's operating crd
-					if common.OperatigConfigCrd != nil && cfg.Name == common.OperatigConfigCrd.Name {
+					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
 						// return if only status has been updated
@@ -302,8 +303,8 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 			},
 			DeleteFunc: func(obj interface{}) {
 				if cfg, ok := obj.(*opv1.KubeArmorConfig); ok {
-					if common.OperatigConfigCrd != nil && cfg.Name == common.OperatigConfigCrd.Name {
-						common.OperatigConfigCrd = nil
+					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
+						common.OperatorConfigCrd = nil
 					}
 				}
 			},
@@ -330,9 +331,9 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				res = err
 			} else {
 				for _, ds := range dsList.Items {
-					ds.Spec.Template.Spec.Containers[0].Image = common.KubeArmorImage
+					ds.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
-					ds.Spec.Template.Spec.InitContainers[0].Image = common.KubeArmorInitImage
+					ds.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 					ds.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 					_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
 					if err != nil {
@@ -349,7 +350,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
 				res = err
 			} else {
-				relay.Spec.Template.Spec.Containers[0].Image = common.KubeArmorRelayImage
+				relay.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 				relay.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
 				if err != nil {
@@ -369,10 +370,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				containers := &controller.Spec.Template.Spec.Containers
 				for i, container := range *containers {
 					if container.Name == "manager" {
-						(*containers)[i].Image = common.KubeArmorControllerImage
+						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 					} else {
-						(*containers)[i].Image = common.KubeRbacProxyImage
+						(*containers)[i].Image = common.GetApplicationImage(common.KubeRbacProxyName)
 					}
 				}
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})

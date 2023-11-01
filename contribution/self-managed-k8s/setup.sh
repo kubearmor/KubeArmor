@@ -120,3 +120,20 @@ sudo mv kustomize /usr/local/bin
 # remove downloaded files
 cd
 sudo rm -rf /tmp/build
+
+# install bpftool from sources
+
+cd $HOME
+export arch=$(uname -m)
+export bpftool_version=v7.2.0
+if [[ "$arch" == "aarch64" ]]; then
+  arch=arm64;
+elif [[ "$arch" == "x86_64" ]]; then
+  arch=amd64;
+fi
+curl -LO https://github.com/libbpf/bpftool/releases/download/$bpftool_version/bpftool-$bpftool_version-$arch.tar.gz && \
+    sudo tar -xzf bpftool-$bpftool_version-$arch.tar.gz -C /usr/local/bin && \
+    sudo chmod +x /usr/local/bin/bpftool
+
+
+

@@ -41,6 +41,24 @@ const (
 	TCPAccept    = 401
 	TCPConnectv6 = 402
 	TCPAcceptv6  = 403
+
+	FileOpen       = 450
+	FilePermission = 451
+	FileMknod      = 452
+	FileUnlink     = 453
+	FileMkdir      = 454
+
+	FileRmdir   = 455
+	FileSymlink = 456
+
+	FileLink     = 457
+	FileRename   = 458
+	FileChmod    = 459
+	FileTruncate = 460
+
+	SocketCreate  = 461
+	SocketConnect = 462
+	SocketAccept  = 463
 )
 
 var syscalls = map[int32]string{
@@ -380,4 +398,18 @@ var syscalls = map[int32]string{
 
 	351: "DO_EXIT",
 	352: "SECURITY_BPRM_CHECK",
+	450: "FILE_OPEN",
+	451: "FILE_PERMISSION",
+	452: "FILE_MKNOD",
+	453: "FILE_UNLINK",
+	454: "FILE_MKDIR",
+	455: "FILE_RMDIR",
+	456: "FILE_SYMLINK",
+	457: "FILE_LINK",
+	458: "FILE_RENAME",
+	459: "FILE_CHMOD",
+	460: "FILE_TRUNCATE",
+	461: "SOCKET_CREATE",
+	462: "SOCKET_CONNECT",
+	463: "SOCKET_ACCEPT",
 }

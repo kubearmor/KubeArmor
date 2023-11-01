@@ -35,6 +35,7 @@ import (
 // Running flag
 var Running bool
 
+// QueueSize
 const QueueSize = 1000
 
 func init() {
@@ -571,7 +572,19 @@ func (fd *Feeder) PushMessage(level, message string) {
 
 // PushLog Function
 func (fd *Feeder) PushLog(log tp.Log) {
-	log = fd.UpdateMatchedPolicy(log)
+
+	if cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer != "BPFLSM" {
+		log = fd.UpdateMatchedPolicy(log)
+		if (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") && !strings.Contains(log.Action, "Audit") {
+			if log.Type == "MatchedPolicy" {
+				log.Type = "ContainerLog"
+			} else if log.Type == "MatchedHostPolicy" {
+				log.Type = "HostLog"
+			}
+		}
+	} else {
+		log = fd.UpdateMatchedPolicy(log)
+	}
 
 	if log.Source == "" {
 		return
@@ -666,6 +679,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Source = log.Source
 		pbAlert.Operation = log.Operation
 		pbAlert.Resource = strings.ToValidUTF8(log.Resource, "")
+		pbAlert.Cwd = log.Cwd
 
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
@@ -739,6 +753,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.Source = log.Source
 		pbLog.Operation = log.Operation
 		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
+		pbLog.Cwd = log.Cwd
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data

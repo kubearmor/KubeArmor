@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-20.04
     permissions:
       id-token: write 
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v3
         with:
@@ -79,15 +79,15 @@ jobs:
           --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
           --set kubearmor.image.tag=${{ steps.vars.outputs.tag }} \
           --set kubearmorInit.image.tag=${{ steps.vars.outputs.tag }} \
-          -n kube-system;
+          -n kubearmor --create-namespace;
 
-          kubectl wait --for=condition=ready --timeout=5m -n kube-system pod -l kubearmor-app
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          make -C tests/
+          make -C tests/k8s_env/
         timeout-minutes: 30
 
       - name: Login to Docker Hub
