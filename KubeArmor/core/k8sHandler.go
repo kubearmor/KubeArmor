@@ -23,7 +23,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
-	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	kspclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 )
@@ -84,13 +83,13 @@ func NewK8sHandler() *K8sHandler {
 	}
 	config, err := ctrl.GetConfig()
 	if err != nil {
-		log.Warnf("Error creating kubernetes config, %s", err)
+		kg.Warnf("Error creating kubernetes config, %s", err)
 		return kh
 	}
 
 	kh.KSPClient, err = kspclient.NewForConfig(config)
 	if err != nil {
-		log.Warnf("Error creating ksp clientset, %s", err)
+		kg.Warnf("Error creating ksp clientset, %s", err)
 		return kh
 	}
 
