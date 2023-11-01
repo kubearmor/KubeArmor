@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -60,9 +59,6 @@ type ContainerdHandler struct {
 	containerd context.Context
 	docker     context.Context
 
-	// storage path
-	StoragePath string
-
 	// active containers
 	containers map[string]context.Context
 }
@@ -70,14 +66,6 @@ type ContainerdHandler struct {
 // NewContainerdHandler Function
 func NewContainerdHandler() *ContainerdHandler {
 	ch := &ContainerdHandler{}
-
-	if strings.Contains(cfg.GlobalCfg.CRISocket, "microk8s") { // microk8s
-		ch.StoragePath = "/var/snap/microk8s/common/run/containerd"
-	} else if strings.Contains(cfg.GlobalCfg.CRISocket, "k3s") { // k3s
-		ch.StoragePath = "/run/k3s/containerd"
-	} else { // vanilla containerd
-		ch.StoragePath = "/run/containerd"
-	}
 
 	conn, err := grpc.Dial(cfg.GlobalCfg.CRISocket, grpc.WithInsecure())
 	if err != nil {
@@ -153,14 +141,6 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 	spec := iface.(*specs.Spec)
 	container.AppArmorProfile = spec.Process.ApparmorProfile
-
-	if spec.Root.Path == "rootfs" { // containerd
-		preMergedDir := ch.StoragePath + "/io.containerd.runtime.v2.task/k8s.io/"
-		postMergedDir := "/rootfs"
-		container.MergedDir = preMergedDir + container.ContainerID + postMergedDir
-	} else { // docker
-		container.MergedDir = spec.Root.Path
-	}
 
 	// == //
 

@@ -35,8 +35,6 @@ type Container struct {
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
 
-	MergedDir string `json:"mergedDir"`
-
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled"`
@@ -202,9 +200,6 @@ type Log struct {
 	ContainerName  string `json:"containerName,omitempty"`
 	ContainerImage string `json:"containerImage,omitempty"`
 
-	// container merged directory
-	MergedDir string `json:"mergedDir,omitempty"`
-
 	// common
 	HostPPID int32 `json:"hostPPid"`
 	HostPID  int32 `json:"hostPid"`
@@ -234,6 +229,7 @@ type Log struct {
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
 	Cwd       string `json:"cwd"`
+	OID       int32  `json:"oid"`
 	Data      string `json:"data,omitempty"`
 	Action    string `json:"action,omitempty"`
 	Result    string `json:"result"`
