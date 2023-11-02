@@ -605,12 +605,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 		case dataRaw, valid := <-mon.SyscallChannel:
 			if !valid {
+				mon.Logger.Debug("Invalid telemtry")
+
 				continue
 			}
 
 			dataBuff := bytes.NewBuffer(dataRaw)
 			ctx, err := readContextFromBuff(dataBuff)
 			if err != nil {
+				mon.Logger.Debugf("Error while reading context in telemtry %s", err.Error())
+
 				continue
 			}
 			if ctx.PPID == ctx.HostPPID {
@@ -618,6 +622,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 			args, err := GetArgs(dataBuff, ctx.Argnum)
 			if err != nil {
+				if ctx.Retval < 0 {
+					mon.Logger.Debugf("Received an alert, but could not fetch args so dropping %s", err.Error())
+				}
 				continue
 			}
 			containerID := ""
@@ -641,14 +648,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			}
 
-			// if Policy is not set
-			if !cfg.GlobalCfg.Policy && containerID != "" {
-				continue
-			}
-
-			// if HostPolicy is not set
-			if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-				continue
+			if ctx.Retval < 0 {
+				mon.Logger.Debugf("Received alert for container id %s", containerID)
 			}
 
 			if ctx.EventID == SysOpen {
@@ -716,16 +717,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs)
 					mon.AddActivePid(containerID, pidNode)
 
-					// if Policy is not set
-					if !cfg.GlobalCfg.Policy && containerID != "" {
-						continue
-					}
-
-					// if HostPolicy is not set
-					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-						continue
-					}
-
 					// generate a log with the base information
 					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
@@ -744,15 +735,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.execLogMapLock.Unlock()
 
 				} else if len(args) == 0 { // return
-					// if Policy is not set
-					if !cfg.GlobalCfg.Policy && containerID != "" {
-						continue
-					}
-
-					// if HostPolicy is not set
-					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-						continue
-					}
 
 					// get the stored log
 					mon.execLogMapLock.Lock()
@@ -790,16 +772,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					pidNode := mon.BuildPidNode(containerID, ctx, args[1].(string), args[2].([]string))
 					mon.AddActivePid(containerID, pidNode)
 
-					// if Policy is not set
-					if !cfg.GlobalCfg.Policy && containerID != "" {
-						continue
-					}
-
-					// if HostPolicy is not set
-					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-						continue
-					}
-
 					// generate a log with the base information
 					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
@@ -835,15 +807,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.execLogMapLock.Unlock()
 
 				} else if len(args) == 0 { // return
-					// if Policy is not set
-					if !cfg.GlobalCfg.Policy && containerID != "" {
-						continue
-					}
-
-					// if HostPolicy is not set
-					if !cfg.GlobalCfg.HostPolicy && containerID == "" {
-						continue
-					}
 
 					// get the stored log
 					mon.execLogMapLock.Lock()
