@@ -128,7 +128,7 @@ func (mon *SystemMonitor) BuildPidNode(containerID string, ctx SyscallContext, e
 	node.PID = ctx.PID
 	node.UID = ctx.UID
 
-	node.ParentExecPath = mon.GetExecPath(containerID, ctx.HostPPID)
+	node.ParentExecPath = mon.GetExecPath(containerID, ctx.HostPPID, false)
 	node.ExecPath = execPath
 
 	node.Source = execPath
@@ -196,59 +196,71 @@ func (mon *SystemMonitor) UpdateExecPath(containerID string, hostPid uint32, exe
 }
 
 // GetParentExecPath Function
-func (mon *SystemMonitor) GetParentExecPath(containerID string, hostPid uint32) string {
+func (mon *SystemMonitor) GetParentExecPath(containerID string, hostPid uint32, readlink bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
 	ActivePidMapLock.Lock()
 	defer ActivePidMapLock.Unlock()
 
-	ppid := uint32(0)
+	path := ""
 
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[hostPid]; ok {
-			if node.ParentExecPath != "/" && strings.HasPrefix(node.ParentExecPath, "/") {
-				return node.ParentExecPath
+			path = node.ParentExecPath
+			if path != "/" && strings.HasPrefix(path, "/") {
+				return path
 			}
 		}
 	}
 
-	if ppid > 0 {
+	if readlink {
 		// just in case that it couldn't still get the full path
-		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(ppid), 10) + "/exe"); err == nil && data != "" && data != "/" {
+		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
 			return data
+		} else {
+			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
 		}
 	}
 
-	return ""
+	// return non full path
+	return path
 }
 
 // GetExecPath Function
-func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32) string {
+func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32, readlink bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
 	ActivePidMapLock.Lock()
 	defer ActivePidMapLock.Unlock()
 
+	path := ""
+
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[hostPid]; ok {
-			if node.ExecPath != "/" && strings.HasPrefix(node.ExecPath, "/") {
-				return node.ExecPath
+			path = node.ExecPath
+			if path != "/" && strings.HasPrefix(path, "/") {
+				return path
 			}
 		}
 	}
 
-	// just in case that it couldn't still get the full path
-	if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
-		return data
+	if readlink {
+		// just in case that it couldn't still get the full path
+		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
+			return data
+		} else {
+			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
+		}
 	}
 
-	return ""
+	// return non full path
+	return path
 }
 
 // GetCommand Function
-func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32) string {
+func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32, readlink bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
@@ -264,9 +276,13 @@ func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32) string 
 		}
 	}
 
-	// just in case that it couldn't still get the full path
-	if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
-		return data
+	if readlink {
+		// just in case that it couldn't still get the full path
+		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
+			return data
+		} else {
+			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
+		}
 	}
 
 	return ""

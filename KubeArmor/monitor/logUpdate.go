@@ -79,16 +79,16 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 	log.UID = int32(msg.ContextSys.UID)
 
 	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys.HostPID)
+		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys.HostPID, false)
 	} else {
-		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
+		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID, false)
 	}
 
 	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
 	log.OID = int32(msg.ContextSys.OID)
 
-	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
-	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)
+	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID, false)
+	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID, false)
 
 	return log
 }
@@ -97,18 +97,20 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
 
 	// update the process paths, since we would have received actual exec paths from bprm hook
+	// in case bprm hook has not populated the map with full path, we will fallback to reading from procfs
+	// else we will send out relative path
 
-	parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID))
+	parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID), true)
 	if parentProcessName != "" {
 		log.ParentProcessName = parentProcessName
 	}
 
-	processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+	processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID), true)
 	if processName != "" {
 		log.ProcessName = processName
 	}
 
-	source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
+	source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID), true)
 	if source != "" {
 		log.Source = source
 	}
