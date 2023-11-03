@@ -249,7 +249,8 @@ type eventBPF struct {
 	UID  uint32
 
 	EventID int32
-	Retval  int64
+
+	Retval int64
 
 	Comm [80]byte
 
@@ -317,16 +318,12 @@ func (be *BPFEnforcer) TraceEvents() {
 		case mon.FileOpen, mon.FilePermission, mon.FileMknod, mon.FileMkdir, mon.FileRmdir, mon.FileUnlink, mon.FileSymlink, mon.FileLink, mon.FileRename, mon.FileChmod, mon.FileTruncate:
 			log.Operation = "File"
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
-			log.Enforcer = "BPFLSM"
-			log.Result = "Permission denied"
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
 		case mon.SocketCreate, mon.SocketConnect, mon.SocketAccept:
 			var sockProtocol int32
 			sockProtocol = int32(event.Data.Path[1])
 			log.Operation = "Network"
-			log.Enforcer = "BPFLSM"
-			log.Result = "Permission denied"
 			if event.Data.Path[0] == 2 {
 				if event.Data.Path[1] == 3 {
 					log.Resource = fd.GetProtocolFromName("raw")
@@ -340,11 +337,14 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Operation = "Process"
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
-			log.Enforcer = "BPFLSM"
-			log.Result = "Permission denied"
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 		}
-
+		if event.Retval >= 0 {
+			log.Result = "Passed"
+		} else {
+			log.Result = "Permission denied"
+		}
+		log.Enforcer = "BPFLSM"
 		be.Logger.PushLog(log)
 
 	}

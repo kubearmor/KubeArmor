@@ -239,10 +239,15 @@ decision:
   struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
   if (allow) {
-
     if (!match) {
-      bpf_ringbuf_submit(task_info, 0);
-      return -EPERM;
+       if(allow->processmask == BLOCK_POSTURE) {
+        bpf_ringbuf_submit(task_info, 0);
+        return -EPERM;
+      } else {
+          task_info->retval = ret;
+          bpf_ringbuf_submit(task_info, 0);
+          return ret;
+        }
     }
     // Do not remove this else block
     else {
@@ -377,18 +382,23 @@ decision:
 
   if (allow) {
     if (!match) {
-      bpf_ringbuf_submit(task_info, 0);
-      return -EPERM;
-    }
-  } else {
-    if (match) {
-      if (val && (val->processmask & RULE_DENY)) {
+      if(allow->processmask == BLOCK_POSTURE) {
         bpf_ringbuf_submit(task_info, 0);
         return -EPERM;
+      } else {
+          task_info->retval = 0;
+          bpf_ringbuf_submit(task_info, 0);
+          return 0;
+        }
+    }  
+  } else {
+        if (match) {
+          if (val && (val->processmask & RULE_DENY)) {
+              bpf_ringbuf_submit(task_info, 0);
+              return -EPERM;
+          }
+        }
       }
-    }
-  }
-
   bpf_ringbuf_discard(task_info, 0);
   return 0;
 }

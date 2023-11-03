@@ -575,7 +575,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	if cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer != "BPFLSM" {
 		log = fd.UpdateMatchedPolicy(log)
-		if (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") && !strings.Contains(log.Action, "Audit") {
+		if (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") && (strings.Contains(log.PolicyName, "DefaultPosture") || !strings.Contains(log.Action, "Audit")) {
 			if log.Type == "MatchedPolicy" {
 				log.Type = "ContainerLog"
 			} else if log.Type == "MatchedHostPolicy" {
@@ -584,6 +584,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 	} else {
 		log = fd.UpdateMatchedPolicy(log)
+		if fd.Enforcer == "BPFLSM" {
+			log.Enforcer = "BPFLSM"
+		}
 	}
 
 	if log.Source == "" {
