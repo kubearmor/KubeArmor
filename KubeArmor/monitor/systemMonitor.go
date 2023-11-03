@@ -571,14 +571,38 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			// Best effort replay
 			go func() {
-				time.Sleep(1 * time.Second)
-				select {
-				case mon.SyscallChannel <- dataRaw:
-				default:
-					// channel is full, wait for a short time before retrying
-					time.Sleep(1 * time.Second)
-					mon.Logger.Warn("Event droped due to busy event channel")
+				for i := 0; i < 5; i++ {
+					containerID := ""
+
+					if ctx.PidID != 0 && ctx.MntID != 0 {
+						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
+
+						if containerID != "" {
+							ContainersLock.RLock()
+							namespace := Containers[containerID].NamespaceName
+							if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+								ContainersLock.RUnlock()
+								continue
+							}
+							ContainersLock.RUnlock()
+						}
+					}
+
+					if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+						time.Sleep(1 * time.Second)
+						continue
+					}
+
+					select {
+					case mon.SyscallChannel <- dataRaw:
+					default:
+						// channel is full, wait for a short time before retrying
+						time.Sleep(1 * time.Second)
+						mon.Logger.Warn("Event droped due to busy event channel")
+					}
+
 				}
+				mon.Logger.Warn("Event dropped due to replay timeout")
 			}()
 		}
 	}()
