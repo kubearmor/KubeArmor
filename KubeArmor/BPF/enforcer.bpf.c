@@ -53,89 +53,94 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   void *path_ptr = &path_buf->buf[*path_offset];
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
+  struct data_t *val = bpf_map_lookup_elem(inner, store);
+  struct data_t *dirval;
+  bool recursivebuthint = false;
+  bool fromSourceCheck = true;
+
   // Extract full path of the source binary from the parent task structure
   struct task_struct *parent_task = BPF_CORE_READ(t, parent);
   struct file *file_p = get_task_file(parent_task);
   if (file_p == NULL)
-    return 0;
+    fromSourceCheck = false;
   bufs_t *src_buf = get_buf(PATH_BUFFER);
   if (src_buf == NULL)
-    return 0;
+    fromSourceCheck = false;
   struct path f_src = BPF_CORE_READ(file_p, f_path);
   if (!prepend_path(&f_src, src_buf))
-    return 0;
+    fromSourceCheck = false;
 
   u32 *src_offset = get_buf_off(PATH_BUFFER);
   if (src_offset == NULL)
-    return 0;
+    fromSourceCheck = false;
 
   void *src_ptr = &src_buf->buf[*src_offset];
-  bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
+  if (src_ptr == NULL)
+    fromSourceCheck = false;
 
-  struct data_t *val = bpf_map_lookup_elem(inner, store);
+  if (fromSourceCheck) {
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
-  if (val && (val->processmask & RULE_EXEC)) {
-    match = true;
-    goto decision;
-  }
-
-  struct data_t *dirval;
-  bool recursivebuthint = false;
+    val = bpf_map_lookup_elem(inner, store);
+    if (val && (val->processmask & RULE_EXEC)) {
+      match = true;
+      goto decision;
+    }
 
 #pragma unroll
-  for (int i = 0; i < 64; i++) {
-    if (store->path[i] == '\0')
-      break;
+    for (int i = 0; i < 64; i++) {
+      if (store->path[i] == '\0')
+        break;
 
-    if (store->path[i] == '/') {
-      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+      if (store->path[i] == '/') {
+        bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
-      match = false;
+        match = false;
 
-      bpf_probe_read_str(pk->path, i + 2, store->path);
-      // Check Subdir with From Source
-      bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
-      dirval = bpf_map_lookup_elem(inner, pk);
-      if (dirval) {
-        if ((dirval->processmask & RULE_DIR) &&
-            (dirval->processmask & RULE_EXEC)) {
-          match = true;
-          if ((dirval->processmask & RULE_RECURSIVE) &&
-              (~dirval->processmask &
-               RULE_HINT)) { // true directory match and not a hint suggests
-                             // there are no possibility of child dir
-            val = dirval;
-            goto decision;
-          } else if (dirval->processmask &
-                     RULE_RECURSIVE) { // It's a directory match but also a
+        bpf_probe_read_str(pk->path, i + 2, store->path);
+        // Check Subdir with From Source
+        bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
+        dirval = bpf_map_lookup_elem(inner, pk);
+        if (dirval) {
+          if ((dirval->processmask & RULE_DIR) &&
+              (dirval->processmask & RULE_EXEC)) {
+            match = true;
+            if ((dirval->processmask & RULE_RECURSIVE) &&
+                (~dirval->processmask &
+                 RULE_HINT)) { // true directory match and not a hint suggests
+                                // there are no possibility of child dir
+              val = dirval;
+              goto decision;
+            } else if (dirval->processmask &
+                       RULE_RECURSIVE) { // It's a directory match but also a
                                        // hint, it's possible that a
                                        // subdirectory exists that can also
                                        // match so we continue the loop to look
                                        // for a true match in subdirectories
-            recursivebuthint = true;
-            val = dirval;
-          } else {
-            continue; // We continue the loop to see if we have more nested
-                      // directories and set match to false
+              recursivebuthint = true;
+              val = dirval;
+            } else {
+              continue; // We continue the loop to see if we have more nested
+                         // directories and set match to false
+            }
           }
+        } else {
+          break;
         }
-      } else {
-        break;
+      }
+    }
+
+    if (recursivebuthint) {
+      match = true;
+      goto decision;
+    }
+    if (match) {
+      if (dirval) { // to please the holy verifier
+        val = dirval;
+        goto decision;
       }
     }
   }
-
-  if (recursivebuthint) {
-    match = true;
-    goto decision;
-  }
-  if (match) {
-    if (dirval) { // to please the holy verifier
-      val = dirval;
-      goto decision;
-    }
-  }
-
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
 
@@ -203,7 +208,7 @@ decision:
     return 0;
   }
 
-// Clearing arrays to avoid garbage values 
+  // Clearing arrays to avoid garbage values
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
 
@@ -224,10 +229,10 @@ decision:
       }
     }
     if (val && (val->processmask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, 0);
+      bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
     }
-  } 
+  }
 
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   pk->path[0] = dproc;
@@ -239,10 +244,10 @@ decision:
       bpf_ringbuf_submit(task_info, 0);
       return -EPERM;
     }
-    // Do not remove this else block 
+    // Do not remove this else block
     else {
-       bpf_ringbuf_discard(task_info, 0);
-       return ret;
+      bpf_ringbuf_discard(task_info, 0);
+      return ret;
     }
   }
 
@@ -282,57 +287,60 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
     return 0;
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  int p0;
+  int p1;
+  struct data_t *val = bpf_map_lookup_elem(inner, p);
+  bool fromSourceCheck = true;
 
   struct file *file_p = get_task_file(t);
   if (file_p == NULL)
-    return 0;
+    fromSourceCheck = false;
   bufs_t *src_buf = get_buf(PATH_BUFFER);
   if (src_buf == NULL)
-    return 0;
+    fromSourceCheck = false;
   struct path f_src = BPF_CORE_READ(file_p, f_path);
   if (!prepend_path(&f_src, src_buf))
-    return 0;
+    fromSourceCheck = false;
 
   u32 *src_offset = get_buf_off(PATH_BUFFER);
   if (src_offset == NULL)
-    return 0;
+    fromSourceCheck = false;
 
   void *ptr = &src_buf->buf[*src_offset];
-  bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
 
-  int p0;
-  int p1;
+  if (fromSourceCheck) {
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
 
-  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
-    p0 = sock_proto;
-    p1 = IPPROTO_TCP;
-  } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
-    p0 = sock_proto;
-    p1 = IPPROTO_UDP;
-  } else if (protocol == IPPROTO_ICMP &&
-             (type == SOCK_DGRAM || type == SOCK_RAW)) {
-    p0 = sock_proto;
-    p1 = IPPROTO_ICMP;
-  } else if (type == SOCK_RAW && protocol == 0) {
-    p0 = sock_type;
-    p1 = SOCK_RAW;
-  } else {
-    p0 = sock_proto;
-    p1 = protocol;
-  }
+    if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
+      p0 = sock_proto;
+      p1 = IPPROTO_TCP;
+    } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
+      p0 = sock_proto;
+      p1 = IPPROTO_UDP;
+    } else if (protocol == IPPROTO_ICMP &&
+               (type == SOCK_DGRAM || type == SOCK_RAW)) {
+      p0 = sock_proto;
+      p1 = IPPROTO_ICMP;
+    } else if (type == SOCK_RAW && protocol == 0) {
+      p0 = sock_type;
+      p1 = SOCK_RAW;
+    } else {
+      p0 = sock_proto;
+      p1 = protocol;
+    }
 
-  p->path[0] = p0;
-  p->path[1] = p1;
+    p->path[0] = p0;
+    p->path[1] = p1;
 
-  struct data_t *val = bpf_map_lookup_elem(inner, p);
+    val = bpf_map_lookup_elem(inner, p);
 
-  if (val) {
-    match = true;
-    goto decision;
-  }
-
+    if (val) {
+      match = true;
+      goto decision;
+    }
+  
   val = bpf_map_lookup_elem(inner, p);
-
+  }
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
 
   p->path[0] = p0;
@@ -351,13 +359,13 @@ decision:
   if (!task_info) {
     return 0;
   }
- // Clearing arrays to avoid garbage values to be parsed
+  // Clearing arrays to avoid garbage values to be parsed
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
 
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, p->path);
-  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, ptr);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, p->source);
 
   task_info->event_id = eventID;
 
