@@ -48,9 +48,10 @@ else
     echo "export KUBECONFIG=$KUBECONFIG" | tee -a ~/.bashrc
 fi
 
-sleep 30
 echo "Waiting for all pods in kube-system to be in the 'Running' state"
-kubectl wait --for=condition=Ready pod --all --namespace=kube-system --timeout=300s
+
+kubectl wait --for=condition=Ready pod --all --namespace=kube-system --timeout=120s
+
 kubectl get pods -A
 
 echo "All pods in kube-system are now in the 'Running' state"
