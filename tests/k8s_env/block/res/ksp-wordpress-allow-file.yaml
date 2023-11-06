@@ -13,6 +13,8 @@ spec:
     matchDirectories:
     - dir: /etc/
       recursive: true
+    - dir: /proc/
+      recursive: true
     - dir: /lib/x86_64-linux-gnu/
     - dir: /bin/
     - dir: /pts/

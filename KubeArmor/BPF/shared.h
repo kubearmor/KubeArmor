@@ -364,85 +364,89 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
   void *path_ptr = &path_buf->buf[*path_offset];
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
 
+  struct data_t *val = bpf_map_lookup_elem(inner, store);
+  struct data_t *dirval;
+  bool recursivebuthint = false;
+  bool fromSourceCheck = true;
+
   /* Extract full path of the source binary from the task structure */
   struct file *file_p = get_task_file(t);
   if (file_p == NULL)
-    return 0;
+    fromSourceCheck = false;
   bufs_t *src_buf = get_buf(PATH_BUFFER);
   if (src_buf == NULL)
-    return 0;
+    fromSourceCheck = false;
   struct path f_src = BPF_CORE_READ(file_p, f_path);
   if (!prepend_path(&f_src, src_buf))
-    return 0;
+    fromSourceCheck = false;
 
   u32 *src_offset = get_buf_off(PATH_BUFFER);
   if (src_offset == NULL)
-    return 0;
+    fromSourceCheck = false;
 
   void *ptr = &src_buf->buf[*src_offset];
-  bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);
 
-  struct data_t *val = bpf_map_lookup_elem(inner, store);
+  if (fromSourceCheck) {
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);
 
-  if (val && (val->filemask & RULE_READ)) {
-    match = true;
-    goto decision;
-  }
+    val = bpf_map_lookup_elem(inner, store);
 
-  struct data_t *dirval;
-  bool recursivebuthint = false;
+    if (val && (val->filemask & RULE_READ)) {
+      match = true;
+      goto decision;
+    }
 
 #pragma unroll
-  for (int i = 0; i < MAX_STRING_SIZE; i++) {
-    if (store->path[i] == '\0')
-      break;
-
-    if (store->path[i] == '/') {
-      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-
-      match = false;
-
-      bpf_probe_read_str(pk->path, i + 2, store->path);
-      /* Check Subdir with From Source */
-      bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
-      dirval = bpf_map_lookup_elem(inner, pk);
-      if (dirval) {
-        if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
-          match = true;
-          if ((dirval->filemask &
-               RULE_RECURSIVE)) { /* true directory match and */
-                                  /* not a hint suggests */
-            /* there are no possibility of child dir */
-            val = dirval;
-            if (dirval->filemask & RULE_HINT) {
-              recursivebuthint = true;
-              continue;
-            } else {
-              goto decision;
-            }
-          } else {
-            continue; /* We continue the loop to see if we have more nested
-                       */
-                      /* directories and set match to false */
-          }
-        }
-      } else {
+    for (int i = 0; i < MAX_STRING_SIZE; i++) {
+      if (store->path[i] == '\0')
         break;
+
+      if (store->path[i] == '/') {
+        bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+
+        match = false;
+
+        bpf_probe_read_str(pk->path, i + 2, store->path);
+        /* Check Subdir with From Source */
+        bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
+        dirval = bpf_map_lookup_elem(inner, pk);
+        if (dirval) {
+          if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ)) {
+            match = true;
+            if ((dirval->filemask &
+                 RULE_RECURSIVE)) { /* true directory match and */
+                                    /* not a hint suggests */
+              /* there are no possibility of child dir */
+              val = dirval;
+              if (dirval->filemask & RULE_HINT) {
+                recursivebuthint = true;
+                continue;
+              } else {
+                goto decision;
+              }
+            } else {
+              continue; /* We continue the loop to see if we have more nested
+                         */
+                        /* directories and set match to false */
+            }
+          }
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (recursivebuthint) {
+      match = true;
+      goto decision;
+    }
+    if (match) {
+      if (dirval) { /* to please the holy verifier */
+        val = dirval;
+        goto decision;
       }
     }
   }
-
-  if (recursivebuthint) {
-    match = true;
-    goto decision;
-  }
-  if (match) {
-    if (dirval) { /* to please the holy verifier */
-      val = dirval;
-      goto decision;
-    }
-  }
-
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
 
