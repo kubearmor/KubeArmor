@@ -4,14 +4,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
-	"path/filepath"
 	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 
+	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,6 +27,9 @@ import (
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -139,29 +143,29 @@ func main() {
 }
 
 // detect the enforcer on the node
-func detectEnforcer(logger logr.Logger) string {
+func detectEnforcer(logger logr.Logger, client client.Client, nodeName string) string {
 	// assumption: all nodes have the same OSes
 
-	lsm := []byte{}
-	lsmPath := "/sys/kernel/security/lsm"
-
-	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-		lsm, err = os.ReadFile(lsmPath)
-		if err != nil {
-			logger.Info("Failed to read /sys/kernel/security/lsm " + err.Error())
-			return ""
-		}
+	node := &v1.Node{}
+	err := client.Get(context.TODO(), types.NamespacedName{Name: nodeName}, node)
+	if err != nil {
+		logger.Error(err, "Failed to get node information")
+		return ""
 	}
 
-	enforcer := string(lsm)
+	enforcerLabel, exists := node.metadata.Labels[common.EnforcerLabel]
+	if !exists {
+		logger.Info("No enforcer label found on the node")
+		return ""
+	}
 
-	if strings.Contains(enforcer, "bpf") {
+	if strings.Contains(enforcerLabel, "bpf") {
 		logger.Info("Detected BPFLSM as the cluster Enforcer")
 		return "BPFLSM"
-	} else if strings.Contains(enforcer, "apparmor") {
+	} else if strings.Contains(enforcerLabel, "apparmor") {
 		logger.Info("Detected AppArmor as the cluster Enforcer")
 		return "AppArmor"
-	} else if strings.Contains(enforcer, "selinux") {
+	} else if strings.Contains(enforcerLabel, "selinux") {
 		logger.Info("Detected SELinux as the cluster Enforcer")
 		return "SELinux"
 	}

@@ -35,7 +35,7 @@ jobs:
             - "KubeArmor/**"
             - "protobuf/**"
           controller:
-            - 'pkg/KubeArmorController/**'
+            - 'pkg//**'
 
   build:
     name: Create KubeArmor latest release
