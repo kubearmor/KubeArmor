@@ -687,8 +687,18 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			} else if ctx.EventID == SysExecve {
 				if len(args) == 2 { // enter
+					var execPath string
+					var nodeArgs []string
+
+					if val, ok := args[0].(string); ok {
+						execPath = val
+					}
+					if val, ok := args[1].([]string); ok {
+						nodeArgs = val
+					}
+
 					// build a pid node
-					pidNode := mon.BuildPidNode(containerID, ctx, args[0].(string), args[1].([]string))
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs)
 					mon.AddActivePid(containerID, pidNode)
 
 					// if Policy is not set
@@ -705,17 +715,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
 
 					// add arguments
-					if val, ok := args[0].(string); ok {
-						log.Resource = val // procExecPath
-					}
-					if val, ok := args[1].([]string); ok {
-						for idx, arg := range val { // procArgs
-							if idx == 0 {
-								continue
-							} else {
-								log.Resource = log.Resource + " " + arg
-							}
-						}
+					log.Resource = execPath
+					if pidNode.Args != "" {
+						log.Resource = log.Resource + " " + pidNode.Args
 					}
 
 					log.Operation = "Process"
