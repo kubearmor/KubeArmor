@@ -564,33 +564,23 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 
 			now := time.Now()
-			if now.After(time.Unix(int64(ctx.Ts), 0).Add(5 * time.Second)) {
+			if now.After(time.Unix(int64(ctx.Ts), 0).Add(10 * time.Second)) {
 				mon.Logger.Warn("Event dropped due to replay timeout")
 				continue
 			}
 
 			// Best effort replay
 			go func() {
-				for i := 0; i < 5; i++ {
+				for i := 0; i < 10; i++ {
 					containerID := ""
 
 					if ctx.PidID != 0 && ctx.MntID != 0 {
 						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
 
-						if containerID != "" {
-							ContainersLock.RLock()
-							namespace := Containers[containerID].NamespaceName
-							if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-								ContainersLock.RUnlock()
-								continue
-							}
-							ContainersLock.RUnlock()
+						if containerID == "" {
+							time.Sleep(1 * time.Second)
+							continue
 						}
-					}
-
-					if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
-						time.Sleep(1 * time.Second)
-						continue
 					}
 
 					select {

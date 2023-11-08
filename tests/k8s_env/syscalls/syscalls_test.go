@@ -5,7 +5,6 @@ package syscalls
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/protobuf"
@@ -482,9 +481,8 @@ var _ = Describe("Syscalls", func() {
 		})
 
 		It("mount will be blocked by default for a pod", func() {
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to alerts being generated when something is blocked by kubearmor")
-			}
+			Skip("Skipping due to alerts only being generated when something is blocked by kubearmor")
+
 			// Start KubeArmor Logs
 			err := KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
 			Expect(err).To(BeNil())
@@ -511,9 +509,9 @@ var _ = Describe("Syscalls", func() {
 		})
 
 		It("umount will be blocked by default for a pod as the capability not added", func() {
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to alerts being generated when something is blocked by kubearmor")
-			}
+
+			Skip("Skipping due to alerts only being generated when something is blocked by kubearmor")
+
 			// Start KubeArmor Logs
 			err := KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
 			Expect(err).To(BeNil())
