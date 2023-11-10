@@ -14,6 +14,45 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/pkg/
 
 You can find more details about helm related values and configurations [here](https://github.com/kubearmor/KubeArmor/tree/main/deployments/helm/KubeArmorOperator).
 
+<details>
+  <summary><h4>EKS-Plugin installation</h4></summary>
+
+If you are using Amazon EKS, then you can install Kubearmor using [Amazon EKS add-on](https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html). 
+
+**From AWS Console**
+
+Once you've subscribed to Kubearmor on AWS Marketplace and completed the on-screen setup, you'll be directed to the Amazon EKS console. To begin in the Amazon EKS console, navigate to your EKS clusters and click on the "Add-ons" tab. From there, select "Get more add-ons" to locate the KubeArmor EKS add-ons in the cluster settings of your existing EKS clusters. You can use the search bar to find "KubeArmor" and then follow the on-screen instructions to enable the Kubearmor add-on for your Amazon EKS cluster.
+
+**From AWS-CLI**
+
+To enable the Kubearmor add-on for your Amazon EKS cluster, follow these steps:
+
+
+Open your workspace and execute the command below. Make sure to replace `$YOUR_CLUSTER_NAME` and `$AWS_REGION` with the actual name of your Amazon EKS cluster and its respective AWS region.
+
+
+```shell
+aws eks create-addon --addon-name accuknox_KubeArmor --cluster-name $YOUR_CLUSTER_NAME --region $AWS_REGION
+```
+
+
+You'll receive a response with information about the add-on's status, like its name, cluster name, and version. The add-on will be in the "CREATING" status initially.
+
+To check the installation status of the Kubearmor add-on, use the following command:
+
+```shell
+aws eks describe-addon --addon-name accuknox_KubeArmor --cluster-name $YOUR_CLUSTER_NAME --region $AWS_REGION
+```
+
+Once the add-on becomes active, its status will change to "ACTIVE." This command will provide details similar to those in the response above, including the status, version, and creation date.
+
+4. To disable the Kubearmor add-on, you can execute the following command from AWS CLI
+
+```shell
+aws eks delete-addon --addon-name accuknox_KubeArmor --cluster-name $YOUR_CLUSTER_NAME --region $AWS_REGION
+```
+</details>
+
 ## Install kArmor CLI (Optional)
 
 ```
