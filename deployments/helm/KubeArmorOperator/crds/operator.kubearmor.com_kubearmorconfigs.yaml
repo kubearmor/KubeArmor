@@ -57,6 +57,12 @@ spec:
                 type: string
               defaultVisibility:
                 type: string
+              enableStdOutAlerts:
+                type: boolean
+              enableStdOutLogs:
+                type: boolean
+              enableStdOutMsgs:
+                type: boolean
               kubeRbacProxyImage:
                 description: ImageSpec defines the image specifications
                 properties:

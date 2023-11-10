@@ -14,6 +14,9 @@ spec:
   defaultFilePosture: audit
   defaultNetworkPosture: audit
   defaultVisibility: process,network
+  enableStdOutLogs: false
+  enableStdOutAlerts: false
+  enableStdOutMsgs: false
   kubearmorImage:
     image: kubearmor/kubearmor:stable
     imagePullPolicy: Always

@@ -69,6 +69,12 @@ var (
 	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
 
+	//KubearmorRelayEnvVariables
+
+	EnableStdOutAlerts string = "enableStdOutAlerts"
+	EnableStdOutLogs   string = "enableStdOutLogs"
+	EnableStdOutMsgs   string = "enableStdOutMsgs"
+
 	// Images
 	KubeArmorName                      string = "kubearmor"
 	KubeArmorImage                     string = "kubearmor/kubearmor:stable"
@@ -94,6 +100,12 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultCapabilitiesPosture: "audit",
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
+}
+
+var KubearmorRelayEnvMap = map[string]string{
+	EnableStdOutAlerts: "false",
+	EnableStdOutLogs:   "false",
+	EnableStdOutMsgs:   "false",
 }
 
 var ContainerRuntimeSocketMap = map[string][]string{

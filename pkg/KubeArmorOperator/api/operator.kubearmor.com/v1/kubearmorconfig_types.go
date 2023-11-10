@@ -43,6 +43,12 @@ type KubeArmorConfigSpec struct {
 	KubeArmorControllerImage ImageSpec `json:"kubearmorControllerImage,omitempty"`
 	// +kubebuilder:validation:optional
 	KubeRbacProxyImage ImageSpec `json:"kubeRbacProxyImage,omitempty"`
+	// +kubebuilder:validation:optional
+	EnableStdOutLogs bool `json:"enableStdOutLogs,omitempty"`
+	// +kubebuilder:validation:optional
+	EnableStdOutAlerts bool `json:"enableStdOutAlerts,omitempty"`
+	// +kubebuilder:validation:optional
+	EnableStdOutMsgs bool `json:"enableStdOutMsgs,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

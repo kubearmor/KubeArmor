@@ -5,6 +5,7 @@ package controller
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -266,6 +267,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						common.OperatorConfigCrd = cfg
 						UpdateConfigMapData(&cfg.Spec)
 						UpdateImages(&cfg.Spec)
+						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -286,6 +288,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
+						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						// return if only status has been updated
 						if !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
 							return
@@ -297,6 +300,11 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							// update status to Updating
 							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubeArmorConfigMap(cfg)
+						}
+						if relayEnvUpdated {
+							// update status to Updating
+							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
+							clusterWatcher.UpdateKubearmorRelayEnv(cfg)
 						}
 					}
 				}
@@ -387,6 +395,38 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 		}
 	}
 
+	return res
+}
+
+func (clusterWatcher *ClusterWatcher) UpdateKubearmorRelayEnv(cfg *opv1.KubeArmorConfig) error {
+	var res error
+	relay, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.RelayDeploymentName, v1.GetOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
+		res = err
+	} else {
+		relay.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+			{
+				Name:  "ENABLE_STDOUT_LOGS",
+				Value: common.KubearmorRelayEnvMap[common.EnableStdOutLogs],
+			},
+			{
+				Name:  "ENABLE_STDOUT_ALERTS",
+				Value: common.KubearmorRelayEnvMap[common.EnableStdOutAlerts],
+			},
+			{
+				Name:  "ENABLE_STDOUT_MSGS",
+				Value: common.KubearmorRelayEnvMap[common.EnableStdOutMsgs],
+			},
+		}
+		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
+			res = err
+		} else {
+			clusterWatcher.Log.Infof("Updated Deployment=%s with env=%s", deployments.RelayDeploymentName, common.KubearmorRelayEnvMap)
+		}
+	}
 	return res
 }
 
@@ -508,6 +548,34 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	if config.DefaultVisibility != "" {
 		if common.ConfigMapData[common.ConfigVisibility] != string(config.DefaultVisibility) {
 			common.ConfigMapData[common.ConfigVisibility] = string(config.DefaultVisibility)
+			updated = true
+		}
+	}
+	return updated
+}
+
+func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	stringEnableStdOutLogs := strconv.FormatBool(config.EnableStdOutLogs)
+	if stringEnableStdOutLogs != "" {
+		if common.KubearmorRelayEnvMap[common.EnableStdOutLogs] != string(stringEnableStdOutLogs) {
+			common.KubearmorRelayEnvMap[common.EnableStdOutLogs] = string(stringEnableStdOutLogs)
+			updated = true
+		}
+	}
+
+	stringEnableStdOutAlerts := strconv.FormatBool(config.EnableStdOutAlerts)
+	if stringEnableStdOutAlerts != "" {
+		if common.KubearmorRelayEnvMap[common.EnableStdOutAlerts] != string(stringEnableStdOutAlerts) {
+			common.KubearmorRelayEnvMap[common.EnableStdOutAlerts] = string(stringEnableStdOutAlerts)
+			updated = true
+		}
+	}
+
+	stringEnableStdOutMsgs := strconv.FormatBool(config.EnableStdOutMsgs)
+	if stringEnableStdOutMsgs != "" {
+		if common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] != string(stringEnableStdOutMsgs) {
+			common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] = string(stringEnableStdOutMsgs)
 			updated = true
 		}
 	}
