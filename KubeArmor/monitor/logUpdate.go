@@ -274,6 +274,20 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = fileName
 				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " userid=" + strconv.Itoa(uid) + " group=" + strconv.Itoa(guid) + " mode=" + strconv.Itoa(mode)
 
+			case SysChroot:
+				if len(msg.ContextArgs) != 1 {
+					continue
+				}
+
+				var fileName string
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					fileName = val
+				}
+
+				log.Operation = "Syscall"
+				log.Resource = fileName
+				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID))
+
 			case SysSetuid, SysSetgid:
 				if len(msg.ContextArgs) != 1 {
 					continue

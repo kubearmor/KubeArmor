@@ -932,6 +932,7 @@ var auditedSyscalls = map[int]string{
 	101: "ptrace",
 	165: "mount",
 	166: "umount",
+	161: "chroot",
 }
 
 func isAuditedSyscall(syscallID int32) bool {

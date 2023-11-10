@@ -19,6 +19,7 @@ const (
 	SysClose    = 57
 	SysUnlinkAt = 35
 	SysFChownAt = 54
+	SysChroot   = 51
 
 	SysSetuid = 146
 	SysSetgid = 144

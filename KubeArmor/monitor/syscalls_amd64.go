@@ -16,6 +16,7 @@ const (
 	SysRmdir    = 84
 	SysChown    = 92
 	SysFChownAt = 260
+	SysChroot   = 161
 
 	SysSetuid = 105
 	SysSetgid = 106
