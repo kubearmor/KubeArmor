@@ -18,6 +18,8 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0
 #define TASK_COMM_LEN 80
+#define AUDIT_POSTURE 140
+#define BLOCK_POSTURE 141
 
 enum file_hook_type { dpath = 0, dfileread, dfilewrite };
 
@@ -87,7 +89,7 @@ typedef struct {
 
   u32 event_id;
   s64 retval;
-
+  
   u8 comm[TASK_COMM_LEN];
 
   bufs_k data;
@@ -537,11 +539,17 @@ decision:
 
     if (allow) {
       if (!match) {
-        bpf_ringbuf_submit(task_info, 0);
-        return -EPERM;
+        if(allow->processmask == BLOCK_POSTURE) {
+          bpf_ringbuf_submit(task_info, 0);
+          return -EPERM;
+        } else {
+            task_info->retval = 0;
+            bpf_ringbuf_submit(task_info, 0);
+            return 0;
+          }
       }
     }
-
+           
   } else if (id == dfileread) { // file open
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
@@ -568,8 +576,14 @@ decision:
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
     if (allow && !match) {
-      bpf_ringbuf_submit(task_info, 0);
-      return -EPERM;
+       if(allow->processmask == BLOCK_POSTURE) {
+          bpf_ringbuf_submit(task_info, 0);
+          return -EPERM;
+        } else {
+            task_info->retval = 0;
+            bpf_ringbuf_submit(task_info, 0);
+            return 0;
+          }
     }
   } else if (id == dfilewrite) { // fule write
     if (match) {
@@ -584,12 +598,19 @@ decision:
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
     if (allow && !match) {
-      bpf_ringbuf_submit(task_info, 0);
-      return -EPERM;
+      if(allow->processmask == BLOCK_POSTURE) {
+          bpf_ringbuf_submit(task_info, 0);
+          return -EPERM;
+        }
+        else {
+          task_info->retval= 0;
+          bpf_ringbuf_submit(task_info, 0);
+          return 0;
+        }
+
     }
   }
   bpf_ringbuf_discard(task_info, 0);
-
   return 0;
 }
 

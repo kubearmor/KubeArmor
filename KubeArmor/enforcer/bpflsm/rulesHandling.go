@@ -31,6 +31,12 @@ const (
 	NETWORK = 0
 )
 
+// values for posture and retval
+const (
+	AuditPosture = 140
+	BlockPosture = 141
+)
+
 // Map Key Identifiers for Whitelist/Posture
 var (
 	PROCWHITELIST = InnerKey{Path: [256]byte{101}}
@@ -100,10 +106,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				var key InnerKey
 				copy(key.Path[:], []byte(path.Path))
 				if path.Action == "Allow" {
-					if defaultPosture.FileAction == "block" {
-						newrules.ProcWhiteListPosture = true
-					}
+					newrules.ProcWhiteListPosture = true
 					newrules.ProcessRuleList[key] = val
+
 				} else if path.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
 					newrules.ProcessRuleList[key] = val
@@ -114,9 +119,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					copy(key.Path[:], []byte(path.Path))
 					copy(key.Source[:], []byte(src.Path))
 					if path.Action == "Allow" {
-						if defaultPosture.FileAction == "block" {
-							newrules.ProcWhiteListPosture = true
-						}
+
+						newrules.ProcWhiteListPosture = true
+
 						newrules.ProcessRuleList[key] = val
 					} else if path.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY
@@ -137,10 +142,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if len(dir.FromSource) == 0 {
 				if dir.Action == "Allow" {
-					if defaultPosture.FileAction == "block" {
-						newrules.ProcWhiteListPosture = true
-					}
+					newrules.ProcWhiteListPosture = true
 					dirtoMap(PROCESS, dir.Directory, "", newrules.ProcessRuleList, val)
+
 				} else if dir.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
 					dirtoMap(PROCESS, dir.Directory, "", newrules.ProcessRuleList, val)
@@ -148,10 +152,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else {
 				for _, src := range dir.FromSource {
 					if dir.Action == "Allow" {
-						if defaultPosture.FileAction == "block" {
-							newrules.ProcWhiteListPosture = true
-						}
+						newrules.ProcWhiteListPosture = true
 						dirtoMap(PROCESS, dir.Directory, src.Path, newrules.ProcessRuleList, val)
+
 					} else if dir.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY
 						dirtoMap(PROCESS, dir.Directory, src.Path, newrules.ProcessRuleList, val)
@@ -173,10 +176,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				var key InnerKey
 				copy(key.Path[:], []byte(path.Path))
 				if path.Action == "Allow" {
-					if defaultPosture.FileAction == "block" {
-						newrules.FileWhiteListPosture = true
-					}
+					newrules.FileWhiteListPosture = true
 					newrules.FileRuleList[key] = val
+
 				} else if path.Action == "Block" {
 					val[FILE] = val[FILE] | DENY
 					newrules.FileRuleList[key] = val
@@ -187,10 +189,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					copy(key.Path[:], []byte(path.Path))
 					copy(key.Source[:], []byte(src.Path))
 					if path.Action == "Allow" {
-						if defaultPosture.FileAction == "block" {
-							newrules.FileWhiteListPosture = true
-						}
+						newrules.FileWhiteListPosture = true
 						newrules.FileRuleList[key] = val
+
 					} else if path.Action == "Block" {
 						val[FILE] = val[FILE] | DENY
 						newrules.FileRuleList[key] = val
@@ -213,10 +214,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if len(dir.FromSource) == 0 {
 				if dir.Action == "Allow" {
-					if defaultPosture.FileAction == "block" {
-						newrules.FileWhiteListPosture = true
-					}
+					newrules.FileWhiteListPosture = true
 					dirtoMap(FILE, dir.Directory, "", newrules.FileRuleList, val)
+
 				} else if dir.Action == "Block" {
 					val[FILE] = val[FILE] | DENY
 					dirtoMap(FILE, dir.Directory, "", newrules.FileRuleList, val)
@@ -224,10 +224,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else {
 				for _, src := range dir.FromSource {
 					if dir.Action == "Allow" {
-						if defaultPosture.FileAction == "block" {
-							newrules.FileWhiteListPosture = true
-						}
+						newrules.FileWhiteListPosture = true
 						dirtoMap(FILE, dir.Directory, src.Path, newrules.FileRuleList, val)
+
 					} else if dir.Action == "Block" {
 						val[FILE] = val[FILE] | DENY
 						dirtoMap(FILE, dir.Directory, src.Path, newrules.FileRuleList, val)
@@ -249,10 +248,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 			if len(net.FromSource) == 0 {
 				if net.Action == "Allow" {
-					if defaultPosture.NetworkAction == "block" {
-						newrules.NetWhiteListPosture = true
-					}
+					newrules.NetWhiteListPosture = true
 					newrules.NetworkRuleList[key] = val
+
 				} else if net.Action == "Block" {
 					val[NETWORK] = val[NETWORK] | DENY
 					newrules.NetworkRuleList[key] = val
@@ -263,10 +261,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					copy(source[:], []byte(src.Path))
 					key.Source = source
 					if net.Action == "Allow" {
-						if defaultPosture.NetworkAction == "block" {
-							newrules.NetWhiteListPosture = true
-						}
+						newrules.NetWhiteListPosture = true
 						newrules.NetworkRuleList[key] = val
+
 					} else if net.Action == "Block" {
 						val[NETWORK] = val[NETWORK] | DENY
 						newrules.NetworkRuleList[key] = val
@@ -304,9 +301,16 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 
 	if newrules.ProcWhiteListPosture {
-		if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint8{}); err != nil {
-			be.Logger.Errf("error adding proc whitelist key rule to map for container %s: %s", id, err)
+		if defaultPosture.FileAction == "block" {
+			if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint8{BlockPosture}); err != nil {
+				be.Logger.Errf("error adding proc whitelist key rule to map for container %s: %s", id, err)
+			}
+		} else {
+			if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint8{AuditPosture}); err != nil {
+				be.Logger.Errf("error adding proc whitelist key rule to map for container %s: %s", id, err)
+			}
 		}
+
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(PROCWHITELIST); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
@@ -322,8 +326,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 
 	if newrules.FileWhiteListPosture {
-		if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint8{}); err != nil {
-			be.Logger.Errf("error adding file whitelist key rule to map for container %s: %s", id, err)
+		if defaultPosture.FileAction == "block" {
+			if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint8{BlockPosture}); err != nil {
+				be.Logger.Errf("error adding file whitelist key rule to map for container %s: %s", id, err)
+			}
+		} else {
+			if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint8{AuditPosture}); err != nil {
+				be.Logger.Errf("error adding file whitelist key rule to map for container %s: %s", id, err)
+			}
 		}
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(FILEWHITELIST); err != nil {
@@ -340,8 +350,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 
 	if newrules.NetWhiteListPosture {
-		if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint8{}); err != nil {
-			be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+		if defaultPosture.NetworkAction == "block" {
+			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint8{BlockPosture}); err != nil {
+				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+			}
+		} else {
+			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint8{AuditPosture}); err != nil {
+				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+			}
 		}
 	} else {
 		if err := be.ContainerMap[id].Map.Delete(NETWHITELIST); err != nil {
