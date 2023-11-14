@@ -43,7 +43,6 @@ var OperatorConfigCrd *opv1.KubeArmorConfig
 var (
 	EnforcerLabel           string = "kubearmor.io/enforcer"
 	RuntimeLabel            string = "kubearmor.io/runtime"
-	RuntimeStorageLabel     string = "kubearmor.io/runtime-storage"
 	SocketLabel             string = "kubearmor.io/socket"
 	RandLabel               string = "kubearmor.io/rand"
 	OsLabel                 string = "kubernetes.io/os"
@@ -130,7 +129,6 @@ var ContainerRuntimeSocketMap = map[string][]string{
 var HostPathDirectory = corev1.HostPathDirectory
 var HostPathSocket = corev1.HostPathSocket
 var HostPathFile = corev1.HostPathFile
-var HostToContainerMountPropagation = corev1.MountPropagationHostToContainer
 
 var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 	"apparmor": {
@@ -171,26 +169,6 @@ var EnforcerVolumes = map[string][]corev1.Volume{
 			},
 		},
 	},
-}
-
-var RuntimeStorageVolumes = map[string][]string{
-	"docker": {
-		"/var/lib/docker",
-	},
-	"cri-o": {
-		"/var/lib/containers/storage",
-	},
-	"containerd": {
-		"/run/k0s/containerd",
-		"/run/k3s/containerd",
-		"/run/containerd",
-	},
-}
-
-var RuntimeStorageLocation = map[string]string{
-	"docker":     "/var/lib/docker",
-	"containerd": "/run/containerd",
-	"cri-o":      "/var/lib/containers/storage",
 }
 
 var RuntimeSocketLocation = map[string]string{

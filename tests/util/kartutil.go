@@ -581,17 +581,6 @@ func RandString(n int) string {
 	return string(b)
 }
 
-// K8sCRIRuntime extracts Container Runtime from the Kubernetes API
-func K8sCRIRuntime() string {
-	nodes, _ := k8sClient.K8sClientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
-	if len(nodes.Items) <= 0 {
-		return ""
-	}
-
-	containerRuntime := nodes.Items[0].Status.NodeInfo.ContainerRuntimeVersion
-	return containerRuntime
-}
-
 // K8sRuntimeEnforcer extracts Runtime Enforcer from the Node Labels
 func K8sRuntimeEnforcer() string {
 	nodes, _ := k8sClient.K8sClientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})

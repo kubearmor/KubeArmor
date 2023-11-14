@@ -34,13 +34,3 @@ func DetectRuntimeViaMap(pathPrefix string, k8sRuntime string, log zap.SugaredLo
 	log.Warn("Couldn't detect runtime")
 	return "NA", "NA"
 }
-
-func DetectRuntimeStorage(pathPrefix, runtime string, log zap.SugaredLogger) string {
-
-	for _, storageLocation := range common.RuntimeStorageVolumes[runtime] {
-		if _, err := os.Stat(pathPrefix + storageLocation); err == nil {
-			return storageLocation
-		}
-	}
-	return "NA"
-}
