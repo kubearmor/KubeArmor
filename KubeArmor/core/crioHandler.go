@@ -120,9 +120,6 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string)
 	// path to container's root storage
 	container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
 
-	// path to the rootfs
-	container.MergedDir = containerInfo.RuntimeSpec.Root.Path
-
 	pid := strconv.Itoa(containerInfo.Pid)
 
 	if data, err := os.Readlink("/proc/" + pid + "/ns/pid"); err == nil {

@@ -1014,9 +1014,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						matchedFlags := false
 
-						if secPolicy.ReadOnly && log.Resource != "" && secPolicy.OwnerOnly && log.MergedDir != "" {
+						if secPolicy.ReadOnly && log.Resource != "" && secPolicy.OwnerOnly {
 							// read only && owner only
-							if strings.Contains(log.Data, "O_RDONLY") && strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
+							if strings.Contains(log.Data, "O_RDONLY") && log.UID == log.OID {
 								matchedFlags = true
 							}
 						} else if secPolicy.ReadOnly && log.Resource != "" {
@@ -1024,9 +1024,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							if strings.Contains(log.Data, "O_RDONLY") {
 								matchedFlags = true
 							}
-						} else if secPolicy.OwnerOnly && log.MergedDir != "" {
+						} else if secPolicy.OwnerOnly {
 							// owner only
-							if strconv.Itoa(int(log.UID)) == getFileProcessUID(log.MergedDir+log.Resource) {
+							if log.UID == log.OID {
 								matchedFlags = true
 							}
 						} else {

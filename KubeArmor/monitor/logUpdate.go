@@ -35,9 +35,6 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 		log.ContainerName = val.ContainerName
 		log.ContainerImage = val.ContainerImage
 
-		// get merged directory
-		log.MergedDir = val.MergedDir
-
 		// update policy flag
 		log.PolicyEnabled = val.PolicyEnabled
 
@@ -88,6 +85,7 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 	}
 
 	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
+	log.OID = int32(msg.ContextSys.OID)
 
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
 	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)

@@ -219,6 +219,7 @@ typedef struct __attribute__((__packed__)) sys_context
 
     char comm[TASK_COMM_LEN];
     char cwd[CWD_LEN];
+    u32 oid; // owner id
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
@@ -1026,22 +1027,21 @@ static __always_inline u32 init_context(sys_context_t *context)
 
     bufs_t *string_p = get_buffer(CWD_BUF_TYPE);
     if (string_p == NULL)
-       return 0;
+        return 0;
 
     if (!prepend_path(&path, string_p, CWD_BUF_TYPE))
     {
-       return 0;
+        return 0;
     }
 
     u32 *off = get_buffer_offset(CWD_BUF_TYPE);
     if (off == NULL)
         return 0;
 
-    bpf_probe_read_str(&context->cwd, CWD_LEN,(void *)&string_p->buf[*off]);
+    bpf_probe_read_str(&context->cwd, CWD_LEN, (void *)&string_p->buf[*off]);
 
     return 0;
 }
-
 
 SEC("kprobe/security_path_mknod")
 int kprobe__security_path_mknod(struct pt_regs *ctx)
@@ -1454,6 +1454,17 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     if (context.retval >= 0 && drop_syscall(scope))
     {
         return 0;
+    }
+
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+
+    struct path *p = bpf_map_lookup_elem(&file_map, &pid_tgid);
+    if (p)
+    {
+        struct dentry *dent = READ_KERN(p->dentry);
+        struct inode *ino = READ_KERN(dent->d_inode);
+        kuid_t owner = READ_KERN(ino->i_uid);
+        context.oid = owner.val;
     }
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
