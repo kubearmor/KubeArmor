@@ -74,7 +74,7 @@ jobs:
           RUNTIME=containerd ./contribution/k3s/install_k3s.sh
 
       - name: Generate KubeArmor artifacts
-        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }} ENABLE_PPROF=true
 
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
@@ -190,6 +190,14 @@ jobs:
             echo "tag=true" >> $GITHUB_OUTPUT
           else
             echo "tag=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pull a specific dubug version of KubeArmor from Docker Hub
+        run: |
+          value=`cat STABLE-RELEASE`
+          if [ ${{ github.ref }} == refs/heads/$value ]; then
+            docker pull docker.io/kubearmor/kubearmor:$value-debug
+            docker image tag kubearmor/kubearmor:$value-debug kubearmor/kubearmor:stable-debug
           fi
 
       - name: Login to Docker Hub

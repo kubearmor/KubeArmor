@@ -24,6 +24,7 @@ type KubearmorConfig struct {
 	TLSEnabled        bool   // enable tls
 	TLSCertPath       string // tls certification path
 	TLSCertProvider   string // tls certficate provider
+	PPROF             string // pprof Port to use
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use
@@ -31,10 +32,11 @@ type KubearmorConfig struct {
 	Visibility     string // Container visibility to use
 	HostVisibility string // Host visibility to use
 
-	Policy     bool // Enable/Disable policy enforcement
-	HostPolicy bool // Enable/Disable host policy enforcement
-	KVMAgent   bool // Enable/Disable KVM Agent
-	K8sEnv     bool // Is k8s env ?
+	Policy      bool // Enable/Disable policy enforcement
+	EnablePPROF bool // Enable pprof to be used
+	HostPolicy  bool // Enable/Disable host policy enforcement
+	KVMAgent    bool // Enable/Disable KVM Agent
+	K8sEnv      bool // Is k8s env ?
 
 	Debug bool // Enable/Disable KubeArmor debug mode
 
@@ -65,6 +67,8 @@ const (
 	PIDFilePath                          string = "/opt/kubearmor/kubearmor.pid"
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
+	ConfigPPROF                          string = "pprof"
+	ConfigEnablePPROF                    string = "pprofEnable"
 	ConfigGRPC                           string = "gRPC"
 	ConfigTLSCertPath                    string = "tlsCertPath"
 	ConfigTLSCertProvider                string = "tlsCertProvider"
@@ -102,9 +106,13 @@ func readCmdLineParams() {
 	hostStr := flag.String(ConfigHost, strings.Split(hostname, ".")[0], "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
+<<<<<<< HEAD
 	tlsEnabled := flag.Bool(ConfigTLS, false, "enable tls for secure grpc connection")
 	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
 	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external}, self: create certificate dynamically, external: provided by some external entity")
+=======
+	pprofStr := flag.String(ConfigPPROF, "8081", "pprof port number")
+>>>>>>> 44bb0c08 (Added Pprof and rebased)
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
@@ -113,6 +121,7 @@ func readCmdLineParams() {
 	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
+	pprofEnableB := flag.Bool(ConfigEnablePPROF, false, "enables pprof to be used")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
@@ -153,9 +162,13 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHost, *hostStr)
 
 	viper.SetDefault(ConfigGRPC, *grpcStr)
+<<<<<<< HEAD
 	viper.SetDefault(ConfigTLS, *tlsEnabled)
 	viper.SetDefault(ConfigTLSCertPath, *tlsCertsStr)
 	viper.SetDefault(ConfigTLSCertProvider, *tlsCertProvider)
+=======
+	viper.SetDefault(ConfigPPROF, *pprofStr)
+>>>>>>> 44bb0c08 (Added Pprof and rebased)
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.SetDefault(ConfigCRISocket, *criSocket)
@@ -163,6 +176,7 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigVisibility, *visStr)
 	viper.SetDefault(ConfigHostVisibility, *hostVisStr)
 
+	viper.SetDefault(ConfigEnablePPROF, *pprofEnableB)
 	viper.SetDefault(ConfigKubearmorPolicy, *policyB)
 	viper.SetDefault(ConfigKubearmorHostPolicy, *hostPolicyB)
 	viper.SetDefault(ConfigKubearmorVM, *kvmAgentB)
@@ -223,9 +237,13 @@ func LoadConfig() error {
 	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
+<<<<<<< HEAD
 	GlobalCfg.TLSEnabled = viper.GetBool(ConfigTLS)
 	GlobalCfg.TLSCertPath = viper.GetString(ConfigTLSCertPath)
 	GlobalCfg.TLSCertProvider = viper.GetString(ConfigTLSCertProvider)
+=======
+	GlobalCfg.PPROF = viper.GetString(ConfigPPROF)
+>>>>>>> 44bb0c08 (Added Pprof and rebased)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 
 	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
@@ -240,6 +258,7 @@ func LoadConfig() error {
 	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
 	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
 
+	GlobalCfg.EnablePPROF = viper.GetBool(ConfigEnablePPROF)
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)

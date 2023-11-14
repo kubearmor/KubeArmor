@@ -14,10 +14,11 @@ COPY . .
 
 WORKDIR /usr/src/KubeArmor/KubeArmor
 
+ARG ENABLE_PPROF
+
 RUN go install github.com/golang/protobuf/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-RUN make
-
+RUN ENABLE_PPROF=$ENABLE_PPROF make
 ### Make executable image
 
 FROM alpine:3.18 as kubearmor
