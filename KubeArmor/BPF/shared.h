@@ -15,6 +15,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define MAX_BUFFER_SIZE 32768
 #define MAX_STRING_SIZE 256
+#define MAX_COMBINED_LENGTH 4096
 #define MAX_BUFFERS 1
 #define PATH_BUFFER 0
 #define TASK_COMM_LEN 80
@@ -148,7 +149,7 @@ static inline struct mount *real_mount(struct vfsmount *mnt) {
 static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
   char slash = '/';
   char null = '\0';
-  int offset = MAX_STRING_SIZE;
+  int offset = MAX_COMBINED_LENGTH;
 
   if (path == NULL || string_p == NULL) {
     return false;
@@ -191,11 +192,11 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
       break;
 
     int sz = bpf_probe_read_str(
-        &(string_p->buf[(offset) & (MAX_STRING_SIZE - 1)]),
-        (d_name.len + 1) & (MAX_STRING_SIZE - 1), d_name.name);
+        &(string_p->buf[(offset) & (MAX_COMBINED_LENGTH - 1)]),
+        (d_name.len + 1) & (MAX_COMBINED_LENGTH - 1), d_name.name);
     if (sz > 1) {
       bpf_probe_read(
-          &(string_p->buf[(offset + d_name.len) & (MAX_STRING_SIZE - 1)]), 1,
+          &(string_p->buf[(offset + d_name.len) & (MAX_COMBINED_LENGTH - 1)]), 1,
           &slash);
     } else {
       offset += (d_name.len + 1);
@@ -204,14 +205,14 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
     dentry = parent;
   }
 
-  if (offset == MAX_STRING_SIZE) {
+  if (offset == MAX_COMBINED_LENGTH) {
     return false;
   }
 
-  bpf_probe_read(&(string_p->buf[MAX_STRING_SIZE - 1]), 1, &null);
+  bpf_probe_read(&(string_p->buf[MAX_COMBINED_LENGTH - 1]), 1, &null);
   offset--;
 
-  bpf_probe_read(&(string_p->buf[offset & (MAX_STRING_SIZE - 1)]), 1, &slash);
+  bpf_probe_read(&(string_p->buf[offset & (MAX_COMBINED_LENGTH - 1)]), 1, &slash);
   set_buf_off(PATH_BUFFER, offset);
   return true;
 }
