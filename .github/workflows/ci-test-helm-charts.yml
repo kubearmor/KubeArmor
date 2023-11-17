@@ -14,7 +14,7 @@ on:
 
 jobs:
   lint:
-    name: Helm Chart Tests / ubuntu 20.04
+    name: Helm Chart Tests / < matrix variable >
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
