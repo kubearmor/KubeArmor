@@ -74,6 +74,21 @@ sh: 1: apt: Permission denied
 command terminated with exit code 126
 ```
 
+
+
+There might be a case where the above behaviour will not be observed. If you check via [karmor cli](https://github.com/kubearmor/kubearmor-client) utility. 
+
+```
+karmor probe
+```
+
+If you see that the value of  `ActiveLSM` is not assigned any value means that kubearmor is unable to find the LSM in dockerized environment to enforce the policies.  
+
+
+ In kubernetes tools that runs on docker based environment such as minikube(docker), kind, k3d, microk8s etc. apparmor might be available but not loaded. So we need to enable [bpf-lsm](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/FAQ.md#checking-and-enabling-support-for-bpf-lsm) for Kubearmor to apply and enforce policies as expected.
+
+
+
 </details>
 
 <details>
