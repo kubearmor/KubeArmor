@@ -590,6 +590,9 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	if log.Source == "" {
+		if log.Type == "HostLog" {
+			return
+		}
 		fd.Debug("Pushing Telemetry without source")
 	}
 

@@ -127,6 +127,7 @@ type SystemMonitor struct {
 
 	// system monitor
 	BpfModule            *cle.Collection
+	BpfConfigMap         *cle.Map
 	BpfNsVisibilityMap   *cle.Map
 	BpfVisibilityMapSpec cle.MapSpec
 
@@ -209,7 +210,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 
 // InitBPFMaps Function
 func (mon *SystemMonitor) initBPFMaps() error {
-	visibilityMap, err := cle.NewMapWithOptions(
+	visibilityMap, errviz := cle.NewMapWithOptions(
 		&cle.MapSpec{
 			Name:       "kubearmor_visibility",
 			Type:       cle.HashOfMaps,
@@ -224,22 +225,55 @@ func (mon *SystemMonitor) initBPFMaps() error {
 	mon.BpfNsVisibilityMap = visibilityMap
 	mon.UpdateHostVisibility()
 
-	return err
+	bpfConfigMap, errconfig := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_config",
+			Type:       cle.Hash,
+			KeySize:    4,
+			ValueSize:  4,
+			MaxEntries: 16,
+			Pinning:    cle.PinByName,
+			InnerMap:   &mon.BpfVisibilityMapSpec,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.BpfConfigMap = bpfConfigMap
+	if cfg.GlobalCfg.HostPolicy {
+		if err := mon.BpfConfigMap.Update(uint32(0), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable host visbility : %s", err.Error())
+		}
+	}
+	if cfg.GlobalCfg.Policy {
+		if err := mon.BpfConfigMap.Update(uint32(1), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visbility : %s", err.Error())
+		}
+	}
+
+	return errors.Join(errviz, errconfig)
 }
 
 // DestroyBPFMaps Function
 func (mon *SystemMonitor) DestroyBPFMaps() {
-	if mon.BpfNsVisibilityMap == nil {
-		return
+	if mon.BpfNsVisibilityMap != nil {
+		err := mon.BpfNsVisibilityMap.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_visibility %v", err)
+		}
+		err = mon.BpfNsVisibilityMap.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_visibility %v", err)
+		}
 	}
 
-	err := mon.BpfNsVisibilityMap.Unpin()
-	if err != nil {
-		mon.Logger.Warnf("error unpinning bpf map kubearmor_visibility %v", err)
-	}
-	err = mon.BpfNsVisibilityMap.Close()
-	if err != nil {
-		mon.Logger.Warnf("error closing bpf map kubearmor_visibility %v", err)
+	if mon.BpfConfigMap != nil {
+		err := mon.BpfConfigMap.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
+		}
+		err = mon.BpfConfigMap.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+		}
 	}
 }
 
@@ -385,13 +419,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		return fmt.Errorf("error removing memlock %v", err)
 	}
 
-	if cfg.GlobalCfg.Policy && !cfg.GlobalCfg.HostPolicy { // container only
-		bpfPath = bpfPath + "system_monitor.container.bpf.o"
-	} else if !cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // host only
-		bpfPath = bpfPath + "system_monitor.host.bpf.o"
-	} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy { // container and host
-		bpfPath = bpfPath + "system_monitor.bpf.o"
-	}
+	bpfPath = bpfPath + "system_monitor.bpf.o"
 
 	err = mon.initBPFMaps()
 	if err != nil {
@@ -416,7 +444,6 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
-	// sysPrefix := bcc.GetSyscallPrefix()
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
