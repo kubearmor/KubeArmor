@@ -248,7 +248,7 @@ typedef struct __attribute__((__packed__)) sys_context
 #define BPF_PERF_OUTPUT(_name) \
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
-BPF_HASH(pid_ns_map, u32, u32);
+BPF_LRU_HASH(pid_ns_map, u32, u32);
 
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
@@ -277,8 +277,8 @@ typedef struct args
     unsigned long args[6];
 } args_t;
 
-BPF_HASH(args_map, u64, args_t);
-BPF_HASH(file_map, u64, struct path);
+BPF_LRU_HASH(args_map, u64, args_t);
+BPF_LRU_HASH(file_map, u64, struct path);
 
 typedef struct buffers
 {
