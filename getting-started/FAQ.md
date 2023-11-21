@@ -289,6 +289,8 @@ EOF
 docker exec -it kind-control-plane bash -c "apt update && apt install apparmor-utils -y && systemctl restart containerd"
 ```
 
+The above command will install the AppArmor utilities in the kind-control-plane, we can also use this command to install these in minikube as well as in all the other docker based Kubernetes environments.
+
 After this, exit out of the node shell and follow the [getting-started guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md).
 
 If the `kubearmor-relay` pod goes into CrashLoopBackOff, apply the following patch:
