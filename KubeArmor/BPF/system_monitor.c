@@ -324,6 +324,27 @@ struct visibility
 
 struct visibility kubearmor_visibility SEC(".maps");
 
+// == Config == //
+
+enum
+{
+    _MONITOR_HOST = 0,
+    _MONITOR_CONTAINER = 1,
+    _ENFORCER_BPFLSM = 2,
+    _DEFAULT_VISIBILITY = 3,
+};
+
+struct kaconfig
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u32);
+    __type(value, u32);
+    __uint(max_entries, 16);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct kaconfig kubearmor_config SEC(".maps");
+
 // == Kernel Helpers == //
 
 static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
@@ -408,81 +429,55 @@ static __always_inline void get_outer_key(struct outer_key *pokey,
     }
 }
 
+static __always_inline u32 get_kubearmor_config(u32 config)
+{
+    u32 *value = bpf_map_lookup_elem(&kubearmor_config, &config);
+    if (!value)
+    {
+        return 0;
+    }
+
+    return *value;
+}
+
 // == Pid NS Management == //
 
 static __always_inline u32 add_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 one = 1;
-
-#if defined(MONITOR_HOST)
-
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO)
-    {
-        return 0;
-    }
-
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
-    {
-        return pid;
-    }
-
-    bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
-    return pid;
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO)
+    if (pid_ns == PROC_PID_INIT_INO && get_kubearmor_config(_MONITOR_HOST))
     { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+        if (!bpf_map_lookup_elem(&pid_ns_map, &pid))
         {
-            return pid;
+            // untracked host pid, adding to pid map
+            bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
         }
 
-        bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
         return pid;
     }
-    else
+    else if(get_kubearmor_config(_MONITOR_CONTAINER))
     { // container
-        if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) != 0)
+        if (!bpf_map_lookup_elem(&pid_ns_map, &pid_ns))
         {
-            return pid_ns;
+            // untracked pid ns, adding to pid ns map
+            bpf_map_update_elem(&pid_ns_map, &pid_ns, &one, BPF_ANY);
         }
-
-        bpf_map_update_elem(&pid_ns_map, &pid_ns, &one, BPF_ANY);
+        
         return pid_ns;
     }
 
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
+    return 0;
 }
 
 static __always_inline u32 remove_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-#if defined(MONITOR_HOST)
-
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO)
-    {
-        return 0;
-    }
-
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
-    {
-        bpf_map_delete_elem(&pid_ns_map, &pid);
-        return 0;
-    }
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO)
+    if (pid_ns == PROC_PID_INIT_INO && get_kubearmor_config(_MONITOR_HOST))
     { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
         if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
@@ -491,7 +486,7 @@ static __always_inline u32 remove_pid_ns()
             return 0;
         }
     }
-    else
+    else if(get_kubearmor_config(_MONITOR_CONTAINER))
     { // container
         if (get_task_ns_pid(task) == 1)
         {
@@ -499,8 +494,6 @@ static __always_inline u32 remove_pid_ns()
             return 0;
         }
     }
-
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     return 0;
 }
@@ -533,32 +526,7 @@ static __always_inline u32 skip_syscall()
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 pid_ns = get_task_pid_ns_id(task);
 
-#if defined(MONITOR_HOST)
-
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns != PROC_PID_INIT_INO)
-    {
-        return _IGNORE_SYSCALL;
-    }
-    else if (bpf_map_lookup_elem(&pid_ns_map, &pid) == 0)
-    {
-        return !add_pid_ns();
-    }
-
-#elif defined(MONITOR_CONTAINER)
-
-    if (pid_ns == PROC_PID_INIT_INO)
-    {
-        return _IGNORE_SYSCALL;
-    }
-    else if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) == 0)
-    {
-        return !add_pid_ns();
-    }
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    if (pid_ns == PROC_PID_INIT_INO)
+    if (pid_ns == PROC_PID_INIT_INO && get_kubearmor_config(_MONITOR_HOST))
     { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
         if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
@@ -566,7 +534,7 @@ static __always_inline u32 skip_syscall()
             return !add_pid_ns();
         }
     }
-    else
+    else if(get_kubearmor_config(_MONITOR_CONTAINER))
     { // container
         if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) == 0)
         {
@@ -574,7 +542,6 @@ static __always_inline u32 skip_syscall()
         }
     }
 
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
     return _TRACE_SYSCALL;
 }
 
@@ -987,16 +954,6 @@ static __always_inline u32 init_context(sys_context_t *context)
     context->host_ppid = get_task_ppid(task);
     context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-#if defined(MONITOR_HOST)
-
-    context->pid_id = 0;
-    context->mnt_id = 0;
-
-    context->ppid = get_task_ppid(task);
-    context->pid = bpf_get_current_pid_tgid() >> 32;
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid)
     { // host
@@ -1014,8 +971,6 @@ static __always_inline u32 init_context(sys_context_t *context)
         context->ppid = get_task_ns_ppid(task);
         context->pid = pid;
     }
-
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     context->uid = bpf_get_current_uid_gid();
 
