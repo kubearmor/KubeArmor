@@ -36,7 +36,8 @@ const (
 	visibilityOff    = uint32(1)
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
-	SyscallChannelSize = 1 << 13 //8192
+	SyscallChannelSize   = 1 << 13 //8192
+	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
 // ======================= //
@@ -223,7 +224,7 @@ func (mon *SystemMonitor) initBPFMaps() error {
 			PinPath: mon.PinPath,
 		})
 	mon.BpfNsVisibilityMap = visibilityMap
-	mon.UpdateHostVisibility()
+	mon.UpdateVisibility()
 
 	bpfConfigMap, errconfig := cle.NewMapWithOptions(
 		&cle.MapSpec{
@@ -362,16 +363,38 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 	}
 }
 
-// UpdateHostVisibility Function
-func (mon *SystemMonitor) UpdateHostVisibility() {
-	nsKey := NsKey{
+// UpdateVisibility Function updates host visibility and global default visibility map based on the global config
+func (mon *SystemMonitor) UpdateVisibility() {
+	hostNSKey := NsKey{
 		PidNS: 0,
 		MntNS: 0,
 	}
 
-	visibility := tp.Visibility{}
+	hostVisibility := tp.Visibility{}
 	if cfg.GlobalCfg.HostPolicy {
 		visibilityParams := cfg.GlobalCfg.HostVisibility
+		if strings.Contains(visibilityParams, "file") {
+			hostVisibility.File = true
+		}
+		if strings.Contains(visibilityParams, "process") {
+			hostVisibility.Process = true
+		}
+		if strings.Contains(visibilityParams, "network") {
+			hostVisibility.Network = true
+		}
+		if strings.Contains(visibilityParams, "capabilities") {
+			hostVisibility.Capabilities = true
+		}
+	}
+
+	nsKey := NsKey{
+		PidNS: DefaultVisibilityKey,
+		MntNS: DefaultVisibilityKey,
+	}
+
+	visibility := tp.Visibility{}
+	{
+		visibilityParams := cfg.GlobalCfg.Visibility
 		if strings.Contains(visibilityParams, "file") {
 			visibility.File = true
 		}
@@ -385,8 +408,10 @@ func (mon *SystemMonitor) UpdateHostVisibility() {
 			visibility.Capabilities = true
 		}
 	}
+
 	mon.BpfMapLock.Lock()
 	defer mon.BpfMapLock.Unlock()
+	mon.UpdateNsKeyMap("ADDED", hostNSKey, hostVisibility)
 	mon.UpdateNsKeyMap("ADDED", nsKey, visibility)
 }
 
@@ -556,14 +581,13 @@ func (mon *SystemMonitor) TraceSyscall() {
 						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
 						return
 					}
-					continue
+					mon.Logger.Warnf("Perf Event Error : %s", err.Error())
 				}
 
 				if record.LostSamples != 0 {
 					mon.Logger.Warnf("Lost Perf Events Count : %d", record.LostSamples)
 					continue
 				}
-
 				mon.SyscallChannel <- record.RawSample
 
 			}
@@ -633,14 +657,13 @@ func (mon *SystemMonitor) TraceSyscall() {
 		case dataRaw, valid := <-mon.SyscallChannel:
 			if !valid {
 				mon.Logger.Debug("Invalid telemtry")
-
 				continue
 			}
 
 			dataBuff := bytes.NewBuffer(dataRaw)
 			ctx, err := readContextFromBuff(dataBuff)
 			if err != nil {
-				mon.Logger.Debugf("Error while reading context in telemtry %s", err.Error())
+				mon.Logger.Debugf("Error while reading context in telemetry %s", err.Error())
 
 				continue
 			}
@@ -649,9 +672,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 			args, err := GetArgs(dataBuff, ctx.Argnum)
 			if err != nil {
-				if ctx.Retval < 0 {
-					mon.Logger.Debugf("Received an alert, but could not fetch args so dropping %s", err.Error())
-				}
+				mon.Logger.Debugf("could not fetch args so dropping %s", err.Error())
 				continue
 			}
 			containerID := ""
@@ -673,10 +694,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
 				ReplayChannel <- dataRaw
 				continue
-			}
-
-			if ctx.Retval < 0 {
-				mon.Logger.Debugf("Received alert for container id %s", containerID)
 			}
 
 			if ctx.EventID == SysOpen {
