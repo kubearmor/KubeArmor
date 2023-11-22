@@ -136,14 +136,6 @@ kubearmor:
     - mountPath: /var/run/containerd/containerd.sock
       name: containerd-sock-path
       readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
-      readOnly: true
-    - mountPath: /var/lib/docker
-      mountPropagation: HostToContainer
-      name: docker-storage-path
-      readOnly: true
 
   volumeMountsDocker:
     - mountPath: /usr/src
@@ -165,10 +157,6 @@ kubearmor:
       name: etc-apparmor-d-path
     - mountPath: /var/run/docker.sock
       name: docker-sock-path
-      readOnly: true
-    - mountPath: /var/lib/docker
-      mountPropagation: HostToContainer
-      name: docker-storage-path
       readOnly: true
 
   volumeMountsCRIO:
@@ -192,10 +180,6 @@ kubearmor:
     - mountPath: /var/run/crio/crio.sock
       name: crio-sock-path
       readOnly: true
-    - mountPath: /var/lib/containers/storage
-      mountPropagation: HostToContainer
-      name: crio-storage-path
-      readOnly: true
 
   volumeMountsMicroK8s:
     - mountPath: /usr/src
@@ -217,10 +201,6 @@ kubearmor:
       name: etc-apparmor-d-path
     - mountPath: /var/snap/microk8s/common/run/containerd.sock
       name: containerd-sock-path
-      readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
       readOnly: true
 
   volumeMountsK0s:
@@ -244,9 +224,6 @@ kubearmor:
     - mountPath: /var/run/containerd/containerd.sock
       name: containerd-sock-path
       readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
 
   volumeMountsK3s:
     - mountPath: /usr/src
@@ -268,10 +245,6 @@ kubearmor:
       name: etc-apparmor-d-path
     - mountPath: /var/run/containerd/containerd.sock
       name: containerd-sock-path
-      readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
       readOnly: true
 
   volumeMountsMinikube:
@@ -316,14 +289,6 @@ kubearmor:
     - mountPath: /var/run/containerd/containerd.sock
       name: containerd-sock-path
       readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
-      readOnly: true
-    - mountPath: /var/lib/docker
-      mountPropagation: HostToContainer
-      name: docker-storage-path
-      readOnly: true
 
   volumeMountsBottleRocket:
     - mountPath: /lib/modules
@@ -346,14 +311,6 @@ kubearmor:
     - mountPath: /run/dockershim.sock
       name: containerd-sock-path
       readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
-      readOnly: true
-    - mountPath: /var/lib/docker
-      mountPropagation: HostToContainer
-      name: docker-storage-path
-      readOnly: true
 
   volumeMountsEKS:
     - mountPath: /lib/modules
@@ -375,14 +332,6 @@ kubearmor:
       name: etc-apparmor-d-path
     - mountPath: /var/run/containerd/containerd.sock
       name: containerd-sock-path
-      readOnly: true
-    - mountPath: /run/containerd
-      mountPropagation: HostToContainer
-      name: containerd-storage-path
-      readOnly: true
-    - mountPath: /var/lib/docker
-      mountPropagation: HostToContainer
-      name: docker-storage-path
       readOnly: true
 
   volumesGeneric:
@@ -418,14 +367,6 @@ kubearmor:
         path: /var/run/containerd/containerd.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /run/containerd
-        type: DirectoryOrCreate
-      name: containerd-storage-path
-    - hostPath:
-        path: /var/lib/docker
-        type: DirectoryOrCreate
-      name: docker-storage-path
 
   volumesDocker:
     - hostPath:
@@ -460,10 +401,6 @@ kubearmor:
         path: /var/run/docker.sock
         type: Socket
       name: docker-sock-path
-    - hostPath:
-        path: /var/lib/docker
-        type: DirectoryOrCreate
-      name: docker-storage-path
 
   volumesCRIO:
     - hostPath:
@@ -498,10 +435,6 @@ kubearmor:
         path: /var/run/crio/crio.sock
         type: Socket
       name: crio-sock-path
-    - hostPath:
-        path: /var/lib/containers/storage
-        type: DirectoryOrCreate
-      name: crio-storage-path
 
   volumesMicroK8s:
     - hostPath:
@@ -536,10 +469,6 @@ kubearmor:
         path: /var/snap/microk8s/common/run/containerd.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /var/snap/microk8s/common/run/containerd
-        type: DirectoryOrCreate
-      name: containerd-storage-path
 
   volumesK0s:
     - hostPath:
@@ -574,10 +503,6 @@ kubearmor:
         path: /run/k0s/containerd.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /run/k0s/containerd
-        type: Directory
-      name: containerd-storage-path
 
   volumesK3s:
     - hostPath:
@@ -612,10 +537,6 @@ kubearmor:
         path: /run/k3s/containerd/containerd.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /run/k3s/containerd
-        type: DirectoryOrCreate
-      name: containerd-storage-path
 
   volumesMinikube:
     - hostPath:
@@ -650,10 +571,6 @@ kubearmor:
         path: /var/run/docker.sock
         type: Socket
       name: docker-sock-path
-    - hostPath:
-        path: /var/lib/docker
-        type: DirectoryOrCreate
-      name: docker-storage-path
 
   volumesGKE:
     - hostPath:
@@ -688,14 +605,6 @@ kubearmor:
         path: /var/run/containerd/containerd.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /run/containerd
-        type: DirectoryOrCreate
-      name: containerd-storage-path
-    - hostPath:
-        path: /var/lib/docker
-        type: DirectoryOrCreate
-      name: docker-storage-path
 
   volumesBottleRocket:
     - hostPath:
@@ -730,14 +639,6 @@ kubearmor:
         path: /run/dockershim.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /run/containerd
-        type: DirectoryOrCreate
-      name: containerd-storage-path
-    - hostPath:
-        path: /var/lib/docker
-        type: DirectoryOrCreate
-      name: docker-storage-path
 
   volumesEKS:
     - hostPath:
@@ -772,11 +673,3 @@ kubearmor:
         path: /var/run/containerd/containerd.sock
         type: Socket
       name: containerd-sock-path
-    - hostPath:
-        path: /run/containerd
-        type: DirectoryOrCreate
-      name: containerd-storage-path
-    - hostPath:
-        path: /var/lib/docker
-        type: DirectoryOrCreate
-      name: docker-storage-path

@@ -23,9 +23,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, btfPresent string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, btfPresent string) *appsv1.DaemonSet {
 	enforcerVolumes, enforcerVolumeMounts := genEnforcerVolumes(enforcer)
-	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket, runtimeStorage)
+	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
 	vols = append(vols, enforcerVolumes...)
@@ -43,12 +43,11 @@ func generateDaemonset(name, enforcer, runtime, socket, runtimeStorage, btfPrese
 	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace)
 	daemonset.Name = name
 	labels := map[string]string{
-		common.EnforcerLabel:       enforcer,
-		common.RuntimeLabel:        runtime,
-		common.RuntimeStorageLabel: runtimeStorage,
-		common.SocketLabel:         socket,
-		common.OsLabel:             "linux",
-		common.BTFLabel:            btfPresent,
+		common.EnforcerLabel: enforcer,
+		common.RuntimeLabel:  runtime,
+		common.SocketLabel:   socket,
+		common.OsLabel:       "linux",
+		common.BTFLabel:      btfPresent,
 	}
 	daemonset.Spec.Template.Spec.NodeSelector = common.CopyStrMap(labels)
 	labels["kubearmor-app"] = "kubearmor"
@@ -92,7 +91,7 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 	return
 }
 
-func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
+func genRuntimeVolumes(runtime, runtimeSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
 	// lookup socket
 	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 		if strings.ReplaceAll(socket[1:], "/", "_") == runtimeSocket {
@@ -111,30 +110,6 @@ func genRuntimeVolumes(runtime, runtimeSocket, runtimeStorage string) (vol []cor
 				Name:      runtime + "-socket",
 				MountPath: socket,
 				ReadOnly:  true,
-			})
-			break
-		}
-	}
-
-	// lookup runtime storage location
-	for _, storageLocation := range common.RuntimeStorageVolumes[runtime] {
-		if strings.ReplaceAll(storageLocation[1:], "/", "_") == runtimeStorage {
-			vol = append(vol, corev1.Volume{
-				Name: runtime + "-storage",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: storageLocation,
-						Type: &common.HostPathDirectory,
-					},
-				},
-			})
-
-			storageLocation = common.RuntimeStorageLocation[runtime]
-			volMnt = append(volMnt, corev1.VolumeMount{
-				Name:             runtime + "-storage",
-				MountPath:        storageLocation,
-				MountPropagation: &common.HostToContainerMountPropagation,
-				ReadOnly:         true,
 			})
 			break
 		}

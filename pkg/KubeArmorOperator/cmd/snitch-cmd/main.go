@@ -114,13 +114,6 @@ func snitch() {
 		Logger.Errorf("Not able to detect runtime")
 		os.Exit(1)
 	}
-	runtimeStorage := runtimepkg.DetectRuntimeStorage(PathPrefix, runtime, *Logger)
-	if runtimeStorage != "NA" {
-		Logger.Infof("Detected runtime storage location %s", runtimeStorage)
-	} else {
-		Logger.Errorf("Not able to detect runtime storage location")
-		os.Exit(1)
-	}
 
 	// Check BTF support
 	btfPresent := enforcer.CheckBtfSupport(PathPrefix, *Logger)
@@ -131,7 +124,6 @@ func snitch() {
 	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
 	patchNode.Metadata.Labels[common.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
-	patchNode.Metadata.Labels[common.RuntimeStorageLabel] = strings.ReplaceAll(runtimeStorage[1:], "/", "_")
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
 	patch, err := json.Marshal(patchNode)
