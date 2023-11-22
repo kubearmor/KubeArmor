@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang probe ../../BPF/probe.bpf.c -- -I/usr/include/bpf -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang probe ../../BPF/probe.bpf.c -- -I/usr/include/ -O2 -g
 
 type eventBPF struct {
 	Exec bool
