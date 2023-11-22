@@ -535,6 +535,11 @@ func (fd *Feeder) ServeLogFeeds() {
 
 // PushMessage Function
 func (fd *Feeder) PushMessage(level, message string) {
+	if !cfg.GlobalCfg.Debug {
+		// Only Push Message over GRPC when Debug Mode
+		return
+	}
+
 	pbMsg := pb.Message{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
