@@ -851,13 +851,6 @@ var _ = Describe("Ksp", func() {
 
 		It("it can audit accessing a file owner only from source path", func() {
 
-			if strings.Contains(K8sCRIRuntime(), "cri-o") {
-				// We have issues with audit policy matching with owner related logs due to inconsistent storage mounts
-				// Please check issue for more details : https://github.com/kubearmor/KubeArmor/issues/1178
-				// We will revert the skip after the issue is handled
-				Skip("Skipping due to issue with policy matcher in context of owner only alerts")
-			}
-
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-group-2-audit-file-path-owner-from-source-path.yaml")
 			Expect(err).To(BeNil())
