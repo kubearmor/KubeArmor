@@ -2104,7 +2104,6 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 	} else if action == "DELETED" {
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {
-				dm.Logger.Warnf("Calling delete")
 				dm.SystemMonitor.UpdateNsKeyMap("DELETED", nskey, tp.Visibility{})
 			}
 		}
@@ -2116,7 +2115,7 @@ var visibilityKey string = "kubearmor-visibility"
 
 func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, action string) {
 
-	// we overwrite
+	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
 
 	// get all namespaces
 	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
