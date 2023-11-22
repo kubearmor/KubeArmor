@@ -522,14 +522,14 @@ decision:
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
-          bpf_ringbuf_submit(task_info, 0);
+          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
           return -EPERM;
         }
-        bpf_ringbuf_discard(task_info, 0);
+        bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
         return 0;
       }
       if (val && (val->filemask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, 0);
+        bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
         return -EPERM;
       }
     }
@@ -541,11 +541,11 @@ decision:
     if (allow) {
       if (!match) {
         if(allow->processmask == BLOCK_POSTURE) {
-          bpf_ringbuf_submit(task_info, 0);
+          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
           return -EPERM;
         } else {
             task_info->retval = 0;
-            bpf_ringbuf_submit(task_info, 0);
+            bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
             return 0;
           }
       }
@@ -555,19 +555,19 @@ decision:
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
-          bpf_ringbuf_submit(task_info, 0);
+          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
           return -EPERM;
         }
-        bpf_ringbuf_discard(task_info, 0);
+        bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
         return 0;
       }
       if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
-        bpf_ringbuf_discard(task_info, 0);
+        bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
         // Read Only Policy, Decision making will be done in lsm/file_permission
         return 0;
       }
       if (val && (val->filemask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, 0);
+        bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
         return -EPERM;
       }
     }
@@ -578,18 +578,18 @@ decision:
 
     if (allow && !match) {
        if(allow->processmask == BLOCK_POSTURE) {
-          bpf_ringbuf_submit(task_info, 0);
+          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
           return -EPERM;
         } else {
             task_info->retval = 0;
-            bpf_ringbuf_submit(task_info, 0);
+            bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
             return 0;
           }
     }
   } else if (id == dfilewrite) { // fule write
     if (match) {
       if (val && (val->filemask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, 0);
+        bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
         return -EPERM;
       }
     }
@@ -600,18 +600,18 @@ decision:
 
     if (allow && !match) {
       if(allow->processmask == BLOCK_POSTURE) {
-          bpf_ringbuf_submit(task_info, 0);
+          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
           return -EPERM;
         }
         else {
           task_info->retval= 0;
-          bpf_ringbuf_submit(task_info, 0);
+          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
           return 0;
         }
 
     }
   }
-  bpf_ringbuf_discard(task_info, 0);
+  bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
   return 0;
 }
 
