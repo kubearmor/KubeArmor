@@ -17,14 +17,10 @@ message StateEvents {
 	repeated StateEvent StateEvents=1;
 }
 
-message StatusCode {
-	int32 code=1;
-}
-
 service StateAgent {
 	// stream which continuously pushes state events
-	rpc WatchState (stream StateEvent) returns (stream StatusCode);
+	rpc WatchState (google.protobuf.Empty) returns (stream StateEvent);
 
 	// get all state events in one go
-	rpc GetState (stream StateEvents) returns (stream google.protobuf.Empty);
+	rpc GetState (google.protobuf.Empty) returns (stream StateEvents);
 }
