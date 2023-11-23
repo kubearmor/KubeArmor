@@ -159,6 +159,27 @@ var _ = Describe("Syscalls", func() {
 
 		})
 
+		It("can detect chroot syscall", func() {
+			// Apply policy
+			err := K8sApply([]string{"manifests/matchsyscalls/chroot.yaml"})
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
+			Expect(err).To(BeNil())
+
+			_, _, err = K8sExecInPod(ubuntu, "syscalls", []string{"bash", "-c", "chroot /"})
+			Expect(err).To(BeNil())
+
+			// check policy alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("audit-all-chroot"))
+			Expect(alerts[0].Severity).To(Equal("3"))
+
+		})
+
 	})
 
 	Describe("Match paths", func() {

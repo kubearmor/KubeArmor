@@ -123,6 +123,7 @@ enum
     _SYS_SETGID = 106,
     _SYS_MOUNT = 165,
     _SYS_UMOUNT = 166,
+    _SYS_CHROOT = 161,
 
     // network
     _SYS_SOCKET = 41,
@@ -150,6 +151,7 @@ enum
     _SYS_SETGID = 144,
     _SYS_MOUNT = 165,
     _SYS_UMOUNT = 166,
+    _SYS_CHROOT = 51,
 
     // network
     _SYS_SOCKET = 198,
@@ -1067,6 +1069,14 @@ int kprobe__security_path_rmdir(struct pt_regs *ctx)
     return security_path__dir_path_args(ctx);
 }
 
+SEC("kprobe/security_path_chroot")
+int kprobe__security_path_chroot(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+    return security_path__dir_path_args(ctx);
+}
+
 SEC("kprobe/security_ptrace_access_check")
 int kprobe__security_ptrace_access_check(struct pt_regs *ctx)
 {
@@ -1721,6 +1731,21 @@ SEC("kretprobe/__x64_sys_umount")
 int kretprobe__umount(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_UMOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(UMOUNT_FLAG_T), _CAPS_PROBE);
+}
+
+SEC("kprobe/__x64_sys_chroot")
+int kprobe__chroot(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_CHROOT, ctx);
+}
+
+SEC("kretprobe/__x64_sys_chroot")
+int kretprobe__chroot(struct pt_regs *ctx)
+{
+    return trace_ret_generic(_SYS_CHROOT, ctx, ARG_TYPE0(FILE_TYPE_T), _FILE_PROBE);
 }
 
 struct tracepoint_syscalls_sys_exit_t

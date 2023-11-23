@@ -306,13 +306,15 @@ func K8sExecInPod(pod string, ns string, cmd []string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	buf := &bytes.Buffer{}
+	stdinBuf := &bytes.Buffer{}
+	stdoutBuf := &bytes.Buffer{}
 	errBuf := &bytes.Buffer{}
 	exec.Stream(remotecommand.StreamOptions{
-		Stdout: buf,
+		Stdin:  stdinBuf,
+		Stdout: stdoutBuf,
 		Stderr: errBuf,
 	})
-	return buf.String(), errBuf.String(), nil
+	return stdoutBuf.String(), errBuf.String(), nil
 }
 
 // K8sExecInPodWithContainer Exec into the pod. Output: stdout, stderr, err

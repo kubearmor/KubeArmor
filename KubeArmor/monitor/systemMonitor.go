@@ -417,10 +417,10 @@ func (mon *SystemMonitor) InitBPF() error {
 	mon.Logger.Print("Initialized the eBPF system monitor")
 
 	// sysPrefix := bcc.GetSyscallPrefix()
-	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
+	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount", "chroot"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_path_chroot", "security_ptrace_access_check"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept"}
 
@@ -482,7 +482,6 @@ func (mon *SystemMonitor) InitBPF() error {
 
 // DestroySystemMonitor Function
 func (mon *SystemMonitor) DestroySystemMonitor() error {
-
 	(*mon.MonitorLock).Lock()
 	defer (*mon.MonitorLock).Unlock()
 
@@ -682,6 +681,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == SysFChownAt {
 				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysChroot {
+				if len(args) != 1 {
 					continue
 				}
 			} else if ctx.EventID == SysSetuid {
