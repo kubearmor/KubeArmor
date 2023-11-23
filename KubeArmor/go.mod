@@ -30,7 +30,7 @@ require (
 	github.com/cilium/ebpf v0.11.0
 	github.com/containerd/containerd v1.7.1
 	github.com/containerd/typeurl/v2 v2.1.1
-	github.com/docker/docker v23.0.6+incompatible
+	github.com/docker/docker v24.0.7+incompatible
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230510133055-4e30a28b6352
@@ -39,7 +39,7 @@ require (
 	github.com/spf13/viper v1.15.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/sys v0.10.0
-	google.golang.org/grpc v1.55.0
+	google.golang.org/grpc v1.56.3
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.27.1
