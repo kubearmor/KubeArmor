@@ -194,7 +194,7 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
     int sz = bpf_probe_read_str(
         &(string_p->buf[(offset) & (MAX_COMBINED_LENGTH - 1)]),
         (d_name.len + 1) & (MAX_COMBINED_LENGTH - 1), d_name.name);
-    if (sz > 1) {
+     if (sz > 1) {
       bpf_probe_read(
           &(string_p->buf[(offset + d_name.len) & (MAX_COMBINED_LENGTH - 1)]), 1,
           &slash);
@@ -400,7 +400,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
     }
 
 #pragma unroll
-    for (int i = 0; i < MAX_STRING_SIZE; i++) {
+    for (int i = 0; i < 64; i++) {
       if (store->path[i] == '\0')
         break;
 
@@ -463,7 +463,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
   recursivebuthint = false;
 
 #pragma unroll
-  for (int i = 0; i < MAX_STRING_SIZE; i++) {
+  for (int i = 0; i < 64; i++) {
     if (store->path[i] == '\0')
       break;
 
@@ -538,7 +538,7 @@ decision:
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
-    if (allow) {
+        if (allow) {
       if (!match) {
         if(allow->processmask == BLOCK_POSTURE) {
           bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
@@ -550,7 +550,7 @@ decision:
           }
       }
     }
-           
+   
   } else if (id == dfileread) { // file open
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
