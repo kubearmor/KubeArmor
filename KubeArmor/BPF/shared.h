@@ -100,7 +100,7 @@ struct {
   __uint(type, BPF_MAP_TYPE_RINGBUF);
   __uint(max_entries, 1 << 24);
   __uint(pinning, LIBBPF_PIN_BY_NAME);
-} events SEC(".maps");
+} kubearmor_events SEC(".maps");
 
 #define RULE_EXEC 1 << 0
 #define RULE_WRITE 1 << 1
@@ -502,7 +502,7 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
 
 decision:
 
-  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     return 0;
   }

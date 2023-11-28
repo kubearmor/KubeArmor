@@ -219,7 +219,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		}
 	}
 
-	be.Events, err = ringbuf.NewReader(be.obj.Events)
+	be.Events, err = ringbuf.NewReader(be.obj.KubearmorEvents)
 	if err != nil {
 		be.Logger.Errf("opening ringbuf reader: %s", err)
 		return be, err
@@ -412,11 +412,11 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = true
 		}
 	}
-	if err := be.obj.Events.Unpin(); err != nil {
+	if err := be.obj.KubearmorEvents.Unpin(); err != nil {
 		be.Logger.Err(err.Error())
 		errBPFCleanUp = true
 	}
-	if err := be.obj.Events.Close(); err != nil {
+	if err := be.obj.KubearmorEvents.Close(); err != nil {
 		be.Logger.Err(err.Error())
 		errBPFCleanUp = true
 	}

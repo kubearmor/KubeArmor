@@ -44,7 +44,7 @@ func main() {
 	// initial clean up
 
 	bpfMapsDir := "/sys/fs/bpf/"
-	bpfMapsName := []string{"kubearmor_config", "events", "kubearmor_contianers", "kubearmor_visibility"}
+	bpfMapsName := []string{"kubearmor_config", "kubearmor_events", "kubearmor_contianers", "kubearmor_visibility"}
 	for _, mp := range bpfMapsName {
 		path := bpfMapsDir + mp
 		/* This should not be triggered in ideal cases,

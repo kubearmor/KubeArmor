@@ -14,7 +14,7 @@ typedef struct {
 struct {
   __uint(type, BPF_MAP_TYPE_RINGBUF);
   __uint(max_entries, 1 << 24);
-} events SEC(".maps");
+} kubearmor_events SEC(".maps");
 
 // Force emitting struct event into the ELF.
 const event *unused __attribute__((unused));
@@ -23,7 +23,7 @@ SEC("lsm/mmap_file")
 int test_memfd() {
   event *task_info;
 
-  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     return 0;
   }
