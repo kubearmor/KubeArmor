@@ -269,6 +269,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 
 			dm.Containers[containerID] = container
+
+			// in case if container runtime detect the container and emit that event before pod event then
+			// the container id will be added to NsMap with "Unknown" namespace
+			// therefore update the NsMap to have this container id with associated namespace
+			// and delete the container id from  NamespacePidsMap within "Unknown" namespace
+			dm.HandleUnknownNamespaceNsMap(&container)
 		}
 		dm.ContainersLock.Unlock()
 
@@ -428,6 +434,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 
 				dm.Containers[containerID] = container
+				// in case if container runtime detect the container and emit that event before pod event then
+				// the container id will be added to NsMap with "Unknown" namespace
+				// therefore update the NsMap to have this container id with associated namespace
+				// and delete the container id from  NamespacePidsMap within "Unknown" namespace
+				dm.HandleUnknownNamespaceNsMap(&container)
+
 			}
 			dm.ContainersLock.Unlock()
 
@@ -508,6 +520,22 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		}
 		dm.EndPointsLock.Unlock()
 	}
+}
+
+// HandleUnknownNamespaceNsMap Function
+func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
+	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
+	dm.SystemMonitor.NsMapLock.Lock()
+	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
+		for i := range val.NsKeys {
+			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS {
+				val.NsKeys = append(val.NsKeys[:i], val.NsKeys[i+1:]...)
+				break
+			}
+		}
+		dm.SystemMonitor.NamespacePidsMap["Unknown"] = val
+	}
+	dm.SystemMonitor.NsMapLock.Unlock()
 }
 
 // WatchK8sPods Function
