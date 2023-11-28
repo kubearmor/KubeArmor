@@ -75,8 +75,8 @@ type enforcerMapSpecs struct {
 	Bufk                *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff             *ebpf.MapSpec `ebpf:"bufs_off"`
-	Events              *ebpf.MapSpec `ebpf:"events"`
 	KubearmorContainers *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents     *ebpf.MapSpec `ebpf:"kubearmor_events"`
 }
 
 // enforcerObjects contains all objects after they have been loaded into the kernel.
@@ -101,8 +101,8 @@ type enforcerMaps struct {
 	Bufk                *ebpf.Map `ebpf:"bufk"`
 	Bufs                *ebpf.Map `ebpf:"bufs"`
 	BufsOff             *ebpf.Map `ebpf:"bufs_off"`
-	Events              *ebpf.Map `ebpf:"events"`
 	KubearmorContainers *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents     *ebpf.Map `ebpf:"kubearmor_events"`
 }
 
 func (m *enforcerMaps) Close() error {
@@ -110,8 +110,8 @@ func (m *enforcerMaps) Close() error {
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
-		m.Events,
 		m.KubearmorContainers,
+		m.KubearmorEvents,
 	)
 }
 

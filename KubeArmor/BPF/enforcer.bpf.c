@@ -203,7 +203,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   }
 
 decision:
-  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     return 0;
   }
@@ -360,7 +360,7 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 
 decision:
 
-  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     return 0;
   }
