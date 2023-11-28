@@ -32,6 +32,7 @@ func CheckBPFLSMSupport() error {
 	if err := loadProbeObjects(&objs, nil); err != nil {
 		return err
 	}
+	defer objs.Events.Unpin()
 	defer objs.Close()
 
 	kp, err := link.AttachLSM(link.LSMOptions{Program: objs.TestMemfd})

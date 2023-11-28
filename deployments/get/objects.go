@@ -191,7 +191,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 		"kubearmor-app": kubearmor,
 	}
 	var privileged = bool(false)
-	var terminationGracePeriodSeconds = int64(30)
+	var terminationGracePeriodSeconds = int64(60)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
 	}

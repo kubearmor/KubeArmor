@@ -412,6 +412,14 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = true
 		}
 	}
+	if err := be.obj.Events.Unpin(); err != nil {
+		be.Logger.Err(err.Error())
+		errBPFCleanUp = true
+	}
+	if err := be.obj.Events.Close(); err != nil {
+		be.Logger.Err(err.Error())
+		errBPFCleanUp = true
+	}
 
 	if err := be.Events.Close(); err != nil {
 		be.Logger.Err(err.Error())
