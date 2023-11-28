@@ -248,7 +248,7 @@ typedef struct __attribute__((__packed__)) sys_context
 #define BPF_PERF_OUTPUT(_name) \
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
-BPF_HASH(pid_ns_map, u32, u32);
+BPF_LRU_HASH(pid_ns_map, u32, u32);
 
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
@@ -277,8 +277,8 @@ typedef struct args
     unsigned long args[6];
 } args_t;
 
-BPF_HASH(args_map, u64, args_t);
-BPF_HASH(file_map, u64, struct path);
+BPF_LRU_HASH(args_map, u64, args_t);
+BPF_LRU_HASH(file_map, u64, struct path);
 
 typedef struct buffers
 {
@@ -323,6 +323,28 @@ struct visibility
 };
 
 struct visibility kubearmor_visibility SEC(".maps");
+
+#define DEFAULT_VISIBILITY_KEY 0xc0ffee
+
+// == Config == //
+
+enum
+{
+    _MONITOR_HOST = 0,
+    _MONITOR_CONTAINER = 1,
+    _ENFORCER_BPFLSM = 2,
+};
+
+struct kaconfig
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u32);
+    __type(value, u32);
+    __uint(max_entries, 16);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct kaconfig kubearmor_config SEC(".maps");
 
 // == Kernel Helpers == //
 
@@ -408,81 +430,55 @@ static __always_inline void get_outer_key(struct outer_key *pokey,
     }
 }
 
+static __always_inline u32 get_kubearmor_config(u32 config)
+{
+    u32 *value = bpf_map_lookup_elem(&kubearmor_config, &config);
+    if (!value)
+    {
+        return 0;
+    }
+
+    return *value;
+}
+
 // == Pid NS Management == //
 
 static __always_inline u32 add_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 one = 1;
-
-#if defined(MONITOR_HOST)
-
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO)
-    {
-        return 0;
-    }
-
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
-    {
-        return pid;
-    }
-
-    bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
-    return pid;
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO)
+    if (pid_ns == PROC_PID_INIT_INO && get_kubearmor_config(_MONITOR_HOST))
     { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
-        if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
+        if (!bpf_map_lookup_elem(&pid_ns_map, &pid))
         {
-            return pid;
+            // untracked host pid, adding to pid map
+            bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
         }
 
-        bpf_map_update_elem(&pid_ns_map, &pid, &one, BPF_ANY);
         return pid;
     }
-    else
+    else if(get_kubearmor_config(_MONITOR_CONTAINER))
     { // container
-        if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) != 0)
+        if (!bpf_map_lookup_elem(&pid_ns_map, &pid_ns))
         {
-            return pid_ns;
+            // untracked pid ns, adding to pid ns map
+            bpf_map_update_elem(&pid_ns_map, &pid_ns, &one, BPF_ANY);
         }
-
-        bpf_map_update_elem(&pid_ns_map, &pid_ns, &one, BPF_ANY);
+        
         return pid_ns;
     }
 
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
+    return 0;
 }
 
 static __always_inline u32 remove_pid_ns()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-#if defined(MONITOR_HOST)
-
     u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns != PROC_PID_INIT_INO)
-    {
-        return 0;
-    }
-
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
-    {
-        bpf_map_delete_elem(&pid_ns_map, &pid);
-        return 0;
-    }
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    u32 pid_ns = get_task_pid_ns_id(task);
-    if (pid_ns == PROC_PID_INIT_INO)
+    if (pid_ns == PROC_PID_INIT_INO && get_kubearmor_config(_MONITOR_HOST))
     { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
         if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
@@ -491,7 +487,7 @@ static __always_inline u32 remove_pid_ns()
             return 0;
         }
     }
-    else
+    else if(get_kubearmor_config(_MONITOR_CONTAINER))
     { // container
         if (get_task_ns_pid(task) == 1)
         {
@@ -499,8 +495,6 @@ static __always_inline u32 remove_pid_ns()
             return 0;
         }
     }
-
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     return 0;
 }
@@ -511,20 +505,39 @@ static __always_inline u32 drop_syscall(u32 scope)
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     get_outer_key(&okey, task);
 
+    // We try check global config to check if lookup for container fails do we need to ignore or trace a syscall
+    // In case lookup for global config fails we continue the container check 
+    // and choose to not drop events if either of them are not found
+
+    u32 default_trace = _TRACE_SYSCALL;
+    struct outer_key defaultvizkey;
+    defaultvizkey.pid_ns = DEFAULT_VISIBILITY_KEY;
+    defaultvizkey.mnt_ns = DEFAULT_VISIBILITY_KEY;
+    u32 *d_visibility = bpf_map_lookup_elem(&kubearmor_visibility, &defaultvizkey);
+    if (d_visibility) {
+        u32 *d_on_off_switch = bpf_map_lookup_elem(d_visibility, &scope);
+        if (d_on_off_switch)
+            if (*d_on_off_switch)
+                bpf_printk("ignoring scope %d %u", scope, okey.pid_ns);
+                default_trace = _IGNORE_SYSCALL;
+    }
+
+
     u32 *ns_visibility = bpf_map_lookup_elem(&kubearmor_visibility, &okey);
     if (!ns_visibility)
     {
-        return _TRACE_SYSCALL;
+        return default_trace;
     }
 
     u32 *on_off_switch = bpf_map_lookup_elem(ns_visibility, &scope);
     if (!on_off_switch)
     {
-        return _TRACE_SYSCALL;
+        return default_trace;
     }
 
     if (*on_off_switch)
         return _IGNORE_SYSCALL;
+
     return _TRACE_SYSCALL;
 }
 
@@ -533,32 +546,7 @@ static __always_inline u32 skip_syscall()
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 pid_ns = get_task_pid_ns_id(task);
 
-#if defined(MONITOR_HOST)
-
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
-    if (pid_ns != PROC_PID_INIT_INO)
-    {
-        return _IGNORE_SYSCALL;
-    }
-    else if (bpf_map_lookup_elem(&pid_ns_map, &pid) == 0)
-    {
-        return !add_pid_ns();
-    }
-
-#elif defined(MONITOR_CONTAINER)
-
-    if (pid_ns == PROC_PID_INIT_INO)
-    {
-        return _IGNORE_SYSCALL;
-    }
-    else if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) == 0)
-    {
-        return !add_pid_ns();
-    }
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
-    if (pid_ns == PROC_PID_INIT_INO)
+    if (pid_ns == PROC_PID_INIT_INO && get_kubearmor_config(_MONITOR_HOST))
     { // host
         u32 pid = bpf_get_current_pid_tgid() >> 32;
         if (bpf_map_lookup_elem(&pid_ns_map, &pid) != 0)
@@ -566,7 +554,7 @@ static __always_inline u32 skip_syscall()
             return !add_pid_ns();
         }
     }
-    else
+    else if(get_kubearmor_config(_MONITOR_CONTAINER))
     { // container
         if (bpf_map_lookup_elem(&pid_ns_map, &pid_ns) == 0)
         {
@@ -574,7 +562,6 @@ static __always_inline u32 skip_syscall()
         }
     }
 
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
     return _TRACE_SYSCALL;
 }
 
@@ -987,16 +974,6 @@ static __always_inline u32 init_context(sys_context_t *context)
     context->host_ppid = get_task_ppid(task);
     context->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-#if defined(MONITOR_HOST)
-
-    context->pid_id = 0;
-    context->mnt_id = 0;
-
-    context->ppid = get_task_ppid(task);
-    context->pid = bpf_get_current_pid_tgid() >> 32;
-
-#else // MONITOR_CONTAINER or MONITOR_CONTAINER_AND_HOST
-
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid)
     { // host
@@ -1014,8 +991,6 @@ static __always_inline u32 init_context(sys_context_t *context)
         context->ppid = get_task_ns_ppid(task);
         context->pid = pid;
     }
-
-#endif /* MONITOR_CONTAINER || MONITOR_HOST */
 
     context->uid = bpf_get_current_uid_gid();
 
@@ -1081,6 +1056,10 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
+    {
+        return 0;
+    }
     sys_context_t context = {};
 
     //
@@ -1150,8 +1129,14 @@ int kprobe__security_file_open(struct pt_regs *ctx)
 SEC("kprobe/__x64_sys_execve")
 int kprobe__execve(struct pt_regs *ctx)
 {
-    if (skip_syscall())
+    if (skip_syscall()) // keeping track of pidns even if we need to drop the syscall so as to facilitate data for other hooks
     {
+        return 0;
+    }
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
+    {   
+        bpf_printk("dropped");
         return 0;
     }
 
@@ -1191,6 +1176,11 @@ int kprobe__execve(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_execve")
 int kretprobe__execve(struct pt_regs *ctx)
 {
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
+    {
+        return 0;
+    }
+
     if (skip_syscall())
         return 0;
 
@@ -1211,6 +1201,7 @@ int kretprobe__execve(struct pt_regs *ctx)
 
     if (context.retval >= 0 && drop_syscall(_PROCESS_PROBE))
     {
+        // we need alerts for apparmor enforcer hence only dropping passed logs
         return 0;
     }
 
@@ -1232,6 +1223,11 @@ int kprobe__execveat(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
+    {
+        return 0;
+    }
 
     sys_context_t context = {};
 
@@ -1286,6 +1282,11 @@ int kretprobe__execveat(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
+    
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
+    {
+        return 0;
+    }
 
     sys_context_t context = {};
 
@@ -1304,6 +1305,7 @@ int kretprobe__execveat(struct pt_regs *ctx)
 
     if (context.retval >= 0 && drop_syscall(_PROCESS_PROBE))
     {
+        // we need alerts for apparmor enforcer hence only dropping passed logs
         return 0;
     }
 
@@ -1342,6 +1344,12 @@ int kprobe__do_exit(struct pt_regs *ctx)
     context.retval = code;
 
     remove_pid_ns();
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
+    {
+        // dropping after map cleanup
+        return 0;
+    }
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
@@ -1438,6 +1446,12 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     if (load_args(id, &args) != 0)
         return 0;
 
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(scope))
+    {
+        // dropping after load_args so as the args_map cleanup happens
+        return 0;
+    }
+
     init_context(&context);
 
     context.event_id = id;
@@ -1453,6 +1467,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     if (context.retval >= 0 && drop_syscall(scope))
     {
+        // we need alerts for apparmor enforcer hence only dropping passed logs
         return 0;
     }
 
@@ -1752,8 +1767,11 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
     if (load_args(id, &orig_args) != 0)
         return 0;
 
-    if (skip_syscall())
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_FILE_PROBE))
+    {
+        // dropping after load_args so as the args_map cleanup happens
         return 0;
+    }
 
     init_context(&context);
 
@@ -1897,6 +1915,11 @@ int kprobe__tcp_connect(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE))
+    {
+        return 0;
+    }
+
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct sock_common conn = READ_KERN(sk->__sk_common);
     struct sockaddr_in sockv4;
@@ -1937,6 +1960,11 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 {
     if (skip_syscall())
         return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE))
+    {
+        return 0;
+    }
 
     struct sock *newsk = (struct sock *)PT_REGS_RC(ctx);
     if (newsk == NULL)

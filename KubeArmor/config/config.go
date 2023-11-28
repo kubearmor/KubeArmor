@@ -33,6 +33,8 @@ type KubearmorConfig struct {
 	KVMAgent   bool // Enable/Disable KVM Agent
 	K8sEnv     bool // Is k8s env ?
 
+	Debug bool // Enable/Disable KubeArmor debug mode
+
 	DefaultFilePosture         string // Default Enforcement Action in Global File Context
 	DefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	DefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
@@ -75,6 +77,7 @@ const (
 	ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
+	ConfigDebug                          string = "debug"
 	ConfigUntrackedNs                    string = "untrackedNs"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
@@ -98,6 +101,8 @@ func readCmdLineParams() {
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
+
+	debugB := flag.Bool(ConfigDebug, false, "Enable/Disable KubeArmor debug mode")
 
 	defaultFilePosture := flag.String(ConfigDefaultFilePosture, "audit", "configuring default enforcement action in global file context {allow|audit|block}")
 	defaultNetworkPosture := flag.String(ConfigDefaultNetworkPosture, "audit", "configuring default enforcement action in global network context {allow|audit|block}")
@@ -140,6 +145,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigKubearmorHostPolicy, *hostPolicyB)
 	viper.SetDefault(ConfigKubearmorVM, *kvmAgentB)
 	viper.SetDefault(ConfigK8sEnv, *k8sEnvB)
+
+	viper.SetDefault(ConfigDebug, *debugB)
 
 	viper.SetDefault(ConfigDefaultFilePosture, *defaultFilePosture)
 	viper.SetDefault(ConfigDefaultNetworkPosture, *defaultNetworkPosture)
@@ -205,6 +212,8 @@ func LoadConfig() error {
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
+
+	GlobalCfg.Debug = viper.GetBool(ConfigDebug)
 
 	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
 	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
