@@ -293,6 +293,32 @@ The above command will install the AppArmor utilities in the kind-control-plane,
 
 After this, exit out of the node shell and follow the [getting-started guide](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md).
 
+It might be possible that apart from the dockerized kubenetes environment AppArmor might not be available on the master node itself in the Kubernetes cluster. To check for the same you can run the below command to check for the AppArmor support in kernel config:
+
+```
+cat /boot/config-$(uname -r) | grep -e "APPARMOR"
+```
+
+Following flags need to exist and set to `y`
+```ini
+CONFIG_SECURITY_APPARMOR=y
+CONFIG_SECURITY_APPARMOR_INTROSPECT_POLICY=y
+CONFIG_SECURITY_APPARMOR_HASH=y
+CONFIG_SECURITY_APPARMOR_HASH_DEFAULT=y
+CONFIG_SECURITY_APPARMOR_EXPORT_BINARY=y
+CONFIG_SECURITY_APPARMOR_PARANOID_LOAD=y
+```
+
+Run the command to install apparmor:
+
+```
+apt update && apt install apparmor-utils -y
+```
+
+You need to restart your master node in-order to make APPARMOR available as a kernel config security.
+
+If not then we need to install AppArmor utils on the master node itself.
+
 If the `kubearmor-relay` pod goes into CrashLoopBackOff, apply the following patch:
 ```sh
 kubectl patch deploy -n $(kubectl get deploy -l kubearmor-app=kubearmor-relay -A -o custom-columns=:'{.metadata.namespace}',:'{.metadata.name}') --type=json -p='[{"op": "add", "path": "/spec/template/metadata/annotations/container.apparmor.security.beta.kubernetes.io~1kubearmor-relay-server", "value": "unconfined"}]'

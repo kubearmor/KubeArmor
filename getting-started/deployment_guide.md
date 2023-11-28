@@ -315,98 +315,11 @@ So we need to enable [bpf-lsm](https://github.com/kubearmor/KubeArmor/blob/main/
 
 You can also enable AppArmor if you want to use it as a security module to enforce KubeArmor policies, please refer [here](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/FAQ.md#using-kubearmor-with-kind-clusters). There is a chance that neither AppArmor nor BPF-LSM is enabled on some nodes. 
 
-**We can include the following updater script which automatically detects and installs BPFLSM/AppArmor whichever is needed in kubernetes worker nodes.**
+**We can apply the following manifest which automatically detects and installs BPFLSM/AppArmor whichever is needed in kubernetes worker nodes.**
 
 ```
-apiVersion: v1
-items:
-- apiVersion: apps/v1
-  kind: DaemonSet
-  metadata:
-    labels:
-      kubearmor-app: updater
-    name: updater
-    namespace: kubearmor
-  spec:
-    revisionHistoryLimit: 10
-    selector:
-      matchLabels:
-        kubearmor-app: updater
-    template:
-      metadata:
-        labels:
-          kubearmor-app: updater
-      spec:
-        containers:
-        - args:
-          - |
-            grep "bpf" /rootfs/sys/kernel/security/lsm >/dev/null
-            [[ $? -eq 0 ]] && echo "sysfs already has BPF enabled" && sleep infinity
-            grep "GRUB_CMDLINE_LINUX.*bpf" /rootfs/etc/default/grub >/dev/null
-            [[ $? -eq 0 ]] && echo "grub already has BPF enabled" && sleep infinity
-            cat <<EOF >/rootfs/updater.sh
-            #!/bin/bash
-            lsmlist=\$(cat /sys/kernel/security/lsm)
-            echo "current lsmlist=\$lsmlist"
-            sed -i "s/^GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX=\"lsm=\$lsmlist,bpf\"/g" /etc/default/grub
-            command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2.cfg
-            command -v grub-mkconfig >/dev/null 2>&1 && grub-mkconfig -o /boot/grub.cfg
-            command -v aa-status >/dev/null 2>&1 || yum install apparmor-utils -y
-            command -v update-grub >/dev/null 2>&1 && update-grub
-            command -v update-grub2 >/dev/null 2>&1 && update-grub2
-            reboot
-            EOF
-            cat /rootfs/updater.sh
-            chmod +x /rootfs/updater.sh
-            chroot /rootfs/ /bin/bash /updater.sh
-          image: debian
-          command:
-            - "bash"
-            - "-c"
-          imagePullPolicy: Always
-          name: updater
-          resources: {}
-          securityContext:
-            privileged: true
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
-          volumeMounts:
-          - mountPath: /rootfs
-            mountPropagation: HostToContainer
-            name: rootfs
-            readOnly: false
-        dnsPolicy: ClusterFirstWithHostNet
-        hostNetwork: true
-        hostPID: true
-        nodeSelector:
-          kubernetes.io/os: linux
-        restartPolicy: Always
-        schedulerName: default-scheduler
-        securityContext: {}
-        terminationGracePeriodSeconds: 30
-        tolerations:
-        - operator: Exists
-        volumes:
-        - hostPath:
-            path: /
-            type: DirectoryOrCreate
-          name: rootfs
-    updateStrategy:
-      rollingUpdate:
-        maxSurge: 0
-        maxUnavailable: 1
-      type: RollingUpdate
-  status:
-    currentNumberScheduled: 4
-    desiredNumberScheduled: 4
-    numberAvailable: 4
-    numberMisscheduled: 0
-    numberReady: 4
-    observedGeneration: 1
-    updatedNumberScheduled: 4
-kind: List
-metadata:
-  resourceVersion: ""
-
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
 ```
+
+**Warning:** After running the above script the nodes will restart.
 </details>
