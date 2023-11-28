@@ -32,6 +32,8 @@ func CheckBPFLSMSupport() error {
 	if err := loadProbeObjects(&objs, nil); err != nil {
 		return err
 	}
+	defer objs.KubearmorEvents.Close()
+	defer objs.KubearmorEvents.Unpin()
 	defer objs.Close()
 
 	kp, err := link.AttachLSM(link.LSMOptions{Program: objs.TestMemfd})
@@ -40,7 +42,7 @@ func CheckBPFLSMSupport() error {
 	}
 	defer kp.Close()
 
-	rd, err := ringbuf.NewReader(objs.Events)
+	rd, err := ringbuf.NewReader(objs.KubearmorEvents)
 	if err != nil {
 		return err
 	}

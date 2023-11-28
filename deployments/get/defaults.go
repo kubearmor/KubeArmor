@@ -332,15 +332,13 @@ var defaultConfigs = map[string]DaemonSetConfig{
 		},
 	},
 	"bottlerocket": {
-		Args: []string{
-			"-criSocket=unix:///run/dockershim.sock",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
-				MountPath: "/run/dockershim.sock",
+				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
 		},
@@ -350,7 +348,7 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/dockershim.sock",
+						Path: "/run/containerd/containerd.sock",
 						Type: &hostPathSocket,
 					},
 				},
