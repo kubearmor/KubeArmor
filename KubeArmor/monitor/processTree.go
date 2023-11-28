@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -54,20 +55,27 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 		if !found {
 			val.NsKeys = append(val.NsKeys, key)
 			mon.NamespacePidsMap[namespace] = val
+			mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{
+				File:         val.File,
+				Process:      val.Process,
+				Capabilities: val.Capability,
+				Network:      val.Network,
+			})
 		}
-		mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{
-			File:         val.File,
-			Process:      val.Process,
-			Capabilities: val.Capability,
-			Network:      val.Network,
-		})
 	} else {
 		mon.NamespacePidsMap[namespace] = NsVisibility{
 			NsKeys: []NsKey{
 				key,
 			},
 		}
-		mon.UpdateNsKeyMap("ADDED", key, tp.Visibility{})
+		// Set Visibility to Global Default
+		visibility := tp.Visibility{
+			File:         strings.Contains(cfg.GlobalCfg.Visibility, "file"),
+			Process:      strings.Contains(cfg.GlobalCfg.Visibility, "process"),
+			Network:      strings.Contains(cfg.GlobalCfg.Visibility, "network"),
+			Capabilities: strings.Contains(cfg.GlobalCfg.Visibility, "capabilities"),
+		}
+		mon.UpdateNsKeyMap("ADDED", key, visibility)
 	}
 	mon.BpfMapLock.Unlock()
 }
