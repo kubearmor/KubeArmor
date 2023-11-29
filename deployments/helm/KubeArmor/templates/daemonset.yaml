@@ -19,12 +19,6 @@ spec:
       containers:
       - args:
         - -gRPC=32767
-        {{- if eq .Values.environment.name "BottleRocket" }}
-        - {{ printf "-criSocket=unix:///run/dockershim.sock" | trim }}
-        {{- end }}
-        {{- with .Values.kubearmor.args }}
-        {{- toYaml . | trim | nindent 8 }}
-        {{- end }}
         image: {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
         imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         env:
