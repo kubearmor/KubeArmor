@@ -34,7 +34,7 @@ require (
 	github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230510133055-4e30a28b6352
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230510133055-4e30a28b6352
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20231129072440-719ae8563da7
 	github.com/opencontainers/runtime-spec v1.1.0-rc.2
 	github.com/spf13/viper v1.15.0
 	go.uber.org/zap v1.24.0
