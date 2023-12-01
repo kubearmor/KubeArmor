@@ -41,13 +41,20 @@ const (
 var OperatorConfigCrd *opv1.KubeArmorConfig
 
 var (
-	EnforcerLabel           string = "kubearmor.io/enforcer"
-	RuntimeLabel            string = "kubearmor.io/runtime"
-	SocketLabel             string = "kubearmor.io/socket"
-	RandLabel               string = "kubearmor.io/rand"
-	OsLabel                 string = "kubernetes.io/os"
-	ArchLabel               string = "kubernetes.io/arch"
-	BTFLabel                string = "kubearmor.io/btf"
+	// node labels
+	EnforcerLabel   string = "kubearmor.io/enforcer"
+	RuntimeLabel    string = "kubearmor.io/runtime"
+	SocketLabel     string = "kubearmor.io/socket"
+	RandLabel       string = "kubearmor.io/rand"
+	OsLabel         string = "kubernetes.io/os"
+	ArchLabel       string = "kubernetes.io/arch"
+	BTFLabel        string = "kubearmor.io/btf"
+	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
+	SecurityFsLabel string = "kubearmor.io/securityfs"
+
+	// if any node with securityfs/lsm present
+	IfNodeWithSecurtiyFs bool = false
+
 	DeleteAction            string = "DELETE"
 	AddAction               string = "ADD"
 	Namespace               string = "kubearmor"
