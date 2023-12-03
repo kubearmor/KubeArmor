@@ -74,7 +74,7 @@ sh: 1: apt: Permission denied
 command terminated with exit code 126
 ```
 
-If you don't see Permission denied please refer [here](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/deployment_guide.md#debug-kubearmor-installation-issue-in-dockerized-kubernetes-environment) to debug this issue
+If you don't see Permission denied please refer [here](deployment_guide.md#debug-kubearmor-installation-issue-in-dockerized-kubernetes-environment) to debug this issue
 
 </details>
 
