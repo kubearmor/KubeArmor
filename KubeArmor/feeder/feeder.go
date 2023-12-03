@@ -6,7 +6,6 @@ package feeder
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -141,14 +140,6 @@ func (es *EventStructs) RemoveLogStruct(uid string) {
 	delete(es.LogStructs, uid)
 }
 
-/*
-// HealthCheck Function
-func (ls *LogService) HealthCheck(ctx context.Context, nonce *pb.NonceMessage) (*pb.ReplyMessage, error) {
-	replyMessage := pb.ReplyMessage{Retval: nonce.Nonce}
-	return &replyMessage, nil
-}
-*/
-
 // ============ //
 // == Feeder == //
 // ============ //
@@ -197,17 +188,6 @@ type BaseFeeder struct {
 
 	// log server
 	LogServer *grpc.Server
-
-	// ReverseLogServer //
-
-	// URL of RelayServer
-	RelayServerURL string
-
-	// log server with connection initalized by KubeArmor
-	ReverseLogServer *ReverseLogService
-
-	Context context.Context
-	Cancel  context.CancelFunc
 }
 
 // Feeder Structure
@@ -321,17 +301,6 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 	grpc_health_v1.RegisterHealthServer(fd.LogServer, health.NewServer())
 
-	// ReverseLogServer //
-
-	host, port, err := kl.ParseURL(cfg.GlobalCfg.RelayServerURL)
-	if err != nil {
-		kg.Errf("Failed to parse Relay Server URL: %s", err.Error())
-		return nil
-	}
-	fd.RelayServerURL = fmt.Sprintf("%s:%s", host, port)
-
-	fd.Context, fd.Cancel = context.WithCancel(context.Background())
-
 	// Feeder //
 
 	// initialize security policies
@@ -353,8 +322,6 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 	// wait for a while
 	time.Sleep(time.Second * 1)
 
-	fd.Cancel()
-
 	// close listener
 	if fd.Listener != nil {
 		if err := fd.Listener.Close(); err != nil {
@@ -369,16 +336,6 @@ func (fd *BaseFeeder) DestroyFeeder() error {
 			kg.Err(err.Error())
 		}
 		fd.LogFile = nil
-	}
-
-	// close reverse log server
-	if fd.ReverseLogServer != nil {
-		if fd.ReverseLogServer.Conn != nil {
-			err := fd.ReverseLogServer.Conn.Close()
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	// wait for other routines
@@ -484,44 +441,6 @@ func (fd *BaseFeeder) ServeLogFeeds() {
 	if err := fd.LogServer.Serve(fd.Listener); err != nil {
 		kg.Print("Terminated the gRPC service")
 	}
-}
-
-func (fd *BaseFeeder) ServeReverseLogFeeds() {
-	fd.WgServer.Add(1)
-	defer fd.WgServer.Done()
-
-	for fd.Running {
-		fd.ReverseLogServer = fd.ConnectWithRelay()
-		if fd.ReverseLogServer == nil {
-			return
-		}
-
-		kg.Printf("Connected with RelayServer for pushing logs in reverse (%s)", fd.RelayServerURL)
-
-		fd.ReverseLogServer.Wg.Add(1)
-		go fd.ReverseLogServer.WatchLogs()
-
-		fd.ReverseLogServer.Wg.Add(1)
-		go fd.ReverseLogServer.WatchAlerts()
-
-		fd.ReverseLogServer.Wg.Add(1)
-		go fd.ReverseLogServer.WatchMessages()
-
-		time.Sleep(time.Second * 1)
-
-		// wait for other routines to terminate before creating a new connection
-		fd.ReverseLogServer.Wg.Wait()
-
-		// destroy client
-		if err := fd.ReverseLogServer.Conn.Close(); err != nil {
-			kg.Warnf("Failed to delete ReverseLogClient: %s", err.Error())
-		}
-		kg.Printf("Closed ReverseLogClient for %s", fd.RelayServerURL)
-
-		fd.ReverseLogServer = nil
-	}
-
-	kg.Print("Stopped Pushing events on gRPC ReverseLogService")
 }
 
 // PushMessage Function

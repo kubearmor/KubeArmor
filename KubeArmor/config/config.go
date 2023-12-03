@@ -50,11 +50,7 @@ type KubearmorConfig struct {
 	EnforcerAlerts     bool     // policy enforcer
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
-	ReverseGRPCServer bool   // to enable/disable reverse grpc server
-	RelayServerURL    string // URL of relay server
-
-	StateAgent     bool   // Enable/Disable State Agent Client
-	StateAgentAddr string // Address to State Agent Server
+	StateAgent bool // enable KubeArmor state agent
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -89,19 +85,8 @@ const (
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
+	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
 )
-
-// ConfigReverseGRPCServer state agent key
-const ConfigReverseGRPCServer string = "enableReverseGRPC"
-
-// ConfigRelayServerURL Path key
-const ConfigRelayServerURL string = "relayServerURL"
-
-// ConfigStateAgent state agent key
-const ConfigStateAgent string = "enableStateAgent"
-
-// ConfigStateAgentAddr state agent address key
-const ConfigStateAgentAddr string = "stateAgentAddr"
 
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
@@ -146,7 +131,6 @@ func readCmdLineParams() {
 	relayServerURLStr := flag.String(ConfigRelayServerURL, "http://localhost:2801/", "relay-server http URL listening for logs")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
-	stateAgentAddr := flag.String(ConfigStateAgentAddr, "localhost:8801", "address of State Agent Server")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -199,7 +183,6 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigRelayServerURL, *relayServerURLStr)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
-	viper.SetDefault(ConfigStateAgentAddr, *stateAgentAddr)
 }
 
 // LoadConfig Load configuration
@@ -292,7 +275,6 @@ func LoadConfig() error {
 	GlobalCfg.RelayServerURL = viper.GetString(ConfigRelayServerURL)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
-	GlobalCfg.StateAgentAddr = viper.GetString(ConfigStateAgentAddr)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

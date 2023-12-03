@@ -13,7 +13,7 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-// pushes (container + pod) & workload event
+// pushes (container + pod) event
 func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 	if container.ContainerID == "" {
 		kg.Debug("Error while pushing container event. Missing data.")
@@ -24,13 +24,13 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 	namespace := container.NamespaceName
 	sa.KubeArmorNamespacesLock.Lock()
 	if event == EventAdded {
-
 		// create this kubearmor ns if it doesn't exist
 		// currently only "container_namespace" until we have config agent
 		if ns, ok := sa.KubeArmorNamespaces[namespace]; !ok {
 			nsObj := types.Namespace{
 				Name: namespace,
-				//Labels: "",
+				// no way to change ns annotations in non-kubernetes mode right now
+				// thus use defaults
 				KubearmorFilePosture:    "audit",
 				KubearmorNetworkPosture: "audit",
 				LastUpdatedAt:           container.LastUpdatedAt,
@@ -47,7 +47,6 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 		}
 
 	} else if event == EventDeleted {
-
 		if ns, ok := sa.KubeArmorNamespaces[namespace]; ok {
 			ns.ContainerCount--
 			sa.KubeArmorNamespaces[namespace] = ns
@@ -65,7 +64,7 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 
 	containerBytes, err := json.Marshal(container)
 	if err != nil {
-		kg.Warnf("Error while trying to marshal container data. %s", err.Error())
+		kg.Warnf("Error while trying to marshal container data: %s", err.Error())
 		return
 	}
 
@@ -77,15 +76,17 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 	}
 
 	// skip sending message as no state receiver is connected
-	if sa.StateEvents == nil {
+	if sa.StateEventChans == nil {
 		return
 	}
 
-	select {
-	case sa.StateEvents <- containerEvent:
-	default:
-		kg.Debugf("Failed to send container %s state event", event)
-		return
+	for uid, conn := range sa.StateEventChans {
+		select {
+		case conn <- containerEvent:
+		default:
+			kg.Debugf("Failed to send container %s event to connection: %s", event, uid)
+			return
+		}
 	}
 
 	return
@@ -99,7 +100,7 @@ func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 
 	nodeData, err := json.Marshal(node)
 	if err != nil {
-		kg.Warnf("Error while trying to marshal node data. %s", err.Error())
+		kg.Warnf("Error while trying to marshal node data: %s", err.Error())
 		return
 	}
 
@@ -111,15 +112,17 @@ func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 	}
 
 	// skip sending message as no state receiver is connected
-	if sa.StateEvents == nil {
+	if sa.StateEventChans == nil {
 		return
 	}
 
-	select {
-	case sa.StateEvents <- nodeEvent:
-	default:
-		kg.Debugf("Failed to send node %s state event.", event)
-		return
+	for uid, conn := range sa.StateEventChans {
+		select {
+		case conn <- nodeEvent:
+		default:
+			kg.Debugf("Failed to send node %s event to connection: %s", event, uid)
+			return
+		}
 	}
 
 	return
@@ -140,14 +143,16 @@ func (sa *StateAgent) PushNamespaceEvent(namespace tp.Namespace, event string) {
 	}
 
 	// skip sending message as no state receiver is connected
-	if sa.StateEvents == nil {
+	if sa.StateEventChans == nil {
 		return
 	}
 
-	select {
-	case sa.StateEvents <- nsEvent:
-	default:
-		kg.Debugf("Failed to send namespace %s state event", event)
-		return
+	for uid, conn := range sa.StateEventChans {
+		select {
+		case conn <- nsEvent:
+		default:
+			kg.Debugf("Failed to send namespace %s event to connection: %s", event, uid)
+			return
+		}
 	}
 }
