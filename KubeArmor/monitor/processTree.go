@@ -226,8 +226,10 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, hostPid uint32, 
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
 			return data
-		} else {
+		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
+		} else {
+			mon.Logger.Debugf("Could not read path from procfs due to unknown error")
 		}
 	}
 
@@ -258,8 +260,10 @@ func (mon *SystemMonitor) GetExecPath(containerID string, hostPid uint32, readli
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
 			return data
-		} else {
+		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
+		} else {
+			mon.Logger.Debugf("Could not read path from procfs due to an unknown error")
 		}
 	}
 
@@ -288,8 +292,10 @@ func (mon *SystemMonitor) GetCommand(containerID string, hostPid uint32, readlin
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(hostPid), 10) + "/exe"); err == nil && data != "" && data != "/" {
 			return data
-		} else {
+		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
+		} else {
+			mon.Logger.Debugf("Could not read path from procfs due to an unknown error")
 		}
 	}
 
