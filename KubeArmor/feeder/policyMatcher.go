@@ -915,16 +915,19 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 	}
 
 	if containerEvent {
+		// return here as container events are dropped in kernel space
 		(*log).Type = "ContainerLog"
 		return true
-	}
-
-	if visibility {
+	} else {
+		// host events are dropped in userspace
 		(*log).Type = "HostLog"
-		return true
 	}
 
-	return false
+
+	// handles host visibility
+	// return true if visibility enabled
+	// return false otherwise so that log is skipped
+	return visibility
 }
 
 // ==================== //
