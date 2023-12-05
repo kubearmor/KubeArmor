@@ -310,7 +310,7 @@ Run the command to install apparmor:
 apt update && apt install apparmor-utils -y
 ```
 
-You need to restart your master node in-order to make APPARMOR available as a kernel config security.
+You need to restart your CRI in-order to make APPARMOR available as a kernel config security.
 
 If not then we need to install AppArmor utils on the master node itself.
 
