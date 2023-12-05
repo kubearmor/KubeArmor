@@ -6,6 +6,7 @@ package log
 
 import (
 	"encoding/json"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -32,7 +33,7 @@ func customTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 // initLogger Function
 func initLogger() {
 	defaultConfig := []byte(`{
-		"level": "debug",
+		"level": "info",
 		"encoding": "console",
 		"outputPaths": ["stdout"],
 		"encoderConfig": {
@@ -59,7 +60,11 @@ func initLogger() {
 	}
 
 	config.EncoderConfig.EncodeTime = customTimeEncoder
-	config.Level.SetLevel(zap.DebugLevel) // if we need to set log level
+
+	// this is not read from config/viper as logger is initialized before config
+	if val, ok := os.LookupEnv("DEBUG"); ok && val == "true" {
+		config.Level.SetLevel(zap.DebugLevel) // set to enable debug logging
+	}
 
 	logger, err := config.Build()
 	if err != nil {

@@ -575,7 +575,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				controllerName, controller, namespace, err := getTopLevelOwner(event.Object.ObjectMeta, event.Object.Namespace, event.Object.Kind)
 				if err != nil {
-					dm.Logger.Errf("Failed to get ownerRef (%s, %s)", event.Object.ObjectMeta.Name, err.Error())
+					dm.Logger.Warnf("Failed to get ownerRef (%s, %s)", event.Object.ObjectMeta.Name, err.Error())
 
 				}
 
