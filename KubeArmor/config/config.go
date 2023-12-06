@@ -43,11 +43,12 @@ type KubearmorConfig struct {
 	HostDefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
-	CoverageTest      bool     // Enable/Disable Coverage Test
-	ConfigUntrackedNs []string // untracked namespaces
-	LsmOrder          []string // LSM order
-	BPFFsPath         string   // path to the BPF filesystem
-	EnforcerAlerts    bool     // policy enforcer
+	CoverageTest       bool     // Enable/Disable Coverage Test
+	ConfigUntrackedNs  []string // untracked namespaces
+	LsmOrder           []string // LSM order
+	BPFFsPath          string   // path to the BPF filesystem
+	EnforcerAlerts     bool     // policy enforcer
+	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
 }
 
@@ -82,6 +83,7 @@ const (
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
+	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 )
 
 func readCmdLineParams() {
@@ -120,6 +122,8 @@ func readCmdLineParams() {
 
 	bpfFsPath := flag.String(BPFFsPath, "/sys/fs/bpf", "Path to the BPF filesystem to use for storing maps")
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
+
+	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -165,6 +169,8 @@ func readCmdLineParams() {
 	viper.SetDefault(BPFFsPath, *bpfFsPath)
 
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
+
+	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
 }
 
 // LoadConfig Load configuration
@@ -245,7 +251,10 @@ func LoadConfig() error {
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
+
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
+
+	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
