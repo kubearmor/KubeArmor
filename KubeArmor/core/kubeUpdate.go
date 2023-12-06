@@ -2294,6 +2294,9 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
+					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
+				}
 				globalPosture := tp.DefaultPosture{
 					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
@@ -2317,6 +2320,9 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
+					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
+				}
 				globalPosture := tp.DefaultPosture{
 					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],

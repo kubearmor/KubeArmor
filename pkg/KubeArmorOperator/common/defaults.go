@@ -67,6 +67,7 @@ var (
 	ConfigDefaultFilePosture         string = "defaultFilePosture"
 	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
+	ConfigDefaultPostureLogs         string = "defaultPostureLogs"
 
 	//KubearmorRelayEnvVariables
 
@@ -99,6 +100,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultCapabilitiesPosture: "audit",
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
+	ConfigDefaultPostureLogs:         "true",
 }
 
 var KubearmorRelayEnvMap = map[string]string{
