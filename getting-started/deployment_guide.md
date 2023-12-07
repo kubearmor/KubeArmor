@@ -74,7 +74,7 @@ sh: 1: apt: Permission denied
 command terminated with exit code 126
 ```
 
-If you don't see Permission denied please refer [here](deployment_guide.md#debug-kubearmor-installation-issue-in-dockerized-kubernetes-environment) to debug this issue
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation-issue-in-dockerized-kubernetes-environment) to debug this issue
 
 </details>
 
@@ -180,7 +180,7 @@ cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
 }
 ```
 
-If you don't see Permission denied please refer [here](deployment_guide.md#debug-kubearmor-installation) to debug this issue.
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation) to debug this issue.
 
 
 </details>
@@ -289,84 +289,6 @@ kubectl exec -it $POD -- bash -c "chroot"
 ```
 Any binary other than `bash` and `nginx` would be permission denied.
 
-If you don't see Permission denied please refer [here](deployment_guide.md#debug-kubearmor-installation) to debug this issue
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation) to debug this issue
 
-</details>
-
-<details>
-<summary><h4>Debug KubeArmor installation issue</h4></summary>
-In certain scenarios, the expected behavior of KubeArmor might not be observed. One way to investigate this is by using the KubeArmor Command Line Interface (CLI) utility, commonly referred to as [karmor cli](https://github.com/kubearmor/kubearmor-client). 
-
-To check the status and configuration of KubeArmor, you can use the following command:
-
-```
-karmor probe
-```
-<!-- 
-<img src="../.gitbook/assets/kubearmor_install_issue.png" width="768" class="center" alt="Karmor logs"> -->
-
-```
-pc:~$ karmor probe
-
-Found KubeArmor running in Kubernetes
-
-Daemonset :
-
-kubearmor Desired: 1 Ready: 1 Available: 1 Deployments :
-
-kubearmor-controller        Desired: 1   Ready: 1   Available: 1 
-kubearmor-operator          Desired: 1   Ready: 1   Available: 1 
-kubearmor-relay             Desired: 1   Ready: 1   Available: 1
-
-Containers :
-
-kubearmor -apparmor-containerd-98c2c-z772n     Running: 1    Image Version: kubearmor/kubearmor:stable 
-kubearmor-controller -6b5d689967-4wxnh         Running: 2    Image Version: gcr.io/kubebuilder/kube-rbac-proxy:v0.12. 
-kubearmor -operator -6fb47dd855-6tk5r          Running: 1    Image Version: kubearmor/kubearmor-operator: latest
-kubearmor -relay-6966976dbb-hq96h              Running: 1    Image Version: kubearmor/kubearmor-relay-server
-
-Node 1 :
-
-OS Image:                    Debian GNU/Linux 11 (bullseye)
-
-Kernel Version:              6.2.0-36-generic
-
-Kubelet Version:             v1.27.3
-
-Container Runtime:           containerd://1.7.1
-
-Active LSM:
-
-Host Security:               false
-
-Container Security:          false
-
-Container Default Posture:   audit(File)   audit(Capabilities)    audit (Network) 
-Host Default Posture:        audit(File)   audit(Capabilities)   audit (Network) 
-Host Visibility:             none
-
-Armored Up pods :
-
-------------------------------------------------------------
-
-| NAMESPACE | DEFAULT POSTURE | VISIBILITY | NAME | POLICY |
-```
-
-When executing this command, check the output for the value of **ActiveLSM** field, if it is not assigned any value, it means that no active LSM is available for KubeArmor to enforce policies. Under normal circumstances, this value should be assigned a specific Linux Security Module (LSM) that KubeArmor uses to enforce security policies. Additionally, ensure that the **Container Security** field is set to true.
-
-However, there are situations where ActiveLSM might not be assigned any value. This situation indicates that Kubearmor is unable to identify the appropriate LSM in a environment, which is commonly used in Kubernetes setups.
-
-To address this issue, KubeArmor provides a solution involving the use of BPF-LSM. BPF (Berkeley Packet Filter) is a technology that allows efficient packet filtering in the Linux kernel. Enabling support for BPF LSM ensures that KubeArmor can apply and enforce policies as expected in Dockerized environments associated with Kubernetes. Please note that BPFLSM is only available on kernel versions above 5.8 or on RHEL distros > 8.5.
-
-So we need to enable [bpf-lsm](FAQ.md#checking-and-enabling-support-for-bpf-lsm) for Kubearmor to apply and enforce policies as expected.
-
-You can also enable AppArmor if you want to use it as a security module to enforce KubeArmor policies, please refer [here](FAQ.md#using-kubearmor-with-kind-clusters). There is a chance that neither AppArmor nor BPF-LSM is enabled on some nodes. 
-
-**We can apply the following manifest which automatically detects and installs BPFLSM/AppArmor whichever is needed in kubernetes worker nodes.**
-
-```
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
-```
-
-**Warning:** After running the above script the nodes will restart.
 </details>
