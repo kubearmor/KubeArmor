@@ -295,13 +295,17 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 // == //
 
 // GenerateProfileBody Function
-func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture) (int, Profile) {
+func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture, privileged bool) (int, Profile) {
 	// preparation
 
 	count := 0
 
 	var profile Profile
 	profile.Init()
+
+	if privileged {
+		profile.Privileged = true
+	}
 
 	for _, secPolicy := range securityPolicies {
 		if len(secPolicy.Spec.AppArmor) > 0 {
@@ -464,9 +468,11 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	}
 	oldProfile := string(profile)
 
+	privileged := strings.HasPrefix(appArmorProfile, kl.PrivilegedProfilePrefix)
+
 	// generate a profile body
 
-	count, newProfile := ae.GenerateProfileBody(securityPolicies, defaultPosture)
+	count, newProfile := ae.GenerateProfileBody(securityPolicies, defaultPosture, privileged)
 
 	newProfile.Name = appArmorProfile
 

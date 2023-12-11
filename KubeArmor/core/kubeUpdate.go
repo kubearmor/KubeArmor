@@ -254,6 +254,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container.Labels = strings.Join(labels, ",")
 
 			container.ContainerName = pod.Containers[containerID]
+			if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
+				container.Privileged = true
+			}
+
 			container.ContainerImage = pod.ContainerImages[containerID]
 
 			container.PolicyEnabled = newPoint.PolicyEnabled
@@ -419,6 +423,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				container.Labels = strings.Join(labels, ",")
 
 				container.ContainerName = pod.Containers[containerID]
+				if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
+					container.Privileged = true
+				}
+
 				container.ContainerImage = pod.ContainerImages[containerID]
 
 				container.PolicyEnabled = newEndPoint.PolicyEnabled
@@ -723,7 +731,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 							}
 						} else if pod.Metadata["owner.controller"] == "Pod" {
-							pod, err := K8s.K8sClient.CoreV1().Pods("default").Get(context.Background(), "my-pod", metav1.GetOptions{})
+							pod, err := K8s.K8sClient.CoreV1().Pods(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 							if err == nil {
 								for _, c := range pod.Spec.Containers {
 									containers = append(containers, c.Name)
@@ -746,10 +754,26 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					}
 
+					pod.PrivilegedContainers = make(map[string]struct{})
 					for _, container := range event.Object.Spec.Containers {
 						if _, ok := appArmorAnnotations[container.Name]; !ok && kl.ContainsElement(containers, container.Name) {
-							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
+							profileName := pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
 							updateAppArmor = true
+
+							// if the container is privileged or it has more than one capabilities added
+							// handle the apparmor profile generation with privileged rules
+							if container.SecurityContext != nil &&
+								((container.SecurityContext.Privileged != nil && *container.SecurityContext.Privileged) ||
+									(container.SecurityContext.Capabilities != nil && len(container.SecurityContext.Capabilities.Add) > 0)) {
+
+								appArmorAnnotations[container.Name] = kl.PrivilegedProfilePrefix + "-" + profileName
+
+								// container name is unique for all containers in a pod
+								pod.PrivilegedContainers[container.Name] = struct{}{}
+
+							} else {
+								appArmorAnnotations[container.Name] = "kubearmor-" + profileName
+							}
 						}
 					}
 

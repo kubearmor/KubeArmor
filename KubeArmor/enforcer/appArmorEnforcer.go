@@ -28,7 +28,8 @@ type AppArmorEnforcer struct {
 	Logger *fd.Feeder
 
 	// default profile
-	ApparmorDefault string
+	ApparmorDefault           string
+	ApparmorDefaultPrivileged string
 
 	// host profile
 	HostProfile string
@@ -50,38 +51,39 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 	// default profile
 	ae.ApparmorDefault = `## == Managed by KubeArmor == ##
-	
 #include <tunables/global>
+
 profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
-## == PRE START == ##	
-#include <abstractions/base>	
-umount,
-file,
-network,
-capability,
+## == PRE START == ##
+` + AppArmorDefaultPreStart +
+		`
 ## == PRE END == ##
 
 ## == POLICY START == ##
 ## == POLICY END == ##
 
 ## == POST START == ##
-/lib/x86_64-linux-gnu/{*,**} rm,
+` + AppArmorDefaultPostStart +
+		`
+## == POST END == ##
+}
+`
 
-deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-deny @{PROC}/sysrq-trigger rwklx,
-deny @{PROC}/mem rwklx,
-deny @{PROC}/kmem rwklx,
-deny @{PROC}/kcore rwklx,
+	ae.ApparmorDefaultPrivileged = `## == Managed by KubeArmor == ##
+#include <tunables/global>
 
-deny mount,
+profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
+## == PRE START == ##
+` + AppArmorPrivilegedPreStart +
+		`
+## == PRE END == ##
 
-deny /sys/[^f]*/** wklx,
-deny /sys/f[^s]*/** wklx,
-deny /sys/fs/[^c]*/** wklx,
-deny /sys/fs/c[^g]*/** wklx,
-deny /sys/fs/cg[^r]*/** wklx,
-deny /sys/firmware/efi/efivars/** rwklx,
-deny /sys/kernel/security/** rwklx,
+## == POLICY START == ##
+## == POLICY END == ##
+
+## == POST START == ##
+` + AppArmorPrivilegedPostStart +
+		`
 ## == POST END == ##
 }
 `
@@ -216,7 +218,13 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string)
 		return true
 	}
 
-	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	// generate a profile with basic allows if a privileged container
+	var newProfile string
+	if strings.HasPrefix(profileName, kl.PrivilegedProfilePrefix) {
+		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+	} else {
+		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
 	if err != nil {
@@ -285,7 +293,12 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 		return false
 	}
 
-	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	var newProfile string
+	if strings.HasPrefix(profileName, kl.PrivilegedProfilePrefix) {
+		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+	} else {
+		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
 	if err != nil {
@@ -454,6 +467,7 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 
 // UpdateAppArmorProfile Function
 func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
+	//if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture); ok {
 	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture); ok {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {

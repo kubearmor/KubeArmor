@@ -29,6 +29,7 @@ type Container struct {
 	Labels        string   `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
+	Privileged      bool   `json:"privileged"`
 
 	// == //
 
@@ -121,11 +122,12 @@ type K8sNodeEvent struct {
 
 // K8sPod Structure
 type K8sPod struct {
-	Metadata        map[string]string
-	Annotations     map[string]string
-	Labels          map[string]string
-	Containers      map[string]string
-	ContainerImages map[string]string
+	Metadata             map[string]string
+	Annotations          map[string]string
+	Labels               map[string]string
+	Containers           map[string]string
+	ContainerImages      map[string]string
+	PrivilegedContainers map[string]struct{}
 }
 
 // K8sPodEvent Structure

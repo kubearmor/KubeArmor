@@ -115,6 +115,9 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	}
 
 	container.AppArmorProfile = inspect.AppArmorProfile
+	if inspect.HostConfig != nil {
+		container.Privileged = inspect.HostConfig.Privileged
+	}
 
 	// == //
 

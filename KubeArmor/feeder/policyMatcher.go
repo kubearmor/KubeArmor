@@ -923,7 +923,6 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 		(*log).Type = "HostLog"
 	}
 
-
 	// handles host visibility
 	// return true if visibility enabled
 	// return false otherwise so that log is skipped
