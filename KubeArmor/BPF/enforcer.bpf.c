@@ -436,3 +436,130 @@ int BPF_PROG(enforce_file_perm, struct file *file, int mask) {
   struct path f_path = BPF_CORE_READ(file, f_path);
   return match_and_enforce_path_hooks(&f_path, dfilewrite, _FILE_PERMISSION);
 }
+SEC("lsm/capable")
+int BPF_PROG(enforce_cap,  const struct cred *cred, struct user_namespace *ns ,int cap, int ret){
+
+  event *task_info;
+  int retval = 0;
+
+  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+  bool match = false;
+
+  struct outer_key okey;
+  get_outer_key(&okey, t);
+
+  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+
+  if (!inner) {
+    return 0;
+  }
+
+  u32 zero = 0;
+  bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
+  if (z == NULL)
+    return 0;
+
+  u32 one = 1;
+  bufs_k *p = bpf_map_lookup_elem(&bufk, &one);
+  if (p == NULL)
+    return 0;
+
+  u32 two = 2;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &two);
+  if (store == NULL)
+    return 0;
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  int p0;
+  int p1;
+  struct data_t *val = bpf_map_lookup_elem(inner, p);
+  bool fromSourceCheck = true;
+
+  struct file *file_p = get_task_file(t);
+  if (file_p == NULL)
+    fromSourceCheck = false;
+  bufs_t *src_buf = get_buf(PATH_BUFFER);
+  if (src_buf == NULL)
+    fromSourceCheck = false;
+  struct path f_src = BPF_CORE_READ(file_p, f_path);
+  if (!prepend_path(&f_src, src_buf))
+    fromSourceCheck = false;
+
+  u32 *src_offset = get_buf_off(PATH_BUFFER);
+  if (src_offset == NULL)
+    fromSourceCheck = false;
+
+  void *ptr = &src_buf->buf[*src_offset];
+  p0 = CAPABLE_KEY;
+  p1 = cap;
+  
+  if (fromSourceCheck) {
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+    p->path[0] = p0 ;
+    p->path[1] = p1 ;
+    val = bpf_map_lookup_elem(inner, p);
+
+    if (val) {
+      match = true;
+      goto decision;
+    }
+  }
+    
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  // check for rules without fromsource
+  p->path[0] = p0;
+  p->path[1] = p1;
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+ 
+decision:
+  bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
+  if (match) {
+    if (val && (val->processmask & RULE_DENY)) {
+      retval = -EPERM;
+      goto ringbuf;
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = dcap;
+  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+
+  if (allow) {
+    if (!match) {
+      if (allow->processmask == BLOCK_POSTURE) {
+        retval = -EPERM;
+      }
+      goto ringbuf;
+    }
+  }
+
+  return 0;
+
+ringbuf:
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+  if (!task_info) {
+    return retval;
+  }
+  // Clearing arrays to avoid garbage values to be parsed
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  init_context(task_info);
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+
+  task_info->event_id = _CAPABLE;
+
+  task_info->retval = retval;
+  bpf_ringbuf_submit(task_info, 0);
+  return retval;
+
+}

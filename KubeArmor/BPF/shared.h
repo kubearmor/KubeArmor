@@ -21,13 +21,15 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define TASK_COMM_LEN 80
 #define AUDIT_POSTURE 140
 #define BLOCK_POSTURE 141
+#define CAPABLE_KEY 200
 
 enum file_hook_type { dpath = 0, dfileread, dfilewrite };
 
 enum deny_by_default {
   dproc = 101,
   dfile,
-  dnet
+  dnet,
+  dcap
 }; // check if the list is whitelist/blacklist
 enum network_check_type {
   sock_type = 2,
