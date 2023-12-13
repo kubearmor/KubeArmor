@@ -394,17 +394,20 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	FirstRun := true
 	srvAccs := []*corev1.ServiceAccount{
 		addOwnership(deployments.GetServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
+		addOwnership(deployments.GetRelayServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
 		addOwnership(deployments.GetKubeArmorControllerServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
 		addOwnership(genSnitchServiceAccount()).(*corev1.ServiceAccount),
 	}
 	clusterRoles := []*rbacv1.ClusterRole{
 		addOwnership(genSnitchRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole),
+		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetKubeArmorControllerProxyRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole),
 	}
 	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{
 		addOwnership(deployments.GetClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
+		addOwnership(deployments.GetRelayClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetKubeArmorControllerClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetKubeArmorControllerProxyRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(genSnitchRoleBinding()).(*rbacv1.ClusterRoleBinding),

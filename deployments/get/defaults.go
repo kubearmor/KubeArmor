@@ -16,6 +16,9 @@ var (
 	KubeArmorClusterRoleBindingName                  = "kubearmor-clusterrolebinding"
 	KubeArmorClusterRoleName                         = "kubearmor-clusterrole"
 	RelayServiceName                                 = kubearmor
+	RelayServiceAccountName                          = "kubearmor-relay"
+	RelayClusterRoleName                             = "kubearmor-relay-clusterrole"
+	RelayClusterRoleBindingName                      = "kubearmor-relay-clusterrolebinding"
 	RelayDeploymentName                              = "kubearmor-relay"
 	KubeArmorConfigMapName                           = "kubearmor-config"
 	KubeArmorControllerDeploymentName                = "kubearmor-controller"
