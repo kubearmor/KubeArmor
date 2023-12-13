@@ -174,7 +174,8 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
       m = BPF_CORE_READ(mnt, mnt_parent);
       if (mnt != m) {
         dentry = BPF_CORE_READ(mnt, mnt_mountpoint);
-        mnt = m;
+        mnt = BPF_CORE_READ(mnt, mnt_parent);
+        vfsmnt = &mnt->mnt;
         continue;
       }
       break;
