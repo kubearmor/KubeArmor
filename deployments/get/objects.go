@@ -927,6 +927,7 @@ func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data[cfg.ConfigDefaultFilePosture] = "audit"
 	data[cfg.ConfigDefaultCapabilitiesPosture] = "audit"
 	data[cfg.ConfigDefaultNetworkPosture] = "audit"
+	data[cfg.ConfigDefaultPostureLogs] = "true"
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
