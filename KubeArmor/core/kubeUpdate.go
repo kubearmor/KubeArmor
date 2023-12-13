@@ -254,6 +254,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			container.Labels = strings.Join(labels, ",")
 
 			container.ContainerName = pod.Containers[containerID]
+
+			// if container is privileged
 			if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
 				container.Privileged = true
 			}
@@ -422,6 +424,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 				container.Labels = strings.Join(labels, ",")
 
+				// if container is privileged
 				container.ContainerName = pod.Containers[containerID]
 				if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
 					container.Privileged = true

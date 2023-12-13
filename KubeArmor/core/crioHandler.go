@@ -119,6 +119,7 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string)
 
 	// path to container's root storage
 	container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
+	container.Privileged = containerInfo.Privileged
 
 	pid := strconv.Itoa(containerInfo.Pid)
 

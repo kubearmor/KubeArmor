@@ -412,18 +412,23 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = true
 		}
 	}
-	if err := be.obj.KubearmorEvents.Unpin(); err != nil {
-		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
-	}
-	if err := be.obj.KubearmorEvents.Close(); err != nil {
-		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
+
+	if be.obj.KubearmorEvents != nil {
+		if err := be.obj.KubearmorEvents.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = true
+		}
+		if err := be.obj.KubearmorEvents.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = true
+		}
 	}
 
-	if err := be.Events.Close(); err != nil {
-		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
+	if be.Events != nil {
+		if err := be.Events.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = true
+		}
 	}
 
 	if errBPFCleanUp {
