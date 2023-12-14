@@ -674,7 +674,8 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p, in
             if (mnt != m)
             {
                 bpf_probe_read(&dentry, sizeof(struct dentry *), &mnt->mnt_mountpoint);
-                mnt = m;
+                bpf_probe_read(&mnt, sizeof(struct mount *), &mnt->mnt_parent);
+                vfsmnt = &mnt->mnt;
                 continue;
             }
 

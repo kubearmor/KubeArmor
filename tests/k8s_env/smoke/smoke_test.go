@@ -268,6 +268,31 @@ var _ = Describe("Smoke", func() {
 			fmt.Printf("OUTPUT: %s\n", sout)
 			Expect(sout).To(MatchRegexp("/etc/shadow.*Permission denied"))
 		})
+
+		It("can block write access and only allow read access to mounted files", func() {
+			// Apply policy
+			err := K8sApplyFile("res/ksp-wordpress-block-mount-file.yaml")
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
+			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
+
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "touch /dev/shm/new"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(ContainSubstring("Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(alerts[0].PolicyName).To(Equal("ksp-wordpress-block-mount-file"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+		})
 	})
 
 })
