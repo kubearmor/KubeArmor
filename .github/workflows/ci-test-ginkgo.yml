@@ -52,6 +52,9 @@ jobs:
         run: |
           GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
+      - name: Build KubeArmorController
+        run: make -C pkg/KubeArmorController/ docker-build TAG=latest
+
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
         run: |
@@ -70,12 +73,16 @@ jobs:
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+
+            docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
+
+              sudo podman pull docker-daemon:kubearmor/kubearmor-controller:latest
             fi
           fi
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
