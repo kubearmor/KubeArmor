@@ -126,6 +126,8 @@ func snitch() {
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
+	patchNode.Metadata.Labels[common.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger)
+	patchNode.Metadata.Labels[common.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix, *Logger)
 	patch, err := json.Marshal(patchNode)
 
 	if err != nil {
