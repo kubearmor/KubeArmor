@@ -591,6 +591,16 @@ func K8sRuntimeEnforcer() string {
 	return runtimeEnforcer
 }
 
+func K8sRuntime() string {
+	nodes, _ := k8sClient.K8sClientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+	if len(nodes.Items) <= 0 {
+		return ""
+	}
+	runtime := nodes.Items[0].Status.NodeInfo.ContainerRuntimeVersion
+	splitStr := strings.Split(runtime, "://")
+	return splitStr[0]
+}
+
 // RunDockerCommand() executes docker commmands
 func RunDockerCommand(cmdstr string) (string, error) {
 	cmdf := strings.Fields(cmdstr)

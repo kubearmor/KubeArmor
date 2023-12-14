@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: caps-container-block-ls
+  namespace: privileged
+spec:
+  severity: 2
+  selector:
+    matchLabels:
+      deployment: caps
+      kubearmor.io/container.name: "[caps-container]"
+  process:
+    matchPaths:
+      - path: /bin/ls
+        # ls
+  action:
+    Block

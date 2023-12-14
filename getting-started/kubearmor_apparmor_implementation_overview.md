@@ -25,3 +25,12 @@ The domain transion is made possible using the `px` permission in apparmor.
 ![Action Conflict](./resources/Apparmor-domain-transition.png)
 
 The above figure illustrate how we decide that we need to perform a domain transition for a certain binary.
+
+## Apparmor profiles for privileged pods and pods with additional capabilities 
+
+Pods with additional capabilities are supported across all runtimes, hence apparmor profiles can be set here. We provide more capabilities than docker default profile to make them work.
+
+On **containerd** runtime, we are able to use apparmor profiles to secure privileged pods. 
+However on **cri-o** and **docker** runtimes, they do not allow us to set any apparmor profile for privileged pods.
+
+

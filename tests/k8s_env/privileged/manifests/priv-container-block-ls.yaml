@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: privileged-container-block-ls
+  namespace: privileged
+spec:
+  severity: 2
+  selector:
+    matchLabels:
+      deployment: privileged
+      kubearmor.io/container.name: "[priv-container]"
+  process:
+    matchPaths:
+      - path: /bin/ls
+        # ls
+  action:
+    Block

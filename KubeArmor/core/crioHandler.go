@@ -119,6 +119,7 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string)
 
 	// path to container's root storage
 	container.AppArmorProfile = containerInfo.RuntimeSpec.Process.ApparmorProfile
+	container.Privileged = containerInfo.Privileged
 
 	pid := strconv.Itoa(containerInfo.Pid)
 
@@ -238,6 +239,10 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 					// update apparmor profiles
 					if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
 						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+					}
+
+					if container.Privileged && dm.EndPoints[idx].PrivilegedContainers != nil {
+						dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 					}
 
 					break

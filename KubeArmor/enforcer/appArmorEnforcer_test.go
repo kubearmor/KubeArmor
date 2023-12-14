@@ -132,7 +132,7 @@ func TestAppArmorProfile(t *testing.T) {
 	t.Log("[PASS] Created AppArmor Enforcer")
 
 	// register AppArmorProfile
-	if ok := enforcer.RegisterAppArmorProfile("test", "test-profile"); !ok {
+	if ok := enforcer.RegisterAppArmorProfile("test", "test-profile", true); !ok {
 		t.Log("[FAIL] Failed to register AppArmorProfile")
 
 		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
@@ -156,7 +156,7 @@ func TestAppArmorProfile(t *testing.T) {
 	t.Log("[PASS] Registered AppArmorProfile")
 
 	// unregister AppArmorProfile
-	if ok := enforcer.UnregisterAppArmorProfile("test", "test-profile"); !ok {
+	if ok := enforcer.UnregisterAppArmorProfile("test", "test-profile", true); !ok {
 		t.Log("[FAIL] Failed to unregister AppArmorProfile")
 
 		if err := enforcer.DestroyAppArmorEnforcer(); err != nil {
