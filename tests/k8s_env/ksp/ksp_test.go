@@ -25,19 +25,12 @@ var _ = BeforeSuite(func() {
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
-
 })
 
 var _ = AfterSuite(func() {
 	// delete multiubuntu deployment
 	err := K8sDelete([]string{"multiubuntu/multiubuntu-deployment.yaml"})
 	Expect(err).To(BeNil())
-
-	KubearmorPortForwardStop()
 })
 
 func getUbuntuPod(name string, ant string) string {
