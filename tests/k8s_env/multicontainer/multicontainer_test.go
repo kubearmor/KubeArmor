@@ -19,17 +19,12 @@ var _ = BeforeSuite(func() {
 
 	// delete all KSPs
 	KspDeleteAll()
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
 })
 
 var _ = AfterSuite(func() {
 	// delete wordpress-mysql app from multicontainer ns
 	err := K8sDelete([]string{"manifests/multicontainer-deployment.yaml"})
 	Expect(err).To(BeNil())
-	KubearmorPortForwardStop()
 })
 
 func getMultiContainerPod(name string, ant string) string {

@@ -20,18 +20,12 @@ var _ = BeforeSuite(func() {
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
 })
 
 var _ = AfterSuite(func() {
 	// Delete wordpress-mysql app
 	err := K8sDelete([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-
-	KubearmorPortForwardStop()
 })
 
 func getWpsqlPod(name string, ant string) string {

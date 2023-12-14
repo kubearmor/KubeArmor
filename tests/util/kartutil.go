@@ -36,7 +36,6 @@ import (
 
 var k8sClient *kcli.Client
 var kcClient *kc.SecurityV1Client
-var stopChan chan struct{}
 
 // ConfigMapData hosts the structure which is used to configure Config Map Data
 type ConfigMapData struct {
@@ -434,7 +433,7 @@ func DeleteAllKsp() error {
 		for _, k := range ksp.Items {
 			err = k8sClient.KSPClientset.KubeArmorPolicies(ns.Name).Delete(context.TODO(), k.Name, metav1.DeleteOptions{})
 			if err != nil {
-				log.Errorf("error deleting ksp %s in the namespace %s", k.Name, &ns.Name)
+				log.Errorf("error deleting ksp %s in the namespace %s", k.Name, ns.Name)
 				return err
 			}
 			log.Printf("deleted ksp %s in the namespace %s", k.Name, ns.Name)
