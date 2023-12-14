@@ -29,6 +29,7 @@ type Container struct {
 	Labels        string   `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
+	Privileged      bool   `json:"privileged"`
 
 	// == //
 
@@ -68,6 +69,9 @@ type EndPoint struct {
 	SELinuxProfiles  []string `json:"selinuxProfiles"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
+
+	// only needed for unorchestrated containers
+	PrivilegedContainers map[string]struct{} `json:"privilegdContainers"`
 
 	// == //
 
@@ -126,6 +130,13 @@ type K8sPod struct {
 	Labels          map[string]string
 	Containers      map[string]string
 	ContainerImages map[string]string
+
+	// using two maps here as it is inefficent to
+	// obtain either from just one
+	// for storing privilegd container names
+	PrivilegedContainers map[string]struct{}
+	// for storing privileged apparmor profile names
+	PrivilegedAppArmorProfiles map[string]struct{}
 }
 
 // K8sPodEvent Structure

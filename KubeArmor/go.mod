@@ -38,6 +38,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.1.0-rc.2
 	github.com/spf13/viper v1.15.0
 	go.uber.org/zap v1.24.0
+	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2
 	golang.org/x/sys v0.10.0
 	google.golang.org/grpc v1.56.3
 	k8s.io/api v0.27.1
@@ -103,7 +104,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
-	golang.org/x/exp v0.0.0-20230224173230-c95f2b4c22f2 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect

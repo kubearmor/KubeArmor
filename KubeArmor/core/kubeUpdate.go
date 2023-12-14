@@ -268,6 +268,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				newPoint.AppArmorProfiles = append(newPoint.AppArmorProfiles, container.AppArmorProfile)
 			}
 
+			// if container is privileged
+			if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
+				container.Privileged = true
+			}
+
 			dm.Containers[containerID] = container
 
 			// in case if container runtime detect the container and emit that event before pod event then
@@ -431,6 +436,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				containersAppArmorProfiles[containerID] = container.AppArmorProfile
 				if !kl.ContainsElement(newEndPoint.AppArmorProfiles, container.AppArmorProfile) {
 					newEndPoint.AppArmorProfiles = append(newEndPoint.AppArmorProfiles, container.AppArmorProfile)
+				}
+
+				// if container is privileged
+				if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
+					container.Privileged = true
 				}
 
 				dm.Containers[containerID] = container
@@ -688,6 +698,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 				}
 
+				pod.PrivilegedContainers = make(map[string]struct{})
+				pod.PrivilegedAppArmorProfiles = make(map[string]struct{})
 				if dm.RuntimeEnforcer != nil && dm.RuntimeEnforcer.EnforcerType == "AppArmor" {
 					appArmorAnnotations := map[string]string{}
 					updateAppArmor := false
@@ -723,7 +735,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 							}
 						} else if pod.Metadata["owner.controller"] == "Pod" {
-							pod, err := K8s.K8sClient.CoreV1().Pods("default").Get(context.Background(), "my-pod", metav1.GetOptions{})
+							pod, err := K8s.K8sClient.CoreV1().Pods(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
 							if err == nil {
 								for _, c := range pod.Spec.Containers {
 									containers = append(containers, c.Name)
@@ -746,16 +758,34 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					}
 
+					var privileged bool
 					for _, container := range event.Object.Spec.Containers {
+						// store privileged containers
+						if container.SecurityContext != nil &&
+							((container.SecurityContext.Privileged != nil && *container.SecurityContext.Privileged) ||
+								(container.SecurityContext.Capabilities != nil && len(container.SecurityContext.Capabilities.Add) > 0)) {
+							pod.PrivilegedContainers[container.Name] = struct{}{}
+							privileged = true
+						}
+
 						if _, ok := appArmorAnnotations[container.Name]; !ok && kl.ContainsElement(containers, container.Name) {
-							appArmorAnnotations[container.Name] = "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
+							profileName := "kubearmor-" + pod.Metadata["namespaceName"] + "-" + podOwnerName + "-" + container.Name
+							appArmorAnnotations[container.Name] = profileName
 							updateAppArmor = true
+
+							// if the container is privileged or it has more than one capabilities added
+							// handle the apparmor profile generation with privileged rules
+							if privileged {
+								// container name is unique for all containers in a pod
+								pod.PrivilegedAppArmorProfiles[profileName] = struct{}{}
+							}
+
 						}
 					}
 
 					if event.Type == "ADDED" {
 						// update apparmor profiles
-						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations)
+						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
 
 						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
 							if deploymentName, ok := pod.Metadata["owner.controllerName"]; ok {
@@ -794,7 +824,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 					} else if event.Type == "DELETED" {
 						// update apparmor profiles
-						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "DELETED", appArmorAnnotations)
+						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "DELETED", appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
 					}
 				}
 

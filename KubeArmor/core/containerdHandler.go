@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/exp/slices"
+
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -28,6 +30,26 @@ import (
 // ======================== //
 // == Containerd Handler == //
 // ======================== //
+
+// DefaultCaps contains all the default capabilities given to a
+// container by containerd runtime
+// Taken from - https://github.com/containerd/containerd/blob/main/oci/spec.go
+var defaultCaps = []string{
+	"CAP_CHOWN",
+	"CAP_DAC_OVERRIDE",
+	"CAP_FSETID",
+	"CAP_FOWNER",
+	"CAP_MKNOD",
+	"CAP_NET_RAW",
+	"CAP_SETGID",
+	"CAP_SETUID",
+	"CAP_SETFCAP",
+	"CAP_SETPCAP",
+	"CAP_NET_BIND_SERVICE",
+	"CAP_SYS_CHROOT",
+	"CAP_KILL",
+	"CAP_AUDIT_WRITE",
+}
 
 // Containerd Handler
 var Containerd *ContainerdHandler
@@ -141,6 +163,11 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 	spec := iface.(*specs.Spec)
 	container.AppArmorProfile = spec.Process.ApparmorProfile
+
+	// if a container has additional caps than default, we mark it as privileged
+	if spec.Process.Capabilities != nil && slices.Compare(spec.Process.Capabilities.Permitted, defaultCaps) >= 0 {
+		container.Privileged = true
+	}
 
 	// == //
 
@@ -280,6 +307,10 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 					// update apparmor profiles
 					if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
 						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+					}
+
+					if container.Privileged && dm.EndPoints[idx].PrivilegedContainers != nil {
+						dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 					}
 
 					break

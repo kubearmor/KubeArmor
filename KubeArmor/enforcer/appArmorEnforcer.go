@@ -29,6 +29,8 @@ type AppArmorEnforcer struct {
 
 	// default profile
 	ApparmorDefault string
+	// default privileged profile
+	ApparmorDefaultPrivileged string
 
 	// host profile
 	HostProfile string
@@ -36,6 +38,10 @@ type AppArmorEnforcer struct {
 	// profiles for containers
 	AppArmorProfiles     map[string][]string
 	AppArmorProfilesLock *sync.RWMutex
+
+	// to keep track of privileged profiles for clean deletion
+	AppArmorPrivilegedProfiles     map[string]struct{}
+	AppArmorPrivilegedProfilesLock *sync.RWMutex
 
 	// Regex used to get profile Names
 	rgx *regexp.Regexp
@@ -50,38 +56,39 @@ func NewAppArmorEnforcer(node tp.Node, logger *fd.Feeder) *AppArmorEnforcer {
 
 	// default profile
 	ae.ApparmorDefault = `## == Managed by KubeArmor == ##
-	
 #include <tunables/global>
+
 profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
-## == PRE START == ##	
-#include <abstractions/base>	
-umount,
-file,
-network,
-capability,
+## == PRE START == ##
+` + AppArmorDefaultPreStart +
+		`
 ## == PRE END == ##
 
 ## == POLICY START == ##
 ## == POLICY END == ##
 
 ## == POST START == ##
-/lib/x86_64-linux-gnu/{*,**} rm,
+` + AppArmorDefaultPostStart +
+		`
+## == POST END == ##
+}
+`
 
-deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-deny @{PROC}/sysrq-trigger rwklx,
-deny @{PROC}/mem rwklx,
-deny @{PROC}/kmem rwklx,
-deny @{PROC}/kcore rwklx,
+	ae.ApparmorDefaultPrivileged = `## == Managed by KubeArmor == ##
+#include <tunables/global>
 
-deny mount,
+profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
+## == PRE START == ##
+` + AppArmorPrivilegedPreStart +
+		`
+## == PRE END == ##
 
-deny /sys/[^f]*/** wklx,
-deny /sys/f[^s]*/** wklx,
-deny /sys/fs/[^c]*/** wklx,
-deny /sys/fs/c[^g]*/** wklx,
-deny /sys/fs/cg[^r]*/** wklx,
-deny /sys/firmware/efi/efivars/** rwklx,
-deny /sys/kernel/security/** rwklx,
+## == POLICY START == ##
+## == POLICY END == ##
+
+## == POST START == ##
+` + AppArmorPrivilegedPostStart +
+		`
 ## == POST END == ##
 }
 `
@@ -95,6 +102,9 @@ deny /sys/kernel/security/** rwklx,
 	// profiles
 	ae.AppArmorProfiles = map[string][]string{}
 	ae.AppArmorProfilesLock = &sync.RWMutex{}
+
+	ae.AppArmorPrivilegedProfiles = map[string]struct{}{}
+	ae.AppArmorPrivilegedProfilesLock = new(sync.RWMutex)
 
 	files, err := os.ReadDir("/etc/apparmor.d")
 	if err != nil {
@@ -173,7 +183,8 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 	}
 
 	for profile := range ae.AppArmorProfiles {
-		ae.UnregisterAppArmorProfile("", profile)
+		_, privileged := ae.AppArmorPrivilegedProfiles[profile]
+		ae.UnregisterAppArmorProfile("", profile, privileged)
 	}
 
 	if cfg.GlobalCfg.HostPolicy {
@@ -190,7 +201,7 @@ func (ae *AppArmorEnforcer) DestroyAppArmorEnforcer() error {
 // ================================= //
 
 // RegisterAppArmorProfile Function
-func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string) bool {
+func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string, privileged bool) bool {
 	// skip if AppArmorEnforcer is not active
 	if ae == nil {
 		return true
@@ -216,7 +227,15 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string)
 		return true
 	}
 
-	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	// generate a profile with basic allows if a privileged container
+	var newProfile string
+	if privileged {
+		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+		ae.AppArmorPrivilegedProfiles[profileName] = struct{}{}
+		ae.Logger.Printf("Added an AppArmor profile for a privileged container (%s, %s)", podName, profileName)
+	} else {
+		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
 	if err != nil {
@@ -247,7 +266,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string)
 }
 
 // UnregisterAppArmorProfile Function
-func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName string) bool {
+func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName string, privileged bool) bool {
 	// skip if AppArmorEnforcer is not active
 	if ae == nil {
 		return true
@@ -285,7 +304,12 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 		return false
 	}
 
-	newProfile := strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	var newProfile string
+	if privileged {
+		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+	} else {
+		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
 	if err != nil {
@@ -454,7 +478,12 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 
 // UpdateAppArmorProfile Function
 func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmorProfile string, securityPolicies []tp.SecurityPolicy) {
-	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture); ok {
+
+	ae.AppArmorPrivilegedProfilesLock.Lock()
+	_, privileged := ae.AppArmorPrivilegedProfiles[appArmorProfile]
+	ae.AppArmorPrivilegedProfilesLock.Unlock()
+
+	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture, privileged); ok {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open an AppArmor profile (%s, %s)", appArmorProfile, err.Error())
