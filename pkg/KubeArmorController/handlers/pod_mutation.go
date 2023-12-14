@@ -24,8 +24,11 @@ type PodAnnotator struct {
 	Enforcer string
 }
 
-const k8sVisibility = "process,file,network,capabilities"
-const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
+const (
+	k8sVisibility           = "process,file,network,capabilities"
+	appArmorAnnotation      = "container.apparmor.security.beta.kubernetes.io/"
+	PrivilegedProfilePrefix = "kubearmor_privileged"
+)
 
 // +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Ignore,groups="",resources=pods,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
 
@@ -150,7 +153,19 @@ func appArmorAnnotator(pod *corev1.Pod) {
 	// Get the remaining containers / not addressed explecitly in the annotation
 	for _, container := range pod.Spec.Containers {
 		if _, ok := podAnnotations[container.Name]; !ok {
-			podAnnotations[container.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + container.Name
+			profileName := pod.Namespace + "-" + podOwnerName + "-" + container.Name
+
+			// if the container is privileged or it has more than one capabilities added
+			// handle the apparmor profile generation with privileged rules
+			if container.SecurityContext != nil &&
+				((container.SecurityContext.Privileged != nil && *container.SecurityContext.Privileged) ||
+					(container.SecurityContext.Capabilities != nil && len(container.SecurityContext.Capabilities.Add) > 0)) {
+
+				podAnnotations[container.Name] = PrivilegedProfilePrefix + "-" + profileName
+
+			} else {
+				podAnnotations[container.Name] = "kubearmor-" + profileName
+			}
 		}
 	}
 
