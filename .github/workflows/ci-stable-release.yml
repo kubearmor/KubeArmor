@@ -35,6 +35,7 @@ jobs:
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION kubearmor/kubearmor-init:stable --digest-tags
           regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
           regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
           regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
