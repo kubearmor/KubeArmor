@@ -298,3 +298,37 @@ kubectl patch deploy -n $(kubectl get deploy -l kubearmor-app=kubearmor-relay -A
 
 </details>
 
+
+<details><summary><h4>Enable logs and alerts in kubearmor-relay</h4></summary>
+
+By default, kubearmor-relay does not log or alert any events. To enable logs and alerts, edit the kubearmor-relay deployment and set the following environment variables to true:
+
+```bash
+kubectl edit deployments.apps -n kubearmor kubearmor-relay
+```
+
+```diff
+     spec:
+       containers:
+       - env:
++        - name: ENABLE_STDOUT_LOGS
++          value: "true"
++        - name: ENABLE_STDOUT_ALERTS
++          value: "true"
+         image: kubearmor/kubearmor-relay-server:latest
+         imagePullPolicy: Always
+         name: kubearmor-relay-server
+         ports:
+         - containerPort: 32767
+           protocol: TCP
+         resources: {}
+```
+
+
+Check the logs of the kubearmor-relay pod:
+```bash
+kubectl logs -n kubearmor <kubearmor-relay-pod>
+```
+
+</details>
+
