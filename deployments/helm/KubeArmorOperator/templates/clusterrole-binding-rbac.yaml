@@ -2,6 +2,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-clusterrole-binding
+  labels:
+    app: {{ .Values.kubearmorOperator.name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -15,6 +17,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-manage-kubearmor-clusterrole-binding
+  labels:
+    app: {{ .Values.kubearmorOperator.name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -28,6 +32,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-manage-controller-clusterrole-binding
+  labels:
+    app: {{ .Values.kubearmorOperator.name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

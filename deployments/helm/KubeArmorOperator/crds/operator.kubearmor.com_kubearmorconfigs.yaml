@@ -7,6 +7,8 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
   name: kubearmorconfigs.operator.kubearmor.com
+  labels:
+    app: kubearmor-operator
 spec:
   group: operator.kubearmor.com
   names:

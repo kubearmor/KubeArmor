@@ -36,6 +36,8 @@ kind: Service
 metadata:
   name: {{ .Values.kubearmorController.name }}-webhook-service
   namespace: {{.Release.Namespace}}
+  labels:
+    kubearmor-app: {{ .Values.kubearmorController.name }}
 spec:
   ports:
   - port: 443
