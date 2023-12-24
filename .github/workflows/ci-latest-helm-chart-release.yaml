@@ -22,10 +22,16 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Chart.yaml
-        run: |
+        run: |  
+
           STABLE_VERSION=`cat STABLE-RELEASE`
-          sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
-          sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
+          for dep in deployments/helm/*/Chart.yaml; do
+            OLD_CHART_VERSION=`cat $dep | grep version | cut -d " " -f 2`
+            NEW_CHART_VERSION=`echo $OLD_CHART_VERSION | awk -F. '{$NF=$NF+1; print}' | tr ' ' '.'`
+            
+            sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" $dep
+            sed -i -e "s/version:.*/version: $NEW_CHART_VERSION/g" $dep
+          done
 
       - name: Publish Helm chart
         uses: stefanprodan/helm-gh-pages@master
