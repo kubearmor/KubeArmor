@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-net-tcp-allow-curl
+  namespace: wordpress-mysql
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      app: wordpress
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+      - path: /bin/bash
+  action:
+    Allow
