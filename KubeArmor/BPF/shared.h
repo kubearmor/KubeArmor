@@ -63,7 +63,7 @@ struct {
   __uint(max_entries, MAX_BUFFERS);
 } bufs_off SEC(".maps");
 
-struct {  
+struct {
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __type(key, u32);
   __type(value, bufs_k);
@@ -90,7 +90,7 @@ typedef struct {
 
   u32 event_id;
   s64 retval;
-  
+
   u8 comm[TASK_COMM_LEN];
 
   bufs_k data;
@@ -195,10 +195,10 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
     int sz = bpf_probe_read_str(
         &(string_p->buf[(offset) & (MAX_COMBINED_LENGTH - 1)]),
         (d_name.len + 1) & (MAX_COMBINED_LENGTH - 1), d_name.name);
-     if (sz > 1) {
+    if (sz > 1) {
       bpf_probe_read(
-          &(string_p->buf[(offset + d_name.len) & (MAX_COMBINED_LENGTH - 1)]), 1,
-          &slash);
+          &(string_p->buf[(offset + d_name.len) & (MAX_COMBINED_LENGTH - 1)]),
+          1, &slash);
     } else {
       offset += (d_name.len + 1);
     }
@@ -213,7 +213,8 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
   bpf_probe_read(&(string_p->buf[MAX_COMBINED_LENGTH - 1]), 1, &null);
   offset--;
 
-  bpf_probe_read(&(string_p->buf[offset & (MAX_COMBINED_LENGTH - 1)]), 1, &slash);
+  bpf_probe_read(&(string_p->buf[offset & (MAX_COMBINED_LENGTH - 1)]), 1,
+                 &slash);
   set_buf_off(PATH_BUFFER, offset);
   return true;
 }
@@ -287,7 +288,7 @@ static __always_inline u32 init_context(event *event_data) {
 
   event_data->uid = bpf_get_current_uid_gid();
 
-// Clearing array to avoid garbage values
+  // Clearing array to avoid garbage values
   __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
   bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
 
@@ -310,10 +311,13 @@ static bool is_owner_path(struct dentry *dent) {
   return true;
 }
 
-static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32 eventID) {
+static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
+                                               u32 eventID) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
   event *task_info;
+
+  int retval = 0;
 
   bool match = false;
 
@@ -503,9 +507,100 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id , u32
 
 decision:
 
+  if (id == dpath) { // Path Hooks
+    if (match) {
+      if (val && (val->filemask & RULE_OWNER)) {
+        if (!is_owner_path(f_path->dentry)) {
+          retval = -EPERM;
+        } else {
+          return 0;
+        }
+      }
+      if (val && (val->filemask & RULE_DENY)) {
+        retval = -EPERM;
+      }
+    }
+
+    if (retval == -EPERM) {
+      goto ringbuf;
+    }
+
+    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+    pk->path[0] = dfile;
+    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+    if (allow) {
+      if (!match) {
+        if (allow->processmask == BLOCK_POSTURE) {
+          retval = -EPERM;
+        }
+        goto ringbuf;
+      }
+    }
+
+  } else if (id == dfileread) { // file open
+    if (match) {
+      if (val && (val->filemask & RULE_OWNER)) {
+        if (!is_owner_path(f_path->dentry)) {
+          retval = -EPERM;
+        } else {
+          return 0;
+        }
+      }
+      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
+        // Read Only Policy, Decision making will be done in lsm/file_permission
+        return 0;
+      }
+      if (val && (val->filemask & RULE_DENY)) {
+        retval = -EPERM;
+      }
+    }
+
+    if (retval == -EPERM) {
+      goto ringbuf;
+    }
+
+    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+    pk->path[0] = dfile;
+    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+    if (allow) {
+      if (!match) {
+        if (allow->processmask == BLOCK_POSTURE) {
+          retval = -EPERM;
+        }
+        goto ringbuf;
+      }
+    }
+  } else if (id == dfilewrite) { // file write
+    if (match) {
+      if (val && (val->filemask & RULE_DENY)) {
+        retval = -EPERM;
+        goto ringbuf;
+      }
+    }
+
+    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+    pk->path[0] = dfile;
+    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+    if (allow) {
+      if (!match) {
+        if (allow->processmask == BLOCK_POSTURE) {
+          retval = -EPERM;
+        }
+        goto ringbuf;
+      }
+    }
+  }
+
+  return 0;
+
+ringbuf:
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
-    return 0;
+    // Failed to reserve, doing policy enforcement without alert
+    return retval;
   }
 
   init_context(task_info);
@@ -517,103 +612,9 @@ decision:
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
 
   task_info->event_id = eventID;
-  task_info->retval = -EPERM;
-  
-  if (id == dpath) { // Path Hooks
-    if (match) {
-      if (val && (val->filemask & RULE_OWNER)) {
-        if (!is_owner_path(f_path->dentry)) {
-          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-          return -EPERM;
-        }
-        bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
-        return 0;
-      }
-      if (val && (val->filemask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-        return -EPERM;
-      }
-    }
-
-    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-    pk->path[0] = dfile;
-    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
-
-        if (allow) {
-      if (!match) {
-        if(allow->processmask == BLOCK_POSTURE) {
-          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-          return -EPERM;
-        } else {
-            task_info->retval = 0;
-            bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-            return 0;
-          }
-      }
-    }
-   
-  } else if (id == dfileread) { // file open
-    if (match) {
-      if (val && (val->filemask & RULE_OWNER)) {
-        if (!is_owner_path(f_path->dentry)) {
-          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-          return -EPERM;
-        }
-        bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
-        return 0;
-      }
-      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
-        bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
-        // Read Only Policy, Decision making will be done in lsm/file_permission
-        return 0;
-      }
-      if (val && (val->filemask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-        return -EPERM;
-      }
-    }
-
-    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-    pk->path[0] = dfile;
-    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
-
-    if (allow && !match) {
-       if(allow->processmask == BLOCK_POSTURE) {
-          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-          return -EPERM;
-        } else {
-            task_info->retval = 0;
-            bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-            return 0;
-          }
-    }
-  } else if (id == dfilewrite) { // fule write
-    if (match) {
-      if (val && (val->filemask & RULE_DENY)) {
-        bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-        return -EPERM;
-      }
-    }
-
-    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-    pk->path[0] = dfile;
-    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
-
-    if (allow && !match) {
-      if(allow->processmask == BLOCK_POSTURE) {
-          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-          return -EPERM;
-        }
-        else {
-          task_info->retval= 0;
-          bpf_ringbuf_submit(task_info, BPF_RB_FORCE_WAKEUP);
-          return 0;
-        }
-
-    }
-  }
-  bpf_ringbuf_discard(task_info, BPF_RB_NO_WAKEUP);
-  return 0;
+  task_info->retval = retval;
+  bpf_ringbuf_submit(task_info, 0);
+  return retval;
 }
 
 /*
