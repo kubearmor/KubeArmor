@@ -518,7 +518,6 @@ static __always_inline u32 drop_syscall(u32 scope)
         u32 *d_on_off_switch = bpf_map_lookup_elem(d_visibility, &scope);
         if (d_on_off_switch)
             if (*d_on_off_switch)
-                bpf_printk("ignoring scope %d %u", scope, okey.pid_ns);
                 default_trace = _IGNORE_SYSCALL;
     }
 
@@ -1137,7 +1136,6 @@ int kprobe__execve(struct pt_regs *ctx)
 
     if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE))
     {   
-        bpf_printk("dropped");
         return 0;
     }
 
