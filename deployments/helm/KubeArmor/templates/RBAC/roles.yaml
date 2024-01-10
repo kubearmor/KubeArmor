@@ -2,6 +2,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: kubearmor-clusterrole
+  labels:
+    app: {{ .Values.kubearmorController.name }}
 rules:
 - apiGroups:
   - ""
@@ -50,6 +52,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorController.name }}-clusterrole
+  labels:
+    app: {{ .Values.kubearmorController.name }}
 rules:
 - apiGroups:
   - ""
@@ -92,6 +96,8 @@ kind: Role
 metadata:
   name: {{ .Values.kubearmorController.name }}-leader-election-role
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.kubearmorController.name }}
 rules:
 - apiGroups:
   - ""
@@ -129,6 +135,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorController.name }}-proxy-role
+  labels:
+    app: {{ .Values.kubearmorController.name }}
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -147,6 +155,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorController.name }}-metrics-reader-role
+  labels:
+    app: {{ .Values.kubearmorController.name }}
 rules:
 - nonResourceURLs:
   - /metrics

@@ -2,6 +2,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-clusterrole
+  labels:
+    app: {{ .Values.kubearmorOperator.name }}
 rules:
 - apiGroups:
   - ""
@@ -96,6 +98,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-manage-kubearmor-clusterrole
+  labels:
+    app: {{ .Values.kubearmorOperator.name }}
 rules:
 - apiGroups:
   - ""
@@ -144,6 +148,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-manage-controller-clusterrole
+  labels:
+    app: {{ .Values.kubearmorOperator.name }}
 rules:
 - apiGroups:
   - ""
