@@ -2,21 +2,10 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorController
 
 go 1.20
 
-replace (
-	k8s.io/api => k8s.io/api v0.26.4
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.4
-	k8s.io/apimachinery => k8s.io/apimachinery v0.26.4
-	k8s.io/client-go => k8s.io/client-go v0.26.4
-)
-
 require (
 	github.com/go-logr/logr v1.2.4
 	github.com/onsi/ginkgo/v2 v2.9.7
 	github.com/onsi/gomega v1.27.8
-	k8s.io/api v0.27.1
-	k8s.io/apiextensions-apiserver v0.27.1
-	k8s.io/apimachinery v0.27.1
-	k8s.io/client-go v0.27.1
 	sigs.k8s.io/controller-runtime v0.14.6
 	sigs.k8s.io/yaml v1.3.0
 )
