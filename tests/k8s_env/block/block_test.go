@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -86,8 +87,10 @@ var _ = Describe("Posture", func() {
 		})
 
 		It("can whitelist certain files accessed by a package while blocking all other sensitive content", func() {
+			err := util.AnnotateNS("wordpress-mysql", "kubearmor-network-posture", "block")
+			Expect(err).To(BeNil())
 			// Apply policy
-			err := K8sApplyFile("res/ksp-wordpress-allow-file.yaml")
+			err = K8sApplyFile("res/ksp-wordpress-allow-file.yaml")
 			Expect(err).To(BeNil())
 
 			// wait for policy creation, added due to flaky behaviour
