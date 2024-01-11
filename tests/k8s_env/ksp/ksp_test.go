@@ -863,10 +863,6 @@ var _ = Describe("Ksp", func() {
 		It("it can allow accessing a file owner only from source path", func() {
 			// Test 1: access by user other than owner should be denied
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to some bug policy is not working")
-			}
-
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-group-2-allow-file-path-owner-from-source-path.yaml")
 			Expect(err).To(BeNil())
@@ -971,9 +967,6 @@ var _ = Describe("Ksp", func() {
 
 		It("it can block accessing a file owner only from source path", func() {
 			// Test 1: user other than owner should not be allowed to access the file from source path
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to bug in owner based policy with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-group-2-block-file-path-owner-from-source-path.yaml")
 			Expect(err).To(BeNil())
@@ -1119,9 +1112,6 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_25, github_test_07
 
 			// Test 1: non-owner user access should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-3-block-file-dir-recursive-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1216,9 +1206,6 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_26
 
 			// Test 1: non-owner user access should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-3-block-file-dir-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1300,9 +1287,7 @@ var _ = Describe("Ksp", func() {
 
 		It("it will allow a file path accessible read-only to owner from source path", func() {
 			// Test 1: file access from source by non-owner user should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
+
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-allow-file-path-owner-readonly-from-source-path.yaml")
 			Expect(err).To(BeNil())
@@ -1359,9 +1344,6 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_23
 
 			// Test 1: write operation on the file by the owner should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-path-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1448,9 +1430,6 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_24
 
 			// Test 1: write operation on the file from source by the owner should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-path-owner-readonly-from-source-path.yaml")
 			Expect(err).To(BeNil())
@@ -1534,9 +1513,7 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_22, github_test_06
 
 			// Test 1: access by the non-owner user should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
+
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-allow-file-path-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1593,10 +1570,6 @@ var _ = Describe("Ksp", func() {
 		It("it can allow access to a file by the owner only", func() {
 			// multiubuntu_test_21
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
-
 			// Test 1: access by other user than owner should be blocked
 
 			// Apply Policy
@@ -1640,9 +1613,7 @@ var _ = Describe("Ksp", func() {
 
 		It("it can block access to file path from source path except readonly access is allowed", func() {
 			// multiubuntu_test_20
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
+
 			// Test 1: readonly access from the source should be allowed
 
 			// Apply Policy
@@ -1712,9 +1683,6 @@ var _ = Describe("Ksp", func() {
 		It("it can allow readonly access to a file path from given source path", func() {
 			// multiubuntu_test_19
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Test 1: reading the file from source path should be passed
 
 			// Apply KubeArmor Policy
@@ -1773,9 +1741,6 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_16
 
 			// Test 1: trying to write the file with readonly permissions
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer in this particular testcase we'not getting alert for some reason")
-			}
 
 			// Apply KubeArmor Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-path-readonly.yaml")
@@ -1973,9 +1938,6 @@ var _ = Describe("Ksp", func() {
 		It("it can allow readonly access to a file path", func() {
 			// multiubuntu_test_09
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Test: write to the file with readonly permissions
 
 			// Apply KubeArmor Policy
