@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 
-go 1.21
+go 1.20
 
 replace (
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor
@@ -19,7 +19,7 @@ require (
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
 	k8s.io/kubectl v0.27.4
-	sigs.k8s.io/controller-runtime v0.16.3
+	sigs.k8s.io/controller-runtime v0.15.3
 )
 
 require (
