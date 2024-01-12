@@ -689,6 +689,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 
 		pbAlert.Type = log.Type
+		pbAlert.TTY = log.TTY
 		pbAlert.Source = log.Source
 		pbAlert.Operation = log.Operation
 		pbAlert.Resource = strings.ToValidUTF8(log.Resource, "")
@@ -763,6 +764,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.ProcessName = log.ProcessName
 
 		pbLog.Type = log.Type
+		pbLog.TTY = log.TTY
 		pbLog.Source = log.Source
 		pbLog.Operation = log.Operation
 		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")

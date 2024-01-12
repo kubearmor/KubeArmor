@@ -229,6 +229,7 @@ type Log struct {
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
 	Cwd       string `json:"cwd"`
+	TTY       string `json:"tty,omitempty"`
 	OID       int32  `json:"oid"`
 	Data      string `json:"data,omitempty"`
 	Action    string `json:"action,omitempty"`

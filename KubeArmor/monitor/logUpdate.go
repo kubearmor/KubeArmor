@@ -85,6 +85,7 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 	}
 
 	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
+	log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
 	log.OID = int32(msg.ContextSys.OID)
 
 	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID, false)
