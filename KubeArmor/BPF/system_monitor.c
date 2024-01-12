@@ -65,6 +65,7 @@
 
 #define TASK_COMM_LEN 16
 #define CWD_LEN 80
+#define TTY_LEN 64
 
 #define MAX_BUFFER_SIZE 32768
 #define MAX_STRING_SIZE 4096
@@ -219,6 +220,7 @@ typedef struct __attribute__((__packed__)) sys_context
 
     char comm[TASK_COMM_LEN];
     char cwd[CWD_LEN];
+    char tty[TTY_LEN];
     u32 oid; // owner id
 } sys_context_t;
 
@@ -996,6 +998,17 @@ static __always_inline u32 init_context(sys_context_t *context)
 
     bpf_get_current_comm(&context->comm, sizeof(context->comm));
 
+    // check if tty is attached
+    struct signal_struct *signal;
+    signal = READ_KERN(task->signal);
+    if (signal != NULL){
+        struct tty_struct *tty = READ_KERN(signal->tty);
+        if (tty != NULL){
+            // a tty is attached
+            bpf_probe_read_str(&context->tty, TTY_LEN, (void *)tty->name);
+        }
+    }
+    
     // get cwd
     fs = READ_KERN(task->fs);
     struct path path = READ_KERN(fs->pwd);
