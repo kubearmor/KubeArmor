@@ -112,9 +112,6 @@ func (sa *StateAgent) WatchState(msg *emptypb.Empty, srv pb.StateAgent_WatchStat
 
 // sends current state upon request
 func (sa *StateAgent) GetState(msg *emptypb.Empty, srv pb.StateAgent_GetStateServer) error {
-	kg.Printf("Received a new request for GetState")
-	defer kg.Printf("Closing connection for GetState")
-
 	stateEventList := make([]*pb.StateEvent, 0)
 
 	nodeData, err := json.Marshal(sa.Node)

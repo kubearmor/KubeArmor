@@ -18,6 +18,8 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
@@ -97,6 +99,9 @@ type KubeArmorDaemon struct {
 
 	// system monitor lock
 	MonitorLock *sync.RWMutex
+
+	// health-server
+	GRPCHealthServer *health.Server
 }
 
 // NewKubeArmorDaemon Function
@@ -348,6 +353,18 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
+// =================== //
+// == Health Server == //
+// =================== //
+func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc_health_v1.HealthCheckResponse_ServingStatus) bool {
+	if dm.GRPCHealthServer != nil {
+		dm.GRPCHealthServer.SetServingStatus(serviceName, healthStatus)
+		return true
+	}
+
+	return false
+}
+
 // ========== //
 // == Main == //
 // ========== //
@@ -461,6 +478,12 @@ func KubeArmor() {
 
 	// == //
 
+	// health server
+	if dm.Logger.LogServer != nil {
+		dm.GRPCHealthServer = health.NewServer()
+		grpc_health_v1.RegisterHealthServer(dm.Logger.LogServer, dm.GRPCHealthServer)
+	}
+
 	// Init StateAgent
 	if !dm.K8sEnabled && cfg.GlobalCfg.StateAgent {
 		dm.NodeLock.Lock()
@@ -479,6 +502,7 @@ func KubeArmor() {
 		dm.Logger.Print("Initialized State Agent Server")
 
 		pb.RegisterStateAgentServer(dm.Logger.LogServer, dm.StateAgent)
+		dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	}
 
 	if dm.StateAgent != nil {
@@ -708,6 +732,8 @@ func KubeArmor() {
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
+
+		dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	}
 
 	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
@@ -715,6 +741,7 @@ func KubeArmor() {
 	// serve log feeds
 	go dm.ServeLogFeeds()
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
+	dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 
 	// == //
 	go dm.SetKarmorData()

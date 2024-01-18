@@ -20,7 +20,7 @@ type LogService struct {
 }
 
 // HealthCheck Function
-// Deprecated: use google.golang.org/grpc/health/grpc_health_v1
+// Deprecated: use the server created with google.golang.org/grpc/health/grpc_health_v1
 func (ls *LogService) HealthCheck(ctx context.Context, nonce *pb.NonceMessage) (*pb.ReplyMessage, error) {
 	replyMessage := pb.ReplyMessage{Retval: nonce.Nonce}
 	return &replyMessage, nil

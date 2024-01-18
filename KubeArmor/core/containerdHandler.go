@@ -177,9 +177,6 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	if cfg.GlobalCfg.StateAgent && !cfg.GlobalCfg.K8sEnv {
 		container.ContainerImage = res.Container.Image //+ kl.GetSHA256ofImage(inspect.Image)
 
-		// TODO
-		container.ProtocolPort = "0"
-
 		container.NodeName = cfg.GlobalCfg.Host
 
 		labels := []string{}
@@ -190,14 +187,6 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 			labels = append(labels, k+"="+v)
 		}
 		container.Labels = strings.Join(labels, ",")
-
-		/*
-			container.Owner = tp.PodOwner{
-				Name: container.ContainerName,
-				Namespace: container.NamespaceName,
-				Ref: "Deployment",
-			}
-		*/
 	}
 
 	// == //

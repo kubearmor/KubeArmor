@@ -480,8 +480,8 @@ func ParseURL(address string) (string, string, error) {
 		addr = u
 	}
 
+	host = addr.Hostname()
 	if addr.Port() != "" {
-		host = strings.Split(addr.Host, ":")[0]
 		port = addr.Port()
 	}
 

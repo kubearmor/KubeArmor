@@ -23,8 +23,7 @@ import (
 	"github.com/google/uuid"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 )
 
 // ============ //
@@ -296,10 +295,17 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 		EventStructs: fd.EventStructs,
 	}
 
-	fd.LogServer = grpc.NewServer()
+	kaep := keepalive.EnforcementPolicy{
+		PermitWithoutStream: true,
+	}
+	kasp := keepalive.ServerParameters{
+		Time:    1 * time.Second,
+		Timeout: 5 * time.Second,
+	}
+
+	fd.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
 
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
-	grpc_health_v1.RegisterHealthServer(fd.LogServer, health.NewServer())
 
 	// Feeder //
 

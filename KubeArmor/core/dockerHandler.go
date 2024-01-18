@@ -185,17 +185,6 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 			lastUpdatedAt = timeFinished
 		}
 
-		// TODO
-		container.ProtocolPort = "0"
-
-		/*
-			container.Owner = tp.PodOwner{
-				Name: container.ContainerName,
-				Namespace: container.NamespaceName,
-				Ref: "Deployment",
-			}
-		*/
-
 	}
 
 	return container, nil
