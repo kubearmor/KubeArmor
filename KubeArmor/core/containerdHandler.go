@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"

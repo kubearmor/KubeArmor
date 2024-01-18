@@ -13,7 +13,7 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-// pushes (container + pod) event
+// PushContainerEvent function pushes (container + pod) event
 func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 	if container.ContainerID == "" {
 		kg.Debug("Error while pushing container event. Missing data.")
@@ -92,6 +92,7 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 	return
 }
 
+// PushNodeEvent function pushes node event
 func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 	if node.NodeName == "" {
 		kg.Warn("Received empty node event")
@@ -128,6 +129,7 @@ func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 	return
 }
 
+// PushNamespaceEvent function pushes namespace event
 func (sa *StateAgent) PushNamespaceEvent(namespace tp.Namespace, event string) {
 	nsBytes, err := json.Marshal(namespace)
 	if err != nil {

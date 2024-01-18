@@ -127,9 +127,6 @@ func readCmdLineParams() {
 
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
 
-	reverseGRPCServer := flag.Bool(ConfigReverseGRPCServer, false, "enabling KubeArmor Reverse Log and Policy gRPC Service")
-	relayServerURLStr := flag.String(ConfigRelayServerURL, "http://localhost:2801/", "relay-server http URL listening for logs")
-
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
 	flags := []string{}
@@ -178,9 +175,6 @@ func readCmdLineParams() {
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
-
-	viper.SetDefault(ConfigReverseGRPCServer, *reverseGRPCServer)
-	viper.SetDefault(ConfigRelayServerURL, *relayServerURLStr)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
 }
@@ -270,9 +264,6 @@ func LoadConfig() error {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
-
-	GlobalCfg.ReverseGRPCServer = viper.GetBool(ConfigReverseGRPCServer)
-	GlobalCfg.RelayServerURL = viper.GetString(ConfigRelayServerURL)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 

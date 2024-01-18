@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package policy;
 
-import "google/protobuf/empty.proto";
+import public "google/protobuf/empty.proto";
 
 option go_package="github.com/kubearmor/KubeArmor/protobuf";
 

@@ -21,16 +21,24 @@ import (
 const (
 	stateEventBufferSize = 25
 
+	// EventAdded denotes an add event
 	EventAdded   = "added"
+	// EventUpdated denotes an update event
 	EventUpdated = "updated"
+	// EventDeleted denotes an delete event
 	EventDeleted = "deleted"
 
+	// KindContainer denotes a container kind
 	KindContainer = "container"
+	// KindPod denotes a pod kind
 	KindPod       = "pod"
+	// KindNode denotes a node kind
 	KindNode      = "node"
+	// KindNamespace denotes a namespace kind
 	KindNamespace = "namespace"
 )
 
+// StateAgent reports the state of containers/nodes protected by KubeArmor
 type StateAgent struct {
 	Running bool
 
@@ -47,6 +55,7 @@ type StateAgent struct {
 	KubeArmorNamespacesLock *sync.RWMutex
 }
 
+// NewStateAgent returns a new initialized state agent
 func NewStateAgent(node *tp.Node, nodeLock *sync.RWMutex, containers map[string]tp.Container, containersLock *sync.RWMutex) *StateAgent {
 	return &StateAgent{
 		Running: true,
@@ -85,7 +94,7 @@ func (sa *StateAgent) removeStateEventChan(uid string) {
 	sa.StateEventChansLock.Unlock()
 }
 
-// sends state events in a continuous stream
+// WatchState sends state events in a continuous stream
 func (sa *StateAgent) WatchState(msg *emptypb.Empty, srv pb.StateAgent_WatchStateServer) error {
 	uid, conn := sa.addStateEventChan()
 	kg.Printf("Added a new client (%s) for WatchState", uid)
@@ -110,7 +119,7 @@ func (sa *StateAgent) WatchState(msg *emptypb.Empty, srv pb.StateAgent_WatchStat
 	return nil
 }
 
-// sends current state upon request
+// GetState sends current state upon request
 func (sa *StateAgent) GetState(msg *emptypb.Empty, srv pb.StateAgent_GetStateServer) error {
 	stateEventList := make([]*pb.StateEvent, 0)
 
@@ -174,7 +183,7 @@ func (sa *StateAgent) GetState(msg *emptypb.Empty, srv pb.StateAgent_GetStateSer
 	return nil
 }
 
-// DestroyStateAgent
+// DestroyStateAgent destroys the referenced state agent
 func (sa *StateAgent) DestroyStateAgent() error {
 	sa.Running = false
 	time.Sleep(1 * time.Second)

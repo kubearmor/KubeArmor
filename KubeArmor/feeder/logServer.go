@@ -12,7 +12,7 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-// LogServer Structure
+// LogService struct holds the state of feeder's log server
 type LogService struct {
 	QueueSize    int
 	EventStructs *EventStructs

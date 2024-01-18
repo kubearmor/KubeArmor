@@ -19,7 +19,7 @@ import (
 // == Security Policies == //
 // ======================= //
 
-// GetProtocolFromName() Function
+// GetProtocolFromName function gets protocol name from visibility data
 func GetProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
