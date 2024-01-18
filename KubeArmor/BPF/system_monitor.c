@@ -100,6 +100,7 @@
 #define AF_UNIX 1
 #define AF_INET 2
 #define AF_INET6 10
+#define SOCK_DGRAM 2
 
 #if defined(bpf_target_x86)
 #define PT_REGS_PARM6(x) ((x)->r9)
@@ -131,6 +132,7 @@ enum
     _SYS_ACCEPT = 43,
     _SYS_BIND = 49,
     _SYS_LISTEN = 50,
+    _SYS_SENDMMSG = 51,
 
     // process
     _SYS_EXECVE = 59,
@@ -278,6 +280,9 @@ typedef struct args
 {
     unsigned long args[6];
 } args_t;
+
+int pid_dns=0;
+int sock_fd=0;
 
 BPF_LRU_HASH(args_map, u64, args_t);
 BPF_LRU_HASH(file_map, u64, struct path);
@@ -1404,6 +1409,65 @@ static __always_inline int save_args(u32 event_id, struct pt_regs *ctx)
 
     bpf_map_update_elem(&args_map, &id, &args, BPF_ANY);
 
+  switch (event_id) {
+  case _SYS_SOCKET:
+    if (args.args[1] == SOCK_DGRAM) {
+
+      u64 id = bpf_get_current_pid_tgid();
+      pid_dns = id >> 32;
+    }
+    break;
+  case _SYS_CONNECT:
+
+    u64 id = bpf_get_current_pid_tgid();
+
+    u32 pid = id >> 32;
+
+    struct sockaddr_in ads;
+    address = args.args[1];
+    bpf_probe_read_user(&ads, sizeof(ads), address);
+    int port = __bpf_ntohs(ads.sin_port);
+
+    if (pid == pid_dns && args.args[0] == sockfd && port == 53) {
+
+      // bpf_printk("we got a dns packet from process %d with command ", pid);
+      pid_dns = pid;
+      sock_fd = args.args[0];
+
+    } else {
+      sock_fd = 0;
+      pid_dns = 0;
+      return 0;
+    }
+  case _SYS_SENDMMSG:
+
+    int pid = bpf_get_current_pid_tgid() >> 32;
+    if (args.args[0] == sockfd && pid == pid_dns) {
+      if (args.args[2] > 0) {
+        struct mmsghdr msg;
+        bpf_probe_read_user(&msg, sizeof(msg), msgvec);
+        int msg_iovlen = msg.msg_hdr.msg_iovlen;
+
+        struct iovec message;
+        bpf_probe_read_user(&message, sizeof(message), msg.msg_hdr.msg_iov);
+        char message_data[32] = {};
+        if (message.iov_len > 0) {
+          bpf_probe_read_user_str(message_data, sizeof(message.iov_base),
+                                  message.iov_base);
+        bpf_printk("IOV_BASE: %s",message_data); // prints iov_base in msg_hdr
+          struct dns_info *e;
+          e = bpf_ringbuf_reserve(&rb, sizeof(e), 0);
+
+          if (!e)
+            return 0;
+          e->pid = pid_dns;
+          e->sockFd = sock_fd;
+          bpf_ringbuf_submit(e, 0);
+        }
+      }
+    }
+    break;
+
     return 0;
 }
 
@@ -1495,6 +1559,11 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
     }
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    
+     u32 pid = bpf_get_current_pid_tgid() >> 32;
+    if (pid == pid_dns) {
+      sock_fd = context.retval;
+    }
 
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (bufs_p == NULL)
@@ -1892,6 +1961,16 @@ SEC("kretprobe/__x64_sys_listen")
 int kretprobe__listen(struct pt_regs *ctx)
 {
     return trace_ret_generic(_SYS_LISTEN, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(INT_T), _NETWORK_PROBE);
+}
+
+
+SEC("kprobe/__x64_sys_sendmmsg")
+int kprobe__listen(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    return save_args(_SYS_SENDMMSG, ctx);
 }
 
 static __always_inline int get_connection_info(struct sock_common *conn, struct sockaddr_in *sockv4, struct sockaddr_in6 *sockv6, sys_context_t *context, args_t *args, u32 event)
