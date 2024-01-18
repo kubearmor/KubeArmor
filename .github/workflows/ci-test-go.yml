@@ -61,6 +61,19 @@ jobs:
         run: make gosec
         working-directory: KubeArmor
 
+  go-vuln:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "v1.20"
+
+      - name: Run govulncheck 
+        run: make scan
+        working-directory: KubeArmor
+
   go-test:
     runs-on: ubuntu-20.04
     steps:

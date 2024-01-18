@@ -130,19 +130,17 @@ endif
 scan: 
 	go install golang.org/x/vuln/cmd/govulncheck@latest ;\
 	cd $(CURDIR);\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/BPF/tests;\
-	govulncheck -v ./... ;\
+	govulncheck ./... ;\
+	cd $(CURDIR)/../tests;\
+	govulncheck ./... ;\
+	cd $(CURDIR)/../protobuf;\
+	govulncheck ./... ;\
 	cd $(CURDIR)/../deployments;\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorAnnotation ;\
-	govulncheck -v ./... ;\
+	govulncheck ./... ;\
 	cd $(CURDIR)/../pkg/KubeArmorController ;\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorHostPolicy ;\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorPolicy ;\
-	govulncheck -v ./... ;\
+	govulncheck ./... ;\
+	cd $(CURDIR)/../pkg/KubeArmorOperator;\
+	govulncheck ./... ;\
 
 .PHONY: clean
 clean:
