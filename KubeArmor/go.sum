@@ -406,8 +406,8 @@ k8s.io/kube-openapi v0.0.0-20240105020646-a37d4de58910 h1:1Rp/XEKP5uxPs6QrsngEHA
 k8s.io/kube-openapi v0.0.0-20240105020646-a37d4de58910/go.mod h1:Pa1PvrP7ACSkuX6I7KYomY6cmMA0Tx86waBhDUgoKPw=
 k8s.io/utils v0.0.0-20240102154912-e7106e64919e h1:eQ/4ljkx21sObifjzXwlPKpdGLrCfRziVtos3ofG/sQ=
 k8s.io/utils v0.0.0-20240102154912-e7106e64919e/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
-sigs.k8s.io/controller-runtime v0.16.3 h1:2TuvuokmfXvDUamSx1SuAOO3eTyye+47mJCigwG62c4=
-sigs.k8s.io/controller-runtime v0.16.3/go.mod h1:j7bialYoSn142nv9sCOJmQgDXQXxnroFU4VnX/brVJ0=
+sigs.k8s.io/controller-runtime v0.15.3 h1:L+t5heIaI3zeejoIyyvLQs5vTVu/67IU2FfisVzFlBc=
+sigs.k8s.io/controller-runtime v0.15.3/go.mod h1:kp4jckA4vTx281S/0Yk2LFEEQe67mjg+ev/yknv47Ds=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1 h1:150L+0vs/8DA78h1u02ooW1/fFq/Lwr+sGiqlzvrtq4=
