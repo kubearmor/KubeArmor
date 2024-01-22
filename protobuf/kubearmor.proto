@@ -1,5 +1,5 @@
 syntax = "proto3";
- 
+
 package feeder;
 
 option go_package="github.com/kubearmor/KubeArmor/protobuf";
@@ -125,15 +125,9 @@ message ReplyMessage {
 }
 
 service LogService {
+  // DEPRECATED: use "google.golang.org/grpc/health/grpc_health_v1"
   rpc HealthCheck(NonceMessage) returns (ReplyMessage);
   rpc WatchMessages(RequestMessage) returns (stream Message);
   rpc WatchAlerts(RequestMessage) returns (stream Alert);
   rpc WatchLogs(RequestMessage) returns (stream Log);
-}
-
-service PushLogService {
-  rpc HealthCheck(NonceMessage) returns (ReplyMessage);
-  rpc PushMessages(stream Message) returns (stream ReplyMessage);
-  rpc PushAlerts(stream Alert) returns (stream ReplyMessage);
-  rpc PushLogs(stream Log) returns (stream ReplyMessage);
 }

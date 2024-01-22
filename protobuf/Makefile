@@ -3,7 +3,7 @@
 
 CURDIR=$(shell pwd)
 
-PROTOS:=kubearmor.proto kvm.proto policy.proto
+PROTOS:=kubearmor.proto kvm.proto policy.proto state.proto
 PBGO:=$(PROTOS:.proto=.pb.go)
 
 .PHONY: build

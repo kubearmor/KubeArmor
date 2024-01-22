@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/containerd/containerd/api/services/containers/v1"
@@ -132,6 +134,10 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 		if val, ok := containerLabels["io.kubernetes.pod.name"]; ok {
 			container.EndPointName = val
 		}
+	} else if val, ok := containerLabels["kubearmor.io/namespace"]; ok {
+		container.NamespaceName = val
+	} else {
+		container.NamespaceName = "container_namespace"
 	}
 
 	iface, err := typeurl.UnmarshalAny(res.Container.Spec)
@@ -165,6 +171,23 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 		}
 	} else {
 		return container, err
+	}
+
+	// == //
+
+	if cfg.GlobalCfg.StateAgent && !cfg.GlobalCfg.K8sEnv {
+		container.ContainerImage = res.Container.Image //+ kl.GetSHA256ofImage(inspect.Image)
+
+		container.NodeName = cfg.GlobalCfg.Host
+
+		labels := []string{}
+		for k, v := range res.Container.Labels {
+			labels = append(labels, k+"="+v)
+		}
+		for k, v := range spec.Annotations {
+			labels = append(labels, k+"="+v)
+		}
+		container.Labels = strings.Join(labels, ",")
 	}
 
 	// == //
@@ -305,6 +328,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			dm.ContainersLock.Unlock()
 		}
 
+		if cfg.GlobalCfg.StateAgent {
+			container.Status = "running"
+			go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
+		}
+
 		dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 
 	} else if action == "destroy" {
@@ -343,6 +371,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
+		}
+
+		if cfg.GlobalCfg.StateAgent {
+			container.Status = "terminated"
+			go dm.StateAgent.PushContainerEvent(container, state.EventDeleted)
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)

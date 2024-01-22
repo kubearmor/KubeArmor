@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +20,9 @@ import (
 
 	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -375,6 +379,9 @@ func IsK8sEnv() bool {
 	return false
 }
 
+// ContainerRuntimeSocketKeys contains FIFO ordered keys of container runtimes
+var ContainerRuntimeSocketKeys = []string{"docker", "containerd", "cri-o"}
+
 // ContainerRuntimeSocketMap Structure
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
@@ -396,7 +403,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 
 // GetCRISocket Function
 func GetCRISocket(ContainerRuntime string) string {
-	for k := range ContainerRuntimeSocketMap {
+	for _, k := range ContainerRuntimeSocketKeys {
 		if ContainerRuntime != "" && k != ContainerRuntime {
 			continue
 		}
@@ -455,4 +462,62 @@ func WriteToFile(val interface{}, destFile string) error {
 		return err
 	}
 	return nil
+}
+
+// ParseURL with/without scheme and return host, port or error
+func ParseURL(address string) (string, string, error) {
+	var host string
+	port := "80"
+
+	addr, err := url.Parse(address)
+	if err != nil || addr.Host == "" {
+		// URL without scheme
+		u, repErr := url.ParseRequestURI("http://" + address)
+		if repErr != nil {
+			return "", "", fmt.Errorf("Error while parsing URL: %s", err)
+		}
+
+		addr = u
+	}
+
+	host = addr.Hostname()
+	if addr.Port() != "" {
+		port = addr.Port()
+	}
+
+	return host, port, nil
+}
+
+// handle gRPC errors
+func HandleGRPCErrors(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if status, ok := status.FromError(err); ok {
+		switch status.Code() {
+		case codes.OK:
+			// noop
+			return nil
+		//case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+		//	return status.Err()
+		default:
+			return status.Err()
+		}
+	}
+
+	return nil
+}
+
+// get boot time
+// credits: https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/util/boottime_util_linux.go
+func GetBootTime() string {
+	currentTime := time.Now()
+
+	var info unix.Sysinfo_t
+	if err := unix.Sysinfo(&info); err != nil {
+		return ""
+	}
+
+	return currentTime.Add(-time.Duration(info.Uptime) * time.Second).Truncate(time.Second).UTC().String()
 }

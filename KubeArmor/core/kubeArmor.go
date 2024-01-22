@@ -16,7 +16,10 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
+	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
@@ -88,11 +91,17 @@ type KubeArmorDaemon struct {
 	// kvm agent
 	KVMAgent *kvm.KVMAgent
 
+	// state agent
+	StateAgent *state.StateAgent
+
 	// WgDaemon Handler
 	WgDaemon sync.WaitGroup
 
 	// system monitor lock
 	MonitorLock *sync.RWMutex
+
+	// health-server
+	GRPCHealthServer *health.Server
 }
 
 // NewKubeArmorDaemon Function
@@ -163,6 +172,13 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 		dm.Logger.Print("Terminated KubeArmor")
 	} else {
 		kg.Print("Terminated KubeArmor")
+	}
+
+	if dm.StateAgent != nil {
+		//go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
+		if dm.CloseStateAgent() {
+			kg.Print("Destroyed StateAgent")
+		}
 	}
 
 	// wait for a while
@@ -300,6 +316,25 @@ func (dm *KubeArmorDaemon) CloseKVMAgent() bool {
 	return true
 }
 
+// ================= //
+// == State Agent == //
+// ================= //
+
+// InitStateAgent Function
+func (dm *KubeArmorDaemon) InitStateAgent() bool {
+	dm.StateAgent = state.NewStateAgent(&dm.Node, dm.NodeLock, dm.Containers, dm.ContainersLock)
+	return dm.StateAgent != nil
+}
+
+// CloseStateAgent Function
+func (dm *KubeArmorDaemon) CloseStateAgent() bool {
+	if err := dm.StateAgent.DestroyStateAgent(); err != nil {
+		dm.Logger.Errf("Failed to destory State Agent (%s)", err.Error())
+		return false
+	}
+	return true
+}
+
 // ==================== //
 // == Signal Handler == //
 // ==================== //
@@ -316,6 +351,18 @@ func GetOSSigChannel() chan os.Signal {
 		os.Interrupt)
 
 	return c
+}
+
+// =================== //
+// == Health Server == //
+// =================== //
+func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc_health_v1.HealthCheckResponse_ServingStatus) bool {
+	if dm.GRPCHealthServer != nil {
+		dm.GRPCHealthServer.SetServingStatus(serviceName, healthStatus)
+		return true
+	}
+
+	return false
 }
 
 // ========== //
@@ -344,6 +391,8 @@ func KubeArmor() {
 				break
 			}
 		}
+
+		dm.Node.LastUpdatedAt = kl.GetBootTime()
 
 		dm.Node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
@@ -426,6 +475,39 @@ func KubeArmor() {
 		return
 	}
 	dm.Logger.Print("Initialized KubeArmor Logger")
+
+	// == //
+
+	// health server
+	if dm.Logger.LogServer != nil {
+		dm.GRPCHealthServer = health.NewServer()
+		grpc_health_v1.RegisterHealthServer(dm.Logger.LogServer, dm.GRPCHealthServer)
+	}
+
+	// Init StateAgent
+	if !dm.K8sEnabled && cfg.GlobalCfg.StateAgent {
+		dm.NodeLock.Lock()
+		dm.Node.ClusterName = cfg.GlobalCfg.Cluster
+		dm.NodeLock.Unlock()
+
+		// initialize state agent
+		if !dm.InitStateAgent() {
+			dm.Logger.Err("Failed to initialize State Agent Server")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Initialized State Agent Server")
+
+		pb.RegisterStateAgentServer(dm.Logger.LogServer, dm.StateAgent)
+		dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+	}
+
+	if dm.StateAgent != nil {
+		go dm.StateAgent.PushNodeEvent(dm.Node, state.EventAdded)
+	}
 
 	// == //
 
@@ -634,7 +716,7 @@ func KubeArmor() {
 	}
 
 	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy) {
-		policyService := &policy.ServiceServer{}
+		policyService := &policy.PolicyServer{}
 		if enableContainerPolicy {
 			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
 			dm.Logger.Print("Started to monitor container security policies on gRPC")
@@ -645,11 +727,13 @@ func KubeArmor() {
 			dm.Logger.Print("Started to monitor host security policies on gRPC")
 		}
 		pb.RegisterPolicyServiceServer(dm.Logger.LogServer, policyService)
+
 		//Enable grpc service to send kubearmor data to client in unorchestrated mode
 		probe := &Probe{}
 		probe.GetContainerData = dm.SetProbeContainerData
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
 
+		dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	}
 
 	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
@@ -657,6 +741,7 @@ func KubeArmor() {
 	// serve log feeds
 	go dm.ServeLogFeeds()
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
+	dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 
 	// == //
 	go dm.SetKarmorData()
