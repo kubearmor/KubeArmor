@@ -20,7 +20,7 @@ RUN make
 
 ### Make executable image
 
-FROM alpine:3.17 as kubearmor
+FROM alpine:3.18 as kubearmor
 
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 

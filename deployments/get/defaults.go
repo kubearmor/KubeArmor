@@ -16,6 +16,9 @@ var (
 	KubeArmorClusterRoleBindingName                  = "kubearmor-clusterrolebinding"
 	KubeArmorClusterRoleName                         = "kubearmor-clusterrole"
 	RelayServiceName                                 = kubearmor
+	RelayServiceAccountName                          = "kubearmor-relay"
+	RelayClusterRoleName                             = "kubearmor-relay-clusterrole"
+	RelayClusterRoleBindingName                      = "kubearmor-relay-clusterrolebinding"
 	RelayDeploymentName                              = "kubearmor-relay"
 	KubeArmorConfigMapName                           = "kubearmor-config"
 	KubeArmorControllerDeploymentName                = "kubearmor-controller"
@@ -46,7 +49,6 @@ var hostPathDirectory = corev1.HostPathDirectory
 var hostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 var hostPathFile = corev1.HostPathFile
 var hostPathSocket = corev1.HostPathSocket
-var hostContainerStorageMountPropagation = corev1.MountPropagationHostToContainer
 
 var gkeHostUsrVolMnt = corev1.VolumeMount{
 	Name:      "usr-src-path", // /usr -> /media/root/usr (read-only) check issue #579 for details
@@ -126,18 +128,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -147,24 +137,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/containerd/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/containerd",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -180,12 +152,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/crio/crio.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "crio-storage-path", // crio storage - stores all of its data, including containers images, in this directory.
-				MountPath:        "/var/lib/containers/storage",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -195,15 +161,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/crio/crio.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "crio-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/containers/storage",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -219,12 +176,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/docker.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -234,15 +185,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/docker.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -258,12 +200,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/docker.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -273,15 +209,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/docker.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -297,12 +224,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/snap/microk8s/common/run/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -312,15 +233,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/snap/microk8s/common/run/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/snap/microk8s/common/run/containerd",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -336,11 +248,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path",
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -350,15 +257,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/run/k0s/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/k0s/containerd",
-						Type: &hostPathDirectory,
 					},
 				},
 			},
@@ -374,12 +272,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -389,15 +281,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/run/k3s/containerd/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/k3s/containerd",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -413,18 +296,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -434,24 +305,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/containerd/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/containerd",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -467,18 +320,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -491,49 +332,17 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					},
 				},
 			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/containerd",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
 		},
 	},
 	"bottlerocket": {
-		Args: []string{
-			"-criSocket=unix:///run/dockershim.sock",
-		},
+		Args: []string{},
 		Envs: envVar,
 		VolumeMounts: []corev1.VolumeMount{
 			apparmorVolMnt,
 			{
 				Name:      "containerd-sock-path", // containerd
-				MountPath: "/run/dockershim.sock",
+				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
-			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -542,26 +351,8 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				Name: "containerd-sock-path",
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/dockershim.sock",
+						Path: "/run/containerd/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/containerd",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},
@@ -577,18 +368,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 				MountPath: "/var/run/containerd/containerd.sock",
 				ReadOnly:  true,
 			},
-			{
-				Name:             "containerd-storage-path", // containerd storage
-				MountPath:        "/run/containerd",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
-			{
-				Name:             "docker-storage-path", // docker storage
-				MountPath:        "/var/lib/docker",
-				MountPropagation: &hostContainerStorageMountPropagation,
-				ReadOnly:         true,
-			},
 		},
 		Volumes: []corev1.Volume{
 			apparmorVol,
@@ -598,24 +377,6 @@ var defaultConfigs = map[string]DaemonSetConfig{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: "/var/run/containerd/containerd.sock",
 						Type: &hostPathSocket,
-					},
-				},
-			},
-			{
-				Name: "containerd-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/run/containerd",
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
-			{
-				Name: "docker-storage-path",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/lib/docker",
-						Type: &hostPathDirectoryOrCreate,
 					},
 				},
 			},

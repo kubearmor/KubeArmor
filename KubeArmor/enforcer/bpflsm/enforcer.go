@@ -23,8 +23,8 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/bpf -O2 -g
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/bpf -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -219,7 +219,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		}
 	}
 
-	be.Events, err = ringbuf.NewReader(be.obj.Events)
+	be.Events, err = ringbuf.NewReader(be.obj.KubearmorEvents)
 	if err != nil {
 		be.Logger.Errf("opening ringbuf reader: %s", err)
 		return be, err
@@ -311,7 +311,7 @@ func (be *BPFEnforcer) TraceEvents() {
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
 			},
-		})
+		}, false)
 
 		switch event.EventID {
 
@@ -411,6 +411,14 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = true
 		}
+	}
+	if err := be.obj.KubearmorEvents.Unpin(); err != nil {
+		be.Logger.Err(err.Error())
+		errBPFCleanUp = true
+	}
+	if err := be.obj.KubearmorEvents.Close(); err != nil {
+		be.Logger.Err(err.Error())
+		errBPFCleanUp = true
 	}
 
 	if err := be.Events.Close(); err != nil {

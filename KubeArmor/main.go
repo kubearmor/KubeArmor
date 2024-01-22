@@ -41,6 +41,24 @@ func main() {
 			return
 		}
 	}
+	// initial clean up
+
+	bpfMapsDir := "/sys/fs/bpf/"
+	bpfMapsName := []string{"kubearmor_config", "kubearmor_events", "kubearmor_containers", "kubearmor_visibility"}
+	for _, mp := range bpfMapsName {
+		path := bpfMapsDir + mp
+		/* This should not be triggered in ideal cases,
+		if this is triggered that means there is incomplete cleanup process
+		from the last installation */
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			err = os.Remove(path)
+			if err != nil {
+				kg.Err(err.Error())
+			}
+			kg.Warnf("Deleteing existing map %s. This means previous cleanup was failed", path)
+
+		}
+	}
 
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {

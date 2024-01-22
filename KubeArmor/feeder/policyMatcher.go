@@ -19,7 +19,7 @@ import (
 // == Security Policies == //
 // ======================= //
 
-// GetProtocolFromName() Function
+// GetProtocolFromName function gets protocol name from visibility data
 func GetProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
@@ -33,6 +33,20 @@ func GetProtocolFromName(proto string) string {
 	default:
 		return "unknown"
 	}
+}
+
+func fetchProtocol(resource string) string {
+	if strings.Contains(resource, "protocol=TCP") || (strings.Contains(resource, "SOCK_STREAM") && strings.Contains(resource, "protocol=0")) {
+		return "tcp"
+	} else if strings.Contains(resource, "protocol=UDP") || (strings.Contains(resource, "SOCK_DGRAM") && strings.Contains(resource, "protocol=0")) {
+		return "udp"
+	} else if strings.Contains(resource, "protocol=ICMP") {
+		return "icmp"
+	} else if strings.Contains(resource, "SOCK_RAW") {
+		return "raw"
+	}
+
+	return "unknown"
 }
 
 func getFileProcessUID(path string) string {
@@ -52,7 +66,7 @@ func getOperationAndCapabilityFromName(capName string) (op, capability string) {
 	switch strings.ToLower(capName) {
 	case "net_raw":
 		op = "Network"
-		capability = "SOCK_RAW"
+		capability = "raw" // we will remove this when we have proper handling of capabilities
 	default:
 		return "", "unknown"
 	}
@@ -185,14 +199,14 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = npt.Message
 
 		match.Operation = "Network"
-		match.Resource = GetProtocolFromName(npt.Protocol)
+		match.Resource = npt.Protocol
 		match.ResourceType = "Protocol"
 
+		// TODO: Handle cases where AppArmor network enforcement is not present
+		// https://github.com/kubearmor/KubeArmor/issues/1285
 		if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Allow" {
 			match.Action = "Audit (" + npt.Action + ")"
 		} else if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Block" {
-			match.Action = "Audit (" + npt.Action + ")"
-		} else if policyEnabled == tp.KubeArmorPolicyEnabled && fd.IsGKE && npt.Action == "Block" {
 			match.Action = "Audit (" + npt.Action + ")"
 		} else {
 			match.Action = npt.Action
@@ -915,16 +929,18 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 	}
 
 	if containerEvent {
+		// return here as container events are dropped in kernel space
 		(*log).Type = "ContainerLog"
 		return true
-	}
-
-	if visibility {
+	} else {
+		// host events are dropped in userspace
 		(*log).Type = "HostLog"
-		return true
 	}
 
-	return false
+	// handles host visibility
+	// return true if visibility enabled
+	// return false otherwise so that log is skipped
+	return visibility
 }
 
 // ==================== //
@@ -957,7 +973,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		}
 
 		secPolicies := fd.SecurityPolicies[key].Policies
-		for _, secPolicy := range secPolicies {
+		// for "Network" case below we use skip bool to skip the log when the log is matched with one of the allowed rules in secPolicies
+		// skip is set to true(in below cases, in Network) for the log event which is matched by the rules
+		skip := false
+		for rule, secPolicy := range secPolicies {
 			if secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)" {
 				if secPolicy.Operation == "Process" || secPolicy.Operation == "File" {
 					existFileAllowPolicy = true
@@ -1203,105 +1222,115 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					continue
 				}
 
+				// when one of the below rule is already matched for the log event, we will skip for further matches
+				if skip {
+					break // break, so that once source is matched for a log it doesn't look for other cases
+				}
 				// match sources
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
-					skip := false
+					matchedFlags := false
 
-					for _, matchProtocol := range strings.Split(secPolicy.Resource, ",") {
-						if skip {
-							break
-						}
-
-						// match resources
-						if strings.Contains(log.Resource, matchProtocol) {
-							if (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
-								// allow policy or allow policy with audit mode
-								// matched source + matched resource + matched action + expected result -> going to be skipped
-
-								log.Type = "MatchedPolicy"
-
-								log.PolicyName = secPolicy.PolicyName
-								log.Severity = secPolicy.Severity
-
-								if len(secPolicy.Tags) > 0 {
-									log.Tags = strings.Join(secPolicy.Tags[:], ",")
-									log.ATags = secPolicy.Tags
-								}
-
-								if len(secPolicy.Message) > 0 {
-									log.Message = secPolicy.Message
-								}
-
-								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-									log.Enforcer = "eBPF Monitor"
-								} else {
-									log.Enforcer = fd.Enforcer
-								}
-
-								log.Action = "Allow"
-
-								skip = true
-								continue
-							}
-
-							if secPolicy.Action == "Audit" && log.Result == "Passed" {
-								// audit policy
-								// matched source + matched resource + matched action + expected result -> alert (audit log)
-
-								log.Type = "MatchedPolicy"
-
-								log.PolicyName = secPolicy.PolicyName
-								log.Severity = secPolicy.Severity
-
-								if len(secPolicy.Tags) > 0 {
-									log.Tags = strings.Join(secPolicy.Tags[:], ",")
-									log.ATags = secPolicy.Tags
-								}
-
-								if len(secPolicy.Message) > 0 {
-									log.Message = secPolicy.Message
-								}
-
-								log.Enforcer = "eBPF Monitor"
-								log.Action = secPolicy.Action
-
-								skip = true
-								continue
-							}
-
-							if (secPolicy.Action == "Block" && log.Result != "Passed") ||
-								(secPolicy.Action == "Audit (Block)" && log.Result == "Passed") {
-								// block policy or block policy with audit mode
-								// matched source + matched resource + matched action + expected result -> alert
-
-								log.Type = "MatchedPolicy"
-
-								log.PolicyName = secPolicy.PolicyName
-								log.Severity = secPolicy.Severity
-
-								if len(secPolicy.Tags) > 0 {
-									log.Tags = strings.Join(secPolicy.Tags[:], ",")
-								}
-
-								if len(secPolicy.Message) > 0 {
-									log.Message = secPolicy.Message
-								}
-
-								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
-									log.Enforcer = "eBPF Monitor"
-								} else {
-									log.Enforcer = fd.Enforcer
-								}
-
-								log.Action = secPolicy.Action
-
-								skip = true
-								continue
-							}
-						}
+					protocol := fetchProtocol(log.Resource)
+					if protocol == secPolicy.Resource {
+						matchedFlags = true
 					}
 
-					if skip {
+					if matchedFlags {
+						if (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+							// allow policy or allow policy with audit mode
+							// matched source + matched resource + matched action + expected result -> going to be skipped
+
+							log.Type = "MatchedPolicy"
+
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								log.ATags = secPolicy.Tags
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								log.Enforcer = "eBPF Monitor"
+							} else {
+								log.Enforcer = fd.Enforcer
+							}
+
+							log.Action = "Allow"
+
+							skip = true
+							continue
+						}
+
+						if secPolicy.Action == "Audit" && log.Result == "Passed" {
+							// audit policy
+							// matched source + matched resource + matched action + expected result -> alert (audit log)
+
+							log.Type = "MatchedPolicy"
+
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								log.ATags = secPolicy.Tags
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							log.Enforcer = "eBPF Monitor"
+							log.Action = secPolicy.Action
+
+							skip = true
+							continue
+						}
+
+						if (secPolicy.Action == "Block" && log.Result != "Passed") ||
+							(secPolicy.Action == "Audit (Block)" && log.Result == "Passed") {
+							// block policy or block policy with audit mode
+							// matched source + matched resource + matched action + expected result -> alert
+
+							log.Type = "MatchedPolicy"
+
+							log.PolicyName = secPolicy.PolicyName
+							log.Severity = secPolicy.Severity
+
+							if len(secPolicy.Tags) > 0 {
+								log.Tags = strings.Join(secPolicy.Tags[:], ",")
+							}
+
+							if len(secPolicy.Message) > 0 {
+								log.Message = secPolicy.Message
+							}
+
+							if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+								log.Enforcer = "eBPF Monitor"
+							} else {
+								log.Enforcer = fd.Enforcer
+							}
+
+							log.Action = secPolicy.Action
+
+							skip = true
+							continue
+						}
+					}
+					// if protocol is unknown we skip the audit alert event
+					if protocol == "unknown" {
+						log.Type = "MatchedPolicy"
+						log.Action = "Allow"
+						continue
+					}
+
+					// keep looking for a rule to be matched
+					// send audit alert only when all the rules are compared and none is matched
+					if !matchedFlags && rule < len(secPolicies)-1 {
 						continue
 					}
 

@@ -100,7 +100,7 @@ service/kubearmor-controller-metrics-service   ClusterIP   10.43.241.84    <none
 service/kubearmor                              ClusterIP   10.43.216.156   <none>        32767/TCP   2m53s
 
 NAME                                        DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                                                                                                                                                                       AGE
-daemonset.apps/kubearmor-bpf-docker-d4651   1         1         1       1            1           kubearmor.io/btf=yes,kubearmor.io/enforcer=bpf,kubearmor.io/runtime-storage=var_lib_docker,kubearmor.io/runtime=docker,kubearmor.io/socket=run_docker.sock,kubernetes.io/os=linux   30s
+daemonset.apps/kubearmor-bpf-docker-d4651   1         1         1       1            1           kubearmor.io/btf=yes,kubearmor.io/enforcer=bpf,kubearmor.io/runtime=docker,kubearmor.io/socket=run_docker.sock,kubernetes.io/os=linux   30s
 
 NAME                                   READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/kubearmor-operator     1/1     1            1           11m

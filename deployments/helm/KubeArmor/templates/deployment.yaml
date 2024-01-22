@@ -33,7 +33,7 @@ spec:
         - containerPort: 32767
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccountName: kubearmor
+      serviceAccountName: kubearmor-relay
 {{- end }}
 ---
 apiVersion: apps/v1

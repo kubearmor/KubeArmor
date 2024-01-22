@@ -9,6 +9,7 @@ SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
   event *task_info;
+  int retval = ret;
 
   bool match = false;
 
@@ -108,20 +109,20 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
             if ((dirval->processmask & RULE_RECURSIVE) &&
                 (~dirval->processmask &
                  RULE_HINT)) { // true directory match and not a hint suggests
-                                // there are no possibility of child dir
+                               // there are no possibility of child dir
               val = dirval;
               goto decision;
             } else if (dirval->processmask &
                        RULE_RECURSIVE) { // It's a directory match but also a
-                                       // hint, it's possible that a
-                                       // subdirectory exists that can also
-                                       // match so we continue the loop to look
-                                       // for a true match in subdirectories
+                                         // hint, it's possible that a
+                                         // subdirectory exists that can also
+              // match so we continue the loop to look
+              // for a true match in subdirectories
               recursivebuthint = true;
               val = dirval;
             } else {
               continue; // We continue the loop to see if we have more nested
-                         // directories and set match to false
+                        // directories and set match to false
             }
           }
         } else {
@@ -203,35 +204,23 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   }
 
 decision:
-  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
-  if (!task_info) {
-    return 0;
-  }
-
-  // Clearing arrays to avoid garbage values
-  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
-  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
-
-  init_context(task_info);
-  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
-  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE,
-  store->source); task_info->event_id = _SECURITY_BPRM_CHECK;
-  task_info->retval = -EPERM;
 
   if (match) {
     if (val && (val->processmask & RULE_OWNER)) {
       if (!is_owner(bprm->file)) {
-        bpf_ringbuf_submit(task_info, 0);
-        return -EPERM;
+        retval = -EPERM;
       } else {
-        bpf_ringbuf_discard(task_info, 0);
+        // Owner Only Rule Match, No need to enforce
         return ret;
       }
     }
     if (val && (val->processmask & RULE_DENY)) {
-      bpf_ringbuf_submit(task_info, 0);
-      return -EPERM;
+      retval = -EPERM;
     }
+  }
+
+  if (retval == -EPERM) {
+    goto ringbuf;
   }
 
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
@@ -240,28 +229,39 @@ decision:
 
   if (allow) {
     if (!match) {
-       if(allow->processmask == BLOCK_POSTURE) {
-        bpf_ringbuf_submit(task_info, 0);
-        return -EPERM;
-      } else {
-          task_info->retval = ret;
-          bpf_ringbuf_submit(task_info, 0);
-          return ret;
-        }
-    }
-    // Do not remove this else block
-    else {
-      bpf_ringbuf_discard(task_info, 0);
-      return ret;
+      if (allow->processmask == BLOCK_POSTURE) {
+        retval = -EPERM;
+      }
+      goto ringbuf;
     }
   }
 
-  bpf_ringbuf_discard(task_info, 0);
   return ret;
+
+ringbuf:
+
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+  if (!task_info) {
+    // Failed to reserve, doing policy enforcement without alert
+    return retval;
+  }
+
+  // Clearing arrays to avoid garbage values
+  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+  init_context(task_info);
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+  task_info->event_id = _SECURITY_BPRM_CHECK;
+  task_info->retval = retval;
+  bpf_ringbuf_submit(task_info, 0);
+  return retval;
 }
 
 static inline int match_net_rules(int type, int protocol, u32 eventID) {
   event *task_info;
+  int retval = 0;
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
@@ -319,7 +319,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
     if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
       p0 = sock_proto;
       p1 = IPPROTO_TCP;
-    } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
+    } else if (type == SOCK_DGRAM &&
+               (protocol == IPPROTO_UDP || protocol == 0)) {
       p0 = sock_proto;
       p1 = IPPROTO_UDP;
     } else if (protocol == IPPROTO_ICMP &&
@@ -343,8 +344,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
       match = true;
       goto decision;
     }
-  
-  val = bpf_map_lookup_elem(inner, p);
+
+    val = bpf_map_lookup_elem(inner, p);
   }
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
 
@@ -360,9 +361,32 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 
 decision:
 
-  task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+  if (match) {
+    if (val && (val->processmask & RULE_DENY)) {
+      retval = -EPERM;
+      goto ringbuf;
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = dnet;
+  struct data_t *allow = bpf_map_lookup_elem(inner, p);
+
+  if (allow) {
+    if (!match) {
+      if (allow->processmask == BLOCK_POSTURE) {
+        retval = -EPERM;
+      }
+      goto ringbuf;
+    }
+  }
+
+  return 0;
+
+ringbuf:
+  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
-    return 0;
+    return retval;
   }
   // Clearing arrays to avoid garbage values to be parsed
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
@@ -374,33 +398,9 @@ decision:
 
   task_info->event_id = eventID;
 
-  task_info->retval = -EPERM;
-
-  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  p->path[0] = dnet;
-  struct data_t *allow = bpf_map_lookup_elem(inner, p);
-
-  if (allow) {
-    if (!match) {
-      if(allow->processmask == BLOCK_POSTURE) {
-        bpf_ringbuf_submit(task_info, 0);
-        return -EPERM;
-      } else {
-          task_info->retval = 0;
-          bpf_ringbuf_submit(task_info, 0);
-          return 0;
-        }
-    }  
-  } else {
-        if (match) {
-          if (val && (val->processmask & RULE_DENY)) {
-              bpf_ringbuf_submit(task_info, 0);
-              return -EPERM;
-          }
-        }
-      }
-  bpf_ringbuf_discard(task_info, 0);
-  return 0;
+  task_info->retval = retval;
+  bpf_ringbuf_submit(task_info, 0);
+  return retval;
 }
 
 SEC("lsm/socket_create")

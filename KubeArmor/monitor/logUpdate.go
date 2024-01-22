@@ -49,7 +49,7 @@ func (mon *SystemMonitor) UpdateContainerInfoByContainerID(log tp.Log) tp.Log {
 }
 
 // BuildLogBase Function
-func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Log {
+func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readlink bool) tp.Log {
 	log := tp.Log{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
@@ -78,39 +78,38 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined) tp.Lo
 	log.PID = int32(msg.ContextSys.PID)
 	log.UID = int32(msg.ContextSys.UID)
 
+	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys, readlink)
+	log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
+
 	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys.HostPID)
+		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
 	} else {
-		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys.HostPID)
+		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys, readlink)
 	}
 
 	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
+	log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
 	log.OID = int32(msg.ContextSys.OID)
-
-	log.ParentProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPPID)
-	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys.HostPID)
 
 	return log
 }
 
 // UpdateLogBase Function (SYS_EXECVE, SYS_EXECVEAT)
-func (mon *SystemMonitor) UpdateLogBase(eventID int32, log tp.Log) tp.Log {
+func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 
 	// update the process paths, since we would have received actual exec paths from bprm hook
+	// in case bprm hook has not populated the map with full path, we will fallback to reading from procfs
+	// else we will send out relative path
 
-	parentProcessName := mon.GetParentExecPath(log.ContainerID, uint32(log.HostPID))
-	if parentProcessName != "" {
-		log.ParentProcessName = parentProcessName
-	}
-
-	processName := mon.GetExecPath(log.ContainerID, uint32(log.HostPID))
+	processName := mon.GetExecPath(log.ContainerID, ctx, true)
 	if processName != "" {
 		log.ProcessName = processName
 	}
 
-	source := mon.GetExecPath(log.ContainerID, uint32(log.HostPPID))
-	if source != "" {
-		log.Source = source
+	parentProcessName := mon.GetParentExecPath(log.ContainerID, ctx, true)
+	if parentProcessName != "" {
+		log.ParentProcessName = parentProcessName
+		log.Source = parentProcessName
 	}
 
 	return log
@@ -129,7 +128,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 
 			// generate a log
-			log := mon.BuildLogBase(msg.ContextSys.EventID, msg)
+			log := mon.BuildLogBase(msg.ContextSys.EventID, msg, true)
 
 			switch msg.ContextSys.EventID {
 			case SysOpen:

@@ -1,6 +1,7 @@
 name: ci-latest-helm-chart-release
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:

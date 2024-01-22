@@ -269,6 +269,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 
 			dm.Containers[containerID] = container
+
+			// in case if container runtime detect the container and emit that event before pod event then
+			// the container id will be added to NsMap with "Unknown" namespace
+			// therefore update the NsMap to have this container id with associated namespace
+			// and delete the container id from  NamespacePidsMap within "Unknown" namespace
+			dm.HandleUnknownNamespaceNsMap(&container)
 		}
 		dm.ContainersLock.Unlock()
 
@@ -428,6 +434,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 
 				dm.Containers[containerID] = container
+				// in case if container runtime detect the container and emit that event before pod event then
+				// the container id will be added to NsMap with "Unknown" namespace
+				// therefore update the NsMap to have this container id with associated namespace
+				// and delete the container id from  NamespacePidsMap within "Unknown" namespace
+				dm.HandleUnknownNamespaceNsMap(&container)
+
 			}
 			dm.ContainersLock.Unlock()
 
@@ -510,6 +522,22 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 	}
 }
 
+// HandleUnknownNamespaceNsMap Function
+func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) {
+	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
+	dm.SystemMonitor.NsMapLock.Lock()
+	if val, ok := dm.SystemMonitor.NamespacePidsMap["Unknown"]; ok {
+		for i := range val.NsKeys {
+			if val.NsKeys[i].MntNS == container.MntNS && val.NsKeys[i].PidNS == container.PidNS {
+				val.NsKeys = append(val.NsKeys[:i], val.NsKeys[i+1:]...)
+				break
+			}
+		}
+		dm.SystemMonitor.NamespacePidsMap["Unknown"] = val
+	}
+	dm.SystemMonitor.NsMapLock.Unlock()
+}
+
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
 	for {
@@ -547,7 +575,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				controllerName, controller, namespace, err := getTopLevelOwner(event.Object.ObjectMeta, event.Object.Namespace, event.Object.Kind)
 				if err != nil {
-					dm.Logger.Errf("Failed to get ownerRef (%s, %s)", event.Object.ObjectMeta.Name, err.Error())
+					dm.Logger.Warnf("Failed to get ownerRef (%s, %s)", event.Object.ObjectMeta.Name, err.Error())
 
 				}
 
@@ -2104,7 +2132,6 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 	} else if action == "DELETED" {
 		if val, ok := dm.SystemMonitor.NamespacePidsMap[namespace]; ok {
 			for _, nskey := range val.NsKeys {
-				dm.Logger.Warnf("Calling delete")
 				dm.SystemMonitor.UpdateNsKeyMap("DELETED", nskey, tp.Visibility{})
 			}
 		}
@@ -2116,7 +2143,7 @@ var visibilityKey string = "kubearmor-visibility"
 
 func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, action string) {
 
-	// we overwrite
+	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
 
 	// get all namespaces
 	nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
@@ -2267,6 +2294,9 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
+					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
+				}
 				globalPosture := tp.DefaultPosture{
 					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],
@@ -2290,6 +2320,9 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
+					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
+				}
 				globalPosture := tp.DefaultPosture{
 					FileAction:         cm.Data[cfg.ConfigDefaultFilePosture],
 					NetworkAction:      cm.Data[cfg.ConfigDefaultNetworkPosture],

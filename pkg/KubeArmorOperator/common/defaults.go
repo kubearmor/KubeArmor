@@ -41,14 +41,20 @@ const (
 var OperatorConfigCrd *opv1.KubeArmorConfig
 
 var (
-	EnforcerLabel           string = "kubearmor.io/enforcer"
-	RuntimeLabel            string = "kubearmor.io/runtime"
-	RuntimeStorageLabel     string = "kubearmor.io/runtime-storage"
-	SocketLabel             string = "kubearmor.io/socket"
-	RandLabel               string = "kubearmor.io/rand"
-	OsLabel                 string = "kubernetes.io/os"
-	ArchLabel               string = "kubernetes.io/arch"
-	BTFLabel                string = "kubearmor.io/btf"
+	// node labels
+	EnforcerLabel   string = "kubearmor.io/enforcer"
+	RuntimeLabel    string = "kubearmor.io/runtime"
+	SocketLabel     string = "kubearmor.io/socket"
+	RandLabel       string = "kubearmor.io/rand"
+	OsLabel         string = "kubernetes.io/os"
+	ArchLabel       string = "kubernetes.io/arch"
+	BTFLabel        string = "kubearmor.io/btf"
+	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
+	SecurityFsLabel string = "kubearmor.io/securityfs"
+
+	// if any node with securityfs/lsm present
+	IfNodeWithSecurtiyFs bool = false
+
 	DeleteAction            string = "DELETE"
 	AddAction               string = "ADD"
 	Namespace               string = "kubearmor"
@@ -68,6 +74,7 @@ var (
 	ConfigDefaultFilePosture         string = "defaultFilePosture"
 	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
+	ConfigDefaultPostureLogs         string = "defaultPostureLogs"
 
 	//KubearmorRelayEnvVariables
 
@@ -100,6 +107,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultCapabilitiesPosture: "audit",
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
+	ConfigDefaultPostureLogs:         "true",
 }
 
 var KubearmorRelayEnvMap = map[string]string{
@@ -130,7 +138,6 @@ var ContainerRuntimeSocketMap = map[string][]string{
 var HostPathDirectory = corev1.HostPathDirectory
 var HostPathSocket = corev1.HostPathSocket
 var HostPathFile = corev1.HostPathFile
-var HostToContainerMountPropagation = corev1.MountPropagationHostToContainer
 
 var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 	"apparmor": {
@@ -171,26 +178,6 @@ var EnforcerVolumes = map[string][]corev1.Volume{
 			},
 		},
 	},
-}
-
-var RuntimeStorageVolumes = map[string][]string{
-	"docker": {
-		"/var/lib/docker",
-	},
-	"cri-o": {
-		"/var/lib/containers/storage",
-	},
-	"containerd": {
-		"/run/k0s/containerd",
-		"/run/k3s/containerd",
-		"/run/containerd",
-	},
-}
-
-var RuntimeStorageLocation = map[string]string{
-	"docker":     "/var/lib/docker",
-	"containerd": "/run/containerd",
-	"cri-o":      "/var/lib/containers/storage",
 }
 
 var RuntimeSocketLocation = map[string]string{

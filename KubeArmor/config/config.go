@@ -33,6 +33,8 @@ type KubearmorConfig struct {
 	KVMAgent   bool // Enable/Disable KVM Agent
 	K8sEnv     bool // Is k8s env ?
 
+	Debug bool // Enable/Disable KubeArmor debug mode
+
 	DefaultFilePosture         string // Default Enforcement Action in Global File Context
 	DefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	DefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
@@ -41,12 +43,14 @@ type KubearmorConfig struct {
 	HostDefaultNetworkPosture      string // Default Enforcement Action in Global Network Context
 	HostDefaultCapabilitiesPosture string // Default Enforcement Action in Global Capabilities Context
 
-	CoverageTest      bool     // Enable/Disable Coverage Test
-	ConfigUntrackedNs []string // untracked namespaces
-	LsmOrder          []string // LSM order
-	BPFFsPath         string   // path to the BPF filesystem
-	EnforcerAlerts    bool     // policy enforcer
+	CoverageTest       bool     // Enable/Disable Coverage Test
+	ConfigUntrackedNs  []string // untracked namespaces
+	LsmOrder           []string // LSM order
+	BPFFsPath          string   // path to the BPF filesystem
+	EnforcerAlerts     bool     // policy enforcer
+	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
+	StateAgent bool // enable KubeArmor state agent
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -75,10 +79,13 @@ const (
 	ConfigHostDefaultCapabilitiesPosture string = "hostDefaultCapabilitiesPosture"
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
+	ConfigDebug                          string = "debug"
 	ConfigUntrackedNs                    string = "untrackedNs"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
+	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
+	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
 )
 
 func readCmdLineParams() {
@@ -99,6 +106,8 @@ func readCmdLineParams() {
 	kvmAgentB := flag.Bool(ConfigKubearmorVM, false, "enabling KubeArmorVM")
 	k8sEnvB := flag.Bool(ConfigK8sEnv, true, "is k8s env?")
 
+	debugB := flag.Bool(ConfigDebug, false, "Enable/Disable pushing KubeArmor debug logs over gRPC. NOTE: Set environment DEBUG=true to configure stdout debug logging")
+
 	defaultFilePosture := flag.String(ConfigDefaultFilePosture, "audit", "configuring default enforcement action in global file context {allow|audit|block}")
 	defaultNetworkPosture := flag.String(ConfigDefaultNetworkPosture, "audit", "configuring default enforcement action in global network context {allow|audit|block}")
 	defaultCapabilitiesPosture := flag.String(ConfigDefaultCapabilitiesPosture, "audit", "configuring default enforcement action in global capability context {allow|audit|block}")
@@ -115,6 +124,10 @@ func readCmdLineParams() {
 
 	bpfFsPath := flag.String(BPFFsPath, "/sys/fs/bpf", "Path to the BPF filesystem to use for storing maps")
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
+
+	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
+
+	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -141,6 +154,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigKubearmorVM, *kvmAgentB)
 	viper.SetDefault(ConfigK8sEnv, *k8sEnvB)
 
+	viper.SetDefault(ConfigDebug, *debugB)
+
 	viper.SetDefault(ConfigDefaultFilePosture, *defaultFilePosture)
 	viper.SetDefault(ConfigDefaultNetworkPosture, *defaultNetworkPosture)
 	viper.SetDefault(ConfigDefaultCapabilitiesPosture, *defaultCapabilitiesPosture)
@@ -158,6 +173,10 @@ func readCmdLineParams() {
 	viper.SetDefault(BPFFsPath, *bpfFsPath)
 
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
+
+	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
+
+	viper.SetDefault(ConfigStateAgent, *stateAgent)
 }
 
 // LoadConfig Load configuration
@@ -185,6 +204,9 @@ func LoadConfig() error {
 
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.Host = viper.GetString(ConfigHost)
+	if hostname, err := os.Hostname(); GlobalCfg.Host == "" && err == nil {
+		GlobalCfg.Host = strings.Split(hostname, ".")[0]
+	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
@@ -205,6 +227,8 @@ func LoadConfig() error {
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
 	GlobalCfg.K8sEnv = viper.GetBool(ConfigK8sEnv)
+
+	GlobalCfg.Debug = viper.GetBool(ConfigDebug)
 
 	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
 	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
@@ -236,7 +260,12 @@ func LoadConfig() error {
 	GlobalCfg.LsmOrder = strings.Split(viper.GetString(LsmOrder), ",")
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
+
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
+
+	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
