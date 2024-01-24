@@ -50,6 +50,7 @@ type KubearmorConfig struct {
 	EnforcerAlerts     bool     // policy enforcer
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
+	StateAgent bool // enable KubeArmor state agent
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -84,6 +85,7 @@ const (
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
+	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
 )
 
 func readCmdLineParams() {
@@ -124,6 +126,8 @@ func readCmdLineParams() {
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
+
+	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -171,6 +175,8 @@ func readCmdLineParams() {
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
+
+	viper.SetDefault(ConfigStateAgent, *stateAgent)
 }
 
 // LoadConfig Load configuration
@@ -198,6 +204,9 @@ func LoadConfig() error {
 
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.Host = viper.GetString(ConfigHost)
+	if hostname, err := os.Hostname(); GlobalCfg.Host == "" && err == nil {
+		GlobalCfg.Host = strings.Split(hostname, ".")[0]
+	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
@@ -255,6 +264,8 @@ func LoadConfig() error {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

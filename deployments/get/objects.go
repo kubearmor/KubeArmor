@@ -159,7 +159,7 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 					Labels: relayDeploymentLabels,
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: kubearmor,
+					ServiceAccountName: RelayServiceAccountName,
 					NodeSelector: map[string]string{
 						"kubernetes.io/os": "linux",
 					},
@@ -177,6 +177,65 @@ func GetRelayDeployment(namespace string) *appsv1.Deployment {
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+// GetRelayServiceAccount Function
+func GetRelayServiceAccount(namespace string) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ServiceAccount",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RelayServiceAccountName,
+			Namespace: namespace,
+		},
+	}
+}
+
+// GetRelayClusterRole Function
+func GetRelayClusterRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRole",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: RelayClusterRoleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"get", "list"},
+			},
+		},
+	}
+}
+
+// GetRelayClusterRoleBinding Function
+func GetRelayClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterRoleBinding",
+			APIVersion: "rbac.authorization.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: RelayClusterRoleBindingName,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     RelayClusterRoleName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      RelayServiceAccountName,
+				Namespace: namespace,
 			},
 		},
 	}

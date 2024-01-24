@@ -19,7 +19,7 @@ import (
 // == Security Policies == //
 // ======================= //
 
-// GetProtocolFromName() Function
+// GetProtocolFromName function gets protocol name from visibility data
 func GetProtocolFromName(proto string) string {
 	switch strings.ToLower(proto) {
 	case "tcp":
@@ -202,11 +202,11 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = npt.Protocol
 		match.ResourceType = "Protocol"
 
+		// TODO: Handle cases where AppArmor network enforcement is not present
+		// https://github.com/kubearmor/KubeArmor/issues/1285
 		if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Allow" {
 			match.Action = "Audit (" + npt.Action + ")"
 		} else if policyEnabled == tp.KubeArmorPolicyAudited && npt.Action == "Block" {
-			match.Action = "Audit (" + npt.Action + ")"
-		} else if policyEnabled == tp.KubeArmorPolicyEnabled && fd.IsGKE && npt.Action == "Block" {
 			match.Action = "Audit (" + npt.Action + ")"
 		} else {
 			match.Action = npt.Action

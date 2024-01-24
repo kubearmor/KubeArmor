@@ -311,7 +311,7 @@ func (be *BPFEnforcer) TraceEvents() {
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
 			},
-		})
+		}, false)
 
 		switch event.EventID {
 

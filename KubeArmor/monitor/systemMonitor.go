@@ -83,6 +83,7 @@ type SyscallContext struct {
 
 	Comm [16]byte
 	Cwd  [80]byte
+	TTY  [64]byte
 	OID  uint32
 }
 
@@ -762,7 +763,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
 
 					// add arguments
 					log.Resource = execPath
@@ -789,7 +790,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.execLogMapLock.Unlock()
 
 					// update the log again
-					log = mon.UpdateLogBase(ctx.EventID, log)
+					log = mon.UpdateLogBase(ctx, log)
 
 					// get error message
 					if ctx.Retval < 0 {
@@ -817,7 +818,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx})
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
 
 					fd := ""
 					procExecFlag := ""
@@ -861,7 +862,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					mon.execLogMapLock.Unlock()
 
 					// update the log again
-					log = mon.UpdateLogBase(ctx.EventID, log)
+					log = mon.UpdateLogBase(ctx, log)
 
 					// get error message
 					if ctx.Retval < 0 {

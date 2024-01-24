@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package state_agent;
+
+import "google/protobuf/empty.proto";
+
+option go_package="github.com/kubearmor/KubeArmor/protobuf";
+
+message StateEvent {
+	string Kind=1;
+	string Type=2;
+	string Name=3;
+	bytes Object=4;
+}
+
+message StateEvents {
+	repeated StateEvent StateEvents=1;
+}
+
+service StateAgent {
+	// stream which continuously pushes state events
+	rpc WatchState (google.protobuf.Empty) returns (stream StateEvent);
+
+	// get all state events in one go
+	rpc GetState (google.protobuf.Empty) returns (stream StateEvents);
+}

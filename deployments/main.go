@@ -31,6 +31,7 @@ func main() {
 		v := []interface{}{
 			// ServiceAccounts
 			dp.GetServiceAccount(namespace),
+			dp.GetRelayServiceAccount(namespace),
 			dp.GetKubeArmorControllerServiceAccount(namespace),
 
 			// Configmap
@@ -42,12 +43,14 @@ func main() {
 
 			// ClusterRoles
 			dp.GetClusterRole(),
+			dp.GetRelayClusterRole(),
 			dp.GetKubeArmorControllerClusterRole(),
 			dp.GetKubeArmorControllerProxyRole(),
 			dp.GetKubeArmorControllerMetricsReaderRole(),
 
 			// ClusterRoleBindings
 			dp.GetClusterRoleBinding(namespace),
+			dp.GetRelayClusterRoleBinding(namespace),
 			dp.GetKubeArmorControllerClusterRoleBinding(namespace),
 			dp.GetKubeArmorControllerProxyRoleBinding(namespace),
 			dp.GetKubeArmorControllerMetricsReaderRoleBinding(namespace),

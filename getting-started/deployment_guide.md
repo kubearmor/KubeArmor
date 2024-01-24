@@ -74,6 +74,8 @@ sh: 1: apt: Permission denied
 command terminated with exit code 126
 ```
 
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation-issue-in-dockerized-kubernetes-environment) to debug this issue
+
 </details>
 
 <details>
@@ -177,6 +179,9 @@ cat: /run/secrets/kubernetes.io/serviceaccount/token: Permission denied
   "code": 403
 }
 ```
+
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation) to debug this issue.
+
 
 </details>
 
@@ -283,5 +288,7 @@ Lets try to execute some other processes:
 kubectl exec -it $POD -- bash -c "chroot"
 ```
 Any binary other than `bash` and `nginx` would be permission denied.
+
+If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-installation) to debug this issue
 
 </details>
