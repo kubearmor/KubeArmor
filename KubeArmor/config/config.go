@@ -49,7 +49,7 @@ type KubearmorConfig struct {
 	BPFFsPath          string   // path to the BPF filesystem
 	EnforcerAlerts     bool     // policy enforcer
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
-
+	SyscallsVisibility string   // Enable/Disable Syscalls Visibility
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -84,6 +84,7 @@ const (
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
+	ConfigSyscallsVisibility             string = "syscallsVisibility"
 )
 
 func readCmdLineParams() {
@@ -124,6 +125,8 @@ func readCmdLineParams() {
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
+
+	syscallsVisibility := flag.String(ConfigSyscallsVisibility, "chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace", "Syscalls Visibility")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -171,6 +174,8 @@ func readCmdLineParams() {
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
+
+	viper.SetDefault(ConfigSyscallsVisibility, *syscallsVisibility)
 }
 
 // LoadConfig Load configuration
@@ -255,6 +260,8 @@ func LoadConfig() error {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.SyscallsVisibility = viper.GetString(ConfigSyscallsVisibility)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

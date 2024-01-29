@@ -61,6 +61,8 @@ spec:
                 type: boolean
               enableStdOutMsgs:
                 type: boolean
+              syscallsVisibility:
+                type: string
               kubeRbacProxyImage:
                 description: ImageSpec defines the image specifications
                 properties:

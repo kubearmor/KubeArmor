@@ -5,6 +5,7 @@ package controller
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -546,6 +547,14 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	if config.DefaultVisibility != "" {
 		if common.ConfigMapData[common.ConfigVisibility] != string(config.DefaultVisibility) {
 			common.ConfigMapData[common.ConfigVisibility] = string(config.DefaultVisibility)
+			log.Printf("DefaultVisibility modified\n : %s", common.ConfigMapData[common.ConfigVisibility])
+			updated = true
+		}
+	}
+	if config.SyscallsVisibility != "" {
+		if common.ConfigMapData[common.ConfigSyscallsVisibility] != string(config.SyscallsVisibility) {
+			common.ConfigMapData[common.ConfigSyscallsVisibility] = string(config.SyscallsVisibility)
+			log.Printf("SyscallsVisibility modified\n : %s", common.ConfigMapData[common.ConfigSyscallsVisibility])
 			updated = true
 		}
 	}
