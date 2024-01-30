@@ -126,6 +126,8 @@ spec:
                     - Never
                     type: string
                 type: object
+              syscallsVisibility:
+                type: string
             type: object
           status:
             description: KubeArmorConfigStatus defines the observed state of KubeArmorConfig
