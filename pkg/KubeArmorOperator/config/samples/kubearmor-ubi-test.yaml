@@ -14,6 +14,7 @@ spec:
   defaultFilePosture: block
   defaultNetworkPosture: block
   defaultVisibility: process,file,network,capabilities
+  syscallsVisibility: chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace
   kubearmorImage:
     image: kubearmor/kubearmor-ubi:latest
     imagePullPolicy: Never

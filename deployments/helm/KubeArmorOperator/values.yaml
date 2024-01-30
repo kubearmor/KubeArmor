@@ -15,3 +15,4 @@ kubearmorConfig:
   enableStdOutLogs: false
   enableStdOutAlerts: false
   enableStdOutMsgs: false
+  syscallsVisibility: chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace

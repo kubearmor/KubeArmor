@@ -51,6 +51,8 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 
 	StateAgent bool // enable KubeArmor state agent
+
+	SyscallsVisibility string // Enable/Disable Syscalls Visibility
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -86,6 +88,7 @@ const (
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
+	ConfigSyscallsVisibility             string = "syscallsVisibility"
 )
 
 func readCmdLineParams() {
@@ -128,6 +131,8 @@ func readCmdLineParams() {
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
+
+	syscallsVisibility := flag.String(ConfigSyscallsVisibility, "chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace", "Syscalls Visibility")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -177,6 +182,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
+
+	viper.SetDefault(ConfigSyscallsVisibility, *syscallsVisibility)
 }
 
 // LoadConfig Load configuration
@@ -266,6 +273,8 @@ func LoadConfig() error {
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+
+	GlobalCfg.SyscallsVisibility = viper.GetString(ConfigSyscallsVisibility)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
