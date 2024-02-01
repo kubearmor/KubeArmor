@@ -34,6 +34,7 @@ POD=$(kubectl get pod -l app=nginx -o name)
 > [!NOTE] 
 > `$POD` is used to refer to the target nginx pod in many cases below.
 
+
 ## Sample policies
 
 <details>
@@ -189,6 +190,13 @@ If you don't see Permission denied please refer [here](FAQ.md#debug-kubearmor-in
   <summary><h4>Audit access to folders/paths</h4></summary>
 
 Access to certain folders/paths might have to be audited for compliance/reporting reasons.
+
+File Visibility is disabled by default to minimize telemetry. Some file based policies will need that enabled. To enable file visibility on a namespace level:
+```
+kubectl annotate ns default kubearmor-visibility="process,file,network" --overwrite
+```
+
+For more details on this: https://docs.kubearmor.io/kubearmor/documentation/kubearmor_visibility#updating-namespace-visibility
 
 Lets audit access to `/etc/nginx/` folder within the deployment.
 ```
