@@ -574,7 +574,13 @@ decision:
     }
   } else if (id == dfilewrite) { // file write
     if (match) {
-      if (val && (val->filemask & RULE_DENY)) {
+      if (val && (val->filemask & RULE_OWNER)) {
+        if (!is_owner_path(f_path->dentry)) {
+          retval = -EPERM;
+          goto ringbuf;
+        }
+      }
+      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
         retval = -EPERM;
         goto ringbuf;
       }
