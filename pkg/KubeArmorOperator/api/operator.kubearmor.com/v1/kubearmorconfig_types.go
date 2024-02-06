@@ -51,6 +51,8 @@ type KubeArmorConfigSpec struct {
 	EnableStdOutMsgs bool `json:"enableStdOutMsgs,omitempty"`
 	// +kubebuilder:validation:Optional
 	SeccompEnabled bool `json:"seccompEnabled,omitempty"`
+	// +kubebuilder:validation:optional
+	SyscallsVisibility string `json:"syscallsVisibility,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

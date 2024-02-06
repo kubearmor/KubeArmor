@@ -75,7 +75,7 @@ Usage of ./kubearmor:
   -hostDefaultNetworkPosture string
         configuring default enforcement action in global network context {allow|audit|block} (default "audit")
   -hostVisibility string
-        Host Visibility to use [process,file,network,capabilities,none] (default "none" for k8s, "process,file,network,capabilities" for VM) (default "default")
+        Host Visibility to use [process,file,network,capabilities,syscall,none] (default "none" for k8s, "process,file,network,capabilities,syscall" for VM) (default "default")
   -k8s
         is k8s env? (default true)
   -kubeconfig string
@@ -86,8 +86,10 @@ Usage of ./kubearmor:
         lsm preference order to use, available lsms [bpf, apparmor, selinux] (default "bpf,apparmor,selinux")
   -seLinuxProfileDir string
         SELinux profile directory (default "/tmp/kubearmor.selinux")
+  -syscallsVisibility string
+        Syscalls Visibility (default "chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace")
   -visibility string
-        Container Visibility to use, available visibility [process,file,network,capabilities,none] (default "process,network")
+        Container Visibility to use, available visibility [process,file,network,capabilities,syscall,none] (default "process,network")
 ```
 
 ## Verify if all the resources are up and running

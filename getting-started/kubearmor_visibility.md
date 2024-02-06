@@ -134,7 +134,7 @@ This sample policy blocks execution of the `apt` and `apt-get` commands in wordp
 
 * Host Visibility is not enabled by default . To enable Host  Visibility we need to annotate the node using `kubectl annotate node`
 ```
-  kubectl annotate node <node-name> "kubearmor-visibility=process,file,network,capabilities" 
+  kubectl annotate node <node-name> "kubearmor-visibility=process,file,network,capabilities,syscall" 
 ```
 
 * To confirm it use `kubectl describe` and grep `kubearmor-visibility`
@@ -311,9 +311,9 @@ KubeArmor has the ability to let the user select what kind of events have to be 
   ```text
   kubectl describe ns wordpress-mysql | grep kubearmor-visibility
 
-  kubearmor-visibility: process, file, network, capabilities
+  kubearmor-visibility: process, file, network, capabilities, syscall
   ```
-  * **To update the visibility of namespace :** Now let's update Kubearmor visibility using `kubectl annotate`. Currently KubeArmor supports `process`, `file`, `network`, `capabilities`.
+  * **To update the visibility of namespace :** Now let's update Kubearmor visibility using `kubectl annotate`. Currently KubeArmor supports `process`, `file`, `network`, `capabilities`, `syscall`.
   Lets try to update visibility for the namespace `wordpress-mysql`
  
    ```text

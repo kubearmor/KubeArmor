@@ -135,6 +135,7 @@ type Node struct {
 	FileVisibilityEnabled         bool `json:"fileVisibilityEnabled"`
 	NetworkVisibilityEnabled      bool `json:"networkVisibilityEnabled"`
 	CapabilitiesVisibilityEnabled bool `json:"capabilitiesVisibilityEnabled"`
+	SyscallVisibilityEnabled      bool `json:"syscallVisibilityEnabled"`
 }
 
 // ================ //
@@ -584,6 +585,7 @@ type Visibility struct {
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
+	Syscall      bool `json:"syscall,omitempty"`
 }
 
 // ================== //
