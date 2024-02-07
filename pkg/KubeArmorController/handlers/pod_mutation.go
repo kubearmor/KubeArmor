@@ -19,7 +19,7 @@ import (
 // PodAnnotator Structure
 type PodAnnotator struct {
 	Client   client.Client
-	decoder  *admission.Decoder
+	Decoder  *admission.Decoder
 	Logger   logr.Logger
 	Enforcer string
 }
@@ -33,7 +33,7 @@ const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pod := &corev1.Pod{}
 
-	if err := a.decoder.Decode(req, pod); err != nil {
+	if err := a.Decoder.Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
@@ -101,12 +101,6 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
-}
-
-// InjectDecoder gets a decoder injected for us
-func (a *PodAnnotator) InjectDecoder(d *admission.Decoder) error {
-	a.decoder = d
-	return nil
 }
 
 // == Add AppArmor annotations == //
