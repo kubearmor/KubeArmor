@@ -191,6 +191,18 @@ struct mnt_namespace
     struct ns_common ns;
 };
 
+struct fs_struct {
+	struct path pwd;
+};
+
+struct tty_struct {
+    char name[64];
+};
+
+struct signal_struct {
+    struct tty_struct *tty;
+};
+
 struct mount
 {
     struct hlist_node mnt_hash;
@@ -225,12 +237,12 @@ typedef struct __attribute__((__packed__)) sys_context
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
-    struct bpf_map_def SEC("maps") _name = {                        \
-        .type = _type,                                              \
-        .key_size = sizeof(_key_type),                              \
-        .value_size = sizeof(_value_type),                          \
-        .max_entries = _max_entries,                                \
-    };
+    struct {                                                        \
+  __uint(type, _type);                                              \
+  __type(key, _key_type);                                           \
+  __type(value, _value_type);                                       \
+  __uint(max_entries, _max_entries);                                \
+} _name SEC(".maps");                                              
 
 #define BPF_HASH(_name, _key_type, _value_type) \
     BPF_MAP(_name, BPF_MAP_TYPE_HASH, _key_type, _value_type, 10240)
@@ -969,7 +981,6 @@ static __always_inline int security_path_task_arg(struct pt_regs *ctx)
 static __always_inline u32 init_context(sys_context_t *context)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    struct fs_struct *fs;
 
     context->ts = bpf_ktime_get_ns();
 
@@ -1008,8 +1019,9 @@ static __always_inline u32 init_context(sys_context_t *context)
             bpf_probe_read_str(&context->tty, TTY_LEN, (void *)tty->name);
         }
     }
-    
-    // get cwd
+
+#if (defined(BTF_SUPPORTED))
+    struct fs_struct *fs;
     fs = READ_KERN(task->fs);
     struct path path = READ_KERN(fs->pwd);
 
@@ -1027,7 +1039,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         return 0;
 
     bpf_probe_read_str(&context->cwd, CWD_LEN, (void *)&string_p->buf[*off]);
-
+#endif
     return 0;
 }
 
