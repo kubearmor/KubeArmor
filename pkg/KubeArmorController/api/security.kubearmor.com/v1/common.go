@@ -206,7 +206,7 @@ type MatchHostNetworkProtocolType struct {
 }
 
 type NetworkType struct {
-	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols"`
+	MatchProtocols []MatchNetworkProtocolType `json:"matchProtocols,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -219,7 +219,7 @@ type NetworkType struct {
 }
 
 type HostNetworkType struct {
-	MatchProtocols []MatchHostNetworkProtocolType `json:"matchProtocols"`
+	MatchProtocols []MatchHostNetworkProtocolType `json:"matchProtocols,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -265,7 +265,7 @@ type MatchHostCapabilitiesType struct {
 }
 
 type CapabilitiesType struct {
-	MatchCapabilities []MatchCapabilitiesType `json:"matchCapabilities"`
+	MatchCapabilities []MatchCapabilitiesType `json:"matchCapabilities,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
@@ -278,7 +278,7 @@ type CapabilitiesType struct {
 }
 
 type HostCapabilitiesType struct {
-	MatchCapabilities []MatchHostCapabilitiesType `json:"matchCapabilities"`
+	MatchCapabilities []MatchHostCapabilitiesType `json:"matchCapabilities,omitempty"`
 
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`

@@ -100,8 +100,6 @@ spec:
                     items:
                       type: string
                     type: array
-                required:
-                - matchCapabilities
                 type: object
               file:
                 properties:
@@ -284,8 +282,6 @@ spec:
                     items:
                       type: string
                     type: array
-                required:
-                - matchProtocols
                 type: object
               nodeSelector:
                 properties:
