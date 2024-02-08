@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: "v1.20"
+          go-version: "v1.21"
 
       - uses: azure/setup-helm@v3
         with:
