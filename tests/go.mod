@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/tests
 
-go 1.20
+go 1.21
 
 replace (
 	github.com/cloudflare/circl => github.com/cloudflare/circl v1.3.3
