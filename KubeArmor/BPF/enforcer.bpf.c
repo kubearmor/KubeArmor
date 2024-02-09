@@ -275,7 +275,6 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
   if (!inner) {
     return 0;
   }
-
   u32 zero = 0;
   bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
   if (z == NULL)
@@ -312,11 +311,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
     fromSourceCheck = false;
 
   void *ptr = &src_buf->buf[*src_offset];
-
-  if (fromSourceCheck) {
-    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
-
-    if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
+  
+  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
       p0 = sock_proto;
       p1 = IPPROTO_TCP;
     } else if (type == SOCK_DGRAM &&
@@ -335,23 +331,22 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
       p1 = protocol;
     }
 
+  if (fromSourceCheck) { 
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     p->path[0] = p0;
     p->path[1] = p1;
-
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);      
     val = bpf_map_lookup_elem(inner, p);
-
     if (val) {
       match = true;
       goto decision;
     }
-
-    val = bpf_map_lookup_elem(inner, p);
   }
+  // check for rules without fromSource
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-
   p->path[0] = p0;
   p->path[1] = p1;
-
+  
   val = bpf_map_lookup_elem(inner, p);
 
   if (val) {
@@ -361,6 +356,7 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
 
 decision:
 
+  bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
   if (match) {
     if (val && (val->processmask & RULE_DENY)) {
       retval = -EPERM;
@@ -368,9 +364,11 @@ decision:
     }
   }
 
-  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  p->path[0] = dnet;
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);  
+  p->path[0] = dnet ;
+
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
+
 
   if (allow) {
     if (!match) {
@@ -393,8 +391,8 @@ ringbuf:
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
 
   init_context(task_info);
-  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, p->path);
-  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, p->source);
+  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
 
   task_info->event_id = eventID;
 
