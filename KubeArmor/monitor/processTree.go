@@ -20,7 +20,7 @@ import (
 // ============================ //
 
 // LookupContainerID Function
-func (mon *SystemMonitor) LookupContainerID(pidns, mntns, ppid, pid uint32) string {
+func (mon *SystemMonitor) LookupContainerID(pidns, mntns uint32) string {
 	key := NsKey{PidNS: pidns, MntNS: mntns}
 
 	mon.NsMapLock.RLock()
