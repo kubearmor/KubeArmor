@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - "STABLE-RELEASE"
-    #  - ".github/workflows/ci-stable-release.yml"
+
+# Declare default permissions as read only.
+permissions: read-all
 
 jobs:
   push-stable-version:

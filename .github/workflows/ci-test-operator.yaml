@@ -17,6 +17,9 @@ on:
       - "deployments/**"
       - "KubeArmor/utils/**"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   kubearmor-operator-test:
     name: Build KubeArmor Operator

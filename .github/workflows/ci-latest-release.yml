@@ -16,6 +16,9 @@ on:
     branches:
       - "v*"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   check:
     name: Check what pkg were updated

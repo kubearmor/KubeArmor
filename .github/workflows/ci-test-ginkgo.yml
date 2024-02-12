@@ -19,6 +19,10 @@ on:
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   build:
     name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}

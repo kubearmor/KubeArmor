@@ -12,6 +12,9 @@ on:
       - "deployments/helm/**"
       - ".github/workflows/ci-test-helm-charts.yml"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   lint:
     name: Helm Chart Tests / ubuntu 20.04
