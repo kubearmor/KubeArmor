@@ -18,6 +18,8 @@ on:
       - ".github/workflows/ci-test-go.yml"
       - "pkg/KubeArmorOperator/**"
     
+# Declare default permissions as read only.
+permissions: read-all
 
 jobs:
   go-fmt:

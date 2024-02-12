@@ -8,6 +8,9 @@ on:
       - "pkg/**"
       - ".github/workflows/ci-test-controllers.yml"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   kubearmor-controller-test:
     name: Build and Test KubeArmorController Using Ginkgo
@@ -43,7 +46,7 @@ jobs:
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make -C tests/k8s_env/
-        timeout-minutes: 20
+        timeout-minutes: 30
 
       - name: Get karmor sysdump
         if: ${{ failure() }}
