@@ -18,13 +18,6 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-const (
-	LogService_HealthCheck_FullMethodName   = "/feeder.LogService/HealthCheck"
-	LogService_WatchMessages_FullMethodName = "/feeder.LogService/WatchMessages"
-	LogService_WatchAlerts_FullMethodName   = "/feeder.LogService/WatchAlerts"
-	LogService_WatchLogs_FullMethodName     = "/feeder.LogService/WatchLogs"
-)
-
 // LogServiceClient is the client API for LogService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
@@ -46,7 +39,7 @@ func NewLogServiceClient(cc grpc.ClientConnInterface) LogServiceClient {
 
 func (c *logServiceClient) HealthCheck(ctx context.Context, in *NonceMessage, opts ...grpc.CallOption) (*ReplyMessage, error) {
 	out := new(ReplyMessage)
-	err := c.cc.Invoke(ctx, LogService_HealthCheck_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, "/feeder.LogService/HealthCheck", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +47,7 @@ func (c *logServiceClient) HealthCheck(ctx context.Context, in *NonceMessage, op
 }
 
 func (c *logServiceClient) WatchMessages(ctx context.Context, in *RequestMessage, opts ...grpc.CallOption) (LogService_WatchMessagesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &LogService_ServiceDesc.Streams[0], LogService_WatchMessages_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &LogService_ServiceDesc.Streams[0], "/feeder.LogService/WatchMessages", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +79,7 @@ func (x *logServiceWatchMessagesClient) Recv() (*Message, error) {
 }
 
 func (c *logServiceClient) WatchAlerts(ctx context.Context, in *RequestMessage, opts ...grpc.CallOption) (LogService_WatchAlertsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &LogService_ServiceDesc.Streams[1], LogService_WatchAlerts_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &LogService_ServiceDesc.Streams[1], "/feeder.LogService/WatchAlerts", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +111,7 @@ func (x *logServiceWatchAlertsClient) Recv() (*Alert, error) {
 }
 
 func (c *logServiceClient) WatchLogs(ctx context.Context, in *RequestMessage, opts ...grpc.CallOption) (LogService_WatchLogsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &LogService_ServiceDesc.Streams[2], LogService_WatchLogs_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &LogService_ServiceDesc.Streams[2], "/feeder.LogService/WatchLogs", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +191,7 @@ func _LogService_HealthCheck_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: LogService_HealthCheck_FullMethodName,
+		FullMethod: "/feeder.LogService/HealthCheck",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LogServiceServer).HealthCheck(ctx, req.(*NonceMessage))

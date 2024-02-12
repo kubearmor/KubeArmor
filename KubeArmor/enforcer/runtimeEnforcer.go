@@ -200,7 +200,7 @@ func (re *RuntimeEnforcer) UnregisterContainer(containerID string) {
 }
 
 // UpdateAppArmorProfiles Function
-func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profiles map[string]string) {
+func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName string, action string, profiles map[string]string, privilegedProfiles map[string]struct{}) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
@@ -212,10 +212,12 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profil
 				continue
 			}
 
+			_, privileged := privilegedProfiles[profile]
+
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(podName, profile)
+				re.appArmorEnforcer.RegisterAppArmorProfile(podName, profile, privileged)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(podName, profile)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(podName, profile, privileged)
 			}
 		}
 	}

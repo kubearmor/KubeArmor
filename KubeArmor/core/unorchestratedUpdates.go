@@ -430,6 +430,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	endPointIndex := -1
 	newPoint := tp.EndPoint{}
 
+	var privilegedProfiles map[string]struct{}
 	for idx, endPoint := range dm.EndPoints {
 		endPointIndex++
 
@@ -509,7 +510,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	}
 
 	if event.Type == "ADDED" {
-		dm.RuntimeEnforcer.UpdateAppArmorProfiles(containername, "ADDED", appArmorAnnotations)
+		dm.RuntimeEnforcer.UpdateAppArmorProfiles(containername, "ADDED", appArmorAnnotations, privilegedProfiles)
 
 		newPoint.SecurityPolicies = append(newPoint.SecurityPolicies, secPolicy)
 		if i < 0 {
@@ -524,6 +525,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 			newPoint.NetworkVisibilityEnabled = true
 			newPoint.CapabilitiesVisibilityEnabled = true
 			newPoint.Containers = []string{}
+
+			newPoint.PrivilegedContainers = map[string]struct{}{}
+
 			dm.ContainersLock.Lock()
 			for idx, ctr := range dm.Containers {
 				if ctr.ContainerName == containername {

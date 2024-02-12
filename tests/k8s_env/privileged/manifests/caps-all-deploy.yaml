@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caps-deployment
+  namespace: privileged
+  labels:
+    deployment: caps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: caps
+  template:
+    metadata:
+      labels:
+        deployment: caps
+    spec:
+      containers:
+        - name: caps-container
+          image: kubearmor/ubuntu-w-utils:0.1
+          securityContext:
+            capabilities:
+              add: [ "ALL" ]
