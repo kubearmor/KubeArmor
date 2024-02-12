@@ -3,8 +3,21 @@ name: ci-test-go
 on:
   push:
     branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-go.yml"
+      - "pkg/KubeArmorOperator/**"
   pull_request:
     branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-go.yml"
+      - "pkg/KubeArmorOperator/**"
+    
 
 jobs:
   go-fmt:
