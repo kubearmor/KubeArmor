@@ -339,6 +339,10 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 		}
+		// fallback logic if we don't receive source from BuildLogBase()
+		if len(log.Source) == 0 {
+			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
+		}
 		if event.Retval >= 0 {
 			log.Result = "Passed"
 		} else {
