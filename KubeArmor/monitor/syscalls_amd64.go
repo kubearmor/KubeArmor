@@ -59,6 +59,8 @@ const (
 	SocketCreate  = 461
 	SocketConnect = 462
 	SocketAccept  = 463
+
+	Capable = 464
 )
 
 var syscalls = map[int32]string{
@@ -412,4 +414,5 @@ var syscalls = map[int32]string{
 	461: "SOCKET_CREATE",
 	462: "SOCKET_CONNECT",
 	463: "SOCKET_ACCEPT",
+	464: "CAPABLE",
 }

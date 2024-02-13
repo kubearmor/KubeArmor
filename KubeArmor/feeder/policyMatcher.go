@@ -215,11 +215,15 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Severity = strconv.Itoa(cct.Severity)
 		match.Tags = cct.Tags
 		match.Message = cct.Message
+		if fd.Enforcer == "BPFLSM" {
+			match.Operation = "Capabilities"
+			match.Resource = strings.ToUpper(cct.Capability)
+		} else {
+			op, cap := getOperationAndCapabilityFromName(cct.Capability)
+			match.Operation = op
+			match.Resource = cap
+		}
 
-		op, cap := getOperationAndCapabilityFromName(cct.Capability)
-
-		match.Operation = op
-		match.Resource = cap
 		match.ResourceType = "Capability"
 
 		if policyEnabled == tp.KubeArmorPolicyAudited && cct.Action == "Allow" {
@@ -1403,6 +1407,185 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Enforcer = "eBPF Monitor"
 					log.Action = "Audit"
 				}
+
+			case "Capabilities":
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+				// match sources
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+					skip := false
+
+					for _, matchCapability := range strings.Split(secPolicy.Resource, ",") {
+						if skip {
+							break
+						}
+
+						// match resources
+
+						if strings.Contains(log.Resource, matchCapability) {
+
+							if (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+								// allow policy or allow policy with audit mode
+								// matched source + matched resource + matched action + expected result -> going to be skipped
+
+								log.Type = "MatchedPolicy"
+
+								log.PolicyName = secPolicy.PolicyName
+								log.Severity = secPolicy.Severity
+
+								if len(secPolicy.Tags) > 0 {
+									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+									log.ATags = secPolicy.Tags
+								}
+
+								if len(secPolicy.Message) > 0 {
+									log.Message = secPolicy.Message
+								}
+
+								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+									log.Enforcer = "eBPF Monitor"
+								} else {
+									log.Enforcer = fd.Enforcer
+								}
+
+								log.Action = "Allow"
+
+								skip = true
+								continue
+							}
+
+							if secPolicy.Action == "Audit" && log.Result == "Passed" {
+								// audit policy
+								// matched source + matched resource + matched action + expected result -> alert (audit log)
+
+								log.Type = "MatchedPolicy"
+
+								log.PolicyName = secPolicy.PolicyName
+								log.Severity = secPolicy.Severity
+
+								if len(secPolicy.Tags) > 0 {
+									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+									log.ATags = secPolicy.Tags
+								}
+
+								if len(secPolicy.Message) > 0 {
+									log.Message = secPolicy.Message
+								}
+
+								log.Enforcer = "eBPF Monitor"
+								log.Action = secPolicy.Action
+
+								skip = true
+								continue
+							}
+
+							if (secPolicy.Action == "Block" && log.Result != "Passed") ||
+								(secPolicy.Action == "Audit (Block)" && log.Result == "Passed") {
+								// block policy or block policy with audit mode
+								// matched source + matched resource + matched action + expected result -> alert
+
+								log.Type = "MatchedPolicy"
+
+								log.PolicyName = secPolicy.PolicyName
+								log.Severity = secPolicy.Severity
+
+								if len(secPolicy.Tags) > 0 {
+									log.Tags = strings.Join(secPolicy.Tags[:], ",")
+								}
+
+								if len(secPolicy.Message) > 0 {
+									log.Message = secPolicy.Message
+								}
+
+								if log.PolicyEnabled == tp.KubeArmorPolicyAudited {
+									log.Enforcer = "eBPF Monitor"
+								} else {
+									log.Enforcer = fd.Enforcer
+								}
+
+								log.Action = secPolicy.Action
+
+								skip = true
+								continue
+							}
+						}
+					}
+
+					if skip {
+						continue
+					}
+
+					if secPolicy.Action == "Allow" && log.Result != "Passed" {
+						// matched source + !(matched resource) + action = allow + result = blocked -> allow policy violation
+
+						log.Type = "MatchedPolicy"
+
+						log.PolicyName = "DefaultPosture"
+
+						log.Severity = ""
+						log.Tags = ""
+						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
+						log.Action = "Block"
+
+						continue
+					}
+
+					if secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+						// matched source + !(matched resource) + action = audit (allow) + result = passed -> allow policy violation (audit mode)
+
+						log.Type = "MatchedPolicy"
+
+						log.PolicyName = "DefaultPosture"
+
+						log.Severity = ""
+						log.Tags = ""
+						log.Message = ""
+
+						log.Enforcer = "eBPF Monitor"
+
+						if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "block" {
+							log.Action = "Audit (Block)"
+						} else { // fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "audit"
+							log.Action = "Audit"
+						}
+
+						continue
+					}
+				}
+
+				if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "block" && secPolicy.Action == "Audit (Allow)" && log.Result == "Passed" {
+					// defaultPosture = block + audit mode
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit (Block)"
+				}
+
+				if fd.DefaultPostures[log.NamespaceName].CapabilitiesAction == "audit" && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
+					// defaultPosture = audit
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = "DefaultPosture"
+
+					log.Severity = ""
+					log.Tags = ""
+					log.Message = ""
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit"
+				}
+
 			case "Syscall":
 				if secPolicy.Operation != log.Operation {
 					continue

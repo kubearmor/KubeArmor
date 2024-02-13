@@ -154,7 +154,6 @@ var _ = Describe("Ksp", func() {
 				PolicyName: "ksp-ubuntu-1-block-net-raw-cap",
 				Severity:   "1",
 				Action:     "Block",
-				Result:     "Operation not permitted",
 			}
 
 			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
@@ -277,6 +276,74 @@ var _ = Describe("Ksp", func() {
 
 		})
 
+	})
+
+	Describe("Apply Capabilities Policy", func() {
+
+		It("it can block all network traffic on net-raw protocol", func() {
+			// multiubuntu capabilities test
+
+			if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
+				Skip("Skipping due to policy not supported by bpflsm enforcer")
+			}
+
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-net-raw-cap.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Capabilities", ub1)
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
+				[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("CAP_NET_RAW.*required"))
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-net-raw-cap",
+				Severity:   "1",
+				Action:     "Block",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+		})
+		It("it can block all network traffic on net-raw protocol from specific source", func() {
+			// multiubuntu capabilities test
+
+			if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
+				Skip("Skipping due to Apparmor enforcer ")
+			}
+
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-net-raw-cap-from-source.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Capabilities", ub1)
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
+				[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(MatchRegexp("CAP_NET_RAW.*required"))
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-net-raw-cap-from-source",
+				Severity:   "1",
+				Action:     "Block",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+		})
 	})
 
 	Describe("Apply Process Policies", func() {

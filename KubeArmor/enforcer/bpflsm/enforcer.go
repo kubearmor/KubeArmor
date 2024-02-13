@@ -139,6 +139,11 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceNetAccept.String(), err)
 		return be, err
 	}
+	be.Probes[be.obj.EnforceCap.String()], err = link.AttachLSM(link.LSMOptions{Program: be.obj.EnforceCap})
+	if err != nil {
+		be.Logger.Errf("opening lsm %s: %s", be.obj.EnforceCap.String(), err)
+		return be, err
+	}
 
 	/*
 		Path Hooks
@@ -338,6 +343,11 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
+
+		case mon.Capable:
+			log.Operation = "Capabilities"
+			log.Resource = mon.Capabilities[int32(event.Data.Path[1])]
+			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + log.Resource
 		}
 		// fallback logic if we don't receive source from BuildLogBase()
 		if len(log.Source) == 0 {
