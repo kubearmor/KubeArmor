@@ -300,6 +300,10 @@ func (be *BPFEnforcer) TraceEvents() {
 			continue
 		}
 
+		readLink := false
+		if len(string(bytes.Trim(event.Data.Source[:], "\x00"))) == 0 {
+			readLink = true
+		}
 		containerID := ""
 
 		if event.PidID != 0 && event.MntID != 0 {
@@ -316,7 +320,7 @@ func (be *BPFEnforcer) TraceEvents() {
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
 			},
-		}, false)
+		}, readLink)
 
 		switch event.EventID {
 
@@ -352,6 +356,7 @@ func (be *BPFEnforcer) TraceEvents() {
 		// fallback logic if we don't receive source from BuildLogBase()
 		if len(log.Source) == 0 {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
+			log.ProcessName = log.Source
 		}
 		if event.Retval >= 0 {
 			log.Result = "Passed"
