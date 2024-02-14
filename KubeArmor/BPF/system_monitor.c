@@ -86,6 +86,8 @@
 #define PTRACE_REQ_T 23UL
 #define MOUNT_FLAG_T 24UL
 #define UMOUNT_FLAG_T 25UL
+#define CAPABLE_T 26UL
+#define CAPABLE_EFF 27UL
 
 #define MAX_ARGS 6
 #define ENC_ARG_TYPE(n, type) type << (8 * n)
@@ -174,6 +176,7 @@ enum
     _SYS_PTRACE = 101,
     // lsm
     _SECURITY_BPRM_CHECK = 352,
+    _CAPABLE = 464,
 
     // accept/connect
     _TCP_CONNECT = 400,
@@ -189,18 +192,6 @@ struct mnt_namespace
     atomic_t count;
 #endif
     struct ns_common ns;
-};
-
-struct fs_struct {
-	struct path pwd;
-};
-
-struct tty_struct {
-    char name[64];
-};
-
-struct signal_struct {
-    struct tty_struct *tty;
 };
 
 struct mount
@@ -242,7 +233,7 @@ typedef struct __attribute__((__packed__)) sys_context
   __type(key, _key_type);                                           \
   __type(value, _value_type);                                       \
   __uint(max_entries, _max_entries);                                \
-} _name SEC(".maps");                                              
+} _name SEC(".maps");        
 
 #define BPF_HASH(_name, _key_type, _value_type) \
     BPF_MAP(_name, BPF_MAP_TYPE_HASH, _key_type, _value_type, 10240)
@@ -912,12 +903,21 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         case UNLINKAT_FLAG_T:
             save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
             break;
+        case CAPABLE_T: 
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), CAPABLE_T);
+            break;
+        case CAPABLE_EFF:
+            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(long), CAPABLE_EFF);
+            break;
         }
     }
 
     return 0;
 }
-
+static __always_inline kernel_cap_t  get_task_cap_effective (struct task_struct *task)
+{
+    return BPF_CORE_READ(task, cred, cap_effective);
+}
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
 {
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
@@ -981,6 +981,7 @@ static __always_inline int security_path_task_arg(struct pt_regs *ctx)
 static __always_inline u32 init_context(sys_context_t *context)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+
 
     context->ts = bpf_ktime_get_ns();
 
@@ -2053,6 +2054,53 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
+    events_perf_submit(ctx);
+
+    return 0;
+}
+SEC("kprobe/cap_capable")
+int kprobe__cap_capable(struct pt_regs *ctx){
+    if (skip_syscall())
+        return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_CAPS_PROBE))
+    {
+        return 0;
+    }
+    sys_context_t context = {};
+    args_t args = {};
+    
+    int cap =  (int)PT_REGS_PARM3(ctx);
+
+    struct cred *cred ;
+    bpf_probe_read(&cred, sizeof(cred), (void *)&PT_REGS_PARM1(ctx));
+    
+    u32 *off = get_buffer_offset(EXEC_BUF_TYPE);
+    if (off == NULL)
+        return -1;
+    //
+
+    // u64 types = ARG_TYPE0(CAPABLE_T);
+    init_context(&context);
+
+    context.event_id = _CAPABLE;
+    context.argnum =  1;
+    context.retval = 0;
+    kernel_cap_t current_cap_effective =  (kernel_cap_t)BPF_CORE_READ(cred, cap_effective);
+    u64 current_effective_mask = *(u64 *)&current_cap_effective;
+    
+    args.args[0] = (unsigned long)cap;
+    // args.args[1] = (unsigned long)current_effective_mask;
+    bpf_printk("size %d ", sizeof(args.args[1]));
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+   
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+    save_context_to_buffer(bufs_p, (void *)&context);
+    save_to_buffer(bufs_p, (void *)&cap, sizeof(int), INT_T);
+    // save_to_buffer(bufs_p, (void *)&current_effective_mask, sizeof(int64_t), CAPABLE_EFF);
+    
     events_perf_submit(ctx);
 
     return 0;

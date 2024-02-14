@@ -510,6 +510,22 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = ""
 				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
+			case Capable:
+
+				var cap int32
+				capeff := ""
+				// add arguments
+				if val, ok := msg.ContextArgs[0].(int32); ok {
+					cap = int32(val)
+				}
+				// if val, ok := msg.ContextArgs[1].(string); ok {
+				// 	capeff = val
+				// }
+				// fmt.Println(cap)
+				log.Resource = "cap=" + getCapabilityName(cap)
+				log.Operation = "Capabilities"
+				log.Data = "kprobe=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " cap=" + getCapabilityName(cap) + "capeff=" + capeff
+
 			default:
 				continue
 			}

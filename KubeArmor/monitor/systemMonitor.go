@@ -473,7 +473,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
 	// {category, event}
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
-	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
+	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check", "cap_capable"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept"}
 
@@ -579,7 +579,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					if errors.Is(err, perf.ErrClosed) {
 						// This should only happen when we call DestroyMonitor while terminating the process.
 						// Adding a Warn just in case it happens at runtime, to help debug
-						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
+						mon.Logger.Warnf("Perf Buffer closed, exiting call %s", err.Error())
 						return
 					}
 					mon.Logger.Warnf("Perf Event Error : %s", err.Error())
@@ -903,7 +903,12 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 2 {
 					continue
 				}
+			} else if ctx.EventID == Capable {
+				if len(args) != 1 {
+					continue
+				}
 			}
+
 			MonitorLock.Lock()
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
