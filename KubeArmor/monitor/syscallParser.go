@@ -40,6 +40,8 @@ const (
 	ptraceReqT    uint8 = 23
 	mountFlagT    uint8 = 24
 	umountFlagT   uint8 = 25
+	capableT      uint8 = 26
+	capableEff    uint8 = 27
 )
 
 // ======================= //
@@ -91,6 +93,20 @@ func readUInt32FromBuff(buff io.Reader) (uint32, error) {
 // readUInt32BigendFromBuff Function
 func readUInt32BigendFromBuff(buff io.Reader) (uint32, error) {
 	var res uint32
+	err := binary.Read(buff, binary.BigEndian, &res)
+	return res, err
+}
+
+// readUInt32FromBuff Function
+func readUInt64FromBuff(buff io.Reader) (uint64, error) {
+	var res uint64
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
+// readUInt32BigendFromBuff Function
+func readUInt64BigendFromBuff(buff io.Reader) (uint64, error) {
+	var res uint64
 	err := binary.Read(buff, binary.BigEndian, &res)
 	return res, err
 }
@@ -944,6 +960,21 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 			return nil, err
 		}
 		res = GetSocketType(t)
+	case capableT:
+		cap, err := readUInt32FromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
+		// fmt.Println(cap)
+		res = cap
+	case capableEff:
+		capeff, err := readUInt64FromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
+		hexCode := fmt.Sprintf("%X", capeff)
+		// fmt.Println(hexCode)
+		res = string(hexCode)
 	default:
 		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}
