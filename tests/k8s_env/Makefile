@@ -10,4 +10,4 @@ build:
 	@ginkgo -r --vv --flake-attempts=10 --timeout=30m --skip-package "syscalls"
 .PHONY: test
 test:
-	@ginkgo -r
+	@ginkgo -r -v
