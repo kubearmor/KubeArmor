@@ -1,4 +1,4 @@
-name: ci-test-ginkgo
+name: ci-test-seccomp
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
+      - ".github/workflows/ci-test-seccomp.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
   pull_request:
@@ -16,7 +16,7 @@ on:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
+      - ".github/workflows/ci-test-seccomp.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
 
@@ -54,42 +54,14 @@ jobs:
 
       - name: Generate KubeArmor artifacts
         run: |
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
-
-      - name: Build Kubearmor-Operator
-        working-directory: pkg/KubeArmorOperator
-        run: |
-          make docker-build
-
-      - name: deploy pre existing pod 
-        run: |
-          kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
-          sleep 60
-          kubectl get pods -A
-
-      - name: Run KubeArmor
-        run: |
-          if [ ${{ matrix.runtime }} == "containerd" ]; then
-            docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
-            docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
-            docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
-            docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
-          else
-            if [ ${{ matrix.runtime }} == "crio" ]; then
-              sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
-              sudo podman pull docker-daemon:kubearmor/kubearmor:latest
-              sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
-              sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
-            fi
-          fi
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
-          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
-          kubectl get pods -A
-          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
-          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
-          kubectl get pods -A
-
+          grep CONFIG_SECCOMP= /boot/config-$(uname -r)
+          sudo mkdir /var/lib/kubelet/seccomp
+          sudo mkdir /var/lib/kubelet/seccomp/profiles
+          sudo cp ./.github/workflows/kube.json /var/lib/kubelet/seccomp/profiles/kube.json
+          sudo cat /var/lib/kubelet/seccomp/profiles/kube.json
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          karmor install --image kubearmor/kubearmor:latest 
+          kubectl patch ds kubearmor --namespace kubearmor --patch '{"spec": {"template": {"spec": {"containers": [{"name": "kubearmor", "securityContext": {"seccompProfile": {"type": "Localhost", "localhostProfile": "profiles/kube.json"}}}]}}}}'
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
@@ -103,6 +75,7 @@ jobs:
           kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+          cat /var/log/syslog | grep 'kubearmor' >> karmorsyslog.txt
 
       - name: Archive log artifacts
         if: ${{ failure() }}

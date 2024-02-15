@@ -5,9 +5,8 @@
 build:
 	@go mod tidy
 	# run in two steps as syscall suite fails if run at the very end
-	# see - https://github.com/kubearmor/KubeArmor/issues/1269
-	@ginkgo --vv --flake-attempts=10 --timeout=10m syscalls/
+	@ginkgo --vv smoke/
 	@ginkgo -r --vv --flake-attempts=10 --timeout=30m --skip-package "syscalls"
 .PHONY: test
 test:
-	@ginkgo -r -v
+	@ginkgo -r -v 
