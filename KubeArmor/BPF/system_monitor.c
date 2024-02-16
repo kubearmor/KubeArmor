@@ -39,6 +39,9 @@
 
 #include <linux/bpf.h>
 #include <linux/version.h>
+#include <linux/sched/signal.h>
+#include <linux/tty.h>
+
 #endif
 
 #include <bpf_helpers.h>
@@ -193,14 +196,6 @@ struct mnt_namespace
 
 struct fs_struct {
 	struct path pwd;
-};
-
-struct tty_struct {
-    char name[64];
-};
-
-struct signal_struct {
-    struct tty_struct *tty;
 };
 
 struct mount
