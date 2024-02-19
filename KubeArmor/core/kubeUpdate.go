@@ -1461,11 +1461,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 	secPolicies := []tp.HostSecurityPolicy{}
 
 	for _, policy := range dm.HostSecurityPolicies {
-		if kl.IsK8sEnv() {
-			if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
-				secPolicies = append(secPolicies, policy)
-			}
-		} else { // KubeArmorVM and KVMAgent
+		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 			secPolicies = append(secPolicies, policy)
 		}
 	}
@@ -1907,6 +1903,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		}
 		if !policymatch {
 			dm.Logger.Warnf("Failed to delete security policy. Policy doesn't exist")
+			dm.HostSecurityPoliciesLock.Unlock()
 			return pb.PolicyStatus_NotExist
 		}
 	}
