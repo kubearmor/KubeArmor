@@ -55,7 +55,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: "v1.20"
+          go-version: "v1.21"
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -219,7 +219,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: "v1.20"
+          go-version: "v1.21"
   
       - uses: actions/checkout@v3
   
