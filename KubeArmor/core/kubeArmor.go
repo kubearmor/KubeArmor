@@ -397,6 +397,9 @@ func KubeArmor() {
 		dm.Node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
+		// add identity for matching node selector
+		dm.Node.Identities = append(dm.Node.Identities, "kubearmor.io/hostname"+"="+dm.Node.NodeName)
+
 		dm.NodeLock.Unlock()
 
 	} else if cfg.GlobalCfg.K8sEnv {
