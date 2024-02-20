@@ -23,7 +23,7 @@ replace (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/cilium/cilium v1.14.5
+	github.com/cilium/cilium v1.15.1
 	github.com/cilium/ebpf v0.12.3
 	github.com/containerd/containerd v1.7.11
 	github.com/containerd/typeurl/v2 v2.1.1
@@ -44,7 +44,7 @@ require (
 	k8s.io/client-go v0.29.0
 	k8s.io/cri-api v0.29.0
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
-	sigs.k8s.io/controller-runtime v0.15.3
+	sigs.k8s.io/controller-runtime v0.16.3
 )
 
 require (
