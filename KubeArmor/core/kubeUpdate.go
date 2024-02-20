@@ -784,7 +784,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						// update apparmor profiles
 						dm.RuntimeEnforcer.UpdateAppArmorProfiles(pod.Metadata["podName"], "ADDED", appArmorAnnotations, pod.PrivilegedAppArmorProfiles)
 
-						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" {
+						if updateAppArmor && pod.Annotations["kubearmor-policy"] == "enabled" && pod.Metadata["owner.controller"] != "Pod" {
 							if deploymentName, ok := pod.Metadata["owner.controllerName"]; ok {
 								// patch the deployment with apparmor annotations
 								if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, pod.Metadata["owner.controller"]); err != nil {
@@ -804,7 +804,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 									prevPolicyEnabled = val
 								}
 
-								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" {
+								if updateAppArmor && prevPolicyEnabled != "enabled" && pod.Annotations["kubearmor-policy"] == "enabled" && pod.Metadata["owner.controller"] != "Pod" {
 									if deploymentName, ok := pod.Metadata["owner.controllerName"]; ok {
 										// patch the deployment with apparmor annotations
 										if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, pod.Metadata["owner.controller"]); err != nil {
