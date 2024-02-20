@@ -71,20 +71,38 @@ jobs:
           else
             echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
           fi
-          RUNTIME=docker ./contribution/k3s/install_k3s.sh
+          RUNTIME=containerd ./contribution/k3s/install_k3s.sh
 
       - name: Generate KubeArmor artifacts
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
-      - name: Deploy KubeArmor into Kubernetes
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
         run: |
-          helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
-          --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
-          --set kubearmor.image.tag=${{ steps.vars.outputs.tag }} \
-          --set kubearmorInit.image.tag=${{ steps.vars.outputs.tag }} \
-          -n kubearmor --create-namespace;
+          make docker-build TAG=${{ steps.vars.outputs.tag }}
 
-          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app
+      - name: deploy pre existing pod 
+        run: |
+          kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
+          sleep 60
+          kubectl get pods -A
+
+      - name: Run KubeArmor
+        run: |
+          docker save kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+        
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+          if [[ ${{ steps.vars.outputs.tag }} == v* ]]; then
+            sed -i '/image: kubearmor\/kubearmor-controller:latest/!{/image: kubearmor\/kubearmor-relay-server:latest/!s/latest/${{ steps.vars.outputs.tag }}/g}' pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          fi
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo

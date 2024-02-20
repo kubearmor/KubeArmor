@@ -617,7 +617,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			now := time.Now()
 			if now.After(time.Unix(int64(ctx.Ts), 0).Add(10 * time.Second)) {
-				mon.Logger.Warn("Event dropped due to replay timeout")
+				mon.Logger.Debug("Event dropped due to replay timeout")
 				continue
 			}
 
@@ -644,7 +644,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 				}
-				mon.Logger.Warn("Event dropped due to replay timeout")
+				mon.Logger.Debug("Event dropped due to replay timeout")
 			}()
 		}
 	}()

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	gomegaTypes "github.com/onsi/gomega/types"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -22,6 +23,7 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	kcli "github.com/kubearmor/kubearmor-client/k8s"
 	kclient "github.com/kubearmor/kubearmor-client/vm"
+	. "github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -607,6 +609,22 @@ func RunDockerCommand(cmdstr string) (string, error) {
 	cmd := exec.Command("docker", cmdf...)
 	sout, err := cmd.Output()
 	return string(sout), err
+}
+
+func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
+	if eventual {
+		Eventually(func() string {
+			sout, _, err := K8sExecInPod(wp, namespace, cmd)
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+			return sout
+		}, 10*time.Second, 2*time.Second).Should(match)
+	} else {
+		sout, _, err := K8sExecInPod(wp, namespace, cmd)
+		Expect(err).To(BeNil())
+		fmt.Printf("---START---\n%s---END---\n", sout)
+		Expect(sout).To(match)
+	}
 }
 
 // SendPolicy sends kubearmor policy using grpc client

@@ -69,10 +69,10 @@ var _ = Describe("Posture", func() {
 			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp("curl.*Could not resolve host: google.com"))
+			AssertCommand(
+				wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"},
+				MatchRegexp("curl.*Could not resolve host: google.com"), true,
+			)
 
 			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
 			Expect(err).To(BeNil())
