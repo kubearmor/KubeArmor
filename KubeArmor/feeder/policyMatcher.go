@@ -1039,17 +1039,23 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 						if secPolicy.ReadOnly && log.Resource != "" && secPolicy.OwnerOnly {
 							// read only && owner only
-							if strings.Contains(log.Data, "O_RDONLY") && log.UID == log.OID {
+							if strings.Contains(log.Data, "O_RDONLY") && log.UID == log.OID && strings.Contains(secPolicy.Action, "Allow") {
+								matchedFlags = true
+							} else if (strings.Contains(log.Data, "O_RDONLY") && log.UID != log.OID) || (!strings.Contains(log.Data, "O_RDONLY") && log.UID == log.OID) || (!strings.Contains(log.Data, "O_RDONLY") && log.UID != log.OID) {
 								matchedFlags = true
 							}
 						} else if secPolicy.ReadOnly && log.Resource != "" {
 							// read only
-							if strings.Contains(log.Data, "O_RDONLY") {
+							if strings.Contains(log.Data, "O_RDONLY") && strings.Contains(secPolicy.Action, "Allow") {
+								matchedFlags = true
+							} else if !strings.Contains(log.Data, "O_RDONLY") {
 								matchedFlags = true
 							}
 						} else if secPolicy.OwnerOnly {
 							// owner only
-							if log.UID == log.OID {
+							if log.UID == log.OID && strings.Contains(secPolicy.Action, "Allow") {
+								matchedFlags = true
+							} else if log.UID != log.OID {
 								matchedFlags = true
 							}
 						} else {

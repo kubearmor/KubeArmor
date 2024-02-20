@@ -856,7 +856,7 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'cat secret_data1.txt'"},
+			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "cat /home/user1/secret_data1.txt"},
 				ContainSubstring("secret file user1"), false,
 			)
 
@@ -868,6 +868,51 @@ var _ = Describe("Ksp", func() {
 			}
 
 			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("it can audit accessing a file except readonly access from owner", func() {
+			// Test 1: creating new file by the root user should generate audit events
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-audit-file-access-owner-readonly.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
+				[]string{"bash", "-c", "touch  /home/user1/new1"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-audit-file-access-owner-readonly",
+				Severity:   "5",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Test 2: readonly access by the owner should be allowed without any audit events
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "File", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'cat secret_data1.txt'"},
+				ContainSubstring("secret file user1"), false,
+			)
+
+			expectLog := protobuf.Log{
+				Source: "secret_data1.txt",
+				Result: "Passed",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
@@ -1724,6 +1769,53 @@ var _ = Describe("Ksp", func() {
 
 			expectLog := protobuf.Log{
 				Source: "/credentials/password",
+				Result: "Passed",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+		})
+
+		It("it can audit access to a dir except readonly access is allowed", func() {
+
+			// Test 1: trying to create a file with directory readonly permissions should generate audit events
+			// Apply KubeArmor Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-audit-file-path-readonly.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
+			Expect(err).To(BeNil())
+
+			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
+				[]string{"bash", "-c", "touch /dev/shm/new"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-4-audit-file-path-readonly",
+				Severity:   "10",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Test 2: reading the file should result in success without audit events
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "File", ub4)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "cat /dev/shm/new"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectLog := protobuf.Log{
+				Source: "/bin/cat /dev/shm/new",
 				Result: "Passed",
 			}
 
