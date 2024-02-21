@@ -44,7 +44,10 @@ jobs:
     name: Create KubeArmor latest release
     needs: check
     if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
     permissions:
       id-token: write 
     timeout-minutes: 120
@@ -148,7 +151,10 @@ jobs:
     name: Create KubeArmor stable release
     needs: [build, check]
     if: github.ref != 'refs/heads/main'
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
     permissions:
       id-token: write
     timeout-minutes: 60

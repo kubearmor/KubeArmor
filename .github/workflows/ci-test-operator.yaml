@@ -26,7 +26,10 @@ jobs:
     defaults:
       run:
         working-directory: ./pkg/KubeArmorOperator
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
     timeout-minutes: 20
     steps:
       - uses: actions/setup-go@v3

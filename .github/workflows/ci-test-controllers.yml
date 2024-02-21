@@ -14,7 +14,10 @@ permissions: read-all
 jobs:
   kubearmor-controller-test:
     name: Build and Test KubeArmorController Using Ginkgo
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
     timeout-minutes: 30
     steps:
       - uses: actions/setup-go@v3
