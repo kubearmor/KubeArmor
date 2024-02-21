@@ -91,7 +91,7 @@ func (dh *DockerHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function
-func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, error) {
+func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
 	if dh.DockerClient == nil {
 		return tp.Container{}, errors.New("no docker client")
 	}
@@ -123,6 +123,12 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 		container.NamespaceName = val
 	} else {
 		container.NamespaceName = "container_namespace"
+	}
+
+	if len(OwnerInfo) > 0 {
+		if podOwnerInfo, ok := OwnerInfo[container.EndPointName]; ok {
+			container.Owner = podOwnerInfo
+		}
 	}
 
 	container.AppArmorProfile = inspect.AppArmorProfile
@@ -216,7 +222,7 @@ func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 
 	// get container information from docker client
-	container, err := Docker.GetContainerInfo(containerID)
+	container, err := Docker.GetContainerInfo(containerID, dm.OwnerInfo)
 	if err != nil {
 		return
 	}
@@ -254,7 +260,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
 		for _, dcontainer := range containerList {
 			// get container information from docker client
-			container, err := Docker.GetContainerInfo(dcontainer.ID)
+			container, err := Docker.GetContainerInfo(dcontainer.ID, dm.OwnerInfo)
 			if err != nil {
 				continue
 			}
@@ -363,7 +369,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		var err error
 
 		// get container information from docker client
-		container, err = Docker.GetContainerInfo(containerID)
+		container, err = Docker.GetContainerInfo(containerID, dm.OwnerInfo)
 		if err != nil {
 			return
 		}

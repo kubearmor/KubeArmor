@@ -133,7 +133,7 @@ func (ch *ContainerdHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function
-func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID string) (tp.Container, error) {
+func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID string, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
 	req := pb.GetContainerRequest{ID: containerID}
 	res, err := ch.client.Get(ctx, &req)
 	if err != nil {
@@ -161,6 +161,12 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 		container.NamespaceName = val
 	} else {
 		container.NamespaceName = "container_namespace"
+	}
+
+	if len(OwnerInfo) > 0 {
+		if podOwnerInfo, ok := OwnerInfo[container.EndPointName]; ok {
+			container.Owner = podOwnerInfo
+		}
 	}
 
 	iface, err := typeurl.UnmarshalAny(res.Container.Spec)
@@ -286,7 +292,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 	if action == "start" {
 		// get container information from containerd client
-		container, err := Containerd.GetContainerInfo(ctx, containerID)
+		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.OwnerInfo)
 		if err != nil {
 			return false
 		}
