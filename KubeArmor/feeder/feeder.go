@@ -16,13 +16,16 @@ import (
 	"time"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	"github.com/kubearmor/KubeArmor/KubeArmor/config"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	"github.com/google/uuid"
+	"github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -303,7 +306,22 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) *Feeder {
 		Timeout: 5 * time.Second,
 	}
 
-	fd.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
+	if cfg.GlobalCfg.TLSEnabled {
+		tlsCredentials, err := loadTLSCredentials(node.NodeIP)
+		if err != nil {
+			kg.Errf("cannot load TLS credentials: %s", err)
+			return nil
+		}
+		kg.Print("Server started with tls enabled")
+		// create a log server
+		fd.LogServer = grpc.NewServer(
+			grpc.Creds(tlsCredentials),
+			grpc.KeepaliveEnforcementPolicy(kaep),
+			grpc.KeepaliveParams(kasp),
+		)
+	} else {
+		fd.LogServer = grpc.NewServer(grpc.KeepaliveEnforcementPolicy(kaep), grpc.KeepaliveParams(kasp))
+	}
 
 	pb.RegisterLogServiceServer(fd.LogServer, logService)
 
@@ -710,4 +728,19 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			}
 		}
 	}
+}
+
+func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
+	// create certificate configurations
+	serverCertConfig := cert.DefaultKubeArmorServerConfig
+	serverCertConfig.IPs = []string{ip}
+	serverCertConfig.NotAfter = time.Now().Add(365 * 24 * time.Hour) //valid for 1 year
+	// as of now daemonset creates certificates dynamically
+	tlsConfig := cert.TlsConfig{
+		CertCfg:      serverCertConfig,
+		CertProvider: cfg.GlobalCfg.TLSCertProvider,
+		CACertPath:   cert.GetCACertPath(config.GlobalCfg.TLSCertPath),
+	}
+	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsServerCredentials()
+	return creds, err
 }

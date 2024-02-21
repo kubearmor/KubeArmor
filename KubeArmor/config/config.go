@@ -21,6 +21,9 @@ type KubearmorConfig struct {
 	Host    string // Host name to use for feeds
 
 	GRPC              string // gRPC Port to use
+	TLSEnabled        bool   // enable tls
+	TLSCertPath       string // tls certification path
+	TLSCertProvider   string // tls certficate provider
 	LogPath           string // Log file to use
 	SELinuxProfileDir string // Directory to store SELinux profiles
 	CRISocket         string // Container runtime to use
@@ -63,6 +66,11 @@ const (
 	ConfigCluster                        string = "cluster"
 	ConfigHost                           string = "host"
 	ConfigGRPC                           string = "gRPC"
+	ConfigTLSCertPath                    string = "tlsCertPath"
+	ConfigTLSCertProvider                string = "tlsCertProvider"
+	SelfCertProvider                     string = "self"
+	ExternalCertProvider                 string = "external"
+	ConfigTLS                            string = "tlsEnabled"
 	ConfigLogPath                        string = "logPath"
 	ConfigSELinuxProfileDir              string = "seLinuxProfileDir"
 	ConfigCRISocket                      string = "criSocket"
@@ -94,6 +102,9 @@ func readCmdLineParams() {
 	hostStr := flag.String(ConfigHost, strings.Split(hostname, ".")[0], "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
+	tlsEnabled := flag.Bool(ConfigTLS, false, "enable tls for secure grpc connection")
+	tlsCertsStr := flag.String(ConfigTLSCertPath, "/var/lib/kubearmor/tls", "path to tls ca certificate files ca.crt, ca.crt")
+	tlsCertProvider := flag.String(ConfigTLSCertProvider, "self", "source of certificate {self|external}, self: create certificate dynamically, external: provided by some external entity")
 	logStr := flag.String(ConfigLogPath, "none", "log file path, {path|stdout|none}")
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
@@ -142,6 +153,9 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigHost, *hostStr)
 
 	viper.SetDefault(ConfigGRPC, *grpcStr)
+	viper.SetDefault(ConfigTLS, *tlsEnabled)
+	viper.SetDefault(ConfigTLSCertPath, *tlsCertsStr)
+	viper.SetDefault(ConfigTLSCertProvider, *tlsCertProvider)
 	viper.SetDefault(ConfigLogPath, *logStr)
 	viper.SetDefault(ConfigSELinuxProfileDir, *seLinuxProfileDirStr)
 	viper.SetDefault(ConfigCRISocket, *criSocket)
@@ -209,6 +223,9 @@ func LoadConfig() error {
 	}
 
 	GlobalCfg.GRPC = viper.GetString(ConfigGRPC)
+	GlobalCfg.TLSEnabled = viper.GetBool(ConfigTLS)
+	GlobalCfg.TLSCertPath = viper.GetString(ConfigTLSCertPath)
+	GlobalCfg.TLSCertProvider = viper.GetString(ConfigTLSCertProvider)
 	GlobalCfg.LogPath = viper.GetString(ConfigLogPath)
 
 	GlobalCfg.CRISocket = os.Getenv("CRI_SOCKET")
