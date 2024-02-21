@@ -37,7 +37,7 @@ ifneq (, $(shell which llvm-strip))
 	fi
 endif
 endif
-	cd $(CURDIR); CGO_ENABLED=0 go build -ldflags "$(GIT_INFO)" -o kubearmor main.go
+	cd $(CURDIR); CGO_ENABLED=1 go build -race -ldflags "$(GIT_INFO)" -o kubearmor main.go
 
 .PHONY: protobuf
 protobuf:
@@ -55,7 +55,7 @@ run: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR)/BPF; make
-	cd $(CURDIR); DEBUG=true sudo -E ./kubearmor -pprofEnable=$(ENABLE_PPROF) -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block
+	cd $(CURDIR); DEBUG=true sudo -E ./kubearmor -pprofEnable=true -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block
 
 .PHONY: run-container
 run-container: build
