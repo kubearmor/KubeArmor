@@ -51,28 +51,34 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
-      - name: Generate KubeArmor artifacts
-        run: |
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+      # - name: Generate KubeArmor artifacts
+      #   run: |
+      #     GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
-      - name: Build Kubearmor-Operator
-        working-directory: pkg/KubeArmorOperator
-        run: |
-          make docker-build
+      # - name: Build Kubearmor-Operator
+      #   working-directory: pkg/KubeArmorOperator
+      #   run: |
+      #     make docker-build
 
       - name: Run KubeArmor
         run: |
-          sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-ubi:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
-          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
-          kubectl get pods -A
-          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml
-          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
-          kubectl get pods -A
+         grep CONFIG_SECCOMP= /boot/config-$(uname -r)
+         sudo mkdir /var/lib/kubelet/seccomp
+         sudo mkdir /var/lib/kubelet/seccomp/profiles
+         sudo cp ./.github/workflows/kube.json /var/lib/kubelet/seccomp/profiles/kube.json
+         sudo cat /var/lib/kubelet/seccomp/profiles/kube.json
+         helm repo add kubearmor https://kubearmor.github.io/charts
+         helm repo update kubearmor
+         helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
+         kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+         kubectl get pods -A
+         kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+         kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+         sleep 20
+         kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
+         kubectl get pods -A
+         kubectl patch ds $(kubectl get ds -n kubearmor --no-headers=true --output=custom-columns=NAME:.metadata.name) --namespace kubearmor --patch '{"spec": {"template": {"spec": {"containers": [{"name": "kubearmor", "securityContext": {"seccompProfile": {"type": "Localhost", "localhostProfile": "profiles/kube.json"}}}]}}}}'
+
 
       - name: Test KubeArmor using Ginkgo
         run: |
