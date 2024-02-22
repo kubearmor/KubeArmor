@@ -829,6 +829,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 				if event.Type == "ADDED" {
 					new := true
+
 					for _, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 							new = false
@@ -837,8 +838,16 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 					}
 					if new {
 						dm.K8sPods = append(dm.K8sPods, pod)
+					} else {
+						// Kubernetes can send us 'ADDED' events for a pod we
+						// already know about when our Kubernetes watch request
+						// restarts, so treat that like a 'MODIFIED' event
+						// instead
+						event.Type = "MODIFIED"
 					}
-				} else if event.Type == "MODIFIED" {
+				}
+
+				if event.Type == "MODIFIED" {
 					for idx, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 							dm.K8sPods[idx] = pod
