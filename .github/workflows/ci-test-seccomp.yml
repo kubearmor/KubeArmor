@@ -59,9 +59,17 @@ jobs:
           sudo mkdir /var/lib/kubelet/seccomp/profiles
           sudo cp ./.github/workflows/kube.json /var/lib/kubelet/seccomp/profiles/kube.json
           sudo cat /var/lib/kubelet/seccomp/profiles/kube.json
-          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
-          karmor install --image kubearmor/kubearmor:latest 
-          kubectl patch ds kubearmor --namespace kubearmor --patch '{"spec": {"template": {"spec": {"containers": [{"name": "kubearmor", "securityContext": {"seccompProfile": {"type": "Localhost", "localhostProfile": "profiles/kube.json"}}}]}}}}'
+          helm repo add kubearmor https://kubearmor.github.io/charts
+          helm repo update kubearmor
+          helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kubearmor --create-namespace
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          sleep 20
+          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
+          kubectl get pods -A
+          kubectl patch ds $(kubectl get ds -n kubearmor --no-headers=true --output=custom-columns=NAME:.metadata.name) --namespace kubearmor --patch '{"spec": {"template": {"spec": {"containers": [{"name": "kubearmor", "securityContext": {"seccompProfile": {"type": "Localhost", "localhostProfile": "profiles/kube.json"}}}]}}}}'
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo

@@ -97,7 +97,10 @@
                     "listen",
                     "lseek",
                     "getegid",
-                    "mkdirat"
+                    "mkdirat",
+                    "sendfile",
+                    "mount",
+                    "vfork"
             ],
             "action": "SCMP_ACT_ALLOW"
         }

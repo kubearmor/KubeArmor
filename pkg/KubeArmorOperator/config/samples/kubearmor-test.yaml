@@ -16,10 +16,10 @@ spec:
   defaultVisibility: process,file,network,capabilities
   kubearmorImage:
     image: kubearmor/kubearmor:latest
-    imagePullPolicy: Never
+    imagePullPolicy: Always
   kubearmorInitImage:
     image: kubearmor/kubearmor-init:latest
-    imagePullPolicy: Never
+    imagePullPolicy: Always
   kubearmorRelayImage:
     image: kubearmor/kubearmor-relay-server:latest
     imagePullPolicy: Always

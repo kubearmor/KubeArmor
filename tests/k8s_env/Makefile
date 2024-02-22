@@ -5,8 +5,8 @@
 build:
 	@go mod tidy
 	# run in two steps as syscall suite fails if run at the very end
-	@ginkgo --vv smoke/
+	@ginkgo --vv --flake-attempts=10 --timeout=10m syscalls/
 	@ginkgo -r --vv --flake-attempts=10 --timeout=30m --skip-package "syscalls"
 .PHONY: test
 test:
-	@ginkgo -r -v 
+	@ginkgo -r -v
