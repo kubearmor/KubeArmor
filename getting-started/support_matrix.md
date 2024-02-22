@@ -63,6 +63,7 @@ KubeArmor supports following types of workloads:
 [1181]: https://github.com/kubearmor/KubeArmor/issues/1181
 [DOKS]: https://www.digitalocean.com/products/kubernetes/
 [1120]: https://github.com/kubearmor/KubeArmor/issues/1120
+[Alibaba]: https://www.alibabacloud.com/
 ## Supported Linux Distributions
 
 Following distributions are tested for VM/Bare-metal based installations:
@@ -80,6 +81,7 @@ Following distributions are tested for VM/Bare-metal based installations:
 | AWS | Amazon Linux 2023 | Full | Full |
 | RaspberryPi (ARM) | Debian | Full | Full |
 | ArchLinux | ArchLinux-6.2.1   | Full | Full |
+| Alibaba | Alibaba Cloud Linux  3.2104 LTS 64 bit  | Full | Full |
 
 > **Note**
 > Full: Supports both enforcement and observability  
