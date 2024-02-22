@@ -32,6 +32,7 @@ KubeArmor supports following types of workloads:
 | VMware     | [Tanzu] | TBD | x86_64 | :construction: | :construction: | :construction: | :construction: | :construction: | [1064] |
 | Mirantis     | [MKE] | Ubuntu>=20.04 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor | [1181] |
 | Digital Ocean | [DOKS] | Debian GNU/Linux 11 (bullseye) | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] | [1120] |
+| Alibaba Cloud | [Alibaba] | Alibaba Cloud Linux 3.2104 LTS | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] | [1650] |
 
 [Observability]: workload_visibility.md
 [Network-Segmentation]: network_segmentation.md
@@ -63,6 +64,7 @@ KubeArmor supports following types of workloads:
 [1181]: https://github.com/kubearmor/KubeArmor/issues/1181
 [DOKS]: https://www.digitalocean.com/products/kubernetes/
 [1120]: https://github.com/kubearmor/KubeArmor/issues/1120
+[1650]: https://github.com/kubearmor/KubeArmor/issues/1650
 [Alibaba]: https://www.alibabacloud.com/
 ## Supported Linux Distributions
 
