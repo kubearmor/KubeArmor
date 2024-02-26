@@ -18,6 +18,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   unsigned int num_of_args = BPF_CORE_READ(bprm, argc);
   bool argmatch = false;
 
+  u32 oid = 0;
+
   bool match = false;
 
   struct outer_key okey;
@@ -318,15 +320,47 @@ decision:
     {
       if (is_pts(t))
       {
-        retval = -EPERM;
+        if (val->processmask & RULE_DENY)
+        {
+          retval = DENY;
+        }
+        else if (val->processmask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
       }
     }
     if (val && (val->processmask & RULE_OWNER))
     {
-      if (!is_owner(bprm->file))
+      if (!is_owner(bprm->file, &oid))
       {
         // not owner
-        retval = -EPERM;
+        if (val->processmask & RULE_DENY)
+        {
+          retval = DENY;
+        }
+        else if (val->processmask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
+        else
+        {
+          // check for matched owner only allow policies
+          bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+          pk->path[0] = dproc;
+          struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+          if (allow)
+          {
+            if (allow->processmask == BLOCK_POSTURE)
+            {
+              retval = DENY;
+            }
+            else
+            {
+              retval = AUDIT;
+            }
+          }
+        }
       }
       else
       {
@@ -341,7 +375,14 @@ decision:
           else
           {
             // !argumentmatch
-            retval = -EPERM;
+            if (val->processmask & RULE_DENY)
+            {
+              retval = DENY;
+            }
+            else if (val->processmask & RULE_AUDIT)
+            {
+              retval = AUDIT;
+            }
           }
         }
         else
@@ -358,17 +399,23 @@ decision:
         return 0;
       }
     }
-    if (val && ((val->processmask & RULE_DENY) && !(val->processmask & RULE_PTS)))
+    if (val)
     {
-      retval = -EPERM;
+      if (val->processmask & RULE_DENY)
+      {
+        retval = DENY;
+      }
+      else if (val->processmask & RULE_AUDIT)
+      {
+        retval = AUDIT;
+      }
     }
   }
 
-  if (retval == -EPERM)
+  if (retval == DENY || retval == AUDIT)
   {
     goto ringbuf;
   }
-
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   pk->path[0] = dproc;
   struct data_t *allow = bpf_map_lookup_elem(inner, pk);
@@ -379,7 +426,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = -EPERM;
+        retval = DENY;
       }
       goto ringbuf;
     }
@@ -389,12 +436,26 @@ decision:
       {
         if (is_pts(t))
         {
-          retval = -EPERM;
+          if (val->processmask & RULE_DENY)
+          {
+            retval = DENY;
+          }
+          else if (val->processmask & RULE_AUDIT)
+          {
+            retval = AUDIT;
+          }
         }
       }
       else
       {
-        retval = -EPERM;
+        if (val && (val->processmask & RULE_DENY))
+        {
+          retval = DENY;
+        }
+        else if (val && (val->processmask & RULE_AUDIT))
+        {
+          retval = AUDIT;
+        }
       }
     }
   }
@@ -402,6 +463,13 @@ decision:
   return ret;
 
 ringbuf:
+  if (retval == DENY)
+  {
+    retval = -EPERM;
+  }
+  else
+    retval = ret;
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
     return retval;
@@ -421,6 +489,7 @@ ringbuf:
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+  task_info->oid = oid;
   task_info->event_id = _SECURITY_BPRM_CHECK;
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
@@ -590,13 +659,27 @@ decision:
       {
         if (is_pts(t))
         {
-          retval = -EPERM;
+          if (val->processmask & RULE_DENY)
+          {
+            retval = DENY;
+          }
+          else if (val->processmask & RULE_AUDIT)
+          {
+            retval = AUDIT;
+          }
           goto ringbuf;
         }
       }
       else
       {
-        retval = -EPERM;
+        if (val->processmask & RULE_DENY)
+        {
+          retval = DENY;
+        }
+        else if (val->processmask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
         goto ringbuf;
       }
     }
@@ -613,7 +696,7 @@ decision:
     {
       if (allow->processmask == BLOCK_POSTURE)
       {
-        retval = -EPERM;
+        retval = DENY;
       }
       goto ringbuf;
     }
@@ -625,7 +708,14 @@ decision:
         {
           if (is_pts(t))
           {
-            retval = -EPERM;
+            if (val->processmask & RULE_DENY)
+            {
+              retval = DENY;
+            }
+            else if (val->processmask & RULE_AUDIT)
+            {
+              retval = AUDIT;
+            }
           }
         }
         goto ringbuf;
@@ -636,6 +726,15 @@ decision:
   return 0;
 
 ringbuf:
+  if (retval == DENY)
+  {
+    retval = -EPERM;
+  }
+  else
+  {
+    retval = 0;
+  }
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
     return retval;
@@ -654,7 +753,6 @@ ringbuf:
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
-
   task_info->event_id = eventID;
 
   task_info->retval = retval;
@@ -797,9 +895,15 @@ decision:
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
   if (match)
   {
-    if (val && (val->processmask & RULE_DENY))
+
+    if (val)
     {
-      retval = -EPERM;
+      if (val->processmask & RULE_DENY)
+      {
+        retval = DENY;
+      }
+      else if (val->processmask & RULE_AUDIT)
+        retval = AUDIT;
       goto ringbuf;
     }
   }
@@ -823,6 +927,16 @@ decision:
   return 0;
 
 ringbuf:
+
+  if (retval == DENY)
+  {
+    retval = -EPERM;
+  }
+  else
+  {
+    retval = 0;
+  }
+
   if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
   {
     return retval;
@@ -841,7 +955,6 @@ ringbuf:
   init_context(task_info);
   bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
   bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
-
   task_info->event_id = _CAPABLE;
 
   task_info->retval = retval;
