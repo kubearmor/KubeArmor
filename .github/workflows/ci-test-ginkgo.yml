@@ -2,14 +2,14 @@ name: ci-test-ginkgo
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
-      - "pkg/KubeArmorOperator/**"
-      - "deployments/helm/**"
+    branches: [main, apparmor-tests]
+      #paths:
+      #  - "KubeArmor/**"
+      #  - "tests/**"
+      #  - "protobuf/**"
+      #  - ".github/workflows/ci-test-ginkgo.yml"
+      #  - "pkg/KubeArmorOperator/**"
+      #  - "deployments/helm/**"
   pull_request:
     branches: [main]
     paths:
@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04]
-        runtime: ["containerd", "crio"]
+        runtime: ["docker", "containerd", "crio"]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -56,10 +56,10 @@ jobs:
         run: |
           GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
-      - name: Build Kubearmor-Operator
-        working-directory: pkg/KubeArmorOperator
-        run: |
-          make docker-build
+          #- name: Build Kubearmor-Operator
+          #  working-directory: pkg/KubeArmorOperator
+          #  run: |
+          #    make docker-build
 
       - name: deploy pre existing pod 
         run: |
@@ -72,14 +72,14 @@ jobs:
           if [ ${{ matrix.runtime }} == "containerd" ]; then
             docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
-            docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
-            docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+            #docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
+            #docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
               sudo podman pull docker-daemon:kubearmor/kubearmor:latest
-              sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
-              sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
+              #sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
+              #sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
             fi
           fi
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace

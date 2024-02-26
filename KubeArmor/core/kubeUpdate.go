@@ -409,7 +409,10 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// update containers and apparmors
 			dm.ContainersLock.Lock()
 			for _, containerID := range newEndPoint.Containers {
-				container := dm.Containers[containerID]
+				container, ok := dm.Containers[containerID]
+				if !ok {
+					fmt.Println("KYA MATLAB CONTAINER ID DOESN'T EXIST", containerID)
+				}
 
 				container.NamespaceName = newEndPoint.NamespaceName
 				container.EndPointName = newEndPoint.EndPointName
@@ -439,10 +442,12 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				if !kl.ContainsElement(newEndPoint.AppArmorProfiles, container.AppArmorProfile) {
 					newEndPoint.AppArmorProfiles = append(newEndPoint.AppArmorProfiles, container.AppArmorProfile)
 				}
+				fmt.Println("THAT OVERWRITE CONDITION - APPARMOR PROFILE:", newEndPoint.AppArmorProfiles)
 
 				// if container is privileged
 				if _, ok := pod.PrivilegedContainers[container.ContainerName]; ok {
 					container.Privileged = true
+					fmt.Println("THAT OVERWRITE CONDITION - PRIV CHECK:", container.ContainerName, container.Privileged)
 				}
 
 				dm.Containers[containerID] = container

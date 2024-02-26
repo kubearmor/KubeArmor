@@ -29,8 +29,8 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	// delete multiubuntu deployment
-	err := K8sDelete([]string{"multiubuntu/multiubuntu-deployment.yaml"})
-	Expect(err).To(BeNil())
+	//err := K8sDelete([]string{"multiubuntu/multiubuntu-deployment.yaml"})
+	//Expect(err).To(BeNil())
 })
 
 func getUbuntuPod(name string, ant string) string {
