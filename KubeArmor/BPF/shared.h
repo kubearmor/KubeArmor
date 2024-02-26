@@ -10,6 +10,7 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "syscalls.h"
 #include "throttling.h"
 #include "arg_matching_helpers.h"
 
@@ -62,7 +63,11 @@ enum network_check_type
   sock_type = 2,
   sock_proto
 }; // configure to check for network protocol or socket type
-
+enum action_type
+{
+  DENY = 1,
+  AUDIT
+}; // Action to be performed
 typedef struct buffers
 {
   char buf[MAX_BUFFER_SIZE];
@@ -187,7 +192,6 @@ typedef struct
   u32 ppid;
   u32 pid;
   u32 uid;
-
   u32 event_id;
   s64 retval;
 
@@ -198,6 +202,7 @@ typedef struct
 
   // exec event
   u64 exec_id;
+  u32 oid;
 } event;
 
 struct
@@ -217,6 +222,7 @@ struct
 #define RULE_DENY 1 << 7
 #define RULE_ARGSET 1 << 8
 #define RULE_PTS 1 << 9
+#define RULE_AUDIT 1 << 10
 
 #define MASK_WRITE 0x00000002
 #define MASK_READ 0x00000004
@@ -226,6 +232,13 @@ struct data_t
 {
   u16 processmask;
   u16 filemask;
+};
+enum
+{
+  _ALERT_THROTTLING = 3,
+  _MAX_ALERT_PER_SEC = 4,
+  _THROTTLE_SEC = 5,
+  _MATCH_ARGS = 6,
 };
 
 enum
@@ -685,10 +698,11 @@ static bool is_pts(struct task_struct *task)
   return false;
 }
 
-static bool is_owner(struct file *file_p)
+static bool is_owner(struct file *file_p, u32 *oid)
 {
   kuid_t owner = BPF_CORE_READ(file_p, f_inode, i_uid);
   unsigned int z = bpf_get_current_uid_gid();
+  *oid = owner.val;
   if (owner.val != z)
     return false;
   return true;
@@ -696,115 +710,205 @@ static bool is_owner(struct file *file_p)
 
 static bool is_owner_path(struct dentry *dent)
 {
-  kuid_t owner = BPF_CORE_READ(dent, d_inode, i_uid);
-  unsigned int z = bpf_get_current_uid_gid();
-  if (owner.val != z)
-    return false;
-  return true;
-}
-
-static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
-                                               u32 eventID)
-{
-  struct task_struct *t = (struct task_struct *)bpf_get_current_task();
-
-  event *task_info;
-
-  int retval = 0;
-
-  bool match = false;
-
-  struct outer_key okey;
-  get_outer_key(&okey, t);
-
-  u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
-
-  if (!inner)
+  static bool is_owner_path(struct dentry * dent, u32 * oid)
   {
-    return 0;
+    kuid_t owner = BPF_CORE_READ(dent, d_inode, i_uid);
+    unsigned int z = bpf_get_current_uid_gid();
+    *oid = owner.val;
+    if (owner.val != z)
+      return false;
+    return true;
   }
 
-  // "z" is a zero value map key which is used to reset values of other keys
-  // which are inturn used and updated to lookup the Rule Map
-
-  // "store" stores information needed to do a lookup to our Rule Map
-
-  // "pk" is a map key which is used for all kinds of matching and lookups, We
-  // needed a third key because we need to copy contents from store and keep
-  // resetting the contents of this key so data in store needs to persist
-
-  u32 zero = 0;
-  bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
-  if (z == NULL)
-    return 0;
-
-  u32 one = 1;
-  bufs_k *store = bpf_map_lookup_elem(&bufk, &one);
-  if (store == NULL)
-    return 0;
-
-  // Reset value for store
-  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-
-  u32 two = 2;
-  bufs_k *pk = bpf_map_lookup_elem(&bufk, &two);
-  if (pk == NULL)
-    return 0;
-
-  /* Extract full path from file structure provided by LSM Hook */
-  bufs_t *path_buf = get_buf(PATH_BUFFER);
-  if (path_buf == NULL)
-    return 0;
-
-  if (!prepend_path(f_path, path_buf))
-    return 0;
-
-  u32 *path_offset = get_buf_off(PATH_BUFFER);
-  if (path_offset == NULL)
-    return 0;
-
-  void *path_ptr = &path_buf->buf[*path_offset];
-  bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
-
-  struct data_t *val = bpf_map_lookup_elem(inner, store);
-  struct data_t *dirval = NULL;
-  bool recursivebuthint = false;
-  bool fromSourceCheck = true;
-
-  /* Extract full path of the source binary from the task structure */
-  struct file *file_p = get_task_file(t);
-  if (file_p == NULL)
-    fromSourceCheck = false;
-  bufs_t *src_buf = get_buf(PATH_BUFFER);
-  if (src_buf == NULL)
-    fromSourceCheck = false;
-  struct path f_src = BPF_CORE_READ(file_p, f_path);
-  if (!prepend_path(&f_src, src_buf))
-    fromSourceCheck = false;
-
-  u32 *src_offset = get_buf_off(PATH_BUFFER);
-  if (src_offset == NULL)
-    fromSourceCheck = false;
-
-  void *src_ptr;
-  if (src_buf->buf[*src_offset])
+  static inline int match_and_enforce_path_hooks(struct path * f_path, u32 id,
+                                                 u32 eventID)
   {
-    src_ptr = &src_buf->buf[*src_offset];
-  }
-  if (src_ptr == NULL)
-    fromSourceCheck = false;
+    struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
-  if (fromSourceCheck)
-  {
-    bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
+    event *task_info;
 
-    val = bpf_map_lookup_elem(inner, store);
+    int retval = 0;
+
+    bool match = false;
+
+    struct outer_key okey;
+    get_outer_key(&okey, t);
+
+    u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
+
+    if (!inner)
+    {
+      return 0;
+    }
+
+    // "z" is a zero value map key which is used to reset values of other keys
+    // which are inturn used and updated to lookup the Rule Map
+
+    // "store" stores information needed to do a lookup to our Rule Map
+
+    // "pk" is a map key which is used for all kinds of matching and lookups, We
+    // needed a third key because we need to copy contents from store and keep
+    // resetting the contents of this key so data in store needs to persist
+
+    u32 oid = 0;
+
+    u32 zero = 0;
+    bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
+    if (z == NULL)
+      return 0;
+
+    u32 one = 1;
+    bufs_k *store = bpf_map_lookup_elem(&bufk, &one);
+    if (store == NULL)
+      return 0;
+
+    // Reset value for store
+    bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+
+    u32 two = 2;
+    bufs_k *pk = bpf_map_lookup_elem(&bufk, &two);
+    if (pk == NULL)
+      return 0;
+
+    /* Extract full path from file structure provided by LSM Hook */
+    bufs_t *path_buf = get_buf(PATH_BUFFER);
+    if (path_buf == NULL)
+      return 0;
+
+    if (!prepend_path(f_path, path_buf))
+      return 0;
+
+    u32 *path_offset = get_buf_off(PATH_BUFFER);
+    if (path_offset == NULL)
+      return 0;
+
+    void *path_ptr = &path_buf->buf[*path_offset];
+    bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
+
+    struct data_t *val = bpf_map_lookup_elem(inner, store);
+    struct data_t *dirval = NULL;
+    bool recursivebuthint = false;
+    bool fromSourceCheck = true;
+
+    /* Extract full path of the source binary from the task structure */
+    struct file *file_p = get_task_file(t);
+    if (file_p == NULL)
+      fromSourceCheck = false;
+    bufs_t *src_buf = get_buf(PATH_BUFFER);
+    if (src_buf == NULL)
+      fromSourceCheck = false;
+    struct path f_src = BPF_CORE_READ(file_p, f_path);
+    if (!prepend_path(&f_src, src_buf))
+      fromSourceCheck = false;
+
+    u32 *src_offset = get_buf_off(PATH_BUFFER);
+    if (src_offset == NULL)
+      fromSourceCheck = false;
+
+    void *src_ptr;
+    if (src_buf->buf[*src_offset])
+    {
+      src_ptr = &src_buf->buf[*src_offset];
+    }
+    if (src_ptr == NULL)
+      fromSourceCheck = false;
+
+    if (fromSourceCheck)
+    {
+      bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
+
+      val = bpf_map_lookup_elem(inner, store);
+
+      if (val && (val->filemask & RULE_READ))
+      {
+        match = true;
+        goto decision;
+      }
+
+#pragma unroll
+      for (int i = 0; i < 64; i++)
+      {
+        if (store->path[i] == '\0')
+          break;
+
+        if (store->path[i] == '/')
+        {
+          bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+
+          match = false;
+
+          bpf_probe_read_str(pk->path, i + 2, store->path);
+          /* Check Subdir with From Source */
+          bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
+          dirval = bpf_map_lookup_elem(inner, pk);
+          if (dirval)
+          {
+            if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ))
+            {
+              match = true;
+              if ((dirval->filemask &
+                   RULE_RECURSIVE))
+              { /* true directory match and */
+                /* not a hint suggests */
+                /* there are no possibility of child dir */
+                val = dirval;
+                if (dirval->filemask & RULE_HINT)
+                {
+                  recursivebuthint = true;
+                  continue;
+                }
+                else
+                {
+                  goto decision;
+                }
+              }
+              else
+              {
+                continue; /* We continue the loop to see if we have more nested
+                           */
+                          /* directories and set match to false */
+              }
+            }
+          }
+          else
+          {
+            break;
+          }
+        }
+      }
+
+      if (recursivebuthint)
+      {
+        match = true;
+        goto decision;
+      }
+      if (match)
+      {
+        if (dirval)
+        { /* to please the holy verifier */
+          val = dirval;
+          goto decision;
+        }
+      }
+
+      if (recursivebuthint)
+      {
+        match = true;
+        goto decision;
+      }
+    }
+    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+    bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
+
+    val = bpf_map_lookup_elem(inner, pk);
 
     if (val && (val->filemask & RULE_READ))
     {
       match = true;
       goto decision;
     }
+
+    recursivebuthint = false;
 
 #pragma unroll
     for (int i = 0; i < 64; i++)
@@ -815,45 +919,29 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
       if (store->path[i] == '/')
       {
         bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-
         match = false;
-
         bpf_probe_read_str(pk->path, i + 2, store->path);
-        /* Check Subdir with From Source */
-        bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
         dirval = bpf_map_lookup_elem(inner, pk);
-        if (dirval)
-        {
-          if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ))
-          {
-            match = true;
-            if ((dirval->filemask &
-                 RULE_RECURSIVE))
-            { /* true directory match and */
-              /* not a hint suggests */
-              /* there are no possibility of child dir */
-              val = dirval;
-              if (dirval->filemask & RULE_HINT)
-              {
-                recursivebuthint = true;
-                continue;
-              }
-              else
-              {
-                goto decision;
-              }
-            }
-            else
-            {
-              continue; /* We continue the loop to see if we have more nested
-                         */
-                        /* directories and set match to false */
-            }
-          }
-        }
-        else
+        if (!dirval)
         {
           break;
+        }
+        if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ))
+        {
+          match = true;
+          if (!(dirval->filemask & RULE_RECURSIVE))
+          {
+            continue; /* continue the loop to see if we have more nested dirs */
+          }
+          /* true directory match and not a hint suggests */
+          /* there are no possibility of child dir */
+          val = dirval;
+          if (dirval->filemask & RULE_HINT)
+          {
+            recursivebuthint = true;
+            continue;
+          }
+          goto decision;
         }
       }
     }
@@ -863,292 +951,333 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
       match = true;
       goto decision;
     }
-    if (match)
+    else if (match && dirval)
     {
-      if (dirval)
-      { /* to please the holy verifier */
-        val = dirval;
-        goto decision;
+      val = dirval;
+      goto decision;
+    }
+
+  decision:
+
+    if (id == dpath)
+    { // Path Hooks
+      if (match)
+      {
+        if (val && (val->filemask & RULE_OWNER))
+        {
+          struct dentry *dent;
+          if (eventID == _FILE_MKNOD || eventID == _FILE_MKDIR)
+          {
+            dent = BPF_CORE_READ(f_path, dentry, d_parent);
+          }
+          else
+          {
+            dent = f_path->dentry;
+          }
+          if (!is_owner_path(dent, &oid))
+          {
+            if (val->filemask & RULE_DENY)
+            {
+              retval = DENY;
+            }
+            else if (val->filemask & RULE_AUDIT)
+            {
+              retval = AUDIT;
+            }
+            else
+            {
+              // check for matched owner only allow policies
+              bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+              pk->path[0] = dfile;
+              struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+              if (allow)
+              {
+                if (allow->processmask == BLOCK_POSTURE)
+                {
+                  retval = DENY;
+                }
+                else
+                {
+                  retval = AUDIT;
+                }
+              }
+            }
+          }
+          else
+          {
+            // owner + readonly ( Alerts if read only rule is applied )
+            if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
+            {
+              if (val->filemask & RULE_DENY)
+              {
+                retval = DENY;
+              }
+              else if (val->filemask & RULE_AUDIT)
+              {
+                retval = AUDIT;
+              }
+            }
+            else
+              // alow owner
+              return 0;
+          }
+        }
+        if (val)
+        {
+          if (val && (val->filemask & RULE_PTS))
+          {
+            if (is_pts(t))
+            {
+              if (val->filemask & RULE_DENY)
+              {
+                retval = DENY;
+              }
+              else if (val->filemask & RULE_AUDIT)
+              {
+                retval = AUDIT;
+              }
+            }
+          }
+          else
+          {
+            if (val->filemask & RULE_DENY)
+            {
+              retval = DENY;
+            }
+            else if (val->filemask & RULE_AUDIT)
+            {
+              retval = AUDIT;
+            }
+          }
+        }
       }
+
+      {
+        retval = DENY;
+      }
+      else if (val->filemask & RULE_AUDIT)
+      {
+        retval = AUDIT;
+      }
+    }
+  }
+
+  if (retval == DENY || retval == AUDIT)
+  {
+    goto ringbuf;
+  }
+
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  pk->path[0] = dfile;
+  struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+  if (retval != 0 && !(allow && !fromSourceCheck))
+  {
+    goto ringbuf;
+  }
+
+  if (allow)
+  {
+    if (!match)
+    {
+      if (allow->processmask == BLOCK_POSTURE)
+      {
+        retval = DENY;
+      }
+      goto ringbuf;
+    }
+  }
+}
+else if (id == dfileread)
+{ // file open
+  if (match)
+  {
+    if (val && (val->filemask & RULE_OWNER))
+    {
+      if (!is_owner_path(f_path->dentry, &oid))
+      {
+        if (val->filemask & RULE_DENY)
+        {
+          retval = DENY;
+        }
+        else if (val->filemask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
+        goto ringbuf;
+      }
+      else
+      {
+        return 0;
+      }
+    }
+    if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
+    {
+      // Read Only Policy, Decision making will be done in lsm/file_permission
+      return 0;
+    }
+    if (val)
+    {
+      if (val && (val->filemask & RULE_PTS))
+      {
+        if (is_pts(t))
+        {
+          if (val->filemask & RULE_DENY)
+          {
+            retval = DENY;
+          }
+          else if (val->filemask & RULE_AUDIT)
+          {
+            retval = AUDIT;
+          }
+        }
+      }
+      else
+      {
+        if (val->filemask & RULE_DENY)
+        {
+          retval = DENY;
+        }
+        else if (val->filemask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
+      }
+    }
+  }
+
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  pk->path[0] = dfile;
+  struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+  if ((retval == DENY || retval == AUDIT) && !(allow && !fromSourceCheck))
+  {
+    goto ringbuf;
+  }
+
+  if (allow)
+  {
+    if (!match)
+    {
+      if (allow->processmask == BLOCK_POSTURE)
+      {
+        retval = DENY;
+      }
+      goto ringbuf;
+    }
+    else
+    {
+      if (val && (val->filemask & RULE_PTS))
+      {
+        if (is_pts(t))
+        {
+          if (val->filemask & RULE_DENY)
+          {
+            retval = DENY;
+          }
+          else if (val->filemask & RULE_AUDIT)
+          {
+            retval = AUDIT;
+          }
+        }
+        goto ringbuf;
+      }
+    }
+  }
+}
+else if (id == dfilewrite)
+{ // file write
+  if (match)
+  {
+    if (val && (val->filemask & RULE_OWNER))
+    {
+      if (!is_owner_path(f_path->dentry))
+      {
+        if (val->filemask & RULE_DENY)
+        {
+          retval = DENY;
+        }
+        else if (val->filemask & RULE_AUDIT)
+        {
+          retval = AUDIT;
+        }
+        goto ringbuf;
+      }
+    }
+    if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
+    {
+      if (val->filemask & RULE_DENY)
+      {
+        retval = DENY;
+      }
+      else if (val->filemask & RULE_AUDIT)
+      {
+        retval = AUDIT;
+      }
+      goto ringbuf;
     }
   }
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-  bpf_probe_read_str(pk->path, MAX_STRING_SIZE, store->path);
+  pk->path[0] = dfile;
+  struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
-  val = bpf_map_lookup_elem(inner, pk);
-
-  if (val && (val->filemask & RULE_READ))
+  if (allow)
   {
-    match = true;
-    goto decision;
-  }
-
-  recursivebuthint = false;
-
-#pragma unroll
-  for (int i = 0; i < 64; i++)
-  {
-    if (store->path[i] == '\0')
-      break;
-
-    if (store->path[i] == '/')
+    if (!match)
     {
-      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-      match = false;
-      bpf_probe_read_str(pk->path, i + 2, store->path);
-      dirval = bpf_map_lookup_elem(inner, pk);
-      if (!dirval)
+      if (allow->processmask == BLOCK_POSTURE)
       {
-        break;
+        retval = DENY;
       }
-      if ((dirval->filemask & RULE_DIR) && (dirval->filemask & RULE_READ))
-      {
-        match = true;
-        if (!(dirval->filemask & RULE_RECURSIVE))
-        {
-          continue; /* continue the loop to see if we have more nested dirs */
-        }
-        /* true directory match and not a hint suggests */
-        /* there are no possibility of child dir */
-        val = dirval;
-        if (dirval->filemask & RULE_HINT)
-        {
-          recursivebuthint = true;
-          continue;
-        }
-        goto decision;
-      }
-    }
-  }
-
-  if (recursivebuthint)
-  {
-    match = true;
-    goto decision;
-  }
-  else if (match && dirval)
-  {
-    val = dirval;
-    goto decision;
-  }
-
-decision:
-
-  if (id == dpath)
-  { // Path Hooks
-    if (match)
-    {
-      if (val && (val->filemask & RULE_OWNER))
-      {
-        struct dentry *dent;
-        if (eventID == _FILE_MKNOD || eventID == _FILE_MKDIR)
-        {
-          dent = BPF_CORE_READ(f_path, dentry, d_parent);
-        }
-        else
-        {
-          dent = f_path->dentry;
-        }
-        if (!is_owner_path(dent))
-        {
-          retval = -EPERM;
-        }
-        else
-        {
-          return 0;
-        }
-      }
-      if (val && (val->filemask & RULE_DENY))
-      {
-        if (val && (val->filemask & RULE_PTS))
-        {
-          if (is_pts(t))
-          {
-            retval = -EPERM;
-          }
-        }
-        else
-        {
-          retval = -EPERM;
-        }
-      }
-    }
-
-    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-    pk->path[0] = dfile;
-    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
-
-    if (retval == -EPERM && !(allow && !fromSourceCheck))
-    {
       goto ringbuf;
     }
-
-    if (allow)
+    else
     {
-      if (!match)
+      if (val && (val->filemask & RULE_PTS))
       {
-        if (allow->processmask == BLOCK_POSTURE)
+        if (is_pts(t))
         {
-          retval = -EPERM;
+          if (val->filemask & RULE_DENY)
+          {
+            retval = DENY;
+          }
+          else if (val->filemask & RULE_AUDIT)
+          {
+            retval = AUDIT;
+          }
         }
         goto ringbuf;
       }
-      else
-      {
-        if (val && (val->filemask & RULE_PTS))
-        {
-          if (is_pts(t))
-          {
-            retval = -EPERM;
-          }
-          goto ringbuf;
-        }
-      }
     }
   }
-  else if (id == dfileread)
-  { // file open
-    if (match)
-    {
-      if (val && (val->filemask & RULE_OWNER))
-      {
-        if (!is_owner_path(f_path->dentry))
-        {
-          retval = -EPERM;
-          goto ringbuf;
-        }
-        else
-        {
-          return 0;
-        }
-      }
-      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
-      {
-        // Read Only Policy, Decision making will be done in lsm/file_permission
-        return 0;
-      }
-      if (val && (val->filemask & RULE_DENY))
-      {
-        if (val && (val->filemask & RULE_PTS))
-        {
-          if (is_pts(t))
-          {
-            retval = -EPERM;
-          }
-        }
-        else
-        {
-          retval = -EPERM;
-        }
-      }
-    }
+}
 
-    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-    pk->path[0] = dfile;
-    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+return 0;
 
-    if (retval == -EPERM && !(allow && !fromSourceCheck))
-    {
-      goto ringbuf;
-    }
+ringbuf :
 
-    if (allow)
-    {
-      if (!match)
-      {
-        if (allow->processmask == BLOCK_POSTURE)
-        {
-          retval = -EPERM;
-        }
-        goto ringbuf;
-      }
-      else
-      {
-        if (val && (val->filemask & RULE_PTS))
-        {
-          if (is_pts(t))
-          {
-            retval = -EPERM;
-          }
-          goto ringbuf;
-        }
-      }
-    }
-  }
-  else if (id == dfilewrite)
-  { // file write
-    if (match)
-    {
-      if (val && (val->filemask & RULE_OWNER))
-      {
-        if (!is_owner_path(f_path->dentry))
-        {
-          retval = -EPERM;
-          goto ringbuf;
-        }
-      }
-      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
-      {
-        retval = -EPERM;
-        goto ringbuf;
-      }
-    }
-
-    bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-    pk->path[0] = dfile;
-    struct data_t *allow = bpf_map_lookup_elem(inner, pk);
-
-    if (allow)
-    {
-      if (!match)
-      {
-        if (allow->processmask == BLOCK_POSTURE)
-        {
-          retval = -EPERM;
-        }
-        goto ringbuf;
-      }
-      else
-      {
-        if (val && (val->filemask & RULE_PTS))
-        {
-          if (is_pts(t))
-          {
-            retval = -EPERM;
-          }
-          goto ringbuf;
-        }
-      }
-    }
-  }
-
-  return 0;
-
-ringbuf:
-  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey))
-  {
-    return retval;
-  }
-
-  task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
-  if (!task_info)
-  {
-    // Failed to reserve, doing policy enforcement without alert
-    return retval;
-  }
-
-  init_context(task_info);
-  // Clearing arrays to avoid garbage values
-  __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
-  __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
-
-  bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
-  bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
-
-  task_info->event_id = eventID;
-  task_info->retval = retval;
-  bpf_ringbuf_submit(task_info, 0);
+    if (retval == DENY)
+{
+  retval = -EPERM;
+}
+else retval = 0;
+task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+if (!task_info)
+{
+  // Failed to reserve, doing policy enforcement without alert
   return retval;
+}
+init_context(task_info);
+// Clearing arrays to avoid garbage values
+__builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+__builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+task_info->oid = oid;
+task_info->event_id = eventID;
+task_info->retval = retval;
+bpf_ringbuf_submit(task_info, 0);
+return retval;
 }
 static inline bool matchArguments(unsigned int num_of_args, struct outer_key *okey, bufs_k *store, bufs_k *pk)
 {
