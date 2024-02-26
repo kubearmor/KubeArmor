@@ -15,14 +15,15 @@ import (
 
 // Bit Flags for Map Rule Mask
 const (
-	EXEC      uint8 = 1 << 0
-	WRITE     uint8 = 1 << 1
-	READ      uint8 = 1 << 2
-	OWNER     uint8 = 1 << 3
-	DIR       uint8 = 1 << 4
-	RECURSIVE uint8 = 1 << 5
-	HINT      uint8 = 1 << 6
-	DENY      uint8 = 1 << 7
+	EXEC      uint16 = 1 << 0
+	WRITE     uint16 = 1 << 1
+	READ      uint16 = 1 << 2
+	OWNER     uint16 = 1 << 3
+	DIR       uint16 = 1 << 4
+	RECURSIVE uint16 = 1 << 5
+	HINT      uint16 = 1 << 6
+	DENY      uint16 = 1 << 7
+	AUDIT     uint16 = 1 << 8
 )
 
 // Data Index for rules
@@ -48,7 +49,7 @@ var (
 )
 
 // Protocol Identifiers for Network Rules
-var protocols = map[string]uint8{
+var protocols = map[string]uint16{
 	"ICMP":   1,
 	"TCP":    6,
 	"UDP":    17,
@@ -56,7 +57,7 @@ var protocols = map[string]uint8{
 }
 
 // Socket Type Identifiers for Network Rules
-var netType = map[string]uint8{
+var netType = map[string]uint16{
 	"RAW": 3,
 }
 
@@ -72,10 +73,10 @@ const capableKey = 200
 
 // RuleList Structure contains all the data required to set rules for a particular container
 type RuleList struct {
-	ProcessRuleList      map[InnerKey][2]uint8
-	FileRuleList         map[InnerKey][2]uint8
-	NetworkRuleList      map[InnerKey][2]uint8
-	CapabilitiesRuleList map[InnerKey][2]uint8
+	ProcessRuleList      map[InnerKey][2]uint16
+	FileRuleList         map[InnerKey][2]uint16
+	NetworkRuleList      map[InnerKey][2]uint16
+	CapabilitiesRuleList map[InnerKey][2]uint16
 	ProcWhiteListPosture bool
 	FileWhiteListPosture bool
 	NetWhiteListPosture  bool
@@ -84,16 +85,16 @@ type RuleList struct {
 
 // Init prepares the RuleList object
 func (r *RuleList) Init() {
-	r.ProcessRuleList = make(map[InnerKey][2]uint8)
+	r.ProcessRuleList = make(map[InnerKey][2]uint16)
 	r.ProcWhiteListPosture = false
 
-	r.FileRuleList = make(map[InnerKey][2]uint8)
+	r.FileRuleList = make(map[InnerKey][2]uint16)
 	r.FileWhiteListPosture = false
 
-	r.NetworkRuleList = make(map[InnerKey][2]uint8)
+	r.NetworkRuleList = make(map[InnerKey][2]uint16)
 	r.NetWhiteListPosture = false
 
-	r.CapabilitiesRuleList = make(map[InnerKey][2]uint8)
+	r.CapabilitiesRuleList = make(map[InnerKey][2]uint16)
 	r.CapWhiteListPosture = false
 }
 
@@ -108,7 +109,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	for _, secPolicy := range securityPolicies {
 		for _, path := range secPolicy.Spec.Process.MatchPaths {
 
-			var val [2]uint8
+			var val [2]uint16
 			val[PROCESS] = val[PROCESS] | EXEC
 			if path.OwnerOnly {
 				val[PROCESS] = val[PROCESS] | OWNER
@@ -122,6 +123,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 				} else if path.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
+					newrules.ProcessRuleList[key] = val
+				} else if path.Action == "Audit" {
+					val[PROCESS] = val[PROCESS] | AUDIT
 					newrules.ProcessRuleList[key] = val
 				}
 			} else {
@@ -137,13 +141,16 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					} else if path.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY
 						newrules.ProcessRuleList[key] = val
+					} else if path.Action == "Audit" {
+						val[PROCESS] = val[PROCESS] | AUDIT
+						newrules.ProcessRuleList[key] = val
 					}
 				}
 			}
 		}
 
 		for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-			var val [2]uint8
+			var val [2]uint16
 			val[PROCESS] = val[PROCESS] | EXEC
 			if dir.OwnerOnly {
 				val[PROCESS] = val[PROCESS] | OWNER
@@ -159,6 +166,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if dir.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
 					dirtoMap(PROCESS, dir.Directory, "", newrules.ProcessRuleList, val)
+				} else if dir.Action == "Audit" {
+					val[PROCESS] = val[PROCESS] | AUDIT
+					dirtoMap(PROCESS, dir.Directory, "", newrules.ProcessRuleList, val)
 				}
 			} else {
 				for _, src := range dir.FromSource {
@@ -169,13 +179,16 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					} else if dir.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY
 						dirtoMap(PROCESS, dir.Directory, src.Path, newrules.ProcessRuleList, val)
+					} else if dir.Action == "Audit" {
+						val[PROCESS] = val[PROCESS] | AUDIT
+						dirtoMap(PROCESS, dir.Directory, src.Path, newrules.ProcessRuleList, val)
 					}
 				}
 			}
 		}
 
 		for _, path := range secPolicy.Spec.File.MatchPaths {
-			var val [2]uint8
+			var val [2]uint16
 			val[FILE] = val[FILE] | READ
 			if path.OwnerOnly {
 				val[FILE] = val[FILE] | OWNER
@@ -193,6 +206,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if path.Action == "Block" {
 					val[FILE] = val[FILE] | DENY
 					newrules.FileRuleList[key] = val
+				} else if path.Action == "Audit" {
+					val[FILE] = val[FILE] | AUDIT
+					newrules.FileRuleList[key] = val
 				}
 			} else {
 				for _, src := range path.FromSource {
@@ -206,13 +222,16 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					} else if path.Action == "Block" {
 						val[FILE] = val[FILE] | DENY
 						newrules.FileRuleList[key] = val
+					} else if path.Action == "Audit" {
+						val[FILE] = val[FILE] | AUDIT
+						newrules.FileRuleList[key] = val
 					}
 				}
 			}
 		}
 
 		for _, dir := range secPolicy.Spec.File.MatchDirectories {
-			var val [2]uint8
+			var val [2]uint16
 			val[FILE] = val[FILE] | READ
 			if dir.OwnerOnly {
 				val[FILE] = val[FILE] | OWNER
@@ -231,6 +250,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				} else if dir.Action == "Block" {
 					val[FILE] = val[FILE] | DENY
 					dirtoMap(FILE, dir.Directory, "", newrules.FileRuleList, val)
+				} else if dir.Action == "Audit" {
+					val[FILE] = val[FILE] | AUDIT
+					dirtoMap(FILE, dir.Directory, "", newrules.FileRuleList, val)
 				}
 			} else {
 				for _, src := range dir.FromSource {
@@ -241,20 +263,23 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					} else if dir.Action == "Block" {
 						val[FILE] = val[FILE] | DENY
 						dirtoMap(FILE, dir.Directory, src.Path, newrules.FileRuleList, val)
+					} else if dir.Action == "Audit" {
+						val[FILE] = val[FILE] | AUDIT
+						dirtoMap(FILE, dir.Directory, src.Path, newrules.FileRuleList, val)
 					}
 				}
 			}
 		}
 
 		for _, net := range secPolicy.Spec.Network.MatchProtocols {
-			var val [2]uint8
+			var val [2]uint16
 			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
 			if val, ok := protocols[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = PROTOCOL
-				key.Path[1] = val
+				key.Path[1] = uint8(val)
 			} else if val, ok := netType[strings.ToUpper(net.Protocol)]; ok {
 				key.Path[0] = TYPE
-				key.Path[1] = val
+				key.Path[1] = uint8(val)
 			}
 
 			if len(net.FromSource) == 0 {
@@ -264,6 +289,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 				} else if net.Action == "Block" {
 					val[NETWORK] = val[NETWORK] | DENY
+					newrules.NetworkRuleList[key] = val
+				} else if net.Action == "Audit" {
+					val[NETWORK] = val[NETWORK] | AUDIT
 					newrules.NetworkRuleList[key] = val
 				}
 			} else {
@@ -278,13 +306,16 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					} else if net.Action == "Block" {
 						val[NETWORK] = val[NETWORK] | DENY
 						newrules.NetworkRuleList[key] = val
+					} else if net.Action == "Audit" {
+						val[NETWORK] = val[NETWORK] | AUDIT
+						newrules.NetworkRuleList[key] = val
 					}
 
 				}
 			}
 		}
 		for _, capab := range secPolicy.Spec.Capabilities.MatchCapabilities {
-			var val [2]uint8
+			var val [2]uint16
 			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
 
 			key.Path[0] = capableKey
@@ -316,6 +347,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 					} else if capab.Action == "Block" {
 						val[CAPABILITIES] = val[CAPABILITIES] | DENY
+						newrules.CapabilitiesRuleList[key] = val
+					} else if capab.Action == "Audit" {
+						val[CAPABILITIES] = val[CAPABILITIES] | AUDIT
 						newrules.CapabilitiesRuleList[key] = val
 					}
 
@@ -365,11 +399,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	if newrules.ProcWhiteListPosture {
 		if defaultPosture.FileAction == "block" {
-			if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint8{BlockPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint16{BlockPosture}); err != nil {
 				be.Logger.Errf("error adding proc whitelist key rule to map for container %s: %s", id, err)
 			}
 		} else {
-			if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint8{AuditPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(PROCWHITELIST, [2]uint16{AuditPosture}); err != nil {
 				be.Logger.Errf("error adding proc whitelist key rule to map for container %s: %s", id, err)
 			}
 		}
@@ -390,11 +424,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	if newrules.FileWhiteListPosture {
 		if defaultPosture.FileAction == "block" {
-			if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint8{BlockPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint16{BlockPosture}); err != nil {
 				be.Logger.Errf("error adding file whitelist key rule to map for container %s: %s", id, err)
 			}
 		} else {
-			if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint8{AuditPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(FILEWHITELIST, [2]uint16{AuditPosture}); err != nil {
 				be.Logger.Errf("error adding file whitelist key rule to map for container %s: %s", id, err)
 			}
 		}
@@ -414,11 +448,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 
 	if newrules.NetWhiteListPosture {
 		if defaultPosture.NetworkAction == "block" {
-			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint8{BlockPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint16{BlockPosture}); err != nil {
 				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
 			}
 		} else {
-			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint8{AuditPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(NETWHITELIST, [2]uint16{AuditPosture}); err != nil {
 				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
 			}
 		}
@@ -437,11 +471,11 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 	if newrules.CapWhiteListPosture {
 		if defaultPosture.CapabilitiesAction == "block" {
-			if err := be.ContainerMap[id].Map.Put(CAPWHITELIST, [2]uint8{BlockPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(CAPWHITELIST, [2]uint16{BlockPosture}); err != nil {
 				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
 			}
 		} else {
-			if err := be.ContainerMap[id].Map.Put(CAPWHITELIST, [2]uint8{AuditPosture}); err != nil {
+			if err := be.ContainerMap[id].Map.Put(CAPWHITELIST, [2]uint16{AuditPosture}); err != nil {
 				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
 			}
 		}
@@ -460,7 +494,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 }
 
-func fuseProcAndFileRules(procList, fileList map[InnerKey][2]uint8) {
+func fuseProcAndFileRules(procList, fileList map[InnerKey][2]uint16) {
 	for k, v := range fileList {
 		if val, ok := procList[k]; ok {
 			v[PROCESS] = val[PROCESS]
@@ -469,7 +503,7 @@ func fuseProcAndFileRules(procList, fileList map[InnerKey][2]uint8) {
 	}
 }
 
-func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newRuleList, oldRuleList map[InnerKey][2]uint8, cmap *ebpf.Map) {
+func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newRuleList, oldRuleList map[InnerKey][2]uint16, cmap *ebpf.Map) {
 	// We delete existing elements which are not in the fresh rule set
 	for key := range oldRuleList {
 		if _, ok := newRuleList[key]; !ok {
@@ -485,7 +519,7 @@ func (be *BPFEnforcer) resolveConflicts(newPosture, oldPosture bool, newRuleList
 }
 
 // dirtoMap extracts parent directories from the Path Key and adds it as hints in the Container Rule Map
-func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint8, val [2]uint8) {
+func dirtoMap(idx int, p, src string, m map[InnerKey][2]uint16, val [2]uint16) {
 	var key InnerKey
 	if src != "" {
 		copy(key.Source[:], []byte(src))

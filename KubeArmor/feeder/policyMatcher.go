@@ -1095,7 +1095,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						if matchedFlags && secPolicy.Action == "Audit" && log.Result == "Passed" {
 							// audit policy
 							// matched source + matched resource + matched flags + matched action + expected result -> alert (audit log)
-
 							log.Type = "MatchedPolicy"
 
 							log.PolicyName = secPolicy.PolicyName
