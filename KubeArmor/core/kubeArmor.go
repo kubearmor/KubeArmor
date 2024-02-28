@@ -21,6 +21,8 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/cache"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -694,22 +696,38 @@ func KubeArmor() {
 	// == //
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// watch k8s pods
-		go dm.WatchK8sPods()
-		dm.Logger.Print("Started to monitor Pod events")
 
 		// watch security policies
-		go dm.WatchSecurityPolicies()
+		securityPoliciesSynced := dm.WatchSecurityPolicies()
+		if securityPoliciesSynced == nil {
+			return
+		}
 		dm.Logger.Print("Started to monitor security policies")
 
 		// watch default posture
-		go dm.WatchDefaultPosture()
+		defaultPostureSynced := dm.WatchDefaultPosture()
+		if defaultPostureSynced == nil {
+			return
+		}
 		dm.Logger.Print("Started to monitor per-namespace default posture")
 
 		// watch kubearmor configmap
-		go dm.WatchConfigMap()
+		configMapSynced := dm.WatchConfigMap()
+		if configMapSynced == nil {
+			return
+		}
 		dm.Logger.Print("Watching for posture changes")
 
+		synced := cache.WaitForCacheSync(wait.NeverStop, securityPoliciesSynced, defaultPostureSynced, configMapSynced)
+		if !synced {
+			dm.Logger.Err("Failed to sync Kubernetes informers")
+			return
+		}
+
+		// watch k8s pods (function never returns, must be called in a
+		// goroutine)
+		go dm.WatchK8sPods()
+		dm.Logger.Print("Started to monitor Pod events")
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
