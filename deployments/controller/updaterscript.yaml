@@ -28,6 +28,7 @@
             echo "current lsmlist=\$lsmlist"
             sed -i "s/^GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX=\"lsm=\$lsmlist,bpf\"/g" /etc/default/grub
             command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2.cfg
+            command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2/grub.cfg
             command -v grub-mkconfig >/dev/null 2>&1 && grub-mkconfig -o /boot/grub.cfg
             command -v aa-status >/dev/null 2>&1 || yum install apparmor-utils -y
             command -v update-grub >/dev/null 2>&1 && update-grub
