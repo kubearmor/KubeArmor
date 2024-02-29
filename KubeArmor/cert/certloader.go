@@ -7,6 +7,7 @@ package cert
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 
 	"k8s.io/client-go/kubernetes"
 )
@@ -58,12 +59,13 @@ func (loader *ExternalCertLoader) GetCertificateAndCaPool() (*tls.Certificate, *
 	if err != nil {
 		return nil, nil, err
 	}
-	caCert, err := GetCertKeyPairFromCertBytes(caCertBytes)
+	caCertPem, _ := pem.Decode(caCertBytes.Crt)
+	caCert, err := x509.ParseCertificate(caCertPem.Bytes)
 	if err != nil {
 		return nil, nil, err
 	}
 	caCertPool := x509.NewCertPool()
-	caCertPool.AddCert(caCert.Crt)
+	caCertPool.AddCert(caCert)
 	// load server/client certificate from cert path
 	certBytes, err := ReadCertFromFile(&loader.CertPath)
 	if err != nil {
