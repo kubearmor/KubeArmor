@@ -40,11 +40,17 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs s
 	commonVolMnts := common.CommonVolumesMount
 	if btfPresent == "no" {
 		commonVols = append(commonVols, common.KernelHeaderVolumes...)
+		commonVols = append(commonVols, common.BPFVolumes...)
 		commonVolMnts = append(commonVolMnts, common.KernelHeaderVolumesMount...)
+		commonVolMnts = append(commonVolMnts, common.BPFVolumesMount...)
 	}
 	vols = append(vols, commonVols...)
 	volMnts = append(volMnts, commonVolMnts...)
 	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace)
+
+	if btfPresent != "no" {
+		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
+	}
 	daemonset.Name = name
 	labels := map[string]string{
 		common.EnforcerLabel: enforcer,
@@ -71,13 +77,16 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs s
 		}
 	}
 	daemonset.Spec.Template.Spec.Volumes = vols
-	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 	// update images
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
-	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
-	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+
+	if btfPresent == "no" {
+		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
+		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
+		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+	}
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
