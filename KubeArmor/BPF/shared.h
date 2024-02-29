@@ -520,6 +520,10 @@ decision:
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
         struct dentry *dent ;
+        /* MKNOD and MKDIR would always have current user as 
+         the owner so we need to check the parent dentry's owner 
+         to enforcer owner only */
+        
         if(eventID  == _FILE_MKNOD || eventID == _FILE_MKDIR){
           dent = BPF_CORE_READ(f_path , dentry , d_parent);
         } else {
@@ -533,7 +537,7 @@ decision:
                 else if(val->filemask & RULE_AUDIT){
                     retval = AUDIT; 
                 } else {
-                      //check for matched owner only allow policies 
+                      // check for matched !owner + allow policies 
                       bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
                       pk->path[0] = dfile;
                       struct data_t *allow = bpf_map_lookup_elem(inner, pk);
@@ -556,10 +560,23 @@ decision:
                 }
                 else if(val->filemask & RULE_AUDIT){
                   retval = AUDIT;          
-                } 
+                } else {
+                      // check for matched owner only + readonly + allow policies 
+                      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+                      pk->path[0] = dfile;
+                      struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+                      if (allow) {
+                          if (allow->processmask == BLOCK_POSTURE) {
+                              retval = DENY;
+                            }
+                      else {
+                          retval = AUDIT;
+                        }
+                      }   
+                    } 
               } 
               else 
-                // alow owner
+                // allow owner
                 return 0; 
               }
            }
@@ -600,8 +617,21 @@ decision:
             }
           else if(val->filemask & RULE_AUDIT){
             retval = AUDIT;
-          } 
-          // TODO :- owner + allow policy (fix verifier error)        
+          } else {
+                      // check for matched !owner + allow policies 
+                      bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+                      pk->path[0] = dfile;
+                      struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+                      if (allow) {
+                          if (allow->processmask == BLOCK_POSTURE) {
+                              retval = DENY;
+                            }
+                      else {
+                          retval = AUDIT;
+                        }
+                      }   
+                    }
+                
         } else { 
                // allow owner 
               return 0;            
@@ -637,6 +667,27 @@ decision:
     }
   } else if (id == dfilewrite) { // file write
     if (match) {
+        if (val && (val->filemask & RULE_OWNER)) {
+          if (!is_owner_path(f_path->dentry , &oid)) {
+            if(val->filemask & RULE_DENY) {
+              retval = DENY;
+            }
+            else if(val->filemask & RULE_AUDIT){
+            retval = DENY;          
+            }
+            goto ringbuf;
+          }
+        }
+        if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
+          if(val->filemask & RULE_DENY) {
+            retval = DENY;
+            }
+          else if(val->filemask & RULE_AUDIT){
+            retval = DENY;          
+          }
+          goto ringbuf;
+        }
+
       if (val) {
         if(val->filemask & RULE_DENY) {
           retval = DENY;
@@ -710,3 +761,4 @@ ringbuf:
 */
 
 #endif /* __SHARED_H */
+  
