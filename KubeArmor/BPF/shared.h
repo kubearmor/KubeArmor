@@ -966,6 +966,10 @@ static bool is_owner_path(struct dentry *dent)
         if (val && (val->filemask & RULE_OWNER))
         {
           struct dentry *dent;
+          /* MKNOD and MKDIR would always have current user as
+         the owner so we need to check the parent dentry's owner
+         to enforcer owner only */
+
           if (eventID == _FILE_MKNOD || eventID == _FILE_MKDIR)
           {
             dent = BPF_CORE_READ(f_path, dentry, d_parent);
@@ -986,7 +990,7 @@ static bool is_owner_path(struct dentry *dent)
             }
             else
             {
-              // check for matched owner only allow policies
+              //  check for matched !owner + allow policies
               bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
               pk->path[0] = dfile;
               struct data_t *allow = bpf_map_lookup_elem(inner, pk);
@@ -1016,9 +1020,27 @@ static bool is_owner_path(struct dentry *dent)
               {
                 retval = AUDIT;
               }
+              else
+              {
+                // check for matched owner only + readonly + allow policies
+                bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+                pk->path[0] = dfile;
+                struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+                if (allow)
+                {
+                  if (allow->processmask == BLOCK_POSTURE)
+                  {
+                    retval = DENY;
+                  }
+                  else
+                  {
+                    retval = AUDIT;
+                  }
+                }
+              }
             }
             else
-              // alow owner
+              // allow owner
               return 0;
           }
         }
@@ -1194,220 +1216,273 @@ else if (id == dfilewrite)
       {
         if (val->filemask & RULE_DENY)
         {
-          retval = DENY;
-        }
-        else if (val->filemask & RULE_AUDIT)
-        {
-          retval = AUDIT;
-        }
-        goto ringbuf;
-      }
-    }
-    if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
-    {
-      if (val->filemask & RULE_DENY)
-      {
-        retval = DENY;
-      }
-      else if (val->filemask & RULE_AUDIT)
-      {
-        retval = AUDIT;
-      }
-      goto ringbuf;
-    }
-  }
-  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
-  pk->path[0] = dfile;
-  struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+          bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+          pk->path[0] = dfile;
+          struct data_t *allow = bpf_map_lookup_elem(inner, pk);
 
-  if (allow)
-  {
-    if (!match)
-    {
-      if (allow->processmask == BLOCK_POSTURE)
-      {
-        retval = DENY;
-      }
-      goto ringbuf;
-    }
-    else
-    {
-      if (val && (val->filemask & RULE_PTS))
-      {
-        if (is_pts(t))
-        {
-          if (val->filemask & RULE_DENY)
+          if (allow)
           {
-            retval = DENY;
-          }
-          else if (val->filemask & RULE_AUDIT)
-          {
-            retval = AUDIT;
+            if (!match)
+            {
+              if (allow->processmask == BLOCK_POSTURE)
+              {
+                retval = DENY;
+              }
+              goto ringbuf;
+            }
           }
         }
-        goto ringbuf;
+        else if (id == dfilewrite)
+        { // file write
+          if (match)
+          {
+            if (val && (val->filemask & RULE_OWNER))
+            {
+              if (!is_owner_path(f_path->dentry, &oid))
+              {
+                if (val->filemask & RULE_DENY)
+                {
+                  retval = DENY;
+                }
+                else if (val->filemask & RULE_AUDIT)
+                {
+                  retval = DENY;
+                }
+                goto ringbuf;
+              }
+            }
+            if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
+            {
+              if (val->filemask & RULE_DENY)
+              {
+                retval = DENY;
+              }
+              else if (val->filemask & RULE_AUDIT)
+              {
+                retval = DENY;
+              }
+              goto ringbuf;
+            }
+
+            if (val)
+            {
+              if (val->filemask & RULE_DENY)
+              {
+                retval = DENY;
+              }
+              else if (val->filemask & RULE_AUDIT)
+              {
+                retval = AUDIT;
+              }
+              goto ringbuf;
+            }
+          }
+          if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE))
+          {
+            if (val->filemask & RULE_DENY)
+            {
+              retval = DENY;
+            }
+            else if (val->filemask & RULE_AUDIT)
+            {
+              retval = AUDIT;
+            }
+            goto ringbuf;
+          }
+        }
+        bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+        pk->path[0] = dfile;
+        struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+        if (allow)
+        {
+          if (!match)
+          {
+            if (allow->processmask == BLOCK_POSTURE)
+            {
+              retval = DENY;
+            }
+            goto ringbuf;
+          }
+          else
+          {
+            if (val && (val->filemask & RULE_PTS))
+            {
+              if (is_pts(t))
+              {
+                if (val->filemask & RULE_DENY)
+                {
+                  retval = DENY;
+                }
+                else if (val->filemask & RULE_AUDIT)
+                {
+                  retval = AUDIT;
+                }
+              }
+              goto ringbuf;
+            }
+          }
+        }
       }
-    }
-  }
-}
 
-return 0;
+      return 0;
 
-ringbuf :
+    ringbuf:
 
-    if (retval == DENY)
-{
-  retval = -EPERM;
-}
-else retval = 0;
-task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
-if (!task_info)
-{
-  // Failed to reserve, doing policy enforcement without alert
-  return retval;
-}
-init_context(task_info);
-// Clearing arrays to avoid garbage values
-__builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
-__builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
-
-bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
-bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
-task_info->oid = oid;
-task_info->event_id = eventID;
-task_info->retval = retval;
-bpf_ringbuf_submit(task_info, 0);
-return retval;
-}
-static inline bool matchArguments(unsigned int num_of_args, struct outer_key *okey, bufs_k *store, bufs_k *pk)
-{
-
-  bool argmatch = false;
-  unsigned int *x;
-
-  unsigned int argKey;
-  struct argVal *argval;
-
-  u32 arg_k = 0;
-  arg_bufs_k *a_key = bpf_map_lookup_elem(&args_bufk, &arg_k);
-  if (a_key == NULL)
-    return false;
-
-  // clearing to avoid processing garbage values
-  __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
-  __builtin_memset(&a_key->store, 0, sizeof(a_key->store));
-
-  bpf_probe_read(&a_key->okey.mnt_ns, sizeof(okey->mnt_ns), &okey->mnt_ns);
-  bpf_probe_read(&a_key->okey.pid_ns, sizeof(okey->pid_ns), &okey->pid_ns);
-  bpf_probe_read_str(&a_key->store.path, sizeof(store->path), &store->path);
-
-  struct cmd_args_key cmd_args_buf_k;
-  cmd_args_buf_k.tgid = bpf_get_current_pid_tgid();
-
-  if (pk->path[0] == '\0')
-  {
-    // pk->path[0] will be null for fromSource rules
-    bpf_probe_read_str(&a_key->store.source, sizeof(store->source), store->source);
-  }
-  // block if number of arguments is greater than 20
-  if (num_of_args > MAX_STR_ARR_ELEM)
-  {
-    return false;
-  }
-
-  for (u8 i = 0; i < 20; i++)
-  {
-    if (i == num_of_args)
-    {
-      break;
-    }
-    cmd_args_buf_k.ind = i;
-    argval = bpf_map_lookup_elem(&kubearmor_args_store, &cmd_args_buf_k);
-    if (argval)
-    {
-      __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
-      bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), &argval->argsArray);
-      x = bpf_map_lookup_elem(&kubearmor_arguments, a_key);
-      if (x)
+      if (retval == DENY)
       {
-        argmatch = true;
+        retval = -EPERM;
       }
       else
+        retval = 0;
+      task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+      if (!task_info)
       {
-        argmatch = false;
-        // to handle busybox binaries
-        if (i != 0)
+        // Failed to reserve, doing policy enforcement without alert
+        return retval;
+      }
+      init_context(task_info);
+      // Clearing arrays to avoid garbage values
+      __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
+      __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
+
+      bpf_probe_read_str(&task_info->data.path, MAX_STRING_SIZE, store->path);
+      bpf_probe_read_str(&task_info->data.source, MAX_STRING_SIZE, store->source);
+      task_info->oid = oid;
+      task_info->event_id = eventID;
+      task_info->retval = retval;
+      bpf_ringbuf_submit(task_info, 0);
+      return retval;
+    }
+    static inline bool matchArguments(unsigned int num_of_args, struct outer_key *okey, bufs_k *store, bufs_k *pk)
+    {
+
+      bool argmatch = false;
+      unsigned int *x;
+
+      unsigned int argKey;
+      struct argVal *argval;
+
+      u32 arg_k = 0;
+      arg_bufs_k *a_key = bpf_map_lookup_elem(&args_bufk, &arg_k);
+      if (a_key == NULL)
+        return false;
+
+      // clearing to avoid processing garbage values
+      __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
+      __builtin_memset(&a_key->store, 0, sizeof(a_key->store));
+
+      bpf_probe_read(&a_key->okey.mnt_ns, sizeof(okey->mnt_ns), &okey->mnt_ns);
+      bpf_probe_read(&a_key->okey.pid_ns, sizeof(okey->pid_ns), &okey->pid_ns);
+      bpf_probe_read_str(&a_key->store.path, sizeof(store->path), &store->path);
+
+      struct cmd_args_key cmd_args_buf_k;
+      cmd_args_buf_k.tgid = bpf_get_current_pid_tgid();
+
+      if (pk->path[0] == '\0')
+      {
+        // pk->path[0] will be null for fromSource rules
+        bpf_probe_read_str(&a_key->store.source, sizeof(store->source), store->source);
+      }
+      // block if number of arguments is greater than 20
+      if (num_of_args > MAX_STR_ARR_ELEM)
+      {
+        return false;
+      }
+
+      for (u8 i = 0; i < 20; i++)
+      {
+        if (i == num_of_args)
         {
           break;
         }
+        cmd_args_buf_k.ind = i;
+        argval = bpf_map_lookup_elem(&kubearmor_args_store, &cmd_args_buf_k);
+        if (argval)
+        {
+          __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
+          bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), &argval->argsArray);
+          x = bpf_map_lookup_elem(&kubearmor_arguments, a_key);
+          if (x)
+          {
+            argmatch = true;
+          }
+          else
+          {
+            argmatch = false;
+            // to handle busybox binaries
+            if (i != 0)
+            {
+              break;
+            }
+          }
+        }
       }
+
+      return argmatch;
     }
-  }
 
-  return argmatch;
-}
+    static __noinline int extract_dns_name(void *data, char *name)
+    {
+      // Read the DNS payload
 
-static __noinline int extract_dns_name(void *data, char *name)
-{
-  // Read the DNS payload
+      bufs_t *payload = get_buf(PATH_BUFFER);
+      if (!payload)
+        return 0;
 
-  bufs_t *payload = get_buf(PATH_BUFFER);
-  if (!payload)
-    return 0;
+      bpf_probe_read_user(payload->buf, 256, data);
 
-  bpf_probe_read_user(payload->buf, 256, data);
-
-  // Decode QNAME wire format: \x06google\x03com\x00 -> google.com
-  // volatile prevents Clang from emitting forbidden `|= on pointer` instructions.
-  volatile u8 llen = payload->buf[12]; // first label length byte (offset 12 = after DNS header)
-  volatile int bi = 13;                // byte index into buf
-  volatile int ni = 0;                 // byte index into name output
+      // Decode QNAME wire format: \x06google\x03com\x00 -> google.com
+      // volatile prevents Clang from emitting forbidden `|= on pointer` instructions.
+      volatile u8 llen = payload->buf[12]; // first label length byte (offset 12 = after DNS header)
+      volatile int bi = 13;                // byte index into buf
+      volatile int ni = 0;                 // byte index into name output
 
 #pragma unroll
-  for (int i = 0; i < 63; i++)
-  {
-    if (bi >= 256 || llen == 0 || llen > 63 || ni >= 63)
-      break;
+      for (int i = 0; i < 63; i++)
+      {
+        if (bi >= 256 || llen == 0 || llen > 63 || ni >= 63)
+          break;
 
-    name[ni & 63] = payload->buf[bi & 255]; // copy one label character
-    ni++;
-    bi++;
-    llen--;
+        name[ni & 63] = payload->buf[bi & 255]; // copy one label character
+        ni++;
+        bi++;
+        llen--;
 
-    if (llen == 0) // read next length byte
-    {
-      if (bi >= 256)
-        break;
-      llen = payload->buf[bi & 255];
-      bi++;
-      if (llen == 0 || llen > 63)
-        break; // root label (end) or invalid
-      if (ni < 63)
-        name[ni++ & 63] = '.'; // dot separator between labels
+        if (llen == 0) // read next length byte
+        {
+          if (bi >= 256)
+            break;
+          llen = payload->buf[bi & 255];
+          bi++;
+          if (llen == 0 || llen > 63)
+            break; // root label (end) or invalid
+          if (ni < 63)
+            name[ni++ & 63] = '.'; // dot separator between labels
+        }
+      }
+
+      name[63] = '\0';
+      return ni;
     }
-  }
 
-  name[63] = '\0';
-  return ni;
-}
+    /*
+      How do we check what to deny or not?
 
-/*
-  How do we check what to deny or not?
+      We match in the the following order:
+      - entity + source
+      -? directory matching + source
+      - entity
+      -? directory
 
-  We match in the the following order:
-  - entity + source
-  -? directory matching + source
-  - entity
-  -? directory
+      Once matched
+      -? Owner Check
+      - Deny Check
+      - Check if WhiteList i.e. DefaultPosture for entity is block
+      - if not match deny
 
-  Once matched
-  -? Owner Check
-  - Deny Check
-  - Check if WhiteList i.e. DefaultPosture for entity is block
-  - if not match deny
-
-  ? => Indicates optional check, like network hooks don't have owner or
-       directory checks
-*/
+      ? => Indicates optional check, like network hooks don't have owner or
+           directory checks
+    */
 
 #endif /* __SHARED_H */
