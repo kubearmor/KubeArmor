@@ -5,6 +5,7 @@
 package core
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
@@ -696,6 +696,14 @@ func KubeArmor() {
 	// == //
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
+		timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
+		if err != nil {
+			dm.Logger.Warnf("Not a valid InitTimeout duration: %q, defaulting to '60s'", cfg.GlobalCfg.InitTimeout)
+			timeout = 60 * time.Second
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 
 		// watch security policies
 		securityPoliciesSynced := dm.WatchSecurityPolicies()
@@ -718,7 +726,7 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Watching for posture changes")
 
-		synced := cache.WaitForCacheSync(wait.NeverStop, securityPoliciesSynced, defaultPostureSynced, configMapSynced)
+		synced := cache.WaitForCacheSync(ctx.Done(), securityPoliciesSynced, defaultPostureSynced, configMapSynced)
 		if !synced {
 			dm.Logger.Err("Failed to sync Kubernetes informers")
 			return
