@@ -345,6 +345,7 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 }
 
 func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
+	deployment = addOwnership(deployment).(*appsv1.Deployment)
 	if common.IfNodeWithSecurtiyFs {
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
 			common.SecurityFsLabel: "yes",
