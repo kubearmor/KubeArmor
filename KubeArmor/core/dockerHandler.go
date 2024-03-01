@@ -261,6 +261,9 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 			if container.ContainerID == "" {
 				continue
 			}
+
+			endpoint := tp.EndPoint{}
+
 			if dcontainer.State == "running" {
 				dm.ContainersLock.Lock()
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
@@ -301,6 +304,8 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 								dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 							}
 
+							endpoint = dm.EndPoints[idx]
+
 							break
 						}
 					}
@@ -326,6 +331,14 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+
+					if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
+						dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
+						if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							// enforce security policies
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+						}
+					}
 				}
 
 				dm.Logger.Printf("Detected a container (added/%.12s)", container.ContainerID)
@@ -357,6 +370,8 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		if container.ContainerID == "" {
 			return
 		}
+
+		endpoint := tp.EndPoint{}
 
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[containerID]; !ok {
@@ -392,6 +407,8 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
 					}
 
+					endpoint = dm.EndPoints[idx]
+
 					break
 				}
 			}
@@ -412,6 +429,14 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+
+			if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
+				dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
+				if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+				}
+			}
 		}
 
 		if !dm.K8sEnabled {
