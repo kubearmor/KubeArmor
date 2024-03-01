@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package cmd is the collection of all the subcommands available in kArmor while providing relevant options for the same
+// Package snitch is the collection of all the subcommands available in kArmor while providing relevant options for the same
 package main
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,6 +97,8 @@ func Execute() {
 func snitch() {
 	order := strings.Split(LsmOrder, ",")
 
+	seccomp.LoadSeccompInNode()
+
 	// Detecting enforcer
 	nodeEnforcer := enforcer.DetectEnforcer(order, PathPrefix, *Logger)
 	if nodeEnforcer != "NA" {
@@ -122,6 +125,7 @@ func snitch() {
 	patchNode := metadata{}
 	patchNode.Metadata.Labels = map[string]string{}
 	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
+	patchNode.Metadata.Labels[common.SeccompLabel] = seccomp.CheckIfSeccompProfilePresent()
 	patchNode.Metadata.Labels[common.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)

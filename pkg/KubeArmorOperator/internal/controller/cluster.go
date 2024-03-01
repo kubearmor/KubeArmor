@@ -50,6 +50,7 @@ type Node struct {
 	Arch          string
 	BTF           string
 	ApparmorFs    string
+	Seccomp       string
 }
 
 func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, pathPrefix, deploy_name string) *ClusterWatcher {
@@ -126,6 +127,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					if val, ok := node.Labels[common.ApparmorFsLabel]; ok {
 						newNode.ApparmorFs = val
 					}
+					if val, ok := node.Labels[common.SeccompLabel]; ok {
+						newNode.Seccomp = val
+					}
 					clusterWatcher.NodesLock.Lock()
 					nbNodes := len(clusterWatcher.Nodes)
 					i := 0
@@ -142,7 +146,8 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 							clusterWatcher.Nodes[i].Name != newNode.Name ||
 							clusterWatcher.Nodes[i].Runtime != newNode.Runtime ||
 							clusterWatcher.Nodes[i].RuntimeSocket != newNode.RuntimeSocket ||
-							clusterWatcher.Nodes[i].BTF != newNode.BTF {
+							clusterWatcher.Nodes[i].BTF != newNode.BTF ||
+							clusterWatcher.Nodes[i].Seccomp != newNode.Seccomp {
 							clusterWatcher.Nodes[i] = newNode
 							nodeModified = true
 							clusterWatcher.Log.Infof("Node %s was updated", node.Name)
@@ -150,9 +155,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.NodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs)
+						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
 					}
-					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs)
+					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
 				}
 			} else {
 				log.Errorf("Cannot convert object to node struct")
@@ -171,7 +176,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 				}
 				clusterWatcher.NodesLock.Unlock()
-				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs)
+				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp)
 			}
 		},
 	})
@@ -179,7 +184,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	nodeInformer.Run(wait.NeverStop)
 }
 
-func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, btfPresent, apparmorfs string) {
+func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string) {
 	clusterWatcher.Log.Info("updating daemonset")
 	daemonsetName := strings.Join([]string{
 		"kubearmor",
@@ -215,7 +220,7 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		}
 	}
 	if newDaemonSet {
-		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs)
+		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent)
 		_, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Create(context.Background(), daemonset, v1.CreateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())
@@ -544,11 +549,12 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		}
 	}
 	if config.DefaultVisibility != "" {
-		if common.ConfigMapData[common.ConfigVisibility] != string(config.DefaultVisibility) {
-			common.ConfigMapData[common.ConfigVisibility] = string(config.DefaultVisibility)
+		if common.ConfigMapData[common.ConfigVisibility] != config.DefaultVisibility {
+			common.ConfigMapData[common.ConfigVisibility] = config.DefaultVisibility
 			updated = true
 		}
 	}
+
 	return updated
 }
 
@@ -556,24 +562,24 @@ func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
 	stringEnableStdOutLogs := strconv.FormatBool(config.EnableStdOutLogs)
 	if stringEnableStdOutLogs != "" {
-		if common.KubearmorRelayEnvMap[common.EnableStdOutLogs] != string(stringEnableStdOutLogs) {
-			common.KubearmorRelayEnvMap[common.EnableStdOutLogs] = string(stringEnableStdOutLogs)
+		if common.KubearmorRelayEnvMap[common.EnableStdOutLogs] != stringEnableStdOutLogs {
+			common.KubearmorRelayEnvMap[common.EnableStdOutLogs] = stringEnableStdOutLogs
 			updated = true
 		}
 	}
 
 	stringEnableStdOutAlerts := strconv.FormatBool(config.EnableStdOutAlerts)
 	if stringEnableStdOutAlerts != "" {
-		if common.KubearmorRelayEnvMap[common.EnableStdOutAlerts] != string(stringEnableStdOutAlerts) {
-			common.KubearmorRelayEnvMap[common.EnableStdOutAlerts] = string(stringEnableStdOutAlerts)
+		if common.KubearmorRelayEnvMap[common.EnableStdOutAlerts] != stringEnableStdOutAlerts {
+			common.KubearmorRelayEnvMap[common.EnableStdOutAlerts] = stringEnableStdOutAlerts
 			updated = true
 		}
 	}
 
 	stringEnableStdOutMsgs := strconv.FormatBool(config.EnableStdOutMsgs)
 	if stringEnableStdOutMsgs != "" {
-		if common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] != string(stringEnableStdOutMsgs) {
-			common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] = string(stringEnableStdOutMsgs)
+		if common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] != stringEnableStdOutMsgs {
+			common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] = stringEnableStdOutMsgs
 			updated = true
 		}
 	}

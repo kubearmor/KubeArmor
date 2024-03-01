@@ -23,12 +23,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
 	if !(enforcer == "apparmor" && apparmorfs == "no") {
 		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(enforcer)
 	}
+	seccompProfile := "kubearmor-seccomp.json"
+	//seccompInitProfile := "kubearmor-init-seccomp.json"
 	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
@@ -74,6 +76,19 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs s
 	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
 	// update images
+
+	if seccompPresent == "yes" {
+		daemonset.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: &seccompProfile,
+		}
+		//daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+		//	Type:             corev1.SeccompProfileTypeLocalhost,
+		//	LocalhostProfile: &seccompInitProfile,
+		//}
+
+	}
+
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
@@ -173,6 +188,7 @@ func genSnitchServiceAccount() *corev1.ServiceAccount {
 
 func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	job := batchv1.Job{}
+	var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
 	job.GenerateName = "kubearmor-snitch-"
@@ -210,6 +226,10 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 								MountPath: PathPrefix,
 								ReadOnly:  true,
 							},
+							{
+								Name:      "seccomp-path",
+								MountPath: "/var/lib/kubelet/seccomp",
+							},
 						},
 						SecurityContext: &corev1.SecurityContext{
 							RunAsUser:  &rootUser,
@@ -242,6 +262,15 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/",
 								Type: &common.HostPathDirectory,
+							},
+						},
+					},
+					{
+						Name: "seccomp-path",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/var/lib/kubelet/seccomp",
+								Type: &HostPathDirectoryOrCreate,
 							},
 						},
 					},

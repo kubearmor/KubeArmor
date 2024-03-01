@@ -51,6 +51,7 @@ var (
 	BTFLabel        string = "kubearmor.io/btf"
 	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
 	SecurityFsLabel string = "kubearmor.io/securityfs"
+	SeccompLabel    string = "kubearmor.io/seccomp"
 
 	// if any node with securityfs/lsm present
 	IfNodeWithSecurtiyFs bool = false

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package cmd is the collection of all the subcommands available in kArmor while providing relevant options for the same
+// Package cmd is the collection of all the subcommands available in the operator while providing relevant options for the same
 package main
 
 import (
