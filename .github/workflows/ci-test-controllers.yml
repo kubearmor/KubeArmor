@@ -53,6 +53,11 @@ jobs:
         if: steps.filter.outputs.kubearmor == 'true'
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
+        run: |
+          make docker-build
+
       - name: Build KubeArmorController
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
