@@ -126,7 +126,8 @@ func (dh *DockerHandler) GetContainerInfo(containerID string) (tp.Container, err
 	}
 
 	container.AppArmorProfile = inspect.AppArmorProfile
-	if inspect.HostConfig != nil {
+	if inspect.HostConfig.Privileged ||
+		(inspect.HostConfig.CapAdd != nil && len(inspect.HostConfig.CapAdd) > 0) {
 		container.Privileged = inspect.HostConfig.Privileged
 	}
 
@@ -405,6 +406,10 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 					// update apparmor profiles
 					if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
 						dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+					}
+
+					if container.Privileged && dm.EndPoints[idx].PrivilegedContainers != nil {
+						dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 					}
 
 					endpoint = dm.EndPoints[idx]
