@@ -46,7 +46,8 @@ var DefaultKubeArmorClientConfig = CertConfig{
 var DefaultKubeArmorCAConfig = CertConfig{
 	CN:           KubeArmor_CN,
 	Organization: KubeArmor_ORG,
-	KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+	IsCa:         true,
+	KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 }
 
 type CertConfig struct {
@@ -54,6 +55,7 @@ type CertConfig struct {
 	Organization string
 	DNS          []string
 	IPs          []string
+	IsCa         bool
 	KeyUsage     x509.KeyUsage
 	ExtKeyUsage  []x509.ExtKeyUsage
 	NotAfter     time.Time
@@ -200,8 +202,10 @@ func GenerateCert(cfg *CertConfig) (*CertKeyPair, error) {
 		NotAfter:              cfg.NotAfter,
 		KeyUsage:              cfg.KeyUsage,
 		ExtKeyUsage:           cfg.ExtKeyUsage,
+		IsCA:                  cfg.IsCa,
 		BasicConstraintsValid: true,
 	}
+	template.DNSNames = append(template.DNSNames, cfg.DNS...)
 
 	for _, ip := range cfg.IPs {
 		template.IPAddresses = append(template.IPAddresses, net.ParseIP(ip))
