@@ -8,6 +8,8 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
   pull_request:
     branches: [main]
     paths:
@@ -15,6 +17,8 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
 
 # Declare default permissions as read only.
 permissions: read-all

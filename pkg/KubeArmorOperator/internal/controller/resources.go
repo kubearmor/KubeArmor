@@ -30,7 +30,7 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(enforcer)
 	}
 	seccompProfile := "kubearmor-seccomp.json"
-	//seccompInitProfile := "kubearmor-init-seccomp.json"
+	seccompInitProfile := "kubearmor-init-seccomp.json"
 	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
@@ -82,10 +82,10 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 			Type:             corev1.SeccompProfileTypeLocalhost,
 			LocalhostProfile: &seccompProfile,
 		}
-		//daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-		//	Type:             corev1.SeccompProfileTypeLocalhost,
-		//	LocalhostProfile: &seccompInitProfile,
-		//}
+		daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: &seccompInitProfile,
+		}
 
 	}
 
