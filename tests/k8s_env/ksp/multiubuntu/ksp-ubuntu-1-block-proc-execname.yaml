@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-proc-execname
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block execution of a matching binary name"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPaths:
+    - execname: apt
+  action:
+    Block
