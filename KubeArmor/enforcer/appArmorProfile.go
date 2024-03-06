@@ -32,7 +32,7 @@ func (ae *AppArmorEnforcer) ResolvedProcessWhiteListConflicts(prof *Profile) {
 
 // SetProcessMatchPaths Function
 func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
@@ -41,8 +41,11 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 	rule.OwnerOnly = path.OwnerOnly
 
 	if len(path.FromSource) == 0 {
+		if len(path.ExecName) > 0 {
+			addRuletoMap(rule, "/**/"+path.ExecName, prof.ProcessPaths)
+			return
+		}
 		addRuletoMap(rule, path.Path, prof.ProcessPaths)
-
 		return
 	}
 
@@ -58,11 +61,15 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
 			}
+		}
+		if len(path.ExecName) > 0 {
+			addRuletoMap(rule, "/**/"+path.ExecName, prof.FromSource[source].ProcessPaths)
+			continue
 		}
 		addRuletoMap(rule, path.Path, prof.FromSource[source].ProcessPaths)
 	}

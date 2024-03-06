@@ -115,11 +115,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			}
 			if len(path.FromSource) == 0 {
 				var key InnerKey
-				copy(key.Path[:], []byte(path.Path))
+				if len(path.ExecName) > 0 {
+					copy(key.Path[:], []byte(path.ExecName))
+				} else {
+					copy(key.Path[:], []byte(path.Path))
+				}
 				if path.Action == "Allow" {
 					newrules.ProcWhiteListPosture = true
 					newrules.ProcessRuleList[key] = val
-
 				} else if path.Action == "Block" {
 					val[PROCESS] = val[PROCESS] | DENY
 					newrules.ProcessRuleList[key] = val
@@ -127,12 +130,14 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			} else {
 				for _, src := range path.FromSource {
 					var key InnerKey
-					copy(key.Path[:], []byte(path.Path))
+					if len(path.ExecName) > 0 {
+						copy(key.Path[:], []byte(path.ExecName))
+					} else {
+						copy(key.Path[:], []byte(path.Path))
+					}
 					copy(key.Source[:], []byte(src.Path))
 					if path.Action == "Allow" {
-
 						newrules.ProcWhiteListPosture = true
-
 						newrules.ProcessRuleList[key] = val
 					} else if path.Action == "Block" {
 						val[PROCESS] = val[PROCESS] | DENY

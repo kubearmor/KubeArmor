@@ -87,8 +87,13 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = ppt.Message
 
 		match.Operation = "Process"
-		match.Resource = ppt.Path
-		match.ResourceType = "Path"
+		if len(ppt.ExecName) > 0 {
+			match.Resource = ppt.ExecName
+			match.ResourceType = "ExecName"
+		} else {
+			match.Resource = ppt.Path
+			match.ResourceType = "Path"
+		}
 
 		match.OwnerOnly = ppt.OwnerOnly
 
@@ -1023,6 +1028,8 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							procMatch := secPolicy.Regexp.MatchString(log.ProcessName) // pattern (secPolicy.Resource) -> string (log.Resource)
 							matchedRegex = fileMatch || procMatch
 						}
+					case "ExecName":
+						matchedRegex = strings.HasSuffix(log.ProcessName, "/"+secPolicy.Resource) // processpath = */execname
 					}
 
 					// match resources
