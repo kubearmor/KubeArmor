@@ -27,9 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Check gofmt
         run: make gofmt
@@ -40,9 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Run Revive Action on KubeArmor
         uses: morphy2k/revive-action@v2
@@ -54,9 +54,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Run Revive Action on KubeArmor tests
         uses: morphy2k/revive-action@v2
@@ -68,9 +68,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Run Gosec Security Scanner
         run: make gosec
@@ -81,9 +81,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.20"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Run govulncheck 
         run: make scan
@@ -94,9 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Run go test on the KubeArmor/KubeArmor directory
         run: go test ./...
