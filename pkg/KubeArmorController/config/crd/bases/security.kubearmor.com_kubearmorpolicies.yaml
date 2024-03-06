@@ -335,6 +335,9 @@ spec:
                           - Audit
                           - Block
                           type: string
+                        execname:
+                          pattern: ^[^\/]+$
+                          type: string
                         fromSource:
                           items:
                             properties:
@@ -358,8 +361,6 @@ spec:
                           items:
                             type: string
                           type: array
-                      required:
-                      - path
                       type: object
                     type: array
                   matchPatterns:

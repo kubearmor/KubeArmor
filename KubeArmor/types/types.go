@@ -333,7 +333,8 @@ type MatchSourceType struct {
 
 // ProcessPathType Structure
 type ProcessPathType struct {
-	Path       string            `json:"path"`
+	Path       string            `json:"path,omitempty"`
+	ExecName   string            `json:"execname,omitempty"`
 	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
 	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
