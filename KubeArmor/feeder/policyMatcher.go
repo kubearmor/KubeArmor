@@ -921,6 +921,40 @@ func (fd *Feeder) UpdateDefaultPosture(action string, namespace string, defaultP
 	}
 }
 
+// MatchResources function
+func matchResources(secPolicy tp.MatchPolicy, log tp.Log) bool {
+	// match process and file resources
+
+	firstLogResource := strings.Split(log.Resource, " ")[0]
+	firstLogResourceDir := getDirectoryPart(firstLogResource)
+	firstLogResourceDirCount := strings.Count(firstLogResourceDir, "/")
+	procDirCount := strings.Count(getDirectoryPart(log.ProcessName), "/")
+
+	if secPolicy.Operation == "File" {
+		if secPolicy.ResourceType == "Path" && secPolicy.Resource == firstLogResource {
+			return true
+		}
+		if secPolicy.ResourceType == "Directory" && (strings.HasPrefix(firstLogResourceDir, secPolicy.Resource) &&
+			((!secPolicy.Recursive && firstLogResourceDirCount == strings.Count(secPolicy.Resource, "/")) ||
+				(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) || (secPolicy.Resource == (log.Resource + "/")) {
+			return true
+		}
+	}
+
+	if secPolicy.Operation == "Process" {
+		if secPolicy.ResourceType == "Path" && secPolicy.Resource == log.ProcessName {
+			return true
+		}
+		if secPolicy.ResourceType == "Directory" && strings.HasPrefix(getDirectoryPart(log.ProcessName), secPolicy.Resource) &&
+			((!secPolicy.Recursive && procDirCount == strings.Count(secPolicy.Resource, "/")) ||
+				(secPolicy.Recursive && procDirCount >= strings.Count(secPolicy.Resource, "/"))) {
+			return true
+		}
+	}
+	return false
+
+}
+
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
 func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, visibility, containerEvent bool) bool {
 	if existAllowPolicy && defaultPosture == "audit" && (*log).Result == "Passed" {
@@ -1000,11 +1034,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			}
 
-			firstLogResource := strings.Split(log.Resource, " ")[0]
-			firstLogResourceDir := getDirectoryPart(firstLogResource)
-			firstLogResourceDirCount := strings.Count(firstLogResourceDir, "/")
-			procDirCount := strings.Count(getDirectoryPart(log.ProcessName), "/")
-
 			switch log.Operation {
 			case "Process", "File":
 				if secPolicy.Operation != log.Operation {
@@ -1033,14 +1062,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					}
 
 					// match resources
-					if matchedRegex || (secPolicy.Operation == "File" && secPolicy.ResourceType == "Path" && secPolicy.Resource == firstLogResource) ||
-						(secPolicy.Operation == "Process" && secPolicy.ResourceType == "Path" && secPolicy.Resource == log.ProcessName) ||
-						(secPolicy.Operation == "File" && secPolicy.ResourceType == "Directory" && strings.HasPrefix(firstLogResourceDir, secPolicy.Resource) &&
-							((!secPolicy.Recursive && firstLogResourceDirCount == strings.Count(secPolicy.Resource, "/")) ||
-								(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) ||
-						(secPolicy.Operation == "Process" && secPolicy.ResourceType == "Directory" && strings.HasPrefix(getDirectoryPart(log.ProcessName), secPolicy.Resource) &&
-							((!secPolicy.Recursive && procDirCount == strings.Count(secPolicy.Resource, "/")) ||
-								(secPolicy.Recursive && procDirCount >= strings.Count(secPolicy.Resource, "/")))) {
+					if matchedRegex || matchResources(secPolicy, log) {
 
 						matchedFlags := false
 
@@ -1073,7 +1095,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						if matchedFlags && (secPolicy.Action == "Allow" || secPolicy.Action == "Audit (Allow)") && log.Result == "Passed" {
 							// allow policy or allow policy with audit mode
 							// matched source + matched resource + matched flags + matched action + expected result -> going to be skipped
-
+							if log.Action == "Audit" {
+								// could be a case of lenient whitelist policy
+								continue
+							}
 							log.Type = "MatchedPolicy"
 
 							log.PolicyName = secPolicy.PolicyName
