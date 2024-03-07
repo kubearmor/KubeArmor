@@ -679,6 +679,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 				} else { // HostSecurityPolicy
 					var hostPolicy tp.K8sKubeArmorHostPolicy
 					if err := json.Unmarshal(data, &hostPolicy); err == nil {
+						hostPolicy.Metadata.Name = k.Metadata["policyName"]
 						dm.ParseAndUpdateHostSecurityPolicy(tp.K8sKubeArmorHostPolicyEvent{
 							Type:   "ADDED",
 							Object: hostPolicy,
