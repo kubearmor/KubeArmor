@@ -24,9 +24,9 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - uses: azure/setup-helm@v3
         with:

@@ -210,6 +210,8 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			return false
 		}
 
+		endpoint := tp.EndPoint{}
+
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[container.ContainerID]; !ok {
 			dm.Containers[container.ContainerID] = container
@@ -245,6 +247,8 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 						dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 					}
 
+					endpoint = dm.EndPoints[idx]
+
 					break
 				}
 			}
@@ -258,6 +262,14 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+
+			if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
+				dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
+				if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+				}
+			}
 		}
 
 		if !dm.K8sEnabled {

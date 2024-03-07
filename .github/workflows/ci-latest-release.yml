@@ -53,9 +53,9 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.21"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -217,11 +217,11 @@ jobs:
     runs-on: ubuntu-latest-16-cores
     timeout-minutes: 60
     steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "v1.21"
-  
       - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
   
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

@@ -7,11 +7,12 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/containerd/typeurl/v2"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/containerd/typeurl/v2"
 
 	"golang.org/x/exp/slices"
 
@@ -294,6 +295,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			return false
 		}
 
+		endpoint := tp.EndPoint{}
+
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[container.ContainerID]; !ok {
 			dm.Containers[container.ContainerID] = container
@@ -323,7 +326,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			for idx, endPoint := range dm.EndPoints {
 				if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 					// update containers
-					if !kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+					if !kl.ContainsElement(endPoint.Containers, container.ContainerID) { // does not make sense but need to verify
 						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, container.ContainerID)
 					}
 
@@ -335,6 +338,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 					if container.Privileged && dm.EndPoints[idx].PrivilegedContainers != nil {
 						dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 					}
+
+					endpoint = dm.EndPoints[idx]
 
 					break
 				}
@@ -349,6 +354,14 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+
+			if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
+				dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
+				if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+				}
+			}
 		}
 
 		if !dm.K8sEnabled {
