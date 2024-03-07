@@ -36,3 +36,7 @@ vmlinux.h
 
 # gingko test tmp file
 **/*.test
+
+#ignore go.work
+go.work
+go.work.sum

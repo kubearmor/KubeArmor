@@ -2,6 +2,8 @@ module github.com/kubearmor/KubeArmor/tests
 
 go 1.21
 
+toolchain go1.21.8
+
 replace (
 	github.com/cloudflare/circl => github.com/cloudflare/circl v1.3.3
 	github.com/containerd/containerd => github.com/containerd/containerd v1.6.24
@@ -23,7 +25,7 @@ require (
 	github.com/onsi/gomega v1.30.0
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.61.0
-	google.golang.org/protobuf v1.32.0
+	google.golang.org/protobuf v1.33.0
 	k8s.io/api v0.27.3
 	k8s.io/apimachinery v0.27.3
 	k8s.io/cli-runtime v0.27.2
