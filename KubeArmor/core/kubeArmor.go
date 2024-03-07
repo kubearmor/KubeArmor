@@ -149,6 +149,8 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
+	close(StopChan)
+
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
 		if dm.CloseRuntimeEnforcer() {
@@ -702,12 +704,12 @@ func KubeArmor() {
 			timeout = 60 * time.Second
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-
 		// watch security policies
 		securityPoliciesSynced := dm.WatchSecurityPolicies()
 		if securityPoliciesSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
 			return
 		}
 		dm.Logger.Print("Started to monitor security policies")
@@ -715,6 +717,9 @@ func KubeArmor() {
 		// watch default posture
 		defaultPostureSynced := dm.WatchDefaultPosture()
 		if defaultPostureSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
 			return
 		}
 		dm.Logger.Print("Started to monitor per-namespace default posture")
@@ -722,13 +727,23 @@ func KubeArmor() {
 		// watch kubearmor configmap
 		configMapSynced := dm.WatchConfigMap()
 		if configMapSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
 			return
 		}
 		dm.Logger.Print("Watching for posture changes")
 
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
 		synced := cache.WaitForCacheSync(ctx.Done(), securityPoliciesSynced, defaultPostureSynced, configMapSynced)
 		if !synced {
 			dm.Logger.Err("Failed to sync Kubernetes informers")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
 			return
 		}
 
@@ -808,7 +823,6 @@ func KubeArmor() {
 		sigChan := GetOSSigChannel()
 		<-sigChan
 		dm.Logger.Print("Got a signal to terminate KubeArmor")
-		close(StopChan)
 	}
 
 	// destroy the daemon
