@@ -23,8 +23,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, btfPresent string) *appsv1.DaemonSet {
-	enforcerVolumes, enforcerVolumeMounts := genEnforcerVolumes(enforcer)
+func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs string) *appsv1.DaemonSet {
+	enforcerVolumes := []corev1.Volume{}
+	enforcerVolumeMounts := []corev1.VolumeMount{}
+	if !(enforcer == "apparmor" && apparmorfs == "no") {
+		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(enforcer)
+	}
 	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
@@ -330,11 +334,66 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 	if !(len(nodes.Items) == processedNodes) {
 		return false
 	}
+
+	// check if there's any node with securityfs/lsm exists
+	common.IfNodeWithSecurtiyFs = false
+	for _, node := range nodes.Items {
+		if val, ok := node.Labels[common.SecurityFsLabel]; ok {
+			switch val {
+			case "yes":
+				common.IfNodeWithSecurtiyFs = true
+			}
+		}
+	}
+
 	kaPodsList, err := clusterWatcher.Client.CoreV1().Pods(common.Namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: "kubearmor-app=kubearmor",
 	})
 	return len(kaPodsList.Items) == dsCount
 
+}
+
+func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
+	if common.IfNodeWithSecurtiyFs {
+		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
+			common.SecurityFsLabel: "yes",
+		}
+		deployment.Spec.Template.Spec.Containers = deployments.GetKubeArmorControllerDeployment(common.Namespace).Spec.Template.Spec.Containers
+	} else {
+		deployment.Spec.Template.Spec.NodeSelector = nil
+		for i, container := range deployment.Spec.Template.Spec.Containers {
+			if container.Name == "manager" {
+				for j, mount := range container.VolumeMounts {
+					if mount.MountPath == "/sys/kernel/security" {
+						deployment.Spec.Template.Spec.Containers[i].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[i].VolumeMounts[:j],
+							deployment.Spec.Template.Spec.Containers[i].VolumeMounts[j+1:]...)
+					}
+				}
+			}
+		}
+	}
+	controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
+	if isNotfound(err) {
+		clusterWatcher.Log.Infof("Creating deployment %s", deployment.Name)
+		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Create(context.Background(), deployment, metav1.CreateOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot create deployment %s, error=%s", deployment.Name, err.Error())
+			return err
+		}
+	} else {
+		if (common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector == nil) ||
+			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) {
+			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
+			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
+			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
+			_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, metav1.UpdateOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot update deployment %s, error=%s", deployment.Name, err.Error())
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
@@ -344,17 +403,20 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	FirstRun := true
 	srvAccs := []*corev1.ServiceAccount{
 		addOwnership(deployments.GetServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
+		addOwnership(deployments.GetRelayServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
 		addOwnership(deployments.GetKubeArmorControllerServiceAccount(common.Namespace)).(*corev1.ServiceAccount),
 		addOwnership(genSnitchServiceAccount()).(*corev1.ServiceAccount),
 	}
 	clusterRoles := []*rbacv1.ClusterRole{
 		addOwnership(genSnitchRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole),
+		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetKubeArmorControllerProxyRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole),
 	}
 	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{
 		addOwnership(deployments.GetClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
+		addOwnership(deployments.GetRelayClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetKubeArmorControllerClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetKubeArmorControllerProxyRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(genSnitchRoleBinding()).(*rbacv1.ClusterRoleBinding),
@@ -406,7 +468,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	relayServer.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)
 	relayServer.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorRelayImagePullPolicy)
 	deploys := []*appsv1.Deployment{
-		addOwnership(controller).(*appsv1.Deployment),
 		addOwnership(relayServer).(*appsv1.Deployment),
 	}
 
@@ -546,6 +607,13 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			}
 		}
 
+		areAllNodeProcessed := clusterWatcher.AreAllNodesProcessed()
+
+		// deploy controller
+		if err := clusterWatcher.deployControllerDeployment(controller); err != nil {
+			installErr = err
+		}
+
 		//mutation webhook
 		hook, err := clusterWatcher.Client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), mutationhook.Name, metav1.GetOptions{})
 		if isNotfound(err) {
@@ -573,7 +641,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			if installErr != nil {
 				installErr = nil
 				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.ERROR, common.INSTALLATION_ERR_MSG)
-			} else if clusterWatcher.AreAllNodesProcessed() {
+			} else if areAllNodeProcessed {
 				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.RUNNING, common.RUNNING_MSG)
 			} else {
 				go clusterWatcher.UpdateCrdStatus(common.OperatorConfigCrd.Name, common.PENDING, common.PENDING_MSG)

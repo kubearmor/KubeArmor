@@ -8,42 +8,87 @@ on:
       - "pkg/**"
       - ".github/workflows/ci-test-controllers.yml"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   kubearmor-controller-test:
     name: Build and Test KubeArmorController Using Ginkgo
     runs-on: ubuntu-20.04
     timeout-minutes: 30
+    env:
+      RUNTIME: "containerd"
     steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "v1.20"
-
       - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Check what paths were updated
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            kubearmor:
+              - "KubeArmor/**"
+              - "protobuf/**"
+            controller:
+              - 'pkg/KubeArmorController/**'
 
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
+
+      - name: Install the latest LLVM toolchain
+        if: steps.filter.outputs.kubearmor == 'true'
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        if: steps.filter.outputs.kubearmor == 'true'
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Generate KubeArmor artifacts
+        if: steps.filter.outputs.kubearmor == 'true'
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
       - name: Build KubeArmorController
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
       - name: Install KubeArmor Latest and KubeArmorController using Helm
         run: |
-          # install kubearmor latest and controller built in this PR
-          helm upgrade --install kubearmor ./deployments/helm/KubeArmor \
-          --values ./KubeArmor/build/kubearmor-helm-test-values.yaml \
-          --set kubearmorController.imagePullPolicy=Never \
-          --set kubearmorInit.imagePullPolicy=Always \
-          --set kubearmor.imagePullPolicy=Always \
-          --set kubearmor.image.tag=latest \
-          -n kubearmor --create-namespace;
-          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app
+          # save images
+          docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
+
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+
+          # create kubearmorconfig
+          if [[ ${{ steps.filter.outputs.kubearmor }} == 'true' ]]; then
+            docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
+
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml --dry-run=client -o json | \
+            jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
+            kubectl apply -f -
+          else
+            # use latest kubearmor if no changes in kubearmor or protobuf dir
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml --dry-run=client -o json | \
+            jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never" | .spec.kubearmorImage.imagePullPolicy = "Always" | .spec.kubearmorInitImage.imagePullPolicy = "Always"' | \
+            kubectl apply -f -
+          fi
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          make -C tests/k8s_env/
-        timeout-minutes: 20
+          cd tests/k8s_env
+          ginkgo --vv --flake-attempts=10 --timeout=10m smoke/
+        timeout-minutes: 30
 
       - name: Get karmor sysdump
         if: ${{ failure() }}

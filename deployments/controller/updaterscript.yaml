@@ -1,0 +1,72 @@
+  apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    labels:
+      kubearmor-app: updater
+    name: updater
+    namespace: kubearmor
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        kubearmor-app: updater
+    template:
+      metadata:
+        labels:
+          kubearmor-app: updater
+      spec:
+        containers:
+        - args:
+          - |
+            grep "bpf" /rootfs/sys/kernel/security/lsm >/dev/null
+            [[ $? -eq 0 ]] && echo "sysfs already has BPF enabled" && sleep infinity
+            grep "GRUB_CMDLINE_LINUX.*bpf" /rootfs/etc/default/grub >/dev/null
+            [[ $? -eq 0 ]] && echo "grub already has BPF enabled" && sleep infinity
+            cat <<EOF >/rootfs/updater.sh
+            #!/bin/bash
+            lsmlist=\$(cat /sys/kernel/security/lsm)
+            echo "current lsmlist=\$lsmlist"
+            sed -i "s/^GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX=\"lsm=\$lsmlist,bpf\"/g" /etc/default/grub
+            command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2.cfg
+            command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2/grub.cfg
+            command -v grub-mkconfig >/dev/null 2>&1 && grub-mkconfig -o /boot/grub.cfg
+            command -v aa-status >/dev/null 2>&1 || yum install apparmor-utils -y
+            command -v update-grub >/dev/null 2>&1 && update-grub
+            command -v update-grub2 >/dev/null 2>&1 && update-grub2
+            reboot
+            EOF
+            cat /rootfs/updater.sh
+            chmod +x /rootfs/updater.sh
+            chroot /rootfs/ /bin/bash /updater.sh
+          image: debian
+          command:
+            - "bash"
+            - "-c"
+          imagePullPolicy: Always
+          name: updater
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /rootfs
+            mountPropagation: HostToContainer
+            name: rootfs
+            readOnly: false
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+        hostPID: true
+        nodeSelector:
+          kubernetes.io/os: linux
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - operator: Exists
+        volumes:
+        - hostPath:
+            path: /
+            type: DirectoryOrCreate
+          name: rootfs

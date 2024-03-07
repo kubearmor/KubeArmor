@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/cilium/ebpf"
+	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -26,9 +27,10 @@ const (
 
 // Data Index for rules
 const (
-	PROCESS = 0
-	FILE    = 1
-	NETWORK = 0
+	PROCESS      = 0
+	FILE         = 1
+	NETWORK      = 0
+	CAPABILITIES = 0
 )
 
 // values for posture and retval
@@ -42,6 +44,7 @@ var (
 	PROCWHITELIST = InnerKey{Path: [256]byte{101}}
 	FILEWHITELIST = InnerKey{Path: [256]byte{102}}
 	NETWHITELIST  = InnerKey{Path: [256]byte{103}}
+	CAPWHITELIST  = InnerKey{Path: [256]byte{104}}
 )
 
 // Protocol Identifiers for Network Rules
@@ -64,14 +67,19 @@ const (
 	PROTOCOL uint8 = 3
 )
 
+// Key for mapping capabilities in bpf maps
+const capableKey = 200
+
 // RuleList Structure contains all the data required to set rules for a particular container
 type RuleList struct {
 	ProcessRuleList      map[InnerKey][2]uint8
 	FileRuleList         map[InnerKey][2]uint8
 	NetworkRuleList      map[InnerKey][2]uint8
+	CapabilitiesRuleList map[InnerKey][2]uint8
 	ProcWhiteListPosture bool
 	FileWhiteListPosture bool
 	NetWhiteListPosture  bool
+	CapWhiteListPosture  bool
 }
 
 // Init prepares the RuleList object
@@ -84,6 +92,9 @@ func (r *RuleList) Init() {
 
 	r.NetworkRuleList = make(map[InnerKey][2]uint8)
 	r.NetWhiteListPosture = false
+
+	r.CapabilitiesRuleList = make(map[InnerKey][2]uint8)
+	r.CapWhiteListPosture = false
 }
 
 // UpdateContainerRules updates individual container map with new rules and resolves conflicting rules
@@ -272,6 +283,45 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			}
 		}
+		for _, capab := range secPolicy.Spec.Capabilities.MatchCapabilities {
+			var val [2]uint8
+			var key = InnerKey{Path: [256]byte{}, Source: [256]byte{}}
+
+			key.Path[0] = capableKey
+
+			// this will support both ( CAP_NET_RAW  and NET_RAW ) format type
+			if !strings.Contains(capab.Capability, "cap_") {
+				key.Path[1] = mon.CapToCode["CAP_"+strings.ToUpper(capab.Capability)]
+			} else {
+				key.Path[1] = mon.CapToCode[strings.ToUpper(capab.Capability)]
+			}
+
+			if len(capab.FromSource) == 0 {
+				if capab.Action == "Allow" {
+					newrules.CapWhiteListPosture = true
+					newrules.CapabilitiesRuleList[key] = val
+
+				} else if capab.Action == "Block" {
+					val[CAPABILITIES] = val[CAPABILITIES] | DENY
+					newrules.CapabilitiesRuleList[key] = val
+				}
+			} else {
+				for _, src := range capab.FromSource {
+					var source [256]byte
+					copy(source[:], []byte(src.Path))
+					key.Source = source
+					if capab.Action == "Allow" {
+						newrules.CapWhiteListPosture = true
+						newrules.CapabilitiesRuleList[key] = val
+
+					} else if capab.Action == "Block" {
+						val[CAPABILITIES] = val[CAPABILITIES] | DENY
+						newrules.CapabilitiesRuleList[key] = val
+					}
+
+				}
+			}
+		}
 	}
 
 	fuseProcAndFileRules(newrules.ProcessRuleList, newrules.FileRuleList)
@@ -286,16 +336,29 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 		return
 	}
 
+	if be.ContainerMap[id].Map == nil && !(len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0 && len(newrules.CapabilitiesRuleList) == 0) {
+		// We create the inner map only when we have policies specific to that
+		be.Logger.Printf("Creating inner map for %s", id)
+		be.CreateContainerInnerMap(id)
+	} else if len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0 && len(newrules.CapabilitiesRuleList) == 0 {
+		// All Policies removed for the container
+		be.Logger.Printf("Deleting inner map for %s", id)
+		be.DeleteContainerInnerMap(id)
+		return
+	}
+
 	// Check for differences in Fresh Rules Set and Existing Ruleset
 	be.resolveConflicts(newrules.ProcWhiteListPosture, be.ContainerMap[id].Rules.ProcWhiteListPosture, newrules.ProcessRuleList, be.ContainerMap[id].Rules.ProcessRuleList, be.ContainerMap[id].Map)
 	be.resolveConflicts(newrules.FileWhiteListPosture, be.ContainerMap[id].Rules.FileWhiteListPosture, newrules.FileRuleList, be.ContainerMap[id].Rules.FileRuleList, be.ContainerMap[id].Map)
 	be.resolveConflicts(newrules.NetWhiteListPosture, be.ContainerMap[id].Rules.NetWhiteListPosture, newrules.NetworkRuleList, be.ContainerMap[id].Rules.NetworkRuleList, be.ContainerMap[id].Map)
+	be.resolveConflicts(newrules.CapWhiteListPosture, be.ContainerMap[id].Rules.CapWhiteListPosture, newrules.CapabilitiesRuleList, be.ContainerMap[id].Rules.CapabilitiesRuleList, be.ContainerMap[id].Map)
 
 	// Update Posture
 	if list, ok := be.ContainerMap[id]; ok {
 		list.Rules.ProcWhiteListPosture = newrules.ProcWhiteListPosture
 		list.Rules.FileWhiteListPosture = newrules.FileWhiteListPosture
 		list.Rules.NetWhiteListPosture = newrules.NetWhiteListPosture
+		list.Rules.CapWhiteListPosture = newrules.CapWhiteListPosture
 
 		be.ContainerMap[id] = list
 	}
@@ -368,6 +431,29 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	}
 	for key, val := range newrules.NetworkRuleList {
 		be.ContainerMap[id].Rules.NetworkRuleList[key] = val
+		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
+			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
+		}
+	}
+	if newrules.CapWhiteListPosture {
+		if defaultPosture.CapabilitiesAction == "block" {
+			if err := be.ContainerMap[id].Map.Put(CAPWHITELIST, [2]uint8{BlockPosture}); err != nil {
+				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+			}
+		} else {
+			if err := be.ContainerMap[id].Map.Put(CAPWHITELIST, [2]uint8{AuditPosture}); err != nil {
+				be.Logger.Errf("error adding network key rule to map for container %s: %s", id, err)
+			}
+		}
+	} else {
+		if err := be.ContainerMap[id].Map.Delete(CAPWHITELIST); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				be.Logger.Err(err.Error())
+			}
+		}
+	}
+	for key, val := range newrules.CapabilitiesRuleList {
+		be.ContainerMap[id].Rules.CapabilitiesRuleList[key] = val
 		if err := be.ContainerMap[id].Map.Put(key, val); err != nil {
 			be.Logger.Errf("error adding rule to map for container %s: %s", id, err)
 		}

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	cle "github.com/cilium/ebpf"
+
 	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -114,6 +116,10 @@ bpf:
 		}
 		re.Logger.Print("Initialized BPF-LSM Enforcer")
 		re.EnforcerType = "BPFLSM"
+		// Tell System Monitor that BPF LSM got your back, so it's okay to take rest and do less work
+		if err := monitor.BpfConfigMap.Update(uint32(2), uint32(1), cle.UpdateAny); err != nil {
+			re.Logger.Warnf("Error Updating System Monitor Config Map to notify it about usage of BPF LSM Enforcer : %s", err.Error())
+		}
 		logger.UpdateEnforcer(re.EnforcerType)
 		return re
 	}
@@ -194,7 +200,7 @@ func (re *RuntimeEnforcer) UnregisterContainer(containerID string) {
 }
 
 // UpdateAppArmorProfiles Function
-func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profiles map[string]string) {
+func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName string, action string, profiles map[string]string, privilegedProfiles map[string]struct{}) {
 	// skip if runtime enforcer is not active
 	if re == nil {
 		return
@@ -206,10 +212,12 @@ func (re *RuntimeEnforcer) UpdateAppArmorProfiles(podName, action string, profil
 				continue
 			}
 
+			_, privileged := privilegedProfiles[profile]
+
 			if action == "ADDED" {
-				re.appArmorEnforcer.RegisterAppArmorProfile(podName, profile)
+				re.appArmorEnforcer.RegisterAppArmorProfile(podName, profile, privileged)
 			} else if action == "DELETED" {
-				re.appArmorEnforcer.UnregisterAppArmorProfile(podName, profile)
+				re.appArmorEnforcer.UnregisterAppArmorProfile(podName, profile, privileged)
 			}
 		}
 	}

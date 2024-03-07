@@ -308,7 +308,7 @@ kubearmor:
       readOnly: true
     - mountPath: /etc/apparmor.d
       name: etc-apparmor-d-path
-    - mountPath: /run/dockershim.sock
+    - mountPath: /var/run/containerd/container.sock
       name: containerd-sock-path
       readOnly: true
 
@@ -636,7 +636,7 @@ kubearmor:
         type: DirectoryOrCreate
       name: etc-apparmor-d-path
     - hostPath:
-        path: /run/dockershim.sock
+        path: /var/run/containerd/container.sock
         type: Socket
       name: containerd-sock-path
 

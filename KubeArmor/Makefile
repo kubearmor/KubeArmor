@@ -50,12 +50,12 @@ run: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR)/BPF; make
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block
+	cd $(CURDIR); DEBUG=true sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy -hostVisibility=process,file,network,capabilities -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block
 
 .PHONY: run-container
 run-container: build
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
-	cd $(CURDIR); sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy -enableKubeArmorPolicy -k8s=false
+	cd $(CURDIR); DEBUG=true sudo -E ./kubearmor -logPath=/tmp/kubearmor.log -enableKubeArmorHostPolicy -enableKubeArmorPolicy -k8s=false -criSocket=unix:///var/run/docker.sock
 
 .PHONY: run-host-only
 run-host-only: build
@@ -130,19 +130,17 @@ endif
 scan: 
 	go install golang.org/x/vuln/cmd/govulncheck@latest ;\
 	cd $(CURDIR);\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/BPF/tests;\
-	govulncheck -v ./... ;\
+	govulncheck ./... ;\
+	cd $(CURDIR)/../tests;\
+	govulncheck ./... ;\
+	cd $(CURDIR)/../protobuf;\
+	govulncheck ./... ;\
 	cd $(CURDIR)/../deployments;\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorAnnotation ;\
-	govulncheck -v ./... ;\
+	govulncheck ./... ;\
 	cd $(CURDIR)/../pkg/KubeArmorController ;\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorHostPolicy ;\
-	govulncheck -v ./... ;\
-	cd $(CURDIR)/../pkg/KubeArmorPolicy ;\
-	govulncheck -v ./... ;\
+	govulncheck ./... ;\
+	cd $(CURDIR)/../pkg/KubeArmorOperator;\
+	govulncheck ./... ;\
 
 .PHONY: clean
 clean:

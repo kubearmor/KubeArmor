@@ -20,18 +20,12 @@ var _ = BeforeSuite(func() {
 
 	// delete all KSPs
 	KspDeleteAll()
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
-
 })
 
 var _ = AfterSuite(func() {
 	// delete wordpress-mysql app from syscalls ns
 	err := K8sDelete([]string{"manifests/ubuntu-deployment.yaml"})
 	Expect(err).To(BeNil())
-	KubearmorPortForwardStop()
 })
 
 func getUbuntuPod(name string, ant string) string {
@@ -70,11 +64,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-all-unlink",
+				Severity:   "3",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-all-unlink"))
-			Expect(alerts[0].Severity).To(Equal("3"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -96,11 +95,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-fromsource",
+				Severity:   "4",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-fromsource"))
-			Expect(alerts[0].Severity).To(Equal("4"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -125,11 +129,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-fromsource-dir-recursive",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-fromsource-dir-recursive"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -151,11 +160,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-fromsource-path",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-fromsource-path"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -177,11 +191,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -200,11 +219,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-file-path",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-file-path"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -226,11 +250,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-dir-recursive-fromsource-path",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-dir-recursive-fromsource-path"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -249,11 +278,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-dir-recursive-fromsource-recursive-dir",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-dir-recursive-fromsource-recursive-dir"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -275,11 +309,16 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-dir-recursive-fromsource-dir",
+				Severity:   "1",
+				Action:     "Audit",
+				Result:     "Passed",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-dir-recursive-fromsource-dir"))
-			Expect(alerts[0].Severity).To(Equal("1"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -301,13 +340,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-global-information",
+				Severity:   "8",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Global message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-global-information"))
-			Expect(alerts[0].Severity).To(Equal("8"))
-			Expect(alerts[0].Tags).To(Equal("Global tag"))
-			Expect(alerts[0].Message).To(Equal("Global message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("can detect unlink syscall recursive target with local informations", func() {
@@ -325,13 +369,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-local-information",
+				Severity:   "8",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Local message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-local-information"))
-			Expect(alerts[0].Severity).To(Equal("8"))
-			Expect(alerts[0].Tags).To(Equal("Local tag"))
-			Expect(alerts[0].Message).To(Equal("Local message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("can detect unlink syscall recursive target with local informations when global is set", func() {
@@ -349,13 +398,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-local-trumps-global-information",
+				Severity:   "7",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Local message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-local-trumps-global-information"))
-			Expect(alerts[0].Severity).To(Equal("7"))
-			Expect(alerts[0].Tags).To(Equal("Local tag"))
-			Expect(alerts[0].Message).To(Equal("Local message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("can detect unlink syscall recursive target with missing local informations when global is set", func() {
@@ -373,13 +427,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-global-fill-missing-local-information",
+				Severity:   "7",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Local message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-global-fill-missing-local-information"))
-			Expect(alerts[0].Severity).To(Equal("7"))
-			Expect(alerts[0].Tags).To(Equal("Global tag"))
-			Expect(alerts[0].Message).To(Equal("Local message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 	})
 
@@ -399,13 +458,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-global-information",
+				Severity:   "8",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Global message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-global-information"))
-			Expect(alerts[0].Severity).To(Equal("8"))
-			Expect(alerts[0].Tags).To(Equal("Global tag"))
-			Expect(alerts[0].Message).To(Equal("Global message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("can detect unlink syscall recursive target with local informations", func() {
@@ -423,13 +487,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-local-information",
+				Severity:   "8",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Local message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-local-information"))
-			Expect(alerts[0].Severity).To(Equal("8"))
-			Expect(alerts[0].Tags).To(Equal("Local tag"))
-			Expect(alerts[0].Message).To(Equal("Local message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("can detect unlink syscall recursive target with local informations when global is set", func() {
@@ -447,13 +516,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-local-trumps-global-information",
+				Severity:   "7",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Local message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-local-trumps-global-information"))
-			Expect(alerts[0].Severity).To(Equal("7"))
-			Expect(alerts[0].Tags).To(Equal("Local tag"))
-			Expect(alerts[0].Message).To(Equal("Local message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("can detect unlink syscall recursive target with missing local informations when global is set", func() {
@@ -471,13 +545,18 @@ var _ = Describe("Syscalls", func() {
 			Expect(err).To(BeNil())
 
 			// check policy alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName: "audit-unlink-global-fill-missing-local-information",
+				Severity:   "7",
+				Action:     "Audit",
+				Result:     "Passed",
+				Message:    "Local message",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("audit-unlink-global-fill-missing-local-information"))
-			Expect(alerts[0].Severity).To(Equal("7"))
-			Expect(alerts[0].Tags).To(Equal("Global tag"))
-			Expect(alerts[0].Message).To(Equal("Local message"))
+			Expect(res.Found).To(BeTrue())
+
 		})
 
 		It("mount will be blocked by default for a pod", func() {

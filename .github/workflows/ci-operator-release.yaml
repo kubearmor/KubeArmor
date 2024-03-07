@@ -14,6 +14,8 @@ on:
     branches:
       - "v*"
 
+# Declare default permissions as read only.
+permissions: read-all
 
 env:
   PLATFORM: linux/amd64,linux/arm64/v8
@@ -27,11 +29,11 @@ jobs:
       id-token: write
     timeout-minutes: 90
     steps:
-      - uses: actions/setup-go@v3
-        with:
-          go-version: "v1.20"
-
       - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

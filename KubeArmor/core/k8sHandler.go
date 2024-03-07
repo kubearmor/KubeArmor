@@ -286,16 +286,15 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		}
 		return nil
 
-	} else if kind == "Pod" {
-		_, err := kh.K8sClient.CoreV1().Pods(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
+	} else if kind == "Deployment" {
+		_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
+	} else if kind == "Pod" {
+		// this condition wont be triggered, handled by controller
+		return nil
 
-	}
-	_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
-	if err != nil {
-		return err
 	}
 
 	return nil

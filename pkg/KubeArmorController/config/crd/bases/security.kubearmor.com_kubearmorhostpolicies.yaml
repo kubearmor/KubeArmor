@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.14.0
   creationTimestamp: null
   name: kubearmorhostpolicies.security.kubearmor.com
 spec:
@@ -100,8 +100,6 @@ spec:
                     items:
                       type: string
                     type: array
-                required:
-                - matchCapabilities
                 type: object
               file:
                 properties:
@@ -284,8 +282,6 @@ spec:
                     items:
                       type: string
                     type: array
-                required:
-                - matchProtocols
                 type: object
               nodeSelector:
                 properties:

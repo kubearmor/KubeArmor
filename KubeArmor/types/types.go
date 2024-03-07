@@ -29,11 +29,20 @@ type Container struct {
 	Labels        string   `json:"labels"`
 
 	AppArmorProfile string `json:"apparmorProfile"`
+	Privileged      bool   `json:"privileged"`
 
 	// == //
 
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
+
+	// == //
+
+	NodeName      string `json:"node_name"`
+	ProtocolPort  string `json:"protocolPort"`
+	Status        string `json:"status"`
+	ContainerIP   string `json:"container_ip"`
+	LastUpdatedAt string `json:"last_updated_at"`
 
 	// == //
 
@@ -52,6 +61,17 @@ type PodOwner struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
+// Namespace struct
+type Namespace struct {
+	Name                    string `json:"name,omitempty"`
+	Labels                  string `json:"labels,omitempty"`
+	KubearmorFilePosture    string `json:"kubearmor_file_posture,omitempty"`
+	KubearmorNetworkPosture string `json:"kubearmor_network_posture,omitempty"`
+	LastUpdatedAt           string `json:"last_updated_at,omitempty"`
+
+	ContainerCount int `json:"container_count,omitempty"`
+}
+
 // EndPoint Structure
 type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
@@ -68,6 +88,9 @@ type EndPoint struct {
 	SELinuxProfiles  []string `json:"selinuxProfiles"`
 
 	SecurityPolicies []SecurityPolicy `json:"securityPolicies"`
+
+	// only needed for unorchestrated containers
+	PrivilegedContainers map[string]struct{} `json:"privilegdContainers"`
 
 	// == //
 
@@ -101,6 +124,10 @@ type Node struct {
 
 	// == //
 
+	LastUpdatedAt string `json:"last_updated_at"`
+
+	// == //
+
 	PolicyEnabled int `json:"policyEnabled"`
 
 	ProcessVisibilityEnabled      bool `json:"processVisibilityEnabled"`
@@ -126,6 +153,13 @@ type K8sPod struct {
 	Labels          map[string]string
 	Containers      map[string]string
 	ContainerImages map[string]string
+
+	// using two maps here as it is inefficent to
+	// obtain either from just one
+	// for storing privilegd container names
+	PrivilegedContainers map[string]struct{}
+	// for storing privileged apparmor profile names
+	PrivilegedAppArmorProfiles map[string]struct{}
 }
 
 // K8sPodEvent Structure
@@ -229,6 +263,7 @@ type Log struct {
 	Operation string `json:"operation"`
 	Resource  string `json:"resource"`
 	Cwd       string `json:"cwd"`
+	TTY       string `json:"tty,omitempty"`
 	OID       int32  `json:"oid"`
 	Data      string `json:"data,omitempty"`
 	Action    string `json:"action,omitempty"`

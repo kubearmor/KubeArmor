@@ -60,6 +60,7 @@ type enforcerSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerProgramSpecs struct {
+	EnforceCap        *ebpf.ProgramSpec `ebpf:"enforce_cap"`
 	EnforceFile       *ebpf.ProgramSpec `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.ProgramSpec `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.ProgramSpec `ebpf:"enforce_net_accept"`
@@ -75,8 +76,8 @@ type enforcerMapSpecs struct {
 	Bufk                *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff             *ebpf.MapSpec `ebpf:"bufs_off"`
-	Events              *ebpf.MapSpec `ebpf:"events"`
 	KubearmorContainers *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents     *ebpf.MapSpec `ebpf:"kubearmor_events"`
 }
 
 // enforcerObjects contains all objects after they have been loaded into the kernel.
@@ -101,8 +102,8 @@ type enforcerMaps struct {
 	Bufk                *ebpf.Map `ebpf:"bufk"`
 	Bufs                *ebpf.Map `ebpf:"bufs"`
 	BufsOff             *ebpf.Map `ebpf:"bufs_off"`
-	Events              *ebpf.Map `ebpf:"events"`
 	KubearmorContainers *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents     *ebpf.Map `ebpf:"kubearmor_events"`
 }
 
 func (m *enforcerMaps) Close() error {
@@ -110,8 +111,8 @@ func (m *enforcerMaps) Close() error {
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
-		m.Events,
 		m.KubearmorContainers,
+		m.KubearmorEvents,
 	)
 }
 
@@ -119,6 +120,7 @@ func (m *enforcerMaps) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerPrograms struct {
+	EnforceCap        *ebpf.Program `ebpf:"enforce_cap"`
 	EnforceFile       *ebpf.Program `ebpf:"enforce_file"`
 	EnforceFilePerm   *ebpf.Program `ebpf:"enforce_file_perm"`
 	EnforceNetAccept  *ebpf.Program `ebpf:"enforce_net_accept"`
@@ -129,6 +131,7 @@ type enforcerPrograms struct {
 
 func (p *enforcerPrograms) Close() error {
 	return _EnforcerClose(
+		p.EnforceCap,
 		p.EnforceFile,
 		p.EnforceFilePerm,
 		p.EnforceNetAccept,

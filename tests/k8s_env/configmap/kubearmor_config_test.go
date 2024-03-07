@@ -21,14 +21,9 @@ var _ = BeforeSuite(func() {
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
 })
 
 var _ = AfterSuite(func() {
-	KubearmorPortForwardStop()
 	cm := NewDefaultConfigMapData()
 	cm.DefaultFilePosture = "block"
 	cm.DefaultCapabilitiesPosture = "block"
@@ -87,6 +82,10 @@ var _ = Describe("KubeArmor-Config", func() {
 			// default global visibility is none
 			cm := NewDefaultConfigMapData()
 			err := cm.CreateKAConfigMap()
+			Expect(err).To(BeNil())
+
+			// wait for visibility maps to be updated in kernel, added due to flaky behaviour
+			time.Sleep(5 * time.Second)
 
 			err = KarmorLogStart("all", "unannotated", "", unannotated)
 			Expect(err).To(BeNil())
@@ -105,6 +104,9 @@ var _ = Describe("KubeArmor-Config", func() {
 			cm.Visibility = "file"
 			err = cm.CreateKAConfigMap()
 			Expect(err).To(BeNil())
+
+			// wait for visibility maps to be updated in kernel, added due to flaky behaviour
+			time.Sleep(5 * time.Second)
 
 			err = KarmorLogStart("all", "unannotated", "", unannotated)
 			Expect(err).To(BeNil())
@@ -245,6 +247,7 @@ var _ = Describe("KubeArmor-Config", func() {
 			// default global visibility is none
 			cm := NewDefaultConfigMapData()
 			err := cm.CreateKAConfigMap()
+			Expect(err).To(BeNil())
 
 			err = KarmorLogStart("all", "fullyannotated", "", fullyAnnotated)
 			Expect(err).To(BeNil())

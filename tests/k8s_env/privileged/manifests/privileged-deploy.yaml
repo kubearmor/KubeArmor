@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: privileged
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privileged-deployment
+  namespace: privileged
+  labels:
+    deployment: privileged
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      deployment: privileged
+  template:
+    metadata:
+      labels:
+        deployment: privileged
+    spec:
+      containers:
+        - name: priv-container
+          image: kubearmor/ubuntu-w-utils:0.1
+          securityContext:
+            privileged: true
+        - name: unpriv-container
+          image: kubearmor/ubuntu-w-utils:0.1

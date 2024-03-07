@@ -5,7 +5,7 @@ package enforcer
 
 // ProfileHeader contain sAppArmor Profile/SubProfile header config
 type ProfileHeader struct {
-	File, Network, Capabilities bool
+	File, Network, Capabilities, Privileged bool
 }
 
 // Init sets the presence of Entity headers to true by default
@@ -13,6 +13,7 @@ func (h *ProfileHeader) Init() {
 	h.File = true
 	h.Network = true
 	h.Capabilities = true
+	h.Privileged = false
 }
 
 // RuleConfig contains details for individual apparmor rules
@@ -126,9 +127,11 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	deny @{PROC}/mem rwklx,
 	deny @{PROC}/kmem rwklx,
 	deny @{PROC}/kcore rwklx,
-	
+
+	{{ if not .Privileged }}
 	deny mount,
-	
+	{{end}}
+
 	deny /sys/[^f]*/** wklx,
 	deny /sys/f[^s]*/** wklx,
 	deny /sys/fs/[^c]*/** wklx,
@@ -203,9 +206,17 @@ profile {{$.Name}}-{{$source}} {
 {{define "pre-section"}}
 	## == PRE START == ##
 	#include <abstractions/base>
-			{{ if .File}}	file,{{end}}
-			{{ if .Network}}	network,{{end}}
-			{{ if .Capabilities}}	capability,{{end}}
+	{{ if .Privileged }}
+	## == For privileged workloads == ##
+	umount,
+	mount,
+	signal,
+	unix,
+	ptrace,
+	{{end}}
+	{{ if .File}}file,{{end}}
+	{{ if .Network}}network,{{end}}
+	{{ if .Capabilities}}capability,{{end}}
 	## == PRE END == ##
 {{- end}}
 
@@ -270,21 +281,23 @@ profile {{$.Name}}-{{$source}} {
       {{- end}}
     {{- end}}
 	{{- end}}
-  ## == File/Dir END == ##
+	## == File/Dir END == ##
 {{- end}}
 
 {{ define "post-section"}}
 	## == POST START == ##
 	/lib/x86_64-linux-gnu/{*,**} rm,
-	
+
 	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
 	deny @{PROC}/sysrq-trigger rwklx,
 	deny @{PROC}/mem rwklx,
 	deny @{PROC}/kmem rwklx,
 	deny @{PROC}/kcore rwklx,
-	
+
+	{{ if not .Privileged }}
 	deny mount,
-	
+	{{end}}
+
 	deny /sys/[^f]*/** wklx,
 	deny /sys/f[^s]*/** wklx,
 	deny /sys/fs/[^c]*/** wklx,

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,18 +28,12 @@ var _ = BeforeSuite(func() {
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
 })
 
 var _ = AfterSuite(func() {
 	// delete wordpress-mysql app
 	err := K8sDelete([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-
-	KubearmorPortForwardStop()
 })
 
 func getWpsqlPod(name string, ant string) string {
@@ -74,10 +69,10 @@ var _ = Describe("Posture", func() {
 			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp("curl.*Could not resolve host: google.com"))
+			AssertCommand(
+				wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"},
+				MatchRegexp("curl.*Could not resolve host: google.com"), true,
+			)
 
 			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
 			Expect(err).To(BeNil())
@@ -92,9 +87,14 @@ var _ = Describe("Posture", func() {
 		})
 
 		It("can whitelist certain files accessed by a package while blocking all other sensitive content", func() {
-			// Apply policy
-			err := K8sApplyFile("res/ksp-wordpress-allow-file.yaml")
+			err := util.AnnotateNS("wordpress-mysql", "kubearmor-network-posture", "block")
 			Expect(err).To(BeNil())
+			// Apply policy
+			err = K8sApplyFile("res/ksp-wordpress-allow-file.yaml")
+			Expect(err).To(BeNil())
+
+			// wait for policy creation, added due to flaky behaviour
+			time.Sleep(5 * time.Second)
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)

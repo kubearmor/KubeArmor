@@ -12,6 +12,9 @@ on:
       - "deployments/helm/**"
       - ".github/workflows/ci-test-helm-charts.yml"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   lint:
     name: Helm Chart Tests / ubuntu 20.04
@@ -21,9 +24,9 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.20"
+          go-version-file: 'KubeArmor/go.mod'
 
       - uses: azure/setup-helm@v3
         with:

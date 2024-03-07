@@ -16,6 +16,9 @@ on:
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   build:
     name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
@@ -35,9 +38,9 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.20"
+          go-version-file: 'KubeArmor/go.mod'
  
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh

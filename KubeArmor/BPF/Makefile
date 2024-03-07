@@ -1,7 +1,7 @@
 include Makefile.vars
 
 .PHONY: all
-all: kernel_headers libbpf system_monitor.bpf.o system_monitor.container.bpf.o system_monitor.host.bpf.o
+all: kernel_headers libbpf system_monitor.bpf.o
 
 .PHONY: kernel_headers
 kernel_headers:
@@ -38,15 +38,7 @@ endif
 
 system_monitor.bpf.o: $(SYSMONITOR) $(VMLINUX_H)
 	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
-	$(Q)$(CL) $(KF) -DMONITOR_HOST_AND_CONTAINER -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
-
-system_monitor.container.bpf.o: $(SYSMONITOR) $(VMLINUX_H)
-	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
-	$(Q)$(CL) $(KF) -DMONITOR_CONTAINER -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
-
-system_monitor.host.bpf.o: $(SYSMONITOR) $(VMLINUX_H)
-	@echo "Compiling eBPF bytecode: $(GREEN)$@$(NC) ..."
-	$(Q)$(CL) $(KF) -DMONITOR_HOST -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
+	$(Q)$(CL) $(KF) -Xclang -disable-llvm-passes -c $< -o - | opt -O2 -mtriple=bpf-pc-linux | llvm-dis | llc -march=bpf -mcpu=probe -filetype=obj -o $@
 
 .PHONY: clean
 clean:

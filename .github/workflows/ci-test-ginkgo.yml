@@ -19,6 +19,10 @@ on:
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   build:
     name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
@@ -35,9 +39,9 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.20"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -83,7 +87,7 @@ jobs:
           kubectl get pods -A
           kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
+          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo

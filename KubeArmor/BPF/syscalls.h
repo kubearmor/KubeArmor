@@ -28,6 +28,9 @@ enum
     //process
     _SECURITY_BPRM_CHECK = 352,
 
+    // capabilities
+    _CAPABLE = 464,
+
 
 };
 #endif /* __SYSCALLS_H */

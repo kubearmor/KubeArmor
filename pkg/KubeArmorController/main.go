@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/go-logr/logr"
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
@@ -97,6 +98,7 @@ func main() {
 			Client:   mgr.GetClient(),
 			Logger:   setupLog,
 			Enforcer: detectEnforcer(setupLog),
+			Decoder:  admission.NewDecoder(mgr.GetScheme()),
 		},
 	})
 

@@ -19,6 +19,8 @@ spec:
     - dir: /bin/
     - dir: /pts/
       recursive: true
+    - dir: /dev/
+      recursive: true
     matchPaths:
     - path: /root/.bashrc
     - path: /root/.bash_history

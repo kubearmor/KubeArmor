@@ -1,10 +1,14 @@
 name: ci-latest-helm-chart-release
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
 
 jobs:
   publish-chart:

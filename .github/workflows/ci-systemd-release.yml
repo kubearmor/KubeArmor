@@ -5,8 +5,8 @@ on:
     tags:
       - "*"
 
-permissions:
-  contents: write
+# Declare default permissions as read only.
+permissions: read-all
 
 jobs:
   goreleaser:
@@ -17,9 +17,9 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: "v1.20"
+          go-version-file: 'KubeArmor/go.mod'
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -33,6 +33,8 @@ jobs:
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
+        permissions:
+          contents: write
         with:
           distribution: goreleaser
           version: v1.12.2

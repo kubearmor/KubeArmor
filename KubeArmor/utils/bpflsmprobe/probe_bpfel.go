@@ -60,7 +60,7 @@ type probeProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type probeMapSpecs struct {
-	Events *ebpf.MapSpec `ebpf:"events"`
+	KubearmorEvents *ebpf.MapSpec `ebpf:"kubearmor_events"`
 }
 
 // probeObjects contains all objects after they have been loaded into the kernel.
@@ -82,12 +82,12 @@ func (o *probeObjects) Close() error {
 //
 // It can be passed to loadProbeObjects or ebpf.CollectionSpec.LoadAndAssign.
 type probeMaps struct {
-	Events *ebpf.Map `ebpf:"events"`
+	KubearmorEvents *ebpf.Map `ebpf:"kubearmor_events"`
 }
 
 func (m *probeMaps) Close() error {
 	return _ProbeClose(
-		m.Events,
+		m.KubearmorEvents,
 	)
 }
 

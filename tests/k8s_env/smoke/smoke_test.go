@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,18 +21,12 @@ var _ = BeforeSuite(func() {
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
-
-	// enable kubearmor port forwarding
-	err = KubearmorPortForward()
-	Expect(err).To(BeNil())
 })
 
 var _ = AfterSuite(func() {
 	// Delete wordpress-mysql app
 	err := K8sDelete([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-
-	KubearmorPortForwardStop()
 })
 
 func getWpsqlPod(name string, ant string) string {
@@ -267,6 +262,72 @@ var _ = Describe("Smoke", func() {
 			Expect(err).To(BeNil())
 			fmt.Printf("OUTPUT: %s\n", sout)
 			Expect(sout).To(MatchRegexp("/etc/shadow.*Permission denied"))
+		})
+
+		It("can block write access and only allow read access to mounted files", func() {
+			// Apply policy
+			err := K8sApplyFile("res/ksp-wordpress-block-mount-file.yaml")
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)
+			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
+
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "touch /dev/shm/new"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(ContainSubstring("Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(alerts[0].PolicyName).To(Equal("ksp-wordpress-block-mount-file"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+		})
+		It("will allow use of tcp network protocol by curl and bash", func() {
+			err := util.AnnotateNS("wordpress-mysql", "kubearmor-network-posture", "audit")
+			Expect(err).To(BeNil())
+			// Apply policy
+			err = K8sApplyFile("res/ksp-wordpress-allow-tcp.yaml")
+			Expect(err).To(BeNil())
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
+			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
+
+			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "curl 142.250.193.46"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			// tcp action
+			Expect(sout).To(ContainSubstring("http://www.google.com/"))
+
+			// check alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			fmt.Printf("OUTPUT: %s\n", alerts)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(Equal(0))
+
+			// tcp + udp + raw action
+			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "curl google.com"})
+			Expect(err).To(BeNil())
+			fmt.Printf("OUTPUT: %s\n", sout)
+			Expect(sout).To(ContainSubstring("http://www.google.com/"))
+
+			// check alert
+			_, alerts, err = KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("DefaultPosture"))
+			Expect(alerts[0].Result).To(Equal("Passed"))
 		})
 	})
 

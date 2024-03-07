@@ -23,6 +23,8 @@ spec:
     - dir: /usr/bin/
     - dir: /proc/
       recursive: true
+    - dir: /dev/
+      recursive: true
     matchPaths:
     - path: /dev/tty
     - path: /lib/terminfo/x/xterm
