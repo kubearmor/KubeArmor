@@ -118,6 +118,8 @@ var KubearmorRelayEnvMap = map[string]string{
 
 var ContainerRuntimeSocketMap = map[string][]string{
 	"docker": {
+		"/run/containerd/containerd.sock",
+		"/var/run/containerd/containerd.sock",
 		"/var/run/docker.sock",
 		"/run/docker.sock",
 	},
