@@ -126,6 +126,9 @@ spec:
                     - Never
                     type: string
                 type: object
+              seccompEnabled:
+                default: true
+                type: boolean
             type: object
           status:
             description: KubeArmorConfigStatus defines the observed state of KubeArmorConfig

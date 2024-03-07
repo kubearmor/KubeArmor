@@ -271,6 +271,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdateConfigMapData(&cfg.Spec)
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
+						UpdatedSeccomp(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -292,6 +293,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
+						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						// return if only status has been updated
 						if !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
 							return
@@ -308,6 +310,10 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							// update status to Updating
 							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorRelayEnv(cfg)
+						}
+						if seccompEnabledUpdated {
+							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
+							clusterWatcher.UpdateKubearmorSeccomp(cfg)
 						}
 					}
 				}
@@ -430,6 +436,43 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorRelayEnv(cfg *opv1.KubeArmo
 			clusterWatcher.Log.Infof("Updated Deployment=%s with env=%s", deployments.RelayDeploymentName, common.KubearmorRelayEnvMap)
 		}
 	}
+	return res
+}
+
+func (clusterWatcher *ClusterWatcher) UpdateKubearmorSeccomp(cfg *opv1.KubeArmorConfig) error {
+	var res error
+	dsList, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).List(context.Background(), v1.ListOptions{
+		LabelSelector: "kubearmor-app=kubearmor",
+	})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot list KubeArmor daemonset(s) error=%s", err.Error())
+		res = err
+	} else {
+		for _, ds := range dsList.Items {
+			if cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile == nil {
+				ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+					Type:             corev1.SeccompProfileTypeLocalhost,
+					LocalhostProfile: &common.SeccompProfile,
+				}
+				ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+					Type:             corev1.SeccompProfileTypeLocalhost,
+					LocalhostProfile: &common.SeccompInitProfile,
+				}
+			} else if !cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile != nil {
+				ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = nil
+				ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = nil
+			}
+
+			_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
+				res = err
+			} else {
+				clusterWatcher.Log.Infof("Updated daemonset=%s", ds.Name)
+			}
+		}
+	}
+
 	return res
 }
 
@@ -580,6 +623,18 @@ func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
 	if stringEnableStdOutMsgs != "" {
 		if common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] != stringEnableStdOutMsgs {
 			common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] = stringEnableStdOutMsgs
+			updated = true
+		}
+	}
+	return updated
+}
+
+func UpdatedSeccomp(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	stringSeccompEnabled := strconv.FormatBool(config.SeccompEnabled)
+	if stringSeccompEnabled != "" {
+		if common.ConfigDefaultSeccompEnabled != stringSeccompEnabled {
+			common.ConfigDefaultSeccompEnabled = stringSeccompEnabled
 			updated = true
 		}
 	}
