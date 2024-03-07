@@ -17,6 +17,7 @@ import (
 // AllowedHostProcessMatchPaths Function
 func (ae *AppArmorEnforcer) AllowedHostProcessMatchPaths(path tp.ProcessPathType, fromSources map[string][]string) {
 	if len(path.FromSource) == 0 {
+		// TODO: Why are we not handling whitelist rules without fromsource
 		return
 	}
 
@@ -212,13 +213,24 @@ func (ae *AppArmorEnforcer) AllowedHostCapabilitiesMatchCapabilities(cap tp.Capa
 
 // BlockedHostProcessMatchPaths Function
 func (ae *AppArmorEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType, processBlackList *[]string, fromSources map[string][]string) {
+	proc := ""
+	if len(path.ExecName) > 0 {
+		proc = "/**/" + path.ExecName
+	} else {
+		proc = path.Path
+	}
+
+	if proc == "" {
+		return
+	}
+
 	if len(path.FromSource) == 0 {
 		line := ""
 
 		if path.OwnerOnly {
-			line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
+			line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", proc, proc)
 		} else { // !path.OwnerOnly
-			line = fmt.Sprintf("  deny %s x,\n", path.Path)
+			line = fmt.Sprintf("  deny %s x,\n", proc)
 		}
 
 		if !kl.ContainsElement(*processBlackList, line) {
@@ -241,9 +253,9 @@ func (ae *AppArmorEnforcer) BlockedHostProcessMatchPaths(path tp.ProcessPathType
 		}
 
 		if path.OwnerOnly {
-			line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", path.Path, path.Path)
+			line = fmt.Sprintf("  owner %s ix,\n  deny other %s x,\n", proc, proc)
 		} else { // !path.OwnerOnly
-			line = fmt.Sprintf("  deny %s x,\n", path.Path)
+			line = fmt.Sprintf("  deny %s x,\n", proc)
 		}
 
 		if !kl.ContainsElement(fromSources[source], line) {

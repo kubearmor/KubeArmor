@@ -152,6 +152,20 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
     goto decision;
   }
 
+
+  // match exec name
+  struct qstr d_name;
+  d_name = BPF_CORE_READ(f_path.dentry,d_name);
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+  bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
+
+  val = bpf_map_lookup_elem(inner, pk);
+
+  if (val && (val->processmask & RULE_EXEC)) {
+    match = true;
+    goto decision;
+  }
+
   recursivebuthint = false;
 
 #pragma unroll
@@ -311,31 +325,30 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
     fromSourceCheck = false;
 
   void *ptr = &src_buf->buf[*src_offset];
-  
-  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
-      p0 = sock_proto;
-      p1 = IPPROTO_TCP;
-    } else if (type == SOCK_DGRAM &&
-               (protocol == IPPROTO_UDP || protocol == 0)) {
-      p0 = sock_proto;
-      p1 = IPPROTO_UDP;
-    } else if (protocol == IPPROTO_ICMP &&
-               (type == SOCK_DGRAM || type == SOCK_RAW)) {
-      p0 = sock_proto;
-      p1 = IPPROTO_ICMP;
-    } else if (type == SOCK_RAW && protocol == 0) {
-      p0 = sock_type;
-      p1 = SOCK_RAW;
-    } else {
-      p0 = sock_proto;
-      p1 = protocol;
-    }
 
-  if (fromSourceCheck) { 
+  if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
+    p0 = sock_proto;
+    p1 = IPPROTO_TCP;
+  } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
+    p0 = sock_proto;
+    p1 = IPPROTO_UDP;
+  } else if (protocol == IPPROTO_ICMP &&
+             (type == SOCK_DGRAM || type == SOCK_RAW)) {
+    p0 = sock_proto;
+    p1 = IPPROTO_ICMP;
+  } else if (type == SOCK_RAW && protocol == 0) {
+    p0 = sock_type;
+    p1 = SOCK_RAW;
+  } else {
+    p0 = sock_proto;
+    p1 = protocol;
+  }
+
+  if (fromSourceCheck) {
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     p->path[0] = p0;
     p->path[1] = p1;
-    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);      
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
     val = bpf_map_lookup_elem(inner, p);
     if (val) {
       match = true;
@@ -346,7 +359,7 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
   p->path[0] = p0;
   p->path[1] = p1;
-  
+
   val = bpf_map_lookup_elem(inner, p);
 
   if (val) {
@@ -364,11 +377,10 @@ decision:
     }
   }
 
-  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);  
-  p->path[0] = dnet ;
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = dnet;
 
   struct data_t *allow = bpf_map_lookup_elem(inner, p);
-
 
   if (allow) {
     if (!match) {
@@ -437,7 +449,8 @@ int BPF_PROG(enforce_file_perm, struct file *file, int mask) {
   return match_and_enforce_path_hooks(&f_path, dfilewrite, _FILE_PERMISSION);
 }
 SEC("lsm/capable")
-int BPF_PROG(enforce_cap,  const struct cred *cred, struct user_namespace *ns ,int cap, int ret){
+int BPF_PROG(enforce_cap, const struct cred *cred, struct user_namespace *ns,
+             int cap, int ret) {
 
   event *task_info;
   int retval = 0;
@@ -493,12 +506,12 @@ int BPF_PROG(enforce_cap,  const struct cred *cred, struct user_namespace *ns ,i
   void *ptr = &src_buf->buf[*src_offset];
   p0 = CAPABLE_KEY;
   p1 = cap;
-  
+
   if (fromSourceCheck) {
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
-    p->path[0] = p0 ;
-    p->path[1] = p1 ;
+    p->path[0] = p0;
+    p->path[1] = p1;
     val = bpf_map_lookup_elem(inner, p);
 
     if (val) {
@@ -506,7 +519,7 @@ int BPF_PROG(enforce_cap,  const struct cred *cred, struct user_namespace *ns ,i
       goto decision;
     }
   }
-    
+
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
   // check for rules without fromsource
   p->path[0] = p0;
@@ -518,7 +531,7 @@ int BPF_PROG(enforce_cap,  const struct cred *cred, struct user_namespace *ns ,i
     match = true;
     goto decision;
   }
- 
+
 decision:
   bpf_probe_read_str(store->path, MAX_STRING_SIZE, p->path);
   if (match) {
@@ -561,5 +574,4 @@ ringbuf:
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
   return retval;
-
 }

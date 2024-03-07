@@ -640,6 +640,32 @@ var _ = Describe("Ksp", func() {
 
 		})
 
+		It("it can block process execution with just binary name", func() {
+			// multiubuntu_test_15
+
+			// Apply KubeArmor Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-proc-execname.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-proc-execname",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 	})
 
 	Describe("Apply Files Policies", func() {

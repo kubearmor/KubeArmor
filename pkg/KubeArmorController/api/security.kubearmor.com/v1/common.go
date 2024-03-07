@@ -11,6 +11,9 @@ type NodeSelectorType struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
+// +kubebuilder:validation:Pattern=^[^\/]+$
+type MatchBinType string
+
 // +kubebuilder:validation:Pattern=^\/+.*[^\/]$
 type MatchPathType string
 
@@ -25,7 +28,11 @@ type MatchSourceType struct {
 }
 
 type ProcessPathType struct {
-	Path MatchPathType `json:"path"`
+	// +kubebuilder:validation:Optional
+	Path MatchPathType `json:"path,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	ExecName MatchBinType `json:"execname,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	OwnerOnly bool `json:"ownerOnly,omitempty"`

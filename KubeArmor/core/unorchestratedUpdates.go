@@ -677,9 +677,13 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 					}
 
 				} else { // HostSecurityPolicy
-					var hostPolicy tp.HostSecurityPolicy
+					var hostPolicy tp.K8sKubeArmorHostPolicy
 					if err := json.Unmarshal(data, &hostPolicy); err == nil {
-						dm.HostSecurityPolicies = append(dm.HostSecurityPolicies, hostPolicy)
+						hostPolicy.Metadata.Name = k.Metadata["policyName"]
+						dm.ParseAndUpdateHostSecurityPolicy(tp.K8sKubeArmorHostPolicyEvent{
+							Type:   "ADDED",
+							Object: hostPolicy,
+						})
 					} else {
 						kg.Errf("Failed to unmarshal host policy: %v", err)
 					}
@@ -687,11 +691,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 			}
 		}
 
-		if len(policyFiles) != 0 {
-			if len(dm.HostSecurityPolicies) != 0 {
-				dm.UpdateHostSecurityPolicies()
-			}
-		} else {
+		if len(policyFiles) == 0 {
 			kg.Warn("No policies found for restoration")
 		}
 	}
