@@ -12,6 +12,8 @@ jobs:
   goreleaser:
     runs-on: ubuntu-20.04
     if: github.repository == 'kubearmor/kubearmor'
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,8 +35,6 @@ jobs:
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
-        permissions:
-          contents: write
         with:
           distribution: goreleaser
           version: v1.12.2
