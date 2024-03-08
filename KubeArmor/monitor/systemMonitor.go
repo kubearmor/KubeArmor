@@ -194,7 +194,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 	mon.NsVisibilityMap = make(map[NsKey]*cle.Map)
 	mon.NamespacePidsMap = make(map[string]NsVisibility)
 	mon.BpfVisibilityMapSpec = cle.MapSpec{
-		Type:       cle.Array,
+		Type:       cle.Hash,
 		KeySize:    4,
 		ValueSize:  4,
 		MaxEntries: 4,
