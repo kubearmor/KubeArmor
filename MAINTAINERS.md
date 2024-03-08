@@ -11,4 +11,6 @@ The list is sorted in ascending order.
 * [Barun Acharya](https://github.com/daemon1024) (AccuKnox)
 * [Jaehyun Nam](https://github.com/nam-jaehyun) (Dankook Univ)
 * [Rahul Jadhav](https://github.com/nyrahul) (AccuKnox)
+* [Ramakant Sharma](https://github.com/rksharma95) (AccuKnox)
+* [Rudraksh Pareek](https://github.com/DelusionalOptimist) (AccuKnox) 
 
