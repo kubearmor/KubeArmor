@@ -17,6 +17,7 @@ spec:
   enableStdOutLogs: false
   enableStdOutAlerts: false
   enableStdOutMsgs: false
+  seccompEnabled: true
   kubearmorImage:
     image: kubearmor/kubearmor:stable
     imagePullPolicy: Always

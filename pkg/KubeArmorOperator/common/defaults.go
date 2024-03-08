@@ -51,6 +51,7 @@ var (
 	BTFLabel        string = "kubearmor.io/btf"
 	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
 	SecurityFsLabel string = "kubearmor.io/securityfs"
+	SeccompLabel    string = "kubearmor.io/seccomp"
 
 	// if any node with securityfs/lsm present
 	IfNodeWithSecurtiyFs bool = false
@@ -98,6 +99,8 @@ var (
 	KubeRbacProxyName                  string = "kube-rbac-proxy"
 	KubeRbacProxyImage                 string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0"
 	KubeRbacProxyImagePullPolicy       string = "Always"
+	SeccompProfile                            = "kubearmor-seccomp.json"
+	SeccompInitProfile                        = "kubearmor-init-seccomp.json"
 )
 
 var ConfigMapData = map[string]string{
@@ -109,6 +112,8 @@ var ConfigMapData = map[string]string{
 	ConfigVisibility:                 "process,network,capabilities",
 	ConfigDefaultPostureLogs:         "true",
 }
+
+var ConfigDefaultSeccompEnabled = "true"
 
 var KubearmorRelayEnvMap = map[string]string{
 	EnableStdOutAlerts: "false",
