@@ -34,7 +34,7 @@ kubeRbacProxy:
     # kube-rbac-proxy image repo
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     # kube-rbac-proxy image tag
-    tag: v0.12.0
+    tag: v0.15.0
   # kube-rbac-proxy imagePullPolicy
   imagePullPolicy: Always
 

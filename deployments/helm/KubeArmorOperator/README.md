@@ -78,7 +78,7 @@ spec:
 
     # kube-rbac-proxy image and pull policy
     kubeRbacProxyImage:
-        image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0
+        image: [image-repo:tag]                                # DEFAULT - gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
         imagePullPolicy: [image pull policy]                   # DEFAULT - Always
 ```
 
