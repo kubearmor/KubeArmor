@@ -1362,7 +1362,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policy ksp.KubeArmorPolicy) (sec
 }
 
 // WatchSecurityPolicies Function
-func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
+func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 	for {
 		if !K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
 			time.Sleep(time.Second * 1)
@@ -1375,7 +1375,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 	factory := kspinformer.NewSharedInformerFactory(K8s.KSPClient, 0)
 
 	informer := factory.Security().V1().KubeArmorPolicies().Informer()
-	if _, err := informer.AddEventHandler(
+	registration, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				// create a security policy
@@ -1449,13 +1449,14 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() {
 				}
 			},
 		},
-	); err != nil {
+	)
+	if err != nil {
 		dm.Logger.Err("Couldn't start watching KubeArmor Security Policies")
-		return
+		return nil
 	}
 
 	go factory.Start(wait.NeverStop)
-	factory.WaitForCacheSync(wait.NeverStop)
+	return registration.HasSynced
 }
 
 // ================================= //
@@ -2226,11 +2227,11 @@ func (dm *KubeArmorDaemon) UpdateGlobalPosture(posture tp.DefaultPosture) {
 }
 
 // WatchDefaultPosture Function
-func (dm *KubeArmorDaemon) WatchDefaultPosture() {
+func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
 	informer := factory.Core().V1().Namespaces().Informer()
 
-	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if ns, ok := obj.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
@@ -2306,18 +2307,18 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() {
 				dm.UpdateVisibility("DELETED", ns.Name, tp.Visibility{})
 			}
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		dm.Logger.Err("Couldn't start watching Default Posture Annotations and namespace")
-		return
+		return nil
 	}
 
 	go factory.Start(wait.NeverStop)
-	factory.WaitForCacheSync(wait.NeverStop)
-	dm.Logger.Print("Started watching Default Posture Annotations and namespace")
+	return registration.HasSynced
 }
 
 // WatchConfigMap function
-func (dm *KubeArmorDaemon) WatchConfigMap() {
+func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 	configMapLabelOption := informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
 		opts.LabelSelector = fmt.Sprintf("kubearmor-app=%s", "kubearmor-configmap")
 	})
@@ -2326,7 +2327,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 
 	cmNS := dm.GetConfigMapNS()
 
-	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
@@ -2382,15 +2383,14 @@ func (dm *KubeArmorDaemon) WatchConfigMap() {
 		DeleteFunc: func(obj interface{}) {
 			// nothing to do here
 		},
-	}); err != nil {
+	})
+	if err != nil {
 		dm.Logger.Err("Couldn't start watching Configmap")
-		return
+		return nil
 	}
 
 	go factory.Start(wait.NeverStop)
-	factory.WaitForCacheSync(wait.NeverStop)
-	dm.Logger.Print("Started watching Configmap")
-
+	return registration.HasSynced
 }
 
 // GetConfigMapNS Returns KubeArmor configmap namespace

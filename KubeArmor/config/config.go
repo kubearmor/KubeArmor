@@ -52,6 +52,7 @@ type KubearmorConfig struct {
 	BPFFsPath          string   // path to the BPF filesystem
 	EnforcerAlerts     bool     // policy enforcer
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
+	InitTimeout        string   // Timeout for main thread init stages
 
 	StateAgent bool // enable KubeArmor state agent
 }
@@ -93,6 +94,7 @@ const (
 	BPFFsPath                            string = "bpfFsPath"
 	EnforcerAlerts                       string = "enforcerAlerts"
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
+	ConfigInitTimeout                    string = "initTimeout"
 	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
 )
 
@@ -137,6 +139,8 @@ func readCmdLineParams() {
 	enforcerAlerts := flag.Bool(EnforcerAlerts, true, "ebpf alerts")
 
 	defaultPostureLogs := flag.Bool(ConfigDefaultPostureLogs, true, "Default Posture Alerts (for Apparmor only)")
+
+	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
@@ -189,6 +193,8 @@ func readCmdLineParams() {
 	viper.SetDefault(EnforcerAlerts, *enforcerAlerts)
 
 	viper.SetDefault(ConfigDefaultPostureLogs, *defaultPostureLogs)
+
+	viper.SetDefault(ConfigInitTimeout, *initTimeout)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
 }
@@ -281,6 +287,8 @@ func LoadConfig() error {
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 

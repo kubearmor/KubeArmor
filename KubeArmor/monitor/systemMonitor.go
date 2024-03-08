@@ -352,7 +352,11 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		if err != nil {
 			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey, capability.Value)
 		}
+
+		// Need to lock NsMap to print the following log message
+		mon.NsMapLock.RLock()
 		mon.Logger.Printf("Updated visibility map with key=%+v for cid %s", nsKey, mon.NsMap[nsKey])
+		mon.NsMapLock.RUnlock()
 	} else if action == "DELETED" {
 		err := mon.BpfNsVisibilityMap.Delete(nsKey)
 		if err != nil {

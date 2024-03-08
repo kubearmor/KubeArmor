@@ -5,6 +5,7 @@
 package core
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"k8s.io/client-go/tools/cache"
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -147,6 +149,8 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 
 // DestroyKubeArmorDaemon Function
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
+	close(StopChan)
+
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
 		if dm.CloseRuntimeEnforcer() {
@@ -694,22 +698,59 @@ func KubeArmor() {
 	// == //
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// watch k8s pods
-		go dm.WatchK8sPods()
-		dm.Logger.Print("Started to monitor Pod events")
+		timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
+		if err != nil {
+			dm.Logger.Warnf("Not a valid InitTimeout duration: %q, defaulting to '60s'", cfg.GlobalCfg.InitTimeout)
+			timeout = 60 * time.Second
+		}
 
 		// watch security policies
-		go dm.WatchSecurityPolicies()
+		securityPoliciesSynced := dm.WatchSecurityPolicies()
+		if securityPoliciesSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
 		dm.Logger.Print("Started to monitor security policies")
 
 		// watch default posture
-		go dm.WatchDefaultPosture()
+		defaultPostureSynced := dm.WatchDefaultPosture()
+		if defaultPostureSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
 		dm.Logger.Print("Started to monitor per-namespace default posture")
 
 		// watch kubearmor configmap
-		go dm.WatchConfigMap()
+		configMapSynced := dm.WatchConfigMap()
+		if configMapSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
 		dm.Logger.Print("Watching for posture changes")
 
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		synced := cache.WaitForCacheSync(ctx.Done(), securityPoliciesSynced, defaultPostureSynced, configMapSynced)
+		if !synced {
+			dm.Logger.Err("Failed to sync Kubernetes informers")
+
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+
+		// watch k8s pods (function never returns, must be called in a
+		// goroutine)
+		go dm.WatchK8sPods()
+		dm.Logger.Print("Started to monitor Pod events")
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
@@ -782,7 +823,6 @@ func KubeArmor() {
 		sigChan := GetOSSigChannel()
 		<-sigChan
 		dm.Logger.Print("Got a signal to terminate KubeArmor")
-		close(StopChan)
 	}
 
 	// destroy the daemon
