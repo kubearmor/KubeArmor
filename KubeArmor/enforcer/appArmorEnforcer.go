@@ -5,6 +5,7 @@
 package enforcer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -482,9 +483,12 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 	/* For privileged profiles, we maintain a separate map so that privileged pods
 	   are identified separately and their profiles are generated accordingly
 	*/
+
 	ae.AppArmorPrivilegedProfilesLock.Lock()
+	fmt.Println("UpdateAppArmorProfile function attained lock")
 	_, privileged := ae.AppArmorPrivilegedProfiles[appArmorProfile]
 	ae.AppArmorPrivilegedProfilesLock.Unlock()
+	fmt.Println("UpdateAppArmorProfile function attained unlocked")
 
 	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture, privileged); ok {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
@@ -535,11 +539,14 @@ func (ae *AppArmorEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	if ae == nil {
 		return
 	}
+	fmt.Println("UPDATE APPARMOR SECURITY POLICIES CALLED")
 
 	appArmorProfiles := []string{}
 
 	for _, appArmorProfile := range endPoint.AppArmorProfiles {
 		if kl.ContainsElement([]string{"docker-default", "unconfined", "cri-containerd.apparmor.d", "crio-default", ""}, appArmorProfile) {
+			fmt.Println("SKIPPED PROFILE GENERATION FOR: ", endPoint.EndPointName, endPoint.AppArmorProfiles)
+			fmt.Println("APPARMOR PROFILE TO MATCH:", appArmorProfile)
 			continue
 		}
 

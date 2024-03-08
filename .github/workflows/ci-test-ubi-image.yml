@@ -3,18 +3,18 @@ name: ci-test-ubi-ginkgo
 on:
   push:
     branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "KubeArmor/**"
-      - "tests/**"
-      - "protobuf/**"
-      - ".github/workflows/ci-test-ginkgo.yml"
+      #paths:
+      #  - "KubeArmor/**"
+      #  - "tests/**"
+      #  - "protobuf/**"
+      #  - ".github/workflows/ci-test-ginkgo.yml"
+      #pull_request:
+      #  branches: [main]
+      #  paths:
+      #    - "KubeArmor/**"
+      #    - "tests/**"
+      #    - "protobuf/**"
+      #    - ".github/workflows/ci-test-ginkgo.yml"
 
 # Declare default permissions as read only.
 permissions: read-all

@@ -229,6 +229,7 @@ func (re *RuntimeEnforcer) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	if re == nil {
 		return
 	}
+	fmt.Println("UPDATE SECURITY POLICIES CALLED")
 
 	if re.EnforcerType == "BPFLSM" {
 		re.bpfEnforcer.UpdateSecurityPolicies(endPoint)
