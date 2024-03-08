@@ -77,7 +77,7 @@ func (ch *CrioHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function gets info of a particular container
-func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string) (tp.Container, error) {
+func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
 	// request to get status of specified container
 	// verbose has to be true to retrieve additional CRI specific info
 	req := &pb.ContainerStatusRequest{
@@ -108,6 +108,12 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string)
 	}
 	if val, ok := containerLables["io.kubernetes.pod.name"]; ok {
 		container.EndPointName = val
+	}
+
+	if len(OwnerInfo) > 0 {
+		if podOwnerInfo, ok := OwnerInfo[container.EndPointName]; ok {
+			container.Owner = podOwnerInfo
+		}
 	}
 
 	// extracting the runtime specific "info"
@@ -201,7 +207,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 	if action == "start" {
 		// get container info from client
-		container, err := Crio.GetContainerInfo(ctx, containerID)
+		container, err := Crio.GetContainerInfo(ctx, containerID, dm.OwnerInfo)
 		if err != nil {
 			return false
 		}

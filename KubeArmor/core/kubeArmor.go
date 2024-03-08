@@ -65,6 +65,9 @@ type KubeArmorDaemon struct {
 	EndPoints     []tp.EndPoint
 	EndPointsLock *sync.RWMutex
 
+	// Owner Info
+	OwnerInfo map[string]tp.PodOwner
+
 	// Security policies
 	SecurityPolicies     []tp.SecurityPolicy
 	SecurityPoliciesLock *sync.RWMutex
@@ -143,6 +146,8 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 	dm.WgDaemon = sync.WaitGroup{}
 
 	dm.MonitorLock = new(sync.RWMutex)
+
+	dm.OwnerInfo = map[string]tp.PodOwner{}
 
 	return dm
 }

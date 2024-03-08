@@ -76,9 +76,8 @@ type Namespace struct {
 type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
 
-	EndPointName  string   `json:"endPointName"`
-	Owner         PodOwner `json:"owner,omitempty"`
-	ContainerName string   `json:"containerName"`
+	EndPointName  string `json:"endPointName"`
+	ContainerName string `json:"containerName"`
 
 	Labels     map[string]string `json:"labels"`
 	Identities []string          `json:"identities"`
