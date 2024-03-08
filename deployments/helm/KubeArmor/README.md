@@ -32,7 +32,7 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 | kubearmorInit.image.tag | string | stable | kubearmor-init image tag |
 | kubearmorInit.imagePullPolicy | string | Always | kubearmor-init imagePullPolicy |
 | kubeRbacProxy.image.repository | string | gcr.io/kubebuilder/kube-rbac-proxy | kube-rbac-proxy image repo |
-| kubeRbacProxy.image.tag | string | v0.12.0 | kube-rbac-proxy image tag |
+| kubeRbacProxy.image.tag | string | v0.15.0 | kube-rbac-proxy image tag |
 | kubeRbacProxy.imagePullPolicy | string | Always | kube-rbac-proxy imagePullPolicy |
 | kubearmorController.replicas | int | 1 | kubearmor-controller replicas |
 | kubearmorController.image.repository | string | kubearmor/kubearmor-controller | kubearmor-controller image repo |

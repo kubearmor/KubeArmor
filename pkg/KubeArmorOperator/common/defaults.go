@@ -97,7 +97,7 @@ var (
 	KubeArmorControllerImage           string = "kubearmor/kubearmor-controller:latest"
 	KubeArmorControllerImagePullPolicy string = "Always"
 	KubeRbacProxyName                  string = "kube-rbac-proxy"
-	KubeRbacProxyImage                 string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0"
+	KubeRbacProxyImage                 string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0"
 	KubeRbacProxyImagePullPolicy       string = "Always"
 	SeccompProfile                            = "kubearmor-seccomp.json"
 	SeccompInitProfile                        = "kubearmor-init-seccomp.json"
