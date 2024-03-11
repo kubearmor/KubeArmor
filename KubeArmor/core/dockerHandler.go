@@ -172,15 +172,19 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 		container.Labels = strings.Join(labels, ",")
 
 		var podIP string
-		if inspect.HostConfig.NetworkMode.IsNone() || inspect.HostConfig.NetworkMode.IsContainer() {
-			podIP = ""
-		} else if inspect.HostConfig.NetworkMode.IsHost() {
-			podIP = dh.NodeIP
-		} else if inspect.HostConfig.NetworkMode.IsDefault() {
-			podIP = inspect.NetworkSettings.Networks["bridge"].IPAddress
-		} else {
-			networkName := inspect.HostConfig.NetworkMode.NetworkName()
-			podIP = inspect.NetworkSettings.Networks[networkName].IPAddress
+		if inspect.HostConfig != nil {
+			if inspect.HostConfig.NetworkMode.IsNone() || inspect.HostConfig.NetworkMode.IsContainer() {
+				podIP = ""
+			} else if inspect.HostConfig.NetworkMode.IsHost() {
+				podIP = dh.NodeIP
+			} else {
+				// user defined network OR swarm mode
+				networkName := inspect.HostConfig.NetworkMode.NetworkName()
+				networkInfo, ok := inspect.NetworkSettings.Networks[networkName]
+				if ok && networkInfo != nil {
+					podIP = networkInfo.IPAddress
+				}
+			}
 		}
 		container.ContainerIP = podIP
 
