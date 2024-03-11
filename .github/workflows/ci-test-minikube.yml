@@ -86,12 +86,18 @@ jobs:
           container-runtime: containerd
 
       - name: Generate KubeArmor artifacts
-        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+        run: |
+          if [ ${{ github.ref }} == "refs/heads/main" ]; then
+          echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+          echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          fi
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
         run: |
-          make docker-build 
+          make docker-build TAG=${{ steps.vars.outputs.tag }}
 
       - name: deploy pre existing pod
         run: |
