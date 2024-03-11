@@ -52,6 +52,7 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 		common.SocketLabel:   socket,
 		common.OsLabel:       "linux",
 		common.BTFLabel:      btfPresent,
+		common.SeccompLabel:  seccompPresent,
 	}
 	daemonset.Spec.Template.Spec.NodeSelector = common.CopyStrMap(labels)
 	labels["kubearmor-app"] = "kubearmor"
