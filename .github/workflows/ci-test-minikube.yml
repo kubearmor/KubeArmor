@@ -88,17 +88,12 @@ jobs:
       - name: Generate KubeArmor artifacts
         id: vars
         run: |
-          if [ ${{ github.ref }} == "refs/heads/main" ]; then
-          echo "tag=latest" >> $GITHUB_OUTPUT
-          else
-          echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-          fi
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh latest
 
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
         run: |
-          make docker-build TAG=${{ steps.vars.outputs.tag }}
+          make docker-build TAG=latest
 
       - name: deploy pre existing pod
         run: |
@@ -108,10 +103,10 @@ jobs:
 
       - name: Run KubeArmor
         run: |
-          docker save kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
-          docker save kubearmor/kubearmor:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
-          docker save kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
-          docker save kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
           
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
