@@ -1,4 +1,4 @@
-name: ci-latest-release
+name: ci-test-minikube
 
 on:
   push:
