@@ -83,7 +83,7 @@ jobs:
         uses: medyagh/setup-minikube@latest
         with:
           driver: virtualbox
-          container-runtime: containerd
+          container-runtime: docker
 
       - name: Generate KubeArmor artifacts
         id: vars
@@ -103,10 +103,10 @@ jobs:
 
       - name: Run KubeArmor
         run: |
-          docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
-          docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
-          docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
-          docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-init:latest | minikube image load -
+          docker save kubearmor/kubearmor:latest | minikube image load -
+          docker save kubearmor/kubearmor-operator:latest | minikube image load -
+          docker save kubearmor/kubearmor-snitch:latest | minikube image load -
           
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
