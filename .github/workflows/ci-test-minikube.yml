@@ -86,6 +86,7 @@ jobs:
           container-runtime: containerd
 
       - name: Generate KubeArmor artifacts
+        id: vars
         run: |
           if [ ${{ github.ref }} == "refs/heads/main" ]; then
           echo "tag=latest" >> $GITHUB_OUTPUT
