@@ -41,6 +41,9 @@ type KubeArmorHostPolicyStatus struct {
 // +genclient:nonNamespaced
 // +kubebuilder:resource:scope=Cluster,shortName=hsp
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Action",type=string,JSONPath=`.spec.action`,priority=10
+// +kubebuilder:printcolumn:name="Selector",type=string,JSONPath=`.spec.nodeSelector.matchLabels`,priority=10
 type KubeArmorHostPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
