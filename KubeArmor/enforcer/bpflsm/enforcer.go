@@ -346,6 +346,8 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Operation = "Process"
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
+			log.ProcessName = log.Resource
+			log.ParentProcessName = log.Source
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
 		case mon.Capable:
