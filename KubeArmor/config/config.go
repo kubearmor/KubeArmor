@@ -101,7 +101,7 @@ const (
 func readCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
-	hostStr := flag.String(ConfigHost, strings.Split(hostname, ".")[0], "host name")
+	hostStr := flag.String(ConfigHost, hostname, "host name")
 
 	grpcStr := flag.String(ConfigGRPC, "32767", "gRPC port number")
 	tlsEnabled := flag.Bool(ConfigTLS, false, "enable tls for secure grpc connection")

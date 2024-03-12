@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -420,13 +421,19 @@ func (kh *K8sHandler) GetStatefulSet(namespaceName, podownerName string) (string
 // ========== //
 
 // WatchK8sPods Function
-func (kh *K8sHandler) WatchK8sPods() *http.Response {
+func (kh *K8sHandler) WatchK8sPods(nodeName string) *http.Response {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
 
+	queryParams := url.Values{}
+	if nodeName != "" {
+		queryParams.Add("fieldSelector", "spec.nodeName="+nodeName)
+	}
+	queryParams.Add("watch", "true")
+
 	if kl.IsInK8sCluster() { // kube-apiserver
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
+		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?" + queryParams.Encode()
 
 		req, err := http.NewRequest("GET", URL, nil)
 		if err != nil {
@@ -445,7 +452,7 @@ func (kh *K8sHandler) WatchK8sPods() *http.Response {
 	}
 
 	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?watch=true"
+	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?" + queryParams.Encode()
 
 	if resp, err := http.Get(URL); err == nil /* #nosec */ {
 		return resp
