@@ -82,7 +82,7 @@ jobs:
               sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
             fi
           fi
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
