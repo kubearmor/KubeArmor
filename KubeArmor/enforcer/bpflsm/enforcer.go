@@ -360,6 +360,9 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.ProcessName = log.Source
 		}
+		if len(log.ProcessName) == 0 && len(log.Source) > 0 {
+			log.ProcessName = log.Source
+		}
 		if event.Retval >= 0 {
 			log.Result = "Passed"
 		} else {
