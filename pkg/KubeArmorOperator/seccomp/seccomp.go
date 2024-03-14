@@ -223,8 +223,12 @@ func LoadSeccompInNode() {
 }
 
 func CheckIfSeccompProfilePresent() string {
-	if _, err := os.Stat(filepath.Clean(seccompPath)); err == nil {
+	_, err1 := os.Stat(filepath.Clean(seccompPath + "/kubearmor-init-seccomp.json"))
+	_, err2 := os.Stat(filepath.Clean(seccompPath + "/kubearmor-seccomp.json"))
+
+	if err1 == nil && err2 == nil {
 		return "yes"
 	}
+
 	return "no"
 }
