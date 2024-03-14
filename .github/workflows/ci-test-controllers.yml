@@ -80,16 +80,31 @@ jobs:
             kubectl apply -f -
           fi
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          timeout 7m bash -c -- 'while true; do
-           kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch | grep Running > /dev/null && break || echo "Waiting for kubearmor pods"
-           sleep 1
-           if 
-           kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch | grep CrashLoopBackOff; then
-           echo "Error: Pod in CrashLoopBackOff state"
-           exit 1
-           fi
-          done'
-          kubectl get pods -A
+          timeout 7m bash -c -- '
+          while true; do
+          all_running=true
+          echo "Checking pod status..."
+          for pod_status in $(kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch --output=jsonpath="{.items[*].status.phase}" 2>/dev/null); do
+          if [ "$pod_status" != "Running" ]; then
+          all_running=false
+          echo "Waiting for pods to be Running..."
+          break
+          fi
+          done
+  
+         if $all_running; then
+         echo "All pods are Running."
+         break
+         fi
+  
+         if kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch | grep CrashLoopBackOff; then
+         echo "Error: Pod in CrashLoopBackOff state"
+         exit 1
+         fi
+  
+         sleep 1
+         done
+         '
 
       - name: Test KubeArmor using Ginkgo
         run: |
