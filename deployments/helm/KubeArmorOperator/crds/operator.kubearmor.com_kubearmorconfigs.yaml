@@ -129,7 +129,6 @@ spec:
                     type: string
                 type: object
               seccompEnabled:
-                default: true
                 type: boolean
             type: object
           status:

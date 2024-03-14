@@ -18,7 +18,7 @@ func LoadSeccompInNode() {
 
 	seccompProfile := Seccomp{
 		DefaultAction: ActErrno,
-		Architectures: []string{Archx32, Archx86_64, Archx86},
+		Architectures: []string{Archx32, Archx86_64, Archx86, ArchARM, ArchARM64},
 		Syscalls: []*Syscalls{{
 			Names: []string{
 				"getsockopt",
@@ -126,7 +126,7 @@ func LoadSeccompInNode() {
 
 	seccompInitProfile := Seccomp{
 		DefaultAction: ActErrno,
-		Architectures: []string{Archx32, Archx86_64, Archx86},
+		Architectures: []string{Archx32, Archx86_64, Archx86, ArchARM, ArchARM64},
 		Syscalls: []*Syscalls{{
 			Names: []string{
 				"dup2",
@@ -138,6 +138,8 @@ func LoadSeccompInNode() {
 				"memfd_create",
 				"capset",
 				"read",
+				"dup3",
+				"getpgid",
 				"getrandom",
 				"close",
 				"fchown",
@@ -166,6 +168,7 @@ func LoadSeccompInNode() {
 				"capget",
 				"sysinfo",
 				"connect",
+				"pipe2",
 				"openat",
 				"access",
 				"set_robust_list",
