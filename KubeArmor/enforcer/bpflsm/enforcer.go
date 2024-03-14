@@ -405,12 +405,11 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 	if be == nil {
 		return nil
 	}
-
-	errBPFCleanUp := false
+	var errBPFCleanUp error
 
 	if err := be.obj.Close(); err != nil {
 		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
+		errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 	}
 
 	for _, link := range be.Probes {
@@ -419,41 +418,41 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 		}
 		if err := link.Close(); err != nil {
 			be.Logger.Err(err.Error())
-			errBPFCleanUp = true
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+
 		}
 	}
 
 	be.ContainerMapLock.Lock()
-	defer be.ContainerMapLock.Unlock()
 
 	if be.BPFContainerMap != nil {
 		if err := be.BPFContainerMap.Unpin(); err != nil {
 			be.Logger.Err(err.Error())
-			errBPFCleanUp = true
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 		if err := be.BPFContainerMap.Close(); err != nil {
 			be.Logger.Err(err.Error())
-			errBPFCleanUp = true
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 	}
-	if err := be.obj.KubearmorEvents.Unpin(); err != nil {
-		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
-	}
-	if err := be.obj.KubearmorEvents.Close(); err != nil {
-		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
-	}
 
-	if err := be.Events.Close(); err != nil {
-		be.Logger.Err(err.Error())
-		errBPFCleanUp = true
-	}
+	be.ContainerMapLock.Unlock()
 
-	if errBPFCleanUp {
-		return errors.New("error cleaning up BPF LSM Enforcer Objects")
+	if be.Events != nil {
+		if err := be.obj.KubearmorEvents.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.obj.KubearmorEvents.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.Events.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
 	}
 
 	be = nil
-	return nil
+	return errBPFCleanUp
 }
