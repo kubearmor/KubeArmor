@@ -6,23 +6,22 @@
 sudo apt-get update
 
 # install apt-transport-https
-sudo apt-get install -y apt-transport-https ca-certificates curl
+sudo apt-get install -y apt-transport-https ca-certificates curl gpg
+
+# get kubernetes latest version
+k8sversion=$(curl -Ls https://dl.k8s.io/release/stable.txt | cut -d "." -f 1,2)
 
 # add the key for kubernetes repo
-sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/$k8sversion/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 # add sources.list.d
-echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/$k8sversion/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 # update repo
 sudo apt-get update
 
 # install kubernetes
-if [ "$RUNTIME" == "containerd" ]; then
-    sudo apt-get install -y kubeadm kubelet kubectl
-else # docker
-    sudo apt-get install -y kubeadm=1.23.0-00 kubelet=1.23.0-00 kubectl=1.23.0-00
-fi
+sudo apt-get install -y kubeadm kubelet kubectl
 
 # exclude kubernetes packages from updates
 sudo apt-mark hold kubeadm kubelet kubectl
