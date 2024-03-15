@@ -18,7 +18,19 @@ spec:
     singular: kubearmorpolicy
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.action
+      name: Action
+      priority: 10
+      type: string
+    - jsonPath: .spec.selector.matchLabels
+      name: Selector
+      priority: 10
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: KubeArmorPolicy is the Schema for the kubearmorpolicies API
