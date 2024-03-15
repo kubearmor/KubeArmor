@@ -7,6 +7,8 @@ var (
 	Archx86_64 = "SCMP_ARCH_X86_64"
 	Archx86    = "SCMP_ARCH_X86"
 	Archx32    = "SCMP_ARCH_X32"
+	ArchARM64  = "SCMP_ARCH_AARCH64"
+	ArchARM    = "SCMP_ARCH_ARM"
 
 	ActErrno = "SCMP_ACT_ERRNO"
 	ActAllow = "SCMP_ACT_ALLOW"
