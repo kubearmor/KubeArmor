@@ -16,6 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+var serviceAccountLabels = map[string]string{
+	"kubearmor-app": "kubearmor-service-account",
+}
+
 // GetServiceAccount Function
 func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
@@ -26,8 +30,13 @@ func GetServiceAccount(namespace string) *corev1.ServiceAccount {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorServiceAccountName,
 			Namespace: namespace,
+			Labels:    serviceAccountLabels,
 		},
 	}
+}
+
+var clusterLabels = map[string]string{
+	"kubearmor-app": "kubearmor-cluster",
 }
 
 // GetClusterRole Function
@@ -38,7 +47,8 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorClusterRoleName,
+			Name:   KubeArmorClusterRoleName,
+			Labels: clusterLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -72,7 +82,8 @@ func GetClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorClusterRoleBindingName,
+			Name:   KubeArmorClusterRoleBindingName,
+			Labels: clusterLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -192,6 +203,7 @@ func GetRelayServiceAccount(namespace string) *corev1.ServiceAccount {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      RelayServiceAccountName,
 			Namespace: namespace,
+			Labels:    relayDeploymentLabels,
 		},
 	}
 }
@@ -204,7 +216,8 @@ func GetRelayClusterRole() *rbacv1.ClusterRole {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: RelayClusterRoleName,
+			Name:   RelayClusterRoleName,
+			Labels: relayDeploymentLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -224,7 +237,8 @@ func GetRelayClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: RelayClusterRoleBindingName,
+			Name:   RelayClusterRoleBindingName,
+			Labels: relayDeploymentLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -663,6 +677,7 @@ func GetKubeArmorControllerServiceAccount(namespace string) *corev1.ServiceAccou
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorControllerServiceAccountName,
 			Namespace: namespace,
+			Labels:    KubeArmorControllerLabels,
 		},
 	}
 }
@@ -675,7 +690,8 @@ func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerClusterRoleName,
+			Name:   KubeArmorControllerClusterRoleName,
+			Labels: KubeArmorControllerLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -705,7 +721,8 @@ func GetKubeArmorControllerClusterRoleBinding(namespace string) *rbacv1.ClusterR
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerClusterRoleBindingName,
+			Name:   KubeArmorControllerClusterRoleBindingName,
+			Labels: KubeArmorControllerLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -732,6 +749,7 @@ func GetKubeArmorControllerLeaderElectionRole(namespace string) *rbacv1.Role {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorControllerLeaderElectionRoleName,
 			Namespace: namespace,
+			Labels:    KubeArmorControllerLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -763,6 +781,7 @@ func GetKubeArmorControllerLeaderElectionRoleBinding(namespace string) *rbacv1.R
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorControllerLeaderElectionRoleBindingName,
 			Namespace: namespace,
+			Labels:    KubeArmorControllerLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -787,7 +806,8 @@ func GetKubeArmorControllerProxyRole() *rbacv1.ClusterRole {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerProxyRoleName,
+			Name:   KubeArmorControllerProxyRoleName,
+			Labels: KubeArmorControllerLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -812,7 +832,8 @@ func GetKubeArmorControllerProxyRoleBinding(namespace string) *rbacv1.ClusterRol
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerProxyRoleBindingName,
+			Name:   KubeArmorControllerProxyRoleBindingName,
+			Labels: KubeArmorControllerLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -837,7 +858,8 @@ func GetKubeArmorControllerMetricsReaderRole() *rbacv1.ClusterRole {
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerMetricsReaderRoleName,
+			Name:   KubeArmorControllerMetricsReaderRoleName,
+			Labels: KubeArmorControllerLabels,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -856,7 +878,8 @@ func GetKubeArmorControllerMetricsReaderRoleBinding(namespace string) *rbacv1.Cl
 			APIVersion: "rbac.authorization.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: KubeArmorControllerMetricsReaderRoleBindingName,
+			Name:   KubeArmorControllerMetricsReaderRoleBindingName,
+			Labels: KubeArmorControllerLabels,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -883,6 +906,7 @@ func GetKubeArmorControllerWebhookService(namespace string) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorControllerWebhookServiceName,
 			Namespace: namespace,
+			Labels:    KubeArmorControllerLabels,
 		},
 		Spec: corev1.ServiceSpec{
 			Selector: KubeArmorControllerLabels,
@@ -912,6 +936,7 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      KubeArmorControllerMutatingWebhookConfiguration,
 			Namespace: namespace,
+			Labels:    KubeArmorControllerLabels,
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
 			{
