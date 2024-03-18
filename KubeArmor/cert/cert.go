@@ -2,10 +2,10 @@
 // Copyright 2022 Authors of KubeArmor
 
 // Package cert is responsible for generating certs dynamically and loading the certs from external sources.
-
 package cert
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -21,6 +21,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -80,6 +81,19 @@ type CertPath struct {
 	CertOnly bool   // if true read certificate only
 }
 
+func GetPemCertFromx509Cert(cert x509.Certificate) []byte {
+	certPem := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	}
+	var pemBuffer bytes.Buffer
+	err := pem.Encode(&pemBuffer, certPem)
+	if err != nil {
+		klog.Error("error while encoding certificate to pem format", err)
+	}
+	return pemBuffer.Bytes()
+}
+
 // GetCACertPath func returns CA certificate (full) path
 func GetCACertPath(base string) CertPath {
 	return CertPath{
@@ -114,13 +128,13 @@ func GetCertKeyPairFromCertBytes(certBytes *CertBytes) (*CertKeyPair, error) {
 
 	crt, err := x509.ParseCertificate(certPem.Bytes)
 	if err != nil {
-		fmt.Println("Error parsing CA certificate:", err)
+		klog.Error("Error parsing CA certificate:", err)
 		return nil, err
 	}
 
 	key, err := x509.ParsePKCS1PrivateKey(keyPem.Bytes)
 	if err != nil {
-		fmt.Println("Error parsing CA private key:", err)
+		klog.Error("Error parsing CA private key:", err)
 		return nil, err
 	}
 
@@ -138,26 +152,26 @@ func ReadCertFromFile(certPath *CertPath) (*CertBytes, error) {
 
 	// Check if certificate file exists
 	if _, err := os.Stat(certFile); os.IsNotExist(err) {
-		fmt.Println("certificate file does not exist:", err)
+		klog.Error("certificate file does not exist:", err)
 		return nil, err
 	}
 
 	certBytes, err := os.ReadFile(certFile)
 	if err != nil {
-		fmt.Println("Error reading CA certificate file:", err)
+		klog.Error("Error reading CA certificate file:", err)
 		return nil, err
 	}
 
 	if !certPath.CertOnly {
 		// Check if key file exists
 		if _, err := os.Stat(keyFile); os.IsNotExist(err) {
-			fmt.Println("CA key file does not exist:", err)
+			klog.Error("CA key file does not exist:", err)
 			return nil, err
 		}
 
 		keyBytes, err = os.ReadFile(keyFile)
 		if err != nil {
-			fmt.Println("Error reading CA key file:", err)
+			klog.Error("Error reading CA key file:", err)
 			return nil, err
 		}
 	}
@@ -186,11 +200,27 @@ func ReadCertFromK8sSecret(client *kubernetes.Clientset, namespace, secret strin
 	}, nil
 }
 
+func GenerateCA(cfg *CertConfig) (*CertBytes, error) {
+	crtTemp, err := GenerateCert(cfg)
+	if err != nil {
+		klog.Errorf("error generating ca cert: %s\n", err)
+		return &CertBytes{}, err
+	}
+	crtBytes, err := GenerateSelfSignedCert(crtTemp, cfg)
+	if err != nil {
+		return &CertBytes{}, nil
+	}
+	return &CertBytes{
+		Crt: crtBytes.Crt,
+		Key: crtBytes.Key,
+	}, nil
+}
+
 func GenerateCert(cfg *CertConfig) (*CertKeyPair, error) {
 	// Generate a new RSA private key for the server
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		fmt.Println("error generating cert private key:", err)
+		klog.Error("error generating cert private key:", err)
 		return nil, err
 	}
 
@@ -224,7 +254,7 @@ func GenerateSelfSignedCert(ca *CertKeyPair, cfg *CertConfig) (*CertBytes, error
 	// Create the certificate signed by the CA
 	certBytes, err := x509.CreateCertificate(rand.Reader, certKeyPair.Crt, ca.Crt, &certKeyPair.Key.PublicKey, ca.Key)
 	if err != nil {
-		fmt.Println("Error creating certificate:", err)
+		klog.Error("Error creating certificate:", err)
 		return nil, err
 	}
 

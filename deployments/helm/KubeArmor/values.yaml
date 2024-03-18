@@ -13,9 +13,9 @@ kubearmorRelay:
   enabled: true
   image:
     # kubearmor-init image repo
-    repository: rksharma95/kubearmor-relay-server
+    repository: kubearmor/kubearmor-relay-server
     # kubearmor-init image tag
-    tag: tls
+    tag: latest
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
   # Add environment variables for STDOUT logging
@@ -61,7 +61,7 @@ kubearmorInit:
     # kubearmor-init image repo
     repository: kubearmor/kubearmor-init
     # kubearmor-init image tag
-    tag: latest
+    tag: stable
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
 
@@ -101,7 +101,7 @@ kubearmor:
     # kubearmor daemonset image repo
     repository: kubearmor/kubearmor
     # kubearmor daemonset image tag
-    tag: latest
+    tag: stable
 
   # kubearmor daemonset imagePullPolicy
   imagePullPolicy: Always

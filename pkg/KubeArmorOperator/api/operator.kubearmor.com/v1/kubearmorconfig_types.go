@@ -20,6 +20,16 @@ type ImageSpec struct {
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 }
 
+type Tls struct {
+	// +kubebuilder:validation:optional
+	// +kubebuilder:default:=false
+	Enable bool `json:"enable,omitempty"`
+	// +kubebuilder:validation:optional
+	RelayExtraDnsNames []string `json:"extraDnsNames,omitempty"`
+	// +kubebuilder:validation:optional
+	RelayExtraIpAddresses []string `json:"extraIpAddresses,omitempty"`
+}
+
 // KubeArmorConfigSpec defines the desired state of KubeArmorConfig
 type KubeArmorConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -43,6 +53,8 @@ type KubeArmorConfigSpec struct {
 	KubeArmorControllerImage ImageSpec `json:"kubearmorControllerImage,omitempty"`
 	// +kubebuilder:validation:optional
 	KubeRbacProxyImage ImageSpec `json:"kubeRbacProxyImage,omitempty"`
+	// +kubebuilder:validation:optional
+	Tls Tls `json:"tls,omitempty"`
 	// +kubebuilder:validation:optional
 	EnableStdOutLogs bool `json:"enableStdOutLogs,omitempty"`
 	// +kubebuilder:validation:optional
