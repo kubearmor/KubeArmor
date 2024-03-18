@@ -19,7 +19,11 @@ spec:
         kubearmor-app: kubearmor-relay
     spec:
       containers:
-      - image: {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
+      - args:
+        {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
+        {{printf "- -tlsCertPath=%s" .Values.kubearmorRelay.tls.tlsCertPath}}
+        {{printf "- -tlsCertProvider=%s" .Values.kubearmorRelay.tls.tlsCertProvider}}
+        image: {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorRelay.imagePullPolicy }}
         name: kubearmor-relay-server
         env:
@@ -31,9 +35,17 @@ spec:
           value: {{ quote .Values.kubearmorRelay.enableStdoutMsg }}
         ports:
         - containerPort: 32767
+        {{- if .Values.tls.enabled }}
+        volumeMounts:
+          {{- toYaml .Values.kubearmorRelay.tls.certVolumeMount | trim | nindent 10 }}
+        {{- end}}
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: kubearmor-relay
+      {{- if .Values.tls.enabled }}
+      volumes:
+        {{- toYaml .Values.kubearmorRelay.tls.certVolume | trim | nindent 8 }}
+      {{- end }}
 {{- end }}
 ---
 apiVersion: apps/v1
