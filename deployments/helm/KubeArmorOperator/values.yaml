@@ -4,7 +4,7 @@ kubearmorOperator:
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
-    tag: latest
+    tag: ""
   imagePullPolicy: IfNotPresent
 
 kubearmorConfig:

@@ -83,20 +83,7 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	}
 }
 
-func matchHost(hostName string) bool {
-	envName := os.Getenv("KUBEARMOR_NODENAME")
-	if envName != "" {
-		return envName == hostName
-	}
-	nodeName := strings.Split(hostName, ".")[0]
-	return nodeName == cfg.GlobalCfg.Host
-}
-
 func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
-	if !matchHost(item.Name) {
-		return
-	}
-
 	node := tp.Node{}
 
 	node.ClusterName = cfg.GlobalCfg.Cluster
@@ -150,7 +137,18 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	kg.Printf("GlobalCfg.Host=%s, KUBEARMOR_NODENAME=%s", cfg.GlobalCfg.Host, os.Getenv("KUBEARMOR_NODENAME"))
 
-	factory := informers.NewSharedInformerFactory(K8s.K8sClient, 0)
+	nodeName := os.Getenv("KUBEARMOR_NODENAME")
+	if nodeName == "" {
+		nodeName = cfg.GlobalCfg.Host
+	}
+
+	factory := informers.NewSharedInformerFactoryWithOptions(
+		K8s.K8sClient,
+		0,
+		informers.WithTweakListOptions(func(options *metav1.ListOptions) {
+			options.FieldSelector = fmt.Sprintf("metadata.name=%s", nodeName)
+		}),
+	)
 	informer := factory.Core().V1().Nodes().Informer()
 
 	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -555,8 +553,13 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 	var controllerName, controller, namespace string
 	var err error
 
+	nodeName := os.Getenv("KUBEARMOR_NODENAME")
+	if nodeName == "" {
+		nodeName = cfg.GlobalCfg.Host
+	}
+
 	for {
-		if resp := K8s.WatchK8sPods(); resp != nil {
+		if resp := K8s.WatchK8sPods(nodeName); resp != nil {
 			defer func() {
 				if err := resp.Body.Close(); err != nil {
 					kg.Warnf("Error closing http stream %s\n", err)
