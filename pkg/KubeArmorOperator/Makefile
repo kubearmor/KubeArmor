@@ -89,18 +89,19 @@ docker-buildx:
 	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push --target operator -t ${OPERATOR_IMG}:${TAG} -f ./Dockerfile ../../
 	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push --target snitch -t ${SNITCH_IMG}:${TAG} -f ./Dockerfile ../../
 
-KUSTOMIZE = /usr/local/bin/kustomize
+KUSTOMIZE_VERSION ?= v5.2.1
+KUSTOMIZE = $(GOBIN)/kustomize
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+	GOBIN=$(GOBIN) go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
 
-OPERATOR_SDK = /usr/local/bin/operator-sdk
+OPERATOR_SDK = ./bin/operator-sdk
 .PHONY: operator-sdk
 operator-sdk:
 	@echo "Installing Operator SDK..."
 	curl -LO https://github.com/operator-framework/operator-sdk/releases/latest/download/operator-sdk_linux_amd64
 	chmod +x operator-sdk_linux_amd64
-	sudo mv operator-sdk_linux_amd64 /usr/local/bin/operator-sdk
+	sudo mv operator-sdk_linux_amd64 ./bin/operator-sdk
 
 ifndef ignore-not-found
   ignore-not-found = false
@@ -124,7 +125,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 
 .PHONY: manifests
 manifests: controller-gen kustomize## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	go mod tidy; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	go mod tidy; $(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 	rm -r $(CRDDIR)/* && cp config/crd/bases/* $(CRDDIR)/
 	$(KUSTOMIZE) build config/default | tee $(DEPLOYDIR)/operator/operator.yaml

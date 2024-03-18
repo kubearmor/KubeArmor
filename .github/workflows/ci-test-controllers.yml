@@ -56,11 +56,18 @@ jobs:
       - name: Build KubeArmorController
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
+        run: |
+          make docker-build
+
       - name: Install KubeArmor Latest and KubeArmorController using Helm
         run: |
           # save images
           docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
-
+          docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
+          docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+          
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A

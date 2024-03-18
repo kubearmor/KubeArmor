@@ -4,20 +4,25 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	opv1Informer "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,6 +30,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/kubectl/pkg/util/slice"
 )
 
 var informer informers.SharedInformerFactory
@@ -268,6 +274,8 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					// if there's no operating crd exist
 					if common.OperatorConfigCrd == nil {
 						common.OperatorConfigCrd = cfg
+						clusterWatcher.Log.Info("kubearmorconfig CR created")
+						UpdateTlsData(&cfg.Spec)
 						UpdateConfigMapData(&cfg.Spec)
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
@@ -294,9 +302,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						imageUpdated := UpdateImages(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
+						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						// return if only status has been updated
-						if !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
+						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
 							return
+						}
+						if tlsUpdated {
+							// update tls configuration
+							clusterWatcher.Log.Infof("config tls data updated: %v", cfg.Spec.Tls.Enable)
 						}
 						if len(imageUpdated) > 0 {
 							clusterWatcher.UpdateKubeArmorImages(imageUpdated)
@@ -573,6 +586,178 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorConfigMap(cfg *opv1.KubeArm
 	clusterWatcher.Log.Info("KubeArmor Config Updated Successfully")
 }
 
+func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
+	var tlsState string
+	update := false
+	if tlsEnabled {
+		tlsState = "-tlsEnabled=true"
+	} else {
+		tlsState = "-tlsEnabled=false"
+	}
+	relay, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.RelayDeploymentName, v1.GetOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot list KubeArmor relay deployment error=%s", err.Error())
+		return err
+	}
+	dsList, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).List(context.Background(), v1.ListOptions{
+		LabelSelector: "kubearmor-app=kubearmor",
+	})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot list KubeArmor daemonset(s) error=%s", err.Error())
+		return err
+	}
+	for _, ds := range dsList.Items {
+		if !(ds.Status.DesiredNumberScheduled == ds.Status.CurrentNumberScheduled &&
+			slice.ContainsString(ds.Spec.Template.Spec.Containers[0].Args, tlsState, nil)) {
+			update = true
+		}
+	}
+	if !(relay.Status.Replicas == relay.Status.ReadyReplicas &&
+		slice.ContainsString(relay.Spec.Template.Spec.Containers[0].Args, tlsState, nil)) {
+		update = true
+	}
+	if tlsEnabled {
+		if cert.CACert != nil {
+			ca, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), common.KubeArmorCaSecretName, v1.GetOptions{})
+			if err != nil && metav1errors.IsNotFound(err) {
+				update = true
+			} else {
+				pemEncodedCert := certutil.GetPemCertFromx509Cert(*cert.CACert.Crt)
+				if !bytes.Equal(ca.Data["tls.crt"], pemEncodedCert) {
+					clusterWatcher.UpdateTlsConfigurations(false)
+					update = true
+				}
+			}
+		} else {
+			update = true
+		}
+
+	}
+	if update {
+		return clusterWatcher.UpdateTlsConfigurations(tlsEnabled)
+	}
+	return nil
+}
+
+func UpdateTlsArguments(args *[]string, action string) {
+	if action == common.AddAction {
+		common.AddOrReplaceArg("-tlsEnabled=true", "-tlsEnabled=false", args)
+	} else if action == common.DeleteAction {
+		common.AddOrReplaceArg("-tlsEnabled=false", "-tlsEnabled=true", args)
+	}
+}
+
+func (clusterWatcher *ClusterWatcher) UpdateTlsVolumeAndVolumeMounts(action string) error {
+	clusterWatcher.Log.Info("updating volume and volumemounts")
+	// configure relay deployment and kubearmor daemonset
+	relay, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.RelayDeploymentName, v1.GetOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
+		return err
+	} else {
+		// update relay volumeMount and volumes
+		common.AddOrRemoveVolumeMount(&common.KubeArmorRelayTlsVolumeMount, &relay.Spec.Template.Spec.Containers[0].VolumeMounts, action)
+		common.AddOrRemoveVolume(&common.KubeArmorRelayTlsVolume, &relay.Spec.Template.Spec.Volumes, action)
+		UpdateTlsArguments(&relay.Spec.Template.Spec.Containers[0].Args, action)
+		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
+			return err
+		} else {
+			clusterWatcher.Log.Infof("Updated Deployment=%s", deployments.RelayDeploymentName)
+		}
+	}
+	dsList, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).List(context.Background(), v1.ListOptions{
+		LabelSelector: "kubearmor-app=kubearmor",
+	})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot list KubeArmor daemonset(s) error=%s", err.Error())
+		return err
+	} else {
+		for _, ds := range dsList.Items {
+			// update daemonset volumeMount and volumes
+			common.AddOrRemoveVolumeMount(&common.KubeArmorCaVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, action)
+			common.AddOrRemoveVolume(&common.KubeArmorCaVolume, &ds.Spec.Template.Spec.Volumes, action)
+			UpdateTlsArguments(&ds.Spec.Template.Spec.Containers[0].Args, action)
+			_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
+				return err
+			} else {
+				clusterWatcher.Log.Infof("Updated daemonset=%s", ds.Name)
+			}
+		}
+	}
+	return nil
+}
+
+func (clusterWatcher *ClusterWatcher) DeleteAllTlsSecrets() error {
+	clusterWatcher.Log.Info("tls is disabled deleting secrets")
+	tlsSecrets := []string{
+		common.KubeArmorCaSecretName,
+		common.KubeArmorClientSecretName,
+		common.KubeArmorRelayServerSecretName,
+	}
+	for _, secret := range tlsSecrets {
+		err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Delete(context.Background(), secret, v1.DeleteOptions{})
+		if err != nil {
+			clusterWatcher.Log.Errorf("error while deleing secret: %s", secret)
+			return err
+		}
+	}
+	return nil
+}
+
+func (clusterWatcher *ClusterWatcher) UpdateTlsConfigurations(tlsEnabled bool) error {
+	// if tls is enabled
+	if tlsEnabled {
+		// create cert secrets
+		clusterWatcher.Log.Info("tls enabled creating secrets\n")
+		tlsCertSecrets, err := cert.GetAllTlsCertSecrets()
+		if err != nil {
+			clusterWatcher.Log.Errorf("error while creating certificates: %s", err)
+			return err
+		}
+		secrets := []*corev1.Secret{}
+		for _, secret := range tlsCertSecrets {
+			secrets = append(secrets, addOwnership(secret).(*corev1.Secret))
+		}
+		for _, s := range secrets {
+			clusterWatcher.Log.Infof("creating secret: %s", s.Name)
+			_, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Create(context.Background(), s, metav1.CreateOptions{})
+			if err != nil {
+				if metav1errors.IsAlreadyExists(err) {
+					oldSecret, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), s.Name, metav1.GetOptions{})
+					if err != nil {
+						clusterWatcher.Log.Errorf("error while getting secret: %s, error=%s", s.Name, err)
+						return err
+					}
+					oldSecret.Data = s.Data
+					_, err = clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Update(context.Background(), oldSecret, metav1.UpdateOptions{})
+					if err != nil {
+						clusterWatcher.Log.Warnf("Cannot update secret %s, error=%s", s.Name, err)
+						return err
+					}
+					clusterWatcher.Log.Infof("Updated tls secret: %s", oldSecret.Name)
+				} else {
+					clusterWatcher.Log.Warnf("error while creating secret: %s, error=%s", s.Name, err)
+					return err
+				}
+			} else {
+				clusterWatcher.Log.Infof("created tls secret: %s", s.Name)
+			}
+		}
+		// configure relay deployment and kubearmor daemonset
+		clusterWatcher.UpdateTlsVolumeAndVolumeMounts(common.AddAction)
+	} else {
+		clusterWatcher.Log.Info("tls is disabled removing configs and secrets")
+		clusterWatcher.UpdateTlsVolumeAndVolumeMounts(common.DeleteAction)
+		// delete all tls secrets
+		clusterWatcher.DeleteAllTlsSecrets()
+	}
+	return nil
+}
+
 func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
 	if config.DefaultFilePosture != "" {
@@ -640,5 +825,24 @@ func UpdatedSeccomp(config *opv1.KubeArmorConfigSpec) bool {
 			updated = true
 		}
 	}
+	return updated
+}
+
+func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.Tls.Enable != common.EnableTls {
+		fmt.Printf("tls config changed: %v", config.Tls.Enable)
+		common.EnableTls = config.Tls.Enable
+		updated = true
+	}
+
+	if len(config.Tls.RelayExtraDnsNames) > 0 {
+		common.ExtraDnsNames = config.Tls.RelayExtraDnsNames
+	}
+
+	if len(config.Tls.RelayExtraIpAddresses) > 0 {
+		common.ExtraDnsNames = config.Tls.RelayExtraIpAddresses
+	}
+
 	return updated
 }

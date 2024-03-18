@@ -2,10 +2,10 @@
 // Copyright 2022 Authors of KubeArmor
 
 // Package cert is responsible for generating certs dynamically and loading the certs from external sources.
-
 package cert
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -78,6 +78,19 @@ type CertPath struct {
 	CertFile string
 	KeyFile  string // Not Required if CertOnly:true
 	CertOnly bool   // if true read certificate only
+}
+
+func GetPemCertFromx509Cert(cert x509.Certificate) []byte {
+	certPem := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	}
+	var pemBuffer bytes.Buffer
+	err := pem.Encode(&pemBuffer, certPem)
+	if err != nil {
+		fmt.Println("error while encoding certificate to pem format", err)
+	}
+	return pemBuffer.Bytes()
 }
 
 // GetCACertPath func returns CA certificate (full) path
@@ -183,6 +196,22 @@ func ReadCertFromK8sSecret(client *kubernetes.Clientset, namespace, secret strin
 	return &CertBytes{
 		Crt: cert.Data["tls.crt"],
 		Key: cert.Data["tls.key"],
+	}, nil
+}
+
+func GenerateCA(cfg *CertConfig) (*CertBytes, error) {
+	crtTemp, err := GenerateCert(cfg)
+	if err != nil {
+		fmt.Printf("error generating ca cert: %s\n", err)
+		return &CertBytes{}, err
+	}
+	crtBytes, err := GenerateSelfSignedCert(crtTemp, cfg)
+	if err != nil {
+		return &CertBytes{}, nil
+	}
+	return &CertBytes{
+		Crt: crtBytes.Crt,
+		Key: crtBytes.Key,
 	}, nil
 }
 
