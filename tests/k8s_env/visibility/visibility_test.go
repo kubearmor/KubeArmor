@@ -3,8 +3,7 @@
 
 package visibility
 
-import (
-	"fmt"
+import (	
 	"time"
 
 	"github.com/kubearmor/KubeArmor/tests/util"
@@ -60,9 +59,11 @@ var _ = Describe("Visibility", func() {
 			err = KarmorLogStart("all", "wordpress-mysql", "", wp)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
+			// sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"})
+			// Expect(err).To(BeNil())
+			// fmt.Printf("---START---\n%s---END---\n", sout)
+
+			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp("*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
@@ -89,9 +90,11 @@ var _ = Describe("Visibility", func() {
 			err = KarmorLogStart("all", "wordpress-mysql", "", wp)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
+			// sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"})
+			// Expect(err).To(BeNil())
+			// fmt.Printf("---START---\n%s---END---\n", sout)
+
+			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp("*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
@@ -115,9 +118,11 @@ var _ = Describe("Visibility", func() {
 			err = KarmorLogStart("all", "wordpress-mysql", "", wp)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
+			// sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"})
+			// Expect(err).To(BeNil())
+			// fmt.Printf("---START---\n%s---END---\n", sout)
+
+			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp("*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
