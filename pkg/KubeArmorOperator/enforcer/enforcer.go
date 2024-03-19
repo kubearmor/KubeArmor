@@ -29,7 +29,7 @@ func CheckBtfSupport(PathPrefix string, log zap.SugaredLogger) string {
 
 // CheckIfApparmorFsPresent checks if BTF is present
 func CheckIfApparmorFsPresent(PathPrefix string, log zap.SugaredLogger) string {
-	path := PathPrefix + "/etc/apparmor.d"
+	path := PathPrefix + "/etc/apparmor.d/tunables"
 	if _, err := os.Stat(filepath.Clean(path)); err == nil {
 		return "yes"
 	}

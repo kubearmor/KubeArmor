@@ -113,7 +113,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultPostureLogs:         "true",
 }
 
-var ConfigDefaultSeccompEnabled = "true"
+var ConfigDefaultSeccompEnabled = "false"
 
 var KubearmorRelayEnvMap = map[string]string{
 	EnableStdOutAlerts: "false",

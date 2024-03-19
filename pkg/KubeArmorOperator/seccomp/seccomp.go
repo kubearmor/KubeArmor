@@ -18,7 +18,7 @@ func LoadSeccompInNode() {
 
 	seccompProfile := Seccomp{
 		DefaultAction: ActErrno,
-		Architectures: []string{Archx32, Archx86_64, Archx86},
+		Architectures: []string{Archx32, Archx86_64, Archx86, ArchARM, ArchARM64},
 		Syscalls: []*Syscalls{{
 			Names: []string{
 				"getsockopt",
@@ -126,7 +126,7 @@ func LoadSeccompInNode() {
 
 	seccompInitProfile := Seccomp{
 		DefaultAction: ActErrno,
-		Architectures: []string{Archx32, Archx86_64, Archx86},
+		Architectures: []string{Archx32, Archx86_64, Archx86, ArchARM, ArchARM64},
 		Syscalls: []*Syscalls{{
 			Names: []string{
 				"dup2",
@@ -138,9 +138,15 @@ func LoadSeccompInNode() {
 				"memfd_create",
 				"capset",
 				"read",
+				"dup3",
+				"getpgid",
 				"getrandom",
 				"close",
 				"fchown",
+				"mremap",
+				"unlinkat",
+				"readlink",
+				"sigaltstack",
 				"getegid",
 				"arch_prctl",
 				"lseek",
@@ -162,6 +168,7 @@ func LoadSeccompInNode() {
 				"capget",
 				"sysinfo",
 				"connect",
+				"pipe2",
 				"openat",
 				"access",
 				"set_robust_list",
@@ -216,8 +223,12 @@ func LoadSeccompInNode() {
 }
 
 func CheckIfSeccompProfilePresent() string {
-	if _, err := os.Stat(filepath.Clean(seccompPath)); err == nil {
+	_, err1 := os.Stat(filepath.Clean(seccompPath + "/kubearmor-init-seccomp.json"))
+	_, err2 := os.Stat(filepath.Clean(seccompPath + "/kubearmor-seccomp.json"))
+
+	if err1 == nil && err2 == nil {
 		return "yes"
 	}
+
 	return "no"
 }
