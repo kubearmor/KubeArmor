@@ -138,6 +138,9 @@ func genRuntimeVolumes(runtime, runtimeSocket string) (vol []corev1.Volume, volM
 func genSnitchRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"kubearmor-app": common.SnitchName,
+			},
 			Name:      common.KubeArmorSnitchRoleName,
 			Namespace: common.Namespace,
 		},
@@ -159,6 +162,9 @@ func genSnitchRole() *rbacv1.ClusterRole {
 func genSnitchRoleBinding() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"kubearmor-app": common.SnitchName,
+			},
 			Name: common.KubeArmorSnitchRoleName + "-binding",
 		},
 		Subjects: []rbacv1.Subject{
@@ -179,6 +185,9 @@ func genSnitchRoleBinding() *rbacv1.ClusterRoleBinding {
 func genSnitchServiceAccount() *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"kubearmor-app": common.SnitchName,
+			},
 			Name:      common.KubeArmorSnitchRoleName,
 			Namespace: common.Namespace,
 		},
