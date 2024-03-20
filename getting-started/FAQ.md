@@ -70,6 +70,23 @@ The logs are also exportable in [OpenTelemetry format](https://github.com/kubear
 
 [Detailed KubeArmor events spec](kubearmor-events.md).
 
+KubeArmor by default disabled `file` operation visibility to minimize telemetry events.
+If you want to configure visibility for a particular namespace, you can use
+```
+kubectl annotate ns default kubearmor-visibility="process,file,network" --overwrite
+```
+You can also go ahead and enable file visibility across all namespaces by modifying the kubearmor configmap.
+```
+kubectl edit cm -n kubearmor  kubearmor-config
+```
+And then add `,file` for visibility key under data. It should look something like
+```
+data:
+  ...<other key value>...
+  visibility: process,network,file
+```
+
+[Detailed KubeArmor visbility doc](kubearmor_visibility.md).
 </details>
 
 <details><summary><h4>How to visualize KubeArmor visibility logs?</h4></summary>
@@ -183,6 +200,18 @@ CONFIG_DEBUG_INFO_BTF=y
   capability,yama,selinux,bpf
   ```
   as we can see here `bpf` is in active lsms
+
+### Enabling BPF-LSM automatically using updater script deployment
+
+**We can apply the following manifest which automatically detects and installs/enabled BPFLSM/AppArmor whichever is needed in kubernetes worker nodes.**
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
+```
+
+> **Warning:** After running the above script the nodes will restart.
+
+If you prefer to do it the manual way, you would need to repeat the following steps in individual nodes.
 
 ### Enabling BPF-LSM manually using boot configs
 
@@ -394,5 +423,5 @@ You can also enable AppArmor if you want to use it as a security module to enfor
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
 ```
 
-**Warning:** After running the above script the nodes will restart.
+> **Warning:** After running the above script the nodes will restart.
 </details>
