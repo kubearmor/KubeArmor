@@ -32,6 +32,15 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Define a function to download a go tool if it is not installed.
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e; \
+echo "Downloading $(2)" ;\
+go install $(2) ;\
+}
+endef
+
 .PHONY: all
 all: get snitch kubearmor-operator
 
