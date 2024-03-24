@@ -50,7 +50,6 @@ type KubeArmorConfigSpec struct {
 	// +kubebuilder:validation:optional
 	EnableStdOutMsgs bool `json:"enableStdOutMsgs,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=true
 	SeccompEnabled bool `json:"seccompEnabled,omitempty"`
 }
 

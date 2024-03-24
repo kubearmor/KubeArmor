@@ -18,7 +18,19 @@ spec:
     singular: kubearmorhostpolicy
   scope: Cluster
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .spec.action
+      name: Action
+      priority: 10
+      type: string
+    - jsonPath: .spec.nodeSelector.matchLabels
+      name: Selector
+      priority: 10
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: KubeArmorHostPolicy is the Schema for the kubearmorhostpolicies

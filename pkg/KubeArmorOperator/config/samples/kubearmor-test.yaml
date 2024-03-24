@@ -14,7 +14,7 @@ spec:
   defaultFilePosture: block
   defaultNetworkPosture: block
   defaultVisibility: process,file,network,capabilities
-  seccompEnabled: true
+  seccompEnabled: false
   kubearmorImage:
     image: kubearmor/kubearmor:latest
     imagePullPolicy: Never

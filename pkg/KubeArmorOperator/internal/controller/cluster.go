@@ -449,26 +449,28 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorSeccomp(cfg *opv1.KubeArmor
 		res = err
 	} else {
 		for _, ds := range dsList.Items {
-			if cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile == nil {
-				ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-					Type:             corev1.SeccompProfileTypeLocalhost,
-					LocalhostProfile: &common.SeccompProfile,
+			if ds.Spec.Template.Labels[common.SeccompLabel] == "yes" {
+				if cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile == nil {
+					ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+						Type:             corev1.SeccompProfileTypeLocalhost,
+						LocalhostProfile: &common.SeccompProfile,
+					}
+					ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+						Type:             corev1.SeccompProfileTypeLocalhost,
+						LocalhostProfile: &common.SeccompInitProfile,
+					}
+				} else if !cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile != nil {
+					ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = nil
+					ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = nil
 				}
-				ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-					Type:             corev1.SeccompProfileTypeLocalhost,
-					LocalhostProfile: &common.SeccompInitProfile,
-				}
-			} else if !cfg.Spec.SeccompEnabled && ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile != nil {
-				ds.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = nil
-				ds.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = nil
-			}
 
-			_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
-			if err != nil {
-				clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
-				res = err
-			} else {
-				clusterWatcher.Log.Infof("Updated daemonset=%s", ds.Name)
+				_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
+				if err != nil {
+					clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
+					res = err
+				} else {
+					clusterWatcher.Log.Infof("Updated daemonset=%s", ds.Name)
+				}
 			}
 		}
 	}

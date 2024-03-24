@@ -8,10 +8,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/enforcer"
@@ -101,6 +102,9 @@ func snitch() {
 
 	// Detecting enforcer
 	nodeEnforcer := enforcer.DetectEnforcer(order, PathPrefix, *Logger)
+	if (nodeEnforcer == "apparmor") && (enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger) == "no") {
+		nodeEnforcer = "NA"
+	}
 	if nodeEnforcer != "NA" {
 		Logger.Infof("Node enforcer is %s", nodeEnforcer)
 	} else {
@@ -131,7 +135,13 @@ func snitch() {
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
 	patchNode.Metadata.Labels[common.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger)
-	patchNode.Metadata.Labels[common.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix, *Logger)
+
+	if nodeEnforcer == "none" {
+		patchNode.Metadata.Labels[common.SecurityFsLabel] = "no"
+	} else {
+		patchNode.Metadata.Labels[common.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix, *Logger)
+	}
+
 	patch, err := json.Marshal(patchNode)
 
 	if err != nil {
