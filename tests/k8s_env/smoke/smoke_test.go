@@ -244,7 +244,7 @@ var _ = Describe("Smoke", func() {
 					// Expect(err).To(BeNil())
 					// fmt.Printf("OUTPUT: %s\n", sout)
 
-					AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("touch %s", fname)}, MatchRegexp("*"), false)
+					AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("touch %s", fname)}, MatchRegexp(".*"), false)
 
 					// check policy violation alert
 					_, alerts, err := KarmorGetLogs(5*time.Second, 1)
@@ -257,7 +257,7 @@ var _ = Describe("Smoke", func() {
 					// _, _, err = K8sExecInPod(sql, "wordpress-mysql",
 					// 	[]string{"bash", "-c", fmt.Sprintf("rm %s", fname)})
 					// Expect(err).To(BeNil())
-					AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("rm %s", fname)}, MatchRegexp("*"), false)
+					AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("rm %s", fname)}, MatchRegexp(".*"), false)
 				})
 
 				It("can enforce multiple rules targeting same pod", func() {

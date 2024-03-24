@@ -88,7 +88,7 @@ var _ = Describe("Ksp", func() {
 			// Expect(err).To(BeNil())
 			// fmt.Printf("---START---\n%s---END---\n", sout)
 
-			AssertCommand(pods.Items[0].Name, "nginx", []string{"ls"}, MatchRegexp("*"), true)
+			AssertCommand(pods.Items[0].Name, "nginx", []string{"ls"}, MatchRegexp(".*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
@@ -407,7 +407,7 @@ var _ = Describe("Ksp", func() {
 			// Expect(err).To(BeNil())
 			// fmt.Printf("OUTPUT: %s\n", sout)
 
-			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "sleep 1"}, MatchRegexp("*"), true)
+			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "sleep 1"}, MatchRegexp(".*"), true)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-group-2-audit-proc-path",
@@ -921,7 +921,7 @@ var _ = Describe("Ksp", func() {
 			// Expect(err).To(BeNil())
 			// fmt.Printf("OUTPUT: %s\n", sout)
 
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "touch /home/user1/new1"}, MatchRegexp("*"), true)
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "touch /home/user1/new1"}, MatchRegexp(".*"), true)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-ubuntu-1-audit-file-access-owner-readonly",
@@ -1514,7 +1514,7 @@ var _ = Describe("Ksp", func() {
 			// // Expect(sout).To(ContainSubstring("secret file user1"))
 
 			AssertCommand(ub4, "multiubuntu",
-				[]string{"bash", "-c", "su - user1 -c 'cat /home/user1/secret_data1.txt'"}, MatchRegexp("*"), true)
+				[]string{"bash", "-c", "su - user1 -c 'cat /home/user1/secret_data1.txt'"}, MatchRegexp(".*"), true)
 			expectLog := protobuf.Log{
 				Resource: "secret_data1.txt",
 				Result:   "Passed",
@@ -1632,7 +1632,7 @@ var _ = Describe("Ksp", func() {
 			// fmt.Printf("OUTPUT: %s\n", sout)
 
 			AssertCommand(ub3, "multiubuntu",
-				[]string{"bash", "-c", "su - user1 -c 'echo user1 >> /home/user1/secret_data1.txt'"}, MatchRegexp("*"), true)
+				[]string{"bash", "-c", "su - user1 -c 'echo user1 >> /home/user1/secret_data1.txt'"}, MatchRegexp(".*"), true)
 
 		})
 
@@ -1829,7 +1829,7 @@ var _ = Describe("Ksp", func() {
 			// fmt.Printf("OUTPUT: %s\n", sout)
 
 			AssertCommand(ub4, "multiubuntu",
-				[]string{"bash", "-c", "touch /dev/shm/new"}, MatchRegexp("*"), true)
+				[]string{"bash", "-c", "touch /dev/shm/new"}, MatchRegexp(".*"), true)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-ubuntu-4-audit-file-path-readonly",

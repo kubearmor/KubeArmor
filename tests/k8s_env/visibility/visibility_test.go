@@ -63,7 +63,7 @@ var _ = Describe("Visibility", func() {
 			// Expect(err).To(BeNil())
 			// fmt.Printf("---START---\n%s---END---\n", sout)
 
-			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp("*"), true)
+			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp(".*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
@@ -94,7 +94,7 @@ var _ = Describe("Visibility", func() {
 			// Expect(err).To(BeNil())
 			// fmt.Printf("---START---\n%s---END---\n", sout)
 
-			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp("*"), true)
+			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp(".*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
@@ -122,7 +122,7 @@ var _ = Describe("Visibility", func() {
 			// Expect(err).To(BeNil())
 			// fmt.Printf("---START---\n%s---END---\n", sout)
 
-			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp("*"), true)
+			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "ping google.com -c1"}, MatchRegexp(".*"), true)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
