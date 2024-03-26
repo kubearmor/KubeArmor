@@ -14,7 +14,7 @@ KUBEARMOR_PID    = $(shell pgrep kubearmor)
 
 
 re-govvv:
-	@if ! which govvv > /dev/null; then 
+	@if ! which govvv > /dev/null; then \
 					echo "installing govvv"; \
 			go install github.com/ahmetb/govvv; \
 	fi
