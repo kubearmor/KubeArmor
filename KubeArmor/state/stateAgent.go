@@ -22,7 +22,7 @@ const (
 	stateEventBufferSize = 25
 
 	// EventAdded denotes an add event
-	EventAdded   = "added"
+	EventAdded = "added"
 	// EventUpdated denotes an update event
 	EventUpdated = "updated"
 	// EventDeleted denotes an delete event
@@ -31,9 +31,9 @@ const (
 	// KindContainer denotes a container kind
 	KindContainer = "container"
 	// KindPod denotes a pod kind
-	KindPod       = "pod"
+	KindPod = "pod"
 	// KindNode denotes a node kind
-	KindNode      = "node"
+	KindNode = "node"
 	// KindNamespace denotes a namespace kind
 	KindNamespace = "namespace"
 )

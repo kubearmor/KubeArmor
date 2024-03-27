@@ -73,6 +73,8 @@ type Namespace struct {
 }
 
 // EndPoint Structure
+// k8s: Endpoint ~= pod
+// non-k8s: Endpoint ~= container
 type EndPoint struct {
 	NamespaceName string `json:"namespaceName"`
 

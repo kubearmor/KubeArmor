@@ -67,7 +67,8 @@ elif [ "$CNI" == "weave" ]; then
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$kubever"
 elif [ "$CNI" == "calico" ]; then
     # install a pod network (calico)
-    kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
+    kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+    #kubectl apply -f https://projectcalico.docs.tigera.io/manifests/calico.yaml
 elif [ "$CNI" == "cilium" ]; then
     # install a pod network (cilium)
     curl -L --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz{,.sha256sum}
