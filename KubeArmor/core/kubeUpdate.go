@@ -79,6 +79,8 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 			node.NetworkVisibilityEnabled = true
 		} else if visibility == "capabilities" {
 			node.CapabilitiesVisibilityEnabled = true
+		} else if visibility == "syscall" {
+			node.SyscallVisibilityEnabled = true
 		}
 	}
 }
@@ -2177,6 +2179,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			val.File = visibility.File
 			val.Network = visibility.Network
 			val.Process = visibility.Process
+			val.Syscall = visibility.Syscall
 			dm.SystemMonitor.NamespacePidsMap[namespace] = val
 			for _, nskey := range val.NsKeys {
 				dm.SystemMonitor.UpdateNsKeyMap("MODIFIED", nskey, visibility)
@@ -2188,6 +2191,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 				Process:    visibility.Process,
 				Capability: visibility.Capabilities,
 				Network:    visibility.Network,
+				Syscall:    visibility.Syscall,
 			}
 		}
 		dm.Logger.Printf("Namespace %s visibiliy configured %+v", namespace, visibility)
@@ -2273,6 +2277,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 					Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
 					Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 					Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+					Syscall:      dm.validateVisibility("syscall", cfg.GlobalCfg.Visibility),
 				}
 
 				// Set Visibility to Namespace Annotation if exists
@@ -2282,6 +2287,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 						Process:      dm.validateVisibility("process", ns.Annotations[visibilityKey]),
 						Network:      dm.validateVisibility("network", ns.Annotations[visibilityKey]),
 						Capabilities: dm.validateVisibility("capabilities", ns.Annotations[visibilityKey]),
+						Syscall:      dm.validateVisibility("syscall", ns.Annotations[visibilityKey]),
 					}
 				}
 				dm.UpdateDefaultPosture("ADDED", ns.Name, defaultPosture, annotated)
@@ -2305,6 +2311,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 					Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
 					Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 					Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+					Syscall:      dm.validateVisibility("syscall", cfg.GlobalCfg.Visibility),
 				}
 
 				// Set Visibility to Namespace Annotation if exists
@@ -2314,6 +2321,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 						Process:      dm.validateVisibility("process", ns.Annotations[visibilityKey]),
 						Network:      dm.validateVisibility("network", ns.Annotations[visibilityKey]),
 						Capabilities: dm.validateVisibility("capabilities", ns.Annotations[visibilityKey]),
+						Syscall:      dm.validateVisibility("syscall", ns.Annotations[visibilityKey]),
 					}
 				}
 				dm.UpdateDefaultPosture("MODIFIED", ns.Name, defaultPosture, annotated)
@@ -2356,6 +2364,8 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				cfg.GlobalCfg.SyscallsVisibility = cm.Data[cfg.ConfigSyscallsVisibility]
+				dm.SystemMonitor.HandleSyscallsVsibility()
 				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
 					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
 				}
@@ -2382,6 +2392,8 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
+				cfg.GlobalCfg.SyscallsVisibility = cm.Data[cfg.ConfigSyscallsVisibility]
+				dm.SystemMonitor.HandleSyscallsVsibility()
 				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
 					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")
 				}

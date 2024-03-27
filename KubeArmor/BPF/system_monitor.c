@@ -307,6 +307,7 @@ enum
     _PROCESS_PROBE = 1,
     _NETWORK_PROBE = 2,
     _CAPS_PROBE = 3,
+    _SYSCALL_PROBE = 4,
 
     _TRACE_SYSCALL = 0,
     _IGNORE_SYSCALL = 1,
@@ -354,6 +355,30 @@ struct kaconfig
 };
 
 struct kaconfig kubearmor_config SEC(".maps");
+
+// == Syscall Visibility == //
+
+struct syscallvis
+{
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __type(key, u32);
+    __type(value, u32);
+    __uint(max_entries, 322);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct syscallvis kubearmor_syscall_vis SEC(".maps");
+
+static __always_inline u32 get_syscalls_visibility(u32 syscallID)
+{
+    u32 *value = bpf_map_lookup_elem(&kubearmor_syscall_vis, &syscallID);
+    if (!value)
+    {
+        return 0;
+    }
+
+    return *value;
+}
 
 // == Kernel Helpers == //
 
@@ -1611,7 +1636,10 @@ int kprobe__unlink(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_unlink")
 int kretprobe__unlink(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_UNLINK, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T), _FILE_PROBE);
+    if (!get_syscalls_visibility(_SYS_UNLINK)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_UNLINK, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_unlinkat")
@@ -1626,7 +1654,10 @@ int kprobe__unlinkat(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_unlinkat")
 int kretprobe__unlinkat(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_UNLINKAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(UNLINKAT_FLAG_T), _FILE_PROBE);
+    if (!get_syscalls_visibility(_SYS_UNLINKAT)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_UNLINKAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(UNLINKAT_FLAG_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_rmdir")
@@ -1670,7 +1701,10 @@ int kprobe__chown(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_chown")
 int kretprobe__chown(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_CHOWN, ctx, ARG_TYPE0(FILE_TYPE_T) | ARG_TYPE1(INT_T) | ARG_TYPE2(INT_T), _FILE_PROBE);
+    if (!get_syscalls_visibility(_SYS_CHOWN)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_CHOWN, ctx, ARG_TYPE0(FILE_TYPE_T) | ARG_TYPE1(INT_T) | ARG_TYPE2(INT_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_fchownat")
@@ -1684,7 +1718,10 @@ int kprobe__fchownat(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_fchownat")
 int kretprobe__fchownat(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_FCHOWNAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(INT_T) | ARG_TYPE3(INT_T) | ARG_TYPE4(INT_T), _FILE_PROBE);
+    if (!get_syscalls_visibility(_SYS_FCHOWNAT)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_FCHOWNAT, ctx, ARG_TYPE0(INT_T) | ARG_TYPE1(FILE_TYPE_T) | ARG_TYPE2(INT_T) | ARG_TYPE3(INT_T) | ARG_TYPE4(INT_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_setuid")
@@ -1698,7 +1735,10 @@ int kprobe__setuid(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_setuid")
 int kretprobe__setuid(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_SETUID, ctx, ARG_TYPE0(INT_T), _CAPS_PROBE);
+    if (!get_syscalls_visibility(_SYS_SETUID)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_SETUID, ctx, ARG_TYPE0(INT_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_setgid")
@@ -1712,7 +1752,10 @@ int kprobe__setgid(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_setgid")
 int kretprobe__setgid(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T), _CAPS_PROBE);
+    if (!get_syscalls_visibility(_SYS_SETGID)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_SETGID, ctx, ARG_TYPE0(INT_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_ptrace")
@@ -1726,7 +1769,10 @@ int kprobe__ptrace(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_ptrace")
 int kretprobe__ptrace(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_PTRACE, ctx, ARG_TYPE0(PTRACE_REQ_T) | ARG_TYPE1(INT_T) | ARG_TYPE2(FILE_TYPE_T), _CAPS_PROBE);
+    if (!get_syscalls_visibility(_SYS_PTRACE)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_PTRACE, ctx, ARG_TYPE0(PTRACE_REQ_T) | ARG_TYPE1(INT_T) | ARG_TYPE2(FILE_TYPE_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_mount")
@@ -1740,7 +1786,10 @@ int kprobe__mount(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_mount")
 int kretprobe__mount(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_MOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(STR_T) | ARG_TYPE2(STR_T) | ARG_TYPE3(MOUNT_FLAG_T) | ARG_TYPE4(STR_T), _CAPS_PROBE);
+    if (!get_syscalls_visibility(_SYS_MOUNT)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_MOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(STR_T) | ARG_TYPE2(STR_T) | ARG_TYPE3(MOUNT_FLAG_T) | ARG_TYPE4(STR_T), _SYSCALL_PROBE);
 }
 
 SEC("kprobe/__x64_sys_umount")
@@ -1754,7 +1803,10 @@ int kprobe__umount(struct pt_regs *ctx)
 SEC("kretprobe/__x64_sys_umount")
 int kretprobe__umount(struct pt_regs *ctx)
 {
-    return trace_ret_generic(_SYS_UMOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(UMOUNT_FLAG_T), _CAPS_PROBE);
+    if (!get_syscalls_visibility(_SYS_MOUNT)){
+        return 0;
+    }
+    return trace_ret_generic(_SYS_UMOUNT, ctx, ARG_TYPE0(STR_T) | ARG_TYPE1(UMOUNT_FLAG_T), _SYSCALL_PROBE);
 }
 
 struct tracepoint_syscalls_sys_exit_t

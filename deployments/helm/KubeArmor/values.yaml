@@ -58,6 +58,7 @@ kubearmorConfigMap:
   defaultCapabilitiesPosture: audit
   defaultNetworkPosture: audit
   visibility: process,network
+  syscallsVisibility: chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace
 
 #volume mounts and volumes
 kubearmor:

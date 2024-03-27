@@ -600,6 +600,12 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		}
 	}
 
+	if config.SyscallsVisibility != "" {
+		if common.ConfigMapData[common.ConfigSyscallsVisibility] != string(config.SyscallsVisibility) {
+			common.ConfigMapData[common.ConfigSyscallsVisibility] = string(config.SyscallsVisibility)
+			updated = true
+		}
+	}
 	return updated
 }
 

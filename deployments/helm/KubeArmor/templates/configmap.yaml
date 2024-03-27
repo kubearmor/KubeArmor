@@ -4,6 +4,7 @@ data:
   defaultCapabilitiesPosture: {{ .Values.kubearmorConfigMap.defaultCapabilitiesPosture }}
   defaultNetworkPosture: {{ .Values.kubearmorConfigMap.defaultNetworkPosture }}
   visibility: {{ .Values.kubearmorConfigMap.visibility }}
+  syscallsVisibility: {{ .Values.kubearmorConfigMap.syscallsVisibility }}
 kind: ConfigMap
 metadata:
   labels:

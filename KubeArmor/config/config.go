@@ -55,6 +55,8 @@ type KubearmorConfig struct {
 	InitTimeout        string   // Timeout for main thread init stages
 
 	StateAgent bool // enable KubeArmor state agent
+
+	SyscallsVisibility string // Enable/Disable Syscalls Visibility
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -96,6 +98,7 @@ const (
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 	ConfigInitTimeout                    string = "initTimeout"
 	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
+	ConfigSyscallsVisibility             string = "syscallsVisibility"
 )
 
 func readCmdLineParams() {
@@ -111,8 +114,8 @@ func readCmdLineParams() {
 	seLinuxProfileDirStr := flag.String(ConfigSELinuxProfileDir, "/tmp/kubearmor.selinux", "SELinux profile directory")
 	criSocket := flag.String(ConfigCRISocket, "", "path to CRI socket (format: unix:///path/to/file.sock)")
 
-	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities", "Container Visibility to use [process,file,network,capabilities,none]")
-	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,none] (default \"none\" for k8s, \"process,file,network,capabilities\" for VM)")
+	visStr := flag.String(ConfigVisibility, "process,file,network,capabilities,syscall", "Container Visibility to use [process,file,network,capabilities,syscall,none]")
+	hostVisStr := flag.String(ConfigHostVisibility, "default", "Host Visibility to use [process,file,network,capabilities,syscall,none] (default \"none\" for k8s, \"process,file,network,capabilities,syscall\" for VM)")
 
 	policyB := flag.Bool(ConfigKubearmorPolicy, true, "enabling KubeArmorPolicy")
 	hostPolicyB := flag.Bool(ConfigKubearmorHostPolicy, false, "enabling KubeArmorHostPolicy")
@@ -143,6 +146,8 @@ func readCmdLineParams() {
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
+
+	syscallsVisibility := flag.String(ConfigSyscallsVisibility, "chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace", "Syscalls Visibility")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -197,6 +202,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigInitTimeout, *initTimeout)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
+
+	viper.SetDefault(ConfigSyscallsVisibility, *syscallsVisibility)
 }
 
 // LoadConfig Load configuration
@@ -270,7 +277,7 @@ func LoadConfig() error {
 
 	if GlobalCfg.HostVisibility == "default" {
 		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
-			GlobalCfg.HostVisibility = "process,file,network,capabilities"
+			GlobalCfg.HostVisibility = "process,file,network,capabilities,syscall"
 		} else { // k8s
 			GlobalCfg.HostVisibility = "none"
 		}
@@ -291,6 +298,8 @@ func LoadConfig() error {
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+
+	GlobalCfg.SyscallsVisibility = viper.GetString(ConfigSyscallsVisibility)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

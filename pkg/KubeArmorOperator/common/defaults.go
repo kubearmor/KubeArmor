@@ -76,6 +76,7 @@ var (
 	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
 	ConfigDefaultPostureLogs         string = "defaultPostureLogs"
+	ConfigSyscallsVisibility         string = "syscallsVisibility"
 
 	//KubearmorRelayEnvVariables
 
@@ -111,6 +112,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
 	ConfigDefaultPostureLogs:         "true",
+	ConfigSyscallsVisibility:         "chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
