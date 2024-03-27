@@ -14,6 +14,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -55,6 +57,24 @@ func ContainsElement(slice interface{}, element interface{}) bool {
 		}
 	}
 	return false
+}
+
+// MatchesRegex function
+func MatchesRegex(key, element string, array []string) bool {
+	for _, item := range array {
+		if strings.Contains(item, key) {
+			expr, err := regexp.CompilePOSIX(element)
+			if err != nil {
+				kg.Warnf("Failed to compile regex: %s", element)
+				return false
+			}
+
+			return expr.MatchString(item)
+		}
+	}
+
+	// key not found in array
+	return true
 }
 
 // ObjCommaCanBeExpanded Function
@@ -441,6 +461,26 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 
 	// if super identities not include identity, return false
 	for _, identity := range identities {
+
+		// match regex if container name or host name label present
+		if strings.Contains(identity, "kubearmor.io/container.name") {
+			if !MatchesRegex("kubearmor.io/container.name", identity, superIdentities) {
+				matched = false
+				break
+			}
+
+			continue
+		}
+
+		if strings.Contains(identity, "kubearmor.io/hostname") {
+			if !MatchesRegex("kubearmor.io/hostname", identity, superIdentities) {
+				matched = false
+				break
+			}
+
+			continue
+		}
+
 		if !ContainsElement(superIdentities, identity) {
 			matched = false
 			break
@@ -520,4 +560,24 @@ func GetBootTime() string {
 	}
 
 	return currentTime.Add(-time.Duration(info.Uptime) * time.Second).Truncate(time.Second).UTC().String()
+}
+
+func GetLabelsFromString(labelString string) (map[string]string, []string) {
+	labelsMap := make(map[string]string)
+
+	labelsSlice := strings.Split(labelString, ",")
+	for _, label := range labelsSlice {
+		key, value, ok := strings.Cut(label, "=")
+		if !ok {
+			continue
+		}
+
+		labelsMap[key] = value
+	}
+
+	sort.Slice(labelsSlice, func(i, j int) bool {
+		return labelsSlice[i] < labelsSlice[j]
+	})
+
+	return labelsMap, labelsSlice
 }
