@@ -24,7 +24,8 @@ type EventResult struct {
 }
 
 var eventChan chan klog.EventInfo
-var gRPC = "localhost:32767"
+
+// var gRPC = "localhost:32767"
 
 const maxEvents = 128
 
@@ -195,7 +196,7 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 			PodName:   pod,
 			MsgPath:   "none",
 			EventChan: eventChan,
-			GRPC:      gRPC,
+			// GRPC:      g,
 		})
 		if err != nil {
 			log.Errorf("failed to start observer. Error=%s", err.Error())
