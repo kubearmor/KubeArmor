@@ -118,7 +118,7 @@ var _ = Describe("Ksp", func() {
 			// fmt.Printf("OUTPUT: %s\n", sout)
 			// Expect(sout).To(MatchRegexp("PING.*127.0.0.1"))
 
-			AssertCommand(ub1, "multibuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"}, MatchRegexp("PING. *127.0.0.1"), true)
+			AssertCommand(ub1, "multibuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"}, MatchRegexp("PING.*127.0.0.1"), true)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-ubuntu-1-audit-net-icmp",
