@@ -202,13 +202,23 @@ func ShortSHA(s string) string {
 	return hex.EncodeToString(res)[:5]
 }
 
-var CommonVolumes = []corev1.Volume{
+var BPFVolumes = []corev1.Volume{
 	{
 		Name: "bpf",
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	},
+}
+
+var BPFVolumesMount = []corev1.VolumeMount{
+	{
+		Name:      "bpf",
+		MountPath: "/opt/kubearmor/BPF",
+	},
+}
+
+var CommonVolumes = []corev1.Volume{
 	{
 		Name: "sys-kernel-debug-path",
 		VolumeSource: corev1.VolumeSource{
@@ -218,30 +228,12 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
-	{
-		Name: "os-release-path",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/etc/os-release",
-				Type: &HostPathFile,
-			},
-		},
-	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
 	{
-		Name:      "bpf",
-		MountPath: "/opt/kubearmor/BPF",
-	},
-	{
 		Name:      "sys-kernel-debug-path",
 		MountPath: "/sys/kernel/debug",
-	},
-	{
-		Name:      "os-release-path",
-		MountPath: "/media/root/etc/os-release",
-		ReadOnly:  true,
 	},
 }
 
@@ -264,6 +256,15 @@ var KernelHeaderVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: "os-release-path",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/etc/os-release",
+				Type: &HostPathFile,
+			},
+		},
+	},
 }
 
 var KernelHeaderVolumesMount = []corev1.VolumeMount{
@@ -275,6 +276,11 @@ var KernelHeaderVolumesMount = []corev1.VolumeMount{
 	{
 		Name:      "lib-modules-path",
 		MountPath: "/lib/modules",
+		ReadOnly:  true,
+	},
+	{
+		Name:      "os-release-path",
+		MountPath: "/media/root/etc/os-release",
 		ReadOnly:  true,
 	},
 }
