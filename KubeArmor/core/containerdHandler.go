@@ -247,13 +247,13 @@ func (ch *ContainerdHandler) GetContainerdContainers() map[string]context.Contex
 
 	req := pb.ListContainersRequest{}
 
-	if containerList, err := ch.client.List(ch.docker, &req); err == nil {
+	if containerList, err := ch.client.List(ch.docker, &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
 		for _, container := range containerList.Containers {
 			containers[container.ID] = ch.docker
 		}
 	}
 
-	if containerList, err := ch.client.List(ch.containerd, &req); err == nil {
+	if containerList, err := ch.client.List(ch.containerd, &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
 		for _, container := range containerList.Containers {
 			containers[container.ID] = ch.containerd
 		}
