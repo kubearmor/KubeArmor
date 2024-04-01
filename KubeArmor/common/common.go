@@ -32,6 +32,13 @@ import (
 // == Common == //
 // ============ //
 
+const (
+	// grpc default is 4MB
+	// CRI i.e. containerd service can send msg extended upto 16MB
+	// https://github.com/containerd/containerd/blob/main/defaults/defaults.go#L22-L25
+	DefaultMaxRecvMaxSize = 16 << 20
+)
+
 // Clone Function
 func Clone(src, dst interface{}) error {
 	arr, _ := json.Marshal(src)

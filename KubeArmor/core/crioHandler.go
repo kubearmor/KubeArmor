@@ -159,7 +159,7 @@ func (ch *CrioHandler) GetCrioContainers() (map[string]struct{}, error) {
 
 	req := pb.ListContainersRequest{}
 
-	if containerList, err := ch.client.ListContainers(context.Background(), &req); err == nil {
+	if containerList, err := ch.client.ListContainers(context.Background(), &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
 		for _, container := range containerList.Containers {
 			containers[container.Id] = struct{}{}
 		}
