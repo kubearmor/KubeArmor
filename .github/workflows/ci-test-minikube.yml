@@ -1,0 +1,140 @@
+name: ci-test-minikube
+
+on:
+  push:
+    branches:
+      - "main"
+      - "v*"
+    paths:
+      - "KubeArmor/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-minikube.yml"
+      - "pkg/**"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+      - "!STABLE-RELEASE"
+
+  create:
+    branches:
+      - "v*"
+
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-minikube.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  check:
+    name: Check what pkg were updated
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    outputs:
+      kubearmor: ${{ steps.filter.outputs.kubearmor}}
+      controller: ${{ steps.filter.outputs.controller }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            kubearmor:
+              - "KubeArmor/**"
+              - "protobuf/**"
+            controller:
+              - 'pkg/KubeArmorController/**'
+
+  build:
+    name: Create KubeArmor latest release
+    needs: check
+    if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
+    runs-on: ubuntu-latest-8-cores
+    permissions:
+      id-token: write
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup virtualbox
+        run: sudo apt install -y virtualbox
+
+      - name: Start minikube
+        id: minikube
+        uses: medyagh/setup-minikube@latest
+        with:
+          driver: virtualbox
+          container-runtime: docker
+
+      - name: Generate KubeArmor artifacts
+        id: vars
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh latest
+
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
+        run: |
+          make docker-build TAG=latest
+
+      - name: deploy pre existing pod
+        run: |
+          kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
+          sleep 60
+          kubectl get pods -A
+
+      - name: Run KubeArmor
+        run: |
+          docker save kubearmor/kubearmor-init:latest | minikube image load -
+          docker save kubearmor/kubearmor:latest | minikube image load -
+          docker save kubearmor/kubearmor-operator:latest | minikube image load -
+          docker save kubearmor/kubearmor-snitch:latest | minikube image load -
+          
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          kubectl wait --timeout=5m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
+          kubectl get pods -A
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make -C tests/k8s_env/
+        timeout-minutes: 30
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
+
