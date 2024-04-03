@@ -123,8 +123,9 @@ ifeq (, $(shell which goreleaser))
 	}
 endif
 	cd $(CURDIR)/BPF; make clean
+	cd $(CURDIR)/BPF; make
 	cd $(CURDIR); curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sh -s -- -b .
-	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate --snapshot
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --clean --skip=publish,sign,validate --snapshot
 
 .PHONY: scan
 scan: 
