@@ -11,7 +11,7 @@ permissions: read-all
 jobs:
   goreleaser:
     runs-on: ubuntu-20.04
-    if: github.repository == 'kubearmor/kubearmor'
+    if: github.repository == 'Aryan-sharma11/kubearmor'
     permissions:
       contents: write
     steps:
