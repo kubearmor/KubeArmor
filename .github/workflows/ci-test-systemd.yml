@@ -42,7 +42,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           install-only: true
-          version: v1.12.2
+          version: v1.25.0
 
       - name: Build Systemd Release
         run: make local-release

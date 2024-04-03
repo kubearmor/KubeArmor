@@ -26,8 +26,8 @@ archives:
       - src: ./BPF/*
         dst: /opt/kubearmor/
       - src: ./templates/*
-        dst: /opt/kubearmor/
-
+        dst: /opt/kubearmor/ 
+   
 nfpms:
   - id: "kubearmor"
     builds:
@@ -49,7 +49,7 @@ nfpms:
       - dst: /opt/kubearmor
         type: dir
       - src: ./BPF/*
-        dst: /opt/kubearmor/BPF/
+        dst: /opt/kubearmor/BPF
       - src: ./templates/*
         dst: /opt/kubearmor/templates/
       - src: ./packaging/kubearmor.yaml
