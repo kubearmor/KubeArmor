@@ -32,12 +32,16 @@ jobs:
       - name: Install karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
         working-directory: KubeArmor
-
+      
+      - name: Build KubeArmor object files
+        run: make 
+        working-directory: KubeArmor/BPF
+      
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
           distribution: goreleaser
-          version: v1.12.2
+          version: v1.25.0
           args: release --rm-dist
           workdir: KubeArmor
         env:

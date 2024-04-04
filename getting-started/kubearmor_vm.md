@@ -9,11 +9,10 @@ The recipe installs `kubearmor` as systemd process and `karmor` cli tool to mana
 1. Download the [latest release](https://github.com/kubearmor/KubeArmor/releases) or KubeArmor.
 2. Install KubeArmor (VER is the kubearmor release version)
   ```
-  sudo apt install ./kubearmor_${VER}_linux-amd64.deb
+  sudo apt --no-install-recommends install ./kubearmor_${VER}_linux-amd64.deb
   ```
-
-  > Note that the above automatically installs `bpfcc-tools` with our package, but your distribution might have an older version of BCC. In case of errors, consider installing `bcc` from [source](https://github.com/iovisor/bcc/blob/master/INSTALL.md#source).
-
+  > Note that the above command doesn't installs the recommended packages, as we ship object files along with the package file. In case you don't have BTF, consider removing `--no-install-recommends` flag.
+  
 <details><summary>For distributions other than Ubuntu/Debian</summary>
 <p>
 
