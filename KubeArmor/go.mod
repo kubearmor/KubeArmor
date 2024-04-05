@@ -1,8 +1,8 @@
 module github.com/kubearmor/KubeArmor/KubeArmor
 
-go 1.21
+go 1.21.0
 
-toolchain go1.21.8
+toolchain go1.22.2
 
 replace (
 	github.com/kubearmor/KubeArmor => ../../
@@ -25,7 +25,7 @@ replace (
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
-	github.com/cilium/cilium v1.14.5
+	github.com/cilium/cilium v1.14.9
 	github.com/cilium/ebpf v0.12.3
 	github.com/containerd/containerd v1.7.11
 	github.com/containerd/typeurl/v2 v2.1.1
@@ -45,7 +45,7 @@ require (
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
 	k8s.io/cri-api v0.29.0
-	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
+	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
 	sigs.k8s.io/controller-runtime v0.15.3
 )
 
