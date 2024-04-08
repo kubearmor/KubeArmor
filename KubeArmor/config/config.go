@@ -57,7 +57,8 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 	InitTimeout        string   // Timeout for main thread init stages
 
-	StateAgent bool // enable KubeArmor state agent
+	StateAgent  bool // enable KubeArmor state agent
+	UseOCIHooks bool
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -114,6 +115,7 @@ const (
 	ConfigThrottleSec                    string = "throttleSec"
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
+	UseOCIHooks                          string = "useOCIHooks"
 )
 
 func readCmdLineParams() {
@@ -174,6 +176,7 @@ func readCmdLineParams() {
 	annotateResources := flag.Bool(ConfigAnnotateResources, false, "for kubearmor deployment without kubearmor-controller")
 
 	procFsMount := flag.String(ConfigProcFsMount, "/proc", "Path to the BPF filesystem to use for storing maps")
+	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -241,6 +244,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigAnnotateResources, *annotateResources)
 
 	viper.SetDefault(ConfigProcFsMount, *procFsMount)
+
+	viper.SetDefault(UseOCIHooks, *useOCIHooks)
 }
 
 // LoadConfig Load configuration
@@ -359,4 +364,13 @@ func LoadDynamicConfig() {
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
 	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
+	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
+
+	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+
+	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
+
+	kg.Printf("Final Configuration [%+v]", GlobalCfg)
+
+	return
 }
