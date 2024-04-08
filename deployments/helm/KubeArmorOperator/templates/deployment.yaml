@@ -40,6 +40,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- if .Values.enableOCIHooks }}
+        - name: KUBEARMOR_OCI_HOOKS
+          value: "yes"
+        {{- end }}
         {{- if .Values.imagePinning -}}
           {{ include "pinnedImages" .Values.oci_meta | trim | nindent 8 }}
         {{- end }}
