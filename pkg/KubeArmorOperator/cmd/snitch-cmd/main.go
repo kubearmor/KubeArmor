@@ -14,6 +14,7 @@ import (
 
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 
+	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/enforcer"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/k8s"
@@ -99,6 +100,7 @@ func snitch() {
 	order := strings.Split(LsmOrder, ",")
 
 	seccomp.LoadSeccompInNode()
+	LoadApparmor()
 
 	// Detecting enforcer
 	nodeEnforcer := enforcer.DetectEnforcer(order, PathPrefix, *Logger)
@@ -155,6 +157,65 @@ func snitch() {
 	} else {
 		Logger.Infof("Patched node %s, patch=%s", NodeName, string(patch))
 	}
+}
+
+func LoadApparmor() {
+
+	profileContent := `
+## == Managed by KubeArmor == ##
+#include <tunables/global>
+
+profile kubearmor-default flags=(attach_disconnected,mediate_deleted) {
+## == PRE START == ##
+
+#include <abstractions/base>
+umount,
+file,
+network,
+capability,
+
+## == For privileged workloads == ##
+mount,
+signal,
+unix,
+ptrace,
+
+## == PRE END == ##
+
+## == POLICY START == ##
+## == POLICY END == ##
+
+## == POST START == ##
+
+/lib/x86_64-linux-gnu/{*,**} rm,
+
+deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+deny @{PROC}/sysrq-trigger rwklx,
+deny @{PROC}/mem rwklx,
+deny @{PROC}/kmem rwklx,
+deny @{PROC}/kcore rwklx,
+
+deny /sys/[^f]*/** wklx,
+deny /sys/f[^s]*/** wklx,
+deny /sys/fs/[^c]*/** wklx,
+deny /sys/fs/c[^g]*/** wklx,
+deny /sys/fs/cg[^r]*/** wklx,
+deny /sys/firmware/efi/efivars/** rwklx,
+deny /sys/kernel/security/** rwklx,
+
+## == POST END == ##
+}
+`
+
+	profilePath := "/etc/apparmor.d/kubearmor-default"
+
+	if err := os.WriteFile(profilePath, []byte(profileContent), 0664); err != nil {
+		Logger.Errorf("Error copying file to apparmor.d: %v", err)
+	}
+	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", profilePath}); err != nil {
+		Logger.Warnf("Unable to detach /etc/apparmor.d/%s (%s)", profilePath, err.Error())
+	}
+
 }
 
 func main() {

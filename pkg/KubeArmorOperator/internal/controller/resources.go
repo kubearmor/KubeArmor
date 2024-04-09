@@ -229,6 +229,10 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 								Name:      "seccomp-path",
 								MountPath: "/var/lib/kubelet/seccomp",
 							},
+							{
+								Name:      "apparmor",
+								MountPath: "/etc/apparmor.d",
+							},
 						},
 						SecurityContext: &corev1.SecurityContext{
 							RunAsUser:  &rootUser,
@@ -238,6 +242,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 									"IPC_LOCK",
 									"SYS_ADMIN",
 									"SYS_RESOURCE",
+									"MAC_ADMIN",
 								},
 								Drop: []corev1.Capability{
 									"ALL",
@@ -269,6 +274,15 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/var/lib/kubelet/seccomp",
+								Type: &HostPathDirectoryOrCreate,
+							},
+						},
+					},
+					{
+						Name: "apparmor",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/etc/apparmor.d",
 								Type: &HostPathDirectoryOrCreate,
 							},
 						},

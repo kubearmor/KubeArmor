@@ -65,9 +65,20 @@ USER 1000
 
 ENTRYPOINT ["/operator"]
 
-FROM redhat/ubi9-minimal as snitch
+### build apparmor_parser binary
+## debian:10 uses glibc2.28 version similar to ubi9-minimal
+# FROM debian:10 AS apparmor-builder
+# RUN apt-get update && apt-get install -y apparmor
+# RUN mkdir /tmp/apparmor && \
+#  cp /sbin/apparmor_parser /tmp/apparmor/
+#
+FROM alpine:3.18 as snitch
 
 ARG VERSION=latest
+
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
+RUN apk --no-cache update
+RUN apk add apparmor@community apparmor-utils@community bash
 
 LABEL name="kubearmor-snitch" \
       vendor="Accuknox" \
@@ -79,5 +90,8 @@ LABEL name="kubearmor-snitch" \
 ARG OPERATOR_DIR=pkg/KubeArmorOperator
 COPY --from=builder /KubeArmor/$OPERATOR_DIR/snitch /snitch
 COPY LICENSE /licenses/license.txt
+
+# COPY --from=apparmor-builder /tmp/apparmor/apparmor_parser /usr/sbin/
+# RUN chmod u+s /usr/sbin/apparmor_parser
 
 ENTRYPOINT ["/snitch"]
