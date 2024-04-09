@@ -12,13 +12,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
-
-	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/enforcer"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/k8s"
 	runtimepkg "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/runtime"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -212,7 +210,7 @@ deny /sys/kernel/security/** rwklx,
 	if err := os.WriteFile(profilePath, []byte(profileContent), 0664); err != nil {
 		Logger.Errorf("Error copying file to apparmor.d: %v", err)
 	}
-	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", profilePath}); err != nil {
+	if err := common.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", profilePath}); err != nil {
 		Logger.Warnf("Unable to detach /etc/apparmor.d/%s (%s)", profilePath, err.Error())
 	}
 
