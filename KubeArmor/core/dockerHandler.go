@@ -732,7 +732,7 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 
 			// if message type is container
 			if msg.Type == "container" {
-				dm.UpdateDockerContainer(msg.ID, msg.Action)
+				dm.UpdateDockerContainer(msg.ID, string(msg.Action))
 			}
 		}
 	}
