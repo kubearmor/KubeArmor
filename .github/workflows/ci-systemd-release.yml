@@ -14,6 +14,7 @@ jobs:
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -22,6 +23,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
+      - name: Install Cosign 
+        uses: sigstore/cosign-installer@main
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
