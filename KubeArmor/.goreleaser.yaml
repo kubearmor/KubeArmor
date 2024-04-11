@@ -8,7 +8,18 @@ builds:
     goarch:
       - amd64
       - arm64
-
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: '${artifact}.cert'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}' 
+      - '--output-signature=${signature}'
+      - '${artifact}'
+    artifacts: all
+    output: true
 archives:
   - id: "kubearmor"
     builds:
