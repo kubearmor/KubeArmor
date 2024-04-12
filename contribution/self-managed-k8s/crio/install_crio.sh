@@ -12,21 +12,18 @@ fi
 OS="x${NAME}_${VERSION_ID}"
 
 # install cri-o corresponding to the latest k3s version
-VERSION=$(curl -w '%{url_effective}' -L -s -S https://update.k3s.io/v1-release/channels/stable -o /dev/null | sed -e 's|.*/v||' | cut -d '.' -f1,2)
+VERSION=$(curl -w '%{url_effective}' -L -s -S https://update.k3s.io/v1-release/channels/stable -o /dev/null | sed -e 's|.*/||' | cut -d '.' -f1,2)
 echo "Installing CRI-O version $VERSION"
 
-# get signing keys
-echo "deb [signed-by=/usr/share/keyrings/libcontainers-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-echo "deb [signed-by=/usr/share/keyrings/libcontainers-crio-archive-keyring.gpg] https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/ /" | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.list
+curl -fsSL https://pkgs.k8s.io/addons:/cri-o://stable:/$VERSION/deb/Release.key |
+    sudo gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
 
-# add repositories
-sudo mkdir -p /usr/share/keyrings
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/Release.key | sudo gpg --yes --dearmor -o /usr/share/keyrings/libcontainers-archive-keyring.gpg
-curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/Release.key | sudo gpg --yes --dearmor -o /usr/share/keyrings/libcontainers-crio-archive-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/$VERSION/deb/ /" |
+    sudo tee /etc/apt/sources.list.d/cri-o.list
 
 # install
 sudo apt-get update
-sudo apt-get install -y cri-o cri-o-runc
+sudo apt-get install -y cri-o
 
 # this option is not supported in ubuntu 18.04
 if [ "$VERSION_ID" == "18.04" ]; then
