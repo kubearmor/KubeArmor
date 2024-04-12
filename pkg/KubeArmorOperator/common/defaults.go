@@ -8,6 +8,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"os"
+	"os/exec"
 	"strings"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
@@ -367,4 +368,17 @@ func init() {
 	if IsCertifiedOperator() {
 		HostPID = true
 	}
+}
+
+// RunCommandAndWaitWithErr Function
+func RunCommandAndWaitWithErr(cmd string, args []string) error {
+	// #nosec
+	res := exec.Command(cmd, args...)
+	if err := res.Start(); err != nil {
+		return err
+	}
+	if err := res.Wait(); err != nil {
+		return err
+	}
+	return nil
 }

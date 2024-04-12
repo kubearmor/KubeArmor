@@ -11,7 +11,7 @@ replace (
 )
 
 require (
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20240110164432-c2c1b121cd94
+	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20240409064958-a958a85dfde3
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20230809083125-e2d5d5709d2c
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20240110164432-c2c1b121cd94
 	github.com/spf13/cobra v1.8.0
@@ -25,6 +25,7 @@ require (
 )
 
 require (
+	github.com/cilium/cilium v1.14.5 // indirect
 	github.com/cilium/ebpf v0.12.3 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.2 // indirect
@@ -73,6 +74,8 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240108191215-35c7eff3a6b1 // indirect
+	google.golang.org/grpc v1.61.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect

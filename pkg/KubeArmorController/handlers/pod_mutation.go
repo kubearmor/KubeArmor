@@ -83,9 +83,9 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 	}
 
 	// exception: kubearmor
-	if _, ok := pod.Labels["kubearmor-app"]; ok {
-		pod.Annotations["kubearmor-policy"] = "audited"
-	}
+	// if _, ok := pod.Labels["kubearmor-app"]; ok {
+	// pod.Annotations["kubearmor-policy"] = "audited"
+	// }
 
 	// == Visibility == //
 
