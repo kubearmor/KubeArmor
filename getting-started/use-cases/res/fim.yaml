@@ -1,0 +1,39 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: harden-mysql-file-integrity-monitoring
+  namespace: wordpress-mysql
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /sbin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/bin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/lib/
+      readOnly: true
+      recursive: true
+    - dir: /usr/sbin/
+      readOnly: true
+      recursive: true
+    - dir: /bin/
+      readOnly: true
+      recursive: true
+    - dir: /boot/
+      readOnly: true
+      recursive: true
+  message: Detected and prevented compromise to File integrity
+  selector:
+    matchLabels:
+      app: mysql
+  severity: 1
+  tags:
+  - NIST
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+  - MITRE
+  - MITRE_T1036_masquerading
+  - MITRE_T1565_data_manipulation

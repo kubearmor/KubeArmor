@@ -1,0 +1,30 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: harden-wordpress-remote-file-copy
+  namespace: wordpress-mysql
+spec:
+  action: Block
+  message: Alert! remote file copy tools execution prevented.
+  process:
+    matchPaths:
+    - path: /usr/bin/rsync
+    - path: /bin/rsync
+    - path: /usr/bin/scp
+    - path: /bin/scp
+    - path: /usr/bin/scp
+    - path: /bin/scp
+  selector:
+    matchLabels:
+      app: wordpress
+  severity: 5
+  tags:
+  - MITRE
+  - MITRE_TA0008_lateral_movement
+  - MITRE_TA0010_exfiltration
+  - MITRE_TA0006_credential_access
+  - MITRE_T1552_unsecured_credentials
+  - NIST_800-53_SI-4(18)
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_SC-4

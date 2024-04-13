@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: harden-mysql-trusted-cert-mod
+  namespace: wordpress-mysql
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/ssl/
+      readOnly: true
+      recursive: true
+    - dir: /etc/pki/
+      readOnly: true
+      recursive: true
+    - dir: /usr/local/share/ca-certificates/
+      readOnly: true
+      recursive: true
+  message: Credentials modification denied
+  selector:
+    matchLabels:
+      app: mysql
+  severity: 1
+  tags:
+  - MITRE
+  - MITRE_T1552_unsecured_credentials
+  - FGT1555
+  - FIGHT

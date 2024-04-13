@@ -1,0 +1,35 @@
+Version: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: harden-dvwa-web-network-service-scanning
+  namespace: default
+spec:
+  action: Block
+  message: Network service has been scanned!
+  process:
+    matchPaths:
+    - path: /usr/bin/netstat
+    - path: /bin/netstat
+    - path: /usr/sbin/ip
+    - path: /usr/bin/ip
+    - path: /sbin/ip
+    - path: /bin/ip
+    - path: /usr/sbin/iw
+    - path: /sbin/iw
+    - path: /usr/sbin/ethtool
+    - path: /sbin/ethtool
+    - path: /usr/sbin/ifconfig
+    - path: /sbin/ifconfig
+    - path: /usr/sbin/arp
+    - path: /sbin/arp
+    - path: /usr/sbin/iwconfig
+    - path: /sbin/iwconfig
+  selector:
+    matchLabels:
+      app: dvwa-web
+      tier: frontend
+  severity: 5
+  tags:
+  - MITRE
+  - FGT1046
+  - CIS
