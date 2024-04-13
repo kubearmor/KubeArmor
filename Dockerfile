@@ -66,7 +66,7 @@ RUN groupadd --gid 1000 default \
   && useradd --uid 1000 --gid default --shell /bin/bash --create-home default
 
 COPY LICENSE /licenses/license.txt
-COPY --from=builder --chown=default:dafault /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
+COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 # TODO
