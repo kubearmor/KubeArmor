@@ -18,6 +18,7 @@ spec:
   enableStdOutAlerts: false
   enableStdOutMsgs: false
   seccompEnabled: false
+  syscallsVisibility: chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace
   kubearmorImage:
     image: kubearmor/kubearmor:stable
     imagePullPolicy: Always

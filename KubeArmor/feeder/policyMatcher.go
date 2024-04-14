@@ -1748,6 +1748,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				if setLogFields(&log, existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
+			} else if log.Operation == "Syscall" {
+				if setLogFields(&log, false, "allow", fd.Node.SyscallVisibilityEnabled, false) {
+					return log
+				}
 			}
 		} else if log.Type == "MatchedPolicy" {
 			log.Type = "MatchedHostPolicy"

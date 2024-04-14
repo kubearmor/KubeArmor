@@ -38,6 +38,7 @@ const (
 	// how many event the channel can hold
 	SyscallChannelSize   = 1 << 13 //8192
 	DefaultVisibilityKey = uint32(0xc0ffee)
+	SyscallVisibility    = "chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace"
 )
 
 // ======================= //
@@ -57,6 +58,7 @@ type NsVisibility struct {
 	Process    bool
 	Capability bool
 	Network    bool
+	Syscall    bool
 }
 
 // ===================== //
@@ -132,6 +134,7 @@ type SystemMonitor struct {
 	BpfConfigMap         *cle.Map
 	BpfNsVisibilityMap   *cle.Map
 	BpfVisibilityMapSpec cle.MapSpec
+	BpfSyscallVis        *cle.Map
 
 	NsVisibilityMap  map[NsKey]*cle.Map
 	NamespacePidsMap map[string]NsVisibility
@@ -197,7 +200,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 		Type:       cle.Hash,
 		KeySize:    4,
 		ValueSize:  4,
-		MaxEntries: 4,
+		MaxEntries: 5,
 	}
 
 	// assign the value of untracked ns from GlobalCfg
@@ -251,7 +254,24 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}
 	}
 
-	return errors.Join(errviz, errconfig)
+	bpfSyscallVis, errsyscallvis := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_syscall_vis",
+			Type:       cle.Array,
+			KeySize:    4,
+			ValueSize:  4,
+			MaxEntries: 322,
+			Pinning:    cle.PinByName,
+			InnerMap:   &mon.BpfVisibilityMapSpec,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.BpfSyscallVis = bpfSyscallVis
+	if cfg.GlobalCfg.SyscallsVisibility != "" {
+		mon.HandleSyscallsVsibility()
+	}
+
+	return errors.Join(errviz, errconfig, errsyscallvis)
 }
 
 // DestroyBPFMaps Function
@@ -277,6 +297,17 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
 		}
 	}
+
+	if mon.BpfSyscallVis != nil {
+		err := mon.BpfSyscallVis.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_syscall_vis %v", err)
+		}
+		err = mon.BpfSyscallVis.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_syscall_vis %v", err)
+		}
+	}
 }
 
 // UpdateNsKeyMap Function
@@ -299,6 +330,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		Key:   uint32(3),
 		Value: visibilityOff,
 	}
+	syscall := cle.MapKV{
+		Key:   uint32(4),
+		Value: visibilityOff,
+	}
 	if visibility.File {
 		file.Value = visibilityOn
 	}
@@ -311,6 +346,9 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 	if visibility.Network {
 		network.Value = visibilityOn
 	}
+	if visibility.Syscall {
+		syscall.Value = visibilityOn
+	}
 
 	if action == "ADDED" {
 		spec := mon.BpfVisibilityMapSpec
@@ -318,6 +356,7 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		spec.Contents = append(spec.Contents, process)
 		spec.Contents = append(spec.Contents, network)
 		spec.Contents = append(spec.Contents, capability)
+		spec.Contents = append(spec.Contents, syscall)
 		visibilityMap, err := cle.NewMap(&spec)
 		if err != nil {
 			mon.Logger.Warnf("Cannot create bpf map %s", err)
@@ -351,6 +390,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		err = visibilityMap.Put(capability.Key, capability.Value)
 		if err != nil {
 			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey, capability.Value)
+		}
+		err = visibilityMap.Put(syscall.Key, syscall.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=syscall", nsKey, syscall.Value)
 		}
 
 		// Need to lock NsMap to print the following log message
@@ -390,6 +433,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		if strings.Contains(visibilityParams, "capabilities") {
 			hostVisibility.Capabilities = true
 		}
+		if strings.Contains(visibilityParams, "syscall") {
+			hostVisibility.Capabilities = true
+		}
 	}
 
 	nsKey := NsKey{
@@ -412,12 +458,62 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		if strings.Contains(visibilityParams, "capabilities") {
 			visibility.Capabilities = true
 		}
+		if strings.Contains(visibilityParams, "syscall") {
+			visibility.Capabilities = true
+		}
 	}
 
 	mon.BpfMapLock.Lock()
 	defer mon.BpfMapLock.Unlock()
 	mon.UpdateNsKeyMap("ADDED", hostNSKey, hostVisibility)
 	mon.UpdateNsKeyMap("ADDED", nsKey, visibility)
+}
+
+func getSyscallID(syscallName string) int {
+	// Map syscall name to syscall ID
+	switch syscallName {
+	case "chown":
+		return 92
+	case "fchownat":
+		return 260
+	case "mount":
+		return 165
+	case "unmount":
+		return 166
+	case "unlink":
+		return 87
+	case "unlinkat":
+		return 263
+	case "setuid":
+		return 105
+	case "setgid":
+		return 106
+	case "ptrace":
+		return 101
+
+	default:
+		return -1
+	}
+}
+
+// HandleSyscallsVsibility enable/disable syscalls visibility
+func (mon *SystemMonitor) HandleSyscallsVsibility() {
+	syscallNames := strings.Split(SyscallVisibility, ",")
+
+	for _, name := range syscallNames {
+		syscallID := getSyscallID(name)
+		if syscallID != -1 {
+			if strings.Contains(cfg.GlobalCfg.SyscallsVisibility, name) {
+				if err := mon.BpfSyscallVis.Update(uint32(syscallID), uint32(1), cle.UpdateAny); err != nil {
+					fmt.Printf("Error updating eBPF map for syscall %s: %v\n", name, err)
+				}
+			} else {
+				if err := mon.BpfSyscallVis.Update(uint32(syscallID), uint32(0), cle.UpdateAny); err != nil {
+					fmt.Printf("Error updating eBPF map for syscall %s: %v\n", name, err)
+				}
+			}
+		}
+	}
 }
 
 // InitBPF Function

@@ -54,7 +54,10 @@ spec:
     enableStdOutMsgs: [show stdout messages for relay server]  # DEFAULT - false 
 
     # default visibility configuration
-    defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,network
+    defaultVisibility: [comma separated: process|file|network|syscall] # DEFAULT - process,network
+
+    # per syscall vsisbility
+    syscallsVisibility: [comma separated: add syscall name for visibility] # DEFAULT - chown,fchownat,mount,unmount,unlink,unlinkat,setuid,setgid,ptrace
 
     # KubeArmor image and pull policy
     kubearmorImage:
