@@ -73,11 +73,13 @@ type enforcerProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerMapSpecs struct {
-	Bufk                *ebpf.MapSpec `ebpf:"bufk"`
-	Bufs                *ebpf.MapSpec `ebpf:"bufs"`
-	BufsOff             *ebpf.MapSpec `ebpf:"bufs_off"`
-	KubearmorContainers *ebpf.MapSpec `ebpf:"kubearmor_containers"`
-	KubearmorEvents     *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	Bufk                   *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                   *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
+	KubearmorAlertThrottle *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
+	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
 }
 
 // enforcerObjects contains all objects after they have been loaded into the kernel.
@@ -99,11 +101,13 @@ func (o *enforcerObjects) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerMaps struct {
-	Bufk                *ebpf.Map `ebpf:"bufk"`
-	Bufs                *ebpf.Map `ebpf:"bufs"`
-	BufsOff             *ebpf.Map `ebpf:"bufs_off"`
-	KubearmorContainers *ebpf.Map `ebpf:"kubearmor_containers"`
-	KubearmorEvents     *ebpf.Map `ebpf:"kubearmor_events"`
+	Bufk                   *ebpf.Map `ebpf:"bufk"`
+	Bufs                   *ebpf.Map `ebpf:"bufs"`
+	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
+	KubearmorAlertThrottle *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
+	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
 }
 
 func (m *enforcerMaps) Close() error {
@@ -111,6 +115,8 @@ func (m *enforcerMaps) Close() error {
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
+		m.KubearmorAlertThrottle,
+		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
 	)

@@ -76,6 +76,9 @@ var (
 	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
 	ConfigDefaultPostureLogs         string = "defaultPostureLogs"
+	ConfigAlertThrottling            string = "alertThrottling"
+	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
+	ConfigThrottleSec                string = "throttleSec"
 
 	//KubearmorRelayEnvVariables
 
@@ -121,6 +124,9 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
 	ConfigDefaultPostureLogs:         "true",
+	ConfigAlertThrottling:            "false",
+	ConfigMaxAlertPerSec:             "10",
+	ConfigThrottleSec:                "30",
 }
 
 var ConfigDefaultSeccompEnabled = "false"

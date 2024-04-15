@@ -18,6 +18,9 @@ spec:
   enableStdOutAlerts: false
   enableStdOutMsgs: false
   seccompEnabled: false
+  alertThrottling: false
+  maxAlertPerSec: 10
+  throttleSec: 30
   kubearmorImage:
     image: kubearmor/kubearmor:stable
     imagePullPolicy: Always

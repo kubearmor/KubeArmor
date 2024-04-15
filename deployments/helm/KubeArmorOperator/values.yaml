@@ -46,6 +46,9 @@ kubearmorConfig:
   enableStdOutAlerts: false
   enableStdOutMsgs: false
   seccompEnabled: true
+  alertThrottling: false
+  maxAlertPerSec: 10
+  throttleSec: 30
 
 # DO NOT CHANGE THIS VALUES 
 # changing these values will require code changes with the operator

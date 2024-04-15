@@ -55,6 +55,10 @@ type KubearmorConfig struct {
 	InitTimeout        string   // Timeout for main thread init stages
 
 	StateAgent bool // enable KubeArmor state agent
+
+	AlertThrottling bool // Enable/Disable Alert Throttling
+	MaxAlertPerSec  int  // Maximum alerts allowed per second
+	ThrottleSec     int  // Number of seconds for which subsequent alerts will be dropped
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -96,6 +100,9 @@ const (
 	ConfigDefaultPostureLogs             string = "defaultPostureLogs"
 	ConfigInitTimeout                    string = "initTimeout"
 	ConfigStateAgent                     string = "enableKubeArmorStateAgent"
+	ConfigAlertThrottling                string = "alertThrottling"
+	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
+	ConfigThrottleSec                    string = "throttleSec"
 )
 
 func readCmdLineParams() {
@@ -143,6 +150,12 @@ func readCmdLineParams() {
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
+
+	alertThrottling := flag.Bool(ConfigAlertThrottling, false, "enabling Alert Throttling")
+
+	maxAlertPerSec := flag.Int(ConfigMaxAlertPerSec, 10, "Maximum alerts allowed per second")
+
+	throttleSec := flag.Int(ConfigThrottleSec, 30, "Time period for which subsequent alerts will be dropped (in sec)")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -197,6 +210,10 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigInitTimeout, *initTimeout)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
+
+	viper.SetDefault(ConfigAlertThrottling, *alertThrottling)
+	viper.SetDefault(ConfigMaxAlertPerSec, *maxAlertPerSec)
+	viper.SetDefault(ConfigThrottleSec, *throttleSec)
 }
 
 // LoadConfig Load configuration
@@ -291,6 +308,10 @@ func LoadConfig() error {
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+
+	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
+	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
+	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

@@ -9,13 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	gomegaTypes "github.com/onsi/gomega/types"
 	"math/rand"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
+
+	gomegaTypes "github.com/onsi/gomega/types"
 
 	kcV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kcScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/scheme"
@@ -47,6 +48,9 @@ type ConfigMapData struct {
 	DefaultFilePosture         string
 	DefaultCapabilitiesPosture string
 	DefaultNetworkPosture      string
+	AlertThrottling            string
+	MaxAlertPerSec             string
+	ThrottleSec                string
 }
 
 // GetK8sClient function return instance of k8s client
@@ -102,6 +106,9 @@ func NewDefaultConfigMapData() *ConfigMapData {
 	data.DefaultFilePosture = "audit"
 	data.DefaultCapabilitiesPosture = "audit"
 	data.DefaultNetworkPosture = "audit"
+	data.AlertThrottling = "false"
+	data.MaxAlertPerSec = "10"
+	data.ThrottleSec = "30"
 
 	return data
 }
@@ -127,6 +134,9 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 			"defaultFilePosture":         data.DefaultFilePosture,
 			"defaultCapabilitiesPosture": data.DefaultCapabilitiesPosture,
 			"defaultNetworkPosture":      data.DefaultNetworkPosture,
+			"alertThrottling":            data.AlertThrottling,
+			"maxAlertPerSec":             data.MaxAlertPerSec,
+			"throttleSec":                data.ThrottleSec,
 		},
 	}
 

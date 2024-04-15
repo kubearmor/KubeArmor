@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -265,6 +266,12 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+			// for throttling
+			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
+				MntNs: container.MntNS,
+				PidNs: container.PidNS,
+			}
+
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
@@ -320,6 +327,9 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 		dm.EndPointsLock.Unlock()
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+			outkey := dm.SystemMonitor.Logger.ContainerNsKey[containerID]
+			dm.Logger.DeleteAlertMapKey(outkey)
+			delete(dm.SystemMonitor.Logger.ContainerNsKey, containerID)
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)

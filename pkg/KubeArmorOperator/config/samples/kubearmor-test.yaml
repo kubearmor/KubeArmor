@@ -15,6 +15,9 @@ spec:
   defaultNetworkPosture: block
   defaultVisibility: process,file,network,capabilities
   seccompEnabled: false
+  alertThrottling: false
+  maxAlertPerSec: 10
+  throttleSec: 30
   kubearmorImage:
     image: kubearmor/kubearmor:latest
     imagePullPolicy: Never

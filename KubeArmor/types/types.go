@@ -259,17 +259,18 @@ type Log struct {
 	Message  string   `json:"message,omitempty"`
 
 	// log
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Operation string `json:"operation"`
-	Resource  string `json:"resource"`
-	Cwd       string `json:"cwd"`
-	TTY       string `json:"tty,omitempty"`
-	OID       int32  `json:"oid"`
-	Data      string `json:"data,omitempty"`
-	Action    string `json:"action,omitempty"`
-	Result    string `json:"result"`
-
+	Type                   string `json:"type"`
+	Source                 string `json:"source"`
+	Operation              string `json:"operation"`
+	Resource               string `json:"resource"`
+	Cwd                    string `json:"cwd"`
+	TTY                    string `json:"tty,omitempty"`
+	OID                    int32  `json:"oid"`
+	Data                   string `json:"data,omitempty"`
+	Action                 string `json:"action,omitempty"`
+	Result                 string `json:"result"`
+	MaxAlertsPerSec        int32  `json:"MaxAlertsPerSec,omitempty"`
+	DroppingAlertsInterval int32  `json:"DroppingAlertsInterval,omitempty"`
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled,omitempty"`

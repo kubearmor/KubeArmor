@@ -330,5 +330,4 @@ var _ = Describe("Smoke", func() {
 			Expect(alerts[0].Result).To(Equal("Passed"))
 		})
 	})
-
 })
