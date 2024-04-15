@@ -28,6 +28,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// OuterKey struct
+type OuterKey struct {
+	PidNs uint32
+	MntNs uint32
+}
+
 // ============ //
 // == Common == //
 // ============ //
@@ -587,4 +593,9 @@ func GetLabelsFromString(labelString string) (map[string]string, []string) {
 	})
 
 	return labelsMap, labelsSlice
+}
+
+// provide current timestamp
+func GetCurrentTimeStamp() uint64 {
+	return uint64(time.Now().UnixNano())
 }

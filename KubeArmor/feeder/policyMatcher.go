@@ -1007,6 +1007,9 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	fd.DefaultPosturesLock.Lock()
 	defer fd.DefaultPosturesLock.Unlock()
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
+		if log.Type == "SystemEvent" {
+			return log
+		}
 		fd.SecurityPoliciesLock.RLock()
 
 		key := cfg.GlobalCfg.Host
@@ -1727,6 +1730,20 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return tp.Log{}
 			}
 
+			// check for throttling for "Audit" alerts
+			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
+				nsKey := fd.ContainerNsKey[log.ContainerID]
+				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
+				if alert && throttle {
+					return tp.Log{}
+				} else if alert && !throttle {
+					log.Operation = "AlertThreshold"
+					log.Type = "SystemEvent"
+					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
+					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+				}
+			}
+
 			return log
 		}
 	} else { // host
@@ -1754,6 +1771,20 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
+			}
+
+			// check for throttling for "Audit" alerts
+			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
+				nsKey := fd.ContainerNsKey[log.ContainerID]
+				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
+				if alert && throttle {
+					return tp.Log{}
+				} else if alert && !throttle {
+					log.Operation = "AlertThreshold"
+					log.Type = "SystemEvent"
+					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
+					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+				}
 			}
 
 			return log

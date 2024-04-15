@@ -31,6 +31,9 @@ enum
     // capabilities
     _CAPABLE = 464,
 
+    // dropping alert
+    _DROPPING_ALERT = 0,
+
 
 };
 #endif /* __SYSCALLS_H */

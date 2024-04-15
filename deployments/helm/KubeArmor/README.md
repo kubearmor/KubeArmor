@@ -44,6 +44,8 @@ helm upgrade --install kubearmor . -n kubearmor --create-namespace
 ```
 $ sudo ./kubearmor -h
 Usage of ./kubearmor:
+  -alertThrottling
+        enabling Alert Throttling
   -bpfFsPath string
         Path to the BPF filesystem to use for storing maps (default "/sys/fs/bpf")
   -cluster string
@@ -84,8 +86,12 @@ Usage of ./kubearmor:
         log file path, {path|stdout|none} (default "none")
   -lsm string
         lsm preference order to use, available lsms [bpf, apparmor, selinux] (default "bpf,apparmor,selinux")
+  -maxAlertPerSec int
+        Maximum alerts allowed per second (default 10)
   -seLinuxProfileDir string
         SELinux profile directory (default "/tmp/kubearmor.selinux")
+  -throttleSec int
+        Time period for which subsequent alerts will be dropped (in sec) (default 30)
   -visibility string
         Container Visibility to use, available visibility [process,file,network,capabilities,none] (default "process,network")
 ```

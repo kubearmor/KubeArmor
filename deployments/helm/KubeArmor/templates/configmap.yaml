@@ -4,6 +4,9 @@ data:
   defaultCapabilitiesPosture: {{ .Values.kubearmorConfigMap.defaultCapabilitiesPosture }}
   defaultNetworkPosture: {{ .Values.kubearmorConfigMap.defaultNetworkPosture }}
   visibility: {{ .Values.kubearmorConfigMap.visibility }}
+  alertThrottling: {{ .Values.kubearmorConfigMap.alertThrottling }}
+  maxAlertPerSec: {{ .Values.kubearmorConfigMap.maxAlertPerSec }}
+  throttleSec: {{ .Values.kubearmorConfigMap.throttleSec }}
 kind: ConfigMap
 metadata:
   labels:

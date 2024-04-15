@@ -46,6 +46,9 @@
 
 #include <bpf_helpers.h>
 #include <bpf_tracing.h>
+#include "syscalls.h"
+#include "throttling.h"
+
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -175,8 +178,6 @@ enum
     _SYS_RMDIR = 84,
 
     _SYS_PTRACE = 101,
-    // lsm
-    _SECURITY_BPRM_CHECK = 352,
 
     // accept/connect
     _TCP_CONNECT = 400,
@@ -312,12 +313,6 @@ enum
     _IGNORE_SYSCALL = 1,
 };
 
-struct outer_key
-{
-    u32 pid_ns;
-    u32 mnt_ns;
-};
-
 struct visibility
 {
     __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
@@ -342,6 +337,9 @@ enum
     _MONITOR_HOST = 0,
     _MONITOR_CONTAINER = 1,
     _ENFORCER_BPFLSM = 2,
+    _ALERT_THROTTLING = 3,
+    _MAX_ALERT_PER_SEC = 4,
+    _THROTTLE_SEC = 5,
 };
 
 struct kaconfig
@@ -500,6 +498,12 @@ static __always_inline u32 remove_pid_ns()
     { // container
         if (get_task_ns_pid(task) == 1)
         {
+            u32 mnt_ns = get_task_mnt_ns_id(task);
+            struct outer_key key = {
+                .pid_ns = pid_ns,
+                .mnt_ns = mnt_ns
+            };
+            bpf_map_delete_elem(&kubearmor_alert_throttle, &key);
             bpf_map_delete_elem(&pid_ns_map, &pid_ns);
             return 0;
         }
@@ -1038,6 +1042,79 @@ static __always_inline u32 init_context(sys_context_t *context)
     return 0;
 }
 
+// == Alert Throttling == //
+
+// To check if subsequent alerts should be dropped per container
+static __always_inline bool should_drop_alerts_per_container(sys_context_t *context, struct pt_regs *ctx, u32 types, args_t *args) {
+    u64 current_timestamp = bpf_ktime_get_ns();
+
+    struct outer_key key = {
+        .pid_ns = context->pid_id,
+        .mnt_ns = context->mnt_id
+    };
+
+    struct alert_throttle_state *state = bpf_map_lookup_elem(&kubearmor_alert_throttle, &key);
+
+    if (!state) {
+        struct alert_throttle_state new_state = {
+            .event_count = 1,
+            .first_event_timestamp = current_timestamp,
+            .throttle = 0
+        };
+
+        bpf_map_update_elem(&kubearmor_alert_throttle, &key, &new_state, BPF_ANY);
+        return false;
+    }
+
+    u64 throttle_sec = (u64)get_kubearmor_config(_THROTTLE_SEC);
+    u64 throttle_nsec = throttle_sec * 1000000000L;
+    u64 max = (u64)get_kubearmor_config(_MAX_ALERT_PER_SEC);
+
+    if (state->throttle) {
+        u64 time_difference = current_timestamp - state->first_event_timestamp;
+        if (time_difference < throttle_nsec) {
+            return true;
+        }  
+    }
+
+    u64 time_difference = current_timestamp - state->first_event_timestamp;
+
+    if (time_difference >= 1000000000L) { // 1 second
+        state->first_event_timestamp = current_timestamp;
+        state->event_count = 1;
+        state->throttle = 0;
+    } else {
+        state->event_count++;
+    }
+
+    if (state->event_count > max) {
+        state->event_count = 0;
+        state->throttle = 1;
+        bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
+
+        // Generating Throttling Alert 
+        context->event_id = _DROPPING_ALERT;
+        set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+
+        bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+        if (bufs_p == NULL) {
+            return 0;
+        }
+
+        save_context_to_buffer(bufs_p, (void *)context);
+
+        if (types != 0) {
+            save_args_to_buffer(types, args);
+        }
+
+        events_perf_submit(ctx);
+        return true; 
+    }
+
+    bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
+    return false; 
+}
+
 SEC("kprobe/security_path_mknod")
 int kprobe__security_path_mknod(struct pt_regs *ctx)
 {
@@ -1224,6 +1301,13 @@ int kretprobe__execve(struct pt_regs *ctx)
         return 0;
     }
 
+    u32 types;
+    args_t args = {};
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
+    }
+
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
@@ -1325,6 +1409,14 @@ int kretprobe__execveat(struct pt_regs *ctx)
     if (context.retval >= 0 && drop_syscall(_PROCESS_PROBE))
     {
         // we need alerts for apparmor enforcer hence only dropping passed logs
+        return 0;
+    }
+
+    u32 types;
+    args_t args = {};
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
         return 0;
     }
 
@@ -1499,6 +1591,11 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
         struct inode *ino = READ_KERN(dent->d_inode);
         kuid_t owner = READ_KERN(ino->i_uid);
         context.oid = owner.val;
+    }
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
     }
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
@@ -1810,6 +1907,11 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
         return 0;
     }
 
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, (struct pt_regs *)args, types, &orig_args))
+    {
+        return 0;
+    }
+
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
 
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
@@ -1963,6 +2065,12 @@ int kprobe__tcp_connect(struct pt_regs *ctx)
     }
 
     args.args[0] = (unsigned long)conn.skc_prot->name;
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
+    }
+
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (bufs_p == NULL)
@@ -2041,6 +2149,12 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     }
 
     args.args[0] = (unsigned long)conn.skc_prot->name;
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
+    }
+
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (bufs_p == NULL)

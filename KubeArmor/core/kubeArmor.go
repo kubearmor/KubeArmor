@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -560,6 +561,8 @@ func KubeArmor() {
 	}
 
 	enableContainerPolicy := true
+
+	dm.SystemMonitor.Logger.ContainerNsKey = make(map[string]common.OuterKey)
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {

@@ -132,6 +132,12 @@ spec:
                 type: object
               seccompEnabled:
                 type: boolean
+              alertThrottling:
+                type: boolean
+              maxAlertPerSec:
+                type: integer
+              throttleSec:
+                type: integer
               tls:
                 properties:
                   enable:

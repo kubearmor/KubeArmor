@@ -75,7 +75,12 @@ func (be *BPFEnforcer) DeleteContainerInnerMap(containerID string) {
 	if be.ContainerMap[containerID].Map != nil {
 		if err := be.BPFContainerMap.Delete(be.ContainerMap[containerID].Key); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
-				be.Logger.Errf("error deleting container %s from outer map: %s", containerID, err.Error())
+				be.Logger.Errf("error deleting container %s from outer map in kubearmor_containers map: %s", containerID, err.Error())
+			}
+		}
+		if err := be.BPFContainerThrottleMap.Delete(be.ContainerMap[containerID].Key); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				be.Logger.Errf("error deleting container %s from outer map in kubearmor_alert_throttle map: %s", containerID, err.Error())
 			}
 		}
 		if err := be.ContainerMap[containerID].Map.Close(); err != nil {
