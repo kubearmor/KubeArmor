@@ -12,6 +12,7 @@ import (
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	crds "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/crd"
+	certGen "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -70,6 +71,11 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 				UID:        deployment_uuid,
 			},
 		}
+	}
+	if common.EnableTls {
+		vols = append(vols, common.KubeArmorCaVolume...)
+		volMnts = append(volMnts, common.KubeArmorCaVolumeMount...)
+		common.AddOrReplaceArg("-tlsEnabled=true", "-tlsEnabled=false", &daemonset.Spec.Template.Spec.Containers[0].Args)
 	}
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
@@ -474,6 +480,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 
+	if common.EnableTls {
+		relayServer.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.KubeArmorRelayTlsVolumeMount...)
+		relayServer.Spec.Template.Spec.Volumes =
+			append(relayServer.Spec.Template.Spec.Volumes, common.KubeArmorRelayTlsVolume...)
+		common.AddOrReplaceArg("-tlsEnabled=true", "-tlsEnabled=false", &relayServer.Spec.Template.Spec.Containers[0].Args)
+	}
+
 	// update images
 	containers := &controller.Spec.Template.Spec.Containers
 	for i, container := range *containers {
@@ -502,6 +516,15 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 		clusterWatcher.Log.Infof("Couldn't generate TLS secret, re-trying in 3 seconds ...")
 		time.Sleep(3 * time.Second)
+	}
+
+	tlsCertSecrets := []*corev1.Secret{}
+
+	if common.EnableTls {
+		secrets, _ := certGen.GetAllTlsCertSecrets()
+		for _, s := range secrets {
+			tlsCertSecrets = append(tlsCertSecrets, addOwnership(s).(*corev1.Secret))
+		}
 	}
 
 	secret := deployments.GetKubeArmorControllerTLSSecret(common.Namespace, caCert.String(), tlsCrt.String(), tlsKey.String())
@@ -595,6 +618,9 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 				}
 			}
 		}
+
+		// watchTlsState
+		clusterWatcher.WatchTlsState(common.GetTlsState())
 
 		//secret
 		s, err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})

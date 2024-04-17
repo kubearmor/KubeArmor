@@ -29,6 +29,7 @@ COPY $OPERATOR_DIR/api api
 COPY $OPERATOR_DIR/client client
 COPY $OPERATOR_DIR/cmd cmd
 COPY $OPERATOR_DIR/common common
+COPY $OPERATOR_DIR/cert cert
 COPY $OPERATOR_DIR/internal/controller internal/controller
 COPY $OPERATOR_DIR/enforcer enforcer
 COPY $OPERATOR_DIR/k8s k8s

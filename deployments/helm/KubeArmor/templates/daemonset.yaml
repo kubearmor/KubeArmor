@@ -19,6 +19,9 @@ spec:
       containers:
       - args:
         - -gRPC=32767
+        {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
+        {{printf "- -tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath}}
+        {{printf "- -tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider}}
         image: {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
         imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         env:
@@ -49,6 +52,9 @@ spec:
         terminationMessagePolicy: File
         volumeMounts:
         {{- toYaml .Values.kubearmor.commonMounts | trim | nindent 10 }}
+        {{- if .Values.tls.enabled -}}
+          {{- toYaml .Values.kubearmor.tls.kubearmorCACertVolumeMount | trim | nindent 10 }}
+        {{- end -}}
         {{- if eq .Values.environment.name "docker" }}
           {{- toYaml .Values.kubearmor.volumeMountsDocker | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "crio" }}
@@ -105,6 +111,9 @@ spec:
       - operator: Exists
       volumes:
       {{- toYaml .Values.kubearmor.commonVolumes | trim | nindent 8}}
+      {{- if .Values.tls.enabled -}}
+        {{- toYaml .Values.kubearmor.tls.kubearmorCACertVolume | trim | nindent 8 }}
+      {{- end -}}
       {{- if eq .Values.environment.name "docker" }}
         {{- toYaml .Values.kubearmor.volumesDocker | trim | nindent 8 }}
       {{- else if eq .Values.environment.name "crio" }}

@@ -5,6 +5,9 @@ environment:
   # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s
   name: generic
 
+tls:
+  enabled: false  
+
 kubearmorRelay:
   # to enable/disable kubearmor-relay
   enabled: true
@@ -19,6 +22,39 @@ kubearmorRelay:
   enableStdoutLogs: "false"
   enableStdoutAlerts: "false"
   enableStdoutMsg: "false"
+
+  tls:
+    extraDnsNames: ["localhost"]
+    extraIpAddresses: ["127.0.0.1"]
+    tlsCertPath: /var/lib/kubearmor/tls
+    tlsCertProvider: external
+    certSecretName: kubearmor-relay-server-certs
+    certVolumeMount:
+    - mountPath: /var/lib/kubearmor/tls
+      name: kubearmor-relay-certs-secrets
+      readOnly: true
+    certVolume:
+    - name: kubearmor-relay-certs-secrets
+      projected:
+        defaultMode: 0444
+        sources:
+        - secret:
+            name: kubearmor-relay-server-certs
+            items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: ca.crt
+        - secret:
+            name: kubearmor-client-certs
+            items:
+            - key: tls.crt
+              path: client.crt
+            - key: tls.key
+              path: client.key  
+
 
 kubearmorInit:
   image:
@@ -72,6 +108,28 @@ kubearmor:
 
   # kubearmor daemonset arguments. See `kubearmor --help`
   args: []
+
+  tls:
+    tlsCertPath: /var/lib/kubearmor/tls
+    tlsCertProvider: self
+    caSecretName: kubearmor-ca
+    clientCertSecretName: kubearmor-client-certs
+    kubearmorCACertVolumeMount:
+    - mountPath: /var/lib/kubearmor/tls
+      name: kubearmor-ca-secret
+      readOnly: true
+    kubearmorCACertVolume:
+    - name: kubearmor-ca-secret
+      projected:
+        defaultMode: 0444
+        sources:
+        - secret:
+            name: kubearmor-ca
+            items:
+            - key: tls.crt
+              path: ca.crt
+            - key: tls.key
+              path: ca.key
 
   capabilities:
     add:
