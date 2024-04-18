@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -278,6 +279,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdateTlsData(&cfg.Spec)
 						UpdateConfigMapData(&cfg.Spec)
 						UpdateImages(&cfg.Spec)
+						UpdateTolerations(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
 						// update status to (Installation) Created
@@ -300,6 +302,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
+						tolerationUpdated := UpdateTolerations(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
@@ -313,6 +316,9 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						}
 						if len(imageUpdated) > 0 {
 							clusterWatcher.UpdateKubeArmorImages(imageUpdated)
+						}
+						if len(tolerationUpdated) > 0 {
+							clusterWatcher.UpdateKubeArmorTolerations(tolerationUpdated)
 						}
 						if configChanged {
 							// update status to Updating
@@ -417,6 +423,50 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 		}
 	}
 
+	return res
+}
+
+func (clusterWatcher *ClusterWatcher) UpdateKubeArmorTolerations(tolerations []string) error {
+	var res error
+	for _, toleration := range tolerations {
+		switch toleration {
+		case "relay":
+			relay, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.RelayDeploymentName, v1.GetOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
+				res = err
+			} else {
+				relay.Spec.Template.Spec.Tolerations = make([]corev1.Toleration, len(common.KubeArmorRelayToleration))
+				copy(relay.Spec.Template.Spec.Tolerations, common.KubeArmorRelayToleration)
+				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
+				if err != nil {
+					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
+					res = err
+				} else {
+					clusterWatcher.Log.Infof("Updated Deployment=%s with tolerations", deployments.RelayDeploymentName, common.KubeArmorRelayImage)
+				}
+			}
+
+		case "controller":
+			controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, v1.GetOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
+				res = err
+			} else {
+				controller.Spec.Template.Spec.Tolerations = make([]corev1.Toleration, len(common.KubeArmorControllerToleration))
+				copy(controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerToleration)
+				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
+				if err != nil {
+					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
+					res = err
+				} else {
+					clusterWatcher.Log.Infof("Updated Deployment=%s with tolerations", deployments.KubeArmorControllerDeploymentName, common.KubeArmorControllerImage)
+				}
+			}
+
+		}
+
+	}
 	return res
 }
 
@@ -527,6 +577,21 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		updatedImages = append(updatedImages, "rbac")
 	}
 	return updatedImages
+}
+
+func UpdateTolerations(config *opv1.KubeArmorConfigSpec) []string {
+	updatedTolerations := []string{}
+	if reflect.DeepEqual(common.KubeArmorRelayToleration, config.KubeArmorRelayToleration) {
+		common.KubeArmorRelayToleration = make([]corev1.Toleration, len(config.KubeArmorRelayToleration))
+		copy(common.KubeArmorRelayToleration, config.KubeArmorRelayToleration)
+		updatedTolerations = append(updatedTolerations, "relay")
+	}
+	if reflect.DeepEqual(common.KubeArmorControllerToleration, config.KubeArmorControllerToleration) {
+		common.KubeArmorControllerToleration = make([]corev1.Toleration, len(config.KubeArmorControllerToleration))
+		copy(common.KubeArmorControllerToleration, config.KubeArmorControllerToleration)
+		updatedTolerations = append(updatedTolerations, "controller")
+	}
+	return updatedTolerations
 }
 
 func (clusterWatcher *ClusterWatcher) UpdateCrdStatus(cfg, phase, message string) {

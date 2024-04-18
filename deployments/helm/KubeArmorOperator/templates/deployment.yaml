@@ -26,4 +26,8 @@ spec:
         {{- end }}
         image: {{ include "operatorImage" . }}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
+      {{- if .Values.kubearmorOperator.tolerations }}
+      tolerations:
+        {{ toYaml .Values.kubearmorOperator.tolerations | indent 8 }}
+      {{- end }}
       serviceAccountName: {{ .Values.kubearmorOperator.name }}

@@ -36,6 +36,7 @@ kubearmorOperator:
     repository: kubearmor/kubearmor-operator
     tag: ""
   imagePullPolicy: IfNotPresent
+  tolerations: []
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit

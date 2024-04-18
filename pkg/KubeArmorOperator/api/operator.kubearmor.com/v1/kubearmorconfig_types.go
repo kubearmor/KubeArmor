@@ -4,6 +4,7 @@
 package v1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,7 +51,11 @@ type KubeArmorConfigSpec struct {
 	// +kubebuilder:validation:optional
 	KubeArmorRelayImage ImageSpec `json:"kubearmorRelayImage,omitempty"`
 	// +kubebuilder:validation:optional
+	KubeArmorRelayToleration []v1.Toleration `json:"kubearmorRelayToleration,omitempty"`
+	// +kubebuilder:validation:optional
 	KubeArmorControllerImage ImageSpec `json:"kubearmorControllerImage,omitempty"`
+	// +kubebuilder:validation:optional
+	KubeArmorControllerToleration []v1.Toleration `json:"kubearmorControllerToleration,omitempty"`
 	// +kubebuilder:validation:optional
 	KubeRbacProxyImage ImageSpec `json:"kubeRbacProxyImage,omitempty"`
 	// +kubebuilder:validation:optional

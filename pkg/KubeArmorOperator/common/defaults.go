@@ -102,6 +102,10 @@ var (
 	SeccompProfile                            = "kubearmor-seccomp.json"
 	SeccompInitProfile                        = "kubearmor-init-seccomp.json"
 
+	// Tolerations
+	KubeArmorRelayToleration      []corev1.Toleration = []corev1.Toleration{}
+	KubeArmorControllerToleration []corev1.Toleration = []corev1.Toleration{}
+
 	// tls
 	EnableTls                      bool     = false
 	ExtraDnsNames                  []string = []string{"localhost"}

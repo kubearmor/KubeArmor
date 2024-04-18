@@ -39,6 +39,10 @@ spec:
         volumeMounts:
           {{- toYaml .Values.kubearmorRelay.tls.certVolumeMount | trim | nindent 10 }}
         {{- end}}
+      {{- if .Values.kubearmorRelay.tolerations }}
+      tolerations:
+        {{ toYaml .Values.kubearmorRelay.tolerations | indent 8 }}
+      {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: kubearmor-relay
@@ -138,6 +142,10 @@ spec:
         runAsNonRoot: true
       serviceAccountName: {{ .Values.kubearmorController.name }}
       terminationGracePeriodSeconds: 10
+      {{- if .Values.kubearmorController.tolerations }}
+      tolerations:
+        {{ toYaml .Values.kubearmorController.tolerations | indent 8 }}
+      {{- end }}
       volumes:
       - name: cert
         secret:

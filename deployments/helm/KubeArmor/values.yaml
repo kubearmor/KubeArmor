@@ -12,12 +12,14 @@ kubearmorRelay:
   # to enable/disable kubearmor-relay
   enabled: true
   image:
-    # kubearmor-init image repo
+    # kubearmor-relay image repo
     repository: kubearmor/kubearmor-relay-server
-    # kubearmor-init image tag
+    # kubearmor-relay image tag
     tag: latest
-  # kubearmor-init imagePullPolicy
+  # kubearmor-relay imagePullPolicy
   imagePullPolicy: Always
+  # kubearmor-relay tolerations
+  tolerations: []
   # Add environment variables for STDOUT logging
   enableStdoutLogs: "false"
   enableStdoutAlerts: "false"
@@ -88,6 +90,8 @@ kubearmorController:
     failurePolicy: Ignore
   # kubearmor-controller imagePullPolicy
   imagePullPolicy: Always
+  # kubearmor-controller tolerations
+  tolerations: []
 
 kubearmorConfigMap:
   defaultFilePosture: audit
