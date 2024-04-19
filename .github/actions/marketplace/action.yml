@@ -1,0 +1,59 @@
+name: 'Marketplace Helm Chart Release Action'
+description: 'Generate Helm Chart with Pinned to Provided Image References'
+inputs:
+  registry:
+    description: 'Registry'
+    required: true
+    default: ''
+  version:
+    description: 'KubeArmor Release Version'
+    required: true
+    default: ''
+  relay_version:
+    description: 'Relay Release Version'
+    required: true
+    default: ''
+  helm_chart_path:
+    description: 'Helm Chart Path'
+    required: true
+    default: ''
+  helm_chart_name:
+    description: 'Helm Chart Name'
+    required: true
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Install yq
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod a+x /usr/local/bin/yq
+        yq --version
+
+    - name: Generate Helm Chart
+      shell: bash
+      run: |
+        yq -i '.oci_meta.repo = "${{inputs.registry}}" |
+              .oci_meta.images.kubearmor.tag = "${{ inputs.version }}" |
+              .oci_meta.images.kubearmorInit.tag = "${{ inputs.version }}" |
+              .oci_meta.images.kubearmorController.tag = "${{ inputs.version }}" |
+              .oci_meta.images.kubearmorSnitch.tag = "${{ inputs.version }}" |
+              .oci_meta.images.kubearmorOperator.tag = "${{ inputs.version }}" |
+              .oci_meta.images.kubearmorRelay.tag = "${{ inputs.relay_version }}" |
+              .autoDeploy = true |
+              .imagePinning = true' ${{ inputs.helm_chart_path }}/values.yaml
+        yq -i '.name = "${{ inputs.helm_chart_name }}" |
+              .version = "${{ inputs.version }}"' ${{ inputs.helm_chart_path }}/Chart.yaml
+
+    - name: Generate Helm Package
+      shell: bash
+      run: |
+        helm package ${{ inputs.helm_chart_path }}
+
+    - name: Publish Helm Chart
+      shell: bash
+      run: |
+        helm push ${{ inputs.helm_chart_name }}-${{ inputs.version }}.tgz oci://${{inputs.registry}}
+
