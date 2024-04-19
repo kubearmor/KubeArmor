@@ -1,6 +1,6 @@
 # Contribution Guide
 
-KubeArmor maintainers welcome individuals and organizations from across the cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements of documentation that helps us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project!
+KubeArmor maintainers welcome individuals and organizations from across the cloud security landscape (creators and implementers alike) to make contributions to the project. We equally value the addition of technical contributions and enhancements to documentation that help us grow the community and strengthen the value of KubeArmor. We invite members of the community to contribute to the project!
 
 To make a contribution, please follow the steps below.
 
@@ -33,7 +33,7 @@ To make a contribution, please follow the steps below.
 
    First, go into the repository directory and make some changes.
 
-   Please refer to [development guide](development_guide.md) to set up your environment for KubeArmor contribution.  
+   Please refer to [development guide](development_guide.md) to set up your environment for contributing to KubeArmor.
 
 4. Check the changes
 
@@ -72,25 +72,25 @@ To make a contribution, please follow the steps below.
     ~/KubeArmor$ git push
    ```
 
-7. Create a pull request with your changes with the following steps
+7. Create a pull request with your changes using the following steps:
 
    First, go to your repository on GitHub.
 
-   ![commit ahead](../.gitbook/assets/commit_ahead.png)  
+   ![commit ahead](../.gitbook/assets/commit_ahead.png)
 
-   Then, click "Pull request" button.
+   Then, click the "Pull request" button.
 
-   ![after pull request](../.gitbook/assets/after_pull_request.png)  
+   ![after pull request](../.gitbook/assets/after_pull_request.png)
 
    After checking your changes, click 'Create pull request'.
 
-   ![open pull request](../.gitbook/assets/open_pull_request.png)  
+   ![open pull request](../.gitbook/assets/open_pull_request.png)
 
-   A pull request should contain the details of all commits as specific as possible, including "Fixes: \#\(issue number\)".  
+   A pull request should contain the details of all commits as specifically as possible, including "Fixes: \#\(issue number\)".
 
    Finally, click the "Create pull request" button.
 
-   The changes would be merged post a review by the respective module owners. Once the changes are merged, you will get a notification, and the corresponding issue will be closed.
+   The changes would be merged after a review by the respective module owners. Once the changes are merged, you will get a notification, and the corresponding issue will be closed.
 
 8. DCO Signoffs
 

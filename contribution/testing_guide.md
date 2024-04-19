@@ -4,13 +4,13 @@ There are two ways to check the functionalities of KubeArmor: 1) testing KubeArm
 
 # 0. Make sure that the annotation controller is installed on the cluster (Applicable for Steps 1 and 2)
 
-- To install the controller from KubeArmor docker repository to your cluster run
+- To install the controller from the KubeArmor Docker repository on your cluster, run
 
 ```text
 $ cd KubeArmor/pkg/KubeArmorAnnotation
 ~/KubeArmor/pkg/KubeArmorAnnotation$ make deploy
 ```
-- To install the controller (local version) to your cluster run
+- To install the controller (local version) in your cluster, run
 
 ```text
 $ cd KubeArmor/pkg/KubeArmorAnnotation
@@ -41,7 +41,7 @@ $ cd KubeArmor/KubeArmor
                                            -enableKubeArmorHostPolicy=[true|false]
 ```
 
-## 1.4. Apply security policies into Kubernetes
+## 1.4. Apply security policies to Kubernetes
 
 Beforehand, check if the KubeArmorPolicy and KubeArmorHostPolicy CRDs are already applied.
 
@@ -88,7 +88,7 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
     --msgPath string     Output location for messages, {path|stdout|none} (default "none")
     ```
     
-    Note that you will see alerts and logs generated right after `karmor` runs logs; thus, we recommend to run the above command in other terminal to see logs live.
+    Note that you will see alerts and logs generated right after `karmor` runs logs; thus, we recommend running the above command in another terminal to see logs live.
     
 
 # 2.  Test KubeArmor using the auto-testing framework
