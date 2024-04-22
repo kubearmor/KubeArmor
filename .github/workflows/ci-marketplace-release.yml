@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "STABLE-RELEASE"
+      - ".github/workflows/ci-marketplace-release.yml"
 
 jobs:
   certify-images-on-redhat:
@@ -88,6 +89,7 @@ jobs:
           regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags    
 
   publish-images-to-ocir:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
