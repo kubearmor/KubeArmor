@@ -1,11 +1,14 @@
 [Unit]
 Description=KubeArmor
+StartLimitBurst=2
 
 [Service]
 User=root
 KillMode=process
 WorkingDirectory=/opt/kubearmor/
 ExecStart=/opt/kubearmor/kubearmor
+Restart=always
+Restartsec=10
 
 [Install]
 WantedBy=multi-user.target
