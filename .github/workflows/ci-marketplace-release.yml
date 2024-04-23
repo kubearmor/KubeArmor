@@ -149,12 +149,19 @@ jobs:
           helm_chart_path: './deployments/helm/KubeArmorOperator'
           helm_chart_name: 'kubearmor-operator-aws'
 
+      # workaround to mandatory subfolder for helm-gh-master action
+      # https://github.com/stefanprodan/helm-gh-pages/issues/23#issuecomment-854101420
+      - name: Move operator chart to charts subfolder
+        run: |
+          mkdir -p ./deployments/helm/charts
+          mv ./deployments/helm/KubeArmorOperator ./deployments/helm/charts/KubeArmorOperatorAws
+
       - name: Publish Helm chart to KubeArmor helm repo
         uses: stefanprodan/helm-gh-pages@master
         with:
           # Access token which can push to a different repo in the same org
           token: ${{ secrets.GH_ACCESS_TOKEN }}
-          charts_dir: deployments/helm/KubeArmorOperator
+          charts_dir: deployments/helm/charts
           # repo where charts would be published
           owner: kubearmor
           repository: charts
@@ -191,12 +198,19 @@ jobs:
           helm_chart_path: './deployments/helm/KubeArmorOperator'
           helm_chart_name: 'kubearmor-operator-oci'
 
+      # workaround to mandatory subfolder for helm-gh-master action
+      # https://github.com/stefanprodan/helm-gh-pages/issues/23#issuecomment-854101420
+      - name: Move operator chart to charts subfolder
+        run: |
+          mkdir -p ./deployments/helm/charts
+          mv ./deployments/helm/KubeArmorOperator ./deployments/helm/charts/KubeArmorOperatorOci
+
       - name: Publish Helm chart to KubeArmor helm repo
         uses: stefanprodan/helm-gh-pages@master
         with:
           # Access token which can push to a different repo in the same org
           token: ${{ secrets.GH_ACCESS_TOKEN }}
-          charts_dir: deployments/helm/KubeArmorOperator
+          charts_dir: deployments/helm/charts
           # repo where charts would be published
           owner: kubearmor
           repository: charts
