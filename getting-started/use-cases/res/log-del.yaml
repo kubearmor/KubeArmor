@@ -1,0 +1,43 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: harden-nginx-shell-history-mod
+  namespace: default
+spec:
+  action: Block
+  file:
+    matchPaths:
+    - fromSource:
+      - path: /usr/bin/shred
+      - path: /usr/bin/rm
+      - path: /bin/mv
+      - path: /bin/rm
+      - path: /usr/bin/mv
+      path: /root/*_history
+    - fromSource:
+      - path: /usr/bin/shred
+      - path: /usr/bin/rm
+      - path: /bin/rm
+      - path: /bin/mv
+      - path: /usr/bin/mv
+      path: /home/*/*_history
+  message: Alert! shell history modification or deletion detected and prevented
+  process:
+    matchPaths:
+    - path: /usr/bin/shred
+    - path: /usr/bin/rm
+    - path: /bin/mv
+    - path: /bin/rm
+    - path: /usr/bin/mv
+  selector:
+    matchLabels:
+      app: nginx
+  severity: 5
+  tags:
+  - CIS
+  - NIST_800-53
+  - NIST_800-53_CM-5
+  - NIST_800-53_AU-6(8)
+  - MITRE_T1070_indicator_removal_on_host
+  - MITRE
+  - MITRE_T1036_masquerading

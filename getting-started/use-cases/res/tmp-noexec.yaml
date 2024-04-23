@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-block-exec-inside-tmp
+  namespace: wordpress-mysql
+spec:
+  tags:
+  - CIS
+  - CIS-control-1.1.5
+  message: Alert! Execution attempted inside tmp folder
+  selector:
+    matchLabels:
+      app: wordpress
+  process:
+    matchDirectories:
+    - dir: /tmp/
+      recursive: true
+  action: Block

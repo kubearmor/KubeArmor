@@ -27,7 +27,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 ## Documentation :notebook:
 
 * :point_right: [Getting Started](getting-started/deployment_guide.md)
-* :dart: [Use Cases](getting-started/use-cases.md)
+* :dart: [Use Cases](getting-started/use-cases/hardening.md)
 * :heavy_check_mark: [KubeArmor Support Matrix](getting-started/support_matrix.md)
 * :chess_pawn: [How is KubeArmor different?](getting-started/differentiation.md)
 * :scroll: Security Policy for Pods/Containers [[Spec](getting-started/security_policy_specification.md)] [[Examples](getting-started/security_policy_examples.md)]

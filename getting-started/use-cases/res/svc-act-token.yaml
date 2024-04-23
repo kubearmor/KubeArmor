@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-wordpress-block-service-account
+  namespace: wordpress-mysql
+spec:
+  severity: 2
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchDirectories:
+      - dir: /run/secrets/kubernetes.io/serviceaccount/
+        recursive: true
+  action: Block

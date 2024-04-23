@@ -1,0 +1,20 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-block-mysql-dir
+  namespace: wordpress-mysql
+spec:
+  message: Alert! Attempt to make changes to database detected
+  tags:
+  - CIS
+  - CIS_Linux
+  selector:
+    matchLabels:
+      app: mysql
+  file:
+    matchDirectories:
+    - dir: /var/lib/mysql/
+      ownerOnly: true
+      readOnly: true
+      severity: 1
+      action: Block

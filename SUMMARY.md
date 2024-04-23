@@ -14,7 +14,7 @@
 * [Harden Infrastructure](getting-started/hardening_guide.md)
 * [Least Permissive Access](getting-started/least_permissive_access.md)
 * [Application Behavior](getting-started/workload_visibility.md)
-* [Advanced](getting-started/use-cases.md)
+* [Advanced](getting-started/use-cases/hardening.md)
 
 ## Documentation
 * [KubeArmor Events](getting-started/kubearmor-events.md)

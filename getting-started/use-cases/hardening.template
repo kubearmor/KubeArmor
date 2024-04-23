@@ -1,0 +1,330 @@
+- title: Service Account token
+  content: |
+    Protect access to k8s service account token
+  image: images/uc/cert-file.png
+  details:
+    narrative: >
+      K8s mounts the service account token as part of every pod by
+      default. The service account token is a credential that can be used as a
+      bearer token to access k8s APIs and gain access to other k8s entities.
+      Many times there are no processes in the pod that use the service account
+      tokens which means in such cases the k8s service account token is an
+      unused asset that can be leveraged by the attacker.
+    attackscenario: >
+      It's important to note that attackers often look for ways to gain access to other entities within Kubernetes clusters. One common method is to check for credential accesses, such as service account tokens, in order to perform lateral movements. For instance, in many Kubernetes attacks, once the attacker gains entry into a pod, they may attempt to use a service account token to access other entities. <br /> 
+      **Attack type** Credential Access, Comand Injection <br /> 
+      **Actual Attack** Hildegard, BlackT, BlackCat RaaS
+    compliance:
+      - CIS_Kubernetes_Benchmark_v1.27, Control-Id-5.1.6
+    references:
+      - title: "MITRE T1528: Steal Application Access Token"
+        url: https://attack.mitre.org/techniques/T1528/
+    protectionpolicies:
+      - name: Service account token
+        path: res/svc-act-token.yaml
+        simulation: res/svc-act-token-alert.md
+        
+- title: FIM
+  content: |
+    File Integrity Monitoring/Protection
+  image: images/uc/fim.png
+  details:
+    narrative: >
+      Changes to system binary folders, configuration paths, and credentials paths need to be monitored for change. With KubeArmor, one can not only monitor for changes but also block any write attempts in such system folders. Compliance frameworks such as PCI-DSS, NIST, and CIS expect FIM to be in place.
+    attackscenario: >
+      In a possible attack scenario, an attacker may try to update the configuration to disable security controls or access logs. This can allow them to gain further access to the system and carry out malicious activities undetected. It's crucial to be aware of such threats and take proactive measures to prevent such attacks from occurring. <br />
+      **Attack Type** Data Manipulation, Integrity Threats<br />
+      **Actual Attack** NetWalker, Conti, DarkSide RaaS
+    compliance:
+      - CIS Distribution Independent Linuxv2.0, Control-Id:6.3.5
+      - PCI-DSS, Requirement: 6
+      - PCI-DSS, Requirement: 10
+      - NIST_800-53_AU-2
+      - MITRE_T1565_data_manipulation
+    references:
+      - title: Mitre-Techniques-T1565
+        url: https://attack.mitre.org/techniques/T1565/
+      - title: PCI DSS and FIM
+        url: https://pcidssguide.com/the-pci-dss-and-file-integrity-monitoring/
+      - title: The biggest ransomware attacks in history
+        url: https://www.techtarget.com/searchsecurity/tip/The-biggest-ransomware-attacks-in-history
+    protectionpolicies:
+      - name: File Integrity Monitoring
+        path: res/fim.yaml
+        simulation: res/fim-alert.md
+
+- title: Packaging tools
+  content: Deny execution of package management tools
+  image: images/uc/pkg-deny.png
+  details:
+    narrative: >
+      Pods/Containers might get shipped with binaries which should never used in the production environments. Some of those bins might be useful in dev/staging environments but the same container image is carried forward in most cases to the production environment too. For security reasons, the devsecops team might want to disable the use of these binaries in the production environment even though the bins exists in the container. As an example, most of the container images are shipped with package management tools such as apk, apt, yum, etc. If anyone ends up using these bins in the prod env, it will increase the attack surface of the container/pod.
+    attackscenario: >
+      In an attack scenario, adversaries may use system tools such as fsck, ip, who, apt, and others for reconnaissance and to download additional tooling from remote servers. These tools can help them gain valuable information about the system and its vulnerabilities, allowing them to carry out further attacks. It's important to be vigilant about such activities and implement security measures to prevent such attacks from happening.<br />
+      **Attack Type** Command Injection, Malware, Backdoor<br />
+      **Actual Attack**  AppleJeus, Codecov supply chain
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id:6.4.5
+      - NIST_800-53_SI-4
+      - NIST_800-53_CM-7(4)
+    references:
+      - title: MITRE Installer Packages
+        url: https://attack.mitre.org/techniques/T1546/016/
+      - title: Codecov Incident - A Supply Chain Attack
+        url: https://blog.sonatype.com/what-you-need-to-know-about-the-codecov-incident-a-supply-chain-attack-gone-undetected-for-2-months
+    protectionpolicies:
+      - name: Packaging tools execution
+        path: res/pkg-tools.yaml
+        simulation: res/pkg-tools.md
+
+- title: Trusted certs bundle
+  content: Protect write access to the trusted root certificates bundle
+  image: images/uc/file-lock.png
+  details:
+    narrative: >
+      Adversaries may install a root certificate on a compromised system to avoid warnings when connecting to adversary-controlled web servers. Root certificates are used in public key cryptography to identify a root certificate authority (CA). When a root certificate is installed, the system or application will trust certificates in the root's chain of trust that have been signed by the root certificate. Installation of a root certificate on a compromised system would give an adversary a way to degrade the security of that system.
+    attackscenario: >
+      By using this technique, attackers can successfully evade security warnings that alert users when compromised systems connect over HTTPS to adversary-controlled web servers. These servers often look like legitimate websites, and are designed to trick users into entering their login credentials, which can then be used by the attackers. It's important to be aware of this threat and take necessary precautions to prevent these attacks from happening.<br />
+      **Attack Type** Man-In-The-Middle(MITM)<br />
+      **Actual Attack**  POODLE(Padding Oracle On Downgraded Legacy Encryption), BEAST (Browser Exploit Against SSL/TLS)
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id: 6.3.4
+      - MITRE_T1552_unsecured_credentials
+    references:
+      - title: MITRE Subvert Trust Controls
+        url: https://attack.mitre.org/techniques/T1553/004/
+      - title: MITRE Unsecured credentials
+        url: https://attack.mitre.org/techniques/T1552/
+      - title: POODLE Attack
+        url: https://www.acunetix.com/blog/web-security-zone/what-is-poodle-attack/
+      - title: BEAST
+        url: https://docs.digicert.com/en/certcentral/certificate-tools/discovery-user-guide/tls-ssl-endpoint-vulnerabilities/beast.html#:~:text=In%20a%20BEAST%20attack%2C%20the,e.g.%2C%20HTTP%20authentication%20cookies).
+    protectionpolicies:
+      - name: Trusted Certs Bundle
+        path: res/trusted-cert-bundle.yaml
+        simulation: res/trusted-cert-bundle.md
+
+- title: Database access
+  content: Protect read/write access to raw database tables from unknown processes.
+  image: images/uc/db-eye.png
+  details:
+    narrative: >
+      Applications use databases to store all the information such as posts, blogs, user information, etc. WordPress applications almost certainly use a MySQL database for storing their content, and those are usually stored elsewhere on the system, often /var/lib/mysql/some_db_name. 
+    attackscenario: >
+      Adversaries have been known to use various techniques to steal information from databases. This information can include user credentials, posts, blogs, and more. By obtaining this information, adversaries can gain access to user accounts and potentially perform a full-account takeover, which can lead to further compromise of the target system. It's important to ensure that appropriate security measures are in place to protect against these types of attacks.<br />
+      **Attack Type** SQL Injection, Credential Access, Account Takeover<br />
+      **Actual Attack** Yahoo Voices Data Breach in 2012
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id: 6.14.4
+    references:
+      - title: MITRE Scan Databases
+        url: https://attack.mitre.org/techniques/T1596/005/
+      - title: Yahoo Service Hacked
+        url: https://arstechnica.com/information-technology/2012/07/yahoo-service-hacked/
+    protectionpolicies:
+      - name: Database Access
+        path: res/db-access.yaml
+        simulation: res/db-access.md
+
+- title: Config data
+  content: Protect access to configuration data containing plain text credentials.
+  image: images/uc/cfg-key.png
+  details:
+    narrative: >
+      Adversaries may search local file systems and remote file shares for files containing insecurely stored credentials. These can be files created by users to store their own credentials, shared credential stores for a group of individuals, configuration files containing passwords for a system or service, or source code/binary files containing embedded passwords.
+    attackscenario: >
+      In a possible attack scenario, an attacker may try to change the configurations to open websites to application security holes such as session hijacking and cross-site scripting attacks, which can lead to the disclosure of private data. Additionally, attackers can also leverage these changes to gather sensitive information. It's crucial to take proactive measures to prevent these attacks from occurring.<br />
+      **Attack Type** Cross-Site Scripting(XSS), Data manipulation, Session hijacking<br />
+      **Actual Attack** XSS attack on Fortnite 2019, Turla LightNeuron Attack
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id: 6.16.14
+    references:
+      - title: MITRE Unsecured credentials in files
+        url: https://attack.mitre.org/techniques/T1552/001/
+      - title: Turla LightNeuron
+        url: https://www.welivesecurity.com/2019/05/07/turla-lightneuron-email-too-far/
+    protectionpolicies:
+      - name: Config data
+        path: res/conf-data.yaml
+        simulation: res/conf-data.md
+
+- title: File Copy
+  content: Prevent file copy using standard utilities.
+  image: images/uc/file-copy1.png
+  details:
+    narrative: >
+      Exfiltration consists of techniques that adversaries may use to steal data from your network. Once they’ve collected data, adversaries often package it to avoid detection while removing it. This can include compression and encryption. Techniques for getting data out of a target network typically include transferring it over their command and control channel or an alternate channel and may also include putting size limits on the transmission.
+    attackscenario: >
+      It's important to note that file copy tools can be leveraged by attackers for exfiltrating sensitive data and transferring malicious payloads into the workloads. Additionally, it can also assist in lateral movement within the system. It's crucial to take proactive measures to prevent these attacks from occurring.<br />
+      **Attack Type** Credential Access, Lateral movements, Information Disclosure<br />
+      **Actual Attack** DarkBeam Data Breach, Shields Health Care Group data breach
+    compliance:
+      - MITRE_TA0010_exfiltration
+      - NIST_800-53_SI-4(18)
+      - MITRE_TA0008_lateral_movement
+    references:
+      - title: MITRE Exfiltration
+        url: https://attack.mitre.org/tactics/TA0010/
+      - title: Darkbeams data breach
+        url: https://www.idstrong.com/sentinel/darkbeams-alarming-data-breach/
+      - title: Shields Healthcare Group Data Breach
+        url: https://www.idstrong.com/sentinel/shields-healthcare-group-data-breach/
+    protectionpolicies:
+      - name: File Copy
+        path: res/file-copy.yaml
+        simulation: res/file-copy.md
+
+- title: Network Access
+  content: Process based network access control
+  image: images/uc/cloud-deny.png
+  details:
+    narrative: >
+      Typically, within a pod/container, there are only specific processes that need to use network access. KubeArmor allows one to specify the set of binaries that are allowed to use network primitives such as TCP, UDP, and Raw sockets and deny everyone else.
+    attackscenario: >
+      In a possible attack scenario, an attacker binary may attempt to send a beacon to its Command and Control (C&C) Server. Additionally, the binary may use network primitives to exfiltrate pod/container data and configuration. It's important to monitor network traffic and take proactive measures to prevent these attacks from occurring, such as implementing proper access controls and segmenting the network.<br />
+      **Attack Type** Denial of Service(DoS), Distributed Denial of Service(DDoS)<br />
+      **Actual Attack** DDoS attacks on websites of public institutions in Belgium, DDoS attack on the website of a city government in Germany
+    compliance:
+      - Network Access
+    protectionpolicies:
+      - name: Network Access
+        path: res/net-acc.yaml
+        simulation: res/net-acc.md
+
+- title: /tmp/ noexec
+  content: Do not allow execution of binaries from /tmp/ folder.
+  image: images/uc/file-exec-deny.png
+  details:
+    narrative: >
+      If provided the necessary privileges, users have the ability to install software in organizational information systems. To maintain control over the types of software installed, organizations identify permitted and prohibited actions regarding software installation. Prohibited software installations may include, for example, software with unknown or suspect pedigrees or software that organizations consider potentially malicious.
+    attackscenario: >
+      In an attack scenario, a hacker may attempt to inject malicious scripts into the /tmp folder through a web application exploit. Once the script is uploaded, the attacker may try to execute it on the server in order to take it down. By hardening the /tmp folder, the attacker will not be able to execute the script, preventing such attacks. It's essential to implement these security measures to protect against these types of attacks and ensure the safety of the system.<br />
+      **Attack Type** System Failure, System Breach<br />
+      **Actual Attack** Shields Health Care Group data breach, MOVEit Breach
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id: 1.1.5
+      - Control-Id: 1.1.10
+    references:
+      - title: STIG no exec in /tmp
+        url: https://www.stigviewer.com/stig/red_hat_enterprise_linux_6/2016-12-16/finding/V-57569
+      - title: The biggest ransomeware attacks in history
+        url: https://www.techtarget.com/searchsecurity/tip/The-biggest-ransomware-attacks-in-history
+      - title: Shields Healthcare Group Data Breach
+        url: https://www.idstrong.com/sentinel/shields-healthcare-group-data-breach/
+    protectionpolicies:
+      - name: /tmp/ noexec
+        path: res/tmp-noexec.yaml
+        simulation: res/tmp-noexec.md
+
+- title: Admin tools
+  content: Do not allow execution of administrative/maintenance tools inside the pods.
+  image: images/uc/admin-tool.png
+  details:
+    narrative: >
+      Adversaries may abuse a container administration service to execute commands within a container. A container administration service such as the Docker daemon, the Kubernetes API server, or the kubelet may allow remote management of containers within an environment.
+    attackscenario: >
+      It's important to note that attackers with permissions could potentially run 'kubectl exec' to execute malicious code and compromise resources within a cluster. It's crucial to monitor the activity within the cluster and take proactive measures to prevent these attacks from occurring.<br />
+      **Attack Type** Command Injection, Lateral Movements, etc.<br />
+      **Actual Attack** Target cyberattack, Supply Chain Attacks
+    compliance:
+      - NIST_800-53_AU-2
+      - MITRE_T1609_container_administration_command
+      - NIST_800-53_SI-4
+    references:
+      - title: MITRE ATT&CK execution in k8s
+        url: https://cloud.redhat.com/blog/protecting-kubernetes-against-mitre-attck-execution#:~:text='kubectl%20exec'%20allows%20a%20user,compromise%20resources%20within%20a%20cluster
+      - title: Target Data Breach
+        url: https://www.idstrong.com/sentinel/that-one-time-target-lost-everything/
+    protectionpolicies:
+      - name: Admin tools
+        path: res/admin-tools.yaml
+        simulation: res/admin-tools.md
+
+- title: Discovery tools
+  content: Do not allow discovery/search of tools/configuration.
+  image: images/uc/file-search.png
+  details:
+    narrative: >
+      Adversaries may attempt to get a listing of services running on remote hosts and local network infrastructure devices, including those that may be vulnerable to remote software exploitation. Common methods to acquire this information include port and/or vulnerability scans using tools that are brought onto a system
+    attackscenario: >
+      Adversaries can potentially use information related to services, remote hosts, and local network infrastructure devices, including those that may be vulnerable to remote software exploitation to perform malicious attacks like exploiting open ports and injecting payloads to get remote shells. It's crucial to take proactive measures to prevent these attacks from occurring, such as implementing proper network segmentation and hardening network devices.<br />
+      **Attack Type** Reconnaissance, Brute force, Command Injection<br />
+      **Actual Attack** Microsoft exchange server attack 2021
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id: 6.3
+    references:
+      - title: MITRE Network Service Discovery
+        url: https://attack.mitre.org/techniques/T1046/
+    protectionpolicies:
+      - name: Discovery tools
+        path: res/disc-tools.yaml
+        simulation: res/disc-tools.md
+
+- title: Logs delete
+  content: Do not allow external tooling to delete logs/traces of critical components.
+  image: images/uc/file-del.png
+  details:
+    narrative: >
+      Adversaries may delete or modify artifacts generated within systems to remove evidence of their presence or hinder defenses. Various artifacts may be created by an adversary or something that can be attributed to an adversary’s actions. Typically these artifacts are used as defensive indicators related to monitored events, such as strings from downloaded files, logs that are generated from user actions, and other data analyzed by defenders. Location, format, and type of artifact (such as command or login history) are often specific to each platform. 
+    attackscenario: >
+      It's important to note that removal of indicators related to intrusion activity may interfere with event collection, reporting, or other processes used to detect such activity. This can compromise the integrity of security solutions by causing notable events to go unreported. Additionally, this activity may impede forensic analysis and incident response, due to a lack of sufficient data to determine what occurred. It's crucial to ensure that all relevant indicators are properly monitored and reported to prevent such issues from occurring.<br />
+      **Attack Type** Integrity Threats, Data Manipulation
+      **Actual Attack** NetWalker, Conti, DarkSide RaaS 
+    compliance:
+      - CIS Distribution Independent Linuxv2.0
+      - Control-Id: 6.6
+      - Control-Id: 7.6.2
+      - Control-Id: 7.6.3
+      - NIST_800-53_CM-5
+    references:
+      - title: MITRE Indicator Removal
+        url: https://attack.mitre.org/techniques/T1070/
+    protectionpolicies:
+      - name: Logs delete
+        path: res/log-del.yaml
+        simulation: res/log-del.md
+
+- title: ICMP control
+  content: Do not allow scanning tools to use ICMP for scanning the network.
+  image: images/uc/ip.png
+  details:
+    narrative: >
+      The Internet Control Message Protocol (ICMP) allows Internet hosts to notify each other of errors and allows diagnostics and troubleshooting for system administrators. Because ICMP can also be used by a potential adversary to perform reconnaissance against a target network, and due to historical denial-of-service bugs in broken implementations of ICMP, some network administrators block all ICMP traffic as a network hardening measure
+    attackscenario: >
+      Adversaries may use scanning tools that utilize Internet Control Message Protocol (ICMP) to perform reconnaissance against a target network and identify potential loopholes. It's crucial to monitor network traffic and take proactive measures to prevent these attacks from occurring, such as implementing proper firewall rules and network segmentation. Additionally, it's important to stay up-to-date with the latest security patches to prevent known vulnerabilities from being exploited.<br />
+      **Attack Type** Network Flood, DoS(Denial of Service)<br />
+      **Actual Attack** Ping of Death(PoD)
+    compliance:
+      - ICMP Control
+    protectionpolicies:
+      - name: ICMP Control
+        path: res/icmp-con.yaml
+        simulation: res/icmp-con.md
+
+- title: Restrict Capabilities
+  content: Do not allow capabilities that can be leveraged by the attacker.
+  image: images/uc/box-lock.png
+  details:
+    narrative: >
+      Containers run with a default set of capabilities as assigned by the Container Runtime. Capabilities are parts of the rights generally granted on a Linux system to the root user. In many cases applications running in containers do not require any capabilities to operate, so from the perspective of the principal of least privilege use of capabilities should be minimized.
+    attackscenario: >
+      Kubernetes by default connects all the containers running in the same node (even if they belong to different namespaces) down to Layer 2 (ethernet). Every pod running in the same node is going to be able to communicate with any other pod in the same node (independently of the namespace) at ethernet level (layer 2). This allows a malicious containers to perform an ARP spoofing attack to the containers on the same node and capture their traffic.<br />
+      **Attack Type** Reconnaissance, Spoofing<br />
+      **Actual Attack** Recon through P.A.S. Webshell, NBTscan
+    compliance:
+      - CIS Kubernetes 
+      - Control Id: 5.2.8 - Minimize the admission of containers with the NET_RAW capability
+      - Control Id: 5.2.9 - Minimize the admission of containers with capabilities assigned
+    references:
+      - title: MITRE Network Service Discovery
+        url: https://attack.mitre.org/techniques/T1046/
+    protectionpolicies:
+      - name: Restrict Capabilities
+        path: res/res-cap.yaml
+        simulation: res/res-cap.md

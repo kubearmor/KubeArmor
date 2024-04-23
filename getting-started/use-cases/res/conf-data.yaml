@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-block-stig-v-81883-restrict-access-to-config-files
+  namespace: wordpress-mysql
+spec:
+  tags:
+  - config-files
+  message: Alert! configuration files have been accessed
+  selector:
+    matchLabels:
+      app: wordpress
+  file:
+    matchPatterns:
+    - pattern: /**/*.conf
+      ownerOnly: true
+  action: Block
