@@ -370,7 +370,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: label,
 					Annotations: map[string]string{
-						"container.apparmor.security.beta.kubernetes.io/kubearmor": "unconfined",
+						"container.apparmor.security.beta.kubernetes.io/kubearmor": "localhost/kubearmor-default",
 					},
 				},
 				Spec: corev1.PodSpec{

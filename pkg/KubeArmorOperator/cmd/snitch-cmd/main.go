@@ -185,22 +185,6 @@ ptrace,
 
 ## == POST START == ##
 
-/lib/x86_64-linux-gnu/{*,**} rm,
-
-deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-deny @{PROC}/sysrq-trigger rwklx,
-deny @{PROC}/mem rwklx,
-deny @{PROC}/kmem rwklx,
-deny @{PROC}/kcore rwklx,
-
-deny /sys/[^f]*/** wklx,
-deny /sys/f[^s]*/** wklx,
-deny /sys/fs/[^c]*/** wklx,
-deny /sys/fs/c[^g]*/** wklx,
-deny /sys/fs/cg[^r]*/** wklx,
-deny /sys/firmware/efi/efivars/** rwklx,
-deny /sys/kernel/security/** rwklx,
-
 ## == POST END == ##
 }
 `
@@ -210,9 +194,12 @@ deny /sys/kernel/security/** rwklx,
 	if err := os.WriteFile(profilePath, []byte(profileContent), 0664); err != nil {
 		Logger.Errorf("Error copying file to apparmor.d: %v", err)
 	}
-	if err := common.RunCommandAndWaitWithErr("apparmor_parser", []string{"-R", profilePath}); err != nil {
-		Logger.Warnf("Unable to detach /etc/apparmor.d/%s (%s)", profilePath, err.Error())
-	}
+
+  if err := common.RunCommandAndWaitWithErr("apparmor_parser",  []string{"-r","-W",profilePath}); err != nil {
+    Logger.Errorf("Unable to parse apparmor profile %s", err.Error())
+  } 
+
+  Logger.Info("Apparmor profile for kubearmor loaded successfully")
 
 }
 

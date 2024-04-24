@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       annotations:
-        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
+        container.apparmor.security.beta.kubernetes.io/kubearmor: localhost/kubearmor-default
       labels:
         kubearmor-app: kubearmor
     spec:

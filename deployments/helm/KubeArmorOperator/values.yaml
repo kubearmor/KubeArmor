@@ -4,8 +4,8 @@ kubearmorOperator:
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
-    tag: ""
-  imagePullPolicy: IfNotPresent
+    tag: "latest"
+  imagePullPolicy: Never
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit
