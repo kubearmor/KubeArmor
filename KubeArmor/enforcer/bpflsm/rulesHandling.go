@@ -53,11 +53,16 @@ var protocols = map[string]uint8{
 	"TCP":    6,
 	"UDP":    17,
 	"ICMPv6": 58,
+	"SCTP":   132,
 }
 
 // Socket Type Identifiers for Network Rules
 var netType = map[string]uint8{
-	"RAW": 3,
+	"DGRAM":     1,
+	"STREAM":    2,
+	"RAW":       3,
+	"RDM":       4,
+	"SEQPACKET": 5,
 }
 
 // Array Keys for Network Rule Keys
