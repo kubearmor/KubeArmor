@@ -6,7 +6,9 @@ on:
       - "*"
 
 # Declare default permissions as read only.
-permissions: read-all
+permissions:
+  id-token: write # requires for cosign keyless signing
+  contents: write # requires for goreleaser to write to GitHub release
 
 jobs:
   goreleaser:
@@ -41,11 +43,11 @@ jobs:
         working-directory: KubeArmor/BPF
       
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
           version: v1.25.0
-          args: release --rm-dist
+          args: release --clean
           workdir: KubeArmor
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

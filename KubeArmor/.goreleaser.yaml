@@ -11,8 +11,6 @@ builds:
 
 signs:
   - cmd: cosign
-    env:
-      - COSIGN_EXPERIMENTAL=1
     certificate: '${artifact}.cert'
     args:
       - sign-blob
