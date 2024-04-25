@@ -22,12 +22,15 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
+      
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
 
       - name: Compile libbpf
         run: ./.github/workflows/install-libbpf.sh
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
 
       - name: Install karmor
         run: curl -sfL https://raw.githubusercontent.com/kubearmor/kubearmor-client/main/install.sh | sudo sh -s -- -b .
