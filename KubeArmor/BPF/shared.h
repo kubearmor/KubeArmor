@@ -272,6 +272,9 @@ static inline void get_outer_key(struct outer_key *pokey,
                                  struct task_struct *t) {
   pokey->pid_ns = get_task_pid_ns_id(t);
   pokey->mnt_ns = get_task_mnt_ns_id(t);
+  // TODO: Use cgroup ns as well for host process identification to support enforcement on deployments using hostpidns
+  // u32 cg_ns = BPF_CORE_READ(t, nsproxy, cgroup_ns, ns).inum;
+  // if (pokey->pid_ns == PROC_PID_INIT_INO && cg_ns == PROC_CGROUP_INIT_INO) {
   if (pokey->pid_ns == PROC_PID_INIT_INO) {
     pokey->pid_ns = 0;
     pokey->mnt_ns = 0;
@@ -480,10 +483,15 @@ static inline int match_and_enforce_path_hooks(struct path *f_path, u32 id,
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-  void *ptr = &src_buf->buf[*src_offset];
+  void *src_ptr;
+  if (src_buf->buf[*src_offset]) {
+    src_ptr = &src_buf->buf[*src_offset];
+  }
+  if (src_ptr == NULL)
+    fromSourceCheck = false;
 
   if (fromSourceCheck) {
-    bpf_probe_read_str(store->source, MAX_STRING_SIZE, ptr);
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
     val = bpf_map_lookup_elem(inner, store);
 
