@@ -14,8 +14,6 @@ signs:
     certificate: '${artifact}.cert'
     args:
       - sign-blob
-      - '--oidc-issuer=https://token.actions.githubusercontent.com'
-      - '--oidc-provider=github-actions'
       - '--output-certificate=${certificate}' 
       - '--output-signature=${signature}'
       - '${artifact}'

@@ -5,17 +5,13 @@ on:
     tags:
       - "*"
 
-# Declare default permissions as read only.
-permissions:
-  id-token: write # requires for cosign keyless signing
-  contents: write # requires for goreleaser to write to GitHub release
-
 jobs:
   goreleaser:
     runs-on: ubuntu-20.04
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
-      contents: write
+      id-token: write # requires for cosign keyless signing
+      contents: write # requires for goreleaser to write to GitHub release
     steps:
       - uses: actions/checkout@v3
         with:
