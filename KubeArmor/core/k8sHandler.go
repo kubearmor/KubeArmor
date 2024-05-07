@@ -591,6 +591,24 @@ func getTopLevelOwner(obj metav1.ObjectMeta, namespace string, objkind string) (
 		if len(pod.OwnerReferences) > 0 {
 			return getTopLevelOwner(pod.ObjectMeta, namespace, "Pod")
 		}
+	case "Job":
+		job, err := K8s.K8sClient.BatchV1().Jobs(namespace).Get(context.Background(), ownerRef.Name, metav1.GetOptions{})
+		if err != nil {
+			return "", "", "", err
+		}
+		if len(job.OwnerReferences) > 0 {
+			return getTopLevelOwner(job.ObjectMeta, namespace, "CronJob")
+		}
+		return job.Name, "Job", job.Namespace, nil
+	case "CronJob":
+		cronJob, err := K8s.K8sClient.BatchV1().CronJobs(namespace).Get(context.Background(), ownerRef.Name, metav1.GetOptions{})
+		if err != nil {
+			return "", "", "", err
+		}
+		if len(cronJob.OwnerReferences) > 0 {
+			return getTopLevelOwner(cronJob.ObjectMeta, namespace, "CronJob")
+		}
+		return cronJob.Name, "CronJob", cronJob.Namespace, nil
 	case "Deployment":
 		deployment, err := K8s.K8sClient.AppsV1().Deployments(namespace).Get(context.Background(), ownerRef.Name, metav1.GetOptions{})
 		if err != nil {
