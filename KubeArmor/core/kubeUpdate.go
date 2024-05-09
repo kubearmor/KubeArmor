@@ -763,6 +763,22 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								}
 							}
 
+						} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "Job" {
+							job, err := K8s.K8sClient.BatchV1().Jobs(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
+							if err == nil {
+								for _, c := range job.Spec.Template.Spec.Containers {
+									containers = append(containers, c.Name)
+								}
+							}
+
+						} else if dm.OwnerInfo[pod.Metadata["podName"]].Ref == "CronJob" {
+							cronJob, err := K8s.K8sClient.BatchV1().CronJobs(pod.Metadata["namespaceName"]).Get(context.Background(), podOwnerName, metav1.GetOptions{})
+							if err == nil {
+								for _, c := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
+									containers = append(containers, c.Name)
+								}
+							}
+
 						}
 
 					}
