@@ -61,5 +61,27 @@ jobs:
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage.out
+          path: coverage.out
+    
+  upload-to-codecov:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download coverage
+        uses: actions/download-artifact@v2
+        with:
+          name: coverage.out
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with: 
+          files: coverage.out
+          token: ${{secrets.CODECOV_TOKEN}}
         
       

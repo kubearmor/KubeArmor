@@ -102,21 +102,28 @@ jobs:
             /tmp/kubearmor/
             /tmp/kubearmor.*
 
-      - name: Measure code coverage
-        if: ${{ always() }}
-        run: |
-          go install github.com/modocache/gover@latest
-          gover
-          go tool cover -func=gover.coverprofile
-        working-directory: KubeArmor
-        env:
-          GOPATH: /home/vagrant/go
-      - uses: codecov/codecov-action@v3
-        if: ${{ always() }}
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
         with:
-          files: ./KubeArmor/gover.coverprofile
+          name: coverage.out
+          path: coverage.out
+    
       - name: Run cleanup
         if: ${{ always() }}
         run: ./.github/workflows/cleanup.sh
     
-
+  upload-to-codecov:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download coverage
+        uses: actions/download-artifact@v2
+        with:
+          name: coverage.out
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with: 
+          files: coverage.out
+          token: ${{secrets.CODECOV_TOKEN}}

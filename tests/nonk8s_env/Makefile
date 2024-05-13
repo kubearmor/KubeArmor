@@ -8,4 +8,4 @@ build:
 	
 .PHONY: test
 test:
-	@ginkgo -r
+	@ginkgo -r --cover --covermode atomic --coverprofile=coverage.out
