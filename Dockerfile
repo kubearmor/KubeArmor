@@ -48,7 +48,7 @@ RUN apk --no-cache update
 RUN apk add apparmor@community apparmor-utils@community bash
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
-COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
+COPY --from=builder /usr/src/KubeArmor/BPF/*.o /KubeArmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
@@ -88,6 +88,7 @@ RUN groupadd --gid 1000 default \
 
 COPY LICENSE /licenses/license.txt
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
+COPY --from=builder --chown=default:default /usr/src/KubeArmor/BPF/*.o /KubeArmor/BPF/
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 # TODO
