@@ -163,12 +163,6 @@ var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 			MountPath: "/etc/apparmor.d",
 		},
 	},
-	"bpf": {
-		{
-			Name:      "sys-fs-bpf-path",
-			MountPath: "/sys/fs/bpf",
-		},
-	},
 }
 
 var EnforcerVolumes = map[string][]corev1.Volume{
@@ -178,18 +172,6 @@ var EnforcerVolumes = map[string][]corev1.Volume{
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/etc/apparmor.d",
-					Type: &HostPathDirectory,
-				},
-			},
-		},
-	},
-	"bpf": {
-
-		{
-			Name: "sys-fs-bpf-path",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/fs/bpf",
 					Type: &HostPathDirectory,
 				},
 			},

@@ -160,8 +160,6 @@ kubearmor:
   - mountPath: /lib/modules
     name: lib-modules-path
     readOnly: true
-  - mountPath: /sys/fs/bpf
-    name: sys-fs-bpf-path
   - mountPath: /sys/kernel/security
     name: sys-kernel-security-path
   - mountPath: /sys/kernel/debug
@@ -180,8 +178,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -202,8 +198,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -224,8 +218,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -246,8 +238,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -268,8 +258,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -290,8 +278,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -312,8 +298,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -330,8 +314,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -352,8 +334,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -374,8 +354,6 @@ kubearmor:
     - mountPath: /lib/modules
       name: lib-modules-path
       readOnly: true
-    - mountPath: /sys/fs/bpf
-      name: sys-fs-bpf-path
     - mountPath: /sys/kernel/security
       name: sys-kernel-security-path
     - mountPath: /sys/kernel/debug
@@ -401,10 +379,6 @@ kubearmor:
         path: /lib/modules
         type: DirectoryOrCreate
       name: lib-modules-path
-    - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
     - hostPath:
         path: /sys/kernel/security
         type: Directory
@@ -436,10 +410,6 @@ kubearmor:
         type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
-    - hostPath:
         path: /sys/kernel/security
         type: Directory
       name: sys-kernel-security-path
@@ -469,10 +439,6 @@ kubearmor:
         path: /lib/modules
         type: DirectoryOrCreate
       name: lib-modules-path
-    - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
     - hostPath:
         path: /sys/kernel/security
         type: Directory
@@ -504,10 +470,6 @@ kubearmor:
         type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
-    - hostPath:
         path: /sys/kernel/security
         type: Directory
       name: sys-kernel-security-path
@@ -537,10 +499,6 @@ kubearmor:
         path: /lib/modules
         type: DirectoryOrCreate
       name: lib-modules-path
-    - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
     - hostPath:
         path: /sys/kernel/security
         type: Directory
@@ -572,10 +530,6 @@ kubearmor:
         type: Directory
       name: lib-modules-path
     - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
-    - hostPath:
         path: /sys/kernel/security
         type: Directory
       name: sys-kernel-security-path
@@ -605,10 +559,6 @@ kubearmor:
         path: /lib/modules
         type: DirectoryOrCreate
       name: lib-modules-path
-    - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
     - hostPath:
         path: /sys/kernel/security
         type: Directory
@@ -640,10 +590,6 @@ kubearmor:
         type: DirectoryOrCreate
       name: lib-modules-path
     - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
-    - hostPath:
         path: /sys/kernel/security
         type: Directory
       name: sys-kernel-security-path
@@ -669,10 +615,6 @@ kubearmor:
         path: /lib/modules
         type: DirectoryOrCreate
       name: lib-modules-path
-    - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
     - hostPath:
         path: /sys/kernel/security
         type: Directory
@@ -703,10 +645,6 @@ kubearmor:
         path: /lib/modules
         type: DirectoryOrCreate
       name: lib-modules-path
-    - hostPath:
-        path: /sys/fs/bpf
-        type: Directory
-      name: sys-fs-bpf-path
     - hostPath:
         path: /sys/kernel/security
         type: Directory
