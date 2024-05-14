@@ -550,9 +550,6 @@ func (dm *KubeArmorDaemon) HandleUnknownNamespaceNsMap(container *tp.Container) 
 
 // WatchK8sPods Function
 func (dm *KubeArmorDaemon) WatchK8sPods() {
-	var controllerName, controller, namespace string
-	var err error
-
 	nodeName := os.Getenv("KUBEARMOR_NODENAME")
 	if nodeName == "" {
 		nodeName = cfg.GlobalCfg.Host
@@ -591,29 +588,43 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				pod.Metadata["namespaceName"] = event.Object.ObjectMeta.Namespace
 				pod.Metadata["podName"] = event.Object.ObjectMeta.Name
 
+				var controllerName, controller, namespace string
+				var err error
+
 				if event.Type == "ADDED" {
 					controllerName, controller, namespace, err = getTopLevelOwner(event.Object.ObjectMeta, event.Object.Namespace, event.Object.Kind)
 					if err != nil {
 						dm.Logger.Warnf("Failed to get ownerRef (%s, %s)", event.Object.ObjectMeta.Name, err.Error())
 					}
+
+					owner := tp.PodOwner{
+						Name:      controllerName,
+						Ref:       controller,
+						Namespace: namespace,
+					}
+
+					dm.OwnerInfo[pod.Metadata["podName"]] = owner
+					podOwnerName = controllerName
 				}
-				_, err := K8s.K8sClient.CoreV1().Pods(namespace).Get(context.Background(), event.Object.ObjectMeta.Name, metav1.GetOptions{})
-				if err == nil && (event.Type == "MODIFIED" || event.Type != "DELETED") {
+
+				// for event = "MODIFIED" we first check pod's existence to update current dm.OwnerInfo of the pod, because when pod is in terminating state then we cannot get the owner info from it.
+				// we do not update owner info in terminating state. After pod is deleted we delete the owner info from the map.
+				_, err = K8s.K8sClient.CoreV1().Pods(namespace).Get(context.Background(), event.Object.ObjectMeta.Name, metav1.GetOptions{})
+				if err == nil && event.Type == "MODIFIED" {
 					controllerName, controller, namespace, err = getTopLevelOwner(event.Object.ObjectMeta, event.Object.Namespace, event.Object.Kind)
 					if err != nil {
 						dm.Logger.Warnf("Failed to get ownerRef (%s, %s)", event.Object.ObjectMeta.Name, err.Error())
 					}
+
+					owner := tp.PodOwner{
+						Name:      controllerName,
+						Ref:       controller,
+						Namespace: namespace,
+					}
+
+					dm.OwnerInfo[pod.Metadata["podName"]] = owner
+					podOwnerName = controllerName
 				}
-
-				owner := tp.PodOwner{
-					Name:      controllerName,
-					Ref:       controller,
-					Namespace: namespace,
-				}
-
-				dm.OwnerInfo[pod.Metadata["podName"]] = owner
-
-				podOwnerName = controllerName
 
 				//get the owner , then check if that owner has owner if...do it recusivelt until you get the no owner
 
