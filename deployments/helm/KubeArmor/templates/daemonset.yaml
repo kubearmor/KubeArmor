@@ -16,6 +16,10 @@ spec:
       labels:
         kubearmor-app: kubearmor
     spec:
+      {{- if .Values.kubearmor.image.imagePullSecrets }}
+      imagePullSecrets:
+      {{ toYaml .Values.kubearmor.image.imagePullSecrets | indent 6 }}
+      {{- end }}
       containers:
       - args:
         - -gRPC=32767
