@@ -24,6 +24,9 @@ spec:
       {{- with .Values.kubearmorOperator.podSecurityContext }}
       securityContext:
             {{- toYaml . | nindent 8 }}
+      {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
+      imagePullSecrets:
+      {{ toYaml .Values.kubearmorOperator.image.imagePullSecrets | indent 6 }}
       {{- end }}
       containers:
       - name: {{ .Values.kubearmorOperator.name }}
