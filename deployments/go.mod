@@ -12,7 +12,7 @@ replace (
 
 require (
 	github.com/clarketm/json v1.17.1
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20240110164432-c2c1b121cd94
+	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20240515134104-294ed3b20a45
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20240110164432-c2c1b121cd94
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
