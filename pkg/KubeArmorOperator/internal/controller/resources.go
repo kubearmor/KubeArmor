@@ -41,19 +41,19 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	commonVolMnts := common.CommonVolumesMount
 	commonVols = append(commonVols, common.KernelHeaderVolumes...)
 	commonVolMnts = append(commonVolMnts, common.KernelHeaderVolumesMount...)
-	commonVols = append(commonVols, common.BPFVolumes...)
 
-	commonVolMnts = append(commonVolMnts, common.BPFVolumesMount...)
-	// if btfPresent == "no" {
+	if btfPresent == "no" {
+		commonVols = append(commonVols, common.BPFVolumes...)
 
-	// }
+		commonVolMnts = append(commonVolMnts, common.BPFVolumesMount...)
+	}
 	vols = append(vols, commonVols...)
 	volMnts = append(volMnts, commonVolMnts...)
 	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace)
 
-	// if btfPresent != "no" {
-	// 	daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
-	// }
+	if btfPresent != "no" {
+		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
+	}
 	daemonset.Name = name
 	labels := map[string]string{
 		common.EnforcerLabel: enforcer,
@@ -104,11 +104,11 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 
-	// if btfPresent == "no" {
-	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
-	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
-	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
-	// }
+	if btfPresent == "no" {
+		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
+		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
+		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+	}
 
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
