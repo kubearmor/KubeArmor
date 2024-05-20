@@ -117,14 +117,12 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
-          go install github.com/modocache/gover@latest
-          gover
-          go tool cover -func=gover.coverprofile
-        working-directory: KubeArmor
+          go tool cover -func=coverprofile.out
+        working-directory: ./tests/k8s_env
         env:
           GOPATH: /home/runner/go
 
       - uses: codecov/codecov-action@v3
         if: ${{ always() }}
         with:
-          files: ./KubeArmor/gover.coverprofile
+          files: ./tests/k8s_env/coverprofile.out
