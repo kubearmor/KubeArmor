@@ -40,9 +40,9 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	commonVols := common.CommonVolumes
 	commonVolMnts := common.CommonVolumesMount
 
-	commonVols = append(commonVols, common.BPFVolumes...)
-	commonVolMnts = append(commonVolMnts, common.BPFVolumesMount...)
 	if btfPresent == "no" {
+		commonVols = append(commonVols, common.BPFVolumes...)
+		commonVolMnts = append(commonVolMnts, common.BPFVolumesMount...)
 		commonVols = append(commonVols, common.KernelHeaderVolumes...)
 		commonVolMnts = append(commonVolMnts, common.KernelHeaderVolumesMount...)
 	}
