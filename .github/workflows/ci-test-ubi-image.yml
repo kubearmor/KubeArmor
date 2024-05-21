@@ -115,8 +115,8 @@ jobs:
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
-      - name: Run cleanup
-        if: ${{ always() }}
-        run: ./.github/workflows/cleanup.sh
+      # - name: Run cleanup
+      #   if: ${{ always() }}
+      #   run: ./.github/workflows/cleanup.sh
     
 
