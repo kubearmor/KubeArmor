@@ -79,6 +79,10 @@ jobs:
           kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
           kubectl get pods -A
 
+      - name: Operator may take upto 10 sec to enable TLS, Sleep for 15Sec
+        run: |
+          sleep 15
+
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
@@ -115,8 +119,8 @@ jobs:
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
-      # - name: Run cleanup
-      #   if: ${{ always() }}
-      #   run: ./.github/workflows/cleanup.sh
+      - name: Run cleanup
+        if: ${{ always() }}
+        run: ./.github/workflows/cleanup.sh
     
 
