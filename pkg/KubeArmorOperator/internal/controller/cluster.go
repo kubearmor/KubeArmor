@@ -37,6 +37,7 @@ var informer informers.SharedInformerFactory
 var deployment_uuid types.UID
 var deployment_name string = "kubearmor-operator"
 var PathPrefix string
+var initDeploy bool
 
 type ClusterWatcher struct {
 	Nodes          []Node
@@ -59,7 +60,7 @@ type Node struct {
 	Seccomp       string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, pathPrefix, deploy_name string) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, pathPrefix, deploy_name string, initdeploy bool) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -75,6 +76,7 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	}
 	PathPrefix = pathPrefix
 	deployment_name = deploy_name
+	initDeploy = initdeploy
 	return &ClusterWatcher{
 		Nodes:          []Node{},
 		Daemonsets:     make(map[string]int),
@@ -226,7 +228,7 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		}
 	}
 	if newDaemonSet {
-		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent)
+		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent, initDeploy)
 		_, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Create(context.Background(), daemonset, v1.CreateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())
@@ -363,8 +365,10 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				for _, ds := range dsList.Items {
 					ds.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 					ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
-					ds.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
-					ds.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+					if len(ds.Spec.Template.Spec.InitContainers) != 0 {
+						ds.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
+						ds.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+					}
 					_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
 					if err != nil {
 						clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())

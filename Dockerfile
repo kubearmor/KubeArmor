@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.22-alpine3.19 as builder
+FROM golang:1.22-alpine3.20 as builder
 
 RUN apk --no-cache update
 RUN apk add --no-cache git clang llvm make gcc protobuf
@@ -40,7 +40,7 @@ RUN make
 
 ### Make executable image
 
-FROM alpine:3.19 as kubearmor
+FROM alpine:3.20 as kubearmor
 
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 
@@ -48,7 +48,7 @@ RUN apk --no-cache update
 RUN apk add apparmor@community apparmor-utils@community bash
 
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
-COPY --from=builder /usr/src/KubeArmor/BPF/*.o /KubeArmor/BPF/
+COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
@@ -88,7 +88,7 @@ RUN groupadd --gid 1000 default \
 
 COPY LICENSE /licenses/license.txt
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
-COPY --from=builder --chown=default:default /usr/src/KubeArmor/BPF/*.o /KubeArmor/BPF/
+COPY --from=builder --chown=default:default /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
 COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 # TODO
