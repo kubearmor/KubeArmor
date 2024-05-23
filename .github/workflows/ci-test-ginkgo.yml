@@ -2,7 +2,7 @@ name: ci-test-ginkgo
 
 on:
   push:
-    branches: [main]
+    branches: [main, lfx-pretask]
     paths:
       - "KubeArmor/**"
       - "tests/**"
@@ -11,7 +11,7 @@ on:
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
   pull_request:
-    branches: [main]
+    branches: [main, lfx-pretask]
     paths:
       - "KubeArmor/**"
       - "tests/**"
@@ -51,6 +51,9 @@ jobs:
 
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
+
+      - name: Add KubeArmor host visibility
+        run: ./.github/workflows/host-visibility.sh
 
       - name: Generate KubeArmor artifacts
         run: |
