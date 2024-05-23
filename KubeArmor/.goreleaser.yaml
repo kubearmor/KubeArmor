@@ -11,6 +11,11 @@ builds:
     env:
       - CGO_ENABLED=0
 
+release:
+  replace_existing_artifacts: true
+  mode: replace
+  make_latest: false
+
 signs:
   - cmd: cosign
     certificate: '${artifact}.cert'
@@ -22,7 +27,7 @@ signs:
       - --yes
     artifacts: all
     output: true
-    
+
 archives:
   - id: "kubearmor"
     builds:

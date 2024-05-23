@@ -46,7 +46,7 @@ jobs:
     if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
     runs-on: ubuntu-latest-16-cores
     permissions:
-      id-token: write 
+      id-token: write
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v3
@@ -81,7 +81,7 @@ jobs:
         run: |
           make docker-build TAG=${{ steps.vars.outputs.tag }}
 
-      - name: deploy pre existing pod 
+      - name: deploy pre existing pod
         run: |
           kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
           sleep 60
@@ -93,7 +93,7 @@ jobs:
           docker save kubearmor/kubearmor:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
-        
+
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=${{ steps.vars.outputs.tag }}
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
@@ -145,12 +145,12 @@ jobs:
       - name: Push KubeArmor images to Docker
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }}
 
-      - name: Install Cosign 
+      - name: Install Cosign
         uses: sigstore/cosign-installer@main
 
       - name: Get Image Digest
         id: digest
-        run: | 
+        run: |
           echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
           echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
           echo "ubidigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
@@ -207,7 +207,7 @@ jobs:
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
           regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
           regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
-  
+
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
     needs: check
@@ -223,7 +223,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
-  
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
