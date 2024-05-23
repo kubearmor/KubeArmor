@@ -52,9 +52,6 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
-      - name: Add KubeArmor host visibility
-        run: ./.github/workflows/host-visibility.sh
-
       - name: Generate KubeArmor artifacts
         run: |
           GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
@@ -94,6 +91,9 @@ jobs:
           kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
           kubectl get pods -A
 
+      - name: Add KubeArmor host visibility
+        run: ./.github/workflows/host-visibility.sh    
+        
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
