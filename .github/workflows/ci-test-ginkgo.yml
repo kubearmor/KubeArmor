@@ -2,7 +2,7 @@ name: ci-test-ginkgo
 
 on:
   push:
-    branches: [main, lfx-pretask]
+    branches: [main, lfx-pretask, test-actions]
     paths:
       - "KubeArmor/**"
       - "tests/**"
@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-22.04]
         runtime: ["containerd", "crio"]
     steps:
       - uses: actions/checkout@v3
