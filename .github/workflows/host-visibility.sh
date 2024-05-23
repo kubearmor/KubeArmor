@@ -1,11 +1,18 @@
 #!/bin/bash
 
 # Edit the daemonset to add the -enableKubeArmorHostPolicy=true flag
-kubectl edit daemonset $(kubectl get daemonset -n kubearmor -o name | grep kubearmor-) -n kubearmor <<EOF
-/args:/a \
-        - -enableKubeArmorHostPolicy=true
-EOF
+# kubectl edit daemonset -n kubearmor <<EOF
+# /args:/a \
+#         - -enableKubeArmorHostPolicy=true
+# EOF
+
+kubectl get daemonset -n kubearmor -o yaml > daemonset.yaml
+sed -i '/args:/a \          - -enableKubeArmorHostPolicy=true' daemonset.yaml
+kubectl apply -f daemonset.yaml
+
+sleep 1m
 
 # Apply annotations to the node
-kubectl annotate node kubearmor-dev "kubearmor-visibility=process,file,network,capabilities"
+NODE_NAME=$(kubectl get nodes -o=jsonpath='{.items[0].metadata.name}')
+kubectl annotate node $NODE_NAME "kubearmorvisibility=process,file,network,capabilities"
 kubectl get no -o wide

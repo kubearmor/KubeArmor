@@ -5,7 +5,7 @@ metadata:
 spec:
   nodeSelector:
     matchLabels:
-      kubernetes.io/hostname: kubearmor-dev
+      kubernetes.io/os: linux
   severity: 5
   file:
     matchPaths:
@@ -13,7 +13,6 @@ spec:
   action:
     Block
 
-# kubearmor-dev_test_03
 
 # test
 # $ cat /etc/hostname

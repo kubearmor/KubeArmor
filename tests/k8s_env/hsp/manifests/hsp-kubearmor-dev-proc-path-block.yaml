@@ -5,7 +5,7 @@ metadata:
 spec:
   nodeSelector:
     matchLabels:
-      kubernetes.io/hostname: kubearmor-dev
+      kubernetes.io/os: linux
   severity: 5
   process:
     matchPaths:
