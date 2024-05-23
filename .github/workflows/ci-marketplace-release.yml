@@ -7,6 +7,9 @@ on:
       - "STABLE-RELEASE"
       - ".github/workflows/ci-marketplace-release.yml"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   certify-images-on-redhat:
     runs-on: ubuntu-latest

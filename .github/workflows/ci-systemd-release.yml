@@ -11,6 +11,9 @@ on:
     tags:
       - "*"
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   goreleaser:
     runs-on: ubuntu-20.04
