@@ -10,6 +10,7 @@ on:
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+      - "contribution/**"
   pull_request:
     branches: [main, lfx-pretask]
     paths:
