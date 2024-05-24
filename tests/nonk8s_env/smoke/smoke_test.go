@@ -19,8 +19,14 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+
+	// remove policy
+	policyPath := "res/ksp-wordpress-block-policy.yaml"
+	err := SendPolicy("DELETED", policyPath)
+	Expect(err).To(BeNil())
+
 	// delete wordpress-mysql app
-	_, err := RunDockerCommand("rm -f wordpress-mysql")
+	_, err = RunDockerCommand("rm -f wordpress-mysql")
 	Expect(err).To(BeNil())
 
 	time.Sleep(5 * time.Second)
@@ -106,4 +112,29 @@ var _ = Describe("Systemd", func() {
 
 		})
 	})
+
+	Describe(" It can block apt and apt-get commands in container ", func() {
+
+		It(" It can block apt command inside the container ", func() {
+
+			// Start the karmor logs
+			err := KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+			Expect(err).To(BeNil())
+
+			out, err := ExecInDockerContainer("wordpress-mysql", []string{"bash", "-c", "apt update"})
+
+			// Since the apt command won't run, it will return an error
+			Expect(err).NotTo(BeNil())
+			Expect(out).To(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("ksp-block-policy"))
+			Expect(alerts[0].Severity).To(Equal("3"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+		})
+	})
+
 })

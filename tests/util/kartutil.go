@@ -9,13 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	gomegaTypes "github.com/onsi/gomega/types"
 	"math/rand"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
+
+	gomegaTypes "github.com/onsi/gomega/types"
 
 	kcV1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kcScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/scheme"
@@ -609,6 +610,21 @@ func RunDockerCommand(cmdstr string) (string, error) {
 	cmd := exec.Command("docker", cmdf...)
 	sout, err := cmd.Output()
 	return string(sout), err
+}
+
+// ExecInDockerContainer runs a command inside a specified Docker container
+func ExecInDockerContainer(containerID string, cmd []string) (string, error) {
+	dockerCmd := append([]string{"exec", containerID}, cmd...)
+	var stdout, stderr bytes.Buffer
+	cmdExec := exec.Command("docker", dockerCmd...)
+	cmdExec.Stdout = &stdout
+	cmdExec.Stderr = &stderr
+
+	err := cmdExec.Run()
+	if err != nil {
+		return stderr.String(), err
+	}
+	return stdout.String(), nil
 }
 
 func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
