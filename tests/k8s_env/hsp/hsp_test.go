@@ -1,9 +1,7 @@
 package hsp
 
 import (
-	"context"
 	"fmt"
-	"os/exec"
 	"time"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
@@ -22,20 +20,6 @@ var _ = AfterSuite(func() {
 	// delete all HSPs
 	DeleteAllHsp()
 })
-
-func ExecCommand(command []string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		return string(output), err
-	}
-
-	return string(output), nil
-}
 
 var _ = Describe("HSP", func() {
 
@@ -62,7 +46,7 @@ var _ = Describe("HSP", func() {
 			Expect(err).To(BeNil())
 
 			// Execute the date command
-			out, err := ExecCommand([]string{"bash", "-c", "date"})
+			out, err := ExecCommandHost([]string{"bash", "-c", "date"})
 			Expect(err).NotTo(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", out)
 			Expect(out).To(MatchRegexp(".*Permission denied"))
@@ -75,7 +59,7 @@ var _ = Describe("HSP", func() {
 			Expect(alerts[0].Action).To(Equal("Block"))
 
 			// Execute a command that should not be blocked
-			out, err = ExecCommand([]string{"bash", "-c", "ls"})
+			out, err = ExecCommandHost([]string{"bash", "-c", "ls"})
 			Expect(err).To(BeNil())
 			Expect(out).NotTo(MatchRegexp(".*Permission denied"))
 		})
@@ -90,7 +74,7 @@ var _ = Describe("HSP", func() {
 			Expect(err).To(BeNil())
 
 			// Try to access the /etc/hostname file
-			out, err := ExecCommand([]string{"bash", "-c", "cat /etc/hostname"})
+			out, err := ExecCommandHost([]string{"bash", "-c", "cat /etc/hostname"})
 			Expect(err).NotTo(BeNil())
 			fmt.Printf("---START---\n%s---END---\n", out)
 			Expect(out).To(MatchRegexp(".*Permission denied"))
