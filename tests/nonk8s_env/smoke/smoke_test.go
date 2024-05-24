@@ -3,6 +3,7 @@
 package smoke_test
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
@@ -120,9 +121,18 @@ var _ = Describe("Systemd", func() {
 			// Start the karmor logs
 			err := KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
+			time.Sleep(2 * time.Second)
+
+			policyPath := "res/ksp-wordpress-block-policy.yaml"
+
+			err = SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+			time.Sleep(5 * time.Second)
 
 			// out, err := ExecInDockerContainer("wordpress-mysql", []string{"bash", "-c", "apt update"})
-			out, _ := RunDockerCommand("exec wordpress-mysql apt update")
+			out, err := RunDockerCommand("exec wordpress-mysql apt update")
+			fmt.Println("Docker Command Output:", out)
+			fmt.Println("Docker Command Error:", err)
 			// Since the apt command won't run, it will return an error
 			// Expect(err).NotTo(BeNil())
 			Expect(out).To(MatchRegexp(".*permission denied"))
