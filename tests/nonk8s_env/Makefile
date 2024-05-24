@@ -4,7 +4,7 @@
 .PHONY: build
 build:
 	@go mod tidy
-	@ginkgo -r --vv --flake-attempts=10 --timeout=30m
+	@ginkgo -r --vv --flake-attempts=10 --timeout=30m --coverpkg=github.com/kubearmor/KubeArmor/tests/...
 	
 .PHONY: test
 test:
