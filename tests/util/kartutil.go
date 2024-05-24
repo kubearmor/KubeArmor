@@ -608,24 +608,24 @@ func K8sRuntime() string {
 func RunDockerCommand(cmdstr string) (string, error) {
 	cmdf := strings.Fields(cmdstr)
 	cmd := exec.Command("docker", cmdf...)
-	sout, err := cmd.Output()
+	sout, err := cmd.CombinedOutput()
 	return string(sout), err
 }
 
 // ExecInDockerContainer runs a command inside a specified Docker container
-func ExecInDockerContainer(containerID string, cmd []string) (string, error) {
-	dockerCmd := append([]string{"exec", containerID}, cmd...)
-	var stdout, stderr bytes.Buffer
-	cmdExec := exec.Command("docker", dockerCmd...)
-	cmdExec.Stdout = &stdout
-	cmdExec.Stderr = &stderr
+// func ExecInDockerContainer(containerID string, cmd []string) (string, error) {
+// 	dockerCmd := append([]string{"exec", containerID}, cmd...)
+// 	var stdout, stderr bytes.Buffer
+// 	cmdExec := exec.Command("docker", dockerCmd...)
+// 	cmdExec.Stdout = &stdout
+// 	cmdExec.Stderr = &stderr
 
-	err := cmdExec.Run()
-	if err != nil {
-		return stderr.String(), err
-	}
-	return stdout.String(), nil
-}
+// 	err := cmdExec.Run()
+// 	if err != nil {
+// 		return stderr.String(), err
+// 	}
+// 	return stdout.String(), nil
+// }
 
 func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
 	if eventual {

@@ -121,11 +121,11 @@ var _ = Describe("Systemd", func() {
 			err := KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
 
-			out, err := ExecInDockerContainer("wordpress-mysql", []string{"bash", "-c", "apt update"})
-
+			// out, err := ExecInDockerContainer("wordpress-mysql", []string{"bash", "-c", "apt update"})
+			out, err := RunDockerCommand("exec wordpress-mysql apt update")
 			// Since the apt command won't run, it will return an error
 			Expect(err).NotTo(BeNil())
-			Expect(out).To(MatchRegexp(".*Permission denied"))
+			Expect(out).To(MatchRegexp(".*permission denied"))
 
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
