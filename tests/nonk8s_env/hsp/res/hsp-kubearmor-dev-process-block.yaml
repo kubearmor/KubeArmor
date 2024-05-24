@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-process-block
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  process:
+    matchPaths:
+    - path: /usr/bin/sleep
+  action:
+    Block
+
+
+# test
+# $ sleep 1
+# /usr/bin/sleep: Permission denied
