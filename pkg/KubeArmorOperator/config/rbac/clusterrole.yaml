@@ -130,6 +130,10 @@ rules:
   - cronjobs
   verbs:
   - get
+  - patch
+  - list
+  - watch
+  - update
 - apiGroups:
   - security.kubearmor.com
   resources:
