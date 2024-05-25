@@ -54,7 +54,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			{
 				APIGroups: []string{"batch"},
 				Resources: []string{"jobs", "cronjobs"},
-				Verbs:     []string{"get"},
+				Verbs:     []string{"get", "patch", "list", "watch", "update"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
