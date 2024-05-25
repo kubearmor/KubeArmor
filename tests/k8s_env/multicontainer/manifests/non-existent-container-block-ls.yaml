@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: non-existent-container-block-ls
+  namespace: multicontainer
+spec:
+  severity: 5
+  selector:
+    matchLabels:
+      container: multicontainer
+      kubearmor.io/container.name: "[container-1, non-existent-container ]"
+  process:
+    matchPaths:
+    - path: /bin/ls
+      # ls
+  action:
+    Block

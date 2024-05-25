@@ -26,6 +26,15 @@ type EventResult struct {
 var eventChan chan klog.EventInfo
 var gRPC = ""
 
+// sets gRPC port, used to monitor logs in systemd mode
+func setGRPC(tempGRPC string) func() {
+	originalGRPC := gRPC
+	gRPC = tempGRPC
+	return func() {
+		gRPC = originalGRPC
+	}
+}
+
 const maxEvents = 128
 
 func getLogWithInfo(logItem *pb.Log, target *pb.Log) bool {
@@ -206,6 +215,13 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 	}()
 	time.Sleep(2 * time.Second)
 	return nil
+}
+
+// KarmorLogStartgRPC start observing for kubearmor telemetry events on a port
+func KarmorLogStartgRPC(logFilter, ns, op, pod, tempGRPC string) error {
+	resetGRPC := setGRPC(tempGRPC)
+	defer resetGRPC()
+	return KarmorLogStart(logFilter, ns, op, pod)
 }
 
 // KarmorGetLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
