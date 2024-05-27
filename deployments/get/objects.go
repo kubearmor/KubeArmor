@@ -546,7 +546,6 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 					Labels: KubeArmorControllerLabels,
 				},
 				Spec: corev1.PodSpec{
-					PriorityClassName:  "system-node-critical",
 					ServiceAccountName: KubeArmorControllerServiceAccountName,
 					Volumes: []corev1.Volume{
 						KubeArmorControllerCertVolume,
