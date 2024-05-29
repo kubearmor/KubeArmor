@@ -12,7 +12,7 @@ import (
 
 var _ = BeforeSuite(func() {
 	// install nginx-redis deployment
-	_, err := RunDockerCommand("compose -f res/nginx_redis_docker/compose.yaml up -d")
+	_, err := RunDockerCommand("compose -f res/nginx_docker/compose.yaml up -d")
 	Expect(err).To(BeNil())
 
 	time.Sleep(5 * time.Second)
@@ -31,13 +31,13 @@ var _ = Describe("Container Security Policy", func() {
 	Describe("Apply and Delete Policy", func() {
 
 		It("can add policy successfully", func() {
-			policyPath := "res/generalized-container-security-policy.yaml"
+			policyPath := "res/container-block.yaml"
 
 			err := SendPolicy("ADDED", policyPath)
 			Expect(err).To(BeNil())
 		})
 		It("can delete policy", func() {
-			policyPath := "res/generalized-container-security-policy.yaml"
+			policyPath := "res/container-block.yaml"
 
 			err := SendPolicy("DELETED", policyPath)
 			Expect(err).To(BeNil())
@@ -84,7 +84,7 @@ var _ = Describe("Container Security Policy", func() {
 		})
 
 		It("can receive updated policy list through grpc", func() {
-			_, err := RunDockerCommand("compose -f res/nginx_redis_docker/compose.yaml up -d")
+			_, err := RunDockerCommand("compose -f res/nginx_docker/compose.yaml up -d")
 			Expect(err).To(BeNil())
 			time.Sleep(5 * time.Second)
 
@@ -98,7 +98,7 @@ var _ = Describe("Container Security Policy", func() {
 			Expect(redisPolicyListLength).To(Equal(0))
 
 			// With policy applied
-			policyPath := "res/generalized-container-security-policy.yaml"
+			policyPath := "res/container-block.yaml"
 
 			err = SendPolicy("ADDED", policyPath)
 			Expect(err).To(BeNil())
