@@ -13,7 +13,7 @@ Here, we demonstrate how to define host security policies.
     spec:
       nodeSelector:
         matchLabels:
-          kubernetes.io/hostname: kubearmor-dev
+          kubearmor.io/hostname: kubearmor-dev
       severity: 5
       process:
         matchPaths:
@@ -22,7 +22,7 @@ Here, we demonstrate how to define host security policies.
         Block
     ```
 
-    * Explanation: The purpose of this policy is to block the execution of '/usr/bin/diff' in a host whose host name is 'kubearmor-dev'. For this, we define 'kubernetes.io/hostname: kubearmor-dev' in nodeSelector -&gt; matchLabels and the specific path \('/usr/bin/diff'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
+    * Explanation: The purpose of this policy is to block the execution of '/usr/bin/diff' in a host whose host name is 'kubearmor-dev'. For this, we define 'kubearmor.io/hostname: kubearmor-dev' in nodeSelector -&gt; matchLabels and the specific path \('/usr/bin/diff'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
 
     * Verification: After applying this policy, please open a new terminal (or connect to the host with a new session) and run '/usr/bin/diff'. You will see that /usr/bin/diff is blocked.
 
@@ -46,7 +46,7 @@ Here, we demonstrate how to define host security policies.
     spec:
       nodeSelector:
         matchLabels:
-          kubernetes.io/hostname: kubearmor-dev
+          kubearmor.io/hostname: kubearmor-dev
       severity: 5
       file:
         matchPaths:
@@ -70,7 +70,7 @@ Here, we demonstrate how to define host security policies.
     severity: 3
     nodeSelector:
           matchLabels:
-            kubernetes.io/hostname: vagrant
+            kubearmor.io/hostname: vagrant
     syscalls:
       matchSyscalls:
       - syscall:
@@ -118,7 +118,7 @@ Here, we demonstrate how to define host security policies.
     severity: 3
     nodeSelector:
           matchLabels:
-            kubernetes.io/hostname: vagrant
+            kubearmor.io/hostname: vagrant
     syscalls:
       matchPaths:
       - syscall:
