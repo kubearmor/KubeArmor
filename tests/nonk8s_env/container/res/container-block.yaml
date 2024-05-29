@@ -1,0 +1,21 @@
+# generalized-container-security-policy.yaml
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: generalized-container-security-policy
+spec:
+  selector:
+    matchLabels:
+      kubernetes.io/metadata.name: "*"
+  process:
+    matchPaths:
+    - path: "/bin/bash"
+      action: Block
+  file:
+    matchPaths:
+    - path: "/etc/shadow"
+      action: Block
+  network:
+    matchProtocols:
+    - protocol: TCP
+      action: Block
