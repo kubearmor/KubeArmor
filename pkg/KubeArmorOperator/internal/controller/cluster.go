@@ -701,7 +701,7 @@ func (clusterWatcher *ClusterWatcher) DeleteAllTlsSecrets() error {
 	for _, secret := range tlsSecrets {
 		err := clusterWatcher.Client.CoreV1().Secrets(common.Namespace).Delete(context.Background(), secret, v1.DeleteOptions{})
 		if err != nil {
-			clusterWatcher.Log.Errorf("error while deleing secret: %s", secret)
+			clusterWatcher.Log.Errorf("error while deleing secret: %s, error=%s", secret, err.Error())
 			return err
 		}
 	}
