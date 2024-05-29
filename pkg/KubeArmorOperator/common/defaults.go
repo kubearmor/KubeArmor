@@ -52,6 +52,7 @@ var (
 	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
 	SecurityFsLabel string = "kubearmor.io/securityfs"
 	SeccompLabel    string = "kubearmor.io/seccomp"
+	OCIHooksLabel   string = "kubearmor.io/oci-hooks"
 
 	// if any node with securityfs/lsm present
 	IfNodeWithSecurtiyFs bool = false
@@ -67,6 +68,8 @@ var (
 	KubeArmorSnitchRoleName string = "kubearmor-snitch"
 
 	// KubeArmorConfigMapName string = "kubearmor-config"
+
+	EnableOCIHooks bool = false
 
 	// ConfigMap Data
 	ConfigGRPC                       string = "gRPC"
@@ -466,6 +469,15 @@ func init() {
 	if IsCertifiedOperator() {
 		HostPID = true
 	}
+	EnableOCIHooks = GetOCIHooks()
+}
+
+func GetOCIHooks() bool {
+	val := os.Getenv("KUBEARMOR_OCI_HOOKS")
+	if val != "" {
+		return true
+	}
+	return false
 }
 
 func AddOrReplaceArg(add, replace string, args *[]string) {
