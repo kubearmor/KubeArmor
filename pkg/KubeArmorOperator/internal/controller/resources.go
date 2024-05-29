@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent, ociHooks string) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
 	if !(enforcer == "apparmor" && apparmorfs == "no") {
@@ -34,9 +34,31 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
 	vols = append(vols, enforcerVolumes...)
-	vols = append(vols, runtimeVolumes...)
+	ociArgs := []string{}
+	if ociHooks == "yes" {
+		volType := corev1.HostPathDirectoryOrCreate
+		vols = append(vols, corev1.Volume{
+			Name: "kubearmor-path",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/kubearmor/",
+					Type: &volType,
+				},
+			},
+		})
+		volMnts = append(volMnts, corev1.VolumeMount{
+			Name:      "kubearmor-path",
+			MountPath: "/var/run/kubearmor/",
+		})
+		ociArgs = append(ociArgs,
+			"--useOCIHooks",
+			"true",
+		)
+	} else {
+		vols = append(vols, runtimeVolumes...)
+		volMnts = append(volMnts, runtimeVolumeMounts...)
+	}
 	volMnts = append(volMnts, enforcerVolumeMounts...)
-	volMnts = append(volMnts, runtimeVolumeMounts...)
 	commonVols := common.CommonVolumes
 	commonVolMnts := common.CommonVolumesMount
 	if btfPresent == "no" {
@@ -98,6 +120,7 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
+	daemonset.Spec.Template.Spec.Containers[0].Args = append(daemonset.Spec.Template.Spec.Containers[0].Args, ociArgs...)
 	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 
@@ -237,6 +260,14 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 								Name:      "seccomp-path",
 								MountPath: "/var/lib/kubelet/seccomp",
 							},
+							{
+								Name:      "hook-dir",
+								MountPath: "/usr/share/containers/oci/hooks.d",
+							},
+							{
+								Name:      "kubearmor-dir",
+								MountPath: "/usr/share/kubearmor",
+							},
 						},
 						SecurityContext: &corev1.SecurityContext{
 							RunAsUser:  &rootUser,
@@ -277,6 +308,24 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/var/lib/kubelet/seccomp",
+								Type: &HostPathDirectoryOrCreate,
+							},
+						},
+					},
+					{
+						Name: "hook-dir",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/usr/share/containers/oci/hooks.d",
+								Type: &HostPathDirectoryOrCreate,
+							},
+						},
+					},
+					{
+						Name: "kubearmor-dir",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/usr/share/kubearmor",
 								Type: &HostPathDirectoryOrCreate,
 							},
 						},
