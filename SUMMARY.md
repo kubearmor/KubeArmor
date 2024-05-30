@@ -22,6 +22,8 @@
 * [Security Posture](getting-started/default_posture.md)
 * [Policy Spec for Containers](getting-started/security_policy_specification.md)
 * [Policy Examples for Containers](getting-started/security_policy_examples.md)
+* [Cluster Policy Spec for Containers](getting-started/cluster_security_policy_specification.md)
+* [Cluster Policy Examples for Containers](getting-started/cluster_security_policy_examples.md)
 * [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)
 * [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
 * [FAQs](getting-started/FAQ.md)
