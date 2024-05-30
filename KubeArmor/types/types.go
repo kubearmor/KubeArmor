@@ -321,11 +321,23 @@ const (
 	KubeArmorPolicyAudited  = 2
 )
 
+// MatchExpressionType Structure
+type MatchExpressionType struct {
+	Key      string   `json:"key,omitempty"`
+	Operator string   `json:"operator,omitempty"`
+	Values   []string `json:"values,omitempty"`
+}
+
 // SelectorType Structure
 type SelectorType struct {
+	// for KubeArmorPolicy
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 	Containers  []string          `json:"containers,omitempty"`
 	Identities  []string          `json:"identities,omitempty"` // set during policy update
+
+	// for KubeArmorClusterPolicy
+	MatchExpressions []MatchExpressionType `json:"matchExpressions,omitempty"`
+	NamespaceList    []string              `json:"namespaceList,omitempty"` // set during policy update
 }
 
 // MatchSourceType Structure

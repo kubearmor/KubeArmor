@@ -31,6 +31,7 @@ KubeArmor leverages [Linux security modules \(LSMs\)](https://en.wikipedia.org/w
 * :heavy_check_mark: [KubeArmor Support Matrix](getting-started/support_matrix.md)
 * :chess_pawn: [How is KubeArmor different?](getting-started/differentiation.md)
 * :scroll: Security Policy for Pods/Containers [[Spec](getting-started/security_policy_specification.md)] [[Examples](getting-started/security_policy_examples.md)]
+* :scroll: Cluster level security Policy for Pods/Containers [[Spec](getting-started/cluster_security_policy_specification.md)] [[Examples](getting-started/cluster_security_policy_examples.md)]
 * :scroll: Security Policy for Hosts/Nodes [[Spec](getting-started/host_security_policy_specification.md)] [[Examples](getting-started/host_security_policy_examples.md)]<br>
 ... [detailed documentation](https://docs.kubearmor.io/kubearmor/)
 
