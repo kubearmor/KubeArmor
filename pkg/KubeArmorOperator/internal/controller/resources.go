@@ -533,6 +533,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			clusterWatcher.Log.Warnf("Cannot install Hsp CRD, error=%s", err.Error())
 		}
 	}
+	csp := crds.GetCspCRD()
+	csp = addOwnership(csp).(extv1.CustomResourceDefinition)
+	if _, err := clusterWatcher.ExtClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &csp, metav1.CreateOptions{}); err != nil && !metav1errors.IsAlreadyExists(err) {
+		if !isAlreadyExists(err) {
+			installErr = err
+			clusterWatcher.Log.Warnf("Cannot install Csp CRD, error=%s", err.Error())
+		}
+	}
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 	relayServer := deployments.GetRelayDeployment(common.Namespace)

@@ -144,6 +144,7 @@ rules:
   - security.kubearmor.com
   resources:
   - kubearmorpolicies
+  - kubearmorclusterpolicies
   - kubearmorhostpolicies
   verbs:
   - get
@@ -179,6 +180,7 @@ rules:
   - security.kubearmor.com
   resources:
   - kubearmorpolicies
+  - kubearmorclusterpolicies
   - kubearmorhostpolicies
   verbs:
   - create
@@ -192,6 +194,7 @@ rules:
   - security.kubearmor.com
   resources:
   - kubearmorpolicies/status
+  - kubearmorclusterpolicies/status
   - kubearmorhostpolicies/status
   verbs:
   - get

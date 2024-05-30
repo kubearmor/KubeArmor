@@ -40,6 +40,7 @@ func main() {
 			// CRDs
 			kcrd.GetHspCRD(),
 			kcrd.GetKspCRD(),
+			kcrd.GetCspCRD(),
 
 			// ClusterRoles
 			dp.GetClusterRole(),

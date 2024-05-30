@@ -58,7 +58,7 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
 			{
@@ -676,12 +676,12 @@ func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies/status", "kubearmorhostpolicies/status"},
+				Resources: []string{"kubearmorpolicies/status", "kubearmorclusterpolicies/status", "kubearmorhostpolicies/status"},
 				Verbs:     []string{"get", "patch", "update"},
 			},
 		},
