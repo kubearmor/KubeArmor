@@ -1,0 +1,20 @@
+# Hardening Kubearmor with Seccomp
+
+To further enhance the security of KubeArmor itself, it is crucial to protect it using seccomp (secure computing mode), a Linux kernel feature that restricts the system calls (syscalls) a process can make, thereby reducing the attack surface.
+
+With this, Kubearmor will only be using Syscalls necessary to function.
+
+
+## Enabling seccomp in Kubearmor Configuration 
+
+By default, seccomp is disabled.
+
+In the [Kubearmor Config](https://github.com/kubearmor/KubeArmor/blob/main/pkg/KubeArmorOperator/config/samples/sample-config.yml), set `seccompEnabled: true` and do a `kubectl apply -f config.yaml` to enable seccomp hardening for Kubearmor.
+
+You can check out https://github.com/kubearmor/KubeArmor/blob/bbdc04d4dea3c3e717821e4894f46bd7b30c0d4b/pkg/KubeArmorOperator/seccomp/seccomp.go#L19 to see the list of Syscalls that are allowed by Kubearmor after it is enabled.
+
+### Debugging
+
+There may be some enviroments where seccomp profiles might not work, for example a K8s enviroment where the Kubelet path is different than the default `/var/lib/kubelet`. We are currently in the process of defining our own Kubelet path in a future update.
+
+Other issues like missing syscalls in a particular K8s setup is possible, in that case raise an issue in the [repo](https://github.com/kubearmor/KubeArmor/issues).
