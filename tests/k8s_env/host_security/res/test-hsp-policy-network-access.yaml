@@ -1,0 +1,12 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: test-hsp-policy-network-access
+spec:
+  network:
+    matchProtocols:
+    - protocol: TCP
+      matchPaths:
+      - path: example.com
+        action: Block
+  action: Block

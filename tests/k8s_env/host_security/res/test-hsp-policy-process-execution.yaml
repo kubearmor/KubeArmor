@@ -1,0 +1,10 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: test-hsp-policy-process-execution
+spec:
+  process:
+    matchPaths:
+    - path: /bin/ping
+      action: Block
+  action: Block

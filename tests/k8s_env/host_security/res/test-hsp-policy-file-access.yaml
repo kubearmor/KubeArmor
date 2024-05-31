@@ -1,0 +1,14 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: test-hsp-policy-file-access
+spec:
+  file:
+    matchDirectories:
+    - dir: /etc
+      recursive: true
+      action: Block
+      matchPaths:
+      - path: /etc/shadow
+        action: Block
+  action: Block
