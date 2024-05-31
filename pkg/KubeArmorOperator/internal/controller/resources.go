@@ -88,29 +88,29 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	}
 	daemonset.Spec.Template.Spec.Volumes = vols
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
-	// update images
-
-	if seccompPresent == "yes" && common.ConfigDefaultSeccompEnabled == "true" {
-		daemonset.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: &common.SeccompProfile,
-		}
-		daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: &common.SeccompInitProfile,
-		}
-
-	}
-
-	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
-	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 
 	if btfPresent == "no" || initDeploy {
 		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
 	}
+	// update images
+	if seccompPresent == "yes" && common.ConfigDefaultSeccompEnabled == "true" {
+		daemonset.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: &common.SeccompProfile,
+		}
+		if len(daemonset.Spec.Template.Spec.InitContainers) != 0 {
+			daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+				Type:             corev1.SeccompProfileTypeLocalhost,
+				LocalhostProfile: &common.SeccompInitProfile,
+			}
+		}
 
+	}
+
+	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
+	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
