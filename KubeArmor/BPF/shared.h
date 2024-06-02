@@ -36,6 +36,29 @@ enum network_check_type {
   sock_proto
 }; // configure to check for network protocol or socket type
 
+struct sockets_key {
+	__u32 netns;
+	__u32 saddr;
+    __u32 daddr;
+    __u16 sport;
+    __u16 dport;
+
+};
+
+struct socket_value {
+    __u8 task[TASK_COMM_LEN]; 
+    __u64 pid_tgid;
+	__u64 uid_gid;
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(struct sockets_key));
+	__uint(value_size, sizeof(struct socket_value));
+    __uint(max_entries, 128);
+	__uint(pinning, LIBBPF_PIN_BY_NAME);
+} dns_shared_map SEC(".maps");
+
 typedef struct buffers {
   char buf[MAX_BUFFER_SIZE];
 } bufs_t;

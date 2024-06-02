@@ -36,6 +36,7 @@ require (
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20240110164432-c2c1b121cd94
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/spf13/viper v1.18.2
+	github.com/vishvananda/netns v0.0.4
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20240110193028-0dcbfd608b1e
 	golang.org/x/sys v0.19.0
