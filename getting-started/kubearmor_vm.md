@@ -49,6 +49,9 @@ kind: KubeArmorHostPolicy
 metadata:
   name: hsp-kubearmor-dev-proc-path-block
 spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*" # Apply to all hosts
   process:
     matchPaths:
     - path: /usr/bin/sleep # try sleep 1
@@ -63,32 +66,36 @@ karmor vm policy add hostpolicy.yaml
 
 **Now if you run `sleep` command, the process would be denied execution.**
 
-> Note that `sleep` may not blocked if you run it in the same terminal where you apply the above policy. In that case, please open a new terminal and run `sleep` again to see if the command is blocked.
+> Note that `sleep` may not be blocked if you run it in the same terminal where you apply the above policy. In that case, please open a new terminal and run `sleep` again to see if the command is blocked.
 
 ## Get Alerts for policies and telemetry
 
 ```
-karmor logs --json
+karmor logs --gRPC=:32767 --json
 ```
 
-```json=
+```json
 {
-  "Timestamp": 1639803960,
-  "UpdatedTime": "2021-12-18T05:06:00.077564Z",
-  "ClusterName": "Default",
-  "HostName": "pandora",
-  "HostPID": 3390423,
-  "PPID": 168556,
-  "PID": 3390423,
-  "UID": 1000,
-  "PolicyName": "hsp-kubearmor-dev-proc-path-block",
-  "Severity": "1",
-  "Type": "MatchedHostPolicy",
-  "Source": "zsh",
-  "Operation": "Process",
-  "Resource": "/usr/bin/sleep",
-  "Data": "syscall=SYS_EXECVE",
-  "Action": "Block",
-  "Result": "Permission denied"
+"Timestamp":1717259989,
+"UpdatedTime":"2024-06-01T16:39:49.360067Z",
+"HostName":"kubearmor-dev",
+"HostPPID":1582,
+"HostPID":2420,
+"PPID":1582,
+"PID":2420,
+"UID":1000,
+"ParentProcessName":"/usr/bin/bash",
+"ProcessName":"/usr/bin/sleep",
+"PolicyName":"hsp-kubearmor-dev-proc-path-block",
+"Severity":"1",
+"Type":"MatchedHostPolicy",
+"Source":"/usr/bin/bash",
+"Operation":"Process",
+"Resource":"/usr/bin/sleep",
+"Data":"lsm=SECURITY_BPRM_CHECK",
+"Enforcer":"BPFLSM",
+"Action":"Block",
+"Result":"Permission denied",
+"Cwd":"/"
 }
 ```
