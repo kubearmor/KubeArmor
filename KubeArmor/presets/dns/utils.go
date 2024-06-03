@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"runtime"
 	"slices"
@@ -15,6 +16,8 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
+	"github.com/cilium/ebpf/rlimit"
+	"github.com/google/gopacket/layers"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
@@ -22,37 +25,42 @@ import (
 func (p *Dnspreset) load_kprobe() error {
 	pinpath := "/sys/fs/bpf"
 	fn := "udp_sendmsg"
-	objs := dnsObjects{}
-	p.Dnskprobeobj = objs
-
-	_, err := link.Kprobe(fn, objs.IgUdpSendmsg, nil)
-	if err != nil {
-		log.Fatalf("err opening kprobe: %s", err)
-		return err
+	if err := rlimit.RemoveMemlock(); err != nil {
+		log.Fatal(err)
 	}
 
-	if err := loadDnsObjects(&objs, &ebpf.CollectionOptions{
+	objs := dnskprobeObjects{}
+	p.Dnskprobeobj = &objs
+
+	if err := loadDnskprobeObjects(&objs, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
 			PinPath: pinpath,
 		},
 	}); err != nil {
-		p.Logger.Errf("err loading Dns objects: %v", err)
+		fmt.Printf("err loading Dns objects: %v", err)
 		return err
 	}
+
+	_, err := link.Kprobe(fn, objs.IgUdpSendmsg, nil)
+	if err != nil {
+		fmt.Printf("err opening kprobe: %s", err)
+		return err
+	}
+
 	return nil
 }
 
 func (p *Dnspreset) AttachSocket(pid int, netns uint32, containerid string) {
 	pinpath := "/sys/fs/bpf"
 
-	objs := socketObjects{}
-	spec, err := loadSocket()
+	objs := &dnssocketObjects{}
+	spec, err := loadDnssocket()
 	if err != nil {
 		return
 	}
 	sock, _, err := p.openRawSock(pid, containerid)
 	if err != nil {
-		p.Logger.Warnf("not able to open socket err: %s", err)
+		fmt.Printf("not able to open socket err: %s", err)
 		return
 	}
 
@@ -60,7 +68,7 @@ func (p *Dnspreset) AttachSocket(pid int, netns uint32, containerid string) {
 		"current_netns": netns,
 	}
 	if err := spec.RewriteConstants(consts); err != nil {
-		p.Logger.Errf("RewriteConstants while attaching to pid %d err: %s ", pid, err)
+		fmt.Printf("RewriteConstants while attaching to pid %d err: %s ", pid, err)
 		return
 	}
 
@@ -69,18 +77,18 @@ func (p *Dnspreset) AttachSocket(pid int, netns uint32, containerid string) {
 			PinPath: pinpath,
 		},
 	}); err != nil {
-		p.Logger.Errf("err loading ebpf program: %s", err)
+		fmt.Printf("\n err loading ebpf program: %s", err)
 		return
 	}
 
 	if err := syscall.SetsockoptInt(sock, syscall.SOL_SOCKET, unix.SO_ATTACH_BPF, objs.SimpleSocketHandler.FD()); err != nil {
-		p.Logger.Errf("attaching BPF program: %s", err)
+		fmt.Printf("\nerr attaching BPF program: %s", err)
 	}
 
 	rd, err := ringbuf.NewReader(objs.SocketEvents)
 	// rd, err := perf.NewReader(objs.SocketPerfEvent, 4096)
 	if err != nil {
-		p.Logger.Errf("opening ringbuf reader: %s", err)
+		fmt.Printf("\nerr opening ringbuf reader: %s", err)
 	}
 
 	dnsobjmap := DnsSocketObjs{}
@@ -90,6 +98,8 @@ func (p *Dnspreset) AttachSocket(pid int, netns uint32, containerid string) {
 	dnsobjmap.Netns = netns
 	dnsobjmap.Containerids = []string{containerid}
 	p.DnsSocketObjs[netns] = dnsobjmap
+
+	fmt.Println("attached socket for --> ", p.DnsSocketObjs[netns])
 
 }
 
@@ -175,10 +185,10 @@ func (p *Dnspreset) removeContainer(netns uint32, containerID string) int {
 
 			//removing container from the map
 			if err := p.deleteMap(con); err != nil {
-				p.Logger.Errf("Error removing cotainer %s from dnsmap, err: %s ", containerID, err)
+				fmt.Printf("Error removing cotainer %s from dnsmap, err: %s ", containerID, err)
 				return -1
 			}
-			p.Logger.Printf("DNS kprobe stopped monitoring containerid %s", containerID)
+			fmt.Printf("DNS kprobe stopped monitoring containerid %s", containerID)
 
 			//if no container in the specific netns, remove the socket
 			if len(newobj) == 0 {
@@ -186,7 +196,7 @@ func (p *Dnspreset) removeContainer(netns uint32, containerID string) int {
 				unix.Close(sock)
 				dnsock.Objs.Close()
 				delete(p.DnsSocketObjs, netns)
-				p.Logger.Printf("Socket from netns %d removed", netns)
+				fmt.Printf("Socket from netns %d removed", netns)
 			}
 
 			return 1
@@ -213,4 +223,89 @@ func removeString(slice []string, strToRemove string) []string {
 		}
 	}
 	return result
+}
+
+func lister(rd *ringbuf.Reader) {
+	defer rd.Close()
+	fmt.Println("started ringbuffer")
+	for {
+		record, err := rd.Read()
+
+		if err != nil {
+
+			if errors.Is(err, ringbuf.ErrClosed) {
+				log.Println("Received signal, exiting..")
+				return
+			}
+
+			log.Printf("reading from reader: %s", err)
+			continue
+		}
+
+		fmt.Println("------------------")
+
+		srcIP, ok := netip.AddrFromSlice(record.RawSample[4:8])
+		if ok {
+			fmt.Println("Source IP: ", srcIP.String()) // Expected: 255.255.255.252
+		}
+
+		dstIP, ok := netip.AddrFromSlice(record.RawSample[8:12])
+		if ok {
+			fmt.Println("Destination IP: ", dstIP.String()) // Expected: 75.75.75.120
+		}
+
+		SourcePort := binary.LittleEndian.Uint16(record.RawSample[16:18])
+		DestPort := binary.LittleEndian.Uint16(record.RawSample[18:20])
+
+		dnsoff := binary.BigEndian.Uint16(record.RawSample[20:22])
+		dnslength := binary.BigEndian.Uint32(record.RawSample[22:28])
+		netns := binary.LittleEndian.Uint32(record.RawSample[0:4])
+		packetpresent := record.RawSample[28:29]
+
+		fmt.Println("Netns : ", netns)
+		fmt.Println("Source Port: ", SourcePort)                     //
+		fmt.Println("Destination Port: ", DestPort)                  //
+		fmt.Println("DNSoff : ", dnsoff)                             //
+		fmt.Println("DNSlength : ", dnslength)                       //
+		fmt.Println("Process information presetn : ", packetpresent) //
+		fmt.Println("Packet : ", string(record.RawSample[38:]))      //
+		// spew.Dump(record.RawSample[30:])
+		parseDNSPacket(record.RawSample, 38)
+		fmt.Println("--------------------")
+
+	}
+
+}
+
+func parseDNSPacket(rawSample []byte, doff int) bool {
+	var shoudlprint bool
+	shoudlprint = false
+	packetBytes := rawSample[doff:]
+
+	dnsLayer := layers.DNS{}
+
+	err := dnsLayer.DecodeFromBytes(packetBytes, nil)
+	if err != nil {
+		fmt.Println("decoding dns layer: %w", err)
+		return shoudlprint
+	}
+
+	if len(dnsLayer.Questions) > 0 {
+
+		for _, question := range dnsLayer.Questions {
+			QType := question.Type.String()
+			DNSName := string(question.Name) + "."
+			fmt.Println("Question is Qtype ", QType, " DNS domain name", DNSName)
+		}
+		shoudlprint = true
+	}
+	if len(dnsLayer.Answers) > 0 {
+		fmt.Println("********************")
+		for _, answer := range dnsLayer.Answers {
+			fmt.Println(" Answer \nIP is ", answer.IP.String())
+			fmt.Println(" Domain ", string(answer.Name))
+		}
+		shoudlprint = true
+	}
+	return shoudlprint
 }

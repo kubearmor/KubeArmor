@@ -31,6 +31,7 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/golang/protobuf v1.5.4
+	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20240110164432-c2c1b121cd94
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20240110164432-c2c1b121cd94

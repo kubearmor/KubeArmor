@@ -1,10 +1,11 @@
 package dns
 
 import (
+	"fmt"
+
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
-	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
@@ -17,7 +18,7 @@ import (
 // add check for newer kernel versions
 type DnsSocketObjs struct {
 	Netns        uint32
-	Objs         socketObjects
+	Objs         *dnssocketObjects
 	RingBuf      *ringbuf.Reader
 	Containerids []string
 	SockFd       int
@@ -33,22 +34,23 @@ type containerinfo struct {
 type Dnspreset struct {
 	presets.BasePreset
 	Containers    map[string]containerinfo
-	Dnskprobeobj  dnsObjects
+	Dnskprobeobj  *dnskprobeObjects
 	Kprobe        link.Link
 	Dnscontainers *ebpf.Map
 	DnsSocketObjs map[uint32]DnsSocketObjs
 }
 
 type namespaceKey struct {
-	pidns uint64
-	mntns uint64
+	pidns uint32
+	mntns uint32
 }
 
-func (p *Dnspreset) RegisterPreset(logger *fd.Feeder) {
+func (p *Dnspreset) RegisterPreset() {
 	pinpath := "/sys/fs/bpf"
-	p.Logger = logger
 
-	Dnscontainermap, err := ebpf.NewMapWithOptions(&ebpf.MapSpec{
+	var err error
+
+	p.Dnscontainers, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    8,
 		ValueSize:  4,
@@ -59,7 +61,7 @@ func (p *Dnspreset) RegisterPreset(logger *fd.Feeder) {
 		PinPath: pinpath,
 	})
 	if err != nil {
-		p.Logger.Errf("err pining container map: %v", err)
+		fmt.Printf("err pining container map: %v", err)
 	}
 
 	_, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
@@ -73,31 +75,32 @@ func (p *Dnspreset) RegisterPreset(logger *fd.Feeder) {
 		PinPath: pinpath,
 	})
 	if err != nil {
-		p.Logger.Errf("err pinning sharedmap: %v", err)
+		fmt.Printf("err pinning sharedmap: %v", err)
 	}
 
 	p.load_kprobe()
-	p.Dnscontainers = Dnscontainermap
+	// p.Dnscontainers = Dnscontainermap
 }
 
 func (p *Dnspreset) RegisterContainer(container tp.Container) {
 	netns := getnetns(container.Pid)
 	containerInfo := containerinfo{Pid: container.Pid, Pidns: container.PidNS, Mntns: container.PidNS, Netns: netns}
 	p.Containers[container.ContainerID] = containerInfo
+	fmt.Println("DNS container registered --> ", p.Containers[container.ContainerID])
 }
 
 func (p *Dnspreset) updateMapin(con containerinfo) {
-	key := namespaceKey{pidns: uint64(con.Pidns), mntns: uint64(con.Pidns)}
+	key := namespaceKey{pidns: con.Pidns, mntns: con.Pidns}
 	value := uint32(1)
 	if err := p.Dnscontainers.Put(key, value); err != nil {
-		p.Logger.Errf("error adding container %s to outer map: %s", "", err)
+		fmt.Printf("error adding container %s to outer map: %s", "", err)
 	}
 }
 
 func (p *Dnspreset) deleteMap(con containerinfo) error {
-	key := namespaceKey{pidns: uint64(con.Pidns), mntns: uint64(con.Pidns)}
+	key := namespaceKey{pidns: con.Pidns, mntns: con.Pidns}
 	if err := p.Dnscontainers.Delete(key); err != nil {
-		p.Logger.Errf("error Deleting container %s to outer map: %s", "", err)
+		fmt.Printf("error Deleting container %s to outer map: %s", "", err)
 		return err
 	}
 	return nil
@@ -115,7 +118,7 @@ func (p *Dnspreset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 func (p *Dnspreset) Destroy() error {
 	if err := p.Kprobe.Close(); err != nil {
-		p.Logger.Errf("error destroying kprobe %s", err.Error())
+		fmt.Printf("error destroying kprobe %s", err.Error())
 	}
 
 	for _, value := range p.DnsSocketObjs {
@@ -128,17 +131,21 @@ func (p *Dnspreset) Destroy() error {
 }
 
 func (p *Dnspreset) TraceEvents() {
+	for _, net := range p.DnsSocketObjs {
+		go lister(net.RingBuf)
+	}
+
 }
 
 func (p *Dnspreset) UnregisterContainer(containerID string) {
 	netns, preset := p.getNetnsOfContainerFromMap(containerID)
 	if preset != 1 {
-		p.Logger.Printf("containerid %s not being monitored", containerID)
+		fmt.Printf("containerid %s not being monitored", containerID)
 	}
 
 	err := p.removeContainer(netns, containerID)
 	if err != 1 {
-		p.Logger.Printf("containerid %s not being monitored", containerID)
+		fmt.Printf("containerid %s not being monitored", containerID)
 	}
 
 }
