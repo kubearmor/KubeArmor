@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	"github.com/kubearmor/KubeArmor/KubeArmor/config"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -192,6 +193,17 @@ type BaseFeeder struct {
 	LogServer *grpc.Server
 }
 
+type OuterKey struct {
+	PidNs uint32
+	MntNs uint32
+}
+
+type AlertThrottleState struct {
+	FirstEventTimestamp uint64
+	EventCount          uint64
+	Throttle            bool
+}
+
 // Feeder Structure
 type Feeder struct {
 	BaseFeeder
@@ -205,6 +217,10 @@ type Feeder struct {
 	// DefaultPosture (namespace -> postures)
 	DefaultPostures     map[string]tp.DefaultPosture
 	DefaultPosturesLock *sync.Mutex
+
+	AlertMap map[OuterKey]AlertThrottleState
+
+	ContainerNsKey map[string]common.OuterKey
 }
 
 // NewFeeder Function
@@ -562,7 +578,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	}
 
 	// gRPC output
-	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" {
+	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
 		pbAlert := pb.Alert{}
 
 		pbAlert.Timestamp = log.Timestamp
@@ -640,6 +656,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 
 		pbAlert.Result = log.Result
+		pbAlert.MaxAlertsPerSec = log.MaxAlertsPerSec
+		pbAlert.DroppingAlertsInterval = log.DroppingAlertsInterval
 
 		fd.EventStructs.AlertLock.Lock()
 		defer fd.EventStructs.AlertLock.Unlock()
@@ -743,4 +761,63 @@ func loadTLSCredentials(ip string) (credentials.TransportCredentials, error) {
 	}
 	creds, err := cert.NewTlsCredentialManager(&tlsConfig).CreateTlsServerCredentials()
 	return creds, err
+}
+
+func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool) {
+	currentTimestamp := kl.GetCurrentTimeStamp()
+
+	key := OuterKey{
+		PidNs: pidNs,
+		MntNs: mntNs,
+	}
+
+	if fd.AlertMap == nil {
+		fd.AlertMap = make(map[OuterKey]AlertThrottleState)
+	}
+
+	state, ok := fd.AlertMap[key]
+
+	if !ok {
+		newState := AlertThrottleState{
+			EventCount:          1,
+			FirstEventTimestamp: currentTimestamp,
+			Throttle:            false,
+		}
+		fd.AlertMap[key] = newState
+		return false, false
+	}
+
+	throttleSec := uint64(cfg.GlobalCfg.ThrottleSec) * 1000000000 // Throttle duration in nanoseconds
+	maxAlertPerSec := uint64(cfg.GlobalCfg.MaxAlertPerSec)
+
+	if state.Throttle {
+		timeDifference := currentTimestamp - state.FirstEventTimestamp
+		if timeDifference < throttleSec {
+			return true, true
+		}
+	}
+
+	timeDifference := currentTimestamp - state.FirstEventTimestamp
+
+	if timeDifference >= 1000000000 { // 1 second
+		state.FirstEventTimestamp = currentTimestamp
+		state.EventCount = 1
+		state.Throttle = false
+	} else {
+		state.EventCount++
+	}
+
+	if state.EventCount > maxAlertPerSec {
+		state.EventCount = 0
+		state.Throttle = true
+		fd.AlertMap[key] = state
+		return true, false
+	}
+
+	fd.AlertMap[key] = state
+	return false, false
+}
+
+func (fd *Feeder) DeleteAlertMapKey(outkey kl.OuterKey) {
+	delete(fd.AlertMap, OuterKey{PidNs: outkey.PidNs, MntNs: outkey.MntNs})
 }

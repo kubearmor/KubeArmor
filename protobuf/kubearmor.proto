@@ -75,6 +75,8 @@ message Alert {
   string Result = 23;
   string Cwd = 32;
   string TTY = 33;
+  int32 MaxAlertsPerSec = 34;
+  int32 DroppingAlertsInterval = 35;
 }
 
 // log struct

@@ -94,6 +94,9 @@ kubearmorConfigMap:
   defaultCapabilitiesPosture: audit
   defaultNetworkPosture: audit
   visibility: process,network
+  alertThrottling: false
+  maxAlertPerSec: 10
+  throttleSec: 30
 
 #volume mounts and volumes
 kubearmor:

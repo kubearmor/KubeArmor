@@ -61,6 +61,8 @@ const (
 	SocketAccept  = 463
 
 	Capable = 464
+
+	DropAlert = 0
 )
 
 var syscalls = map[int32]string{

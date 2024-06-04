@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -71,25 +72,27 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.CapabilitiesVisibilityEnabled = mon.Node.CapabilitiesVisibilityEnabled
 	}
 
-	log.HostPPID = int32(msg.ContextSys.HostPPID)
-	log.HostPID = int32(msg.ContextSys.HostPID)
+	if eventID != int32(DropAlert) {
+		log.HostPPID = int32(msg.ContextSys.HostPPID)
+		log.HostPID = int32(msg.ContextSys.HostPID)
 
-	log.PPID = int32(msg.ContextSys.PPID)
-	log.PID = int32(msg.ContextSys.PID)
-	log.UID = int32(msg.ContextSys.UID)
+		log.PPID = int32(msg.ContextSys.PPID)
+		log.PID = int32(msg.ContextSys.PID)
+		log.UID = int32(msg.ContextSys.UID)
 
-	log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys, readlink)
-	log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
+		log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys, readlink)
+		log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
 
-	if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-		log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
-	} else {
-		log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys, readlink)
+		if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
+			log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
+		} else {
+			log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys, readlink)
+		}
+
+		log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
+		log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
+		log.OID = int32(msg.ContextSys.OID)
 	}
-
-	log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
-	log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
-	log.OID = int32(msg.ContextSys.OID)
 
 	return log
 }
@@ -509,6 +512,12 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Operation = "Network"
 				log.Resource = ""
 				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+
+			case DropAlert: // throttling alert
+				log.Operation = "AlertThreshold"
+				log.Type = "SystemEvent"
+				log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
+				log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
 
 			default:
 				continue

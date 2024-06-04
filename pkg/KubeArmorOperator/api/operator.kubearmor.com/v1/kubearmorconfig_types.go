@@ -63,6 +63,12 @@ type KubeArmorConfigSpec struct {
 	EnableStdOutMsgs bool `json:"enableStdOutMsgs,omitempty"`
 	// +kubebuilder:validation:Optional
 	SeccompEnabled bool `json:"seccompEnabled,omitempty"`
+	// +kubebuilder:validation:Optional
+	AlertThrottling bool `json:"alertThrottling,omitempty"`
+	// +kubebuilder:validation:Optional
+	MaxAlertPerSec int `json:"maxAlertPerSec,omitempty"`
+	// +kubebuilder:validation:Optional
+	ThrottleSec int `json:"throttleSec,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

@@ -253,6 +253,9 @@ decision:
   return ret;
 
 ringbuf:
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+    return retval;
+  }
 
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
@@ -394,10 +397,15 @@ decision:
   return 0;
 
 ringbuf:
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+    return retval;
+  }
+
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     return retval;
   }
+  
   // Clearing arrays to avoid garbage values to be parsed
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
@@ -557,10 +565,15 @@ decision:
   return 0;
 
 ringbuf:
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+    return retval;
+  }
+
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     return retval;
   }
+
   // Clearing arrays to avoid garbage values to be parsed
   __builtin_memset(task_info->data.path, 0, sizeof(task_info->data.path));
   __builtin_memset(task_info->data.source, 0, sizeof(task_info->data.source));
