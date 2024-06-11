@@ -26,4 +26,13 @@ spec:
         {{- end }}
         image: {{ include "operatorImage" . }}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
+        
+        {{- $tag := (split ":" (include "operatorImage" .))._1 -}}
+        {{- if or (eq $tag "latest") (and (hasPrefix "v" $tag) (semverCompare "^1.4.0" $tag)) }}
+        # initDeploy flag is only supported from v1.4.0
+        args:
+          - --initDeploy={{.Values.kubearmorOperator.initDeploy }}
+        {{- end }}
+
       serviceAccountName: {{ .Values.kubearmorOperator.name }}
+  

@@ -24,7 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
 	if !(enforcer == "apparmor" && apparmorfs == "no") {
@@ -39,13 +39,20 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	volMnts = append(volMnts, runtimeVolumeMounts...)
 	commonVols := common.CommonVolumes
 	commonVolMnts := common.CommonVolumesMount
-	if btfPresent == "no" {
+
+	if btfPresent == "no" || initDeploy {
+		commonVols = append(commonVols, common.BPFVolumes...)
+		commonVolMnts = append(commonVolMnts, common.BPFVolumesMount...)
 		commonVols = append(commonVols, common.KernelHeaderVolumes...)
 		commonVolMnts = append(commonVolMnts, common.KernelHeaderVolumesMount...)
 	}
 	vols = append(vols, commonVols...)
 	volMnts = append(volMnts, commonVolMnts...)
 	daemonset := deployments.GenerateDaemonSet("generic", common.Namespace)
+
+	if btfPresent != "no" && !initDeploy {
+		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
+	}
 	daemonset.Name = name
 	labels := map[string]string{
 		common.EnforcerLabel: enforcer,
@@ -80,27 +87,30 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 		common.AddOrReplaceArg("-tlsEnabled=false", "-tlsEnabled=true", &daemonset.Spec.Template.Spec.Containers[0].Args)
 	}
 	daemonset.Spec.Template.Spec.Volumes = vols
-	daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 	daemonset.Spec.Template.Spec.Containers[0].VolumeMounts = volMnts
-	// update images
 
+	if btfPresent == "no" || initDeploy {
+		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
+		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
+		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+	}
+	// update images
 	if seccompPresent == "yes" && common.ConfigDefaultSeccompEnabled == "true" {
 		daemonset.Spec.Template.Spec.Containers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
 			LocalhostProfile: &common.SeccompProfile,
 		}
-		daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
-			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: &common.SeccompInitProfile,
+		if len(daemonset.Spec.Template.Spec.InitContainers) != 0 {
+			daemonset.Spec.Template.Spec.InitContainers[0].SecurityContext.SeccompProfile = &corev1.SeccompProfile{
+				Type:             corev1.SeccompProfileTypeLocalhost,
+				LocalhostProfile: &common.SeccompInitProfile,
+			}
 		}
 
 	}
 
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
-	daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
-	daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
-
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
@@ -228,9 +238,25 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						},
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						VolumeMounts: []corev1.VolumeMount{
+
 							{
-								Name:      "rootfs",
-								MountPath: PathPrefix,
+								Name:      "var-path",
+								MountPath: "/rootfs/var/",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "run-path",
+								MountPath: "/rootfs/run/",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "sys-path",
+								MountPath: "/rootfs/sys/",
+								ReadOnly:  true,
+							},
+							{
+								Name:      "apparmor-path",
+								MountPath: "/rootfs/etc/apparmor.d/",
 								ReadOnly:  true,
 							},
 							{
@@ -258,16 +284,45 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 				// For Unknown Reasons hostPID will be true if snitch gets deployed on OpenShift
 				// for some reasons github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe will
 				// not work if hostPID is set false.
+
+				// change for snitch host path
 				HostPID:            common.HostPID,
 				NodeName:           nodename,
 				RestartPolicy:      corev1.RestartPolicyOnFailure,
 				ServiceAccountName: common.KubeArmorSnitchRoleName,
 				Volumes: []corev1.Volume{
 					{
-						Name: "rootfs",
+						Name: "sys-path",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
-								Path: "/",
+								Path: "/sys/",
+								Type: &common.HostPathDirectory,
+							},
+						},
+					},
+					{
+						Name: "apparmor-path",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/etc/apparmor.d/",
+								Type: &common.HostPathDirectory,
+							},
+						},
+					},
+					{
+						Name: "var-path",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/var/",
+								Type: &common.HostPathDirectory,
+							},
+						},
+					},
+					{
+						Name: "run-path",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/run/",
 								Type: &common.HostPathDirectory,
 							},
 						},
