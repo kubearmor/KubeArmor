@@ -230,6 +230,10 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 	}
 
 	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	if kind == "CronJob" {
+		spec = `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	}
+
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
@@ -246,7 +250,11 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		count--
 	}
 
-	spec = spec + `}}}}}`
+	if kind == "CronJob" {
+		spec = spec + `}}}}}}}`
+	} else {
+		spec = spec + `}}}}}`
+	}
 
 	if kind == "StatefulSet" {
 		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
@@ -289,6 +297,11 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 
 	} else if kind == "Deployment" {
 		_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		if err != nil {
+			return err
+		}
+	} else if kind == "CronJob" {
+		_, err := kh.K8sClient.BatchV1().CronJobs(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}

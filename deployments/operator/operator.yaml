@@ -378,6 +378,17 @@ rules:
   - watch
   - update
 - apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - patch
+  - list
+  - watch
+  - update
+- apiGroups:
   - security.kubearmor.com
   resources:
   - kubearmorpolicies
