@@ -31,6 +31,9 @@ const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 
 // Handle Pod Annotation
 func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admission.Response {
+
+	// add a retry logic 2-3 times
+
 	pod := &corev1.Pod{}
 
 	if err := a.Decoder.Decode(req, pod); err != nil {
@@ -42,56 +45,56 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 		pod.Namespace = req.Namespace
 	}
 
-	if pod.Annotations == nil {
-		pod.Annotations = map[string]string{}
-	}
+	// if pod.Annotations == nil {
+	// 	pod.Annotations = map[string]string{}
+	// }
 
-	// == Policy == //
+	// // == Policy == //
 
-	if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
-		// if no annotation is set enable kubearmor by default
-		pod.Annotations["kubearmor-policy"] = "enabled"
-	} else if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" && pod.Annotations["kubearmor-policy"] != "audited" {
-		// if kubearmor policy is not set correctly, default it to enabled
-		pod.Annotations["kubearmor-policy"] = "enabled"
-	}
+	// if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
+	// 	// if no annotation is set enable kubearmor by default
+	// 	pod.Annotations["kubearmor-policy"] = "enabled"
+	// } else if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" && pod.Annotations["kubearmor-policy"] != "audited" {
+	// 	// if kubearmor policy is not set correctly, default it to enabled
+	// 	pod.Annotations["kubearmor-policy"] = "enabled"
+	// }
 
-	// == LSM == //
+	// // == LSM == //
 
-	if a.Enforcer == "AppArmor" {
-		appArmorAnnotator(pod)
-	}
+	// if a.Enforcer == "AppArmor" {
+	// 	AppArmorAnnotator(pod)
+	// }
 
-	// == Exception == //
+	// // == Exception == //
 
-	// exception: kubernetes app
-	if pod.Namespace == "kube-system" {
-		if _, ok := pod.Labels["k8s-app"]; ok {
-			pod.Annotations["kubearmor-policy"] = "audited"
-		}
+	// // exception: kubernetes app
+	// if pod.Namespace == "kube-system" {
+	// 	if _, ok := pod.Labels["k8s-app"]; ok {
+	// 		pod.Annotations["kubearmor-policy"] = "audited"
+	// 	}
 
-		if value, ok := pod.Labels["component"]; ok {
-			if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" {
-				pod.Annotations["kubearmor-policy"] = "audited"
-			}
-		}
-	}
+	// 	if value, ok := pod.Labels["component"]; ok {
+	// 		if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" {
+	// 			pod.Annotations["kubearmor-policy"] = "audited"
+	// 		}
+	// 	}
+	// }
 
-	// exception: cilium-operator
-	if _, ok := pod.Labels["io.cilium/app"]; ok {
-		pod.Annotations["kubearmor-policy"] = "audited"
-	}
+	// // exception: cilium-operator
+	// if _, ok := pod.Labels["io.cilium/app"]; ok {
+	// 	pod.Annotations["kubearmor-policy"] = "audited"
+	// }
 
-	// exception: kubearmor
-	if _, ok := pod.Labels["kubearmor-app"]; ok {
-		pod.Annotations["kubearmor-policy"] = "audited"
-	}
+	// // exception: kubearmor
+	// if _, ok := pod.Labels["kubearmor-app"]; ok {
+	// 	pod.Annotations["kubearmor-policy"] = "audited"
+	// }
 
-	// == Visibility == //
+	// // == Visibility == //
 
-	if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
-		pod.Annotations["kubearmor-visibility"] = k8sVisibility
-	}
+	// if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
+	// 	pod.Annotations["kubearmor-visibility"] = k8sVisibility
+	// }
 
 	// == //
 
@@ -100,11 +103,14 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
-	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
+
+	response := admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
+
+	return response
 }
 
 // == Add AppArmor annotations == //
-func appArmorAnnotator(pod *corev1.Pod) {
+func AppArmorAnnotator(pod *corev1.Pod) {
 	podAnnotations := map[string]string{}
 	var podOwnerName string
 

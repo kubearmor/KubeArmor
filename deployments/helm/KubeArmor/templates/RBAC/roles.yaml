@@ -79,6 +79,7 @@ rules:
   - ""
   resources:
   - pods
+  - nodes
   verbs:
   - create
   - delete

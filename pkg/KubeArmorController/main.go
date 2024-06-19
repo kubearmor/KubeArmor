@@ -131,6 +131,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	setupLog.Info("Adding pod annotator controller")
+	if err = (&controllers.PodAnnotateReconciler{
+		Client: mgr.GetClient(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PodAnnotate")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
