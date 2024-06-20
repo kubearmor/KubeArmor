@@ -6,8 +6,6 @@ package main
 import (
 	"flag"
 	"os"
-	"path/filepath"
-	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -23,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/go-logr/logr"
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
@@ -95,10 +92,9 @@ func main() {
 	setupLog.Info("Adding mutation webhook")
 	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
 		Handler: &handlers.PodAnnotator{
-			Client:   mgr.GetClient(),
-			Logger:   setupLog,
-			Enforcer: detectEnforcer(setupLog),
-			Decoder:  admission.NewDecoder(mgr.GetScheme()),
+			Client:  mgr.GetClient(),
+			Logger:  setupLog,
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
 		},
 	})
 
@@ -149,33 +145,33 @@ func main() {
 }
 
 // detect the enforcer on the node
-func detectEnforcer(logger logr.Logger) string {
-	// assumption: all nodes have the same OSes
+// func detectEnforcer(logger logr.Logger) string {
+// 	// assumption: all nodes have the same OSes
 
-	lsm := []byte{}
-	lsmPath := "/sys/kernel/security/lsm"
+// 	lsm := []byte{}
+// 	lsmPath := "/sys/kernel/security/lsm"
 
-	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-		lsm, err = os.ReadFile(lsmPath)
-		if err != nil {
-			logger.Info("Failed to read /sys/kernel/security/lsm " + err.Error())
-			return ""
-		}
-	}
+// 	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
+// 		lsm, err = os.ReadFile(lsmPath)
+// 		if err != nil {
+// 			logger.Info("Failed to read /sys/kernel/security/lsm " + err.Error())
+// 			return ""
+// 		}
+// 	}
 
-	enforcer := string(lsm)
+// 	enforcer := string(lsm)
 
-	if strings.Contains(enforcer, "bpf") {
-		logger.Info("Detected BPFLSM as the cluster Enforcer")
-		return "BPFLSM"
-	} else if strings.Contains(enforcer, "apparmor") {
-		logger.Info("Detected AppArmor as the cluster Enforcer")
-		return "AppArmor"
-	} else if strings.Contains(enforcer, "selinux") {
-		logger.Info("Detected SELinux as the cluster Enforcer")
-		return "SELinux"
-	}
+// 	if strings.Contains(enforcer, "bpf") {
+// 		logger.Info("Detected BPFLSM as the cluster Enforcer")
+// 		return "BPFLSM"
+// 	} else if strings.Contains(enforcer, "apparmor") {
+// 		logger.Info("Detected AppArmor as the cluster Enforcer")
+// 		return "AppArmor"
+// 	} else if strings.Contains(enforcer, "selinux") {
+// 		logger.Info("Detected SELinux as the cluster Enforcer")
+// 		return "SELinux"
+// 	}
 
-	logger.Info("No enforcer was detected")
-	return ""
-}
+// 	logger.Info("No enforcer was detected")
+// 	return ""
+// }

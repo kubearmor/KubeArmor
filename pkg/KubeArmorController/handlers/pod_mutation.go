@@ -18,13 +18,12 @@ import (
 
 // PodAnnotator Structure
 type PodAnnotator struct {
-	Client   client.Client
-	Decoder  *admission.Decoder
-	Logger   logr.Logger
-	Enforcer string
+	Client  client.Client
+	Decoder *admission.Decoder
+	Logger  logr.Logger
 }
 
-const k8sVisibility = "process,file,network,capabilities"
+// const k8sVisibility = "process,file,network,capabilities"
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 
 // +kubebuilder:webhook:path=/mutate-pods,mutating=true,failurePolicy=Ignore,groups="",resources=pods,verbs=create;update,versions=v1,name=annotation.kubearmor.com,admissionReviewVersions=v1,sideEffects=NoneOnDryRun
