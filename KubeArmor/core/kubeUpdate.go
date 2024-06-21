@@ -49,14 +49,18 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	}
 
 	if lsm, err := os.ReadFile("/sys/kernel/security/lsm"); err == nil {
-		if !strings.Contains(string(lsm), "apparmor") && !strings.Contains(string(lsm), "selinux") {
-			// exception: neither AppArmor nor SELinux
+		hasAppArmor := strings.Contains(string(lsm), "apparmor")
+		hasSelinux := strings.Contains(string(lsm), "selinux")
+		hasBPF := strings.Contains(string(lsm), "bpf")
+
+		if !hasBPF && !hasSelinux && !hasAppArmor {
+			// exception: neither AppArmor, SELinux or BPF
 			if node.Annotations["kubearmor-policy"] == "enabled" {
 				node.Annotations["kubearmor-policy"] = "audited"
 			}
 		}
 
-		if kl.IsInK8sCluster() && strings.Contains(string(lsm), "selinux") {
+		if kl.IsInK8sCluster() && hasSelinux {
 			// exception: KubeArmor in a daemonset even though SELinux is enabled
 			if node.Annotations["kubearmor-policy"] == "enabled" {
 				node.Annotations["kubearmor-policy"] = "audited"
