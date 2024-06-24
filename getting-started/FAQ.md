@@ -396,3 +396,22 @@ kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/depl
 
 **Warning:** After running the above script the nodes will restart.
 </details>
+
+<details><summary><h4>Can I run Kubearmor on Talos-Linux?</h4></summary>
+
+KubeArmor is designed to operate with Talos, utilizing Docker, and it must be installed within the `kube-system` namespace of your Kubernetes cluster. This can be accomplished by following to one of the two methods below:
+
+### Install via karmor CLI
+```sh
+karmor install -n kube-system
+```
+
+### Install via Helm (Alternative)
+```sh
+helm repo add kubearmor https://kubearmor.github.io/charts
+
+helm repo update kubearmor
+
+helm upgrade --install kubearmor-operator kubearmor/kubearmor-operator -n kube-system
+```
+</details>
