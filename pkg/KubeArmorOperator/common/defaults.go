@@ -159,6 +159,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 }
 
 var HostPathDirectory = corev1.HostPathDirectory
+var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 var HostPathSocket = corev1.HostPathSocket
 var HostPathFile = corev1.HostPathFile
 
