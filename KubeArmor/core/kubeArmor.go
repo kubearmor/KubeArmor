@@ -780,7 +780,10 @@ func KubeArmor() {
 	}
 
 	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy) {
-		policyService := &policy.PolicyServer{}
+		policyService := &policy.PolicyServer{
+			ContainerPolicyEnabled: enableContainerPolicy,
+			HostPolicyEnabled:      cfg.GlobalCfg.HostPolicy,
+		}
 		if enableContainerPolicy {
 			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
 			dm.Logger.Print("Started to monitor container security policies on gRPC")
