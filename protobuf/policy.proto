@@ -13,6 +13,7 @@ enum PolicyStatus {
   Modified = 3 ;
   NotExist = 4;
   Invalid = 5;
+  NotEnabled = 6 ;
 }
 
 message response {

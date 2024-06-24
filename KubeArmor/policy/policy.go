@@ -16,15 +16,21 @@ import (
 // PolicyServer provides structure to serve Policy gRPC service
 type PolicyServer struct {
 	pb.PolicyServiceServer
-	UpdateContainerPolicy func(tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus
-	UpdateHostPolicy      func(tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
+	UpdateContainerPolicy  func(tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus
+	UpdateHostPolicy       func(tp.K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
+	ContainerPolicyEnabled bool
+	HostPolicyEnabled      bool
 }
 
 // ContainerPolicy accepts container events on gRPC and update container security policies
 func (p *PolicyServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
-	policyEvent := tp.K8sKubeArmorPolicyEvent{}
 	res := new(pb.Response)
-
+	if !p.ContainerPolicyEnabled {
+		res.Status = pb.PolicyStatus_NotEnabled
+		kg.Warn("Container policies are not enabled")
+		return res, nil
+	}
+	policyEvent := tp.K8sKubeArmorPolicyEvent{}
 	err := json.Unmarshal(data.Policy, &policyEvent)
 
 	if err == nil {
@@ -50,9 +56,13 @@ func (p *PolicyServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb.
 
 // HostPolicy accepts host policy event on gRPC service and updates host security policies. It responds with 1 if success else 0.
 func (p *PolicyServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Response, error) {
-
-	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 	res := new(pb.Response)
+	if !p.HostPolicyEnabled {
+		res.Status = pb.PolicyStatus_NotEnabled
+		kg.Warn("Host policies are not enabled")
+		return res, nil
+	}
+	policyEvent := tp.K8sKubeArmorHostPolicyEvent{}
 
 	err := json.Unmarshal(data.Policy, &policyEvent)
 	if err == nil {
