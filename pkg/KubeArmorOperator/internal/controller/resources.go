@@ -207,7 +207,6 @@ func genSnitchServiceAccount() *corev1.ServiceAccount {
 
 func deploySnitch(nodename string, runtime string) *batchv1.Job {
 	job := batchv1.Job{}
-	var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
 	job.GenerateName = "kubearmor-snitch-"
@@ -307,7 +306,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/etc/apparmor.d/",
-								Type: &common.HostPathDirectory,
+								Type: &common.HostPathDirectoryOrCreate,
 							},
 						},
 					},
@@ -334,7 +333,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/var/lib/kubelet/seccomp",
-								Type: &HostPathDirectoryOrCreate,
+								Type: &common.HostPathDirectoryOrCreate,
 							},
 						},
 					},
