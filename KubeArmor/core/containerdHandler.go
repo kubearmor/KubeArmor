@@ -88,6 +88,9 @@ type ContainerdHandler struct {
 
 	// active containers
 	containers map[string]context.Context
+
+	// invalid containers
+	invalidContainers map[string]struct{}
 }
 
 // NewContainerdHandler Function
@@ -115,6 +118,9 @@ func NewContainerdHandler() *ContainerdHandler {
 
 	// active containers
 	ch.containers = map[string]context.Context{}
+
+	// invalid containers
+	ch.invalidContainers = map[string]struct{}{}
 
 	kg.Print("Initialized Containerd Handler")
 
@@ -268,6 +274,11 @@ func (ch *ContainerdHandler) GetNewContainerdContainers(containers map[string]co
 	newContainers := map[string]context.Context{}
 
 	for activeContainerID, context := range containers {
+		// skip adding to the new containers list if it is an invalid container
+		if _, ok := ch.invalidContainers[activeContainerID]; ok {
+			continue
+		}
+
 		if _, ok := ch.containers[activeContainerID]; !ok {
 			newContainers[activeContainerID] = context
 		}
@@ -276,20 +287,28 @@ func (ch *ContainerdHandler) GetNewContainerdContainers(containers map[string]co
 	return newContainers
 }
 
-// GetDeletedContainerdContainers Function
+// GetDeletedContainerdContainers Function returns a list of deleted containers
+// and also deletes them from ContainerdHandler
 func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers map[string]context.Context) map[string]context.Context {
 	deletedContainers := map[string]context.Context{}
 
 	for globalContainerID := range ch.containers {
 		if _, ok := containers[globalContainerID]; !ok {
 			deletedContainers[globalContainerID] = context.TODO()
-			delete(ch.containers, globalContainerID)
 		}
 	}
 
-	ch.containers = containers
-
 	return deletedContainers
+}
+
+// DeleteInvalidContainers deletes container IDs from the invalidContainers map
+// that are not found in the containers map
+func (ch *ContainerdHandler) DeleteInvalidContainers(containers map[string]context.Context) {
+	for invalidContainerID := range ch.invalidContainers {
+		if _, ok := containers[invalidContainerID]; !ok {
+			delete(ch.invalidContainers, invalidContainerID)
+		}
+	}
 }
 
 // UpdateContainerdContainer Function
@@ -303,6 +322,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		// get container information from containerd client
 		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.OwnerInfo)
 		if err != nil {
+			kg.Debugf("Skipping container %.12s because", containerID, err.Error())
 			return false
 		}
 
@@ -573,25 +593,30 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 		default:
 			containers := Containerd.GetContainerdContainers()
 
-			invalidContainers := []string{}
-
 			newContainers := Containerd.GetNewContainerdContainers(containers)
 			deletedContainers := Containerd.GetDeletedContainerdContainers(containers)
 
 			if len(newContainers) > 0 {
 				for containerID, context := range newContainers {
 					if !dm.UpdateContainerdContainer(context, containerID, "start") {
-						invalidContainers = append(invalidContainers, containerID)
+						// invalid container
+						Containerd.invalidContainers[containerID] = struct{}{}
+						delete(Containerd.containers, containerID)
+					} else {
+						// valid container
+						Containerd.containers[containerID] = context
+						delete(Containerd.invalidContainers, containerID)
 					}
 				}
 			}
 
-			for _, invalidContainerID := range invalidContainers {
-				delete(Containerd.containers, invalidContainerID)
-			}
+			// handle the deletion of invalid containers
+			Containerd.DeleteInvalidContainers(containers)
 
+			// handle deletion of containers
 			if len(deletedContainers) > 0 {
 				for containerID, context := range deletedContainers {
+					delete(Containerd.containers, containerID)
 					dm.UpdateContainerdContainer(context, containerID, "destroy")
 				}
 			}
