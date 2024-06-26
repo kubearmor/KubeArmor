@@ -5,8 +5,11 @@
 package main
 
 import (
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"time"
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
@@ -74,6 +77,28 @@ func main() {
 	if err := cfg.LoadConfig(); err != nil {
 		kg.Err(err.Error())
 		return
+	}
+
+	if cfg.GlobalCfg.EnablePPROF {
+		go func() {
+			mux := http.NewServeMux()
+
+			mux.HandleFunc("/debug/pprof/", pprof.Index)
+			mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+			server := &http.Server{
+				Addr:              "0.0.0.0:" + cfg.GlobalCfg.PPROFPort,
+				Handler:           mux,
+				ReadHeaderTimeout: 10 * time.Second,
+			}
+
+			kg.Printf("pprof server is running on http://0.0.0.0:" + cfg.GlobalCfg.PPROFPort)
+			if err := server.ListenAndServe(); err != nil {
+				kg.Errf("Could not expose a pprof server due to %s", err.Error())
+			}
+		}()
 	}
 
 	core.KubeArmor()
