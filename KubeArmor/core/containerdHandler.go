@@ -148,6 +148,17 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 		return tp.Container{}, err
 	}
 
+	if res.Container == nil {
+		return tp.Container{}, fmt.Errorf("got empty container")
+	}
+
+	// skip if pause container
+	if res.Container.Labels != nil {
+		if containerKind, ok := res.Container.Labels["io.cri-containerd.kind"]; ok && containerKind == "sandbox" {
+			return tp.Container{}, fmt.Errorf("pause container")
+		}
+	}
+
 	container := tp.Container{}
 
 	// == container base == //
@@ -322,11 +333,12 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		// get container information from containerd client
 		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.OwnerInfo)
 		if err != nil {
-			kg.Debugf("Skipping container %.12s because", containerID, err.Error())
+			kg.Debugf("Skipping container %.12s. Reason: %s", containerID, err.Error())
 			return false
 		}
 
 		if container.ContainerID == "" {
+			kg.Debugf("Skipping container. Reason: empty container ID")
 			return false
 		}
 
