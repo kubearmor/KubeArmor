@@ -14,8 +14,8 @@ services:
     privileged: true
     command: ["-k8s=false", "-enableKubeArmorHostPolicy"]
     pid: "host"
-    ipc: "host"
-    network_mode: "host"
+    ports:
+      - "32767:32767"
     volumes:
       - /tmp/:/opt/kubearmor/BPF
       - /sys/fs/bpf:/sys/fs/bpf
