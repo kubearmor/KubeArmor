@@ -217,7 +217,7 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 	return nil
 }
 
-// KarmorLogStartgRPC start observing for kubearmor telemetry events on a port
+// KarmorLogStartgRPC start observing for kubearmor telemetry events on a specific port
 func KarmorLogStartgRPC(logFilter, ns, op, pod, tempGRPC string) error {
 	resetGRPC := setGRPC(tempGRPC)
 	defer resetGRPC()

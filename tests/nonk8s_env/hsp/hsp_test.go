@@ -1,6 +1,7 @@
 package hsp
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
@@ -8,22 +9,23 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Systemd HSP", func() {
+var _ = Describe("Non-k8s HSP tests", func() {
 
 	AfterEach(func() {
 		KarmorLogStop()
+		DeleteAllHsp()
 	})
 
 	Describe("HSP file path block", func() {
 
-		It("It can block access to /etc/hostname on the host", func() {
-
-			// Start the karmor logs
-			err := KarmorLogStartgRPC("policy", "", "File", "", ":32767")
-			Expect(err).To(BeNil())
+		It("can block access to /etc/hostname on the host", func() {
 
 			policyPath := "res/hsp-kubearmor-dev-file-path-block.yaml"
-			err = SendPolicy("ADDED", policyPath)
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
 			Expect(err).To(BeNil())
 
 			// Access the /etc/hostname file
@@ -46,20 +48,20 @@ var _ = Describe("Systemd HSP", func() {
 		})
 	})
 
-	Describe("HSP Process block", func() {
+	Describe("HSP Process path block", func() {
 
-		It("It can block execution of sleep command in host", func() {
+		It("can block execution of diff command in host", func() {
 
-			// Start the karmor logs
-			err := KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+			policyPath := "res/hsp-kubearmor-dev-proc-path-block.yaml"
+			err := SendPolicy("ADDED", policyPath)
 			Expect(err).To(BeNil())
 
-			policyPath := "res/hsp-kubearmor-dev-process-block.yaml"
-			err = SendPolicy("ADDED", policyPath)
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
 
 			// call the sleep command
-			out, err := ExecCommandHost([]string{"bash", "-c", "sleep 1"})
+			out, err := ExecCommandHost([]string{"bash", "-c", "diff --help"})
 			Expect(err).NotTo(BeNil())
 			Expect(out).To(MatchRegexp(".*Permission denied"))
 
@@ -67,7 +69,163 @@ var _ = Describe("Systemd HSP", func() {
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-process-block"))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Describe("HSP dir block from source", func() {
+
+		It("can allow access to everything except /etc/default/* from head", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-file-dir-block-fromSource.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// call the head command
+			out, err := ExecCommandHost([]string{"bash", "-c", "head /etc/hostname"})
+			Expect(err).To(BeNil())
+			Expect(out).NotTo(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically("==", 0))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+
+		It("can block access to /etc/default/* from head", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-file-dir-block-fromSource.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// call the head command
+			out, err := ExecCommandHost([]string{"bash", "-c", "head /etc/default/useradd"})
+			Expect(err).NotTo(BeNil())
+			Expect(out).To(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-file-dir-block-fromsource"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Describe("HSP file audit", func() {
+
+		It("can audit access to /etc/passwd", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-file-path-audit.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// try to access the /etc/passwd file
+			out, err := ExecCommandHost([]string{"bash", "-c", "cat /etc/passwd"})
+			Expect(err).To(BeNil())
+			Expect(out).ToNot(MatchRegexp(".*Permission denied"))
+
+			// check audit alerts
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-file-path-audit"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].Action).To(Equal("Audit"))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Describe("HSP path block from source", func() {
+
+		It("It can block access to /etc/hostname from head", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-file-path-block-fromSource.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// try to access the /etc/hostname file from head
+			out, err := ExecCommandHost([]string{"bash", "-c", "head /etc/hostname"})
+			Expect(err).NotTo(BeNil())
+			Expect(out).To(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-file-path-block-fromsource"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Describe("HSP Process path block from source", func() {
+
+		It("can block date command from bash", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-proc-path-block-fromSource.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			time.Sleep(5 * time.Second)
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// call the date command from bash
+			out, err := ExecCommandHost([]string{"bash", "-c", "date --resolution"})
+			fmt.Print(out)
+			Expect(err).To(BeNil())
+			Expect(out).To(MatchRegexp(".*Permission denied"))
+
+			// // execute ls command from bash
+			// out2, err := ExecCommandHost([]string{"bash", "-c", "ls"})
+			// Expect(err).To(BeNil())
+			// Expect(out2).NotTo(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block-fromsource"))
 			Expect(alerts[0].Severity).To(Equal("5"))
 			Expect(alerts[0].Action).To(Equal("Block"))
 
