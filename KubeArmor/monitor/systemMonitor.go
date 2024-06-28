@@ -787,7 +787,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// build a pid node
-					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs)
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs, false)
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
@@ -842,7 +842,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
 					// build a pid node
-					pidNode := mon.BuildPidNode(containerID, ctx, args[1].(string), args[2].([]string))
+					pidNode := mon.BuildPidNode(containerID, ctx, args[1].(string), args[2].([]string), false)
 					mon.AddActivePid(containerID, pidNode)
 
 					// generate a log with the base information
