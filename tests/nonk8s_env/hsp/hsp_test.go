@@ -242,6 +242,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			err := SendPolicy("ADDED", policyPath)
 			Expect(err).To(BeNil())
 
+			time.Sleep(5 * time.Second)
 			// Start the karmor logs
 			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
