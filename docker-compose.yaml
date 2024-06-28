@@ -1,7 +1,6 @@
 services:
   kubearmor-init:
     image: kubearmor/kubearmor-init:stable
-    restart: unless-stopped
     volumes:
       - /tmp/:/opt/kubearmor/BPF
 
@@ -10,7 +9,6 @@ services:
     depends_on:
       kubearmor-init:
         condition: service_completed_successfully
-    restart: unless-stopped
     privileged: true
     command: ["-k8s=false", "-enableKubeArmorHostPolicy"]
     pid: "host"
