@@ -1,4 +1,4 @@
-name: Build and Test KubeArmor
+name: Build and Test KubeArmor in docker mode
 
 on:
   push:
@@ -53,15 +53,18 @@ jobs:
       - name: Build KubeArmor init image
         run: |
           docker build -t kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} -f Dockerfile.init .
+          docker images
 
       - name: Build KubeArmor main image
         run: |
           docker build -t kubearmor/kubearmor:${{ steps.vars.outputs.tag }} -f Dockerfile .
+          docker images
 
       - name: Run KubeArmor init container
         run: |
           docker run -d --name kubearmor-init --restart unless-stopped -v /tmp/:/opt/kubearmor/BPF kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
           sleep 60  # Wait for the init container to complete its setup
+          docker ps -a
 
       - name: Run KubeArmor container
         run: |
@@ -75,6 +78,7 @@ jobs:
           -v /etc/apparmor.d:/etc/apparmor.d \
           kubearmor/kubearmor:${{ steps.vars.outputs.tag }} -k8s=false -enableKubeArmorHostPolicy
           sleep 70  # Wait for the KubeArmor container to be fully ready
+          docker ps -a
 
       - name: Test KubeArmor using Ginkgo
         run: |
