@@ -62,13 +62,13 @@ jobs:
 
       - name: Run KubeArmor init container
         run: |
-          docker run -d --name kubearmor-init --restart unless-stopped -v /tmp/:/opt/kubearmor/BPF kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
+          docker run -d --name kubearmor-init -v /tmp/:/opt/kubearmor/BPF kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
           sleep 60  # Wait for the init container to complete its setup
           docker ps -a
 
       - name: Run KubeArmor container
         run: |
-          docker run -d --name kubearmor --privileged --restart unless-stopped --pid host -p 32767:32767 \
+          docker run -d --name kubearmor --privileged --pid host -p 32767:32767 \
           -v /tmp/:/opt/kubearmor/BPF \
           -v /sys/fs/bpf:/sys/fs/bpf \
           -v /sys/kernel/security:/sys/kernel/security \
