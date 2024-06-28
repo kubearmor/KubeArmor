@@ -60,7 +60,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
 
-			// call the sleep command
+			// call the diff command
 			out, err := ExecCommandHost([]string{"bash", "-c", "diff --help"})
 			Expect(err).NotTo(BeNil())
 			Expect(out).To(MatchRegexp(".*Permission denied"))
@@ -205,15 +205,14 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			err := SendPolicy("ADDED", policyPath)
 			Expect(err).To(BeNil())
 
-			time.Sleep(5 * time.Second)
 			// Start the karmor logs
 			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
 
 			// call the date command from bash
-			out, err := ExecCommandHost([]string{"bash", "-c", "date --resolution"})
+			out, err := ExecCommandHost([]string{"bash", "-c", "date"})
 			fmt.Print(out)
-			Expect(err).To(BeNil())
+			Expect(err).NotTo(BeNil())
 			Expect(out).To(MatchRegexp(".*Permission denied"))
 
 			// // execute ls command from bash
@@ -226,6 +225,38 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))
 			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block-fromsource"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Describe("HSP Process path block", func() {
+
+		It("can block diff command", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-proc-path-block.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// run diff command
+			out, err := ExecCommandHost([]string{"bash", "-c", "diff"})
+			fmt.Print(out)
+			Expect(err).NotTo(BeNil())
+			Expect(out).To(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block"))
 			Expect(alerts[0].Severity).To(Equal("5"))
 			Expect(alerts[0].Action).To(Equal("Block"))
 
