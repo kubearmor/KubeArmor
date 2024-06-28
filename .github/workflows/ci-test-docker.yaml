@@ -84,6 +84,7 @@ jobs:
           docker compose -f docker-compose.yaml up -d
           sleep 10
           docker ps -a
+        working-directory: ./github/workflows
 
       - name: Test KubeArmor using Ginkgo
         run: |
