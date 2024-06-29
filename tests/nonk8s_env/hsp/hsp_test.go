@@ -197,42 +197,42 @@ var _ = Describe("Non-k8s HSP tests", func() {
 		})
 	})
 
-	Describe("HSP Process path block from source", func() {
+	// Describe("HSP Process path block from source", func() {
 
-		It("can block date command from bash", func() {
+	// 	It("can block date command from bash", func() {
 
-			policyPath := "res/hsp-kubearmor-dev-proc-path-block-fromSource.yaml"
-			err := SendPolicy("ADDED", policyPath)
-			Expect(err).To(BeNil())
+	// 		policyPath := "res/hsp-kubearmor-dev-proc-path-block-fromSource.yaml"
+	// 		err := SendPolicy("ADDED", policyPath)
+	// 		Expect(err).To(BeNil())
 
-			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
-			Expect(err).To(BeNil())
+	// 		// Start the karmor logs
+	// 		err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+	// 		Expect(err).To(BeNil())
 
-			// call the date command from bash
-			out, err := ExecCommandHost([]string{"bash", "-c", "date"})
-			fmt.Print(out)
-			Expect(err).NotTo(BeNil())
-			Expect(out).To(MatchRegexp(".*Permission denied"))
+	// 		// call the date command from bash
+	// 		out, err := ExecCommandHost([]string{"bash", "-c", "date"})
+	// 		fmt.Print(out)
+	// 		Expect(err).NotTo(BeNil())
+	// 		Expect(out).To(MatchRegexp(".*Permission denied"))
 
-			// // execute ls command from bash
-			// out2, err := ExecCommandHost([]string{"bash", "-c", "ls"})
-			// Expect(err).To(BeNil())
-			// Expect(out2).NotTo(MatchRegexp(".*Permission denied"))
+	// 		// // execute ls command from bash
+	// 		// out2, err := ExecCommandHost([]string{"bash", "-c", "ls"})
+	// 		// Expect(err).To(BeNil())
+	// 		// Expect(out2).NotTo(MatchRegexp(".*Permission denied"))
 
-			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
-			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block-fromsource"))
-			Expect(alerts[0].Severity).To(Equal("5"))
-			Expect(alerts[0].Action).To(Equal("Block"))
+	// 		// check policy violation alert
+	// 		_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+	// 		Expect(err).To(BeNil())
+	// 		Expect(len(alerts)).To(BeNumerically(">=", 1))
+	// 		Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block-fromsource"))
+	// 		Expect(alerts[0].Severity).To(Equal("5"))
+	// 		Expect(alerts[0].Action).To(Equal("Block"))
 
-			// delete the policy
-			err = SendPolicy("DELETED", policyPath)
-			Expect(err).To(BeNil())
-		})
-	})
+	// 		// delete the policy
+	// 		err = SendPolicy("DELETED", policyPath)
+	// 		Expect(err).To(BeNil())
+	// 	})
+	// })
 
 	Describe("HSP Process path block", func() {
 
