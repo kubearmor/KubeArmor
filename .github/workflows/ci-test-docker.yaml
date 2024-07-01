@@ -33,6 +33,10 @@ jobs:
       - name: Compile libbpf
         run: ./.github/workflows/install-libbpf.sh
 
+      - name: Generate KubeArmor artifacts
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+
     #   - name: Setup tag
     #     id: vars
     #     run: |
@@ -60,31 +64,31 @@ jobs:
     #       docker build -t kubearmor/kubearmor:${{ steps.vars.outputs.tag }} -f Dockerfile .
     #       docker images
 
-    #   - name: Run KubeArmor init container
-    #     run: |
-    #       docker run --name kubearmor-init -v /tmp/:/opt/kubearmor/BPF kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
-    #       docker ps -a
-
-    #   - name: Run KubeArmor container
-    #     run: |
-    #       docker run -d --name kubearmor --privileged --pid host -p 32767:32767 \
-    #       -v /tmp/:/opt/kubearmor/BPF \
-    #       -v /sys/fs/bpf:/sys/fs/bpf \
-    #       -v /sys/kernel/security:/sys/kernel/security \
-    #       -v /sys/kernel/debug:/sys/kernel/debug \
-    #       -v /var/run/docker.sock:/var/run/docker.sock \
-    #       -v /var/lib/docker:/var/lib/docker \
-    #       -v /etc/apparmor.d:/etc/apparmor.d \
-    #       kubearmor/kubearmor:${{ steps.vars.outputs.tag }} -k8s=false -enableKubeArmorHostPolicy
-    #       sleep 70  # Wait for the KubeArmor container to be fully ready
-    #       docker ps -a
-
-      - name: Start docker compose
+      - name: Run KubeArmor init container
         run: |
-          docker compose -f docker-compose.yaml up -d
-          sleep 10
+          docker run --name kubearmor-init -v /tmp/:/opt/kubearmor/BPF kubearmor/kubearmor-init
           docker ps -a
-        working-directory: ./.github/workflows
+
+      - name: Run KubeArmor container
+        run: |
+          docker run -d --name kubearmor --privileged --pid host -p 32767:32767 \
+          -v /tmp/:/opt/kubearmor/BPF \
+          -v /sys/fs/bpf:/sys/fs/bpf \
+          -v /sys/kernel/security:/sys/kernel/security \
+          -v /sys/kernel/debug:/sys/kernel/debug \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /var/lib/docker:/var/lib/docker \
+          -v /etc/apparmor.d:/etc/apparmor.d \
+          kubearmor/kubearmor -k8s=false -enableKubeArmorHostPolicy
+          sleep 10  # Wait for the KubeArmor container to be fully ready
+          docker ps -a
+
+      # - name: Start docker compose
+      #   run: |
+      #     docker compose -f docker-compose.yaml up -d
+      #     sleep 10
+      #     docker ps -a
+      #   working-directory: ./.github/workflows
 
       - name: Test KubeArmor using Ginkgo
         run: |
