@@ -1,4 +1,4 @@
-name: Build and Test KubeArmor in docker mode
+name: Test KubeArmor in docker mode (non-k8s)
 
 on:
   push:
@@ -7,16 +7,18 @@ on:
       - "non-k8s-hsp-test"
     paths:
       - "KubeArmor/**"
-      - "protobuf/**"
       - ".github/workflows/ci-test-docker.yaml"
-      - "pkg/**"
       - "!STABLE-RELEASE"
       - "tests/**"
 
 jobs:
   build-and-run:
-    name: Build Docker containers and run tests
-    runs-on: ubuntu-latest
+    name: Build KubeArmor artifacts and run tests / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
@@ -37,37 +39,9 @@ jobs:
         run: |
           GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
-    #   - name: Setup tag
-    #     id: vars
-    #     run: |
-    #       if [ ${{ github.ref }} == "refs/heads/main" ]; then
-    #         echo "tag=latest" >> $GITHUB_OUTPUT
-    #       else
-    #         echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-    #       fi
-
-    #   - name: Generate KubeArmor artifacts
-    #     run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh ${{ steps.vars.outputs.tag }}
-
-    #   - name: Build Kubearmor-Operator
-    #     working-directory: pkg/KubeArmorOperator
-    #     run: |
-    #       make docker-build TAG=${{ steps.vars.outputs.tag }}
-
-    #   - name: Build KubeArmor init image
-    #     run: |
-    #       docker build -t kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} -f Dockerfile.init .
-    #       docker images
-
-    #   - name: Build KubeArmor main image
-    #     run: |
-    #       docker build -t kubearmor/kubearmor:${{ steps.vars.outputs.tag }} -f Dockerfile .
-    #       docker images
-
       - name: Run KubeArmor init container
         run: |
           docker run --name kubearmor-init -v /tmp/:/opt/kubearmor/BPF kubearmor/kubearmor-init
-          docker ps -a
 
       - name: Run KubeArmor container
         run: |
@@ -80,15 +54,6 @@ jobs:
           -v /var/lib/docker:/var/lib/docker \
           -v /etc/apparmor.d:/etc/apparmor.d \
           kubearmor/kubearmor -k8s=false -enableKubeArmorHostPolicy
-          sleep 10  # Wait for the KubeArmor container to be fully ready
-          docker ps -a
-
-      # - name: Start docker compose
-      #   run: |
-      #     docker compose -f docker-compose.yaml up -d
-      #     sleep 10
-      #     docker ps -a
-      #   working-directory: ./.github/workflows
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -96,12 +61,6 @@ jobs:
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
-
-      - name: Get karmor sysdump
-        if: ${{ failure() }}
-        run: |
-          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
-          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
 
       - name: Archive log artifacts
         if: ${{ failure() }}
