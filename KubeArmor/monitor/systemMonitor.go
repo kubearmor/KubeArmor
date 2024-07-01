@@ -647,7 +647,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					containerID := ""
 
 					if ctx.PidID != 0 && ctx.MntID != 0 {
-						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
+						containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
 
 						if containerID == "" {
 							time.Sleep(1 * time.Second)
@@ -699,7 +699,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			containerID := ""
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
-				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID, ctx.HostPPID, ctx.HostPID)
+				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
 
 				if containerID != "" {
 					ContainersLock.RLock()
