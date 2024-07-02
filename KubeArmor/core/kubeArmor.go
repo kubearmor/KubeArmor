@@ -600,8 +600,10 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// check if the CRI socket set while executing kubearmor exists
-		if cfg.GlobalCfg.CRISocket != "" {
+		if cfg.GlobalCfg.UseOCIHooks {
+			go dm.HandleFile("/output.json")
+
+		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
 			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
