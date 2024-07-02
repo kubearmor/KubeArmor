@@ -569,8 +569,10 @@ func KubeArmor() {
 
 		dm.SetContainerNSVisibility()
 
+		if cfg.GlobalCfg.UseOCIHooks {
+			go dm.HandleFile("/opt/output.json")
+		} else if cfg.GlobalCfg.CRISocket == "" {
 		// Check if cri socket set, if not then auto detect
-		if cfg.GlobalCfg.CRISocket == "" {
 			if kl.GetCRISocket("") == "" {
 				dm.Logger.Warnf("Error while looking for CRI socket file")
 				enableContainerPolicy = false
@@ -593,7 +595,9 @@ func KubeArmor() {
 			go dm.MonitorCrioEvents()
 		} else {
 			dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
-			enableContainerPolicy = false
+			if !cfg.GlobalCfg.UseOCIHooks {
+				enableContainerPolicy = false
+			}
 		}
 
 		dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
@@ -601,8 +605,7 @@ func KubeArmor() {
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		if cfg.GlobalCfg.UseOCIHooks {
-			go dm.HandleFile("/output.json")
-
+			go dm.HandleFile("/opt/output.json")
 		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
 			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {

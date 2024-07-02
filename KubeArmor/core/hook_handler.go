@@ -8,16 +8,16 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
-	"github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"github.com/kubearmor/KubeArmor/KubeArmor/state"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
 func (dm *KubeArmorDaemon) HandleFile(file string) {
-	dm.Logger.Warnf("Entered HandleFile")
-
 	f, err := os.Open(file)
 	if err != nil {
 		log.Println("Error opening file:", err)
@@ -25,7 +25,7 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 
 	decoder := json.NewDecoder(f)
 	for {
-		var containerData types.Container
+		var containerData tp.Container
 
 		err = decoder.Decode(&containerData)
 		if err != nil {
@@ -75,7 +75,7 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 
 				decoder := json.NewDecoder(f)
 				for {
-					var containerData types.Container
+					var containerData tp.Container
 
 					err = decoder.Decode(&containerData)
 					if err != nil {
@@ -92,25 +92,125 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 	}
 }
 
-func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
-	endpoint := types.EndPoint{}
+func (dm *KubeArmorDaemon) handleContainerCreate(container tp.Container) {
+	// endpoint := types.EndPoint{}
+
+	// dm.ContainersLock.Lock()
+	// defer dm.ContainersLock.Unlock()
+	// if _, ok := dm.Containers[container.ContainerID]; !ok {
+	// 	dm.Containers[container.ContainerID] = container
+	// } else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
+	// 	c := dm.Containers[container.ContainerID]
+	// 	c.MntNS = container.MntNS
+	// 	c.PidNS = container.PidNS
+	// 	c.AppArmorProfile = container.AppArmorProfile
+	// 	dm.Containers[c.ContainerID] = c
+	// 	dm.EndPointsLock.Lock()
+	// 	for idx, endPoint := range dm.EndPoints {
+	// 		if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+
+	// 			// update apparmor profiles
+	// 			if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
+	// 				dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
+	// 			}
+
+	// 			if container.Privileged && dm.EndPoints[idx].PrivilegedContainers != nil {
+	// 				dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
+	// 			}
+
+	// 			endpoint = dm.EndPoints[idx]
+
+	// 			break
+	// 		}
+	// 	}
+	// 	dm.EndPointsLock.Unlock()
+	// }
+
+	// if len(dm.OwnerInfo) > 0 {
+	// 	container.Owner = dm.OwnerInfo[container.EndPointName]
+	// }
+
+	// if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+	// 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
+	// 	dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+
+	// 	if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
+	// 		dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
+	// 		if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == types.KubeArmorPolicyEnabled {
+	// 			// enforce security policies
+	// 			dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+	// 		}
+	// 	}
+	// }
+
+	// if container.ContainerID == "" {
+	// 	return false
+	// }
+
+	endPoint := tp.EndPoint{}
 
 	dm.ContainersLock.Lock()
 	defer dm.ContainersLock.Unlock()
 	if _, ok := dm.Containers[container.ContainerID]; !ok {
 		dm.Containers[container.ContainerID] = container
+
+		// create/update endpoint in non-k8s mode
+		if !dm.K8sEnabled {
+			// for policy matching
+			labels := []string{}
+			labels = append(labels, "namespaceName="+container.NamespaceName)
+			labels = append(labels, "kubearmor.io/container.name="+container.ContainerName)
+			container.Labels = strings.Join(labels, ",")
+
+			container.NamespaceName = "container_namespace"
+
+			containerLabels, containerIdentities := kl.GetLabelsFromString(container.Labels)
+			dm.EndPointsLock.Lock()
+
+			endPoint.EndPointName = container.ContainerName
+			endPoint.NamespaceName = container.NamespaceName
+			endPoint.Containers = []string{container.ContainerID}
+			endPoint.Labels = containerLabels
+			endPoint.Identities = containerIdentities
+			endPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
+			endPoint.ProcessVisibilityEnabled = true
+			endPoint.FileVisibilityEnabled = true
+			endPoint.NetworkVisibilityEnabled = true
+			endPoint.CapabilitiesVisibilityEnabled = true
+
+			endPoint.AppArmorProfiles = []string{"kubearmor_" + container.ContainerName}
+
+			globalDefaultPosture := tp.DefaultPosture{
+				FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+				NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+				CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+			}
+			endPoint.DefaultPosture = globalDefaultPosture
+
+			dm.SecurityPoliciesLock.RLock()
+			for _, secPol := range dm.SecurityPolicies {
+				if kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) {
+					endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPol)
+				}
+			}
+			dm.SecurityPoliciesLock.RUnlock()
+
+			dm.EndPoints = append(dm.EndPoints, endPoint)
+			dm.EndPointsLock.Unlock()
+		}
 	} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
 		c := dm.Containers[container.ContainerID]
 		c.MntNS = container.MntNS
 		c.PidNS = container.PidNS
 		c.AppArmorProfile = container.AppArmorProfile
 		dm.Containers[c.ContainerID] = c
+
 		dm.EndPointsLock.Lock()
-		for idx, endPoint := range dm.EndPoints {
-			if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+		for idx, endpoint := range dm.EndPoints {
+			if endpoint.NamespaceName == container.NamespaceName && endpoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 
 				// update apparmor profiles
-				if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
+				if !kl.ContainsElement(endpoint.AppArmorProfiles, container.AppArmorProfile) {
 					dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
 				}
 
@@ -118,28 +218,42 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 					dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
 				}
 
-				endpoint = dm.EndPoints[idx]
+				endPoint = dm.EndPoints[idx]
 
 				break
 			}
 		}
 		dm.EndPointsLock.Unlock()
 	}
-
+	
 	if len(dm.OwnerInfo) > 0 {
 		container.Owner = dm.OwnerInfo[container.EndPointName]
 	}
 
 	if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
+		// for throttling
+		dm.SystemMonitor.Logger.ContainerNsKey[container.ContainerID] = kl.OuterKey{
+			MntNs: container.MntNS,
+			PidNs: container.PidNS,
+		}
+
+		// update NsMap
 		dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 		dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
 
-		if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
-			dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
-			if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == types.KubeArmorPolicyEnabled {
+		if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
+			dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
+			if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+				dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 			}
 		}
 	}
+
+	if cfg.GlobalCfg.StateAgent {
+		container.Status = "running"
+		go dm.StateAgent.PushContainerEvent(container, state.EventAdded)
+	}
+
+	dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", container.ContainerID, container.PidNS, container.MntNS)
 }
