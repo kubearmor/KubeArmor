@@ -2,7 +2,7 @@ module github.com/kubearmor/KubeArmor/tests
 
 go 1.21.0
 
-toolchain go1.21.11
+toolchain go1.21.12
 
 replace (
 	github.com/cilium/cilium => github.com/cilium/cilium v1.14.8
@@ -33,7 +33,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/cilium/cilium v1.14.8 // indirect
+	github.com/cilium/cilium v1.14.12 // indirect
 	github.com/cilium/ebpf v0.13.2 // indirect
 	github.com/cilium/proxy v0.0.0-20231218064853-ea8cba5b690b // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect

@@ -2,7 +2,7 @@ module github.com/kubearmor/KubeArmor/protobuf
 
 go 1.21.0
 
-toolchain go1.21.11
+toolchain go1.21.12
 
 replace (
 	github.com/kubearmor/KubeArmor => ../
