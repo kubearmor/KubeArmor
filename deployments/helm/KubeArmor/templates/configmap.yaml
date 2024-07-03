@@ -1,12 +1,12 @@
 apiVersion: v1
 data:
-  defaultFilePosture: {{ .Values.kubearmorConfigMap.defaultFilePosture }}
-  defaultCapabilitiesPosture: {{ .Values.kubearmorConfigMap.defaultCapabilitiesPosture }}
-  defaultNetworkPosture: {{ .Values.kubearmorConfigMap.defaultNetworkPosture }}
-  visibility: {{ .Values.kubearmorConfigMap.visibility }}
-  alertThrottling: {{ .Values.kubearmorConfigMap.alertThrottling }}
-  maxAlertPerSec: {{ .Values.kubearmorConfigMap.maxAlertPerSec }}
-  throttleSec: {{ .Values.kubearmorConfigMap.throttleSec }}
+  defaultFilePosture: {{ .Values.kubearmorConfigMap.defaultFilePosture | quote }}
+  defaultCapabilitiesPosture: {{ .Values.kubearmorConfigMap.defaultCapabilitiesPosture | quote }}
+  defaultNetworkPosture: {{ .Values.kubearmorConfigMap.defaultNetworkPosture | quote }}
+  visibility: {{ .Values.kubearmorConfigMap.visibility | quote }}
+  alertThrottling: {{ .Values.kubearmorConfigMap.alertThrottling | quote }}
+  maxAlertPerSec: {{ .Values.kubearmorConfigMap.maxAlertPerSec | quote }}
+  throttleSec: {{ .Values.kubearmorConfigMap.throttleSec | quote }}
 kind: ConfigMap
 metadata:
   labels:
