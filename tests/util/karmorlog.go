@@ -193,6 +193,9 @@ func KarmorGetTargetAlert(timeout time.Duration, target *pb.Alert) (EventResult,
 
 // KarmorLogStart start observing for kubearmor telemetry events
 func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
+	// reset eventChan
+	drainEventChan()
+
 	if eventChan == nil {
 		eventChan = make(chan klog.EventInfo, maxEvents)
 	}
@@ -222,6 +225,20 @@ func KarmorLogStartgRPC(logFilter, ns, op, pod, tempGRPC string) error {
 	resetGRPC := setGRPC(tempGRPC)
 	defer resetGRPC()
 	return KarmorLogStart(logFilter, ns, op, pod)
+}
+
+// drainEventChan drains all events from the eventChan.
+func drainEventChan() {
+	if eventChan == nil {
+		return
+	}
+	for {
+		select {
+		case <-eventChan:
+		default:
+			return
+		}
+	}
 }
 
 // KarmorGetLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
