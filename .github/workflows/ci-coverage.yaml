@@ -1,0 +1,82 @@
+name: ci-coverage
+
+on:
+  push:
+    branches:
+      - "main"
+      - "non-k8s-hsp-test"
+    paths:
+      - "KubeArmor/**"
+      - ".github/workflows/ci-coverage.yaml"
+      - "tests/**"
+
+jobs:
+  build-and-run:
+    name: Build KubeArmor artifacts and run tests / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
+
+      - name: Kuberentes (k8s) cli - kubectl
+        uses: actions-hub/kubectl@v1.30.2
+
+      - name: Run kubectl proxy
+        run: nohup kubectl proxy &
+
+      - name: Build kubearmor-test binary
+        run: sudo -E $(which go) test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+        working-directory: KubeArmor
+
+      - name: Start kubearmor-test
+        run: |
+          sudo -E ./kubearmor-test -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy false -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block -test.coverprofile=cov.out &
+          sleep 10
+          echo $! > pid.txt
+        working-directory: KubeArmor
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make
+        working-directory: ./tests/k8s_env
+        timeout-minutes: 30
+
+      - name: Stop kubearmor-test
+        run: |
+          pid=$(cat pid.txt)
+          sudo kill -SIGINT $pid
+          sleep 5
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4.0.0
+        with:
+          name: coverage-report
+          path: cov.out
+    
+      - name: Display coverage
+        run: cat cov.out
+
+      - name: Calculate final coverage
+        run: |
+          go tool cover -func=cov.out
+    

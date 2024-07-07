@@ -7,7 +7,7 @@ build:
 	# run in two steps as syscall suite fails if run at the very end
 	# see - https://github.com/kubearmor/KubeArmor/issues/1269
 	@ginkgo --vv --flake-attempts=10 --timeout=10m --coverpkg=github.com/kubearmor/KubeArmor/tests/... syscalls/
-	@ginkgo -r --vv --flake-attempts=10 --timeout=30m --coverpkg=github.com/kubearmor/KubeArmor/tests/... --skip-package "syscalls"
+	@ginkgo -r --vv --flake-attempts=10 --timeout=30m --coverpkg=github.com/kubearmor/KubeArmor/tests/... --skip-package "syscalls" --skip-package "hsp" 
 .PHONY: test
 test:
 	@ginkgo -r -v

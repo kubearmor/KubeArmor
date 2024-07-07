@@ -612,21 +612,6 @@ func RunDockerCommand(cmdstr string) (string, error) {
 	return string(sout), err
 }
 
-// ExecInDockerContainer runs a command inside a specified Docker container
-// func ExecInDockerContainer(containerID string, cmd []string) (string, error) {
-// 	dockerCmd := append([]string{"exec", containerID}, cmd...)
-// 	var stdout, stderr bytes.Buffer
-// 	cmdExec := exec.Command("docker", dockerCmd...)
-// 	cmdExec.Stdout = &stdout
-// 	cmdExec.Stderr = &stderr
-
-// 	err := cmdExec.Run()
-// 	if err != nil {
-// 		return stderr.String(), err
-// 	}
-// 	return stdout.String(), nil
-// }
-
 func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.GomegaMatcher, eventual bool) {
 	if eventual {
 		Eventually(func() string {
