@@ -37,8 +37,8 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
-      - name: Kuberentes (k8s) cli - kubectl
-        uses: actions-hub/kubectl@v1.30.2
+    #   - name: Kuberentes (k8s) cli - kubectl
+    #     uses: actions-hub/kubectl@v1.30.2
 
       - name: Run kubectl proxy
         run: nohup kubectl proxy &
