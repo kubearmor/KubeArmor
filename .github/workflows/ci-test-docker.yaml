@@ -9,7 +9,7 @@ on:
       - "KubeArmor/**"
       - ".github/workflows/ci-test-docker.yaml"
       - "!STABLE-RELEASE"
-      - "tests/**"
+      - "tests/nonk8s_env/**"
 
 jobs:
   build-and-run:

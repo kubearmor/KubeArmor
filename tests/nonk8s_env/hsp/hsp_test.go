@@ -1,7 +1,6 @@
 package hsp
 
 import (
-	"fmt"
 	"time"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
@@ -13,7 +12,6 @@ var _ = Describe("Non-k8s HSP tests", func() {
 
 	AfterEach(func() {
 		KarmorLogStop()
-		DeleteAllHsp()
 	})
 
 	Describe("HSP file path block", func() {
@@ -211,8 +209,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 
 	// 		// call the date command from bash
 	// 		out, err := ExecCommandHost([]string{"bash", "-c", "date"})
-	// 		fmt.Print(out)
-	// 		Expect(err).NotTo(BeNil())
+	// 		Expect(err).To(BeNil())
 	// 		Expect(out).To(MatchRegexp(".*Permission denied"))
 
 	// 		// // execute ls command from bash
@@ -242,14 +239,12 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			err := SendPolicy("ADDED", policyPath)
 			Expect(err).To(BeNil())
 
-			time.Sleep(5 * time.Second)
 			// Start the karmor logs
 			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
 			Expect(err).To(BeNil())
 
 			// run diff command
 			out, err := ExecCommandHost([]string{"bash", "-c", "diff"})
-			fmt.Print(out)
 			Expect(err).NotTo(BeNil())
 			Expect(out).To(MatchRegexp(".*Permission denied"))
 
@@ -258,6 +253,37 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 			Expect(len(alerts)).To(BeNumerically(">=", 1))
 			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-proc-path-block"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].Action).To(Equal("Block"))
+
+			// delete the policy
+			err = SendPolicy("DELETED", policyPath)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Describe("HSP Network path block", func() {
+
+		It("can block access to UDP protocol from curl", func() {
+
+			policyPath := "res/hsp-kubearmor-dev-udp-block.yaml"
+			err := SendPolicy("ADDED", policyPath)
+			Expect(err).To(BeNil())
+
+			// Start the karmor logs
+			err = KarmorLogStartgRPC("policy", "", "Network", "", ":32767")
+			Expect(err).To(BeNil())
+
+			// run diff command
+			out, err := ExecCommandHost([]string{"bash", "-c", "curl google.com"})
+			Expect(err).NotTo(BeNil())
+			Expect(out).To(MatchRegexp(".*Could not resolve host: google.com"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-udp-block-curl"))
 			Expect(alerts[0].Severity).To(Equal("5"))
 			Expect(alerts[0].Action).To(Equal("Block"))
 
