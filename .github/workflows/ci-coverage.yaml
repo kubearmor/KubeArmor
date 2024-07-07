@@ -37,8 +37,13 @@ jobs:
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
 
-    #   - name: Kuberentes (k8s) cli - kubectl
-    #     uses: actions-hub/kubectl@v1.30.2
+      - name: Set GOPATH
+        run: echo "GOPATH=$HOME/go" >> $GITHUB_ENV
+
+      - name: Install ginkgo
+        run: |
+          mkdir -p $GOPATH
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
 
       - name: Run kubectl proxy
         run: nohup kubectl proxy &
@@ -49,34 +54,31 @@ jobs:
 
       - name: Start kubearmor-test
         run: |
-          sudo -E ./kubearmor-test -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy false -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block -test.coverprofile=cov.out &
+          sudo -E ./kubearmor-test -logPath=/tmp/kubearmor.log -enableKubeArmorPolicy -enableKubeArmorHostPolicy false -defaultFilePosture block -defaultCapabilitiesPosture block -defaultNetworkPosture block -hostDefaultFilePosture block -hostDefaultCapabilitiesPosture block -hostDefaultNetworkPosture block -test.coverprofile=KubeArmor/cov.out &
           sleep 10
           echo $! > pid.txt
         working-directory: KubeArmor
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          make
+          ginkgo -r --vv --flake-attempts=10 --timeout=30m --coverpkg=github.com/kubearmor/KubeArmor/tests/... --skip-package syscalls --skip-package hsp
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
 
       - name: Stop kubearmor-test
         run: |
-          pid=$(cat pid.txt)
+          pid=$(cat KubeArmor/pid.txt)
           sudo kill -SIGINT $pid
           sleep 5
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4.0.0
+        uses: actions/upload-artifact@v3
         with:
           name: coverage-report
-          path: cov.out
+          path: KubeArmor/cov.out
     
       - name: Display coverage
-        run: cat cov.out
+        run: cat KubeArmor/cov.out
 
       - name: Calculate final coverage
-        run: |
-          go tool cover -func=cov.out
-    
+        run: go tool cover -func=KubeArmor/cov.out
