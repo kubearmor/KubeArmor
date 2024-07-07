@@ -61,7 +61,7 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          ginkgo -r --vv --flake-attempts=10 --timeout=30m --coverpkg=github.com/kubearmor/KubeArmor/tests/... --skip-package syscalls --skip-package hsp
+          make
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
 
