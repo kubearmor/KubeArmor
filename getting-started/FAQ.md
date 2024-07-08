@@ -394,5 +394,11 @@ You can also enable AppArmor if you want to use it as a security module to enfor
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
 ```
 
+The above updater daemonset will update all the nodes at the same time and thus all the nodes will restart simultaneously. If you want a RollingUpdate of the nodes, then you can use the following command instead.
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/ka-updater-kured.yaml
+```
+
 **Warning:** After running the above script the nodes will restart.
 </details>
