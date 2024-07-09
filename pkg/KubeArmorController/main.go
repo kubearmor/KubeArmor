@@ -118,7 +118,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorHostPolicy")
-		os.Exit(1)
 	}
 
 	setupLog.Info("Adding KubeArmor policy controller")
@@ -128,16 +127,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorPolicy")
-		os.Exit(1)
-	}
-
-	setupLog.Info("Adding KubeArmor Cluster policy controller")
-	if err = (&controllers.KubeArmorClusterPolicyReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("KubeArmorClusterPolicy"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorClusterPolicy")
 		os.Exit(1)
 	}
 
