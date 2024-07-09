@@ -26,6 +26,7 @@ jobs:
 
       - name: Update Chart.yaml
         run: |
+          git config --global url."https://${{ secrets.GH_ACCESS_TOKEN }}:@github.com/".insteadOf "https://github.com/"
           STABLE_VERSION=`cat STABLE-RELEASE`
           sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
           sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
