@@ -5,18 +5,19 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
 )
 
 var clusterPtr, gRPCPtr, logPathPtr *string
-var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr *bool
+var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv *bool
 var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr *string
 
 func init() {
 	// options (string)
-	clusterPtr = flag.String("cluster", "", "cluster name")
+	clusterPtr = flag.String("cluster", "default", "cluster name")
 
 	// options (string)
 	gRPCPtr = flag.String("gRPC", "32767", "gRPC port number")
@@ -36,6 +37,8 @@ func init() {
 	enableKubeArmorHostPolicyPtr = flag.Bool("enableKubeArmorHostPolicy", true, "enabling KubeArmorHostPolicy")
 	enableKubeArmorVMPtr = flag.Bool("enableKubeArmorVm", false, "enabling KubeArmorVM")
 
+	enableK8sEnv = flag.Bool("k8s", true, "is k8s env?")
+
 	// options (boolean)
 	coverageTestPtr = flag.Bool("coverageTest", true, "enabling CoverageTest")
 }
@@ -45,18 +48,21 @@ func TestMain(t *testing.T) {
 	// Reset Test Flags before executing main
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
-	// Set os args to set flags in main
-	os.Args = []string{"cmd", "--cluster", *clusterPtr, "--gRPC", *gRPCPtr, "--logPath", *logPathPtr,
-		"--defaultFilePosture", *defaultFilePosturePtr,
-		"--defaultNetworkPosture", *defaultNetworkPosturePtr,
-		"--defaultCapabilitiesPosture", *defaultCapabilitiesPosturePtr,
-		"--hostDefaultFilePosture", *hostDefaultFilePosturePtr,
-		"--hostDefaultNetworkPosture", *hostDefaultNetworkPosturePtr,
-		"--hostDefaultCapabilitiesPosture", *hostDefaultCapabilitiesPosturePtr,
-		"--enableKubeArmorPolicy", strconv.FormatBool(*enableKubeArmorPolicyPtr),
-		"--enableKubeArmorHostPolicy", strconv.FormatBool(*enableKubeArmorHostPolicyPtr),
-		"--enableKubeArmorVm", strconv.FormatBool(*enableKubeArmorVMPtr),
-		"--coverageTest", strconv.FormatBool(*coverageTestPtr)}
+	os.Args = []string{
+		fmt.Sprintf("-cluster=%s", *clusterPtr),
+		fmt.Sprintf("-gRPC=%s", *gRPCPtr),
+		fmt.Sprintf("-logPath=%s", *logPathPtr),
+		fmt.Sprintf("-defaultFilePosture=%s", *defaultFilePosturePtr),
+		fmt.Sprintf("-defaultNetworkPosture=%s", *defaultNetworkPosturePtr),
+		fmt.Sprintf("-defaultCapabilitiesPosture=%s", *defaultCapabilitiesPosturePtr),
+		fmt.Sprintf("-hostDefaultFilePosture=%s", *hostDefaultFilePosturePtr),
+		fmt.Sprintf("-hostDefaultNetworkPosture=%s", *hostDefaultNetworkPosturePtr),
+		fmt.Sprintf("-hostDefaultCapabilitiesPosture=%s", *hostDefaultCapabilitiesPosturePtr),
+		fmt.Sprintf("-k8s=%s", strconv.FormatBool(*enableK8sEnv)),
+		fmt.Sprintf("-enableKubeArmorPolicy=%s", strconv.FormatBool(*enableKubeArmorPolicyPtr)),
+		fmt.Sprintf("-enableKubeArmorHostPolicy=%s", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)),
+		fmt.Sprintf("-coverageTest=%s", strconv.FormatBool(*coverageTestPtr)),
+	}
 
 	t.Log("[INFO] Executed KubeArmor")
 	main()
