@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-not-in-operator-block-file-access
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: NotIn
+        values:
+          - nginx2
+  file:
+    matchPaths:
+    - path: /etc/host.conf
+      fromSource:
+      - path: /usr/bin/cat
+  action:
+    Block

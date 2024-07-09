@@ -66,10 +66,10 @@ jobs:
 
       - name: Run KubeArmor
         run: |
-          sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-ubi:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
+          docker save kubearmor/kubearmor-init:latest | sudo podman load
+          docker save kubearmor/kubearmor-ubi:latest | sudo podman load
+          docker save kubearmor/kubearmor-operator:latest | sudo podman load
+          docker save kubearmor/kubearmor-snitch:latest | sudo podman load
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
           kubectl get pods -A
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator

@@ -379,7 +379,7 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
 		}
 		// fallback logic if we don't receive source from BuildLogBase()
-		if len(log.Source) == 0 {
+		if log.Operation != "Process" && len(log.Source) == 0 {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.ProcessName = log.Source
 		}

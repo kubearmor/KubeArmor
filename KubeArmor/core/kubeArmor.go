@@ -725,6 +725,16 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Started to monitor security policies")
 
+		// watch cluster security policies
+		clusterSecurityPoliciesSynced := dm.WatchClusterSecurityPolicies()
+		if clusterSecurityPoliciesSynced == nil {
+			// destroy the daemon
+			dm.DestroyKubeArmorDaemon()
+
+			return
+		}
+		dm.Logger.Print("Started to monitor cluster security policies")
+
 		// watch default posture
 		defaultPostureSynced := dm.WatchDefaultPosture()
 		if defaultPostureSynced == nil {

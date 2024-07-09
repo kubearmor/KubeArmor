@@ -46,6 +46,7 @@ build-test: testall
 .PHONY: run
 run: build
 	cd $(CRDDIR); kubectl apply -f KubeArmorPolicy.yaml
+	cd $(CRDDIR); kubectl apply -f KubeArmorClusterPolicy.yaml
 	cd $(CRDDIR); kubectl apply -f KubeArmorHostPolicy.yaml
 	cd $(CURDIR); sudo rm -f /tmp/kubearmor.log
 	cd $(CURDIR)/BPF; make clean

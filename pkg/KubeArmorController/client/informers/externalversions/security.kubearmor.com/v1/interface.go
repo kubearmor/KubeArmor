@@ -11,6 +11,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// KubeArmorClusterPolicies returns a KubeArmorClusterPolicyInformer.
+	KubeArmorClusterPolicies() KubeArmorClusterPolicyInformer
 	// KubeArmorHostPolicies returns a KubeArmorHostPolicyInformer.
 	KubeArmorHostPolicies() KubeArmorHostPolicyInformer
 	// KubeArmorPolicies returns a KubeArmorPolicyInformer.
@@ -26,6 +28,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// KubeArmorClusterPolicies returns a KubeArmorClusterPolicyInformer.
+func (v *version) KubeArmorClusterPolicies() KubeArmorClusterPolicyInformer {
+	return &kubeArmorClusterPolicyInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
 // KubeArmorHostPolicies returns a KubeArmorHostPolicyInformer.
