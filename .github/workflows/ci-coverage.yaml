@@ -68,6 +68,7 @@ jobs:
           docker exec kubearmor-test kill -s SIGINT $KUBEARMOR_PID
           sleep 10
           docker cp kubearmor-test:/coverage.out gover.coverprofile
+          ls -l
         working-directory: KubeArmor
 
       - name: Archive log artifacts
@@ -82,6 +83,7 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
+          ls -l
           go install github.com/modocache/gover@latest
           gover
           go tool cover -func=gover.coverprofile
