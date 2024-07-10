@@ -24,9 +24,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
@@ -66,10 +64,14 @@ jobs:
 
       - name: Copy coverage report
         run: |
-          KUBEARMOR_PID=$(docker exec kubearmor-test sh -c "pgrep -o -f 'kubearmor'")
-          docker exec kubearmor-test kill -s SIGINT $KUBEARMOR_PID
+          CONTAINER_ID=$(docker ps -qf "name=kubearmor")
+          ls -l
+          echo "Container ID: $CONTAINER_ID"
+          docker exec $CONTAINER_ID sh -c "ls -l /"
+          KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
+          docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
           sleep 10
-          docker cp kubearmor-test:/coverage.out gover.coverprofile
+          docker cp $CONTAINER_ID:/coverage.out gover.coverprofile
           ls -l
         working-directory: KubeArmor
 
