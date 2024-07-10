@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Authors of KubeArmor
+
+### Builder
+
+FROM golang:1.22-alpine3.19 as builder
+
+RUN apk --no-cache update
+RUN apk add --no-cache git clang llvm make gcc protobuf
+
+WORKDIR /usr/src/KubeArmor
+
+COPY . .
+
+WORKDIR /usr/src/KubeArmor/KubeArmor
+
+RUN go install github.com/golang/protobuf/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+RUN make
+RUN go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+
+### Make executable image
+
+FROM alpine:3.18 as kubearmor
+
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
+
+RUN apk --no-cache update
+RUN apk add apparmor@community apparmor-utils@community bash
+
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/kubearmor-test /KubeArmor/kubearmor-test
+COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
+
+ENTRYPOINT ["/KubeArmor/kubearmor-test"]
