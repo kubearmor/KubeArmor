@@ -70,7 +70,7 @@ jobs:
           docker exec $CONTAINER_ID sh -c "ls -l /"
           KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 10
+          sleep 30
           docker cp $CONTAINER_ID:/coverage.out gover.coverprofile
           ls -l
         working-directory: KubeArmor
