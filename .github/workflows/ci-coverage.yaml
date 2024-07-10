@@ -64,7 +64,7 @@ jobs:
 
       - name: Copy coverage report
         run: |
-          KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
+          KUBEARMOR_PID=$(docker exec kubearmor-test sh -c "pgrep -o -f 'kubearmor'")
           docker exec kubearmor-test kill -s SIGINT $KUBEARMOR_PID
           sleep 10
           docker cp kubearmor-test:/coverage.out gover.coverprofile
