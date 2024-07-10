@@ -73,6 +73,7 @@ jobs:
           sleep 30
           docker cp $CONTAINER_ID:/coverage.out gover.coverprofile
           ls -l
+          cat gover.coverprofile
         working-directory: KubeArmor
 
       - name: Archive log artifacts
@@ -88,9 +89,9 @@ jobs:
         if: ${{ always() }}
         run: |
           ls -l
+          go tool cover -func gover.coverprofile
           go install github.com/modocache/gover@latest
           gover
-          go tool cover -func=gover.coverprofile
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
