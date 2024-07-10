@@ -48,6 +48,9 @@ spec:
       {{- end }}
 {{- end }}
 ---
+# controller deployment
+{{- $hasApparmor := (include "hasApparmorEnforcer" (list .Values.nodes))}}
+{{- if eq $hasApparmor "true"}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -147,3 +150,4 @@ spec:
           path: /sys/kernel/security
           type: Directory
         name: sys-path
+{{- end }}
