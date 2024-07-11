@@ -1676,13 +1676,22 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 }
 
 // WatchClusterSecurityPolicies Function
-func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies() cache.InformerSynced {
-	for {
-		if !K8s.CheckCustomResourceDefinition("kubearmorclusterpolicies") {
-			time.Sleep(time.Second * 1)
-			continue
-		} else {
-			break
+func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) cache.InformerSynced {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	crdFound := false
+	for !crdFound {
+		select {
+		case <-ctx.Done():
+			dm.Logger.Warn("timeout while monitoring cluster security policies, kubearmorclusterpolicies CRD not found")
+			return nil
+		default:
+			if K8s.CheckCustomResourceDefinition("kubearmorclusterpolicies") {
+				crdFound = true
+			} else {
+				time.Sleep(time.Second * 1)
+			}
 		}
 	}
 
@@ -2260,8 +2269,24 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 }
 
 // WatchHostSecurityPolicies Function
-func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
+func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	for {
+		select {
+		case <-ctx.Done():
+			dm.Logger.Warn("timeout while monitoring host security policies, kubearmorhostpolicies CRD not found")
+			return
+		default:
+			if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+				time.Sleep(time.Second * 1)
+				continue
+			}
+		}
+
+		dm.Logger.Print("Started to monitor host security policies")
+
 		if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
 			time.Sleep(time.Second * 1)
 			continue
