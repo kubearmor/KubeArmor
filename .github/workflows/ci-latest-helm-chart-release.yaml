@@ -32,9 +32,10 @@ jobs:
 
       - name: Publish Helm chart
         uses: delusionaloptimist/helm-gh-pages@master
-        with:
+        env:
           # Access token which can push to a different repo in the same org
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+        with:
           charts_dir: deployments/helm
           # repo where charts would be published
           owner: kubearmor
