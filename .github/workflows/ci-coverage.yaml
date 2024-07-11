@@ -65,15 +65,10 @@ jobs:
       - name: Copy coverage report
         run: |
           CONTAINER_ID=$(docker ps -qf "name=kubearmor")
-          ls -l
-          echo "Container ID: $CONTAINER_ID"
-          docker exec $CONTAINER_ID sh -c "ls -l /"
           KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
           sleep 30
           docker cp $CONTAINER_ID:/coverage.out gover.coverprofile
-          ls -l
-          cat gover.coverprofile
         working-directory: KubeArmor
 
       - name: Archive log artifacts
@@ -88,7 +83,6 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
-          ls -l
           go tool cover -func gover.coverprofile
           go install github.com/modocache/gover@latest
           gover
@@ -96,8 +90,9 @@ jobs:
         env:
           GOPATH: /home/runner/go
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: ${{ always() }}
         with:
           files: ./KubeArmor/gover.coverprofile
+          token: ${{ secrets.CODECOV_TOKEN }}
 
