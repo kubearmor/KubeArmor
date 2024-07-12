@@ -8,6 +8,8 @@
 
 kubectl get daemonset -n kubearmor -o yaml > daemonset.yaml
 sed -i '/args:/a \          - -enableKubeArmorHostPolicy=true' daemonset.yaml
+sed -i '/args:/a \          - -test.coverprofile=coverage2.out' daemonset.yaml
+sed -i '/args:/a \          - -coverageTest=false' daemonset.yaml
 kubectl apply -f daemonset.yaml
 
 sleep 1m

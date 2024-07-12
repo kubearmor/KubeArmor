@@ -12,6 +12,126 @@ on:
       - "tests/nonk8s_env/**"
 
 jobs:
+  calculate-k8s-coverage:
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, ubuntu-latest]
+        runtime: ["containerd", "crio"]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
+
+      - name: Generate KubeArmor artifacts
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor-test.sh
+
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
+        run: |
+          make docker-build
+
+      - name: deploy pre existing pod 
+        run: |
+          kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
+          sleep 60
+          kubectl get pods -A
+
+      - name: Run KubeArmor
+        run: |
+          if [ ${{ matrix.runtime }} == "containerd" ]; then
+            docker save kubearmor/kubearmor-test-init:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-test:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+          else
+            if [ ${{ matrix.runtime }} == "crio" ]; then
+              docker save kubearmor/kubearmor-test-init:latest | sudo podman load
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test-init:latest
+              docker save kubearmor/kubearmor-test:latest | sudo podman load
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test:latest
+              docker save kubearmor/kubearmor-operator:latest | sudo podman load
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
+              docker save kubearmor/kubearmor-snitch:latest | sudo podman load
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
+            fi
+          fi
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml
+          # kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          # kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch,kubearmor-app!=kubearmor-controller -n kubearmor
+          # kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
+          sleep 60
+          kubectl get pods -A
+          DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
+          COMMON_VALUE=$(echo $DAEMONSET_NAME | awk -F'-' '{print $4}')
+          POD_NAME=$(kubectl get pods -n kubearmor -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep $COMMON_VALUE)
+          echo "DaemonSet: $DAEMONSET_NAME"
+          echo "Pod: $POD_NAME"
+          echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
+
+      - name: Add KubeArmor host visibility
+        run: ./.github/workflows/host-visibility.sh
+        
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make
+        working-directory: ./tests/k8s_env
+        timeout-minutes: 30
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
+
+      - name: Measure code coverage
+        if: ${{ always() }}
+        run: |
+          go install github.com/modocache/gover@latest
+          gover
+          go tool cover -func=gover.coverprofile
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - uses: codecov/codecov-action@v3
+        if: ${{ always() }}
+        with:
+          files: ./KubeArmor/gover.coverprofile
+
+
   docker-compose-coverage:
     name: Build KubeArmor test artifacts and run tests / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

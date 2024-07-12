@@ -12,7 +12,7 @@ import (
 )
 
 var clusterPtr, gRPCPtr, logPathPtr *string
-var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv *bool
+var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv, tlsEnabled *bool
 var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr *string
 
 func init() {
@@ -38,9 +38,10 @@ func init() {
 	enableKubeArmorVMPtr = flag.Bool("enableKubeArmorVm", false, "enabling KubeArmorVM")
 
 	enableK8sEnv = flag.Bool("k8s", true, "is k8s env?")
+	tlsEnabled = flag.Bool("tlsEnabled", false, "enable tls for secure connection?")
 
 	// options (boolean)
-	coverageTestPtr = flag.Bool("coverageTest", true, "enabling CoverageTest")
+	coverageTestPtr = flag.Bool("coverageTest", false, "enabling CoverageTest")
 }
 
 // TestMain - test to drive external testing coverage
@@ -62,6 +63,7 @@ func TestMain(t *testing.T) {
 		fmt.Sprintf("-enableKubeArmorPolicy=%s", strconv.FormatBool(*enableKubeArmorPolicyPtr)),
 		fmt.Sprintf("-enableKubeArmorHostPolicy=%s", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)),
 		fmt.Sprintf("-coverageTest=%s", strconv.FormatBool(*coverageTestPtr)),
+		fmt.Sprintf("-tlsEnabled=%s", strconv.FormatBool(*tlsEnabled)),
 	}
 
 	t.Log("[INFO] Executed KubeArmor")
