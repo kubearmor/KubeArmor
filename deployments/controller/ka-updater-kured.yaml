@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubearmor-kured
+  namespace: kubearmor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubearmor-kured
+  namespace: kubearmor
+rules:
+- apiGroups:
+  - apps
+  resourceNames:
+  - kubearmor-kured
+  resources:
+  - daemonsets
+  verbs:
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-kured
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - delete
+  - get
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubearmor-kured
+  namespace: kubearmor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubearmor-kured
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-kured
+  namespace: kubearmor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-kured
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-kured
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-kured
+  namespace: kubearmor
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubearmor-kured
+  namespace: kubearmor
+spec:
+  selector:
+    matchLabels:
+      name: kured
+  template:
+    metadata:
+      labels:
+        name: kured
+    spec:
+      containers:
+      - args:
+        - |
+          grep "bpf" /rootfs/sys/kernel/security/lsm >/dev/null
+          [[ $? -eq 0 ]] && echo "sysfs already has BPF enabled" && rm /sentinel/reboot-required && sleep infinity
+          grep "GRUB_CMDLINE_LINUX.*bpf" /rootfs/etc/default/grub >/dev/null
+          [[ $? -eq 0 ]] && echo "grub already has BPF enabled" && sleep infinity
+          cat <<EOF >/rootfs/updater.sh
+          #!/bin/bash
+          lsmlist=\$(cat /sys/kernel/security/lsm)
+          echo "current lsmlist=\$lsmlist"
+          sed -i "s/^GRUB_CMDLINE_LINUX=.*$/GRUB_CMDLINE_LINUX=\"lsm=\$lsmlist,bpf\"/g" /etc/default/grub
+          command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2.cfg
+          command -v grub2-mkconfig >/dev/null 2>&1 && grub2-mkconfig -o /boot/grub2/grub.cfg
+          command -v grub-mkconfig >/dev/null 2>&1 && grub-mkconfig -o /boot/grub.cfg
+          command -v aa-status >/dev/null 2>&1 || yum install apparmor-utils -y
+          command -v update-grub >/dev/null 2>&1 && update-grub
+          command -v update-grub2 >/dev/null 2>&1 && update-grub2
+          EOF
+          cat /rootfs/updater.sh
+          chmod +x /rootfs/updater.sh
+          chroot /rootfs/ /bin/bash /updater.sh
+          touch /sentinel/reboot-required
+        command:
+        - bash
+        - -c
+        image: debian
+        imagePullPolicy: Always
+        name: updater
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /rootfs
+          mountPropagation: HostToContainer
+          name: rootfs
+          readOnly: false
+        - mountPath: /sentinel
+          name: sentinel
+          readOnly: false
+      - command:
+        - /usr/bin/kured
+        - --reboot-sentinel=/sentinel/reboot-required
+        - --force-reboot=true
+        - --drain-timeout=2m
+        - --period=30s
+        - --ds-namespace=kubearmor
+        - --ds-name=kubearmor-kured
+        - --lock-ttl=10m
+        - --reboot-method=signal
+        env:
+        - name: KURED_NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        image: ghcr.io/kubereboot/kured:1.15.0
+        imagePullPolicy: IfNotPresent
+        name: kured
+        ports:
+        - containerPort: 8080
+          name: metrics
+        securityContext:
+          privileged: true
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /sentinel
+          name: sentinel
+          readOnly: true
+      hostPID: true
+      restartPolicy: Always
+      serviceAccountName: kubearmor-kured
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      volumes:
+      - emptyDir: {}
+        name: sentinel
+      - hostPath:
+          path: /
+          type: DirectoryOrCreate
+        name: rootfs
+  updateStrategy:
+    type: RollingUpdate
