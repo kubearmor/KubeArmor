@@ -173,7 +173,8 @@ jobs:
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v /var/lib/docker:/var/lib/docker \
           -v /etc/apparmor.d:/etc/apparmor.d \
-          kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=coverage.out
+          -v /tmp/coverage/:/coverage/ 
+          kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=/coverage/coverage.out
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -188,8 +189,11 @@ jobs:
           KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
           sleep 15
-          docker cp $CONTAINER_ID:/coverage.out coverage.out
-          sleep 3
+          # docker cp $CONTAINER_ID:/coverage/coverage.out coverage.out
+          ls -l /tmp/coverage/
+          cp /tmp/coverage/coverage.out coverage.out
+          ls -l
+          sleep 2
         working-directory: KubeArmor
 
       - name: Archive log artifacts
