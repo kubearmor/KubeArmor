@@ -189,10 +189,7 @@ jobs:
           KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
           sleep 15
-          # docker cp $CONTAINER_ID:/coverage/coverage.out coverage.out
-          ls -l /tmp/coverage/
           cp /tmp/coverage/coverage.out coverage.out
-          ls -l
           sleep 2
         working-directory: KubeArmor
 
