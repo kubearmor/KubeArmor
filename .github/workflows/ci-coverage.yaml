@@ -173,7 +173,7 @@ jobs:
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v /var/lib/docker:/var/lib/docker \
           -v /etc/apparmor.d:/etc/apparmor.d \
-          -v /tmp/coverage/:/coverage/ 
+          -v /tmp/coverage/:/coverage/ \
           kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=/coverage/coverage.out
 
       - name: Test KubeArmor using Ginkgo
