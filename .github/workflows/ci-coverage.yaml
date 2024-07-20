@@ -137,15 +137,16 @@ jobs:
       - name: Add KubeArmor host visibility
         run: |
           ./.github/workflows/host-visibility.sh
-          sudo apt-get install jq
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
           LABEL_SELECTOR=$(kubectl get daemonset $DAEMONSET_NAME -n kubearmor -o jsonpath='{.spec.selector.matchLabels}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' | paste -sd, -)
           POD_NAME=$(kubectl get pods -n kubearmor -l "$LABEL_SELECTOR" -o jsonpath='{.items[*].metadata.name}')
           echo "Pod: $POD_NAME"
           echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
+          kubectl logs $POD_NAME -n kubearmor 
         
       - name: Test KubeArmor using Ginkgo
         run: |
+          kubectl logs $POD_NAME -n kubearmor
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
           # ginkgo -r --vv --flake-attempts=10 --timeout=30m /hsp /blockposture
@@ -322,6 +323,8 @@ jobs:
 
       - name: Merge coverage files
         run: |
+          ls -l coverages/k8s
+          ls -l coverages/docker
           go install github.com/wadey/gocovmerge@latest
           gocovmerge coverages/k8s/* coverages/docker/* > merged_coverage.out
         working-directory: KubeArmor
