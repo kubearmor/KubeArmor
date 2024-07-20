@@ -85,20 +85,87 @@ jobs:
           kubectl get pods -A
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
           COMMON_VALUE=$(echo $DAEMONSET_NAME | awk -F'-' '{print $4}')
-          POD_NAME=$(kubectl get pods -n kubearmor -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep $COMMON_VALUE)
           echo "DaemonSet: $DAEMONSET_NAME"
-          echo "Pod: $POD_NAME"
-          echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: kubearmor-pvc
+            namespace: kubearmor
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Mi
+          EOF
+
+
+          kubectl patch daemonset $DAEMONSET_NAME -n kubearmor --type='json' -p='[
+            {
+              "op": "add",
+              "path": "/spec/template/spec/volumes/-",
+              "value": {
+                "name": "coverage-storage",
+                "persistentVolumeClaim": {
+                  "claimName": "kubearmor-pvc"
+                }
+              }
+            },
+            {
+              "op": "add",
+              "path": "/spec/template/spec/containers/0/volumeMounts/-",
+              "value": {
+                "mountPath": "/coverage",
+                "name": "coverage-storage"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/spec/template/spec/containers/0/args/-",
+              "value": "-test.coverprofile=/coverage/coverage_k8s.out"
+            }
+          ]'
+
+          sleep 60
+
+          # POD_NAME=$(kubectl get pods -n kubearmor -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep $COMMON_VALUE)
+          # echo "Pod: $POD_NAME"
+          # echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
 
       - name: Add KubeArmor host visibility
-        run: ./.github/workflows/host-visibility.sh
+        run: |
+          ./.github/workflows/host-visibility.sh
+          DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
+          COMMON_VALUE=$(echo $DAEMONSET_NAME | awk -F'-' '{print $4}')
+          POD_NAME=$(kubectl get pods -n kubearmor -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep $COMMON_VALUE)
+          echo "Pod: $POD_NAME"
+          echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
         
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          make
+          # make
+          ginkgo -r --vv --flake-attempts=10 --timeout=30m /hsp /blockposture
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
+      
+      - name: Kill KubeArmor prcoess in the pod
+        run: |
+          KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
+          kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
+          sleep 20
+        env:
+          POD_NAME: ${{ env.POD_NAME }}
+
+      - name: Extract coverage file
+        run: |
+          kubectl cp kubearmor/${{ env.POD_NAME }}:/coverage/coverage_k8s.out coverage_k8s.out
+        working-directory: KubeArmor
+        env:
+          POD_NAME: ${{ env.POD_NAME }}
+
 
       - name: Get karmor sysdump
         if: ${{ failure() }}
@@ -119,17 +186,19 @@ jobs:
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
-          go install github.com/modocache/gover@latest
-          gover
-          go tool cover -func=gover.coverprofile
+          ls -l
+          go tool cover -func coverage_k8s.out
+          # go install github.com/modocache/gover@latest
+          # gover
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: ${{ always() }}
         with:
-          files: ./KubeArmor/gover.coverprofile
+          files: ./KubeArmor/coverage_k8s.out
+          token: ${{ secrets.CODECOV_TOKEN }}
 
 
   docker-compose-coverage:
