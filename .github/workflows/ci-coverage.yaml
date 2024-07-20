@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
+        os: [ubuntu-20.04]
         runtime: ["containerd", "crio"]
     steps:
       - uses: actions/checkout@v3
@@ -124,7 +124,7 @@ jobs:
             {
               "op": "add",
               "path": "/spec/template/spec/containers/0/args/-",
-              "value": "-test.coverprofile=/coverage/coverage_k8s.out"
+              "value": "-test.coverprofile=/coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out"
             }
           ]'
 
@@ -137,17 +137,18 @@ jobs:
       - name: Add KubeArmor host visibility
         run: |
           ./.github/workflows/host-visibility.sh
+          sudo apt-get install jq
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
-          COMMON_VALUE=$(echo $DAEMONSET_NAME | awk -F'-' '{print $4}')
-          POD_NAME=$(kubectl get pods -n kubearmor -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep $COMMON_VALUE)
+          LABEL_SELECTOR=$(kubectl get daemonset $DAEMONSET_NAME -n kubearmor -o jsonpath='{.spec.selector.matchLabels}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' | paste -sd, -)
+          POD_NAME=$(kubectl get pods -n kubearmor -l "$LABEL_SELECTOR" -o jsonpath='{.items[*].metadata.name}')
           echo "Pod: $POD_NAME"
           echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
         
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          # make
-          ginkgo -r --vv --flake-attempts=10 --timeout=30m /hsp /blockposture
+          make
+          # ginkgo -r --vv --flake-attempts=10 --timeout=30m /hsp /blockposture
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
       
@@ -161,7 +162,7 @@ jobs:
 
       - name: Extract coverage file
         run: |
-          kubectl cp kubearmor/${{ env.POD_NAME }}:/coverage/coverage_k8s.out coverage_k8s.out
+          kubectl cp kubearmor/${{ env.POD_NAME }}:/coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
         working-directory: KubeArmor
         env:
           POD_NAME: ${{ env.POD_NAME }}
@@ -187,18 +188,25 @@ jobs:
         if: ${{ always() }}
         run: |
           ls -l
-          go tool cover -func coverage_k8s.out
+          go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
           # go install github.com/modocache/gover@latest
           # gover
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
 
-      - uses: codecov/codecov-action@v4
+      - name: Archive coverage file
         if: ${{ always() }}
+        uses: actions/upload-artifact@v4
         with:
-          files: ./KubeArmor/coverage_k8s.out
-          token: ${{ secrets.CODECOV_TOKEN }}
+          name: coverage-k8s-${{ matrix.os }}-${{ matrix.runtime }}
+          path: KubeArmor/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+
+      # - uses: codecov/codecov-action@v4
+      #   if: ${{ always() }}
+      #   with:
+      #     files: ./KubeArmor/coverage_k8s.out
+      #     token: ${{ secrets.CODECOV_TOKEN }}
 
 
   docker-compose-coverage:
@@ -282,8 +290,51 @@ jobs:
         env:
           GOPATH: /home/runner/go
 
-      - uses: codecov/codecov-action@v4
+      - name: Save coverage file
         if: ${{ always() }}
+        uses: actions/upload-artifact@v4
         with:
-          files: ./KubeArmor/coverage.out
+          name: coverage-docker
+          path: KubeArmor/coverage.out
+
+      # - uses: codecov/codecov-action@v4
+      #   if: ${{ always() }}
+      #   with:
+      #     files: ./KubeArmor/coverage.out
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+
+  merge-and-upload-coverage:
+    name: Merge and Upload Coverage
+    runs-on: ubuntu-latest
+    needs: [calculate-k8s-coverage, docker-compose-coverage]
+    steps:
+      - name: Download k8s coverage files
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-k8s
+          path: coverages/k8s
+
+      - name: Download docker-compose coverage files
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-docker
+          path: coverages/docker
+
+      - name: Merge coverage files
+        run: |
+          go install github.com/wadey/gocovmerge@latest
+          gocovmerge coverages/k8s/* coverages/docker/* > merged_coverage.out
+        working-directory: KubeArmor
+
+      - name: Measure code coverage
+        run: |
+          ls -l
+          go tool cover -func merged_coverage.out
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - uses: codecov/codecov-action@v4
+        with:
+          files: KubeArmor/merged_coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
