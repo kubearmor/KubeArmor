@@ -161,6 +161,7 @@ jobs:
 
       - name: Extract coverage file
         run: |
+          # here we are extracting the coverage file from the PVC, using same pod as it restarts 
           kubectl cp kubearmor/${{ env.POD_NAME }}:/coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
         working-directory: KubeArmor
         env:

@@ -1,6 +1,7 @@
 package hsp
 
 import (
+	"os"
 	"time"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
@@ -14,6 +15,11 @@ var _ = Describe("Non-k8s HSP tests", func() {
 		KarmorLogStop()
 	})
 
+	BeforeEach(func() {
+		// Set the environment variable
+		os.Setenv("KUBEARMOR_SERVICE", ":32767")
+	})
+
 	Describe("HSP file path block", func() {
 
 		It("can block access to /etc/hostname on the host", func() {
@@ -23,7 +29,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			err = KarmorLogStart("policy", "", "File", "")
 			Expect(err).To(BeNil())
 
 			// Access the /etc/hostname file
@@ -55,7 +61,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+			err = KarmorLogStart("policy", "", "Process", "")
 			Expect(err).To(BeNil())
 
 			// call the diff command
@@ -86,7 +92,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			err = KarmorLogStart("policy", "", "File", "")
 			Expect(err).To(BeNil())
 
 			// call the head command
@@ -111,7 +117,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			err = KarmorLogStart("policy", "", "File", "")
 			Expect(err).To(BeNil())
 
 			// call the head command
@@ -142,7 +148,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			err = KarmorLogStart("policy", "", "File", "")
 			Expect(err).To(BeNil())
 
 			// try to access the /etc/passwd file
@@ -173,7 +179,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "File", "", ":32767")
+			err = KarmorLogStart("policy", "", "File", "")
 			Expect(err).To(BeNil())
 
 			// try to access the /etc/hostname file from head
@@ -204,7 +210,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 	// 		Expect(err).To(BeNil())
 
 	// 		// Start the karmor logs
-	// 		err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+	// 		err = KarmorLogStart("policy", "", "Process", "")
 	// 		Expect(err).To(BeNil())
 
 	// 		// call the date command from bash
@@ -240,7 +246,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "Process", "", ":32767")
+			err = KarmorLogStart("policy", "", "Process", "")
 			Expect(err).To(BeNil())
 
 			// run diff command
@@ -271,7 +277,7 @@ var _ = Describe("Non-k8s HSP tests", func() {
 			Expect(err).To(BeNil())
 
 			// Start the karmor logs
-			err = KarmorLogStartgRPC("policy", "", "Network", "", ":32767")
+			err = KarmorLogStart("policy", "", "Network", "")
 			Expect(err).To(BeNil())
 
 			// run diff command
