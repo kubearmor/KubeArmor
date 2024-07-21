@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -130,7 +131,9 @@ func appArmorAnnotator(pod *corev1.Pod) {
 
 	// Get existant kubearmor annotations
 	for k, v := range pod.Annotations {
+
 		if strings.HasPrefix(k, appArmorAnnotation) {
+
 			if v == "unconfined" {
 				containerName := strings.Split(k, "/")[1]
 				podAnnotations[containerName] = v
@@ -138,21 +141,37 @@ func appArmorAnnotator(pod *corev1.Pod) {
 				containerName := strings.Split(k, "/")[1]
 				podAnnotations[containerName] = strings.Split(v, "/")[1]
 			}
+            // Remove appArmorAnnotation k8s 1.30 compatiblity issue
+			delete(podAnnotations, k)
 		}
 	}
 
-	// Get the remaining containers / not addressed explecitly in the annotation
-	for _, container := range pod.Spec.Containers {
-		if _, ok := podAnnotations[container.Name]; !ok {
-			podAnnotations[container.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + container.Name
-		}
-	}
+	for _, c := range pod.Spec.Containers {
 
-	// Add kubearmor annotations to the pod
-	for k, v := range podAnnotations {
-		if v == "unconfined" {
-			continue
+		if pod.Spec.SecurityContext.AppArmorProfile == nil && c.SecurityContext.AppArmorProfile == nil {
+			if v, ok := podAnnotations[c.Name]; !ok {
+
+				profile := "localhost/" + "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
+
+				c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+					Type:             corev1.AppArmorProfileTypeLocalhost,
+					LocalhostProfile: ptr.To(profile),
+				}
+			} else {
+
+				if v == "unconfined" {
+					c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+						Type: corev1.AppArmorProfileTypeUnconfined,
+					}
+				} else {
+
+					profile := "localhost/" + v
+					c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+						Type:             corev1.AppArmorProfileTypeLocalhost,
+						LocalhostProfile: ptr.To(profile),
+					}
+				}
+			}
 		}
-		pod.Annotations[appArmorAnnotation+k] = "localhost/" + v
 	}
 }
