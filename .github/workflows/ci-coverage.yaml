@@ -84,7 +84,6 @@ jobs:
           sleep 60
           kubectl get pods -A
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
-          COMMON_VALUE=$(echo $DAEMONSET_NAME | awk -F'-' '{print $4}')
           echo "DaemonSet: $DAEMONSET_NAME"
 
           cat <<EOF | kubectl apply -f -
@@ -128,11 +127,7 @@ jobs:
             }
           ]'
 
-          sleep 60
-
-          # POD_NAME=$(kubectl get pods -n kubearmor -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep $COMMON_VALUE)
-          # echo "Pod: $POD_NAME"
-          # echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
+          sleep 30
 
       - name: Add KubeArmor host visibility
         run: |
@@ -142,7 +137,7 @@ jobs:
           POD_NAME=$(kubectl get pods -n kubearmor -l "$LABEL_SELECTOR" -o jsonpath='{.items[*].metadata.name}')
           echo "Pod: $POD_NAME"
           echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
-          kubectl logs $POD_NAME -n kubearmor 
+          kubectl logs $POD_NAME -n kubearmor
         
       - name: Test KubeArmor using Ginkgo
         run: |
