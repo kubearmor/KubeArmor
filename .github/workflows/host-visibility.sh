@@ -4,7 +4,7 @@ kubectl get daemonset -n kubearmor -o yaml > daemonset.yaml
 sed -i '/args:/a \          - -enableKubeArmorHostPolicy' daemonset.yaml
 kubectl apply -f daemonset.yaml
 
-sleep 30
+sleep 15
 
 # Apply annotations to the node
 NODE_NAME=$(kubectl get nodes -o=jsonpath='{.items[0].metadata.name}')
