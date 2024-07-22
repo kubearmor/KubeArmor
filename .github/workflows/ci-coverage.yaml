@@ -140,7 +140,7 @@ jobs:
         run: |
           KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
           kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 20
+          sleep 35
         env:
           POD_NAME: ${{ env.POD_NAME }}
 
