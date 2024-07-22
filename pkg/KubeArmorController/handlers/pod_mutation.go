@@ -141,8 +141,8 @@ func appArmorAnnotator(pod *corev1.Pod) {
 				containerName := strings.Split(k, "/")[1]
 				podAnnotations[containerName] = strings.Split(v, "/")[1]
 			}
-            // Remove appArmorAnnotation k8s 1.30 compatiblity issue
-			delete(podAnnotations, k)
+			// Remove appArmorAnnotation k8s 1.30 compatiblity issue
+			delete(pod.Annotations, k)
 		}
 	}
 
@@ -151,7 +151,7 @@ func appArmorAnnotator(pod *corev1.Pod) {
 		if pod.Spec.SecurityContext.AppArmorProfile == nil && c.SecurityContext.AppArmorProfile == nil {
 			if v, ok := podAnnotations[c.Name]; !ok {
 
-				profile := "localhost/" + "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
+				profile := "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
 
 				c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
 					Type:             corev1.AppArmorProfileTypeLocalhost,
@@ -165,10 +165,9 @@ func appArmorAnnotator(pod *corev1.Pod) {
 					}
 				} else {
 
-					profile := "localhost/" + v
 					c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
 						Type:             corev1.AppArmorProfileTypeLocalhost,
-						LocalhostProfile: ptr.To(profile),
+						LocalhostProfile: ptr.To(v),
 					}
 				}
 			}

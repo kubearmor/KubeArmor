@@ -809,11 +809,17 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
+							delete(pod.Annotations, k)
 						}
 					}
 
 					for _, container := range event.Object.Spec.Containers {
 						var privileged bool
+
+						if (event.Object.Spec.SecurityContext != nil && event.Object.Spec.SecurityContext.AppArmorProfile != nil) || (container.SecurityContext != nil && container.SecurityContext.AppArmorProfile != nil) {
+							delete(appArmorAnnotations, container.Name)
+							continue
+						}
 						// store privileged containers
 						if container.SecurityContext != nil &&
 							((container.SecurityContext.Privileged != nil && *container.SecurityContext.Privileged) ||

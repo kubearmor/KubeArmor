@@ -63,7 +63,7 @@ const (
 	SocketConnect = 462
 	SocketAccept  = 463
 
-	Capable = 464
+	Capable   = 464
 	DropAlert = 0
 )
 
