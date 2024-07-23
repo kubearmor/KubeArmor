@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -19,10 +20,11 @@ import (
 
 // PodAnnotator Structure
 type PodAnnotator struct {
-	Client   client.Client
-	Decoder  *admission.Decoder
-	Logger   logr.Logger
-	Enforcer string
+	Client    client.Client
+	Decoder   *admission.Decoder
+	Logger    logr.Logger
+	Enforcer  string
+	K8Version string
 }
 
 const k8sVisibility = "process,file,network,capabilities"
@@ -60,7 +62,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 	// == LSM == //
 
 	if a.Enforcer == "AppArmor" {
-		appArmorAnnotator(pod)
+		appArmorAnnotator(pod, a.K8Version)
 	}
 
 	// == Exception == //
@@ -105,7 +107,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 }
 
 // == Add AppArmor annotations == //
-func appArmorAnnotator(pod *corev1.Pod) {
+func appArmorAnnotator(pod *corev1.Pod, k8Version string) {
 	podAnnotations := map[string]string{}
 	var podOwnerName string
 
@@ -129,6 +131,8 @@ func appArmorAnnotator(pod *corev1.Pod) {
 		podOwnerName = pod.ObjectMeta.Name
 	}
 
+	// Check if the k8 version >= 1.30
+	k8VerGreater := isVersionGreaterThanOrEqual(k8Version, "v1.30")
 	// Get existant kubearmor annotations
 	for k, v := range pod.Annotations {
 
@@ -141,36 +145,98 @@ func appArmorAnnotator(pod *corev1.Pod) {
 				containerName := strings.Split(k, "/")[1]
 				podAnnotations[containerName] = strings.Split(v, "/")[1]
 			}
-			// Remove appArmorAnnotation k8s 1.30 compatiblity issue
-			delete(pod.Annotations, k)
+			if k8VerGreater {
+				// Remove appArmorAnnotation k8s 1.30 compatiblity issue
+				delete(pod.Annotations, k)
+			}
 		}
 	}
 
 	for _, c := range pod.Spec.Containers {
 
-		if pod.Spec.SecurityContext.AppArmorProfile == nil && c.SecurityContext.AppArmorProfile == nil {
-			if v, ok := podAnnotations[c.Name]; !ok {
+		if k8VerGreater {
+			if (pod.Spec.SecurityContext == nil || pod.Spec.SecurityContext.AppArmorProfile == nil) && (c.SecurityContext == nil || c.SecurityContext.AppArmorProfile == nil) {
+				if v, ok := podAnnotations[c.Name]; !ok {
 
-				profile := "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
-
-				c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
-					Type:             corev1.AppArmorProfileTypeLocalhost,
-					LocalhostProfile: ptr.To(profile),
-				}
-			} else {
-
-				if v == "unconfined" {
-					c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
-						Type: corev1.AppArmorProfileTypeUnconfined,
-					}
-				} else {
+					profile := "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
 
 					c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
 						Type:             corev1.AppArmorProfileTypeLocalhost,
-						LocalhostProfile: ptr.To(v),
+						LocalhostProfile: ptr.To(profile),
+					}
+				} else {
+
+					if v == "unconfined" {
+						c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+							Type: corev1.AppArmorProfileTypeUnconfined,
+						}
+					} else {
+
+						c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+							Type:             corev1.AppArmorProfileTypeLocalhost,
+							LocalhostProfile: ptr.To(v),
+						}
 					}
 				}
 			}
+		} else {
+			if _, ok := podAnnotations[c.Name]; !ok {
+				podAnnotations[c.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
+			}
 		}
 	}
+
+	if k8VerGreater {
+		// Add kubearmor annotations to the pod
+		for k, v := range podAnnotations {
+			if v == "unconfined" {
+				continue
+			}
+			pod.Annotations[appArmorAnnotation+k] = "localhost/" + v
+		}
+	}
+}
+
+// isVersionGreaterThanOrEqual checks if the Kubernetes version  >= specified version.
+func isVersionGreaterThanOrEqual(version, requiredVersion string) bool {
+	// Strip the 'v' prefix from versions
+	version = strings.TrimPrefix(version, "v")
+	requiredVersion = strings.TrimPrefix(requiredVersion, "v")
+
+	// Split the versions into major and minor parts
+	versionParts := strings.Split(version, ".")
+	requiredParts := strings.Split(requiredVersion, ".")
+
+	if len(versionParts) < 2 || len(requiredParts) < 2 {
+		return false
+	}
+
+	// Convert major and minor parts to integers
+	versionMajor, err := strconv.Atoi(versionParts[0])
+	if err != nil {
+		return false
+	}
+	versionMinor, err := strconv.Atoi(versionParts[1])
+	if err != nil {
+		return false
+	}
+
+	requiredMajor, err := strconv.Atoi(requiredParts[0])
+	if err != nil {
+		return false
+	}
+	requiredMinor, err := strconv.Atoi(requiredParts[1])
+	if err != nil {
+		return false
+	}
+
+	// Compare the major and minor versions
+	if versionMajor > requiredMajor {
+		return true
+	}
+	if versionMajor == requiredMajor && versionMinor >= requiredMinor {
+		return true
+	}
+
+	return false
 }
