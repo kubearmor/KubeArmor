@@ -140,14 +140,16 @@ jobs:
         run: |
           KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
           kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 30
+          sleep 40
         env:
           POD_NAME: ${{ env.POD_NAME }}
 
       - name: Extract coverage file
         run: |
+          sleep 5
           # extract the coverage file from hostPath volume
           cp /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+          ls -l
         working-directory: KubeArmor
         env:
           POD_NAME: ${{ env.POD_NAME }}
