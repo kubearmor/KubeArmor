@@ -304,7 +304,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: KubeArmor/
-          pattern: coverage_*
+          pattern: coverage*
           merge-multiple: true
 
       # - name: Download k8s coverage files
