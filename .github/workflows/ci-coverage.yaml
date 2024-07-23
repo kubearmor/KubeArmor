@@ -247,9 +247,11 @@ jobs:
       - name: Copy coverage report
         run: |
           CONTAINER_ID=$(docker ps -qf "name=kubearmor")
+          sleep 2
           KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
+          sleep 2
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 15
+          sleep 25
           cp /tmp/coverage/coverage_docker.out coverage_docker.out
           sleep 2
         working-directory: KubeArmor
