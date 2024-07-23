@@ -9,7 +9,7 @@ on:
       - "KubeArmor/**"
       - ".github/workflows/ci-coverage.yaml"
       - "!STABLE-RELEASE"
-      - "tests/nonk8s_env/**"
+      - "tests/**"
 
 jobs:
   calculate-k8s-coverage:
