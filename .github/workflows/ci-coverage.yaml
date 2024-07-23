@@ -140,15 +140,19 @@ jobs:
         run: |
           KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
           kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 40
+          sleep 10
         env:
           POD_NAME: ${{ env.POD_NAME }}
 
       - name: Extract coverage file
         run: |
-          sleep 5
-          # extract the coverage file from hostPath volume
-          cp /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+          for i in {1..24}; do
+            if [ -f /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
+              cp /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+              break
+            fi
+            sleep 5
+          done
           ls -l
         working-directory: KubeArmor
         env:
@@ -253,8 +257,14 @@ jobs:
           KUBEARMOR_PID=$(docker exec $CONTAINER_ID sh -c "pgrep -o -f 'kubearmor'")
           sleep 2
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 25
-          cp /tmp/coverage/coverage_docker.out coverage_docker.out
+          sleep 15
+          for i in {1..24}; do
+            if [ -f /tmp/coverage/coverage_docker.out ]; then
+              cp /tmp/coverage/coverage_docker.out coverage_docker.out
+              break
+            fi
+            sleep 5
+          done
           sleep 2
         working-directory: KubeArmor
 
@@ -311,34 +321,22 @@ jobs:
           pattern: coverage*
           merge-multiple: true
 
-      # - name: Download k8s coverage files
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: coverage-k8s
-      #     path: coverages/k8s
+      # - name: Merge coverage files
+      #   run: |
+      #     ls -l | grep coverage
+      #     go install github.com/wadey/gocovmerge@latest
+      #     gocovmerge *.out > merged_coverage.out
+      #   working-directory: KubeArmor
 
-      # - name: Download docker-compose coverage files
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: coverage-docker
-      #     path: coverages/docker
-
-      - name: Merge coverage files
-        run: |
-          ls -l | grep coverage
-          go install github.com/wadey/gocovmerge@latest
-          gocovmerge *.out > merged_coverage.out
-        working-directory: KubeArmor
-
-      - name: Measure code coverage
-        run: |
-          ls -l
-          go tool cover -func merged_coverage.out
-        working-directory: KubeArmor
-        env:
-          GOPATH: /home/runner/go
+      # - name: Measure code coverage
+      #   run: |
+      #     ls -l
+      #     go tool cover -func merged_coverage.out
+      #   working-directory: KubeArmor
+      #   env:
+      #     GOPATH: /home/runner/go
 
       - uses: codecov/codecov-action@v4
         with:
-          files: KubeArmor/merged_coverage.out
+          # files: KubeArmor/merged_coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
