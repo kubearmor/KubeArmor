@@ -224,26 +224,38 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 // ================ //
 
 // PatchDeploymentWithAppArmorAnnotations Function
-func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string) error {
+func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string, k8Version string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
-
-	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
-	if kind == "CronJob" {
+	K8VerGreater := isVersionGreaterThanOrEqual(k8Version, "v1.30")
+	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	if K8VerGreater {
+		spec = `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
+	} else if !K8VerGreater && kind == "CronJob" {
+		spec = `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	} else if K8VerGreater && kind == "CronJob" {
 		spec = `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
 	}
 
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
-		if v == "unconfined" {
-			spec = spec + `{"name":` + k + `,"securityContext":{"appArmorProfile":{"type":"unconfined"}}}`
+		if K8VerGreater {
+			if v == "unconfined" {
+				spec = spec + `{"name":` + k + `,"securityContext":{"appArmorProfile":{"type":"unconfined"}}}`
 
+			}
+
+			spec = spec + `{"name":` + k + `,"securityContext":{"appArmorProfile":{"type":"localhost","localhostProfile":` + v + `}}}`
+
+		} else {
+			if v == "unconfined" {
+				continue
+			}
+
+			spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
 		}
-
-		spec = spec + `{"name":` + k + `,"securityContext":{"appArmorProfile":{"type":"localhost","localhostProfile":` + v + `}}}`
-
 		if count > 1 {
 			spec = spec + ","
 		}
@@ -251,10 +263,14 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		count--
 	}
 
-	if kind == "CronJob" {
+	if K8VerGreater && kind == "CronJob" {
 		spec = spec + `]}}}}}}}}`
-	} else {
+	} else if !K8VerGreater && kind == "CronJob" {
+		spec = spec + `}}}}}}}`
+	} else if K8VerGreater {
 		spec = spec + `]}}}}}}`
+	} else if !K8VerGreater {
+		spec = spec + `}}}}}`
 	}
 
 	if kind == "StatefulSet" {

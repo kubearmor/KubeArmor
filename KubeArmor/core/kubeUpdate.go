@@ -799,6 +799,14 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 
 					}
+					k8Version, err := K8s.K8sClient.ServerVersion()
+
+					// Check if the k8 version >= 1.30
+					k8VerGreater := isVersionGreaterThanOrEqual(k8Version.GitVersion, "v1.30")
+					if err != nil {
+						dm.Logger.Warnf("unable to get k8's version info: %s", err)
+						os.Exit(1)
+					}
 
 					for k, v := range pod.Annotations {
 						if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
@@ -809,14 +817,16 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
-							delete(pod.Annotations, k)
+							if k8VerGreater {
+								delete(pod.Annotations, k)
+							}
 						}
 					}
 
 					for _, container := range event.Object.Spec.Containers {
 						var privileged bool
 
-						if (event.Object.Spec.SecurityContext != nil && event.Object.Spec.SecurityContext.AppArmorProfile != nil) || (container.SecurityContext != nil && container.SecurityContext.AppArmorProfile != nil) {
+						if k8VerGreater && ((event.Object.Spec.SecurityContext != nil && event.Object.Spec.SecurityContext.AppArmorProfile != nil) || (container.SecurityContext != nil && container.SecurityContext.AppArmorProfile != nil)) {
 							delete(appArmorAnnotations, container.Name)
 							continue
 						}
@@ -848,7 +858,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" {
 								deploymentName := dm.OwnerInfo[pod.Metadata["podName"]].Name
 								// patch the deployment with apparmor annotations
-								if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref); err != nil {
+								if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref, k8Version.GitVersion); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 								} else {
 									dm.Logger.Printf("Patched AppArmor Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
@@ -869,7 +879,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 									if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" {
 										deploymentName := dm.OwnerInfo[pod.Metadata["podName"]].Name
 										// patch the deployment with apparmor annotations
-										if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref); err != nil {
+										if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref, k8Version.GitVersion); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 										} else {
 											dm.Logger.Printf("Patched AppArmor Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
@@ -2776,4 +2786,48 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 		return "kubearmor"
 	}
 	return envNamespace
+}
+
+// isVersionGreaterThanOrEqual checks if the Kubernetes version  >= specified version.
+func isVersionGreaterThanOrEqual(version, requiredVersion string) bool {
+	// Strip the 'v' prefix from versions
+	version = strings.TrimPrefix(version, "v")
+	requiredVersion = strings.TrimPrefix(requiredVersion, "v")
+
+	// Split the versions into major and minor parts
+	versionParts := strings.Split(version, ".")
+	requiredParts := strings.Split(requiredVersion, ".")
+
+	if len(versionParts) < 2 || len(requiredParts) < 2 {
+		return false
+	}
+
+	// Convert major and minor parts to integers
+	versionMajor, err := strconv.Atoi(versionParts[0])
+	if err != nil {
+		return false
+	}
+	versionMinor, err := strconv.Atoi(versionParts[1])
+	if err != nil {
+		return false
+	}
+
+	requiredMajor, err := strconv.Atoi(requiredParts[0])
+	if err != nil {
+		return false
+	}
+	requiredMinor, err := strconv.Atoi(requiredParts[1])
+	if err != nil {
+		return false
+	}
+
+	// Compare the major and minor versions
+	if versionMajor > requiredMajor {
+		return true
+	}
+	if versionMajor == requiredMajor && versionMinor >= requiredMinor {
+		return true
+	}
+
+	return false
 }
