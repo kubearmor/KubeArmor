@@ -225,20 +225,6 @@ func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
 	return nil
 }
 
-// drainEventChan drains all events from the eventChan.
-func drainEventChan() {
-	if eventChan == nil {
-		return
-	}
-	for {
-		select {
-		case <-eventChan:
-		default:
-			return
-		}
-	}
-}
-
 // KarmorGetLogs waits for logs from kubearmor. KarmorQueueLog() has to be called
 // before this so that the channel is established.
 func KarmorGetLogs(timeout time.Duration, maxEvents int) ([]*pb.Log, []*pb.Alert, error) {
