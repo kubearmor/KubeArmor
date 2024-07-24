@@ -6,9 +6,11 @@
 
 #include "vmlinux.h"
 #include "vmlinux_macro.h"
+#include "syscalls.h"
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "throttling.h"
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define EPERM 13
@@ -72,11 +74,6 @@ struct {
   __uint(max_entries, 3);
 } bufk SEC(".maps");
 
-struct outer_key {
-  u32 pid_ns;
-  u32 mnt_ns;
-};
-
 typedef struct {
   u64 ts;
 
@@ -121,6 +118,24 @@ struct data_t {
   u8 processmask;
   u8 filemask;
 };
+
+enum
+{
+    _ALERT_THROTTLING = 3,
+    _MAX_ALERT_PER_SEC = 4,
+    _THROTTLE_SEC = 5,
+};
+
+struct kaconfig
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u32);
+    __type(value, u32);
+    __uint(max_entries, 16);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct kaconfig kubearmor_config SEC(".maps");
 
 struct outer_hash {
   __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
@@ -295,6 +310,84 @@ static __always_inline u32 init_context(event *event_data) {
   bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
 
   return 0;
+}
+
+
+static __always_inline u32 get_kubearmor_config(u32 config)
+{
+    u32 *value = bpf_map_lookup_elem(&kubearmor_config, &config);
+    if (!value)
+    {
+        return 0;
+    }
+
+    return *value;
+}
+
+// To check if subsequent alerts should be dropped per container
+static __always_inline bool should_drop_alerts_per_container(struct outer_key okey) {
+  u64 current_timestamp = bpf_ktime_get_ns();
+
+  struct outer_key key = {
+    .pid_ns = okey.pid_ns,
+    .mnt_ns = okey.mnt_ns
+  };
+
+  struct alert_throttle_state *state = bpf_map_lookup_elem(&kubearmor_alert_throttle, &key);
+
+  if (!state) {
+    struct alert_throttle_state new_state = {
+      .event_count = 1,
+      .first_event_timestamp = current_timestamp,
+      .throttle = 0
+    };
+
+    bpf_map_update_elem(&kubearmor_alert_throttle, &key, &new_state, BPF_ANY);
+    return false;
+  }
+
+  u64 throttle_sec = (u64)get_kubearmor_config(_THROTTLE_SEC); 
+  u64 throttle_nsec = throttle_sec * 1000000000L; 
+  u64 maxAlert = (u64)get_kubearmor_config(_MAX_ALERT_PER_SEC); 
+
+  if (state->throttle) {
+    u64 time_difference = current_timestamp - state->first_event_timestamp;
+    if (time_difference < throttle_nsec) {
+      return true;
+    }
+  }
+
+  u64 time_difference = current_timestamp - state->first_event_timestamp;
+
+  if (time_difference >= 1000000000L) { // 1 second
+    state->first_event_timestamp = current_timestamp;
+    state->event_count = 1;
+    state->throttle = 0;
+  } else {
+    state->event_count++;
+  }
+
+  if (state->event_count > maxAlert) {
+    state->event_count = 0;
+    state->throttle = 1;
+    bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
+
+    // Generating Throttling Alert 
+    event *event_data = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
+    if (!event_data) {
+      // Failed to reserve
+      return true;
+    }
+    init_context(event_data);
+    event_data->event_id = _DROPPING_ALERT;
+    event_data->retval = 0; 
+    bpf_ringbuf_submit(event_data, 0);
+
+    return true; 
+  }
+
+  bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
+  return false; 
 }
 
 static bool is_owner(struct file *file_p) {
@@ -599,6 +692,10 @@ decision:
   return 0;
 
 ringbuf:
+  if (get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(okey)) {
+    return retval;
+  }
+
   task_info = bpf_ringbuf_reserve(&kubearmor_events, sizeof(event), 0);
   if (!task_info) {
     // Failed to reserve, doing policy enforcement without alert

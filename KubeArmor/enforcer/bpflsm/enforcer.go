@@ -34,8 +34,10 @@ import (
 type BPFEnforcer struct {
 	Logger *fd.Feeder
 
-	InnerMapSpec    *ebpf.MapSpec
-	BPFContainerMap *ebpf.Map
+	InnerMapSpec *ebpf.MapSpec
+	// InnerMapSpec            *ebpf.MapSpec
+	BPFContainerMap         *ebpf.Map
+	BPFContainerThrottleMap *ebpf.Map
 
 	// events
 	Events        *ringbuf.Reader
@@ -92,6 +94,21 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_containers map: %s", err)
+		return be, err
+	}
+
+	be.BPFContainerThrottleMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
+		Type:       ebpf.Hash,
+		KeySize:    8,
+		ValueSize:  24,
+		MaxEntries: 256,
+		Pinning:    ebpf.PinByName,
+		Name:       "kubearmor_alert_throttle",
+	}, ebpf.MapOptions{
+		PinPath: pinpath,
+	})
+	if err != nil {
+		be.Logger.Errf("error creating kubearmor_alert_throttle map: %s", err)
 		return be, err
 	}
 
@@ -354,9 +371,15 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Operation = "Capabilities"
 			log.Resource = mon.Capabilities[int32(event.Data.Path[1])]
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID)) + " " + log.Resource
+
+		case mon.DropAlert:
+			log.Operation = "AlertThreshold"
+			log.Type = "SystemEvent"
+			log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
+			log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
 		}
 		// fallback logic if we don't receive source from BuildLogBase()
-		if len(log.Source) == 0 {
+		if log.Operation != "Process" && len(log.Source) == 0 {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.ProcessName = log.Source
 		}
@@ -431,6 +454,17 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 		if err := be.BPFContainerMap.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
+
+	if be.BPFContainerThrottleMap != nil {
+		if err := be.BPFContainerThrottleMap.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.BPFContainerThrottleMap.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}

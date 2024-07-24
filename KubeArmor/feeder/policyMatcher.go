@@ -970,6 +970,19 @@ func setLogFields(log *tp.Log, existAllowPolicy bool, defaultPosture string, vis
 
 		return true
 	}
+	if existAllowPolicy && defaultPosture == "block" && (*log).Result != "Passed" {
+		if containerEvent {
+			(*log).Type = "MatchedPolicy"
+		} else {
+			(*log).Type = "MatchedHostPolicy"
+		}
+
+		(*log).PolicyName = "DefaultPosture"
+		(*log).Enforcer = "eBPF Monitor"
+		(*log).Action = "Block"
+
+		return true
+	}
 
 	if containerEvent {
 		// return here as container events are dropped in kernel space
@@ -1003,10 +1016,12 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 	existFileAllowPolicy := false
 	existNetworkAllowPolicy := false
 	existCapabilitiesAllowPolicy := false
-
 	fd.DefaultPosturesLock.Lock()
 	defer fd.DefaultPosturesLock.Unlock()
 	if log.Result == "Passed" || log.Result == "Operation not permitted" || log.Result == "Permission denied" {
+		if log.Type == "SystemEvent" {
+			return log
+		}
 		fd.SecurityPoliciesLock.RLock()
 
 		key := cfg.GlobalCfg.Host
@@ -1033,7 +1048,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					continue
 				}
 			}
-
 			switch log.Operation {
 			case "Process", "File":
 				if secPolicy.Operation != log.Operation {
@@ -1669,22 +1683,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 		fd.SecurityPoliciesLock.RUnlock()
 
-		if log.PolicyName == "" && log.Result != "Passed" {
-			// default posture (block) or native policy
-			// no matched policy, but result = blocked -> default posture
-
-			log.Type = "MatchedPolicy"
-
-			log.PolicyName = "DefaultPosture"
-
-			log.Severity = ""
-			log.Tags = ""
-			log.ATags = []string{}
-			log.Message = ""
-
-			log.Enforcer = fd.Enforcer
-			log.Action = "Block"
-		}
 	}
 
 	if log.ContainerID != "" { // container
@@ -1727,6 +1725,20 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return tp.Log{}
 			}
 
+			// check for throttling for "Audit" alerts
+			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
+				nsKey := fd.ContainerNsKey[log.ContainerID]
+				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
+				if alert && throttle {
+					return tp.Log{}
+				} else if alert && !throttle {
+					log.Operation = "AlertThreshold"
+					log.Type = "SystemEvent"
+					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
+					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+				}
+			}
+
 			return log
 		}
 	} else { // host
@@ -1754,6 +1766,20 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
+			}
+
+			// check for throttling for "Audit" alerts
+			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
+				nsKey := fd.ContainerNsKey[log.ContainerID]
+				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
+				if alert && throttle {
+					return tp.Log{}
+				} else if alert && !throttle {
+					log.Operation = "AlertThreshold"
+					log.Type = "SystemEvent"
+					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
+					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+				}
 			}
 
 			return log

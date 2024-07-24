@@ -6,11 +6,13 @@
 cleanup() {
   echo "Performing cleanup..."
   
-  ./usr/local/bin/k3s-killall.sh
+  /usr/local/bin/k3s-killall.sh
   
   /usr/local/bin/k3s-uninstall.sh
   
   docker system prune -a -f
+  
+  sudo podman system prune -a -f
   
   # rm -rf /home/vagrant/actions-runner/_work/KubeArmor
 

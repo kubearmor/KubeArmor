@@ -394,5 +394,19 @@ You can also enable AppArmor if you want to use it as a security module to enfor
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
 ```
 
+The above updater daemonset will update all the nodes at the same time and thus all the nodes will restart simultaneously. If you want a RollingUpdate of the nodes, then you can use the following command instead.
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/ka-updater-kured.yaml
+```
+
 **Warning:** After running the above script the nodes will restart.
+</details>
+
+<details><summary><h4>KubeArmor with WSL2</h4></summary>
+
+It is possible to deploy k3s on WSL2 to have a local cluster on your Windows machine. However, the WSL2 environment does not mount securityfs by default and hence `/sys/kernel/security` is not available by default. KubeArmor would still install on such system but without enforcement logic.
+
+Thus with k3s on WSL2, you would still be able to run kubearmor but the block-based policies won't work. Using `karmor probe` would show `Active LSM` as blank which signals that the block-based policies won't work.
+
 </details>

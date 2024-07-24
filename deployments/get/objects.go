@@ -54,11 +54,11 @@ func GetClusterRole() *rbacv1.ClusterRole {
 			{
 				APIGroups: []string{"batch"},
 				Resources: []string{"jobs", "cronjobs"},
-				Verbs:     []string{"get"},
+				Verbs:     []string{"get", "patch", "list", "watch", "update"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
 			{
@@ -271,10 +271,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "sys-fs-bpf-path", //BPF (read-write)
-			MountPath: "/sys/fs/bpf",
-		},
-		{
 			Name:      "sys-kernel-security-path", //LSM (read-only)
 			MountPath: "/sys/kernel/security",
 		},
@@ -302,15 +298,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/lib/modules",
 					Type: &hostPathDirectoryOrCreate,
-				},
-			},
-		},
-		{
-			Name: "sys-fs-bpf-path",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/fs/bpf",
-					Type: &hostPathDirectory,
 				},
 			},
 		},
@@ -559,7 +546,6 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 					Labels: KubeArmorControllerLabels,
 				},
 				Spec: corev1.PodSpec{
-					PriorityClassName:  "system-node-critical",
 					ServiceAccountName: KubeArmorControllerServiceAccountName,
 					Volumes: []corev1.Volume{
 						KubeArmorControllerCertVolume,
@@ -690,12 +676,12 @@ func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies/status", "kubearmorhostpolicies/status"},
+				Resources: []string{"kubearmorpolicies/status", "kubearmorclusterpolicies/status", "kubearmorhostpolicies/status"},
 				Verbs:     []string{"get", "patch", "update"},
 			},
 		},

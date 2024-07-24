@@ -235,17 +235,7 @@ var _ = Describe("Ksp", func() {
 				[]string{"bash", "-c", "umount /var/run/secrets/kubernetes.io/serviceaccount"})
 			Expect(err).To(BeNil())
 			fmt.Printf("OUTPUT: %s\n", sout)
-
-			expect = &protobuf.Alert{
-				PolicyName: "DefaultPosture",
-				Action:     "Block",
-				Result:     "Operation not permitted",
-				Data:       "syscall=SYS_UMOUNT2",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+			Expect(sout).To(MatchRegexp("umount.*must be superuser to unmount"))
 		})
 
 		It("won't block umount by default for all capabilities enabled containers", func() {

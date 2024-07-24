@@ -251,6 +251,8 @@ func (mon *SystemMonitor) initBPFMaps() error {
 		}
 	}
 
+	mon.UpdateThrottlingConfig()
+
 	return errors.Join(errviz, errconfig)
 }
 
@@ -276,6 +278,20 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 		if err != nil {
 			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
 		}
+	}
+}
+
+func (mon *SystemMonitor) UpdateThrottlingConfig() {
+	if cfg.GlobalCfg.AlertThrottling {
+		if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
+		}
+	}
+	if err := mon.BpfConfigMap.Update(uint32(4), uint32(cfg.GlobalCfg.MaxAlertPerSec), cle.UpdateAny); err != nil {
+		mon.Logger.Errf("Error Updating System Monitor Config Map to set max alerts per sec : %s", err.Error())
+	}
+	if err := mon.BpfConfigMap.Update(uint32(5), uint32(cfg.GlobalCfg.ThrottleSec), cle.UpdateAny); err != nil {
+		mon.Logger.Errf("Error Updating System Monitor Config Map to set time interval for dropping subsequent alerts : %s", err.Error())
 	}
 }
 

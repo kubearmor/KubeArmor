@@ -522,6 +522,14 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 			ae.Logger.Warnf("Unable to update %d security rule(s) to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
 			return
 		}
+		if err := kl.RunCommandAndWaitWithErr("aa-disable", []string{"/etc/apparmor.d/" + appArmorProfile}); err != nil {
+			ae.Logger.Warnf("Unable to disable for a weird issue %d security rule(s) to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
+			return
+		}
+		if err := kl.RunCommandAndWaitWithErr("aa-enforce", []string{"/etc/apparmor.d/" + appArmorProfile}); err != nil {
+			ae.Logger.Warnf("Unable to enforce back for a weird issue %d security rule(s) to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
+			return
+		}
 
 		ae.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile)
 	} else if newProfile != "" {

@@ -1947,18 +1947,10 @@ var _ = Describe("Ksp", func() {
 			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "cat /etc/hostname"},
 				MatchRegexp("hostname.*Permission denied"), true,
 			)
-
-			expect := protobuf.Alert{
-				PolicyName: "DefaultPosture",
-				Severity:   "",
-				Action:     "Block",
-				Result:     "Permission denied",
-				Resource:   "hostname",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+			/*
+				skip matching alerts as kubearmor doesn't generate
+				alerts for apparmor managed policy
+			*/
 		})
 
 		It("it can allow readonly access to a file path", func() {

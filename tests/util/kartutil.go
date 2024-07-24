@@ -48,6 +48,9 @@ type ConfigMapData struct {
 	DefaultFilePosture         string
 	DefaultCapabilitiesPosture string
 	DefaultNetworkPosture      string
+	AlertThrottling            string
+	MaxAlertPerSec             string
+	ThrottleSec                string
 }
 
 // GetK8sClient function return instance of k8s client
@@ -103,6 +106,9 @@ func NewDefaultConfigMapData() *ConfigMapData {
 	data.DefaultFilePosture = "audit"
 	data.DefaultCapabilitiesPosture = "audit"
 	data.DefaultNetworkPosture = "audit"
+	data.AlertThrottling = "false"
+	data.MaxAlertPerSec = "10"
+	data.ThrottleSec = "30"
 
 	return data
 }
@@ -128,6 +134,9 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 			"defaultFilePosture":         data.DefaultFilePosture,
 			"defaultCapabilitiesPosture": data.DefaultCapabilitiesPosture,
 			"defaultNetworkPosture":      data.DefaultNetworkPosture,
+			"alertThrottling":            data.AlertThrottling,
+			"maxAlertPerSec":             data.MaxAlertPerSec,
+			"throttleSec":                data.ThrottleSec,
 		},
 	}
 
@@ -417,6 +426,26 @@ func DeleteAllHsp() error {
 	return nil
 }
 
+// DeleteAllCsp delete all the kubearmorclusterpolicies
+func DeleteAllCsp() error {
+	csp, err := k8sClient.KSPClientset.KubeArmorClusterPolicies().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "No resource found") {
+			log.Printf("err %v", err)
+		}
+		return err
+	}
+	for _, k := range csp.Items {
+		err = k8sClient.KSPClientset.KubeArmorClusterPolicies().Delete(context.TODO(), k.Name, metav1.DeleteOptions{})
+		if err != nil {
+			log.Errorf("error deleting csp %s", k.Name)
+			return err
+		}
+		log.Printf("deleted csp %s ", k.Name)
+	}
+	return nil
+}
+
 // DeleteAllKsp delete all the kubearmorpolicies from all namespaces
 func DeleteAllKsp() error {
 	namespaces, err := k8sClient.K8sClientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
@@ -506,6 +535,25 @@ func K8sApplyFile(fileName string) error {
 			if err != nil {
 				if strings.Contains(err.Error(), "already exists") {
 					log.Printf("Policy %s already exists ...", ksp.Name)
+					continue
+				}
+				return err
+			}
+			log.Printf("Created policy %q", result.GetObjectMeta().GetName())
+		case *kcV1.KubeArmorClusterPolicy:
+			csp := obj
+
+			csp.Spec.Capabilities = kcV1.CapabilitiesType{
+				MatchCapabilities: append([]kcV1.MatchCapabilitiesType{}, csp.Spec.Capabilities.MatchCapabilities...),
+			}
+			csp.Spec.Network = kcV1.NetworkType{
+				MatchProtocols: append([]kcV1.MatchNetworkProtocolType{}, csp.Spec.Network.MatchProtocols...),
+			}
+
+			result, err := k8sClient.KSPClientset.KubeArmorClusterPolicies().Create(context.TODO(), csp, metav1.CreateOptions{})
+			if err != nil {
+				if strings.Contains(err.Error(), "already exists") {
+					log.Printf("Policy %s already exists ...", csp.Name)
 					continue
 				}
 				return err

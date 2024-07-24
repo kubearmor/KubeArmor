@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-not-in-operator-block-process
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: NotIn
+        values:
+          - nginx1
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+  action:
+    Block
+
+# cluster_policy_test_2
+
+# test
+# $ dash -c apt 
+# apt 2.6.1 (amd64)*.

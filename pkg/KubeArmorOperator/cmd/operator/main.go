@@ -27,6 +27,7 @@ var PathPrefix string
 var DeploymentName string
 var ExtClient *apiextensionsclientset.Clientset
 var Opv1Client *opv1client.Clientset
+var InitDeploy bool
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
@@ -43,7 +44,7 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		nodeWatcher := controllers.NewClusterWatcher(K8sClient, Logger, ExtClient, Opv1Client, PathPrefix, DeploymentName)
+		nodeWatcher := controllers.NewClusterWatcher(K8sClient, Logger, ExtClient, Opv1Client, PathPrefix, DeploymentName, InitDeploy)
 		go nodeWatcher.WatchConfigCrd()
 		nodeWatcher.WatchNodes()
 
@@ -69,6 +70,8 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&LsmOrder, "lsm", "bpf,apparmor,selinux", "lsm preference order to use")
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs/", "path prefix for runtime search")
 	Cmd.PersistentFlags().StringVar(&DeploymentName, "deploymentName", "kubearmor-operator", "operator deployment name")
+	// TODO:- set initDeploy to false by default once this change is added to stable
+	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", true, "Init container deployment")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

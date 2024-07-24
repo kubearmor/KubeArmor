@@ -2,7 +2,7 @@ module github.com/kubearmor/KubeArmor/deployments
 
 go 1.21.0
 
-toolchain go1.21.9
+toolchain go1.21.12
 
 replace (
 	github.com/kubearmor/KubeArmor => ../

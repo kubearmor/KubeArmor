@@ -76,6 +76,9 @@ var (
 	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
 	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
 	ConfigDefaultPostureLogs         string = "defaultPostureLogs"
+	ConfigAlertThrottling            string = "alertThrottling"
+	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
+	ConfigThrottleSec                string = "throttleSec"
 
 	//KubearmorRelayEnvVariables
 
@@ -121,6 +124,9 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
 	ConfigDefaultPostureLogs:         "true",
+	ConfigAlertThrottling:            "false",
+	ConfigMaxAlertPerSec:             "10",
+	ConfigThrottleSec:                "30",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
@@ -153,6 +159,7 @@ var ContainerRuntimeSocketMap = map[string][]string{
 }
 
 var HostPathDirectory = corev1.HostPathDirectory
+var HostPathDirectoryOrCreate = corev1.HostPathDirectoryOrCreate
 var HostPathSocket = corev1.HostPathSocket
 var HostPathFile = corev1.HostPathFile
 
@@ -161,12 +168,6 @@ var EnforcerVolumesMounts = map[string][]corev1.VolumeMount{
 		{
 			Name:      "etc-apparmor-d-path",
 			MountPath: "/etc/apparmor.d",
-		},
-	},
-	"bpf": {
-		{
-			Name:      "sys-fs-bpf-path",
-			MountPath: "/sys/fs/bpf",
 		},
 	},
 }
@@ -178,18 +179,6 @@ var EnforcerVolumes = map[string][]corev1.Volume{
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/etc/apparmor.d",
-					Type: &HostPathDirectory,
-				},
-			},
-		},
-	},
-	"bpf": {
-
-		{
-			Name: "sys-fs-bpf-path",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/fs/bpf",
 					Type: &HostPathDirectory,
 				},
 			},
@@ -212,13 +201,23 @@ func ShortSHA(s string) string {
 	return hex.EncodeToString(res)[:5]
 }
 
-var CommonVolumes = []corev1.Volume{
+var BPFVolumes = []corev1.Volume{
 	{
 		Name: "bpf",
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	},
+}
+
+var BPFVolumesMount = []corev1.VolumeMount{
+	{
+		Name:      "bpf",
+		MountPath: "/opt/kubearmor/BPF",
+	},
+}
+
+var CommonVolumes = []corev1.Volume{
 	{
 		Name: "sys-kernel-debug-path",
 		VolumeSource: corev1.VolumeSource{
@@ -228,30 +227,12 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
-	{
-		Name: "os-release-path",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/etc/os-release",
-				Type: &HostPathFile,
-			},
-		},
-	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
 	{
-		Name:      "bpf",
-		MountPath: "/opt/kubearmor/BPF",
-	},
-	{
 		Name:      "sys-kernel-debug-path",
 		MountPath: "/sys/kernel/debug",
-	},
-	{
-		Name:      "os-release-path",
-		MountPath: "/media/root/etc/os-release",
-		ReadOnly:  true,
 	},
 }
 
@@ -363,6 +344,15 @@ var KernelHeaderVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: "os-release-path",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/etc/os-release",
+				Type: &HostPathFile,
+			},
+		},
+	},
 }
 
 var KernelHeaderVolumesMount = []corev1.VolumeMount{
@@ -374,6 +364,11 @@ var KernelHeaderVolumesMount = []corev1.VolumeMount{
 	{
 		Name:      "lib-modules-path",
 		MountPath: "/lib/modules",
+		ReadOnly:  true,
+	},
+	{
+		Name:      "os-release-path",
+		MountPath: "/media/root/etc/os-release",
 		ReadOnly:  true,
 	},
 }

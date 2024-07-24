@@ -118,7 +118,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorHostPolicy")
-		os.Exit(1)
 	}
 
 	setupLog.Info("Adding KubeArmor policy controller")
