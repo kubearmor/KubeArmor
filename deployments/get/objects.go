@@ -507,16 +507,6 @@ var KubeArmorControllerCertVolume = corev1.Volume{
 	},
 }
 
-var KubeArmorControllerHostPathVolume = corev1.Volume{
-	Name: "sys-path",
-	VolumeSource: corev1.VolumeSource{
-		HostPath: &corev1.HostPathVolumeSource{
-			Path: "/sys/kernel/security",
-			Type: &hostPathDirectory,
-		},
-	},
-}
-
 var KubeArmorControllerAllowPrivilegeEscalation = false
 
 // GetKubeArmorControllerDeployment Function
@@ -549,7 +539,6 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 					ServiceAccountName: KubeArmorControllerServiceAccountName,
 					Volumes: []corev1.Volume{
 						KubeArmorControllerCertVolume,
-						KubeArmorControllerHostPathVolume,
 					},
 					Containers: []corev1.Container{
 						{
@@ -599,11 +588,6 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 									Name:      KubeArmorControllerCertVolume.Name,
 									ReadOnly:  true,
 									MountPath: "/tmp/k8s-webhook-server/serving-certs",
-								},
-								{
-									Name:      KubeArmorControllerHostPathVolume.Name,
-									ReadOnly:  true,
-									MountPath: "/sys/kernel/security",
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
@@ -673,6 +657,11 @@ func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
 				APIGroups: []string{""},
 				Resources: []string{"pods"},
 				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
