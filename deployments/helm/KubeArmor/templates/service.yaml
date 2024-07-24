@@ -34,6 +34,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    kubearmor-app: {{ .Values.kubearmorController.name }}
   name: {{ .Values.kubearmorController.name }}-webhook-service
   namespace: {{.Release.Namespace}}
 spec:
