@@ -444,16 +444,6 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		}
 	} else {
 		deployment.Spec.Template.Spec.NodeSelector = nil
-		for i, container := range deployment.Spec.Template.Spec.Containers {
-			if container.Name == "manager" {
-				for j, mount := range container.VolumeMounts {
-					if mount.MountPath == "/sys/kernel/security" {
-						deployment.Spec.Template.Spec.Containers[i].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[i].VolumeMounts[:j],
-							deployment.Spec.Template.Spec.Containers[i].VolumeMounts[j+1:]...)
-					}
-				}
-			}
-		}
 	}
 	controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
 	if isNotfound(err) {
