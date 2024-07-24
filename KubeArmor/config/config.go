@@ -57,9 +57,10 @@ type KubearmorConfig struct {
 	StateAgent bool // enable KubeArmor state agent
 	UseOCIHooks bool
 
-	AlertThrottling bool // Enable/Disable Alert Throttling
-	MaxAlertPerSec  int  // Maximum alerts allowed per second
-	ThrottleSec     int  // Number of seconds for which subsequent alerts will be dropped
+	AlertThrottling   bool // Enable/Disable Alert Throttling
+	MaxAlertPerSec    int  // Maximum alerts allowed per second
+	ThrottleSec       int  // Number of seconds for which subsequent alerts will be dropped
+	AnnotateResources bool // enable annotations by kubearmor if kubearmor-controller is not present
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -105,6 +106,7 @@ const (
 	ConfigAlertThrottling                string = "alertThrottling"
 	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
 	ConfigThrottleSec                    string = "throttleSec"
+	ConfigAnnotateResources              string = "annotateResources"
 )
 
 func readCmdLineParams() {
@@ -160,6 +162,8 @@ func readCmdLineParams() {
 	maxAlertPerSec := flag.Int(ConfigMaxAlertPerSec, 10, "Maximum alerts allowed per second")
 
 	throttleSec := flag.Int(ConfigThrottleSec, 30, "Time period for which subsequent alerts will be dropped (in sec)")
+
+	annotateResources := flag.Bool(ConfigAnnotateResources, false, "for kubearmor deployment without kubearmor-controller")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -218,8 +222,12 @@ func readCmdLineParams() {
 	viper.SetDefault(UseOCIHooks, *useOCIHooks)
 
 	viper.SetDefault(ConfigAlertThrottling, *alertThrottling)
+
 	viper.SetDefault(ConfigMaxAlertPerSec, *maxAlertPerSec)
+
 	viper.SetDefault(ConfigThrottleSec, *throttleSec)
+
+	viper.SetDefault(ConfigAnnotateResources, *annotateResources)
 }
 
 // LoadConfig Load configuration
@@ -320,6 +328,7 @@ func LoadConfig() error {
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
 	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
+	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
