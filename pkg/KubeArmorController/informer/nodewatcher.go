@@ -76,9 +76,6 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *types.Cluster, log logr.Logge
 				}
 				cluster.ClusterLock.Lock()
 				defer cluster.ClusterLock.Unlock()
-				if _, ok := cluster.Nodes[node.Name]; !ok {
-					return
-				}
 
 				if enforcer, ok := node.Labels["kubearmor.io/enforcer"]; ok {
 					if _, ok := cluster.Nodes[node.Name]; ok {

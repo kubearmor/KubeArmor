@@ -42,6 +42,14 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
+      
+      - name: Check what paths were updated
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            controller:
+              - 'pkg/KubeArmorController/**'
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -60,6 +68,10 @@ jobs:
         working-directory: pkg/KubeArmorOperator
         run: |
           make docker-build
+      
+      - name: Build KubeArmorController
+        if: steps.filter.outputs.controller == 'true'
+        run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
       - name: deploy pre existing pod 
         run: |
@@ -69,11 +81,15 @@ jobs:
 
       - name: Run KubeArmor
         run: |
-          if [ ${{ matrix.runtime }} == "containerd" ]; then
+          if [[ ${{ matrix.runtime }} == "containerd" ]]; then
             docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+            
+            if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then 
+              docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
+            fi
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               docker save kubearmor/kubearmor-init:latest | sudo podman load
@@ -84,12 +100,25 @@ jobs:
               sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
               sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
+              if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
+                docker save kubearmor/kubearmor-controller:latest | sudo podman load
+                sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
+              fi
             fi
           fi
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
+          docker system prune -a -f 
+          docker buildx prune -a -f
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest 
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
-          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml --dry-run=client -o json | \
+            jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
+            kubectl apply -f -
+          else 
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          fi
+
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
           kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch,kubearmor-app!=kubearmor-controller -n kubearmor
           kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
