@@ -130,7 +130,6 @@ jobs:
           kubectl logs $POD_NAME -n kubearmor
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
-          # ginkgo -r --vv --flake-attempts=10 --timeout=30m /hsp /blockposture
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
         env:
