@@ -1,0 +1,53 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: kubearmoroperator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: KubeArmorConfig is the Schema for the kubearmorconfigs API
+      displayName: Kube Armor Config
+      kind: KubeArmorConfig
+      name: kubearmorconfigs.operator.kubearmor.com
+      version: v1
+  description: kubearmor-operator deploy and manages kubearmor componenets om a k8s
+    cluster.
+  displayName: kubearmor-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - kubearmor
+  - cncf
+  - cloud native
+  - runtime security
+  - security
+  links:
+  - name: Kubearmoroperator
+    url: https://kubearmoroperator.domain
+  maintainers:
+  - email: ramakant@accuknox.com
+    name: ramakant sharma
+  maturity: alpha
+  provider:
+    name: Accuknox
+    url: https://accuknox.com
+  version: 0.0.0

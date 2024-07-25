@@ -1,23 +1,61 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2022 Authors of KubeArmor
 
-CURDIR    := $(shell pwd)
-DEPLOYDIR := $(realpath $(CURDIR)/../../deployments)
-CHARTDIR  := $(realpath $(DEPLOYDIR)/helm/KubeArmorOperator)
-CRDDIR    := $(realpath $(CHARTDIR)/crds)
+# VERSION defines the project version for the bundle.
+# Update this value when you upgrade the version of your project.
+# To re-generate a bundle for another specific version without changing the standard setup, you can:
+# - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
+# - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
+VERSION ?= v0.0.1
 
-# Image URL to use all building/pushing image targets
+# CHANNELS define the bundle channels used in the bundle.
+# Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
+# To re-generate a bundle for other specific channels without changing the standard setup, you can:
+# - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=candidate,fast,stable)
+# - use environment variables to overwrite this value (e.g export CHANNELS="candidate,fast,stable")
+ifneq ($(origin CHANNELS), undefined)
+BUNDLE_CHANNELS := --channels=$(CHANNELS)
+endif
+
+# DEFAULT_CHANNEL defines the default channel used in the bundle.
+# Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
+# To re-generate a bundle for any other default channel without changing the default setup, you can:
+# - use the DEFAULT_CHANNEL as arg of the bundle target (e.g make bundle DEFAULT_CHANNEL=stable)
+# - use environment variables to overwrite this value (e.g export DEFAULT_CHANNEL="stable")
+ifneq ($(origin DEFAULT_CHANNEL), undefined)
+BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
+endif
+BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+
+# IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
+# This variable is used to construct full image tags for bundle and catalog images.
+#
+# For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
+# kubearmor.com/kubearmoroperator-bundle:$VERSION and kubearmor.com/kubearmoroperator-catalog:$VERSION.
+IMAGE_TAG_BASE ?= kubearmor/kubearmor-operator
 OPERATOR_IMG ?= kubearmor/kubearmor-operator
 SNITCH_IMG ?= kubearmor/kubearmor-snitch
-# Image Tag to use all building/pushing image targets
-TAG ?= v0.1
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
-# Target platforms for build
-PLATFORM ?= "linux/amd64,linux/arm64/v8"
+# BUNDLE_IMG defines the image:tag used for the bundle.
+# You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
+BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:$(VERSION)
 
-BUNDLE_PKG ?= kubearmor-operator
-BUNDLE_VER ?= latest
+# BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
+BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+
+# USE_IMAGE_DIGESTS defines if images are resolved via tags or digests
+# You can enable this value if you would like to use SHA Based Digests
+# To enable set flag to true
+USE_IMAGE_DIGESTS ?= false
+ifeq ($(USE_IMAGE_DIGESTS), true)
+	BUNDLE_GEN_FLAGS += --use-image-digests
+endif
+
+# Set the Operator SDK version to use. By default, what is installed on the system is used.
+# This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
+OPERATOR_SDK_VERSION ?= v1.35.0
+
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.28.3
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -26,20 +64,25 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# CONTAINER_TOOL defines the container tool to be used for building images.
+# Be aware that the target commands are only tested with Docker which is
+# scaffolded by default. However, you might want to replace it to use other
+# tools. (i.e. podman)
+CONTAINER_TOOL ?= docker
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
-# This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 .PHONY: all
-all: get snitch kubearmor-operator
+all: build
 
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
 # beneath their categories. The categories are represented by '##@' and the
-# target descriptions by '##'. The awk commands is responsible for reading the
+# target descriptions by '##'. The awk command is responsible for reading the
 # entire set of makefiles included in this invocation, looking for lines of the
 # file as xyz: ## something, and then pretty-format the target and help. Then,
 # if there's a line with ##@ something, that gets pretty-printed as a category.
@@ -47,6 +90,20 @@ all: get snitch kubearmor-operator
 # https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters
 # More info on the awk command:
 # http://linuxcommand.org/lc3_adv_awk.php
+
+.PHONY: help
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+##@ Development
+
+.PHONY: manifests
+manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+.PHONY: generate
+generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -56,52 +113,79 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: get
-get: tidy
-	go get ./...
+.PHONY: test
+test: manifests generate fmt vet envtest ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
-.PHONY: tidy
-tidy:
-	go mod tidy
+# Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
+.PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
+test-e2e:
+	go test ./test/e2e/ -v -ginkgo.v
+	
+GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
+GOLANGCI_LINT_VERSION ?= v1.54.2
+golangci-lint:
+	@[ -f $(GOLANGCI_LINT) ] || { \
+	set -e ;\
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell dirname $(GOLANGCI_LINT)) $(GOLANGCI_LINT_VERSION) ;\
+	}
 
+.PHONY: lint
+lint: golangci-lint ## Run golangci-lint linter & yamllint
+	$(GOLANGCI_LINT) run
+
+.PHONY: lint-fix
+lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
+	$(GOLANGCI_LINT) run --fix
+
+##@ Build
 .PHONY: kubearmor-operator
-kubearmor-operator: get
+kubearmor-operator:
 	go build -o kubearmor-operator cmd/operator/main.go
 
 .PHONY: snitch
-snitch: get
+snitch:
 	go build -o snitch cmd/snitch-cmd/main.go
 
 .PHONY: build
-build: snitch kubearmor-operator
+build: manifests generate fmt vet snitch kubearmor-operator ## Build manager binary.
 
+# TODO use kustomize to use crd with caBundle patch for local developement
+.PHONY: run 
+run: manifests generate fmt vet install-dev ## Run a controller from your host.
+	go run ./cmd/operator/main.go --directory=../../deployments/helm/KubeArmor --skip-crd=true
+
+# If you wish to build the manager image targeting other platforms you can use the --platform flag.
+# (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
+# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t ${OPERATOR_IMG}:${TAG} -t ${OPERATOR_IMG}:latest --build-arg VERSION=${TAG} --target operator -f ./Dockerfile ../../
-	docker build -t ${SNITCH_IMG}:${TAG} -t ${SNITCH_IMG}:latest --build-arg VERSION=${TAG} --target snitch -f ./Dockerfile ../../
-
+	$(CONTAINER_TOOL) build -t ${OPERATOR_IMG}:${VERSION} -t ${OPERATOR_IMG}:latest --build-arg VERSION=${VERSION} --target operator .
+	$(CONTAINER_TOOL) build	-t ${SNITCH_IMG}:${VERSION} -t ${SNITCH_IMG}:latest --build-arg VERSION=${VERSION} --target snitch .
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${OPERATOR_IMG}:${TAG}
-	docker push ${SNITCH_IMG}:${TAG}
+	$(CONTAINER_TOOL) push ${OPERATOR_IMG}:${VERSION}
+	$(CONTAINER_TOOL) push ${SNITCH_IMG}:${VERSION}
 
-docker-buildx:
-	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push --target operator -t ${OPERATOR_IMG}:${TAG} -f ./Dockerfile ../../
-	docker buildx build --platform ${PLATFORM} --build-arg VERSION=${TAG} --push --target snitch -t ${SNITCH_IMG}:${TAG} -f ./Dockerfile ../../
+# PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
+# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
+# - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
+# - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
+# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
+# To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
+PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+.PHONY: docker-buildx
+docker-buildx: ## Build and push docker image for the manager for cross-platform support
+	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
+	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
+	$(CONTAINER_TOOL) buildx use project-v3-builder
+	- $(CONTAINER_TOOL) buildx build --platform ${PLATFORM} --build-arg VERSION=${VERSION} --push --target operator -t ${OPERATOR_IMG}:${VERSION} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --platform ${PLATFORM} --build-arg VERSION=${VERSION} --push --target snitch -t ${SNITCH_IMG}:${VERSION} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx rm project-v3-builder
+	rm Dockerfile.cross
 
-KUSTOMIZE_VERSION ?= v5.2.1
-KUSTOMIZE = $(GOBIN)/kustomize
-.PHONY: kustomize
-kustomize: ## Download kustomize locally if necessary.
-	GOBIN=$(GOBIN) go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
-
-OPERATOR_SDK = ./bin/operator-sdk
-.PHONY: operator-sdk
-operator-sdk:
-	@echo "Installing Operator SDK..."
-	curl -LO https://github.com/operator-framework/operator-sdk/releases/latest/download/operator-sdk_linux_amd64
-	chmod +x operator-sdk_linux_amd64
-	sudo mv operator-sdk_linux_amd64 ./bin/operator-sdk
+##@ Deployment
 
 ifndef ignore-not-found
   ignore-not-found = false
@@ -109,35 +193,137 @@ endif
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+
+.PHONY: install-dev
+install-dev: manifests kustomize create_crd_patch
+	@cp -R config/crd/bases config/dev/bases
+	$(KUSTOMIZE) build config/dev | $(KUBECTL) apply -f -
+	@rm -rf config/dev/bases
 
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: kustomize ## Deploy Operator Deployment, ClusterRole and ServiceAccount objects.
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${OPERATOR_IMG}
+	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
-.PHONY: manifests
-manifests: controller-gen kustomize## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	go mod tidy; $(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+##@ Build Dependencies
 
-	rm -r $(CRDDIR)/* && cp config/crd/bases/* $(CRDDIR)/
-	$(KUSTOMIZE) build config/default | tee $(DEPLOYDIR)/operator/operator.yaml
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
 
-.PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	go mod tidy; $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+## Tool Binaries
+KUBECTL ?= kubectl
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
 
-CONTROLLER_GEN = $(GOBIN)/controller-gen
+## Tool Versions
+KUSTOMIZE_VERSION ?= v5.2.1
+CONTROLLER_TOOLS_VERSION ?= v0.14.0
+
+.PHONY: kustomize
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
+$(KUSTOMIZE): $(LOCALBIN)
+	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
+		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/kustomize; \
+	fi
+	test -s $(LOCALBIN)/kustomize || GOBIN=$(LOCALBIN) GO111MODULE=on go install sigs.k8s.io/kustomize/kustomize/v5@$(KUSTOMIZE_VERSION)
+
 .PHONY: controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+.PHONY: envtest
+envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
+$(ENVTEST): $(LOCALBIN)
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifeq (,$(wildcard $(OPERATOR_SDK)))
+ifeq (, $(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
+endif
+endif
+
+.PHONY: bundle
+bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
+	$(OPERATOR_SDK) generate kustomize manifests -q
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
+	$(OPERATOR_SDK) bundle validate ./bundle
+
+.PHONY: bundle-build
+bundle-build: ## Build the bundle image.
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push: ## Push the bundle image.
+	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+.PHONY: opm
+OPM = $(LOCALBIN)/opm
+opm: ## Download opm locally if necessary.
+ifeq (,$(wildcard $(OPM)))
+ifeq (,$(shell which opm 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPM)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
+	chmod +x $(OPM) ;\
+	}
+else
+OPM = $(shell which opm)
+endif
+endif
+
+# A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
+# These images MUST exist in a registry and be pull-able.
+BUNDLE_IMGS ?= $(BUNDLE_IMG)
+
+# The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+
+# Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
+ifneq ($(origin CATALOG_BASE_IMG), undefined)
+FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
+endif
+
+# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
+# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
+# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+.PHONY: catalog-build
+catalog-build: opm ## Build a catalog image.
+	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+
+# Push the catalog image.
+.PHONY: catalog-push
+catalog-push: ## Push a catalog image.
+	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
 
 client/gen:
 	@echo "--> Running code-generator to generate clients"
@@ -145,15 +331,65 @@ client/gen:
 	@mkdir -p ./tmp/code-generator
 	@git clone https://github.com/kubernetes/code-generator.git --branch v0.22.1 --single-branch  ./tmp/code-generator
 	# generate client
-	GOPATH= GOROOT= ./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api operator.kubearmor.com:v1 --go-header-file hack/boilerplate.go.txt
+	GOPATH= GOROOT= ./tmp/code-generator/generate-groups.sh "all" github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api operator.kubearmor.com:v1,v2 --go-header-file hack/boilerplate.go.txt
 	# check generated client at ./pkg/client
 	@cp -r ./github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/* ./client/
 	@rm -rf ./github.com ./tmp/code-generator
 
-.PHONY: bundle
-bundle: operator-sdk
-	${OPERATOR_SDK} generate bundle --version ${BUNDLE_VER} --input-dir ./config --output-dir ./bundle --package ${BUNDLE_PKG}
 
-.PHONY: clean
-clean:
-	rm snitch kubearmor-operator
+CFSSL := $(LOCALBIN)/cfssl
+CFSSLJSON := $(LOCALBIN)/cfssljson
+cfssl:
+ifeq (,$(wildcard $(CFSSL)))
+ifeq (,$(shell ls $(CFSSL) 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(CFSSL)) ;\
+	GOBIN=$(LOCALBIN) go install github.com/cloudflare/cfssl/cmd/cfssl@latest;\
+	GOBIN=$(LOCALBIN) go install github.com/cloudflare/cfssl/cmd/cfssljson@latest;\
+	}
+endif
+endif
+
+generate_certs: server_cert
+
+CERTS_DIR := $(shell pwd)/certs
+CA_CERT := $(CERTS_DIR)/ca.pem
+CA_KEY := $(CERTS_DIR)/ca-key.pem
+SERVER_CSR := $(CERTS_DIR)/server.csr
+SERVER_CERT := $(CERTS_DIR)/server.pem
+SERVER_KEY := $(CERTS_DIR)/server-key.pem
+K8S_WEBHOOK_DIRECTORY := /tmp/k8s-webhook-server/serving-certs
+ca_cert:
+	@mkdir -p $(CERTS_DIR)
+	echo '{"CN":"CA","key":{"algo":"rsa","size":2048},"names":[{"C":"US","ST":"State","L":"City","O":"Organization","OU":"Unit"}]}' | $(CFSSL) gencert -initca - | $(CFSSLJSON) -bare $(CERTS_DIR)/ca
+
+server_csr: ca_cert
+	echo '{"CN":"server","hosts":["localhost","127.0.0.1"],"key":{"algo":"rsa","size":2048},"names":[{"C":"US","ST":"State","L":"City","O":"Organization","OU":"Unit"}]}' | $(CFSSL) genkey - | $(CFSSLJSON) -bare $(CERTS_DIR)/server
+
+server_cert: cfssl server_csr ca_cert
+	$(CFSSL) sign -ca=$(CA_CERT) -ca-key=$(CA_KEY) -hostname="localhost,127.0.0.1" $(CERTS_DIR)/server.csr | $(CFSSLJSON) -bare $(CERTS_DIR)/server
+	@mkdir -p $(K8S_WEBHOOK_DIRECTORY)
+	@cp $(SERVER_CERT) $(K8S_WEBHOOK_DIRECTORY)/tls.crt
+	@cp $(SERVER_KEY) $(K8S_WEBHOOK_DIRECTORY)/tls.key
+	@cp $(CA_CERT) $(K8S_WEBHOOK_DIRECTORY)/ca.crt
+
+YQ := $(LOCALBIN)/yq
+yq:
+ifeq (,$(wildcard $(YQ)))
+ifeq (,$(shell ls $(YQ) 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(YQ)) ;\
+	curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o $(YQ); \
+	chmod +x $(YQ); \
+	}
+endif
+endif
+
+DEV_CRD_PATCH_YAML := $(shell pwd)/config/dev/patches/webhook_in_kubearmorconfigs.yaml
+create_crd_patch: generate_certs yq
+	@CA_BUNDLE=$$(cat $(CA_CERT) | base64 | tr -d '\n'); \
+	$(YQ) eval ".spec.conversion.webhook.clientConfig.caBundle = \"$$CA_BUNDLE\"" $(DEV_CRD_PATCH_YAML) -i
+	@echo "Patched $(DEV_CRD_PATCH_YAML) with caBundle."
+	@rm -rf $(CERTS_DIR)
