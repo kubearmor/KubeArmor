@@ -194,7 +194,7 @@ jobs:
 
 
   docker-compose-coverage:
-    name: Build KubeArmor test artifacts and run tests / ${{ matrix.os }}
+    name: Calculate coverage in docker mode / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -226,6 +226,7 @@ jobs:
 
       - name: Run KubeArmor test container
         run: |
+          sudo mkdir -p /coverage
           docker run -d --name kubearmor-test --privileged --pid host -p 32767:32767 \
           -v /tmp/:/opt/kubearmor/BPF \
           -v /sys/fs/bpf:/sys/fs/bpf \
@@ -234,8 +235,8 @@ jobs:
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v /var/lib/docker:/var/lib/docker \
           -v /etc/apparmor.d:/etc/apparmor.d \
-          -v /tmp/coverage/:/coverage/ \
-          kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=/coverage/coverage_docker_${{ matrix.os }}.out
+          -v /coverage/:/coverage/ \
+          kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=/coverage/coverage_docker.out
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -253,8 +254,8 @@ jobs:
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
           sleep 15
           for i in {1..24}; do
-            if [ -f /tmp/coverage/coverage_docker_${{ matrix.os }}.out ]; then
-              cp /tmp/coverage/coverage_docker_${{ matrix.os }}.out coverage_docker_${{ matrix.os }}.out
+            if [ -f /coverage/coverage_docker.out ]; then
+              cp /coverage/coverage_docker.out coverage_docker_${{ matrix.os }}.out
               break
             fi
             sleep 5
@@ -289,7 +290,7 @@ jobs:
 
 
   calculate-systemd-coverage:
-    name: Calculate coverage in systemd mode
+    name: Calculate coverage in systemd mode / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
