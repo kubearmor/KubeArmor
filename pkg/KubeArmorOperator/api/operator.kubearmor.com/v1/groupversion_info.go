@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 Authors of KubeArmor
+// Copyright 2022 Authors of KubeArmor
 
 // Package v1 contains API Schema definitions for the operator v1 API group
 // +kubebuilder:object:generate=true
@@ -13,10 +13,13 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: "operator.kubearmor.com", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: "operator.kubearmor.com", Version: "v1"}
+
+	// SchemeGroupVersion Manually added filed for typed client compatibility
+	SchemeGroupVersion = GroupVersion
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
