@@ -301,10 +301,92 @@ jobs:
       #     files: ./KubeArmor/coverage_docker.out
       #     token: ${{ secrets.CODECOV_TOKEN }}
 
+  calculate-systemd-coverage:
+    name: Calculate coverage in systemd mode
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+    
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          install-only: true
+          version: v1.25.0
+
+      - name: Build Systemd Release
+        run: make local-release
+        working-directory: KubeArmor
+
+      - name: Install KubeArmor
+        run: sudo apt install -y ./dist/kubearmor*amd64.deb
+        working-directory: KubeArmor
+
+      - name: Compile test binary
+        run: go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+        working-directory: KubeArmor
+
+      - name: Replace with test binary
+        run: |
+          sudo mkdir -p /coverage
+          sudo rm /opt/kubearmor/kubearmor
+          sudo cp kubearmor-test /opt/kubearmor/
+          ls -l /opt/kubearmor/
+          sudo sed -i 's|ExecStart=/opt/kubearmor/kubearmor|ExecStart=/opt/kubearmor/kubearmor-test -test.coverprofile=/coverage/coverage_systemd.out|' /lib/systemd/system/kubearmor.service
+          sudo systemctl daemon-reload
+          sudo systemctl restart kubearmor.service
+        working-directory: KubeArmor
+      
+      - name: Check journalctl
+        run: sudo journalctl -u kubearmor --no-pager || true
+
+      - name: Test kubearmor using ginkgo 
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          make
+        working-directory: ./tests/nonk8s_env
+        timeout-minutes: 30
+      
+      - name: Kill kubearmor process and copy coverage file
+        run: |
+          sudo systemctl stop kubearmor
+          sleep 15
+          sudo cp /coverage/coverage_systemd.out coverage_systemd.out
+        working-directory: KubeArmor
+      
+      - name: Measure code coverage
+        if: ${{ always() }}
+        run: |
+          ls -l
+          go tool cover -func coverage_systemd.out
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - name: Save coverage file
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-systemd
+          path: KubeArmor/coverage_systemd.out
+
   merge-and-upload-coverage:
     name: Merge and Upload Coverage
     runs-on: ubuntu-latest
-    needs: [calculate-k8s-coverage, docker-compose-coverage]
+    needs: [calculate-k8s-coverage, docker-compose-coverage, calculate-systemd-coverage]
     steps:
       - uses: actions/checkout@v3
         with:
