@@ -192,12 +192,6 @@ jobs:
           name: coverage-k8s-${{ matrix.os }}-${{ matrix.runtime }}
           path: KubeArmor/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
 
-      # - uses: codecov/codecov-action@v4
-      #   if: ${{ always() }}
-      #   with:
-      #     files: ./KubeArmor/coverage_k8s.out
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-
 
   docker-compose-coverage:
     name: Build KubeArmor test artifacts and run tests / ${{ matrix.os }}
@@ -241,7 +235,7 @@ jobs:
           -v /var/lib/docker:/var/lib/docker \
           -v /etc/apparmor.d:/etc/apparmor.d \
           -v /tmp/coverage/:/coverage/ \
-          kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=/coverage/coverage_docker.out
+          kubearmor/kubearmor-test:latest -k8s=false -enableKubeArmorHostPolicy -coverageTest=false -test.coverprofile=/coverage/coverage_docker_${{ matrix.os }}.out
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -259,8 +253,8 @@ jobs:
           docker exec $CONTAINER_ID sh -c "kill -s SIGINT $KUBEARMOR_PID"
           sleep 15
           for i in {1..24}; do
-            if [ -f /tmp/coverage/coverage_docker.out ]; then
-              cp /tmp/coverage/coverage_docker.out coverage_docker.out
+            if [ -f /tmp/coverage/coverage_docker_${{ matrix.os }}.out ]; then
+              cp /tmp/coverage/coverage_docker_${{ matrix.os }}.out coverage_docker_${{ matrix.os }}.out
               break
             fi
             sleep 5
@@ -281,9 +275,7 @@ jobs:
         if: ${{ always() }}
         run: |
           ls -l
-          go tool cover -func coverage_docker.out
-          # go install github.com/modocache/gover@latest
-          # gover
+          go tool cover -func coverage_docker_${{ matrix.os }}.out
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
@@ -293,19 +285,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-docker
-          path: KubeArmor/coverage_docker.out
+          path: KubeArmor/coverage_docker_${{ matrix.os }}.out
 
-      # - uses: codecov/codecov-action@v4
-      #   if: ${{ always() }}
-      #   with:
-      #     files: ./KubeArmor/coverage_docker.out
-      #     token: ${{ secrets.CODECOV_TOKEN }}
 
   calculate-systemd-coverage:
     name: Calculate coverage in systemd mode
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
         with:
@@ -345,7 +335,7 @@ jobs:
           sudo rm /opt/kubearmor/kubearmor
           sudo cp kubearmor-test /opt/kubearmor/
           ls -l /opt/kubearmor/
-          sudo sed -i 's|ExecStart=/opt/kubearmor/kubearmor|ExecStart=/opt/kubearmor/kubearmor-test -test.coverprofile=/coverage/coverage_systemd.out|' /lib/systemd/system/kubearmor.service
+          sudo sed -i 's|ExecStart=/opt/kubearmor/kubearmor|ExecStart=/opt/kubearmor/kubearmor-test -test.coverprofile=/coverage/coverage_systemd_${{ matrix.os }}.out|' /lib/systemd/system/kubearmor.service
           sudo systemctl daemon-reload
           sudo systemctl restart kubearmor.service
         working-directory: KubeArmor
@@ -364,14 +354,14 @@ jobs:
         run: |
           sudo systemctl stop kubearmor
           sleep 15
-          sudo cp /coverage/coverage_systemd.out coverage_systemd.out
+          sudo cp /coverage/coverage_systemd_${{ matrix.os }}.out coverage_systemd_${{ matrix.os }}.out
         working-directory: KubeArmor
       
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
           ls -l
-          go tool cover -func coverage_systemd.out
+          go tool cover -func coverage_systemd_${{ matrix.os }}.out
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
@@ -381,8 +371,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-systemd
-          path: KubeArmor/coverage_systemd.out
+          path: KubeArmor/coverage_systemd_${{ matrix.os }}.out
 
+          
   merge-and-upload-coverage:
     name: Merge and Upload Coverage
     runs-on: ubuntu-latest
@@ -403,22 +394,6 @@ jobs:
           pattern: coverage*
           merge-multiple: true
 
-      # - name: Merge coverage files
-      #   run: |
-      #     ls -l | grep coverage
-      #     go install github.com/wadey/gocovmerge@latest
-      #     gocovmerge *.out > merged_coverage.out
-      #   working-directory: KubeArmor
-
-      # - name: Measure code coverage
-      #   run: |
-      #     ls -l
-      #     go tool cover -func merged_coverage.out
-      #   working-directory: KubeArmor
-      #   env:
-      #     GOPATH: /home/runner/go
-
       - uses: codecov/codecov-action@v4
         with:
-          # files: KubeArmor/merged_coverage.out
           token: ${{ secrets.CODECOV_TOKEN }}
