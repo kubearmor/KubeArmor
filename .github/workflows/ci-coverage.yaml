@@ -284,7 +284,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-docker
+          name: coverage-docker-${{ matrix.os }}
           path: KubeArmor/coverage_docker_${{ matrix.os }}.out
 
 
@@ -376,7 +376,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-systemd
+          name: coverage-systemd-${{ matrix.os }}
           path: KubeArmor/coverage_systemd_${{ matrix.os }}.out
 
 
