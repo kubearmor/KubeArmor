@@ -335,7 +335,7 @@ jobs:
           sudo rm /opt/kubearmor/kubearmor
           sudo cp kubearmor-test /opt/kubearmor/
           ls -l /opt/kubearmor/
-          sudo sed -i 's|ExecStart=/opt/kubearmor/kubearmor|ExecStart=/opt/kubearmor/kubearmor-test -test.coverprofile=/coverage/coverage_systemd_${{ matrix.os }}.out|' /lib/systemd/system/kubearmor.service
+          sudo sed -i 's|ExecStart=/opt/kubearmor/kubearmor|ExecStart=/opt/kubearmor/kubearmor-test -test.coverprofile=/coverage/coverage_systemd.out|' /lib/systemd/system/kubearmor.service
           sudo systemctl daemon-reload
           sudo systemctl restart kubearmor.service
         working-directory: KubeArmor
@@ -354,7 +354,13 @@ jobs:
         run: |
           sudo systemctl stop kubearmor
           sleep 15
-          sudo cp /coverage/coverage_systemd_${{ matrix.os }}.out coverage_systemd_${{ matrix.os }}.out
+          for i in {1..24}; do
+            if [ -f /coverage/coverage_systemd.out ]; then
+              sudo cp /coverage/coverage_systemd.out coverage_systemd_${{ matrix.os }}.out
+              break
+            fi
+            sleep 5
+          done
         working-directory: KubeArmor
       
       - name: Measure code coverage
@@ -373,7 +379,7 @@ jobs:
           name: coverage-systemd
           path: KubeArmor/coverage_systemd_${{ matrix.os }}.out
 
-          
+
   merge-and-upload-coverage:
     name: Merge and Upload Coverage
     runs-on: ubuntu-latest
