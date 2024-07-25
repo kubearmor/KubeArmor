@@ -1,12 +1,12 @@
 {{- if .Values.autoDeploy }}
-apiVersion: operator.kubearmor.com/v1
+apiVersion: operator.kubearmor.com/v2
 kind: KubeArmorConfig
 metadata:
     annotations:
         "helm.sh/hook": post-install,post-upgrade
     labels:
         app.kubernetes.io/name: kubearmorconfig
-        app.kubernetes.io/instance: kubearmorconfig-sample
+        app.kubernetes.io/instance: kubearmorconfig-default
         app.kubernetes.io/part-of: kubearmoroperator
         app.kubernetes.io/managed-by: kustomize
         app.kubernetes.io/created-by: kubearmoroperator
