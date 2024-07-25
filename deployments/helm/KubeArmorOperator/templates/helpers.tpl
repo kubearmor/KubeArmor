@@ -22,3 +22,23 @@
 {{- printf "%s:%s" .Values.kubearmorOperator.image.repository .Values.kubearmorOperator.image.tag }}
 {{- end }}
 {{- end }}
+
+{{- define "generateArgs" }}
+{{- if .Values.helm.repository }}
+- --repository={{.Values.helm.repository}}
+{{- end }}
+{{- if .Values.helm.version }}
+- --version={{.Values.helm.version}}
+{{- end }}
+{{- if .Values.helm.directory }}
+- --directory={{.Values.helm.directory}}
+{{- end }}
+{{- if .Values.helm.chart }}
+- --chart={{.Values.helm.chart}}
+{{- end }}
+- --rollbackOnFailure={{.Values.helm.rollbackOnFailure}}
+- --skip-crd={{.Values.helm.skipCRD}}
+- --snitchImage={{ printf "%s:%s" .Values.snitch.image.repository (default .Chart.Version .Values.snitch.image.tag) }}
+- --snitchImagePullPolicy={{ .Values.snitch.imagePullPolicy }}
+- --lsmOrder={{ .Values.snitch.lsmOrder }}
+{{- end }}

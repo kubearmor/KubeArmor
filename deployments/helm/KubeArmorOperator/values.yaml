@@ -29,27 +29,53 @@ oci_meta:
       image: kube-rbac-proxy
       tag: v0.15.0
 
+snitch:
+  image: 
+    repository: kubearmor/kubearmor-snitch
+    tag: latest
+  imagePullPolicy: IfNotPresent
+  lsmOrder: "bpf,apparmor,selinux"
+
+helm:
+  # repository: https://kubearmor.github.io/charts / embed
+  # chart: kubearmor-operator
+  # version: v1.3.8
+  repository: ""
+  version: ""
+  directory: ""
+  # chartref/release name/
+  chart: ""
+  rollbackOnFailure: false
+  skipCRD: false
+
 # in case if image pinning is disabled
 kubearmorOperator:
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
-    tag: ""
+    tag: latest
   imagePullPolicy: IfNotPresent
-  initDeploy: true
+  #   imagePullSecrets:
+  #   - name: secretName
+  imagePullSecrets: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  tolerations: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+  priorityClassName: ""
 
 kubearmorConfig:
-  defaultCapabilitiesPosture: audit
-  defaultFilePosture: audit
-  defaultNetworkPosture: audit
-  defaultVisibility: process,network
-  enableStdOutLogs: false
-  enableStdOutAlerts: false
-  enableStdOutMsgs: false
-  seccompEnabled: true
-  alertThrottling: true
-  maxAlertPerSec: 10
-  throttleSec: 30
+  kubearmorConfigMap:
+    defaultCapabilitiesPosture: audit
+    defaultFilePosture: audit
+    defaultNetworkPosture: audit
+    defaultVisibility: process,network
+    enableStdOutLogs: false
+    enableStdOutAlerts: false
+    enableStdOutMsgs: false
+    seccompEnabled: true
+    alertThrottling: true
+    maxAlertPerSec: 10
+    throttleSec: 30
 
 # DO NOT CHANGE THIS VALUES 
 # changing these values will require code changes with the operator
