@@ -88,10 +88,12 @@ jobs:
             docker save kubearmor/kubearmor-controller:latest | sudo podman load
           fi          
           
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
-          kubectl get pods -A
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest \
+            --set helm.repository=embed --set helm.version=v1.3.8 --set helm.chart=kubearmor
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
-
+          kubectl get pods -A
+          sleep 3 # need this sleep because webhook server initialization may take some time
+          kubectl wait --for=condition=established --timeout=5m crd/kubearmorconfigs.operator.kubearmor.com
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
             kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml --dry-run=client -o json | \
             jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
@@ -99,15 +101,9 @@ jobs:
           else 
             kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml
           fi
-
-          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch,kubearmor-app!=kubearmor-controller -n kubearmor
-          kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
+          kubectl wait --for=condition=ReleaseDeployed --timeout=5m kubearmorconfig.operator.kubearmor.com/kubearmorconfig-test -n kubearmor
+          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
-      
-      - name: Operator may take upto 10 sec to enable TLS, Sleep for 15Sec
-        run: |
-          sleep 15
       
       - name: Test KubeArmor using Ginkgo
         run: |
