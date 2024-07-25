@@ -68,10 +68,15 @@ jobs:
           docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
           
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest \
+            --set kubearmorOperator.imagePullPolicy=Never --set snitch.imagePullPolicy=Never --set helm.repository=embed --set helm.version=v1.3.8 --set helm.chart=kubearmor
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          # DEBUG
+          kubectl logs -n kubearmor -l kubearmor-app=kubearmor-operator -f&
+          # DEBUG
           kubectl get pods -A
-
+          sleep 3 # need this sleep because webhook server initialization may take some time
+          kubectl wait --for=condition=established --timeout=5m crd/kubearmorconfigs.operator.kubearmor.com
           # create kubearmorconfig
           if [[ ${{ steps.filter.outputs.kubearmor }} == 'true' ]]; then
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
@@ -86,32 +91,16 @@ jobs:
             jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never" | .spec.kubearmorImage.imagePullPolicy = "Always" | .spec.kubearmorInitImage.imagePullPolicy = "Always"' | \
             kubectl apply -f -
           fi
-          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          timeout 7m bash -c -- '
-          while true; do
-          all_running=true
-          echo "Checking pod status..."
-          for pod_status in $(kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch --output=jsonpath="{.items[*].status.phase}" 2>/dev/null); do
-          if [ "$pod_status" != "Running" ]; then
-          all_running=false
-          echo "Waiting for pods to be Running..."
-          break
-          fi
-          done
-          
-          if $all_running; then
-          echo "All pods are Running."
-          break
-          fi
-          
-          if kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch | grep CrashLoopBackOff; then
-          echo "Error: Pod in CrashLoopBackOff state"
-          exit 1
-          fi
-          
-          sleep 1
-          done
-          '
+          # DEBUG
+          kubectl describe job -n kubearmor -l kubearmor-app=kubearmor-snitch
+          kubectl get sa -n kubearmor kubearmor-snitch
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor-snitch
+          kubectl wait --for=condition=complete --timeout=5m -n kubearmor job -l kubearmor-app=kubearmor-snitch
+          kubectl logs -n kubearmor -l kubearmor-app=kubearmor-snitch
+          # DEBUD
+          kubectl wait --for=condition=ReleaseDeployed --timeout=5m kubearmorconfig.operator.kubearmor.com/kubearmorconfig-test -n kubearmor
+          kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
+          kubectl get pods -A
 
       - name: Test KubeArmor using Ginkgo
         run: |
