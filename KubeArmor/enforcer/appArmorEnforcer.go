@@ -427,7 +427,7 @@ func (ae *AppArmorEnforcer) RegisterAppArmorHostProfile() bool {
 
 	ae.Logger.Printf("Registered the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
 
-	ae.ClearKubeArmorHostFile(appArmorHostFile)
+	// ae.ClearKubeArmorHostFile(appArmorHostFile)
 
 	return true
 }
@@ -618,7 +618,7 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 
 		ae.Logger.Printf("Updated %d host security rules to the KubeArmor host profile in %s", policyCount, cfg.GlobalCfg.Host)
 
-		ae.ClearKubeArmorHostFile(appArmorHostFile)
+		// ae.ClearKubeArmorHostFile(appArmorHostFile)
 	}
 }
 
