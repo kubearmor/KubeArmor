@@ -1,25 +1,26 @@
 coverage:
-   status:
-     project:
-       default:
-         target: auto
-         threshold: 5%
-         base: auto
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 5%
+        base: auto
 
- ignore:
-   - "KubeArmor/enforcer/SELinuxEnforcer.go"
-   - "KubeArmor/enforcer/SELinuxEnforcer_test.go"
-   - "KubeArmor/enforcer/SELinuxHostProfile.go"
-   - "KubeArmor/kvmAgent"
- comment:
-   layout: "reach, diff, flags, files"
-   behavior: default
-   require_changes: true
+ignore:
+  - "KubeArmor/enforcer/SELinuxEnforcer.go"
+  - "KubeArmor/enforcer/SELinuxEnforcer_test.go"
+  - "KubeArmor/enforcer/SELinuxHostProfile.go"
+  - "KubeArmor/kvmAgent"
 
- parsers:
-   gcov:
-     branch_detection:
-       conditional: yes
-       loop: yes
-       method: no
-       macro: no
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
