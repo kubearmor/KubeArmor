@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-in-operator-block-file-access
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: In
+        values:
+          - nginx2
+  file:
+    matchPaths:
+    - path: /etc/host.conf
+      fromSource:
+      - path: /usr/bin/cat
+  action:
+    Block
+
+# cluster_policy_test_3
+
+# test
+# $ dash -c cat /etc/host.conf
+# dash: 1: cat /etc/host.conf: Permission denied

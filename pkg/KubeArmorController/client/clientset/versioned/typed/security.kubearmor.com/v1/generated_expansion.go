@@ -5,6 +5,8 @@
 
 package v1
 
+type KubeArmorClusterPolicyExpansion interface{}
+
 type KubeArmorHostPolicyExpansion interface{}
 
 type KubeArmorPolicyExpansion interface{}

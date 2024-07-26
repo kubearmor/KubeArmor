@@ -29,6 +29,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+const (
+	KubeArmorPolicy        string = "KubeArmorPolicy"
+	KubeArmorClusterPolicy string = "KubeArmorClusterPolicy"
+)
+
 // ================= //
 // == Node Update == //
 // ================= //
@@ -296,7 +301,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		dm.DefaultPosturesLock.Unlock()
 
 		// update security policies with the identities
-		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint.Identities)
+		newPoint.SecurityPolicies = dm.GetSecurityPolicies(newPoint.Identities, newPoint.NamespaceName)
 
 		endpoints := []tp.EndPoint{}
 		for k, v := range pod.Containers {
@@ -468,7 +473,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			dm.DefaultPosturesLock.Unlock()
 
 			// get security policies according to the updated identities
-			newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint.Identities)
+			newEndPoint.SecurityPolicies = dm.GetSecurityPolicies(newEndPoint.Identities, newEndPoint.NamespaceName)
 
 			newendpoints := []tp.EndPoint{}
 			for k, v := range pod.Containers {
@@ -933,19 +938,61 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 	}
 }
 
+func matchClusterSecurityPolicyRule(policy tp.SecurityPolicy) bool {
+	hasInOperator := false
+	excludedNamespaces := make(map[string]bool)
+
+	for _, matchExpression := range policy.Spec.Selector.MatchExpressions {
+		if matchExpression.Key == "namespace" {
+			if matchExpression.Operator == "In" {
+				hasInOperator = true
+				for _, value := range matchExpression.Values {
+					if !kl.ContainsElement(policy.Spec.Selector.NamespaceList, value) {
+						policy.Spec.Selector.NamespaceList = append(policy.Spec.Selector.NamespaceList, value)
+						return true
+					}
+
+				}
+
+			} else if matchExpression.Operator == "NotIn" && !hasInOperator {
+				for _, value := range matchExpression.Values {
+					excludedNamespaces[value] = true
+				}
+			}
+		}
+	}
+
+	// this logic will also work when selector is not defined, and policy rule will be applied across all the namespaces
+	if !hasInOperator {
+		nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			kg.Err("unable to fetch namespace list")
+			return false
+		}
+
+		for _, ns := range nsList.Items {
+			if _, ok := excludedNamespaces[ns.Name]; !ok && !kl.ContainsElement(policy.Spec.Selector.NamespaceList, ns.Name) {
+				policy.Spec.Selector.NamespaceList = append(policy.Spec.Selector.NamespaceList, ns.Name)
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ============================ //
 // == Security Policy Update == //
 // ============================ //
 
 // GetSecurityPolicies Function
-func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.SecurityPolicy {
+func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string, namespaceName string) []tp.SecurityPolicy {
 	dm.SecurityPoliciesLock.Lock()
 	defer dm.SecurityPoliciesLock.Unlock()
 
 	secPolicies := []tp.SecurityPolicy{}
 
 	for _, policy := range dm.SecurityPolicies {
-		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) {
+		if kl.MatchIdentities(policy.Spec.Selector.Identities, identities) || kl.ContainsElement(policy.Spec.Selector.NamespaceList, namespaceName) || matchClusterSecurityPolicyRule(policy) {
 			secPolicy := tp.SecurityPolicy{}
 			if err := kl.Clone(policy, &secPolicy); err != nil {
 				dm.Logger.Errf("Failed to clone a policy (%s)", err.Error())
@@ -957,51 +1004,120 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string) []tp.Securit
 	return secPolicies
 }
 
+func containsPolicy(endPointPolicies []tp.SecurityPolicy, secPolicy tp.SecurityPolicy) bool {
+	for _, policy := range endPointPolicies {
+		if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+			return true
+		}
+	}
+	return false
+}
+
 // UpdateSecurityPolicy Function
-func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.SecurityPolicy) {
+func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType string, secPolicy tp.SecurityPolicy) {
 	dm.EndPointsLock.Lock()
 	defer dm.EndPointsLock.Unlock()
 
 	for idx, endPoint := range dm.EndPoints {
 		// update a security policy
-		if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) && (len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, endPoint.ContainerName)) {
-			if action == "ADDED" {
-				// add a new security policy if it doesn't exist
-				new := true
-				for _, policy := range endPoint.SecurityPolicies {
-					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-						new = false
-						break
+		if secPolicyType == KubeArmorPolicy {
+			if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) && (len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, endPoint.ContainerName)) {
+				if action == "ADDED" {
+					// add a new security policy if it doesn't exist
+					new := true
+					for _, policy := range endPoint.SecurityPolicies {
+						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							new = false
+							break
+						}
+					}
+					if new {
+						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
+					}
+				} else if action == "MODIFIED" {
+					for idxP, policy := range endPoint.SecurityPolicies {
+						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							dm.EndPoints[idx].SecurityPolicies[idxP] = secPolicy
+							break
+						}
+					}
+				} else if action == "DELETED" {
+					// remove the given policy from the security policy list of this endpoint
+					for idxP, policy := range endPoint.SecurityPolicies {
+						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
+							break
+						}
 					}
 				}
-				if new {
-					dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
-				}
-			} else if action == "MODIFIED" {
-				for idxP, policy := range endPoint.SecurityPolicies {
-					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-						dm.EndPoints[idx].SecurityPolicies[idxP] = secPolicy
-						break
-					}
-				}
-			} else if action == "DELETED" {
-				// remove the given policy from the security policy list of this endpoint
-				for idxP, policy := range endPoint.SecurityPolicies {
-					if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
-						break
+
+				if cfg.GlobalCfg.Policy {
+					// update security policies
+					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
+
+					if dm.RuntimeEnforcer != nil {
+						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							// enforce security policies
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+						}
 					}
 				}
 			}
+		} else if secPolicyType == KubeArmorClusterPolicy {
+			// additional OR check added with containsPolicy() is when this endPoint's ns is removed from secPolicy.Spec.Selector.MatchExpressions[i].Values
+			// due to which secPolicy.Spec.Selector.NamespaceList will not have the removed ns
+			if kl.ContainsElement(secPolicy.Spec.Selector.NamespaceList, endPoint.NamespaceName) || containsPolicy(endPoint.SecurityPolicies, secPolicy) {
+				if action == "ADDED" {
+					// add a new security policy if it doesn't exist
+					new := true
+					for _, policy := range endPoint.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							new = false
+							break
+						}
+					}
+					if new {
+						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
+					}
+				} else if action == "MODIFIED" {
+					// when policy is modified and new ns is added in secPolicy.Spec.Selector.MatchExpressions[i].Values
+					addNewPolicy := true
 
-			if cfg.GlobalCfg.Policy {
-				// update security policies
-				dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
+					for idxP, policy := range endPoint.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							if !kl.ContainsElement(secPolicy.Spec.Selector.NamespaceList, endPoint.NamespaceName) {
+								// when policy is modified and this endPoint's ns is removed from secPolicy.Spec.Selector.MatchExpressions[i].Values
+								dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
+								addNewPolicy = false
+								break
+							}
+							dm.EndPoints[idx].SecurityPolicies[idxP] = secPolicy
+							addNewPolicy = false
+							break
+						}
+					}
+					if addNewPolicy {
+						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
+					}
+				} else if action == "DELETED" {
+					// remove the given policy from the security policy list of this endpoint
+					for idxP, policy := range endPoint.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
+							break
+						}
+					}
+				}
 
-				if dm.RuntimeEnforcer != nil {
-					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-						// enforce security policies
-						dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+				if cfg.GlobalCfg.Policy {
+					// update security policies
+					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
+
+					if dm.RuntimeEnforcer != nil {
+						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							// enforce security policies
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+						}
 					}
 				}
 			}
@@ -1009,16 +1125,89 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicy tp.Secu
 	}
 }
 
-// CreateSecurityPolicy object from a policy CRD
-func (dm *KubeArmorDaemon) CreateSecurityPolicy(policy ksp.KubeArmorPolicy) (secPolicy tp.SecurityPolicy, err error) {
-	secPolicy.Metadata = map[string]string{}
-	secPolicy.Metadata["namespaceName"] = policy.Namespace
-	secPolicy.Metadata["policyName"] = policy.Name
+// CreateSecurityPolicy - creates `KubeArmorPolicy` & `KubeArmorClusterPolicy` object from crd
+func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy interface{}) (secPolicy tp.SecurityPolicy, err error) {
+	var namespace, name string
 
-	if err := kl.Clone(policy.Spec, &secPolicy.Spec); err != nil {
-		dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
-		return tp.SecurityPolicy{}, err
+	if policyType == KubeArmorPolicy {
+		kubearmorPolicy := securityPolicy.(ksp.KubeArmorPolicy)
+
+		namespace = kubearmorPolicy.Namespace
+		name = kubearmorPolicy.Name
+		if err := kl.Clone(kubearmorPolicy.Spec, &secPolicy.Spec); err != nil {
+			dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
+			return tp.SecurityPolicy{}, err
+		}
+
+		// add identities
+		secPolicy.Spec.Selector.Identities = []string{"namespaceName=" + namespace}
+
+		for k, v := range secPolicy.Spec.Selector.MatchLabels {
+			if k == "kubearmor.io/container.name" {
+				if len(v) > 2 {
+					containerArray := v[1 : len(v)-1]
+					containers := strings.Split(containerArray, ",")
+					for _, container := range containers {
+						if len(container) > 0 {
+							secPolicy.Spec.Selector.Containers = append(secPolicy.Spec.Selector.Containers, strings.TrimSpace(container))
+						}
+
+					}
+				}
+			} else {
+				secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
+			}
+		}
+
+		sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
+			return secPolicy.Spec.Selector.Identities[i] < secPolicy.Spec.Selector.Identities[j]
+		})
+
+	} else if policyType == KubeArmorClusterPolicy {
+		kubearmorClusterPolicy := securityPolicy.(ksp.KubeArmorClusterPolicy)
+
+		namespace = kubearmorClusterPolicy.Namespace
+		name = kubearmorClusterPolicy.Name
+		if err := kl.Clone(kubearmorClusterPolicy.Spec, &secPolicy.Spec); err != nil {
+			dm.Logger.Errf("Failed to clone a spec (%s)", err.Error())
+			return tp.SecurityPolicy{}, err
+		}
+
+		hasInOperator := false
+		excludedNamespaces := make(map[string]bool)
+
+		for _, matchExpression := range secPolicy.Spec.Selector.MatchExpressions {
+			if matchExpression.Key == "namespace" {
+				if matchExpression.Operator == "In" {
+					hasInOperator = true
+					secPolicy.Spec.Selector.NamespaceList = append(secPolicy.Spec.Selector.NamespaceList, matchExpression.Values...)
+				} else if matchExpression.Operator == "NotIn" && !hasInOperator {
+					for _, value := range matchExpression.Values {
+						excludedNamespaces[value] = true
+					}
+				}
+			}
+		}
+
+		// this logic will also work when selector is not defined, and policy rule will be applied across all the namespaces
+		if !hasInOperator {
+			nsList, err := K8s.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				kg.Err("unable to fetch namespace list")
+				return tp.SecurityPolicy{}, err
+			}
+
+			for _, ns := range nsList.Items {
+				if _, ok := excludedNamespaces[ns.Name]; !ok {
+					secPolicy.Spec.Selector.NamespaceList = append(secPolicy.Spec.Selector.NamespaceList, ns.Name)
+				}
+			}
+		}
 	}
+
+	secPolicy.Metadata = map[string]string{}
+	secPolicy.Metadata["namespaceName"] = namespace
+	secPolicy.Metadata["policyName"] = name
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
@@ -1037,31 +1226,6 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policy ksp.KubeArmorPolicy) (sec
 	case "":
 		secPolicy.Spec.Action = "Block" // by default
 	}
-
-	// add identities
-
-	secPolicy.Spec.Selector.Identities = []string{"namespaceName=" + policy.Namespace}
-
-	for k, v := range secPolicy.Spec.Selector.MatchLabels {
-		if k == "kubearmor.io/container.name" {
-			if len(v) > 2 {
-				containerArray := v[1 : len(v)-1]
-				containers := strings.Split(containerArray, ",")
-				for _, container := range containers {
-					if len(container) > 0 {
-						secPolicy.Spec.Selector.Containers = append(secPolicy.Spec.Selector.Containers, strings.TrimSpace(container))
-					}
-
-				}
-			}
-		} else {
-			secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
-		}
-	}
-
-	sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
-		return secPolicy.Spec.Selector.Identities[i] < secPolicy.Spec.Selector.Identities[j]
-	})
 
 	// add severities, tags, messages, and actions
 
@@ -1433,7 +1597,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 				// create a security policy
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
 
-					secPolicy, err := dm.CreateSecurityPolicy(*policy)
+					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
 						dm.Logger.Warnf("Error ADD, %s", err)
 						return
@@ -1453,13 +1617,13 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					dm.Logger.Printf("Detected a Security Policy (added/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to pods
-					dm.UpdateSecurityPolicy("ADDED", secPolicy)
+					dm.UpdateSecurityPolicy("ADDED", KubeArmorPolicy, secPolicy)
 
 				}
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				if policy, ok := newObj.(*ksp.KubeArmorPolicy); ok {
-					secPolicy, err := dm.CreateSecurityPolicy(*policy)
+					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
 						return
 					}
@@ -1476,12 +1640,12 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					dm.Logger.Printf("Detected a Security Policy (modified/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to pods
-					dm.UpdateSecurityPolicy("MODIFIED", secPolicy)
+					dm.UpdateSecurityPolicy("MODIFIED", KubeArmorPolicy, secPolicy)
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
-					secPolicy, err := dm.CreateSecurityPolicy(*policy)
+					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
 						return
 					}
@@ -1497,7 +1661,114 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					dm.Logger.Printf("Detected a Security Policy (deleted/%s/%s)", secPolicy.Metadata["namespaceName"], secPolicy.Metadata["policyName"])
 
 					// apply security policies to pods
-					dm.UpdateSecurityPolicy("DELETED", secPolicy)
+					dm.UpdateSecurityPolicy("DELETED", KubeArmorPolicy, secPolicy)
+				}
+			},
+		},
+	)
+	if err != nil {
+		dm.Logger.Err("Couldn't start watching KubeArmor Security Policies")
+		return nil
+	}
+
+	go factory.Start(wait.NeverStop)
+	return registration.HasSynced
+}
+
+// WatchClusterSecurityPolicies Function
+func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) cache.InformerSynced {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	crdFound := false
+	for !crdFound {
+		select {
+		case <-ctx.Done():
+			dm.Logger.Warn("timeout while monitoring cluster security policies, kubearmorclusterpolicies CRD not found")
+			return nil
+		default:
+			if K8s.CheckCustomResourceDefinition("kubearmorclusterpolicies") {
+				crdFound = true
+			} else {
+				time.Sleep(time.Second * 1)
+			}
+		}
+	}
+
+	factory := kspinformer.NewSharedInformerFactory(K8s.KSPClient, 0)
+
+	informer := factory.Security().V1().KubeArmorClusterPolicies().Informer()
+	registration, err := informer.AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				// create a security policy
+				if policy, ok := obj.(*ksp.KubeArmorClusterPolicy); ok {
+
+					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
+					if err != nil {
+						dm.Logger.Warnf("Error ADD, %s", err)
+						return
+					}
+					dm.SecurityPoliciesLock.Lock()
+					new := true
+					for _, policy := range dm.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							new = false
+							break
+						}
+					}
+					if new {
+						dm.SecurityPolicies = append(dm.SecurityPolicies, secPolicy)
+					}
+					dm.SecurityPoliciesLock.Unlock()
+					dm.Logger.Printf("Detected a Cluster Security Policy (added/%s)", secPolicy.Metadata["policyName"])
+
+					// apply security policies to pods
+					dm.UpdateSecurityPolicy("ADDED", KubeArmorClusterPolicy, secPolicy)
+
+				}
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				if policy, ok := newObj.(*ksp.KubeArmorClusterPolicy); ok {
+					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
+					if err != nil {
+						return
+					}
+
+					dm.SecurityPoliciesLock.Lock()
+					for idx, policy := range dm.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							dm.SecurityPolicies[idx] = secPolicy
+							break
+						}
+					}
+					dm.SecurityPoliciesLock.Unlock()
+
+					dm.Logger.Printf("Detected a Cluster Security Policy (modified/%s)", secPolicy.Metadata["policyName"])
+
+					// apply security policies to pods
+					dm.UpdateSecurityPolicy("MODIFIED", KubeArmorClusterPolicy, secPolicy)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if policy, ok := obj.(*ksp.KubeArmorClusterPolicy); ok {
+					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
+					if err != nil {
+						return
+					}
+					dm.SecurityPoliciesLock.Lock()
+					for idx, policy := range dm.SecurityPolicies {
+						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+							dm.SecurityPolicies = append(dm.SecurityPolicies[:idx], dm.SecurityPolicies[idx+1:]...)
+							break
+						}
+					}
+					dm.SecurityPoliciesLock.Unlock()
+
+					dm.Logger.Printf("Detected a Cluster Security Policy (deleted/%s)", secPolicy.Metadata["policyName"])
+
+					// apply security policies to pods
+					dm.UpdateSecurityPolicy("DELETED", KubeArmorClusterPolicy, secPolicy)
 				}
 			},
 		},
@@ -1998,8 +2269,24 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 }
 
 // WatchHostSecurityPolicies Function
-func (dm *KubeArmorDaemon) WatchHostSecurityPolicies() {
+func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	for {
+		select {
+		case <-ctx.Done():
+			dm.Logger.Warn("timeout while monitoring host security policies, kubearmorhostpolicies CRD not found")
+			return
+		default:
+			if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+				time.Sleep(time.Second * 1)
+				continue
+			}
+		}
+
+		dm.Logger.Print("Started to monitor host security policies")
+
 		if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
 			time.Sleep(time.Second * 1)
 			continue

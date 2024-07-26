@@ -5,6 +5,10 @@
 
 package v1
 
+// KubeArmorClusterPolicyListerExpansion allows custom methods to be added to
+// KubeArmorClusterPolicyLister.
+type KubeArmorClusterPolicyListerExpansion interface{}
+
 // KubeArmorHostPolicyListerExpansion allows custom methods to be added to
 // KubeArmorHostPolicyLister.
 type KubeArmorHostPolicyListerExpansion interface{}
