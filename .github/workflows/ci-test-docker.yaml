@@ -2,9 +2,7 @@ name: ci-test-docker
 
 on:
   push:
-    branches:
-      - "main"
-      - "non-k8s-hsp-test"
+    branches: [main]
     paths:
       - "KubeArmor/**"
       - ".github/workflows/ci-test-docker.yaml"

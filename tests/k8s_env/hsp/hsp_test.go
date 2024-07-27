@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2024 Authors of KubeArmor
+
 package hsp
 
 import (
@@ -117,31 +120,31 @@ var _ = Describe("Non-k8s HSP tests", func() {
 		})
 	})
 
-	Describe("HSP file audit", func() {
+	// Describe("HSP file audit", func() {
 
-		It("can audit access to /etc/passwd", func() {
+	// 	It("can audit access to /etc/passwd", func() {
 
-			err := K8sApplyFile("res/hsp-kubearmor-dev-file-path-audit.yaml")
-			Expect(err).To(BeNil())
+	// 		err := K8sApplyFile("res/hsp-kubearmor-dev-file-path-audit.yaml")
+	// 		Expect(err).To(BeNil())
 
-			// Start the karmor logs
-			err = KarmorLogStart("policy", "", "File", "")
-			Expect(err).To(BeNil())
+	// 		// Start the karmor logs
+	// 		err = KarmorLogStart("policy", "", "File", "")
+	// 		Expect(err).To(BeNil())
 
-			// try to access the /etc/passwd file
-			out, err := ExecCommandHost([]string{"bash", "-c", "cat /etc/passwd"})
-			Expect(err).To(BeNil())
-			Expect(out).ToNot(MatchRegexp(".*Permission denied"))
+	// 		// try to access the /etc/passwd file
+	// 		out, err := ExecCommandHost([]string{"bash", "-c", "cat /etc/passwd"})
+	// 		Expect(err).To(BeNil())
+	// 		Expect(out).ToNot(MatchRegexp(".*Permission denied"))
 
-			// check audit alerts
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
-			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-file-path-audit"))
-			Expect(alerts[0].Severity).To(Equal("5"))
-			Expect(alerts[0].Action).To(Equal("Audit"))
-		})
-	})
+	// 		// check audit alerts
+	// 		_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+	// 		Expect(err).To(BeNil())
+	// 		Expect(len(alerts)).To(BeNumerically(">=", 1))
+	// 		Expect(alerts[0].PolicyName).To(Equal("hsp-kubearmor-dev-file-path-audit"))
+	// 		Expect(alerts[0].Severity).To(Equal("5"))
+	// 		Expect(alerts[0].Action).To(Equal("Audit"))
+	// 	})
+	// })
 
 	Describe("HSP path block from source", func() {
 

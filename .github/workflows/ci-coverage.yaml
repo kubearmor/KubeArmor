@@ -2,15 +2,13 @@ name: ci-coverage
 
 on:
   push:
-    branches:
-      - "main"
+    branches: [main]
     paths:
         - "KubeArmor/**"
         - ".github/workflows/ci-coverage.yaml"
         - "tests/**"
   pull_request:
-    branches:
-      - "main"
+    branches: [main]
     paths:
         - "KubeArmor/**"
         - ".github/workflows/ci-coverage.yaml"

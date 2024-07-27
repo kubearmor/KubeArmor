@@ -1,4 +1,6 @@
 #!/bin/bash
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2024 Authors of KubeArmor
 
 DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
 

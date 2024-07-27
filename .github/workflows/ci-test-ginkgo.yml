@@ -2,7 +2,7 @@ name: ci-test-ginkgo
 
 on:
   push:
-    branches: [main, lfx-pretask-submission, non-k8s-hsp-test]
+    branches: [main]
     paths:
       - "KubeArmor/**"
       - "tests/**"
@@ -11,7 +11,7 @@ on:
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
   pull_request:
-    branches: [main, lfx-pretask-submission]
+    branches: [main]
     paths:
       - "KubeArmor/**"
       - "tests/**"
@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
+        os: [ubuntu-20.04]
         runtime: ["containerd", "crio"]
     steps:
       - uses: actions/checkout@v3

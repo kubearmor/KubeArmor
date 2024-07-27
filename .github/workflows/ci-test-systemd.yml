@@ -2,14 +2,14 @@ name: ci-test-systemd
 
 on:
   push:
-    branches: [main, non-k8s-hsp-test]
+    branches: [main]
     paths:
       - "KubeArmor/**"
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-systemd.yml"
   pull_request:
-    branches: [main, lfx-pretask]
+    branches: [main]
     paths:
       - "KubeArmor/**"
       - "tests/**"
