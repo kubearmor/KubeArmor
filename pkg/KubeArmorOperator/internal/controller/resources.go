@@ -442,7 +442,6 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
 			common.SecurityFsLabel: "yes",
 		}
-		deployment.Spec.Template.Spec.Containers = deployments.GetKubeArmorControllerDeployment(common.Namespace).Spec.Template.Spec.Containers
 	} else {
 		deployment.Spec.Template.Spec.NodeSelector = nil
 		for i, container := range deployment.Spec.Template.Spec.Containers {
