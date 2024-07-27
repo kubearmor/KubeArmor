@@ -42,7 +42,9 @@ jobs:
 
       - name: Generate KubeArmor artifacts
         run: |
-          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor-test.sh
+          # set the $IS_COVERAGE env var to 'true' to build the kubearmor-test image for coverage calculation
+          export IS_COVERAGE=true
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
 
       - name: Build Kubearmor-Operator
         working-directory: pkg/KubeArmorOperator
