@@ -4,12 +4,17 @@ on:
   push:
     branches:
       - "main"
-      - "non-k8s-hsp-test"
     paths:
-      - "KubeArmor/**"
-      - ".github/workflows/ci-coverage.yaml"
-      - "!STABLE-RELEASE"
-      - "tests/**"
+        - "KubeArmor/**"
+        - ".github/workflows/ci-coverage.yaml"
+        - "tests/**"
+  pull_request:
+    branches:
+      - "main"
+    paths:
+        - "KubeArmor/**"
+        - ".github/workflows/ci-coverage.yaml"
+        - "tests/**"
 
 jobs:
   calculate-k8s-coverage:
@@ -20,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-20.04, bpflsm]
         runtime: ["containerd", "crio"]
     steps:
       - uses: actions/checkout@v3
@@ -200,7 +205,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, bpflsm]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
@@ -298,7 +303,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, bpflsm]
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
