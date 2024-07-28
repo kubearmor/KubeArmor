@@ -47,9 +47,9 @@ type K8sHandler struct {
 	HTTPClient  *http.Client
 	WatchClient *http.Client
 
-	K8sToken string
-	K8sHost  string
-	K8sPort  string
+	K8sToken  string
+	K8sHost   string
+	K8sPort   string
 	K8Version *string
 }
 
@@ -335,7 +335,6 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 
 	return nil
 }
-
 
 // PatchDeploymentWithSELinuxAnnotations Function
 func (kh *K8sHandler) PatchDeploymentWithSELinuxAnnotations(namespaceName, deploymentName string, seLinuxAnnotations map[string]string) error {

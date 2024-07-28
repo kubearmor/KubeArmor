@@ -802,16 +802,15 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 					}
 					k8Version, err := K8s.K8sClient.ServerVersion()
-                    if err != nil {
+					if err != nil {
 						dm.Logger.Warnf("unable to get k8's version info: %s", err)
-						return 
+						return
 					}
 
-				    K8s.K8Version = ptr.To(k8Version.GitVersion)
+					K8s.K8Version = ptr.To(k8Version.GitVersion)
 
 					// Check if the k8 version >= 1.30
 					k8VerGreater := isVersionGreaterThanOrEqual(k8Version.GitVersion, "v1.30")
-					
 
 					for k, v := range pod.Annotations {
 						if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
@@ -2794,5 +2793,5 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 }
 
 func isVersionGreaterThanOrEqual(v1, v2 string) bool {
-    return semver.Compare(v1, v2) >= 0
+	return semver.Compare(v1, v2) >= 0
 }

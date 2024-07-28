@@ -20,10 +20,10 @@ import (
 
 // PodAnnotator Structure
 type PodAnnotator struct {
-	Client   client.Client
-	Decoder  *admission.Decoder
-	Logger   logr.Logger
-	Enforcer string
+	Client    client.Client
+	Decoder   *admission.Decoder
+	Logger    logr.Logger
+	Enforcer  string
 	K8Version string
 }
 
@@ -175,7 +175,7 @@ func appArmorAnnotator(pod *corev1.Pod, k8Version string) {
 
 						c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
 							Type:             corev1.AppArmorProfileTypeLocalhost,
-							LocalhostProfile:  ptr.To(v),
+							LocalhostProfile: ptr.To(v),
 						}
 					}
 				}
@@ -198,7 +198,6 @@ func appArmorAnnotator(pod *corev1.Pod, k8Version string) {
 	}
 }
 
-
 func isVersionGreaterThanOrEqual(v1, v2 string) bool {
-    return semver.Compare(v1, v2) >= 0
+	return semver.Compare(v1, v2) >= 0
 }

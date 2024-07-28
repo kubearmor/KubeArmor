@@ -1,8 +1,6 @@
 module github.com/kubearmor/KubeArmor/tests
 
-go 1.21.0
-
-toolchain go1.21.12
+go 1.22.0
 
 replace (
 	github.com/cilium/cilium => github.com/cilium/cilium v1.14.8
@@ -15,15 +13,15 @@ require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20240318141932-2b5e82902004
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20240318141932-2b5e82902004
 	github.com/kubearmor/kubearmor-client v1.2.2-0.20240411064956-24085b3e2319
-	github.com/onsi/ginkgo/v2 v2.14.0
-	github.com/onsi/gomega v1.30.0
+	github.com/onsi/ginkgo/v2 v2.15.0
+	github.com/onsi/gomega v1.31.0
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.63.0
 	google.golang.org/protobuf v1.33.0
-	k8s.io/api v0.29.3
-	k8s.io/apimachinery v0.29.3
+	k8s.io/api v0.30.0
+	k8s.io/apimachinery v0.30.0
 	k8s.io/cli-runtime v0.29.3
-	k8s.io/client-go v0.29.3
+	k8s.io/client-go v0.30.0
 	k8s.io/kubectl v0.29.3
 )
 

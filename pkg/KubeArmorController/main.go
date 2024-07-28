@@ -106,10 +106,10 @@ func main() {
 	setupLog.Info("Adding mutation webhook")
 	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
 		Handler: &handlers.PodAnnotator{
-			Client:   mgr.GetClient(),
-			Logger:   setupLog,
-			Enforcer: detectEnforcer(setupLog),
-			Decoder:  admission.NewDecoder(mgr.GetScheme()),
+			Client:    mgr.GetClient(),
+			Logger:    setupLog,
+			Enforcer:  detectEnforcer(setupLog),
+			Decoder:   admission.NewDecoder(mgr.GetScheme()),
 			K8Version: versionInfo.GitVersion,
 		},
 	})
