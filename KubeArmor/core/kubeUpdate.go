@@ -22,11 +22,13 @@ import (
 	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	kspinformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -799,6 +801,17 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 						}
 
 					}
+					k8Version, err := K8s.K8sClient.ServerVersion()
+                    if err != nil {
+						dm.Logger.Warnf("unable to get k8's version info: %s", err)
+						return 
+					}
+
+				    K8s.K8Version = ptr.To(k8Version.GitVersion)
+
+					// Check if the k8 version >= 1.30
+					k8VerGreater := isVersionGreaterThanOrEqual(k8Version.GitVersion, "v1.30")
+					
 
 					for k, v := range pod.Annotations {
 						if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
@@ -809,11 +822,19 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 								containerName := strings.Split(k, "/")[1]
 								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
 							}
+							if k8VerGreater {
+								delete(pod.Annotations, k)
+							}
 						}
 					}
 
 					for _, container := range event.Object.Spec.Containers {
 						var privileged bool
+
+						if k8VerGreater && ((event.Object.Spec.SecurityContext != nil && event.Object.Spec.SecurityContext.AppArmorProfile != nil) || (container.SecurityContext != nil && container.SecurityContext.AppArmorProfile != nil)) {
+							delete(appArmorAnnotations, container.Name)
+							continue
+						}
 						// store privileged containers
 						if container.SecurityContext != nil &&
 							((container.SecurityContext.Privileged != nil && *container.SecurityContext.Privileged) ||
@@ -2770,4 +2791,8 @@ func (dm *KubeArmorDaemon) GetConfigMapNS() string {
 		return "kubearmor"
 	}
 	return envNamespace
+}
+
+func isVersionGreaterThanOrEqual(v1, v2 string) bool {
+    return semver.Compare(v1, v2) >= 0
 }

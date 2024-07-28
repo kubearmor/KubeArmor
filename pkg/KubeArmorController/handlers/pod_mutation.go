@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -22,6 +24,7 @@ type PodAnnotator struct {
 	Decoder  *admission.Decoder
 	Logger   logr.Logger
 	Enforcer string
+	K8Version string
 }
 
 const k8sVisibility = "process,file,network,capabilities"
@@ -59,7 +62,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 	// == LSM == //
 
 	if a.Enforcer == "AppArmor" {
-		appArmorAnnotator(pod)
+		appArmorAnnotator(pod, a.K8Version)
 	}
 
 	// == Exception == //
@@ -104,7 +107,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 }
 
 // == Add AppArmor annotations == //
-func appArmorAnnotator(pod *corev1.Pod) {
+func appArmorAnnotator(pod *corev1.Pod, k8Version string) {
 	podAnnotations := map[string]string{}
 	var podOwnerName string
 
@@ -128,9 +131,14 @@ func appArmorAnnotator(pod *corev1.Pod) {
 		podOwnerName = pod.ObjectMeta.Name
 	}
 
+	// Check if the k8 version >= 1.30
+	k8VerGreater := isVersionGreaterThanOrEqual(k8Version, "v1.30")
+
 	// Get existant kubearmor annotations
 	for k, v := range pod.Annotations {
+
 		if strings.HasPrefix(k, appArmorAnnotation) {
+
 			if v == "unconfined" {
 				containerName := strings.Split(k, "/")[1]
 				podAnnotations[containerName] = v
@@ -138,21 +146,59 @@ func appArmorAnnotator(pod *corev1.Pod) {
 				containerName := strings.Split(k, "/")[1]
 				podAnnotations[containerName] = strings.Split(v, "/")[1]
 			}
+			if k8VerGreater {
+				// Remove appArmorAnnotation k8s 1.30 compatiblity issue
+				delete(pod.Annotations, k)
+			}
 		}
 	}
 
-	// Get the remaining containers / not addressed explecitly in the annotation
-	for _, container := range pod.Spec.Containers {
-		if _, ok := podAnnotations[container.Name]; !ok {
-			podAnnotations[container.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + container.Name
+	for _, c := range pod.Spec.Containers {
+
+		if k8VerGreater {
+			if (pod.Spec.SecurityContext == nil || pod.Spec.SecurityContext.AppArmorProfile == nil) && (c.SecurityContext == nil || c.SecurityContext.AppArmorProfile == nil) {
+				if v, ok := podAnnotations[c.Name]; !ok {
+
+					profile := "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
+
+					c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+						Type:             corev1.AppArmorProfileTypeLocalhost,
+						LocalhostProfile: ptr.To(profile),
+					}
+				} else {
+
+					if v == "unconfined" {
+						c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+							Type: corev1.AppArmorProfileTypeUnconfined,
+						}
+					} else {
+
+						c.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+							Type:             corev1.AppArmorProfileTypeLocalhost,
+							LocalhostProfile:  ptr.To(v),
+						}
+					}
+				}
+			}
+		} else {
+			if _, ok := podAnnotations[c.Name]; !ok {
+				podAnnotations[c.Name] = "kubearmor-" + pod.Namespace + "-" + podOwnerName + "-" + c.Name
+			}
 		}
 	}
 
-	// Add kubearmor annotations to the pod
-	for k, v := range podAnnotations {
-		if v == "unconfined" {
-			continue
+	if k8VerGreater {
+		// Add kubearmor annotations to the pod
+		for k, v := range podAnnotations {
+			if v == "unconfined" {
+				continue
+			}
+			pod.Annotations[appArmorAnnotation+k] = "localhost/" + v
 		}
-		pod.Annotations[appArmorAnnotation+k] = "localhost/" + v
 	}
+}
+
+
+func isVersionGreaterThanOrEqual(v1, v2 string) bool {
+    return semver.Compare(v1, v2) >= 0
 }

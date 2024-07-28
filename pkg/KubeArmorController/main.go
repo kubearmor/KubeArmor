@@ -12,6 +12,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -91,6 +92,16 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+	kclient, err := kubernetes.NewForConfig(ctrl.GetConfigOrDie())
+	if err != nil {
+		setupLog.Error(err, "unable to create k8's client")
+		os.Exit(1)
+	}
+	versionInfo, err := kclient.ServerVersion()
+	if err != nil {
+		setupLog.Error(err, "unable to get k8's version info")
+		os.Exit(1)
+	}
 
 	setupLog.Info("Adding mutation webhook")
 	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
@@ -99,6 +110,7 @@ func main() {
 			Logger:   setupLog,
 			Enforcer: detectEnforcer(setupLog),
 			Decoder:  admission.NewDecoder(mgr.GetScheme()),
+			K8Version: versionInfo.GitVersion,
 		},
 	})
 

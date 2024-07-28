@@ -50,6 +50,7 @@ type K8sHandler struct {
 	K8sToken string
 	K8sHost  string
 	K8sPort  string
+	K8Version *string
 }
 
 // NewK8sHandler Function
@@ -228,21 +229,38 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
+	if kh.K8Version == nil {
+		return fmt.Errorf("K8s version is not set")
+	}
 
+	K8VerGreater := isVersionGreaterThanOrEqual(*kh.K8Version, "v1.30")
 	spec := `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
-	if kind == "CronJob" {
+	if K8VerGreater {
+		spec = `{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
+	} else if !K8VerGreater && kind == "CronJob" {
 		spec = `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled",`
+	} else if K8VerGreater && kind == "CronJob" {
+		spec = `{"spec":{"jobTemplate":{"spec":{"template":{"metadata":{"annotations":{"kubearmor-policy":"enabled"}},"spec":{"containers":[`
 	}
 
 	count := len(appArmorAnnotations)
 
 	for k, v := range appArmorAnnotations {
-		if v == "unconfined" {
-			continue
+		if K8VerGreater {
+			if v == "unconfined" {
+				spec = spec + `{"name":` + k + `,"securityContext":{"appArmorProfile":{"type":"unconfined"}}}`
+
+			}
+
+			spec = spec + `{"name":` + k + `,"securityContext":{"appArmorProfile":{"type":"localhost","localhostProfile":` + v + `}}}`
+
+		} else {
+			if v == "unconfined" {
+				continue
+			}
+
+			spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
 		}
-
-		spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
-
 		if count > 1 {
 			spec = spec + ","
 		}
@@ -250,9 +268,13 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		count--
 	}
 
-	if kind == "CronJob" {
+	if K8VerGreater && kind == "CronJob" {
+		spec = spec + `]}}}}}}}}`
+	} else if !K8VerGreater && kind == "CronJob" {
 		spec = spec + `}}}}}}}`
-	} else {
+	} else if K8VerGreater {
+		spec = spec + `]}}}}}}`
+	} else if !K8VerGreater {
 		spec = spec + `}}}}}`
 	}
 
@@ -313,6 +335,7 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 
 	return nil
 }
+
 
 // PatchDeploymentWithSELinuxAnnotations Function
 func (kh *K8sHandler) PatchDeploymentWithSELinuxAnnotations(namespaceName, deploymentName string, seLinuxAnnotations map[string]string) error {
