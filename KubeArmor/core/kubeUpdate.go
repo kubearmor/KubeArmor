@@ -49,22 +49,24 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	}
 
 	// == LSM == //
-	var lsm []byte
-	var err error
+	var lsm string
 
 	// Check if enforcer is set in the node annotations
 	if v, ok := node.Annotations["kubearmor.io/enforcer"]; ok {
-		lsm = []byte(v)
+		lsm = v
 	} else { // Read the lsm from the system
-		lsm, err = os.ReadFile("/sys/kernel/security/lsm")
+		lsmByteData, err := os.ReadFile("/sys/kernel/security/lsm")
 		if err != nil {
 			kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err)
+		} else if len(lsmByteData) == 0 {
+			kg.Err("Failed to read /sys/kernel/security/lsm: empty file")
 		}
+		lsm = string(lsmByteData)
 	}
 
-	hasAppArmor := strings.Contains(string(lsm), "apparmor")
-	hasSelinux := strings.Contains(string(lsm), "selinux")
-	hasBPF := strings.Contains(string(lsm), "bpf")
+	hasAppArmor := strings.Contains(lsm, "apparmor")
+	hasSelinux := strings.Contains(lsm, "selinux")
+	hasBPF := strings.Contains(lsm, "bpf")
 
 	if !hasBPF && !hasSelinux && !hasAppArmor {
 		// exception: neither AppArmor, SELinux or BPF
