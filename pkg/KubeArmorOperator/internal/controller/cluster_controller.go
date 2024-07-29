@@ -29,7 +29,7 @@ import (
 
 var (
 	informer                 informers.SharedInformerFactory
-	operatorDeploymentUID    string
+	operatorDeploymentUID    types.UID
 	operatorDeploymentName   string
 	snitchPathPrefix         string
 	snitchImage              string
@@ -83,8 +83,11 @@ func NewClusterWatcher(cfg WatcherConfig, client *kubernetes.Clientset, helmCont
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
 
+	dep, err := client.AppsV1().Deployments(cfg.OperatorWatchedNamespace).Get(context.TODO(), cfg.OperatorDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		operatorDeploymentUID = dep.GetUID()
+	}
 	operatorDeploymentName = cfg.OperatorDeploymentName
-	operatorDeploymentUID = cfg.OperatorDeploymentUID
 	operatorWatchedNamespace = cfg.OperatorWatchedNamespace
 	snitchPathPrefix = cfg.SnitchPathPrefix
 	snitchImage = cfg.SnitchImage
@@ -133,11 +136,12 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						log.Warnf("cannot create snitch clusterrolebinding error=%s", err.Error())
 						return
 					}
-					_, err = clusterWatcher.client.CoreV1().ServiceAccounts(operatorWatchedNamespace).Create(context.Background(), genSnitchServiceAccount(), metav1.CreateOptions{})
+					sa, err := clusterWatcher.client.CoreV1().ServiceAccounts(operatorWatchedNamespace).Create(context.Background(), genSnitchServiceAccount(), metav1.CreateOptions{})
 					if err != nil && !errors.IsAlreadyExists(err) {
 						log.Warnf("cannot create snitch serviceaccount error=%s", err.Error())
 						return
 					}
+					log.Info("service account %s created in namespace %s", sa.GetName(), sa.GetNamespace())
 					// deploy snitch job
 					_, err = clusterWatcher.client.BatchV1().Jobs(operatorWatchedNamespace).Create(context.Background(), genSnitchDeployment(nodeObj.Name, runtime), metav1.CreateOptions{})
 					if err != nil {
@@ -295,7 +299,7 @@ func (clusterWatcher *ClusterWatcher) updateDaemonsets(action string, nodeInstan
 
 func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 	job := batchv1.Job{}
-	// job = *addOwnership(&job).(*batchv1.Job)
+	job = *addOwnership(&job).(*batchv1.Job)
 	ttls := int32(100)
 	job.GenerateName = "kubearmor-snitch-"
 	var rootUser int64 = 0
