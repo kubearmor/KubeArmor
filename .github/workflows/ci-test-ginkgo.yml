@@ -112,11 +112,12 @@ jobs:
           docker system prune -a -f 
           docker buildx prune -a -f
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest \
-            --set helm.repository=embed --set helm.version=v1.3.8 --set helm.chart=kubearmor
+            --set kubearmorOperator.imagePullPolicy=Never --set snitch.imagePullPolicy=Never --set helm.repository=embed --set helm.version=v1.3.8 --set helm.chart=kubearmor
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
-          kubectl get pods -A
+          kubectl get pods -A 
           sleep 3 # need this sleep because webhook server initialization may take some time
           kubectl wait --for=condition=established --timeout=5m crd/kubearmorconfigs.operator.kubearmor.com
+          kubectl wait --for=condition=complete --timeout=5m -n kubearmor job -l kubearmor-app=kubearmor-snitch
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
             kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-coverage.yaml --dry-run=client -o json | \
             jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
