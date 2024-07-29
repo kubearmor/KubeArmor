@@ -11,6 +11,7 @@ ignore:
   - "KubeArmor/enforcer/SELinuxEnforcer_test.go"
   - "KubeArmor/enforcer/SELinuxHostProfile.go"
   - "KubeArmor/kvmAgent"
+  - "KubeArmor/state"
 
 comment:
   layout: "reach, diff, flags, files"
