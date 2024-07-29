@@ -71,12 +71,10 @@ jobs:
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest \
             --set kubearmorOperator.imagePullPolicy=Never --set snitch.imagePullPolicy=Never --set helm.repository=embed --set helm.version=v1.3.8 --set helm.chart=kubearmor
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
-          # DEBUG
-          kubectl logs -n kubearmor -l kubearmor-app=kubearmor-operator -f&
-          # DEBUG
           kubectl get pods -A
           sleep 3 # need this sleep because webhook server initialization may take some time
           kubectl wait --for=condition=established --timeout=5m crd/kubearmorconfigs.operator.kubearmor.com
+          kubectl wait --for=condition=complete --timeout=5m -n kubearmor job -l kubearmor-app=kubearmor-snitch
           # create kubearmorconfig
           if [[ ${{ steps.filter.outputs.kubearmor }} == 'true' ]]; then
             docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
@@ -91,13 +89,6 @@ jobs:
             jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never" | .spec.kubearmorImage.imagePullPolicy = "Always" | .spec.kubearmorInitImage.imagePullPolicy = "Always"' | \
             kubectl apply -f -
           fi
-          # DEBUG
-          kubectl describe job -n kubearmor -l kubearmor-app=kubearmor-snitch
-          kubectl get sa -n kubearmor kubearmor-snitch
-          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor-snitch
-          kubectl wait --for=condition=complete --timeout=5m -n kubearmor job -l kubearmor-app=kubearmor-snitch
-          kubectl logs -n kubearmor -l kubearmor-app=kubearmor-snitch
-          # DEBUD
           kubectl wait --for=condition=ReleaseDeployed --timeout=5m kubearmorconfig.operator.kubearmor.com/kubearmorconfig-test -n kubearmor
           kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
           kubectl get pods -A
