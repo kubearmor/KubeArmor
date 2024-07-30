@@ -579,7 +579,24 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 		CapabilitiesAction: cfg.GlobalCfg.HostDefaultCapabilitiesPosture,
 	}
 
-	if policyCount, newProfile, ok := ae.GenerateAppArmorHostProfile(secPolicies, globalDefaultPosture); ok {
+	var hostPolicies []tp.SecurityPolicy
+
+	// Typecast HostSecurityPolicy spec to normal SecurityPolicies
+	for _, secPolicy := range secPolicies {
+		var hostPolicy tp.SecurityPolicy
+		if err := kl.Clone(secPolicy.Spec.Process, &hostPolicy.Spec.Process); err != nil {
+			ae.Logger.Warnf("Error cloning host policy spec process to sec policy construct")
+		}
+		if err := kl.Clone(secPolicy.Spec.File, &hostPolicy.Spec.File); err != nil {
+			ae.Logger.Warnf("Error cloning host policy spec file to sec policy construct")
+		}
+		if err := kl.Clone(secPolicy.Spec.Network, &hostPolicy.Spec.Network); err != nil {
+			ae.Logger.Warnf("Error cloning host policy spec network to sec policy construct")
+		}
+		hostPolicies = append(hostPolicies, hostPolicy)
+	}
+
+	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile("kubearmor.host /{usr/,}bin/*sh", hostPolicies, globalDefaultPosture, true); ok {
 		newfile, err := os.Create(filepath.Clean(appArmorHostFile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
@@ -619,6 +636,8 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 		ae.Logger.Printf("Updated %d host security rules to the KubeArmor host profile in %s", policyCount, cfg.GlobalCfg.Host)
 
 		ae.ClearKubeArmorHostFile(appArmorHostFile)
+	} else if newProfile != "" {
+		ae.Logger.Errf("Error Generating %s AppArmor profile: %s", appArmorHostFile, newProfile)
 	}
 }
 
