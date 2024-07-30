@@ -147,5 +147,3 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *types.Cluster, log logr.Logge
 
 	inf.Run(wait.NeverStop)
 }
-
-// add fall back logix for pod annotataions
