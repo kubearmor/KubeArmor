@@ -77,7 +77,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchPaths(path tp.ProcessPathType, prof *
 
 // SetProcessMatchDirectories Function
 func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
@@ -105,7 +105,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -117,7 +117,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchDirectories(dir tp.ProcessDirectoryTy
 
 // SetProcessMatchPatterns Function
 func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
@@ -132,7 +132,7 @@ func (ae *AppArmorEnforcer) SetProcessMatchPatterns(pat tp.ProcessPatternType, p
 
 // SetFileMatchPaths Function
 func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
@@ -159,7 +159,7 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -171,7 +171,7 @@ func (ae *AppArmorEnforcer) SetFileMatchPaths(path tp.FilePathType, prof *Profil
 
 // SetFileMatchDirectories Function
 func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
@@ -200,7 +200,7 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.File = head
 				prof.FromSource[source] = val
@@ -212,7 +212,7 @@ func (ae *AppArmorEnforcer) SetFileMatchDirectories(dir tp.FileDirectoryType, pr
 
 // SetFileMatchPatterns Function
 func (ae *AppArmorEnforcer) SetFileMatchPatterns(pat tp.FilePatternType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.File = head
 	}
 	rule := RuleConfig{}
@@ -231,7 +231,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 	//forcing the protocol to lowercase
 	proto.Protocol = strings.ToLower(proto.Protocol)
 
-	if deny == false {
+	if !deny {
 		prof.Network = head
 	}
 	rule := RuleConfig{}
@@ -254,7 +254,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.Network = head
 				prof.FromSource[source] = val
@@ -266,7 +266,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 
 // SetCapabilitiesMatchCapabilities Function
 func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.CapabilitiesCapabilityType, prof *Profile, deny bool, head bool) {
-	if deny == false {
+	if !deny {
 		prof.Capabilities = head
 	}
 	rule := RuleConfig{}
@@ -289,7 +289,7 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 			fromsource.Rules.Init()
 			prof.FromSource[source] = fromsource
 		}
-		if deny == false {
+		if !deny {
 			if val, ok := prof.FromSource[source]; ok {
 				val.Capabilities = head
 				prof.FromSource[source] = val
@@ -462,18 +462,31 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 // GenerateAppArmorProfile Function
 func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture, privileged bool) (int, string, bool) {
 	// check apparmor profile
+	var oldProfile string
+	if strings.Contains(appArmorProfile, "kubearmor.host") {
+		if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + "kubearmor.host")); os.IsNotExist(err) {
+			return 0, err.Error(), false
+		}
 
-	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + appArmorProfile)); os.IsNotExist(err) {
-		return 0, err.Error(), false
+		// get the old profile
+		profile, err := os.ReadFile(filepath.Clean("/etc/apparmor.d/" + "kubearmor.host"))
+		if err != nil {
+			return 0, err.Error(), false
+		}
+		oldProfile = string(profile)
+	} else {
+		if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + appArmorProfile)); os.IsNotExist(err) {
+			return 0, err.Error(), false
+		}
+
+		// get the old profile
+
+		profile, err := os.ReadFile(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
+		if err != nil {
+			return 0, err.Error(), false
+		}
+		oldProfile = string(profile)
 	}
-
-	// get the old profile
-
-	profile, err := os.ReadFile(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
-	if err != nil {
-		return 0, err.Error(), false
-	}
-	oldProfile := string(profile)
 
 	// generate a profile body
 
