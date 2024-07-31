@@ -14,7 +14,7 @@ ignore:
   - "KubeArmor/state"
 
 comment:
-  layout: "reach, diff, flags, files"
+  layout: "reach, diff, files"
   behavior: default
   require_changes: false
   show_changes: true
