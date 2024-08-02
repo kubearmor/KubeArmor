@@ -5,11 +5,14 @@ package core
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"github.com/kubearmor/KubeArmor/protobuf"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
@@ -89,15 +92,21 @@ func (dm *KubeArmorDaemon) SetProbeContainerData() ([]string, map[string]*pb.Con
 	for _, ep := range dm.EndPoints {
 
 		var policyNames []string
+		var policyData []*protobuf.Policy
 
 		for _, policy := range ep.SecurityPolicies {
 
 			policyNames = append(policyNames, policy.Metadata["policyName"])
+			policyEventData, err := json.Marshal(policy)
+			if err == nil {
+				policyData = append(policyData, &protobuf.Policy{Policy: policyEventData})
+			}
 
 		}
 		containerMap[ep.EndPointName] = &pb.ContainerData{
-			PolicyList:    policyNames,
-			PolicyEnabled: int32(ep.PolicyEnabled),
+			PolicyList:     policyNames,
+			PolicyEnabled:  int32(ep.PolicyEnabled),
+			PolicyListData: policyData,
 		}
 	}
 	dm.EndPointsLock.Unlock()
@@ -113,12 +122,23 @@ func (dm *KubeArmorDaemon) SetProbeContainerData() ([]string, map[string]*pb.Con
 		if val, ok := hostMap[hostName]; ok {
 
 			val.PolicyList = append(val.PolicyList, hp.Metadata["policyName"])
+			policyEventData, err := json.Marshal(hp)
+			if err == nil {
+				val.PolicyListData = append(val.PolicyListData, &protobuf.Policy{Policy: policyEventData})
+			} else {
+				dm.Logger.Errf(err.Error())
+			}
+
 			hostMap[hostName] = val
 
 		} else {
-
+			policyEventData, err := json.Marshal(hp)
+			if err != nil {
+				dm.Logger.Errf(err.Error())
+			}
 			hostMap[hostName] = &pb.HostSecurityPolicies{
-				PolicyList: []string{hp.Metadata["policyName"]},
+				PolicyList:     []string{hp.Metadata["policyName"]},
+				PolicyListData: []*protobuf.Policy{{Policy: policyEventData}},
 			}
 
 		}
@@ -133,6 +153,7 @@ func (dm *KubeArmorDaemon) SetProbeContainerData() ([]string, map[string]*pb.Con
 func (p *Probe) GetProbeData(c context.Context, in *empty.Empty) (*pb.ProbeResponse, error) {
 
 	containerList, containerMap, hostMap := p.GetContainerData()
+	fmt.Printf("\n\nProbe called : Host Data %v\n\n", hostMap["pop-os"].PolicyListData)
 	res := &pb.ProbeResponse{
 		ContainerList: containerList,
 		ContainerMap:  containerMap,
