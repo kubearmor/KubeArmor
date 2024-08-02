@@ -53,6 +53,11 @@ var (
 	SecurityFsLabel string = "kubearmor.io/securityfs"
 	SeccompLabel    string = "kubearmor.io/seccomp"
 
+	// node taints label
+	NotreadyTaint      string = "node.kubernetes.io/not-ready"
+	UnreachableTaint   string = "node.kubernetes.io/unreachable"
+	UnschedulableTaint string = "node.kubernetes.io/unschedulable"
+
 	// if any node with securityfs/lsm present
 	IfNodeWithSecurtiyFs bool = false
 
