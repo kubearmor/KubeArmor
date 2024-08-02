@@ -5,7 +5,7 @@ go 1.21.0
 toolchain go1.21.12
 
 replace (
-	github.com/cilium/cilium => github.com/cilium/cilium v1.14.8
+	github.com/cilium/cilium => github.com/cilium/cilium v1.14.12
 	github.com/cilium/proxy => github.com/cilium/proxy v0.0.0-20231218064853-ea8cba5b690b
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf

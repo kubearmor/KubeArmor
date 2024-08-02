@@ -26,11 +26,6 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      volumes:
-      - name: sys-path
-        hostPath:
-          path: /sys/kernel/security
-          type: Directory
       securityContext:
         runAsNonRoot: true
         # TODO(user): For common cases that do not require escalating privileges
@@ -74,8 +69,5 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-        volumeMounts:
-          - mountPath: /sys/kernel/security
-            name: sys-path
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
