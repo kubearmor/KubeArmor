@@ -405,10 +405,10 @@ jobs:
       - name: Run cleanup
         if: ${{ always() && matrix.os == 'bpflsm' }}
         run: |
-          sudo systemctl stop kubearmor
-          sudo systemctl disable kubearmor
-          sudo apt remove -y kubearmor
-
+          sudo systemctl disable kubearmor.service
+          sudo rm -rf /opt/kubearmor/
+          sudo apt-get --purge remove -y kubearmor
+          sudo systemctl daemon-reload
 
   merge-and-upload-coverage:
     name: Merge and Upload Coverage
