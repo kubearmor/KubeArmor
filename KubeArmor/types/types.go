@@ -32,7 +32,7 @@ type Container struct {
 	Privileged      bool   `json:"privileged"`
 
 	// == //
-
+	Pid   int    `json:"pid"`
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
 
