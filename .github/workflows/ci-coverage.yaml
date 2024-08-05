@@ -363,6 +363,12 @@ jobs:
           install-only: true
           version: v1.25.0
 
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
+
       - name: Install protoc-gen-go
         if: ${{ matrix.os == 'bpflsm' }}
         run: |
