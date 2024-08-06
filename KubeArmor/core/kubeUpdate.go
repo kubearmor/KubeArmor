@@ -52,12 +52,12 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 	var lsm string
 
 	// Check if enforcer is set in the node annotations
-	if v, ok := node.Annotations["kubearmor.io/enforcer"]; ok {
+	if v, ok := node.Labels["kubearmor.io/enforcer"]; ok {
 		lsm = v
 	} else { // Read the lsm from the system
 		lsmByteData, err := os.ReadFile("/sys/kernel/security/lsm")
-		if err != nil {
-			kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err)
+		if err != nil && !os.IsNotExist(err) {
+			kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
 		} else if len(lsmByteData) == 0 {
 			kg.Err("Failed to read /sys/kernel/security/lsm: empty file")
 		}
