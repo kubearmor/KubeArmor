@@ -29,7 +29,7 @@ require (
 	github.com/cilium/ebpf v0.12.3
 	github.com/containerd/containerd v1.7.13
 	github.com/containerd/typeurl/v2 v2.1.1
-	github.com/docker/docker v25.0.5+incompatible
+	github.com/docker/docker v25.0.6+incompatible
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20240110164432-c2c1b121cd94
