@@ -364,6 +364,7 @@ jobs:
           version: v1.25.0
 
       - name: Install protoc
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
