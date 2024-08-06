@@ -26,9 +26,12 @@ message policy {
 message ContainerData {
   repeated string policyList = 1;
   int32 policyEnabled = 2;
+  repeated policy policyListData = 3;
+
 }
 message HostSecurityPolicies {
   repeated string policyList = 1;
+  repeated policy policyListData = 2;
 }
 message ProbeResponse {
    repeated string containerList = 1;
