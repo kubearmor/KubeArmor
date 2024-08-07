@@ -288,20 +288,13 @@ static __always_inline u32 init_context(event *event_data) {
   event_data->host_ppid = get_task_ppid(task);
   event_data->host_pid = bpf_get_current_pid_tgid() >> 32;
 
-  u32 pid = get_task_ns_tgid(task);
-  if (event_data->host_pid == pid) { // host
-    event_data->pid_id = 0;
-    event_data->mnt_id = 0;
+  struct outer_key okey;
+  get_outer_key(&okey, task);
+  event_data->pid_id = okey.pid_ns;
+  event_data->mnt_id = okey.mnt_ns;
 
-    event_data->ppid = get_task_ppid(task);
-    event_data->pid = bpf_get_current_pid_tgid() >> 32;
-  } else { // container
-    event_data->pid_id = get_task_pid_ns_id(task);
-    event_data->mnt_id = get_task_mnt_ns_id(task);
-
-    event_data->ppid = get_task_ns_ppid(task);
-    event_data->pid = pid;
-  }
+  event_data->ppid = get_task_ppid(task);
+  event_data->pid =  get_task_ns_tgid(task);
 
   event_data->uid = bpf_get_current_uid_gid();
 
