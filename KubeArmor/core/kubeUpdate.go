@@ -48,19 +48,37 @@ func (dm *KubeArmorDaemon) HandleNodeAnnotations(node *tp.Node) {
 		node.Annotations["kubearmor-policy"] = "enabled"
 	}
 
-	if lsm, err := os.ReadFile("/sys/kernel/security/lsm"); err == nil {
-		if !strings.Contains(string(lsm), "apparmor") && !strings.Contains(string(lsm), "selinux") {
-			// exception: neither AppArmor nor SELinux
-			if node.Annotations["kubearmor-policy"] == "enabled" {
-				node.Annotations["kubearmor-policy"] = "audited"
-			}
-		}
+	// == LSM == //
+	var lsm string
 
-		if kl.IsInK8sCluster() && strings.Contains(string(lsm), "selinux") {
-			// exception: KubeArmor in a daemonset even though SELinux is enabled
-			if node.Annotations["kubearmor-policy"] == "enabled" {
-				node.Annotations["kubearmor-policy"] = "audited"
-			}
+	// Check if enforcer is set in the node annotations
+	if v, ok := node.Labels["kubearmor.io/enforcer"]; ok {
+		lsm = v
+	} else { // Read the lsm from the system
+		lsmByteData, err := os.ReadFile("/sys/kernel/security/lsm")
+		if err != nil && !os.IsNotExist(err) {
+			kg.Errf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+		} else if len(lsmByteData) == 0 {
+			kg.Err("Failed to read /sys/kernel/security/lsm: empty file")
+		}
+		lsm = string(lsmByteData)
+	}
+
+	hasAppArmor := strings.Contains(lsm, "apparmor")
+	hasSelinux := strings.Contains(lsm, "selinux")
+	hasBPF := strings.Contains(lsm, "bpf")
+
+	if !hasBPF && !hasSelinux && !hasAppArmor {
+		// exception: neither AppArmor, SELinux or BPF
+		if node.Annotations["kubearmor-policy"] == "enabled" {
+			node.Annotations["kubearmor-policy"] = "audited"
+		}
+	}
+
+	if kl.IsInK8sCluster() && hasSelinux {
+		// exception: KubeArmor in a daemonset even though SELinux is enabled
+		if node.Annotations["kubearmor-policy"] == "enabled" {
+			node.Annotations["kubearmor-policy"] = "audited"
 		}
 	}
 
