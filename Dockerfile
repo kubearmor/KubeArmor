@@ -38,6 +38,12 @@ COPY ./KubeArmor/BPF .
 
 RUN make
 
+### Builder test
+
+FROM builder as builder-test
+WORKDIR /usr/src/KubeArmor/KubeArmor
+RUN go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+
 ### Make executable image
 
 FROM alpine:3.20 as kubearmor
@@ -52,6 +58,11 @@ COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
+
+FROM kubearmor as kubearmor-test
+COPY --from=builder-test /usr/src/KubeArmor/KubeArmor/kubearmor-test /KubeArmor/kubearmor-test
+
+ENTRYPOINT ["/KubeArmor/kubearmor-test"]
 
 ### TODO ###
 
