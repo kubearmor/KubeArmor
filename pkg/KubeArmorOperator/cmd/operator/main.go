@@ -71,7 +71,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs/", "path prefix for runtime search")
 	Cmd.PersistentFlags().StringVar(&DeploymentName, "deploymentName", "kubearmor-operator", "operator deployment name")
 	// TODO:- set initDeploy to false by default once this change is added to stable
-	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", true, "Init container deployment")
+	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", false, "Init container deployment")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
