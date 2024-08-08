@@ -157,6 +157,21 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 				oldRand := ""
 				if old, ok := oldObj.(*corev1.Node); ok {
 					oldRand = old.Labels[defaults.RandLabel]
+					nodeRestart := checkNodeRestart(nodeObj, old)
+					if nodeRestart {
+						runtime := nodeObj.Status.NodeInfo.ContainerRuntimeVersion
+						runtime = strings.Split(runtime, ":")[0]
+						clusterWatcher.log.Infof("Node might have been restarted, redeploying snitch ")
+						if val, ok := nodeObj.Labels[defaults.OsLabel]; ok && val == "linux" {
+							clusterWatcher.log.Infof("Installing snitch on node %s", nodeObj.Name)
+							_, err := clusterWatcher.client.BatchV1().Jobs(operatorWatchedNamespace).Create(context.Background(), genSnitchDeployment(nodeObj.Name, runtime), metav1.CreateOptions{})
+							if err != nil {
+								clusterWatcher.log.Errorf("Cannot run snitch on node %s, error=%s", nodeObj.Name, err.Error())
+								return
+							}
+							clusterWatcher.log.Infof("Snitch was installed on node %s", nodeObj.Name)
+						}
+					}
 				}
 				if val, ok := nodeObj.Labels[defaults.OsLabel]; ok && val == "linux" && oldRand != nodeObj.Labels[defaults.RandLabel] {
 					newNode := node{}
@@ -517,4 +532,35 @@ func addOwnership(obj interface{}) interface{} {
 		return resource
 	}
 	return obj
+}
+
+func checkNodeRestart(new, old *corev1.Node) bool {
+
+	oldTaints := false
+	newTaints := false
+
+	for _, val := range old.Spec.Taints {
+		if val.Key == defaults.NotreadyTaint || val.Key == defaults.UnreachableTaint || val.Key == defaults.UnschedulableTaint {
+			oldTaints = true
+			break
+		}
+
+	}
+	for _, val := range new.Spec.Taints {
+		if val.Key == defaults.NotreadyTaint || val.Key == defaults.UnreachableTaint || val.Key == defaults.UnschedulableTaint {
+			newTaints = true
+			break
+		}
+	}
+	/* Based on observation that when a node is restarted an update event
+	   is generated with old node having following node taints
+	   "node.kubernetes.io/not-ready" , "node.kubernetes.io/unreachable", "node.kubernetes.io/unschedulable"
+	   and new node having none of these taints
+	*/
+	if oldTaints && !newTaints {
+		// node might have been restarted
+		return true
+	}
+
+	return false
 }
