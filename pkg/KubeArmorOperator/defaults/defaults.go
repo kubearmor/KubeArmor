@@ -23,6 +23,11 @@ const (
 	SecurityFsLabel string = "kubearmor.io/securityfs"
 	SeccompLabel    string = "kubearmor.io/seccomp"
 
+	// node taints label
+	NotreadyTaint      string = "node.kubernetes.io/not-ready"
+	UnreachableTaint   string = "node.kubernetes.io/unreachable"
+	UnschedulableTaint string = "node.kubernetes.io/unschedulable"
+
 	DeleteAction string = "DELETE"
 	AddAction    string = "ADD"
 
