@@ -23,6 +23,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
+	"github.com/containerd/containerd"
 	pb "github.com/containerd/containerd/api/services/containers/v1"
 	pt "github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/namespaces"
@@ -57,6 +58,7 @@ var defaultCaps = []string{
 
 // Containerd Handler
 var Containerd *ContainerdHandler
+var IsK8sEnabled bool
 
 // init Function
 func init() {
@@ -82,7 +84,7 @@ type ContainerdHandler struct {
 	taskClient pt.TasksClient
 
 	// context
-	containerd context.Context
+	containerd []context.Context
 	docker     context.Context
 
 	// active containers
@@ -92,6 +94,8 @@ type ContainerdHandler struct {
 // NewContainerdHandler Function
 func NewContainerdHandler() *ContainerdHandler {
 	ch := &ContainerdHandler{}
+
+	socketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 
 	conn, err := grpc.Dial(cfg.GlobalCfg.CRISocket, grpc.WithInsecure())
 	if err != nil {
@@ -110,7 +114,27 @@ func NewContainerdHandler() *ContainerdHandler {
 	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
 
 	// containerd namespace
-	ch.containerd = namespaces.WithNamespace(context.Background(), "k8s.io")
+	client, err := containerd.New(socketPath)
+	if err != nil {
+		return nil
+	}
+	defer client.Close()
+
+	// Get the list of namespaces
+	ctx := context.Background()
+	namespaceService := client.NamespaceService()
+	listedNamespaces, err := namespaceService.List(ctx)
+	if err != nil {
+		return nil
+	}
+
+	if !IsK8sEnabled {
+		for _, namespace := range listedNamespaces {
+			ch.containerd = append(ch.containerd, namespaces.WithNamespace(context.Background(), namespace))
+		}
+	} else {
+		ch.containerd = append(ch.containerd, namespaces.WithNamespace(context.Background(), "k8s.io"))
+	}
 
 	// active containers
 	ch.containers = map[string]context.Context{}
@@ -146,7 +170,11 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	// == container base == //
 
 	container.ContainerID = res.Container.ID
-	container.ContainerName = res.Container.ID
+	if val, ok := res.Container.Labels["nerdctl/name"]; ok {
+		container.ContainerName = val
+	} else {
+		container.ContainerName = res.Container.ID
+	}
 	container.NamespaceName = "Unknown"
 	container.EndPointName = "Unknown"
 
@@ -253,9 +281,11 @@ func (ch *ContainerdHandler) GetContainerdContainers() map[string]context.Contex
 		}
 	}
 
-	if containerList, err := ch.client.List(ch.containerd, &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
-		for _, container := range containerList.Containers {
-			containers[container.ID] = ch.containerd
+	for _, containerdContext := range ch.containerd {
+		if containerList, err := ch.client.List(containerdContext, &req, grpc.MaxCallRecvMsgSize(kl.DefaultMaxRecvMaxSize)); err == nil {
+			for _, container := range containerList.Containers {
+				containers[container.ID] = containerdContext
+			}
 		}
 	}
 
@@ -289,6 +319,34 @@ func (ch *ContainerdHandler) GetDeletedContainerdContainers(containers map[strin
 	ch.containers = containers
 
 	return deletedContainers
+}
+
+// SetContainerVisibility function enables visibility flag arguments for un-orchestrated container
+func (dm *KubeArmorDaemon) SetContainerdVisibility(ctx context.Context, containerID string) {
+
+	// get container information from docker client
+	container, err := Containerd.GetContainerInfo(ctx, containerID, dm.OwnerInfo)
+	if err != nil {
+		return
+	}
+
+	if strings.Contains(cfg.GlobalCfg.Visibility, "process") {
+		container.ProcessVisibilityEnabled = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "file") {
+		container.FileVisibilityEnabled = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "network") {
+		container.NetworkVisibilityEnabled = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
+		container.CapabilitiesVisibilityEnabled = true
+	}
+
+	container.EndPointName = container.ContainerName
+	container.NamespaceName = "container_namespace"
+
+	dm.Containers[container.ContainerID] = container
 }
 
 // UpdateContainerdContainer Function
@@ -455,6 +513,13 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 			return false
 		}
 
+		if !dm.K8sEnabled {
+			dm.ContainersLock.Lock()
+			dm.SetContainerdVisibility(ctx, containerID)
+			container = dm.Containers[containerID]
+			dm.ContainersLock.Unlock()
+		}
+
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
 			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
@@ -554,6 +619,12 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 	dm.WgDaemon.Add(1)
 	defer dm.WgDaemon.Done()
+
+	if !dm.K8sEnabled {
+		IsK8sEnabled = false
+	} else {
+		IsK8sEnabled = true
+	}
 
 	Containerd = NewContainerdHandler()
 
