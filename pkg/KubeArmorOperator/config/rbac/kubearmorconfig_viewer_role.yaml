@@ -1,0 +1,27 @@
+# permissions for end users to view kubearmorconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: kubearmorconfig-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: kubearmoroperator
+    app.kubernetes.io/part-of: kubearmoroperator
+    app.kubernetes.io/managed-by: kustomize
+  name: kubearmorconfig-viewer-role
+rules:
+- apiGroups:
+  - operator.kubearmor.com
+  resources:
+  - kubearmorconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - operator.kubearmor.com
+  resources:
+  - kubearmorconfigs/status
+  verbs:
+  - get
