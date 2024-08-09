@@ -98,3 +98,11 @@ func TestMergeMaps(t *testing.T) {
 	mergedValsMap := mergeMaps(cfg.nodeConfigValues, cfg.kaConfigValues)
 	assert.NotEqual(t, 0, len(mergedValsMap))
 }
+
+func TestMergeGlobalRegistryValueMap(t *testing.T) {
+	vals := map[string]interface{}{
+		"globalRegistry": "kubearmor",
+	}
+	vals = mergeMaps(vals, getGlobalRegistryValueMap("public.ecr.aws/kubearmor"))
+	assert.Equal(t, "public.ecr.aws/kubearmor", vals["globalRegistry"])
+}

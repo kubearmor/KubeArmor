@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -446,6 +447,19 @@ func (ctrl *Controller) UpgradeRelease(ctx context.Context) (*release.Release, e
 	vals = mergeMaps(ctrl.kaConfigValues, ctrl.nodeConfigValues)
 	// vals = mergeMaps(ctrl.chart.Values, vals)
 
+	// both globalregistry and vendorimageregistry configurations
+	// are supported using kubearmorconfig as well, this overriding
+	// will help with deployment in marketplaces
+
+	// override globalregistry if set explicitly
+	if gr := os.Getenv("KA_GLOBAL_REGISTRY"); gr != "" {
+		vals = mergeMaps(vals, getGlobalRegistryValueMap(gr))
+		// if vendor images are expected to be use from globalregisry also
+		if vi := os.Getenv("USE_REGISTRY_FOR_VENDOR_IMG"); vi == "true" {
+			vals = mergeMaps(vals, getVendorImageRegistryConfigValueMap(vi))
+		}
+	}
+
 	// Not a best way to sync between kubearmorconfig reconiler and clusterwatcher
 	// to check and deploy KubeArmor applications only if snitch detected node configuration
 	// and kubearmoconfig CR instance has been detected
@@ -532,4 +546,18 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 		out[k] = v
 	}
 	return out
+}
+
+func getGlobalRegistryValueMap(registry string) map[string]interface{} {
+	return map[string]interface{}{
+		"globalRegistry": registry,
+	}
+}
+
+func getVendorImageRegistryConfigValueMap(useRegistry string) map[string]interface{} {
+	use := false
+	use, _ = strconv.ParseBool(useRegistry)
+	return map[string]interface{}{
+		"useGlobalRegistryForVendorImages": use,
+	}
 }

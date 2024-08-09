@@ -88,7 +88,8 @@ jobs:
             docker save kubearmor/kubearmor-controller:latest | sudo podman load
           fi
 
-          chart_version=$(grep '^version:' ./deployments/helm/KubeArmor/Chart.yaml | awk '{print $2}') \
+          chart_version=$(grep '^version:' ./deployments/helm/KubeArmor/Chart.yaml | awk '{print $2}')
+          echo "installing kubearmor chart version $chart_version"
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest \
             --set kubearmorOperator.imagePullPolicy=Never --set snitch.imagePullPolicy=Never --set helm.repository=embed --set helm.version=$chart_version --set helm.chart=kubearmor
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
