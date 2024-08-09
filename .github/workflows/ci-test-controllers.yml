@@ -67,9 +67,10 @@ jobs:
           docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
           docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
-          
+        
+          chart_version=$(grep '^version:' ./deployments/helm/KubeArmor/Chart.yaml | awk '{print $2}') \
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest \
-            --set kubearmorOperator.imagePullPolicy=Never --set snitch.imagePullPolicy=Never --set helm.repository=embed --set helm.version=v1.3.8 --set helm.chart=kubearmor
+            --set kubearmorOperator.imagePullPolicy=Never --set snitch.imagePullPolicy=Never --set helm.repository=embed --set helm.version=$chart_version --set helm.chart=kubearmor
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           sleep 3 # need this sleep because webhook server initialization may take some time
