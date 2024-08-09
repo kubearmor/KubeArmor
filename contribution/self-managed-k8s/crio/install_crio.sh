@@ -21,10 +21,11 @@ curl -fsSL https://pkgs.k8s.io/addons:/cri-o://stable:/$VERSION/deb/Release.key 
 echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/$VERSION/deb/ /" |
     sudo tee /etc/apt/sources.list.d/cri-o.list
 
+
 # install
 sudo apt-get update
 sudo apt-get install -y cri-o
-
+sudo dpkg -i --force-overwrite /var/cache/apt/archives/cri-o_1.30.4-1.1_amd64.deb
 # this option is not supported in ubuntu 18.04
 if [ "$VERSION_ID" == "18.04" ]; then
     sudo sed -i 's/,metacopy=on//g' /etc/containers/storage.conf
