@@ -159,7 +159,7 @@ run: manifests generate fmt vet install-dev ## Run a controller from your host.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
+docker-build: embed-chart ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${OPERATOR_IMG}:${VERSION} -t ${OPERATOR_IMG}:latest --build-arg VERSION=${VERSION} --target operator .
 	$(CONTAINER_TOOL) build	-t ${SNITCH_IMG}:${VERSION} -t ${SNITCH_IMG}:latest --build-arg VERSION=${VERSION} --target snitch .
 .PHONY: docker-push
@@ -175,7 +175,7 @@ docker-push: ## Push docker image with the manager.
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
+docker-buildx: embed-chart ## Build and push docker image for the manager for cross-platform support
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
@@ -386,6 +386,32 @@ ifeq (,$(shell ls $(YQ) 2>/dev/null))
 	}
 endif
 endif
+
+HELM := $(LOCALBIN)/helm
+helm:
+ifeq (,$(wildcard $(HELM)))
+ifeq (,$(shell ls $(HELM) 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(HELM)) ;\
+	curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | USE_SUDO=false HELM_INSTALL_DIR=$(LOCALBIN) bash; \
+	chmod +x $(HELM); \
+	}
+endif
+endif
+
+KUBEARMOR_DIR := ../..
+KUBEARMOR_CHART_DIR := $(KUBEARMOR_DIR)/deployments/helm/KubeArmor
+CHART_NAME := $(shell grep '^name:' $(KUBEARMOR_CHART_DIR)/Chart.yaml | awk '{print $$2}')
+CHART_VERSION := $(shell grep '^version:' $(KUBEARMOR_CHART_DIR)/Chart.yaml | awk '{print $$2}')
+.PHONY: embed-chart
+embed-chart: helm
+	$(HELM) package $(KUBEARMOR_CHART_DIR)
+	@echo "chart version: $(CHART_VERSION)" 
+	@rm -f embed/*.tgz
+	@cp $(CHART_NAME)-$(CHART_VERSION).tgz embed/
+	@rm -f $(CHART_NAME)-$(CHART_VERSION).tgz
+
 
 DEV_CRD_PATCH_YAML := $(shell pwd)/config/dev/patches/webhook_in_kubearmorconfigs.yaml
 create_crd_patch: generate_certs yq
