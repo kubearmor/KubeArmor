@@ -1,26 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2024 Authors of KubeArmor
-package policy
+package core
 
 import (
 	"context"
 	"testing"
 
-	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
-
-func mockUpdateContainerPolicy(policyEvent tp.K8sKubeArmorPolicyEvent) pb.PolicyStatus {
-	return pb.PolicyStatus_Applied
-}
 
 func FuzzContainerPolicy(f *testing.F) {
 	initialData := &pb.Policy{
 		Policy: []byte(`{
-			"type": "fuzz_test_seed",
+			"type": "ADDED",
 			"object": {
 				"metadata": {
-					"name": "",
+					"name": "somename",
 					"namespace": "multiubuntu"
 				},
 				"spec": {
@@ -43,10 +39,11 @@ func FuzzContainerPolicy(f *testing.F) {
 	}
 
 	f.Add(initialData.Policy)
+	dm := NewKubeArmorDaemon()
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		p := &PolicyServer{
-			UpdateContainerPolicy: mockUpdateContainerPolicy,
+		p := &policy.PolicyServer{
+			UpdateContainerPolicy: dm.ParseAndUpdateContainerSecurityPolicy,
 		}
 		policy := &pb.Policy{
 			Policy: data,
