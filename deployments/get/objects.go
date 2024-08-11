@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // GetServiceAccount Function
@@ -413,6 +414,8 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Image:           "kubearmor/kubearmor:stable",
 							ImagePullPolicy: "Always",
 							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:  ptr.To(int64(1000)),
+								RunAsGroup: ptr.To(int64(1000)),
 								Privileged: &privileged,
 								Capabilities: &corev1.Capabilities{
 									Drop: []corev1.Capability{
