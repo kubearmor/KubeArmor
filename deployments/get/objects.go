@@ -283,6 +283,11 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 			MountPath: "/media/root/etc/os-release",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "procfs-path", //BPF (read-only)
+			MountPath: "/proc",
+			ReadOnly:  true,
+		},
 	}
 
 	var volumes = []corev1.Volume{
@@ -325,6 +330,15 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/etc/os-release",
 					Type: &hostPathFile,
+				},
+			},
+		},
+		{
+			Name: "procfs-path",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+					Type: &hostPathDirectory,
 				},
 			},
 		},
@@ -375,7 +389,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Operator: "Exists",
 						},
 					},
-					HostPID:       true,
+					HostPID:       false,
 					HostNetwork:   true,
 					RestartPolicy: "Always",
 					DNSPolicy:     "ClusterFirstWithHostNet",
