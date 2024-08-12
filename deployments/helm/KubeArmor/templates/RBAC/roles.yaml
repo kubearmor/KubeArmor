@@ -6,16 +6,22 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - nodes
   - namespaces
-  - configmaps
   verbs:
   - get
-  - patch
   - list
   - watch
   - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -25,10 +31,8 @@ rules:
   - statefulsets
   verbs:
   - get
-  - patch
   - list
   - watch
-  - update
 - apiGroups:
   - batch
   resources:
@@ -36,10 +40,8 @@ rules:
   - cronjobs
   verbs:
   - get
-  - patch
   - list
   - watch
-  - update
 - apiGroups:
   - security.kubearmor.com
   resources:
