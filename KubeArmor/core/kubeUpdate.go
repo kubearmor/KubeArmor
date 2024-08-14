@@ -960,6 +960,11 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 }
 
 func matchClusterSecurityPolicyRule(policy tp.SecurityPolicy) bool {
+
+	if len(policy.Spec.Selector.Identities) > 0 { // if is not a Cluster policy
+		return false
+	}
+
 	hasInOperator := false
 	excludedNamespaces := make(map[string]bool)
 
