@@ -3,7 +3,7 @@
 
 ### Builder
 
-FROM golang:1.22-alpine3.20 as builder
+FROM golang:1.22-alpine3.20 AS builder
 
 RUN apk --no-cache update
 RUN apk add --no-cache git clang llvm make gcc protobuf
@@ -38,9 +38,15 @@ COPY ./KubeArmor/BPF .
 
 RUN make
 
+### Builder test
+
+FROM builder AS builder-test
+WORKDIR /usr/src/KubeArmor/KubeArmor
+RUN go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+
 ### Make executable image
 
-FROM alpine:3.20 as kubearmor
+FROM alpine:3.20 AS kubearmor
 
 RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" | tee -a /etc/apk/repositories
 
@@ -52,6 +58,11 @@ COPY --from=builder /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
 COPY --from=builder /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
 
 ENTRYPOINT ["/KubeArmor/kubearmor"]
+
+FROM kubearmor AS kubearmor-test
+COPY --from=builder-test /usr/src/KubeArmor/KubeArmor/kubearmor-test /KubeArmor/kubearmor-test
+
+ENTRYPOINT ["/KubeArmor/kubearmor-test"]
 
 ### TODO ###
 
@@ -65,7 +76,7 @@ ENTRYPOINT ["/KubeArmor/kubearmor"]
 
 ### Make UBI-based executable image
 
-FROM redhat/ubi9-minimal as kubearmor-ubi
+FROM redhat/ubi9-minimal AS kubearmor-ubi
 
 ARG VERSION=latest
 ENV KUBEARMOR_UBI=true
@@ -99,5 +110,3 @@ RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=
 
 USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor"]
-
-
