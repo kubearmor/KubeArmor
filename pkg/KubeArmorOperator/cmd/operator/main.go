@@ -13,6 +13,7 @@ import (
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/k8s"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/homedir"
@@ -28,11 +29,18 @@ var DeploymentName string
 var ExtClient *apiextensionsclientset.Clientset
 var Opv1Client *opv1client.Clientset
 var InitDeploy bool
+var LogLevel string
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		log, _ := zap.NewProduction()
+		level, err := zapcore.ParseLevel(LogLevel)
+		if err != nil {
+			return errors.New("unable to parse log level")
+		}
+		config := zap.NewProductionConfig()
+		config.Level.SetLevel(level)
+		log, _ := config.Build()
 		Logger = log.Sugar()
 		K8sClient = k8s.NewClient(*Logger, KubeConfig)
 		ExtClient = k8s.NewExtClient(*Logger, KubeConfig)
@@ -72,6 +80,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&DeploymentName, "deploymentName", "kubearmor-operator", "operator deployment name")
 	// TODO:- set initDeploy to false by default once this change is added to stable
 	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", true, "Init container deployment")
+	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
