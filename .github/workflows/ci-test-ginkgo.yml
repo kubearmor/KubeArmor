@@ -95,9 +95,9 @@ jobs:
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               docker save kubearmor/kubearmor-test-init:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-init:latest
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test-init:latest
               docker save kubearmor/kubearmor-test:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor:latest
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test:latest
               docker save kubearmor/kubearmor-operator:latest | sudo podman load
               sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
@@ -169,13 +169,10 @@ jobs:
 
       - name: Test KubeArmor using Ginkgo
         run: |
-          kubectl logs $POD_NAME -n kubearmor
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
           make
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
-        env:
-          POD_NAME: ${{ env.POD_NAME }}
 
       - name: Kill KubeArmor prcoess in the pod
         run: |
