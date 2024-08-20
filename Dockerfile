@@ -42,7 +42,7 @@ RUN make
 
 FROM builder AS builder-test
 WORKDIR /usr/src/KubeArmor/KubeArmor
-RUN go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+RUN CGO_ENABLED=0 go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
 
 ### Make executable image
 
@@ -110,3 +110,36 @@ RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=
 
 USER 1000
 ENTRYPOINT ["/KubeArmor/kubearmor"]
+
+### Make UBI-based test executable image for coverage calculation
+FROM redhat/ubi9-minimal AS kubearmor-ubi-test
+
+ARG VERSION=latest
+ENV KUBEARMOR_UBI=true
+
+LABEL name="kubearmor" \
+      vendor="Accuknox" \
+      version=${VERSION} \
+      release=${VERSION} \
+      summary="kubearmor container image based on redhat ubi" \
+      description="KubeArmor is a cloud-native runtime security enforcement system that restricts the behavior \
+                  (such as process execution, file access, and networking operations) of pods, containers, and nodes (VMs) \
+                  at the system level."
+
+RUN microdnf -y update && \
+    microdnf -y install --nodocs --setopt=install_weak_deps=0 --setopt=keepcache=0 shadow-utils procps libcap && \
+    microdnf clean all
+
+RUN groupadd --gid 1000 default \
+  && useradd --uid 1000 --gid default --shell /bin/bash --create-home default
+
+COPY LICENSE /licenses/license.txt
+COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor /KubeArmor/kubearmor
+COPY --from=builder --chown=default:default /usr/src/KubeArmor/BPF/*.o /opt/kubearmor/BPF/
+COPY --from=builder --chown=default:default /usr/src/KubeArmor/KubeArmor/templates/* /KubeArmor/templates/
+COPY --from=builder-test --chown=default:default /usr/src/KubeArmor/KubeArmor/kubearmor-test /KubeArmor/kubearmor-test
+
+RUN setcap "cap_sys_admin=ep cap_sys_ptrace=ep cap_ipc_lock=ep cap_sys_resource=ep cap_dac_override=ep cap_dac_read_search=ep" /KubeArmor/kubearmor-test
+
+USER 1000
+ENTRYPOINT ["/KubeArmor/kubearmor-test"]
