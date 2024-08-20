@@ -2,7 +2,7 @@ name: ci-merge-coverage
 
 on:
   workflow_run:
-    workflows: ["ci-test-ginkgo"]
+    workflows: [ci-test-ginkgo]
     types:
       - completed
 
@@ -12,58 +12,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-
       - name: Check if all required workflows completed successfully
         id: check-workflows
         run: |
-            workflows=("ci-test-ginkgo")
-            max_retries=20  # Set a max retry limit (e.g., 20 retries with 120-second intervals)
-            interval=120    # Set interval in seconds between retries
-            all_completed=false
+          workflows=("ci-test-ginkgo")
+          all_completed=true
 
-            commit_sha=$(git rev-parse HEAD)
+          commit_sha=$(git rev-parse HEAD)
 
-            for workflow in "${workflows[@]}"; do
-            echo "${workflow}_status=pending" >> $GITHUB_ENV
-            done
+          for workflow in "${workflows[@]}"; do
+              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "pull_request" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
 
-            for (( i=0; i<$max_retries; i++ )); do
-            all_completed=true
+              if [[ -z "$conclusion" ]]; then
+                  conclusion="pending"
+              fi
 
-            for workflow in "${workflows[@]}"; do
-                conclusion=$(gh run list --workflow=$workflow --branch=main --json conclusion,headSha | jq -r --arg sha "$commit_sha" '.[] | select(.headSha == $sha) | .conclusion')
+              if [[ "$conclusion" != "success" ]]; then
+                  all_completed=false
+              fi
 
-                if [[ -z "$conclusion" ]]; then
-                conclusion="pending"
-                fi
+              echo "${workflow}_status=$conclusion" >> $GITHUB_ENV
+          done
 
-                if [[ "$conclusion" != "success" ]]; then
-                all_completed=false
-                fi
-
-                echo "${workflow}_status=$conclusion" >> $GITHUB_ENV
-            done
-
-            if [[ "$all_completed" == "true" ]]; then
-                echo "All workflows completed successfully for commit $commit_sha."
-                echo "all_succeeded=true" >> $GITHUB_ENV
-                break
-            fi
-
-            if [[ "$i" -eq $((max_retries - 1)) ]]; then
-                echo "Timeout waiting for workflows to complete for commit $commit_sha."
-                exit 1
-            else
-                sleep $interval
-            fi
-            done
+          if [[ "$all_completed" == "true" ]]; then
+              echo "All workflows completed successfully for commit $commit_sha."
+              echo "all_succeeded=true" >> $GITHUB_ENV
+          else
+              echo "Not all workflows completed successfully for commit $commit_sha."
+              exit 1
+          fi
         env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
