@@ -10,7 +10,7 @@ Throttling conditions can be configured through the config map, `kubearmor-confi
 
 Three configurable conditions for throttling are:
 
-1. enabling alert throttling, by default alert throttling will not be available. In order to enable throttling we need to set `alertThrottling` to `true`.
+1. enabling/disabling alert throttling, by default alert throttling will be enabled. In order to disable throttling we need to set `alertThrottling` to `false`.
 
 2. set the threshold frequency for the alerts generated, by default it is set to `10` alerts(after enabling throttling), which means 10 alerts would be allowed to be generated per second. After the threshold frequency is crossed an alert will be generated which will notify that threshold frequency is crossed and for next few seconds we will not recieve alerts for this container. In order to set threshold frequency we need to set `maxAlertPerSec` to an int value, which decribes the number of maximum alerts that could be generated per sec.
 
