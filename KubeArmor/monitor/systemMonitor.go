@@ -293,6 +293,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 	if err := mon.BpfConfigMap.Update(uint32(5), uint32(cfg.GlobalCfg.ThrottleSec), cle.UpdateAny); err != nil {
 		mon.Logger.Errf("Error Updating System Monitor Config Map to set time interval for dropping subsequent alerts : %s", err.Error())
 	}
+	mon.Logger.Printf("Alert Throttling configured {alertThrottling:%v, maxAlertPerSec:%v, throttleSec:%v}",
+		cfg.GlobalCfg.AlertThrottling,
+		cfg.GlobalCfg.MaxAlertPerSec,
+		cfg.GlobalCfg.ThrottleSec)
 }
 
 // UpdateNsKeyMap Function
