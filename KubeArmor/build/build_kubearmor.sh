@@ -70,6 +70,17 @@ if [[ "$IS_COVERAGE" == "true" ]]; then
     fi
     echo "[PASSED] Built $REPO-init:$VERSION"
 
+    # build kubearmor-ubi-test image
+    DTAGUBITEST="-t $UBIREPO-test:$VERSION"
+    echo "[INFO] Building $DTAGUBITEST"
+    cd $ARMOR_HOME/..; docker build $DTAGUBITEST -f Dockerfile --target kubearmor-ubi-test . $LABEL
+
+    if [ $? != 0 ]; then
+        echo "[FAILED] Failed to build $DTAGUBITEST:$VERSION"
+        exit 1
+    fi
+    echo "[PASSED] Built $DTAGUBITEST:$VERSION"
+    
     exit 0
 fi
 

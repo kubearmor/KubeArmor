@@ -20,6 +20,7 @@ import (
 	runtimepkg "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/runtime"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -43,11 +44,18 @@ var LsmOrder string
 var PathPrefix string = "/rootfs"
 var NodeName string
 var Runtime string
+var LogLevel string
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		log, _ := zap.NewProduction()
+		level, err := zapcore.ParseLevel(LogLevel)
+		if err != nil {
+			return errors.New("unable to parse log level")
+		}
+		config := zap.NewProductionConfig()
+		config.Level.SetLevel(level)
+		log, _ := config.Build()
 		Logger = log.Sugar()
 		K8sClient = k8s.NewClient(*Logger, KubeConfig)
 		//Initialise k8sClient for all child commands to inherit
@@ -87,6 +95,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&NodeName, "nodename", "", "node name to label")
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs", "path prefix for runtime search")
 	Cmd.PersistentFlags().StringVar(&Runtime, "runtime", "", "runtime detected by k8s")
+	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
