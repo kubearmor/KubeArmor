@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-path-audit
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  file:
+    matchPaths:
+    - path: /etc/passwd
+  action:
+    Audit
+
+# kubearmor-dev_test_02
+
+# test
+# $ cat /etc/passwd
+# ...
+# $ head /etc/passwd
+# ...
+
+# expectation
+# anyone can access /etc/passwd, but the access would be audited
