@@ -11,14 +11,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/defaults"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/internal/helm"
 
 	"go.uber.org/zap"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+
+	// "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -123,27 +124,27 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			if nodeObj, ok := obj.(*corev1.Node); ok {
 				runtime := nodeObj.Status.NodeInfo.ContainerRuntimeVersion
 				runtime = strings.Split(runtime, ":")[0]
-				if val, ok := nodeObj.Labels[defaults.OsLabel]; ok && val == "linux" {
+				if val, ok := nodeObj.Labels[common.OsLabel]; ok && val == "linux" {
 					log.Infof("Installing snitch on node %s", nodeObj.Name)
 					// install snitch role, rolebinding and sa
-					_, err := clusterWatcher.client.RbacV1().ClusterRoles().Create(context.Background(), genSnitchClusterRole(), metav1.CreateOptions{})
-					if err != nil && !errors.IsAlreadyExists(err) {
-						log.Warnf("cannot create snitch clusterrole error=%s", err.Error())
-						return
-					}
-					_, err = clusterWatcher.client.RbacV1().ClusterRoleBindings().Create(context.Background(), genSnitchClusterRoleBinding(), metav1.CreateOptions{})
-					if err != nil && !errors.IsAlreadyExists(err) {
-						log.Warnf("cannot create snitch clusterrolebinding error=%s", err.Error())
-						return
-					}
-					sa, err := clusterWatcher.client.CoreV1().ServiceAccounts(operatorWatchedNamespace).Create(context.Background(), genSnitchServiceAccount(), metav1.CreateOptions{})
-					if err != nil && !errors.IsAlreadyExists(err) {
-						log.Warnf("cannot create snitch serviceaccount error=%s", err.Error())
-						return
-					}
-					log.Info("service account %s created in namespace %s", sa.GetName(), sa.GetNamespace())
+					// _, err := clusterWatcher.client.RbacV1().ClusterRoles().Create(context.Background(), genSnitchClusterRole(), metav1.CreateOptions{})
+					// if err != nil && !errors.IsAlreadyExists(err) {
+					// 	log.Warnf("cannot create snitch clusterrole error=%s", err.Error())
+					// 	return
+					// }
+					// _, err = clusterWatcher.client.RbacV1().ClusterRoleBindings().Create(context.Background(), genSnitchClusterRoleBinding(), metav1.CreateOptions{})
+					// if err != nil && !errors.IsAlreadyExists(err) {
+					// 	log.Warnf("cannot create snitch clusterrolebinding error=%s", err.Error())
+					// 	return
+					// }
+					// sa, err := clusterWatcher.client.CoreV1().ServiceAccounts(operatorWatchedNamespace).Create(context.Background(), genSnitchServiceAccount(), metav1.CreateOptions{})
+					// if err != nil && !errors.IsAlreadyExists(err) {
+					// 	log.Warnf("cannot create snitch serviceaccount error=%s", err.Error())
+					// 	return
+					// }
+					// log.Info("service account %s created in namespace %s", sa.GetName(), sa.GetNamespace())
 					// deploy snitch job
-					_, err = clusterWatcher.client.BatchV1().Jobs(operatorWatchedNamespace).Create(context.Background(), genSnitchDeployment(nodeObj.Name, runtime), metav1.CreateOptions{})
+					_, err := clusterWatcher.client.BatchV1().Jobs(operatorWatchedNamespace).Create(context.Background(), genSnitchDeployment(nodeObj.Name, runtime), metav1.CreateOptions{})
 					if err != nil {
 						log.Warnf("Cannot run snitch on node %s, error=%s", nodeObj.Name, err.Error())
 						return
@@ -156,13 +157,13 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			if nodeObj, ok := newObj.(*corev1.Node); ok {
 				oldRand := ""
 				if old, ok := oldObj.(*corev1.Node); ok {
-					oldRand = old.Labels[defaults.RandLabel]
+					oldRand = old.Labels[common.RandLabel]
 					nodeRestart := checkNodeRestart(nodeObj, old)
 					if nodeRestart {
 						runtime := nodeObj.Status.NodeInfo.ContainerRuntimeVersion
 						runtime = strings.Split(runtime, ":")[0]
 						clusterWatcher.log.Infof("Node might have been restarted, redeploying snitch ")
-						if val, ok := nodeObj.Labels[defaults.OsLabel]; ok && val == "linux" {
+						if val, ok := nodeObj.Labels[common.OsLabel]; ok && val == "linux" {
 							clusterWatcher.log.Infof("Installing snitch on node %s", nodeObj.Name)
 							_, err := clusterWatcher.client.BatchV1().Jobs(operatorWatchedNamespace).Create(context.Background(), genSnitchDeployment(nodeObj.Name, runtime), metav1.CreateOptions{})
 							if err != nil {
@@ -173,27 +174,27 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						}
 					}
 				}
-				if val, ok := nodeObj.Labels[defaults.OsLabel]; ok && val == "linux" && oldRand != nodeObj.Labels[defaults.RandLabel] {
+				if val, ok := nodeObj.Labels[common.OsLabel]; ok && val == "linux" && oldRand != nodeObj.Labels[common.RandLabel] {
 					newNode := node{}
-					if val, ok := nodeObj.Labels[defaults.EnforcerLabel]; ok {
+					if val, ok := nodeObj.Labels[common.EnforcerLabel]; ok {
 						newNode.Enforcer = val
 					}
-					if val, ok := nodeObj.Labels[defaults.ArchLabel]; ok {
+					if val, ok := nodeObj.Labels[common.ArchLabel]; ok {
 						newNode.Arch = val
 					}
-					if val, ok := nodeObj.Labels[defaults.RuntimeLabel]; ok {
+					if val, ok := nodeObj.Labels[common.RuntimeLabel]; ok {
 						newNode.Runtime = val
 					}
-					if val, ok := nodeObj.Labels[defaults.SocketLabel]; ok {
+					if val, ok := nodeObj.Labels[common.SocketLabel]; ok {
 						newNode.RuntimeSocket = val
 					}
-					if val, ok := nodeObj.Labels[defaults.BTFLabel]; ok {
+					if val, ok := nodeObj.Labels[common.BTFLabel]; ok {
 						newNode.BTF = val
 					}
-					if val, ok := nodeObj.Labels[defaults.ApparmorFsLabel]; ok {
+					if val, ok := nodeObj.Labels[common.ApparmorFsLabel]; ok {
 						newNode.ApparmorFs = val
 					}
-					if val, ok := nodeObj.Labels[defaults.SeccompLabel]; ok {
+					if val, ok := nodeObj.Labels[common.SeccompLabel]; ok {
 						newNode.Seccomp = val
 					}
 					clusterWatcher.nodesLock.Lock()
@@ -215,9 +216,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.nodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.updateDaemonsets(defaults.DeleteAction, newNode)
+						clusterWatcher.updateDaemonsets(common.DeleteAction, newNode)
 					}
-					clusterWatcher.updateDaemonsets(defaults.AddAction, newNode)
+					clusterWatcher.updateDaemonsets(common.AddAction, newNode)
 				}
 			} else {
 				log.Warnf("Cannot convert object to node struct")
@@ -230,7 +231,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 				deletedNode := clusterWatcher.nodes[nodeObj.Name]
 				delete(clusterWatcher.nodes, nodeObj.Name)
 				clusterWatcher.nodesLock.Unlock()
-				clusterWatcher.updateDaemonsets(defaults.DeleteAction, deletedNode)
+				clusterWatcher.updateDaemonsets(common.DeleteAction, deletedNode)
 			}
 		},
 	})
@@ -280,10 +281,10 @@ func (clusterWatcher *ClusterWatcher) updateDaemonsets(action string, nodeInstan
 		"kubearmor",
 		strings.ReplaceAll(nodeInstance.Enforcer, ".", "-"),
 		nodeInstance.Runtime,
-		defaults.ShortSHA(nodeInstance.RuntimeSocket),
+		common.ShortSHA(nodeInstance.RuntimeSocket),
 	}, "-")
 	clusterWatcher.daemonsetsLock.Lock()
-	if action == defaults.AddAction {
+	if action == common.AddAction {
 		clusterWatcher.daemonsets[daemonsetName]++
 		if !slices.Contains(nodeConfigs, nodeInstance) {
 			nodeConfigs = append(nodeConfigs, nodeInstance)
@@ -291,7 +292,7 @@ func (clusterWatcher *ClusterWatcher) updateDaemonsets(action string, nodeInstan
 			// update node config in helm values
 			clusterWatcher.upgradeRelease()
 		}
-	} else if action == defaults.DeleteAction {
+	} else if action == common.DeleteAction {
 		if val, ok := clusterWatcher.daemonsets[daemonsetName]; ok {
 			if val < 2 {
 				clusterWatcher.daemonsets[daemonsetName] = 0
@@ -323,7 +324,7 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 		Template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					"kubearmor-app": defaults.KubeArmorSnitchRoleName,
+					"kubearmor-app": common.KubeArmorSnitchRoleName,
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -386,7 +387,7 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 									"ALL",
 								},
 							},
-							Privileged: &(defaults.Privileged),
+							Privileged: &(common.Privileged),
 						},
 					},
 				},
@@ -395,17 +396,17 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 				// not work if hostPID is set false.
 
 				// change for snitch host path
-				HostPID:            defaults.HostPID,
+				HostPID:            common.HostPID,
 				NodeName:           nodename,
 				RestartPolicy:      corev1.RestartPolicyOnFailure,
-				ServiceAccountName: defaults.KubeArmorSnitchRoleName,
+				ServiceAccountName: common.KubeArmorSnitchRoleName,
 				Volumes: []corev1.Volume{
 					{
 						Name: "sys-path",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/sys/",
-								Type: &defaults.HostPathDirectory,
+								Type: &common.HostPathDirectory,
 							},
 						},
 					},
@@ -414,7 +415,7 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/etc/apparmor.d/",
-								Type: &defaults.HostPathDirectoryOrCreate,
+								Type: &common.HostPathDirectoryOrCreate,
 							},
 						},
 					},
@@ -423,7 +424,7 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/var/",
-								Type: &defaults.HostPathDirectory,
+								Type: &common.HostPathDirectory,
 							},
 						},
 					},
@@ -432,7 +433,7 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/run/",
-								Type: &defaults.HostPathDirectory,
+								Type: &common.HostPathDirectory,
 							},
 						},
 					},
@@ -441,7 +442,7 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/var/lib/kubelet/seccomp",
-								Type: &defaults.HostPathDirectoryOrCreate,
+								Type: &common.HostPathDirectoryOrCreate,
 							},
 						},
 					},
@@ -452,58 +453,58 @@ func genSnitchDeployment(nodename string, runtime string) *batchv1.Job {
 	return &job
 }
 
-func genSnitchClusterRole() *rbacv1.ClusterRole {
-	cr := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.KubeArmorSnitchRoleName,
-			Namespace: operatorWatchedNamespace,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Verbs: []string{
-					"get",
-					"patch",
-				},
-				Resources: []string{
-					"nodes",
-				},
-			},
-		},
-	}
-	return addOwnership(cr).(*rbacv1.ClusterRole)
-}
+// func genSnitchClusterRole() *rbacv1.ClusterRole {
+// 	cr := &rbacv1.ClusterRole{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      common.KubeArmorSnitchRoleName,
+// 			Namespace: operatorWatchedNamespace,
+// 		},
+// 		Rules: []rbacv1.PolicyRule{
+// 			{
+// 				APIGroups: []string{""},
+// 				Verbs: []string{
+// 					"get",
+// 					"patch",
+// 				},
+// 				Resources: []string{
+// 					"nodes",
+// 				},
+// 			},
+// 		},
+// 	}
+// 	return addOwnership(cr).(*rbacv1.ClusterRole)
+// }
 
-func genSnitchClusterRoleBinding() *rbacv1.ClusterRoleBinding {
-	crb := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.KubeArmorSnitchRoleName + "-binding",
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      defaults.KubeArmorSnitchRoleName,
-				Namespace: operatorWatchedNamespace,
-			},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     defaults.KubeArmorSnitchRoleName,
-		},
-	}
-	return addOwnership(crb).(*rbacv1.ClusterRoleBinding)
-}
+// func genSnitchClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+// 	crb := &rbacv1.ClusterRoleBinding{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name: common.KubeArmorSnitchRoleName + "-binding",
+// 		},
+// 		Subjects: []rbacv1.Subject{
+// 			{
+// 				Kind:      "ServiceAccount",
+// 				Name:      common.KubeArmorSnitchRoleName,
+// 				Namespace: operatorWatchedNamespace,
+// 			},
+// 		},
+// 		RoleRef: rbacv1.RoleRef{
+// 			APIGroup: "rbac.authorization.k8s.io",
+// 			Kind:     "ClusterRole",
+// 			Name:     common.KubeArmorSnitchRoleName,
+// 		},
+// 	}
+// 	return addOwnership(crb).(*rbacv1.ClusterRoleBinding)
+// }
 
-func genSnitchServiceAccount() *corev1.ServiceAccount {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.KubeArmorSnitchRoleName,
-			Namespace: operatorWatchedNamespace,
-		},
-	}
-	return addOwnership(sa).(*corev1.ServiceAccount)
-}
+// func genSnitchServiceAccount() *corev1.ServiceAccount {
+// 	sa := &corev1.ServiceAccount{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      common.KubeArmorSnitchRoleName,
+// 			Namespace: operatorWatchedNamespace,
+// 		},
+// 	}
+// 	return addOwnership(sa).(*corev1.ServiceAccount)
+// }
 
 func addOwnership(obj interface{}) interface{} {
 	if operatorDeploymentUID == "" {
@@ -540,14 +541,14 @@ func checkNodeRestart(new, old *corev1.Node) bool {
 	newTaints := false
 
 	for _, val := range old.Spec.Taints {
-		if val.Key == defaults.NotreadyTaint || val.Key == defaults.UnreachableTaint || val.Key == defaults.UnschedulableTaint {
+		if val.Key == common.NotreadyTaint || val.Key == common.UnreachableTaint || val.Key == common.UnschedulableTaint {
 			oldTaints = true
 			break
 		}
 
 	}
 	for _, val := range new.Spec.Taints {
-		if val.Key == defaults.NotreadyTaint || val.Key == defaults.UnreachableTaint || val.Key == defaults.UnschedulableTaint {
+		if val.Key == common.NotreadyTaint || val.Key == common.UnreachableTaint || val.Key == common.UnschedulableTaint {
 			newTaints = true
 			break
 		}

@@ -3,7 +3,10 @@ autoDeploy: false
 # operator will deploy pinned images for each application
 imagePinning: false
 
-# pinned images
+# == pinned images ==
+# solves very specific use-case of deploying KubeArmor
+# on marketplaces, in-general kubearmorconfig is recommended
+# to set image references
 oci_meta:
   repo: kubearmor
   images:
@@ -30,6 +33,7 @@ oci_meta:
       tag: v0.15.0
 
 snitch:
+  name: kubearmor-snitch
   image: 
     repository: kubearmor/kubearmor-snitch
     tag: latest

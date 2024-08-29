@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +28,7 @@ import (
 
 	semver "github.com/Masterminds/semver/v3"
 	operatorv2 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v2"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	embedFs "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/embed"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
@@ -447,17 +447,10 @@ func (ctrl *Controller) UpgradeRelease(ctx context.Context) (*release.Release, e
 	vals = mergeMaps(ctrl.kaConfigValues, ctrl.nodeConfigValues)
 	// vals = mergeMaps(ctrl.chart.Values, vals)
 
-	// both globalregistry and vendorimageregistry configurations
-	// are supported using kubearmorconfig as well, this overriding
+	// pin images if configured
 	// will help with deployment in marketplaces
-
-	// override globalregistry if set explicitly
-	if gr := os.Getenv("KA_GLOBAL_REGISTRY"); gr != "" {
-		vals = mergeMaps(vals, getGlobalRegistryValueMap(gr))
-		// if vendor images are expected to be use from globalregisry also
-		if vi := os.Getenv("USE_REGISTRY_FOR_VENDOR_IMG"); vi == "true" {
-			vals = mergeMaps(vals, getVendorImageRegistryConfigValueMap(vi))
-		}
+	if pinnedImages := getPinnedImagesValuesMap(); pinnedImages != nil {
+		vals = mergeMaps(vals, pinnedImages)
 	}
 
 	// Not a best way to sync between kubearmorconfig reconiler and clusterwatcher
@@ -548,16 +541,77 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 	return out
 }
 
-func getGlobalRegistryValueMap(registry string) map[string]interface{} {
-	return map[string]interface{}{
-		"globalRegistry": registry,
-	}
-}
+func getPinnedImagesValuesMap() map[string]interface{} {
 
-func getVendorImageRegistryConfigValueMap(useRegistry string) map[string]interface{} {
-	use := false
-	use, _ = strconv.ParseBool(useRegistry)
-	return map[string]interface{}{
-		"useGlobalRegistryForVendorImages": use,
+	vals := map[string]interface{}{}
+	pinned := false
+
+	vals["globalRegistry"] = ""
+	vals["useGlobalRegistryForVendorImages"] = false
+
+	if image := os.Getenv("RELATED_IMAGE_KUBEARMOR"); image != "" {
+		pinned = true
+		reg, repo, tag := common.ParseImage(image)
+		vals["kubearmor"] = map[string]interface{}{
+			"image": map[string]interface{}{
+				"registry":   reg,
+				"repository": repo,
+				"tag":        tag,
+			},
+		}
 	}
+
+	if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_INIT"); image != "" {
+		pinned = true
+		reg, repo, tag := common.ParseImage(image)
+		vals["kubearmorInit"] = map[string]interface{}{
+			"image": map[string]interface{}{
+				"registry":   reg,
+				"repository": repo,
+				"tag":        tag,
+			},
+		}
+	}
+
+	if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_RELAY_SERVER"); image != "" {
+		pinned = true
+		reg, repo, tag := common.ParseImage(image)
+		vals["kubearmorRelay"] = map[string]interface{}{
+			"image": map[string]interface{}{
+				"registry":   reg,
+				"repository": repo,
+				"tag":        tag,
+			},
+		}
+	}
+
+	if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_CONTROLLER"); image != "" {
+		pinned = true
+		reg, repo, tag := common.ParseImage(image)
+		vals["kubearmorController"] = map[string]interface{}{
+			"image": map[string]interface{}{
+				"registry":   reg,
+				"repository": repo,
+				"tag":        tag,
+			},
+		}
+	}
+
+	if image := os.Getenv("RELATED_IMAGE_KUBE_RBAC_PROXY"); image != "" {
+		pinned = true
+		reg, repo, tag := common.ParseImage(image)
+		vals["kubeRbacProxy"] = map[string]interface{}{
+			"image": map[string]interface{}{
+				"registry":   reg,
+				"repository": repo,
+				"tag":        tag,
+			},
+		}
+	}
+
+	if !pinned {
+		return nil
+	}
+
+	return vals
 }

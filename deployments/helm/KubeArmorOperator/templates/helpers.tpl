@@ -38,7 +38,11 @@
 {{- end }}
 - --rollbackOnFailure={{.Values.helm.rollbackOnFailure}}
 - --skip-crd={{.Values.helm.skipCRD}}
+{{- if .Values.imagePinning }}
+- --snitchImage={{ printf "%s/%s:%s" .Values.oci_meta.repo .Values.oci_meta.images.kubearmorSnitch.image .Values.oci_meta.images.kubearmorSnitch.tag }}
+{{- else }}
 - --snitchImage={{ printf "%s:%s" .Values.snitch.image.repository (default .Chart.Version .Values.snitch.image.tag) }}
+{{- end }}
 - --snitchImagePullPolicy={{ .Values.snitch.imagePullPolicy }}
 - --lsmOrder={{ .Values.snitch.lsmOrder }}
 {{- end }}

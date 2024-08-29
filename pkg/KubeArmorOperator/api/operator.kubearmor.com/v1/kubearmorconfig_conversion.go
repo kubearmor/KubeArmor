@@ -5,11 +5,10 @@ package v1
 
 import (
 	"strconv"
-	"strings"
-
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	v2 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v2"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 // ConvertTo converts this KubeArmorConfig to the Hub version (v2).
@@ -23,7 +22,7 @@ func (src *KubeArmorConfig) ConvertTo(dstRaw conversion.Hub) error {
 
 	// kubearmor image
 	if imageAndTag := src.Spec.KubeArmorImage.Image; imageAndTag != "" {
-		reg, repo, tag := parseImage(imageAndTag)
+		reg, repo, tag := common.ParseImage(imageAndTag)
 		dst.Spec.KubeArmor.Image.Registry = reg
 		dst.Spec.KubeArmor.Image.Repository = repo
 		dst.Spec.KubeArmor.Image.Tag = tag
@@ -31,7 +30,7 @@ func (src *KubeArmorConfig) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.KubeArmor.ImagePullPolicy = v2.ImagePullPolicy(src.Spec.KubeArmorImage.ImagePullPolicy)
 	// kubearmor init image
 	if imageAndTag := src.Spec.KubeArmorInitImage.Image; imageAndTag != "" {
-		reg, repo, tag := parseImage(imageAndTag)
+		reg, repo, tag := common.ParseImage(imageAndTag)
 		dst.Spec.KubeArmorInit.Image.Registry = reg
 		dst.Spec.KubeArmorInit.Image.Repository = repo
 		dst.Spec.KubeArmorInit.Image.Tag = tag
@@ -39,7 +38,7 @@ func (src *KubeArmorConfig) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.KubeArmorInit.ImagePullPolicy = v2.ImagePullPolicy(src.Spec.KubeArmorInitImage.ImagePullPolicy)
 	// kubearmor relay image
 	if imageAndTag := src.Spec.KubeArmorRelayImage.Image; imageAndTag != "" {
-		reg, repo, tag := parseImage(imageAndTag)
+		reg, repo, tag := common.ParseImage(imageAndTag)
 		dst.Spec.KubeArmorRelay.Image.Registry = reg
 		dst.Spec.KubeArmorRelay.Image.Repository = repo
 		dst.Spec.KubeArmorRelay.Image.Tag = tag
@@ -47,7 +46,7 @@ func (src *KubeArmorConfig) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.KubeArmorRelay.ImagePullPolicy = v2.ImagePullPolicy(src.Spec.KubeArmorRelayImage.ImagePullPolicy)
 	// kubearmor controller image
 	if imageAndTag := src.Spec.KubeArmorControllerImage.Image; imageAndTag != "" {
-		reg, repo, tag := parseImage(imageAndTag)
+		reg, repo, tag := common.ParseImage(imageAndTag)
 		dst.Spec.KubeArmorController.Image.Registry = reg
 		dst.Spec.KubeArmorController.Image.Repository = repo
 		dst.Spec.KubeArmorController.Image.Tag = tag
@@ -55,7 +54,7 @@ func (src *KubeArmorConfig) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.KubeArmorController.ImagePullPolicy = v2.ImagePullPolicy(src.Spec.KubeArmorControllerImage.ImagePullPolicy)
 	// kube rbac proxy image
 	if imageAndTag := src.Spec.KubeRbacProxyImage.Image; imageAndTag != "" {
-		reg, repo, tag := parseImage(imageAndTag)
+		reg, repo, tag := common.ParseImage(imageAndTag)
 		dst.Spec.KubeRbacProxy.Image.Registry = reg
 		dst.Spec.KubeRbacProxy.Image.Repository = repo
 		dst.Spec.KubeRbacProxy.Image.Tag = tag
@@ -118,9 +117,9 @@ func (dst *KubeArmorConfig) ConvertFrom(srcRaw conversion.Hub) error {
 	if img := src.Spec.KubeArmor.Image.Repository; img != "" {
 		tag := src.Spec.KubeArmor.Image.Tag
 		if reg := src.Spec.KubeArmor.Image.Registry; reg != "" {
-			dst.Spec.KubeArmorImage.Image = createImage(reg, img, tag)
+			dst.Spec.KubeArmorImage.Image = common.CreateImage(reg, img, tag)
 		} else {
-			dst.Spec.KubeArmorImage.Image = createImage(globalRegistry, img, tag)
+			dst.Spec.KubeArmorImage.Image = common.CreateImage(globalRegistry, img, tag)
 		}
 	}
 	dst.Spec.KubeArmorImage.ImagePullPolicy = string(src.Spec.KubeArmor.ImagePullPolicy)
@@ -128,9 +127,9 @@ func (dst *KubeArmorConfig) ConvertFrom(srcRaw conversion.Hub) error {
 	if img := src.Spec.KubeArmorInit.Image.Repository; img != "" {
 		tag := src.Spec.KubeArmorInit.Image.Tag
 		if reg := src.Spec.KubeArmorInit.Image.Registry; reg != "" {
-			dst.Spec.KubeArmorInitImage.Image = createImage(reg, img, tag)
+			dst.Spec.KubeArmorInitImage.Image = common.CreateImage(reg, img, tag)
 		} else {
-			dst.Spec.KubeArmorInitImage.Image = createImage(globalRegistry, img, tag)
+			dst.Spec.KubeArmorInitImage.Image = common.CreateImage(globalRegistry, img, tag)
 		}
 	}
 	dst.Spec.KubeArmorInitImage.ImagePullPolicy = string(src.Spec.KubeArmorInit.ImagePullPolicy)
@@ -138,9 +137,9 @@ func (dst *KubeArmorConfig) ConvertFrom(srcRaw conversion.Hub) error {
 	if img := src.Spec.KubeArmorRelay.Image.Repository; img != "" {
 		tag := src.Spec.KubeArmorRelay.Image.Tag
 		if reg := src.Spec.KubeArmorRelay.Image.Registry; reg != "" {
-			dst.Spec.KubeArmorRelayImage.Image = createImage(reg, img, tag)
+			dst.Spec.KubeArmorRelayImage.Image = common.CreateImage(reg, img, tag)
 		} else {
-			dst.Spec.KubeArmorRelayImage.Image = createImage(globalRegistry, img, tag)
+			dst.Spec.KubeArmorRelayImage.Image = common.CreateImage(globalRegistry, img, tag)
 		}
 	}
 	dst.Spec.KubeArmorRelayImage.ImagePullPolicy = string(src.Spec.KubeArmorRelay.ImagePullPolicy)
@@ -148,9 +147,9 @@ func (dst *KubeArmorConfig) ConvertFrom(srcRaw conversion.Hub) error {
 	if img := src.Spec.KubeArmorController.Image.Repository; img != "" {
 		tag := src.Spec.KubeArmorController.Image.Tag
 		if reg := src.Spec.KubeArmorController.Image.Registry; reg != "" {
-			dst.Spec.KubeArmorControllerImage.Image = createImage(reg, img, tag)
+			dst.Spec.KubeArmorControllerImage.Image = common.CreateImage(reg, img, tag)
 		} else {
-			dst.Spec.KubeArmorControllerImage.Image = createImage(globalRegistry, img, tag)
+			dst.Spec.KubeArmorControllerImage.Image = common.CreateImage(globalRegistry, img, tag)
 		}
 	}
 	dst.Spec.KubeArmorControllerImage.ImagePullPolicy = string(src.Spec.KubeArmorController.ImagePullPolicy)
@@ -158,9 +157,9 @@ func (dst *KubeArmorConfig) ConvertFrom(srcRaw conversion.Hub) error {
 	if img := src.Spec.KubeRbacProxy.Image.Repository; img != "" {
 		tag := src.Spec.KubeRbacProxy.Image.Tag
 		if reg := src.Spec.KubeRbacProxy.Image.Registry; reg != "" && !src.Spec.UseGlobalRegistryForVendorImages {
-			dst.Spec.KubeRbacProxyImage.Image = createImage(reg, img, tag)
+			dst.Spec.KubeRbacProxyImage.Image = common.CreateImage(reg, img, tag)
 		} else {
-			dst.Spec.KubeRbacProxyImage.Image = createImage(globalRegistry, img, tag)
+			dst.Spec.KubeRbacProxyImage.Image = common.CreateImage(globalRegistry, img, tag)
 		}
 	}
 	dst.Spec.KubeRbacProxyImage.ImagePullPolicy = string(src.Spec.KubeRbacProxy.ImagePullPolicy)
@@ -203,62 +202,4 @@ func (dst *KubeArmorConfig) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.EnableStdOutMsgs, _ = strconv.ParseBool(src.Spec.KubeArmorRelay.EnableStdOutMsg)
 	dst.ObjectMeta = src.ObjectMeta
 	return nil
-}
-
-// parseImage parses a image string into registry, repository, and tag.
-func parseImage(image string) (string, string, string) {
-	// Split the image string into parts
-	var registry, repo, tag string
-
-	// Split image by ':'
-	parts := strings.Split(image, ":")
-	if len(parts) > 2 {
-		// Invalid format if there are more than two parts
-		return "", "", ""
-	}
-
-	// Extract tag if present
-	if len(parts) == 2 {
-		tag = parts[1]
-		image = parts[0]
-	} else {
-		tag = ""
-	}
-
-	// Split image by '/'
-	imageParts := strings.Split(image, "/")
-
-	// Handle cases with multiple slashes
-	if len(imageParts) > 1 {
-		// The last part is the repository
-		repo = imageParts[len(imageParts)-1]
-
-		// The registry is everything before the last part
-		registry = strings.Join(imageParts[:len(imageParts)-1], "/")
-	} else {
-		// Handle case with no slashes (assume it is just a repository)
-		repo = imageParts[0]
-		registry = ""
-	}
-
-	// Return results
-	return registry, repo, tag
-}
-
-// createImage generates image string from registry, repository, and tag.
-func createImage(registry, repo, tag string) string {
-	// Construct the image string
-	var imageBuilder strings.Builder
-
-	if registry != "" {
-		imageBuilder.WriteString(registry)
-		imageBuilder.WriteString("/")
-	}
-	imageBuilder.WriteString(repo)
-	if tag != "" {
-		imageBuilder.WriteString(":")
-		imageBuilder.WriteString(tag)
-	}
-
-	return imageBuilder.String()
 }

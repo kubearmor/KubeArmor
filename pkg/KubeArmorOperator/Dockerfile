@@ -19,7 +19,7 @@ RUN go mod download
 COPY api api
 # COPY client client
 COPY cmd cmd
-COPY defaults/ defaults/
+COPY common/ common/
 COPY internal/controller/ internal/controller/
 COPY internal/helm internal/helm
 COPY internal/status internal/status
