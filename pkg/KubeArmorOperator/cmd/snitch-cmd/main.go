@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/defaults"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/enforcer"
 	runtimepkg "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/runtime"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
@@ -127,18 +127,18 @@ func snitch() {
 
 	patchNode := metadata{}
 	patchNode.Metadata.Labels = map[string]string{}
-	patchNode.Metadata.Labels[defaults.RuntimeLabel] = runtime
-	patchNode.Metadata.Labels[defaults.SeccompLabel] = seccomp.CheckIfSeccompProfilePresent()
-	patchNode.Metadata.Labels[defaults.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
-	patchNode.Metadata.Labels[defaults.EnforcerLabel] = nodeEnforcer
-	patchNode.Metadata.Labels[defaults.RandLabel] = rand.String(4)
-	patchNode.Metadata.Labels[defaults.BTFLabel] = btfPresent
-	patchNode.Metadata.Labels[defaults.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger)
+	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
+	patchNode.Metadata.Labels[common.SeccompLabel] = seccomp.CheckIfSeccompProfilePresent()
+	patchNode.Metadata.Labels[common.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
+	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
+	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
+	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
+	patchNode.Metadata.Labels[common.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger)
 
 	if nodeEnforcer == "none" {
-		patchNode.Metadata.Labels[defaults.SecurityFsLabel] = "no"
+		patchNode.Metadata.Labels[common.SecurityFsLabel] = "no"
 	} else {
-		patchNode.Metadata.Labels[defaults.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix, *Logger)
+		patchNode.Metadata.Labels[common.SecurityFsLabel] = enforcer.CheckIfSecurityFsPresent(PathPrefix, *Logger)
 	}
 
 	patch, err := json.Marshal(patchNode)

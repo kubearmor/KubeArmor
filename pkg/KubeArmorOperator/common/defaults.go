@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Authors of KubeArmor
 
-package defaults
+package common
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -73,4 +74,62 @@ var ContainerRuntimeSocketMap = map[string][]string{
 		"/var/run/crio/crio.sock",
 		"/run/crio/crio.sock",
 	},
+}
+
+// ParseImage parses a image string into registry, repository, and tag.
+func ParseImage(image string) (string, string, string) {
+	// Split the image string into parts
+	var registry, repo, tag string
+
+	// Split image by ':'
+	parts := strings.Split(image, ":")
+	if len(parts) > 2 {
+		// Invalid format if there are more than two parts
+		return "", "", ""
+	}
+
+	// Extract tag if present
+	if len(parts) == 2 {
+		tag = parts[1]
+		image = parts[0]
+	} else {
+		tag = ""
+	}
+
+	// Split image by '/'
+	imageParts := strings.Split(image, "/")
+
+	// Handle cases with multiple slashes
+	if len(imageParts) > 1 {
+		// The last part is the repository
+		repo = imageParts[len(imageParts)-1]
+
+		// The registry is everything before the last part
+		registry = strings.Join(imageParts[:len(imageParts)-1], "/")
+	} else {
+		// Handle case with no slashes (assume it is just a repository)
+		repo = imageParts[0]
+		registry = ""
+	}
+
+	// Return results
+	return registry, repo, tag
+}
+
+// CreateImage generates image string from registry, repository, and tag.
+func CreateImage(registry, repo, tag string) string {
+	// Construct the image string
+	var imageBuilder strings.Builder
+
+	if registry != "" {
+		imageBuilder.WriteString(registry)
+		imageBuilder.WriteString("/")
+	}
+	imageBuilder.WriteString(repo)
+	if tag != "" {
+		imageBuilder.WriteString(":")
+		imageBuilder.WriteString(tag)
+	}
+
+	return imageBuilder.String()
 }
