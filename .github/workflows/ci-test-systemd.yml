@@ -22,7 +22,11 @@ permissions: read-all
 jobs:
   build:
     name: Test KubeArmor in Systemd Mode
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, bpflsm]
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
         with:
@@ -44,12 +48,35 @@ jobs:
           install-only: true
           version: v1.25.0
 
+      - name: Install protoc-gen-go
+        if: ${{ matrix.os == 'bpflsm' }}
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+        env:
+          GOPATH: /home/vagrant/go
+
       - name: Build Systemd Release
         run: make local-release
         working-directory: KubeArmor
 
       - name: Install KubeArmor
         run: sudo apt install -y ./dist/kubearmor*amd64.deb
+        working-directory: KubeArmor
+
+      - name: Compile test binary
+        run: go test -covermode=atomic -coverpkg=./... -c . -o kubearmor-test
+        working-directory: KubeArmor
+
+      - name: Replace with test binary
+        run: |
+          sudo mkdir -p /coverage
+          sudo rm /opt/kubearmor/kubearmor
+          sudo cp kubearmor-test /opt/kubearmor/
+          ls -l /opt/kubearmor/
+          sudo sed -i 's|ExecStart=/opt/kubearmor/kubearmor|ExecStart=/opt/kubearmor/kubearmor-test -test.coverprofile=/coverage/coverage_systemd.out|' /lib/systemd/system/kubearmor.service
+          sudo systemctl daemon-reload
+          sudo systemctl restart kubearmor.service
         working-directory: KubeArmor
 
       - name: Check journalctl
@@ -61,5 +88,40 @@ jobs:
           make
         working-directory: ./tests/nonk8s_env
         timeout-minutes: 30
-        
-      
+
+      - name: Kill kubearmor process and copy coverage file
+        run: |
+          sudo systemctl stop kubearmor
+          sleep 15
+          for i in {1..24}; do
+            if [ -f /coverage/coverage_systemd.out ]; then
+              sudo cp /coverage/coverage_systemd.out coverage_systemd_${{ matrix.os }}.out
+              break
+            fi
+            sleep 5
+          done
+        working-directory: KubeArmor
+
+      - name: Measure code coverage
+        if: ${{ always() }}
+        run: |
+          ls -l
+          go tool cover -func coverage_systemd_${{ matrix.os }}.out
+        working-directory: KubeArmor
+        env:
+          GOPATH: ${{ matrix.os == 'bpflsm' && '/home/vagrant/go' || '/home/runner/go' }}
+
+      - name: Save coverage file
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-systemd-${{ matrix.os }}
+          path: KubeArmor/coverage_systemd_${{ matrix.os }}.out
+
+      - name: Run cleanup
+        if: ${{ always() && matrix.os == 'bpflsm' }}
+        run: |
+          sudo systemctl disable kubearmor.service
+          sudo rm -rf /opt/kubearmor/
+          sudo apt-get --purge remove -y kubearmor
+          sudo systemctl daemon-reload
