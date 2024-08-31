@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Non-k8s HSP tests", func() {
+var _ = Describe("k8s HSP tests", func() {
 
 	AfterEach(func() {
 		KarmorLogStop()
