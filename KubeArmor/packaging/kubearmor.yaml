@@ -4,3 +4,6 @@ hostVisibility: "process,file,network,capabilities"
 enableKubeArmorHostPolicy: true
 enableKubeArmorVm: false
 k8s: false
+alertThrottling: true
+maxAlertPerSec: 10
+throttleSec: 30

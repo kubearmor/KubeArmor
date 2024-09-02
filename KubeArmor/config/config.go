@@ -153,7 +153,7 @@ func readCmdLineParams() {
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
 
-	alertThrottling := flag.Bool(ConfigAlertThrottling, false, "enabling Alert Throttling")
+	alertThrottling := flag.Bool(ConfigAlertThrottling, true, "enabling Alert Throttling")
 
 	maxAlertPerSec := flag.Int(ConfigMaxAlertPerSec, 10, "Maximum alerts allowed per second")
 
