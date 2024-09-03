@@ -5,6 +5,7 @@ package monitor
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -521,6 +522,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 
 			default:
 				continue
+			}
+
+			// fallback logic: in case we get relative path in log.Resource then we join cwd + resource to get pull path
+			if !strings.HasPrefix(strings.Split(log.Resource, " ")[0], "/") && log.Cwd != "/" {
+				log.Resource = filepath.Join(log.Cwd, log.Resource)
 			}
 
 			// get error message
