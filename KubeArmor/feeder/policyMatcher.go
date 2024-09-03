@@ -1054,6 +1054,11 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					continue
 				}
 
+				// when one of the below rule is already matched for the log event, we will skip for further matches
+				if skip {
+					break // break, so that once source is matched for a log it doesn't look for other cases
+				}
+
 				// match sources
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
 					matchedRegex := false
@@ -1159,6 +1164,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							log.Enforcer = "eBPF Monitor"
 							log.Action = secPolicy.Action
 
+							skip = true
 							continue
 						}
 
@@ -1190,6 +1196,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							log.Action = secPolicy.Action
 
+							skip = true
 							continue
 						}
 
