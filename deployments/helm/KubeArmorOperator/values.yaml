@@ -8,6 +8,7 @@ imagePinning: false
 # on marketplaces, in-general kubearmorconfig is recommended
 # to set image references
 oci_meta:
+  # assing as registry/repo
   repo: kubearmor
   images:
     kubearmor:
@@ -30,11 +31,10 @@ oci_meta:
       tag: latest
     kubeRbacProxy:
       image: kube-rbac-proxy
-      tag: v0.15.0
-
+      tag: v0.15.0 # if changed, change version in ../../Makefile as well
 snitch:
   name: kubearmor-snitch
-  image: 
+  image:
     repository: kubearmor/kubearmor-snitch
     tag: latest
   imagePullPolicy: IfNotPresent
@@ -80,7 +80,6 @@ kubearmorConfig:
     alertThrottling: true
     maxAlertPerSec: 10
     throttleSec: 30
-
 # DO NOT CHANGE THIS VALUES 
 # changing these values will require code changes with the operator
 # these secret names should match with the secrets managed by the operator

@@ -26,16 +26,14 @@ globalRegistry: kubearmor
 # it would be useful in cases where all the container images should be
 # used from a particular registry for example on marketplaces
 useGlobalRegistryForVendorImages: false
-
+globalImagePullSecrets: []
 seccomp:
   enabled: false
   profiles:
     kubearmor: kubearmor-seccomp.json
     kubearmorInit: kubearmor-init-seccomp.json
-
 tls:
   enabled: false
-
 kubearmorRelay:
   # to enable/disable kubearmor-relay
   enabled: true
@@ -64,7 +62,6 @@ kubearmorRelay:
   enableStdoutLogs: "false"
   enableStdoutAlerts: "false"
   enableStdoutMsg: "false"
-
   tls:
     extraDnsNames: ["localhost"]
     extraIpAddresses: ["127.0.0.1"]
@@ -72,32 +69,30 @@ kubearmorRelay:
     tlsCertProvider: external
     certSecretName: kubearmor-relay-server-certs
     certVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
-      name: kubearmor-relay-certs-secrets
-      readOnly: true
+      - mountPath: /var/lib/kubearmor/tls
+        name: kubearmor-relay-certs-secrets
+        readOnly: true
     certVolume:
-    - name: kubearmor-relay-certs-secrets
-      projected:
-        defaultMode: 0444
-        sources:
-        - secret:
-            name: kubearmor-relay-server-certs
-            items:
-            - key: tls.crt
-              path: server.crt
-            - key: tls.key
-              path: server.key
-            - key: ca.crt
-              path: ca.crt
-        - secret:
-            name: kubearmor-client-certs
-            items:
-            - key: tls.crt
-              path: client.crt
-            - key: tls.key
-              path: client.key  
-
-
+      - name: kubearmor-relay-certs-secrets
+        projected:
+          defaultMode: 0444
+          sources:
+            - secret:
+                name: kubearmor-relay-server-certs
+                items:
+                  - key: tls.crt
+                    path: server.crt
+                  - key: tls.key
+                    path: server.key
+                  - key: ca.crt
+                    path: ca.crt
+            - secret:
+                name: kubearmor-client-certs
+                items:
+                  - key: tls.crt
+                    path: client.crt
+                  - key: tls.key
+                    path: client.key
 kubearmorInit:
   deploy: true
   image:
@@ -110,8 +105,6 @@ kubearmorInit:
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
   args: []
-
-
 kubeRbacProxy:
   image:
     # it will be override if
@@ -124,7 +117,6 @@ kubeRbacProxy:
   # kube-rbac-proxy imagePullPolicy
   imagePullPolicy: Always
   args: []
-
 kubearmorController:
   name: kubearmor-controller
   # kubearmor-controller replicas
@@ -149,8 +141,6 @@ kubearmorController:
   tolerations: []
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
   priorityClassName: ""
-  
-
 kubearmorConfigMap:
   defaultFilePosture: audit
   defaultCapabilitiesPosture: audit
@@ -159,7 +149,6 @@ kubearmorConfigMap:
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30
-
 #volume mounts and volumes
 kubearmor:
   image:
@@ -169,7 +158,6 @@ kubearmor:
     repository: kubearmor
     # kubearmor daemonset image tag
     tag: stable
-
   # kubearmor daemonset imagePullPolicy
   imagePullPolicy: Always
   # imagePullSecrets:
@@ -181,29 +169,27 @@ kubearmor:
   tolerations: []
   # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
   priorityClassName: ""
-
   tls:
     tlsCertPath: /var/lib/kubearmor/tls
     tlsCertProvider: self
     caSecretName: kubearmor-ca
     clientCertSecretName: kubearmor-client-certs
     kubearmorCACertVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
-      name: kubearmor-ca-secret
-      readOnly: true
+      - mountPath: /var/lib/kubearmor/tls
+        name: kubearmor-ca-secret
+        readOnly: true
     kubearmorCACertVolume:
-    - name: kubearmor-ca-secret
-      projected:
-        defaultMode: 0444
-        sources:
-        - secret:
-            name: kubearmor-ca
-            items:
-            - key: tls.crt
-              path: ca.crt
-            - key: tls.key
-              path: ca.key
-
+      - name: kubearmor-ca-secret
+        projected:
+          defaultMode: 0444
+          sources:
+            - secret:
+                name: kubearmor-ca
+                items:
+                  - key: tls.crt
+                    path: ca.crt
+                  - key: tls.key
+                    path: ca.key
 volumes:
   common:
     - hostPath:
@@ -218,18 +204,17 @@ volumes:
         name: etc-apparmor-d-path
   init:
     bpf:
-    - emptyDir: {}
-      name: bpf
-    kernelHeader:  
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path  
-
+      - emptyDir: {}
+        name: bpf
+    kernelHeader:
+      - hostPath:
+          path: /lib/modules
+          type: DirectoryOrCreate
+        name: lib-modules-path
+      - hostPath:
+          path: /usr/src
+          type: Directory
+        name: usr-src-path
 volumeMounts:
   common:
     - mountPath: /sys/kernel/debug
@@ -253,12 +238,12 @@ volumeMounts:
         readOnly: true
   init:
     bpf:
-    - mountPath: /opt/kubearmor/BPF
-      name: bpf
-    kernelHeader:  
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
+      - mountPath: /opt/kubearmor/BPF
+        name: bpf
+    kernelHeader:
+      - mountPath: /lib/modules
+        name: lib-modules-path
+        readOnly: true
+      - mountPath: /usr/src
+        name: usr-src-path
+        readOnly: true

@@ -43,8 +43,8 @@ spec:
         volumeMounts:
           {{- toYaml .Values.kubearmorRelay.tls.certVolumeMount | trim | nindent 10 }}
         {{- end}}
-      {{- if .Values.kubearmorRelay.imagePullSecrets -}}
-      {{- toYaml .Values.kubearmorRelay.imagePullSecrets | trim | nindent 6 }}
+      {{- if or .Values.globalImagePullSecrets .Values.kubearmorRelay.imagePullSecrets }}
+      {{- include "imagePullSecrets" (dict "globalImagePullSecrets" .Values.globalImagePullSecrets "imagePullSecrets" .Values.kubearmorRelay.imagePullSecrets) | trim | nindent 6 }}
       {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
@@ -157,8 +157,8 @@ spec:
           capabilities:
             drop:
             - ALL
-      {{- if .Values.kubearmorController.imagePullSecrets -}}
-      {{- toYaml .Values.kubearmorController.imagePullSecrets | trim | nindent 6 }}
+      {{- if or .Values.globalImagePullSecrets .Values.kubearmorController.imagePullSecrets }}
+      {{- include "imagePullSecrets" (dict "globalImagePullSecrets" .Values.globalImagePullSecrets "imagePullSecrets" .Values.kubearmorController.imagePullSecrets) | trim | nindent 6 }}
       {{- end }}
       securityContext:
         runAsNonRoot: true
