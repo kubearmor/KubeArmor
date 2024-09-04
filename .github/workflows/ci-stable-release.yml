@@ -2,9 +2,12 @@ name: ci-stable-release
 
 on:
   push:
-    branches: [main]
+    branches: [main, "operator-refactor"]
     paths:
       - "STABLE-RELEASE"
+
+env:
+  PLATFORM: linux/amd64,linux/arm64/v8
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -12,7 +15,7 @@ permissions: read-all
 jobs:
   push-stable-version:
     name: Create KubeArmor stable release
-    if: github.repository == 'kubearmor/kubearmor'
+    # if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -33,28 +36,96 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
-      - name: Generate the stable version of KubeArmor in Docker Hub
-        run: |
-          STABLE_VERSION=`cat STABLE-RELEASE`
-          regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION kubearmor/kubearmor-init:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
+      # - name: Generate the stable version of KubeArmor in Docker Hub
+      #   run: |
+      #     STABLE_VERSION=`cat STABLE-RELEASE`
+      #     regctl image copy rksharma95/kubearmor:$STABLE_VERSION rksharma95/kubearmor:stable --digest-tags
+      #     regctl image copy rksharma95/kubearmor-init:$STABLE_VERSION rksharma95/kubearmor-init:stable --digest-tags
+      #     regctl image copy rksharma95/kubearmor-ubi:$STABLE_VERSION rksharma95/kubearmor-ubi:stable --digest-tags
+      #     regctl image copy rksharma95/kubearmor-controller:$STABLE_VERSION rksharma95/kubearmor-controller:stable --digest-tags
+      #     # regctl image copy rksharma95/kubearmor-operator:$STABLE_VERSION rksharma95/kubearmor-operator:stable --digest-tags
+      #     regctl image copy rksharma95/kubearmor-snitch:$STABLE_VERSION rksharma95/kubearmor-snitch:stable --digest-tags
 
-      - name: Publish Helm chart
-        env:
-          # Access token which can push to a different repo in the same org
-          GH_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
-        run: |
-          STABLE_VERSION=`cat STABLE-RELEASE`
-          gh release create --repo kubearmor/charts $STABLE_VERSION --generate-notes
+  build-and-push-operator-image:
+    name: Rebuild Operator Image
+    # if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'pkg/KubeArmorOperator/go.mod'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Get Stable Version
+        id: version
+        run: |
+          echo stable=`cat STABLE-RELEASE` >> $GITHUB_OUTPUT
+          relay_version=$(curl https://raw.githubusercontent.com/kubearmor/kubearmor-relay-server/main/STABLE-RELEASE)    
+          echo "relay=${relay_version}" >> $GITHUB_OUTPUT
+
+      - name: Pin Versioned Images
+        working-directory: ./deployments
+        run: |
+          VERSION=${{ steps.version.outputs.stable }} RELAY_VERSION=${{ steps.version.outputs.relay }} make pin-version
+
+      - name: Update Chart Version
+        working-directory: ./deployments
+        run: |
+          VERSION=${{ steps.version.outputs.stable }} make chart-version
+
+      - name: Use embeded chart
+        working-directory: ./deployments
+        run: |
+          VERSION=${{ steps.version.outputs.stable }} make embed-chart
+
+      - name: Build & Push KubeArmor Operator
+        working-directory: ./pkg/KubeArmorOperator
+        run: | 
+          PLATFORM=$PLATFORM OPERATOR_IMG=rksharma95/kubearmor-operator \
+          make docker-buildx-operator VERSION=${{ steps.version.outputs.stable }}
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+
+      - name: Check install
+        run: regctl version
+
+      - name: Generate the stable version of KubeArmor Operator in Docker Hub
+        run: |
+          regctl image copy rksharma95/kubearmor-operator:${{ steps.version.outputs.stable }} rksharma95/kubearmor-operator:stable --digest-tags
+
+      # - name: Publish Helm chart
+      #   env:
+      #     # Access token which can push to a different repo in the same org
+      #     GH_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+      #   run: |
+      #     STABLE_VERSION=`cat STABLE-RELEASE`
+      #     gh release create --repo rksharma95/charts $STABLE_VERSION --generate-notes    
 
   update-helm-chart:
     name: Update KubeArmor Helm chart version
-    if: github.repository == 'kubearmor/kubearmor'
+    # if: github.repository == 'kubearmor/kubearmor'
+    needs: ["build-and-push-operator-image"]
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -63,25 +134,37 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Update Chart.yaml
-        id: update
+      - name: Get Stable Version
+        id: version
         run: |
-          STABLE_VERSION=`cat STABLE-RELEASE`
+          echo stable=`cat STABLE-RELEASE` >> $GITHUB_OUTPUT
+          relay_version=$(curl https://raw.githubusercontent.com/kubearmor/kubearmor-relay-server/main/STABLE-RELEASE)    
+          echo "relay=${relay_version}" >> $GITHUB_OUTPUT
 
-          sed -i -e "s/appVersion:.*/appVersion: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
-          sed -i -e "s/version:.*/version: $STABLE_VERSION/g" deployments/helm/*/Chart.yaml
+      - name: Use Versioned Images
+        working-directory: ./deployments
+        run: |
+          VERSION=${{ steps.version.outputs.stable }} RELAY_VERSION=${{ steps.version.output.relay }} make pin-version
 
-          echo "STABLE_VERSION=$STABLE_VERSION" >> $GITHUB_OUTPUT
+      - name: Update Chart Version
+        working-directory: ./deployments
+        run: |
+          VERSION=${{ steps.version.outputs.stable }} make chart-version
+
+      - name: Use embeded chart
+        working-directory: ./deployments
+        run: |
+          VERSION=${{ steps.version.outputs.stable }} make embed-chart
 
       - name: Create PR to update Helm chart version in KubeArmor repo
         uses: peter-evans/create-pull-request@v5
         with:
-          branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
-          add-paths: "deployments/helm/*/Chart.yaml"
-          commit-message: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          branch: update-helm-${{ steps.version.outputs.stable }}
+          add-paths: "deployments/*"
+          commit-message: "[skip ci] Update Helm Chart To ${{ steps.version.outputs.stable }}"
           committer: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          title: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          title: "[skip ci] Update Helm Chart To ${{ steps.version.outputs.stable }}"
           base: main
           signoff: true
           delete-branch: true

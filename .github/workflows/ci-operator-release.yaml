@@ -60,7 +60,7 @@ jobs:
 
       - name: Build & Push KubeArmor Operator
         working-directory: ./pkg/KubeArmorOperator
-        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }}
+        run: PLATFORM=$PLATFORM make docker-buildx VERSION=${{ steps.vars.outputs.tag }}
 
       - uses: actions/checkout@v3
         with:

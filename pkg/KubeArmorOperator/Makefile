@@ -159,12 +159,25 @@ run: manifests generate fmt vet install-dev ## Run a controller from your host.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: embed-chart ## Build docker image with the manager.
+docker-build: docker-build-operator docker-build-snitch ## Build docker image with the manager.
+	
+.PHONY: docker-build-operator
+docker-build-operator: embed-chart
 	$(CONTAINER_TOOL) build -t ${OPERATOR_IMG}:${VERSION} -t ${OPERATOR_IMG}:latest --build-arg VERSION=${VERSION} --target operator .
+	
+.PHONY: docker-build-snitch
+docker-build-snitch:
 	$(CONTAINER_TOOL) build	-t ${SNITCH_IMG}:${VERSION} -t ${SNITCH_IMG}:latest --build-arg VERSION=${VERSION} --target snitch .
+
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
+docker-push: docker-push-operator docker-push-snitch ## Push docker image with the manager.
+
+.PHONY: docker-push-operator
+docker-push-operator:
 	$(CONTAINER_TOOL) push ${OPERATOR_IMG}:${VERSION}
+
+.PHONY: docker-push-snitch
+docker-push-snitch:	
 	$(CONTAINER_TOOL) push ${SNITCH_IMG}:${VERSION}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
@@ -173,17 +186,18 @@ docker-push: ## Push docker image with the manager.
 # - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 # - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+PLATFORM ?= "linux/amd64,linux/arm64/v8"
 .PHONY: docker-buildx
-docker-buildx: embed-chart ## Build and push docker image for the manager for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name project-v3-builder
-	$(CONTAINER_TOOL) buildx use project-v3-builder
-	- $(CONTAINER_TOOL) buildx build --platform ${PLATFORM} --build-arg VERSION=${VERSION} --push --target operator -t ${OPERATOR_IMG}:${VERSION} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx build --platform ${PLATFORM} --build-arg VERSION=${VERSION} --push --target snitch -t ${SNITCH_IMG}:${VERSION} -f Dockerfile.cross .
+docker-buildx: docker-buildx-operator docker-buildx-snitch ## Build and push docker image for the manager for cross-platform support
+
+.PHONY:	docker-buildx-operator
+docker-buildx-operator: embed-chart	
+	- $(CONTAINER_TOOL) buildx build --platform ${PLATFORM} --build-arg VERSION=${VERSION} --push --target operator -t ${OPERATOR_IMG}:${VERSION} -f Dockerfile .
+
+.PHONY:	docker-buildx-snitch
+docker-buildx-snitch: 	
+	- $(CONTAINER_TOOL) buildx build --platform ${PLATFORM} --build-arg VERSION=${VERSION} --push --target snitch -t ${SNITCH_IMG}:${VERSION} -f Dockerfile .
 	- $(CONTAINER_TOOL) buildx rm project-v3-builder
-	rm Dockerfile.cross
 
 ##@ Deployment
 

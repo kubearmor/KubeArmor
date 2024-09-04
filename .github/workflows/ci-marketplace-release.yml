@@ -1,17 +1,25 @@
 name: ci-marketplace-release
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "STABLE-RELEASE"
-      - ".github/workflows/ci-marketplace-release.yml"
+  workflow_run:
+    workflows: ["ci-stable-release"]
+    types:
+      - completed
+    branches:
+      - "main"
+      - "operator-refactor"
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "STABLE-RELEASE"
+  #     - ".github/workflows/ci-marketplace-release.yml"
 
 # Declare default permissions as read only.
 permissions: read-all
 
 jobs:
   certify-images-on-redhat:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -36,29 +44,28 @@ jobs:
           certids=("${{secrets.CONTROLLER_OSPID}}" "${{secrets.KUBEARMOR_UBI_OSPID}}" "${{secrets.KUBEARMOR_INIT_OSPID}}" "${{secrets.OPERATOR_OSPID}}" "${{secrets.SNITCH_OSPID}}")
           pyxis="${{secrets.OS_PYXIS}}"
           # Loop through the repositories and target repositories
-          for ((i=0; i<${#repositories[@]}; i++)); do
-            repository="$repo/${repositories[i]}"
-            certid=${certids[i]}
-            echo "Processing $repository image..."
-            echo "Submitting image for $repository..."
-            for platform in "amd64" "arm64"; do
-              preflight check container \
-                $repository:$tag \
-                --certification-project-id=$certid \
-                --pyxis-api-token=$pyxis \
-                --platform=${platform} \
-                --docker-config=${HOME}/.docker/config.json \
-                --artifacts=./artifacts/${repository} \
-                --submit
-              if [ $? -eq 0 ]; then
-                  echo "Successfully submitted image for $repository."
-              else
-                  echo "Error: Failed to submit image for $repository."
-              fi
-            done
-          done
+          # for ((i=0; i<${#repositories[@]}; i++)); do
+          #   repository="$repo/${repositories[i]}"
+          #   certid=${certids[i]}
+          #   echo "Processing $repository image..."
+          #   echo "Submitting image for $repository..."
+          #   preflight check container \
+          #     $repository:$tag \
+          #     --certification-project-id=$certid \
+          #     --pyxis-api-token=$pyxis \
+          #     --platform=${platform} \
+          #     --docker-config=${HOME}/.docker/config.json \
+          #     --artifacts=./artifacts/${repository} \
+          #     --submit
+          #   if [ $? -eq 0 ]; then
+          #       echo "Successfully submitted image for $repository."
+          #   else
+          #       echo "Error: Failed to submit image for $repository."
+          #   fi
+          # done
 
   publish-images-to-ecr:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -81,149 +88,48 @@ jobs:
           mv regctl /usr/local/bin
           regctl version
 
-      - name: Publish Images to ECR
-        run: |
-          # copy images to ecr registry
-          STABLE_VERSION=`cat STABLE-RELEASE`
-          regctl image copy kubearmor/kubearmor:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-init:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-controller:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-operator:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags    
+      # - name: Publish Images to ECR
+      #   run: |
+      #     # copy images to ecr registry
+      #     STABLE_VERSION=`cat STABLE-RELEASE`
+      #     regctl image copy kubearmor/kubearmor:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor:$STABLE_VERSION --digest-tags
+      #     regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-init:$STABLE_VERSION --digest-tags
+      #     regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-controller:$STABLE_VERSION --digest-tags
+      #     regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-operator:$STABLE_VERSION --digest-tags
+      #     regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.AWS_ECR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags
 
-  publish-images-to-ocir:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+# ===================================
+# Publish to OCIR is disabled for now
+# ===================================
+  # publish-images-to-ocir:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
 
-      - name: login to ocir registry
-        run: |
-          echo "${{ secrets.OCIR_AUTHTOKEN }}" | docker login ${{ vars.OCIR_REGION }} -u ${{ secrets.OCIR_USERNAME }} --password-stdin
+  #     - name: login to ocir registry
+  #       run: |
+  #         echo "${{ secrets.OCIR_AUTHTOKEN }}" | docker login ${{ vars.OCIR_REGION }} -u ${{ secrets.OCIR_USERNAME }} --password-stdin
 
-      - name: Install regctl
-        run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
-          chmod 755 regctl
-          mv regctl /usr/local/bin
-          regctl version
+  #     - name: Install regctl
+  #       run: |
+  #         curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+  #         chmod 755 regctl
+  #         mv regctl /usr/local/bin
+  #         regctl version
 
-      - name: Publish Images to OCIR
-        run: |
-          # copy images to ocir registry
-          STABLE_VERSION=`cat STABLE-RELEASE`
-          regctl image copy kubearmor/kubearmor:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-init:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-controller:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-operator:$STABLE_VERSION --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags    
-
-  publish-aws-helm-chart:
-    runs-on: ubuntu-latest
-    needs: ["publish-images-to-ecr"]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: azure/setup-helm@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Login to AWS Helm
-        run: |
-          aws ecr get-login-password --region ${{ vars.AWS_REGION }} | helm registry login --username AWS --password-stdin ${{ vars.AWS_ECR_REGISTRY }}
-
-      - name: Generate version metadata
-        id: metadata
-        run: |
-          version=`cat STABLE-RELEASE`
-          relay_version=$(curl https://raw.githubusercontent.com/kubearmor/kubearmor-relay-server/main/STABLE-RELEASE)
-          echo "version=${version}" >> $GITHUB_OUTPUT
-          echo "relay_version=${relay_version}" >> $GITHUB_OUTPUT
-
-      - name: Create and Publish Helm Chart
-        uses: ./.github/actions/marketplace
-        with:
-          registry: '${{ vars.AWS_ECR_REGISTRY }}'
-          version: '${{ steps.metadata.outputs.version }}'
-          relay_version: '${{ steps.metadata.outputs.relay_version }}'
-          helm_chart_path: './deployments/helm/KubeArmorOperator'
-          helm_chart_name: 'kubearmor-operator-aws'
-
-      # workaround to mandatory subfolder for helm-gh-master action
-      # https://github.com/stefanprodan/helm-gh-pages/issues/23#issuecomment-854101420
-      - name: Move operator chart to charts subfolder
-        run: |
-          mkdir -p ./deployments/helm/charts
-          mv ./deployments/helm/KubeArmorOperator ./deployments/helm/charts/KubeArmorOperatorAws
-
-      - name: Publish Helm chart to KubeArmor helm repo
-        uses: stefanprodan/helm-gh-pages@master
-        with:
-          # Access token which can push to a different repo in the same org
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-          charts_dir: deployments/helm/charts
-          # repo where charts would be published
-          owner: kubearmor
-          repository: charts
-          branch: gh-pages
-          charts_url: https://kubearmor.github.io/charts
-          commit_username: "github-actions[bot]"
-          commit_email: "github-actions[bot]@users.noreply.github.com"
-
-  publish-oci-helm-chart:
-    runs-on: ubuntu-latest
-    needs: ["publish-images-to-ocir"]
-    steps:
-      - uses: actions/checkout@v3
-      - uses: azure/setup-helm@v3
-
-      - name: Login to OCI Helm
-        run: |
-          echo "${{ secrets.OCIR_AUTHTOKEN }}" | helm registry login ${{ vars.OCIR_REGION }} -u ${{ secrets.OCIR_USERNAME }} --password-stdin
-
-      - name: Generate version metadata
-        id: metadata
-        run: |
-          version=`cat STABLE-RELEASE`
-          relay_version=$(curl https://raw.githubusercontent.com/kubearmor/kubearmor-relay-server/main/STABLE-RELEASE)
-          echo "version=${version}" >> $GITHUB_OUTPUT
-          echo "relay_version=${relay_version}" >> $GITHUB_OUTPUT
-
-      - name: Create and Publish Helm Chart
-        uses: ./.github/actions/marketplace
-        with:
-          registry: '${{ vars.OCIR_REGISTRY }}'
-          version: '${{ steps.metadata.outputs.version }}'
-          relay_version: '${{ steps.metadata.outputs.relay_version }}'
-          helm_chart_path: './deployments/helm/KubeArmorOperator'
-          helm_chart_name: 'kubearmor-operator-oci'
-
-      # workaround to mandatory subfolder for helm-gh-master action
-      # https://github.com/stefanprodan/helm-gh-pages/issues/23#issuecomment-854101420
-      - name: Move operator chart to charts subfolder
-        run: |
-          mkdir -p ./deployments/helm/charts
-          mv ./deployments/helm/KubeArmorOperator ./deployments/helm/charts/KubeArmorOperatorOci
-
-      - name: Publish Helm chart to KubeArmor helm repo
-        uses: stefanprodan/helm-gh-pages@master
-        with:
-          # Access token which can push to a different repo in the same org
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-          charts_dir: deployments/helm/charts
-          # repo where charts would be published
-          owner: kubearmor
-          repository: charts
-          branch: gh-pages
-          charts_url: https://kubearmor.github.io/charts
-          commit_username: "github-actions[bot]"
-          commit_email: "github-actions[bot]@users.noreply.github.com"
+  #     - name: Publish Images to OCIR
+  #       run: |
+  #         # copy images to ocir registry
+  #         STABLE_VERSION=`cat STABLE-RELEASE`
+  #         regctl image copy kubearmor/kubearmor:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor:$STABLE_VERSION --digest-tags
+  #         regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-init:$STABLE_VERSION --digest-tags
+  #         regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-controller:$STABLE_VERSION --digest-tags
+  #         regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-operator:$STABLE_VERSION --digest-tags
+  #         regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION ${{vars.OCIR_REGISTRY}}/kubearmor-snitch:$STABLE_VERSION --digest-tags    
 
   create_issue:
-    needs: ["publish-oci-helm-chart","publish-aws-helm-chart","certify-images-on-redhat"]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # needs: ["certify-images-on-redhat","publish-images-to-ecr"]
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -238,7 +144,7 @@ jobs:
             --label "$LABELS" \
             --body "$BODY")
         env:
-          GH_TOKEN: ${{ secrets.GH_ISSUE_RW_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TITLE: Marketplace Release KubeArmor
           ASSIGNEES: rksharma95,daemon1024
@@ -247,8 +153,9 @@ jobs:
             ### Tasks
 
             - [ ] Test and Publish KubeArmor Operator on Red Hat
+            - [ ] Publish helm chart on kubearmor/charts repo
             - [ ] Update KubeArmor Listing on AWS Marketplace
-            - [ ] Update KubeArmor Listing on Oracle Marketplace
+            # - [ ] Update KubeArmor Listing on Oracle Marketplace
 
             Assignees: @kubearmor/triagers
 
