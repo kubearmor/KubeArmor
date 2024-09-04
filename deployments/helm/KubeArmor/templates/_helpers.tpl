@@ -1,3 +1,16 @@
+# template to add imagePullSecrets
+
+{{- define "imagePullSecrets" -}}
+imagePullSecrets:
+{{- range .globalImagePullSecrets }}
+  - name: {{ . }}
+{{- end }}
+{{- range .imagePullSecrets }}
+  - name: {{ . }}
+{{- end }}
+{{- end -}}
+
+
 # template to check if a node is present with apparmor as enforcer
 {{- define "hasApparmorEnforcer" -}}
 {{- $nodes := index . 0 -}}
@@ -197,8 +210,8 @@ spec:
         {{- end }}
           {{- toYaml $.Values.volumeMounts.init.bpf | trim | nindent 10 }}
       {{- end }}
-      {{- if $.Values.kubearmor.imagePullSecrets -}}
-      {{- toYaml $.Values.kubearmor.imagePullSecrets | trim | nindent 6 }}
+      {{- if or $.Values.globalImagePullSecrets .Values.kubearmor.imagePullSecrets }}
+      {{- include "imagePullSecrets" (dict "globalImagePullSecrets" $.Values.globalImagePullSecrets "imagePullSecrets" $.Values.kubearmor.imagePullSecrets) | trim | nindent 6 }}
       {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
