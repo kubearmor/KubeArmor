@@ -156,6 +156,7 @@ func KarmorGetTargetAlert(timeout time.Duration, target *pb.Alert) (EventResult,
 			if evtin.Type == "Alert" {
 				protojson.Unmarshal(evtin.Data, &alert)
 				res.Alerts = append(res.Alerts, &alert)
+				fmt.Printf("\n%+v\n", &alert)
 			} else if evtin.Type != "Log" {
 				log.Errorf("UNKNOWN EVT type %s", evtin.Type)
 			}
