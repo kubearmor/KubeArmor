@@ -91,7 +91,7 @@ Following distributions are tested for VM/Bare-metal based installations:
 
 ### Platform I am interested is not listed here! What can I do?
 
-Please approach the Kubearmor community on [slack](https://github.com/kubearmor/kubearmor#slack) or [raise](https://github.com/kubearmor/KubeArmor/issues/new/choose) a GitHub issue to express interest in adding the support.
+Please approach the Kubearmor community on [slack](https://cloud-native.slack.com/archives/C07EF44HWQM) or [raise](https://github.com/kubearmor/KubeArmor/issues/new/choose) a GitHub issue to express interest in adding the support.
 
 It would be very much appreciated if you can test kubearmor on a platform not listed above and if you have access to. Once tested you can update this document and raise a PR.
 
