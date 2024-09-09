@@ -1760,19 +1760,19 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 		if log.Type == "" {
 			// host log
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.ProcessVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.FileVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, existNetworkAllowPolicy, cfg.GlobalCfg.DefaultNetworkPosture, fd.Node.NetworkVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, cfg.GlobalCfg.DefaultCapabilitiesPosture, fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
 			}
