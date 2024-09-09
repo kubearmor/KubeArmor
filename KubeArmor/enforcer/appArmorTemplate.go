@@ -121,17 +121,16 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   
 	## == POST START == ##
 	/lib/x86_64-linux-gnu/{*,**} rm,
-	
+
+	{{ if not .Privileged }}
 	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
 	deny @{PROC}/sysrq-trigger rwklx,
 	deny @{PROC}/mem rwklx,
 	deny @{PROC}/kmem rwklx,
 	deny @{PROC}/kcore rwklx,
 
-	{{ if not .Privileged }}
 	deny mount,
-	{{end}}
-
+	
 	deny /sys/[^f]*/** wklx,
 	deny /sys/f[^s]*/** wklx,
 	deny /sys/fs/[^c]*/** wklx,
@@ -139,6 +138,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	deny /sys/fs/cg[^r]*/** wklx,
 	deny /sys/firmware/efi/efivars/** rwklx,
 	deny /sys/kernel/security/** rwklx,
+	{{end}}
 
 	## == POST END == ##
 }
@@ -287,24 +287,6 @@ profile {{$.Name}}-{{$source}} {
 {{ define "post-section"}}
 	## == POST START == ##
 	/lib/x86_64-linux-gnu/{*,**} rm,
-
-	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-	deny @{PROC}/sysrq-trigger rwklx,
-	deny @{PROC}/mem rwklx,
-	deny @{PROC}/kmem rwklx,
-	deny @{PROC}/kcore rwklx,
-
-	{{ if not .Privileged }}
-	deny mount,
-	{{end}}
-
-	deny /sys/[^f]*/** wklx,
-	deny /sys/f[^s]*/** wklx,
-	deny /sys/fs/[^c]*/** wklx,
-	deny /sys/fs/c[^g]*/** wklx,
-	deny /sys/fs/cg[^r]*/** wklx,
-	deny /sys/firmware/efi/efivars/** rwklx,
-	deny /sys/kernel/security/** rwklx,
 
 	## == POST END == ##
 {{- end -}}
