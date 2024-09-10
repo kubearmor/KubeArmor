@@ -37,6 +37,8 @@ kubearmorOperator:
     tag: ""
   imagePullPolicy: IfNotPresent
   initDeploy: true
+  # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
+  imagePullSecrets: ""
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit
