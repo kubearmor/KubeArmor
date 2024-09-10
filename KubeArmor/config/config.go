@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/fsnotify/fsnotify"
 	"os"
 	"strings"
 
@@ -238,6 +239,7 @@ func LoadConfig() error {
 	if cfgfile == "" {
 		cfgfile = "kubearmor.yaml"
 	}
+
 	if _, err := os.Stat(cfgfile); err == nil {
 		kg.Printf("setting config from file [%s]", cfgfile)
 		viper.SetConfigFile(cfgfile)
@@ -246,6 +248,20 @@ func LoadConfig() error {
 			return err
 		}
 	}
+
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		kg.Printf("Hot reloading config file [%s]", cfgfile)
+		if err := loadGlobalConfig(); err != nil {
+			kg.Err(err.Error())
+		}
+	})
+	viper.WatchConfig()
+
+	return loadGlobalConfig()
+}
+
+func loadGlobalConfig() error {
+	kg.Printf("Configuration [%+v]", GlobalCfg)
 
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.Host = viper.GetString(ConfigHost)
@@ -285,8 +301,6 @@ func LoadConfig() error {
 	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
 	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
 	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
-
-	kg.Printf("Configuration [%+v]", GlobalCfg)
 
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
