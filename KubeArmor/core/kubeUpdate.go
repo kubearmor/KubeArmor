@@ -2739,13 +2739,17 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
-				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
+				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
+					cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+					if err != nil {
+						dm.Logger.Warnf("Error: %s", err)
+					}
 				}
-				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
+				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
+					cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+					if err != nil {
+						dm.Logger.Warnf("Error: %s", err)
+					}
 				}
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
