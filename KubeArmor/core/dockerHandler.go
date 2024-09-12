@@ -143,6 +143,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 	// == //
 
 	pid := strconv.Itoa(inspect.State.Pid)
+	container.Pid = inspect.State.Pid
 
 	if data, err := os.Readlink("/proc/" + pid + "/ns/pid"); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
