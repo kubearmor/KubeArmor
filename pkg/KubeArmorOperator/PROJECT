@@ -5,6 +5,9 @@
 domain: kubearmor.com
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
 projectName: kubearmoroperator
 repo: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 resources:
@@ -17,4 +20,15 @@ resources:
   kind: KubeArmorConfig
   path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/v1
   version: v1
+  webhooks:
+    conversion: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: kubearmor.com
+  group: operator
+  kind: KubeArmorConfig
+  path: github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/v2
+  version: v2
 version: "3"

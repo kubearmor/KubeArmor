@@ -11,6 +11,9 @@ deploygen
 .vscode
 .idea
 
+# local bin directories
+pkg/KubeArmorOperator/bin
+
 # vagrant
 .vagrant
 contribution/vagrant/*.log

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2023 Authors of KubeArmor
+// Copyright 2022 Authors of KubeArmor
 
 package v1
 
@@ -18,6 +18,10 @@ type ImageSpec struct {
 	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
 	// +kubebuilder:default:=Always
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+}
+
+func (i *ImageSpec) IsEmpty() bool {
+	return *i == ImageSpec{}
 }
 
 type Tls struct {
@@ -81,11 +85,11 @@ type KubeArmorConfigStatus struct {
 	Message string `json:"message,omitempty"`
 }
 
+// KubeArmorConfig is the Schema for the kubearmorconfigs API
 // +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase"
-// KubeArmorConfig is the Schema for the KubeArmorConfigs API
 type KubeArmorConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
