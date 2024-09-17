@@ -119,6 +119,11 @@ var (
 	KubeArmorRelayServerSecretName string   = "kubearmor-relay-server-certs"
 	DefaultTlsCertPath             string   = "/var/lib/kubearmor/tls"
 	DefaultMode                    int32    = 420 // deciaml representation of octal value 644
+
+	// throttling
+	AlertThrottling       bool   = true
+	DefaultMaxAlertPerSec string = "10"
+	DefaultThrottleSec    string = "30"
 )
 
 var ConfigMapData = map[string]string{
