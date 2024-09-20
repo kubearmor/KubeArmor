@@ -1019,7 +1019,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         }
     }
 
-#if (defined(BTF_SUPPORTED))
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 2, 0) // min version that supports 1 million instructions
     struct fs_struct *fs;
     fs = READ_KERN(task->fs);
     struct path path = READ_KERN(fs->pwd);
@@ -1046,6 +1046,7 @@ static __always_inline u32 init_context(sys_context_t *context)
 
 // To check if subsequent alerts should be dropped per container
 static __always_inline bool should_drop_alerts_per_container(sys_context_t *context, struct pt_regs *ctx, u32 types, args_t *args) {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 2, 0)
     u64 current_timestamp = bpf_ktime_get_ns();
 
     struct outer_key key = {
@@ -1112,6 +1113,7 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     }
 
     bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
+#endif
     return false; 
 }
 
