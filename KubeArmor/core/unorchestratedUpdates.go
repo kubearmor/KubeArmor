@@ -5,6 +5,8 @@ package core
 
 import (
 	"encoding/json"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 	"os"
 	"regexp"
 	"sort"
@@ -36,6 +38,38 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	}
 
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
+}
+
+// =================== //
+// == Config Update == //
+// =================== //
+
+// WatchConfigChanges watches for configuration changes and updates the default posture
+func (dm *KubeArmorDaemon) WatchConfigChanges() {
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		dm.Logger.Printf("Config file changed: %s", e.Name)
+		cfg.SetDefaultPosture()
+
+		// Update the default posture
+		globalPosture := tp.DefaultPosture{
+			FileAction:         cfg.GlobalCfg.DefaultFilePosture,
+			NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
+			CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+		}
+
+		// Log the current global posture
+		dm.Logger.Printf("Updating Global Posture to %v", globalPosture)
+
+		// Apply the changes to the daemon
+		dm.UpdateGlobalPosture(globalPosture)
+
+		// Update default posture for endpoints
+		for _, ep := range dm.EndPoints {
+			dm.Logger.Printf("Updating Default Posture for endpoint %s", ep.EndPointName)
+			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
+		}
+	})
+	viper.WatchConfig()
 }
 
 // ====================================== //

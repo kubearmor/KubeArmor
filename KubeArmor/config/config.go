@@ -6,7 +6,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/fsnotify/fsnotify"
 	"os"
 	"strings"
 
@@ -249,18 +248,6 @@ func LoadConfig() error {
 		}
 	}
 
-	viper.OnConfigChange(func(in fsnotify.Event) {
-		kg.Printf("Hot reloading config file [%s]", cfgfile)
-		if err := loadGlobalConfig(); err != nil {
-			kg.Err(err.Error())
-		}
-	})
-	viper.WatchConfig()
-
-	return loadGlobalConfig()
-}
-
-func loadGlobalConfig() error {
 	kg.Printf("Configuration [%+v]", GlobalCfg)
 
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
@@ -294,13 +281,7 @@ func loadGlobalConfig() error {
 
 	GlobalCfg.Debug = viper.GetBool(ConfigDebug)
 
-	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
-	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
-	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
-
-	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
-	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
-	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
+	SetDefaultPosture()
 
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
@@ -339,4 +320,15 @@ func loadGlobalConfig() error {
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
 	return nil
+}
+
+// SetDefaultPosture Set default file, network and capabilities posture
+func SetDefaultPosture() {
+	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
+	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
+	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
+
+	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
+	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
+	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
 }
