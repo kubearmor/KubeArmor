@@ -48,7 +48,7 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 func (dm *KubeArmorDaemon) WatchConfigChanges() {
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		dm.Logger.Printf("Config file changed: %s", e.Name)
-		cfg.SetDefaultPosture()
+		cfg.LoadDynamicConfig()
 
 		// Update the default posture
 		globalPosture := tp.DefaultPosture{
@@ -56,9 +56,17 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
 			CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
 		}
+		// Update the visibility
+		visibility := tp.Visibility{
+			File:         strings.Contains(cfg.ConfigVisibility, "file"),
+			Process:      strings.Contains(cfg.ConfigVisibility, "process"),
+			Network:      strings.Contains(cfg.ConfigVisibility, "network"),
+			Capabilities: strings.Contains(cfg.ConfigVisibility, "capabilities"),
+		}
 
-		// Log the current global posture
+		// Log the current global posture and visibility
 		dm.Logger.Printf("Updating Global Posture to %v", globalPosture)
+		dm.Logger.Printf("Updating Visibility to %v", visibility)
 
 		// Apply the changes to the daemon
 		dm.UpdateGlobalPosture(globalPosture)
@@ -67,6 +75,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 		for _, ep := range dm.EndPoints {
 			dm.Logger.Printf("Updating Default Posture for endpoint %s", ep.EndPointName)
 			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
+			dm.UpdateVisibility("MODIFIED", ep.NamespaceName, visibility)
 		}
 	})
 	viper.WatchConfig()

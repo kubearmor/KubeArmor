@@ -271,9 +271,6 @@ func LoadConfig() error {
 		return fmt.Errorf("CRI socket must start with 'unix://' (%s is invalid)", GlobalCfg.CRISocket)
 	}
 
-	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
-	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
-
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
@@ -281,19 +278,9 @@ func LoadConfig() error {
 
 	GlobalCfg.Debug = viper.GetBool(ConfigDebug)
 
-	SetDefaultPosture()
-
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
-	}
-
-	if GlobalCfg.HostVisibility == "default" {
-		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
-			GlobalCfg.HostVisibility = "process,file,network,capabilities"
-		} else { // k8s
-			GlobalCfg.HostVisibility = "none"
-		}
 	}
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
@@ -317,13 +304,15 @@ func LoadConfig() error {
 	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
 
+	LoadDynamicConfig()
+
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
 	return nil
 }
 
-// SetDefaultPosture Set default file, network and capabilities posture
-func SetDefaultPosture() {
+// LoadDynamicConfig set dynamic configuration which can be updated at runtime without restarting kubearmor
+func LoadDynamicConfig() {
 	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
 	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
 	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
@@ -331,4 +320,15 @@ func SetDefaultPosture() {
 	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
 	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
 	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
+
+	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
+	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
+
+	if GlobalCfg.HostVisibility == "default" {
+		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
+			GlobalCfg.HostVisibility = "process,file,network,capabilities"
+		} else { // k8s
+			GlobalCfg.HostVisibility = "none"
+		}
+	}
 }
