@@ -52,16 +52,16 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 
 		// Update the default posture
 		globalPosture := tp.DefaultPosture{
-			FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-			NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-			CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
+			FileAction:         validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultFilePosture),
+			NetworkAction:      validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultNetworkPosture),
+			CapabilitiesAction: validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultCapabilitiesPosture),
 		}
 		// Update the visibility
 		visibility := tp.Visibility{
-			File:         strings.Contains(cfg.ConfigVisibility, "file"),
-			Process:      strings.Contains(cfg.ConfigVisibility, "process"),
-			Network:      strings.Contains(cfg.ConfigVisibility, "network"),
-			Capabilities: strings.Contains(cfg.ConfigVisibility, "capabilities"),
+			File:         dm.validateVisibility("file", cfg.GlobalCfg.Visibility),
+			Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
+			Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
+			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
 		}
 
 		// Log the current global posture and visibility
