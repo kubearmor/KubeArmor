@@ -299,9 +299,6 @@ func LoadConfig() error {
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
-	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
-	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
-	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
 
 	LoadDynamicConfig()
@@ -331,4 +328,8 @@ func LoadDynamicConfig() {
 			GlobalCfg.HostVisibility = "none"
 		}
 	}
+
+	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
+	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
+	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 }

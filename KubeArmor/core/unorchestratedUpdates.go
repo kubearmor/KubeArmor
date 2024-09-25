@@ -64,10 +64,6 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
 		}
 
-		// Log the current global posture and visibility
-		dm.Logger.Printf("Updating Global Posture to %v", globalPosture)
-		dm.Logger.Printf("Updating Visibility to %v", visibility)
-
 		// Apply the changes to the daemon
 		dm.UpdateGlobalPosture(globalPosture)
 
@@ -77,6 +73,9 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
 			dm.UpdateVisibility("MODIFIED", ep.NamespaceName, visibility)
 		}
+
+		// Update throttling configs
+		dm.SystemMonitor.UpdateThrottlingConfig()
 	})
 	viper.WatchConfig()
 }
