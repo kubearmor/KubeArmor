@@ -37,6 +37,8 @@ kubearmorOperator:
     tag: ""
   imagePullPolicy: IfNotPresent
   initDeploy: true
+  logLevel: info
+
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit
