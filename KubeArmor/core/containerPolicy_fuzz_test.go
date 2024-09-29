@@ -12,30 +12,22 @@ import (
 
 func FuzzContainerPolicy(f *testing.F) {
 	initialData := &pb.Policy{
-		Policy: []byte(`{
-			"type": "ADDED",
-			"object": {
-				"metadata": {
-					"name": "somename",
-					"namespace": "multiubuntu"
-				},
-				"spec": {
-					"selector": {
-						"matchLabels": {
-							"group": "group-1"
-						}
-					},
-					"process": {
-						"matchPaths": [
-							{
-								"path": "/bin/sleep"
-							}
-						]
-					},
-					"action": "Block"
-				}
-			}
-		}`),
+		Policy: []byte(`
+		apiVersion: security.kubearmor.com/v1
+		kind: KubeArmorPolicy
+		metadata:
+		  name: ksp-group-1-proc-path-block
+		  namespace: multiubuntu
+		spec:
+		  selector:
+			matchLabels:
+			  group: group-1
+		  process:
+			matchPaths:
+			- path: /bin/sleep
+		  action:
+			Block
+		`),
 	}
 
 	f.Add(initialData.Policy)
@@ -52,7 +44,7 @@ func FuzzContainerPolicy(f *testing.F) {
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
-		if res.Status != pb.PolicyStatus_Invalid && res.Status != pb.PolicyStatus_Applied {
+		if res.Status != pb.PolicyStatus_Invalid && res.Status != pb.PolicyStatus_Applied && res.Status != pb.PolicyStatus_Modified{
 			t.Errorf("Unexpected status: %v, %v", res.Status, data)
 		}
 	})
