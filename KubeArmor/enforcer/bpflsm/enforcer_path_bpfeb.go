@@ -12,6 +12,15 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type enforcer_pathArgBufsK struct {
+	Okey struct {
+		PidNs uint32
+		MntNs uint32
+	}
+	Store enforcer_pathBufsK
+	Arg   [256]int8
+}
+
 type enforcer_pathBufsK struct {
 	Path   [256]int8
 	Source [256]int8
@@ -78,6 +87,8 @@ type enforcer_pathProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcer_pathMapSpecs struct {
+	A_map                  *ebpf.MapSpec `ebpf:"a_map"`
+	ArgsBufk               *ebpf.MapSpec `ebpf:"args_bufk"`
 	Bufk                   *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                   *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
@@ -114,6 +125,8 @@ func (o *enforcer_pathObjects) Close() error {
 //
 // It can be passed to loadEnforcer_pathObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcer_pathMaps struct {
+	A_map                  *ebpf.Map `ebpf:"a_map"`
+	ArgsBufk               *ebpf.Map `ebpf:"args_bufk"`
 	Bufk                   *ebpf.Map `ebpf:"bufk"`
 	Bufs                   *ebpf.Map `ebpf:"bufs"`
 	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
@@ -126,6 +139,8 @@ type enforcer_pathMaps struct {
 
 func (m *enforcer_pathMaps) Close() error {
 	return _Enforcer_pathClose(
+		m.A_map,
+		m.ArgsBufk,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
