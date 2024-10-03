@@ -48,6 +48,7 @@
 #include <bpf_tracing.h>
 #include "syscalls.h"
 #include "throttling.h"
+#include "common.h"
 
 
 #ifdef RHEL_RELEASE_CODE
@@ -275,6 +276,8 @@ typedef struct __attribute__((__packed__)) sys_context
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
 BPF_LRU_HASH(pid_ns_map, u32, u32);
+
+
 
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
@@ -1298,6 +1301,39 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
 #endif
     return false; 
 }
+ static __always_inline void  save_cmd_args_to_buffer(const char __user *const __user *ptr){
+  unsigned int key_tgid = bpf_get_current_pid_tgid(); 
+  int *j;
+  int z = 0 ;
+  bpf_map_update_elem(&index_map, &z , &z , BPF_ANY);
+  struct argVal  val;
+    __builtin_memset(&val, 0, sizeof(val));
+    // add number of args here 
+    #pragma unroll
+    for (int i = 0; i < 5; i++)
+    {   
+        j = bpf_map_lookup_elem(&index_map, &z);
+        if (!j){
+            bpf_printk("Failed to loarray \n");
+            break; 
+        }
+        const char *const *curr_ptr = (void *)&ptr[i] ;
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), curr_ptr);
+        int k = *j;
+        if (*j < 0 || *j >= 4)
+            break;
+        if (argp)
+          {
+            // bpf_printk("in execve arg - %s , key %u ",argp , key_tgid);
+            bpf_probe_read_str(val.argsArray[k], sizeof(val.argsArray[0]), argp);
+            k++ ; // Increment the index
+          }
+        *j = k;
+        bpf_map_update_elem(&index_map, &z, j, BPF_ANY);
+    }
+    bpf_map_update_elem(&args_store, &key_tgid, &val, BPF_ANY);
+ }
 
 // ==== Container Exec Events ====
 
@@ -1495,6 +1531,10 @@ int kprobe__execve(struct pt_regs *ctx)
     char *filename = (char *)READ_KERN(PT_REGS_PARM1(ctx2));
     unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
 #endif
+    
+    if(get_kubearmor_config(_ENFORCER_BPFLSM)){
+        save_cmd_args_to_buffer((const char *const *)argv);
+    }
 
     init_context(&context);
 

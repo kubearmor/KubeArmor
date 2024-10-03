@@ -32,6 +32,9 @@ type ProcessPathType struct {
 	Path MatchPathType `json:"path,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	ArgSet []string `json:"argset,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	ExecName MatchBinType `json:"execname,omitempty"`
 
 	// +kubebuilder:validation:Optional
