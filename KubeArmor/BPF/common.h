@@ -5,22 +5,15 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 #define MAX_ENTRIES 10240
- #define MAX_ARGUMENT_SIZE 256
+#define MAX_ARGUMENT_SIZE 256
+#define MAX_STR_ARR_ELEM 20
 
 // arguments matching 
 
 // values stored for argument map
 struct argVal{
-  char argsArray[5][25];
+  char argsArray[20][50];
 };
-
-
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 1);  // Only one entry to store the count
-    __type(key, int);
-    __type(value, int);
-} index_map SEC(".maps");
 
 struct {
  __uint(type, BPF_MAP_TYPE_LRU_HASH);
@@ -29,5 +22,12 @@ struct {
  __type(value, struct argVal);
  __uint(pinning, LIBBPF_PIN_BY_NAME);
 } args_store SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);  // Adjust max_entries based on expected usage
+    __type(key, u32);
+    __type(value, struct argVal);  // Store the args in this struct
+} cmd_args_buf SEC(".maps");
 
 #endif /* __COMMON_H */
