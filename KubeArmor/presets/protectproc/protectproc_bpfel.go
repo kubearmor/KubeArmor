@@ -13,6 +13,22 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type protectprocArgBufsK struct {
+	_    structs.HostLayout
+	Okey struct {
+		_     structs.HostLayout
+		PidNs uint32
+		MntNs uint32
+	}
+	Store protectprocBufsK
+	Arg   [256]int8
+}
+
+type protectprocArgVal struct {
+	_         structs.HostLayout
+	ArgsArray [256]int8
+}
+
 type protectprocBufsK struct {
 	_      structs.HostLayout
 	Path   [256]int8
@@ -22,6 +38,12 @@ type protectprocBufsK struct {
 type protectprocBufsT struct {
 	_   structs.HostLayout
 	Buf [32768]int8
+}
+
+type protectprocCmdArgsKey struct {
+	_    structs.HostLayout
+	Tgid uint64
+	Ind  uint64
 }
 
 type protectprocPathname struct {
@@ -78,11 +100,15 @@ type protectprocProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectprocMapSpecs struct {
+	ArgsBufk                    *ebpf.MapSpec `ebpf:"args_bufk"`
 	Bufk                        *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                        *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                     *ebpf.MapSpec `ebpf:"bufs_off"`
+	CmdArgsBuf                  *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                      *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle      *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore          *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
+	KubearmorArguments          *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig             *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents             *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -118,11 +144,15 @@ func (o *protectprocObjects) Close() error {
 //
 // It can be passed to loadProtectprocObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectprocMaps struct {
+	ArgsBufk                    *ebpf.Map `ebpf:"args_bufk"`
 	Bufk                        *ebpf.Map `ebpf:"bufk"`
 	Bufs                        *ebpf.Map `ebpf:"bufs"`
 	BufsOff                     *ebpf.Map `ebpf:"bufs_off"`
+	CmdArgsBuf                  *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                      *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle      *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore          *ebpf.Map `ebpf:"kubearmor_args_store"`
+	KubearmorArguments          *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig             *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents             *ebpf.Map `ebpf:"kubearmor_events"`
@@ -133,11 +163,15 @@ type protectprocMaps struct {
 
 func (m *protectprocMaps) Close() error {
 	return _ProtectprocClose(
+		m.ArgsBufk,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
+		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArgsStore,
+		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
