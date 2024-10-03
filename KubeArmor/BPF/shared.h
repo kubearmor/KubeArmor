@@ -47,6 +47,7 @@ typedef struct bufkey {
   char source[MAX_STRING_SIZE];
 } bufs_k;
 
+
 #undef container_of
 #define container_of(ptr, type, member)                                        \
   ({                                                                           \
@@ -73,6 +74,33 @@ struct {
   __type(value, bufs_k);
   __uint(max_entries, 3);
 } bufk SEC(".maps");
+
+typedef struct argskey{
+  struct outer_key okey;
+  bufs_k store;
+  char arg[MAX_STRING_SIZE];
+} arg_bufs_k;
+
+//-- Maps and structs for argument matching--//
+// argument matching 
+
+// Key for argument map => okey+bufkey+argname
+
+struct {
+    __uint(type,BPF_MAP_TYPE_PERCPU_ARRAY);
+    __type(key, u32);
+    __type(value, arg_bufs_k);
+    __uint(max_entries, 1);
+} args_bufk SEC(".maps");
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 100);
+    __type(key, arg_bufs_k);  // Composite key of okey+bufkey+argname
+    __type(value, u8);            // Value is a u8 integer
+    __uint(pinning, LIBBPF_PIN_BY_NAME);            
+} a_map SEC(".maps");
+
+//--------------------------------------------//
 
 typedef struct {
   u64 ts;
@@ -109,14 +137,15 @@ struct {
 #define RULE_RECURSIVE 1 << 5
 #define RULE_HINT 1 << 6
 #define RULE_DENY 1 << 7
+#define RULE_ARGSET 1 << 8
 
 #define MASK_WRITE 0x00000002
 #define MASK_READ 0x00000004
 #define MASK_APPEND 0x00000008
 
 struct data_t {
-  u8 processmask;
-  u8 filemask;
+  u16 processmask;
+  u16 filemask;
 };
 
 enum

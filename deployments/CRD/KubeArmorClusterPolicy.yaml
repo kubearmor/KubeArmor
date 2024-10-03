@@ -366,6 +366,10 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
+                        argset: 
+                          items: 
+                            type: string
+                          type: array
                         severity:
                           maximum: 10
                           minimum: 1
