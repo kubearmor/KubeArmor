@@ -12,6 +12,17 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type enforcerArgBufsK struct {
+	Okey struct {
+		PidNs uint32
+		MntNs uint32
+	}
+	Store enforcerBufsK
+	Arg   [256]int8
+}
+
+type enforcerArgVal struct{ ArgsArray [5][25]int8 }
+
 type enforcerBufsK struct {
 	Path   [256]int8
 	Source [256]int8
@@ -73,9 +84,13 @@ type enforcerProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerMapSpecs struct {
+	A_map                  *ebpf.MapSpec `ebpf:"a_map"`
+	ArgsBufk               *ebpf.MapSpec `ebpf:"args_bufk"`
+	ArgsStore              *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                   *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                   *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
+	IndexMap               *ebpf.MapSpec `ebpf:"index_map"`
 	KubearmorAlertThrottle *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
@@ -101,9 +116,13 @@ func (o *enforcerObjects) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerMaps struct {
+	A_map                  *ebpf.Map `ebpf:"a_map"`
+	ArgsBufk               *ebpf.Map `ebpf:"args_bufk"`
+	ArgsStore              *ebpf.Map `ebpf:"args_store"`
 	Bufk                   *ebpf.Map `ebpf:"bufk"`
 	Bufs                   *ebpf.Map `ebpf:"bufs"`
 	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
+	IndexMap               *ebpf.Map `ebpf:"index_map"`
 	KubearmorAlertThrottle *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
@@ -112,9 +131,13 @@ type enforcerMaps struct {
 
 func (m *enforcerMaps) Close() error {
 	return _EnforcerClose(
+		m.A_map,
+		m.ArgsBufk,
+		m.ArgsStore,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
+		m.IndexMap,
 		m.KubearmorAlertThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
