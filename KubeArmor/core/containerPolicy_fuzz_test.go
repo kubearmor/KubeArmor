@@ -11,7 +11,7 @@ import (
 )
 
 func FuzzContainerPolicy(f *testing.F) {
-	initialData := &pb.Policy{
+	Data1 := &pb.Policy{
 		Policy: []byte(`
 		apiVersion: security.kubearmor.com/v1
 		kind: KubeArmorPolicy
@@ -29,8 +29,69 @@ func FuzzContainerPolicy(f *testing.F) {
 			Block
 		`),
 	}
+	//ksp-group-2-allow-file-path-from-source-path.yaml
+	Data2 := &pb.Policy{
+		Policy: []byte(`
+		apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-group-2-allow-file-path-from-source-path
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "allow /bin/cat to access /secret.txt"
+  selector:
+    matchLabels:
+      group: group-2
+  process:
+    matchDirectories:
+      - dir: /bin/
+        recursive: true
+  file:
+    matchPaths:
+    - path: /secret.txt
+      fromSource:
+      - path: /bin/cat
+    - path: /dev/tty
+    - path: /lib/terminfo/x/xterm
+    matchDirectories:
+      - dir: /pts/
+        recursive: true
+      - dir: /proc/
+        recursive: true
+      - dir: /dev/
+        recursive: true
+      - dir: /lib/x86_64-linux-gnu/
+      - dir: /bin/
+  action:
+    Allow
+		`),
+	}
+	Data3 := &pb.Policy{
+		Policy: []byte(`
+		apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-allow-net-tcp-from-source
+  namespace: multiubuntu
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: /usr/bin/curl
+  action: Allow
+		`),
+	}
 
-	f.Add(initialData.Policy)
+
+	f.Add(Data1.Policy)
+	f.Add(Data2.Policy)
+	f.Add(Data3.Policy)
 	dm := NewKubeArmorDaemon()
 
 	f.Fuzz(func(t *testing.T, data []byte) {
