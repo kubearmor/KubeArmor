@@ -1302,37 +1302,30 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     return false; 
 }
  static __always_inline void  save_cmd_args_to_buffer(const char __user *const __user *ptr){
-  unsigned int key_tgid = bpf_get_current_pid_tgid(); 
-  int *j;
-  int z = 0 ;
-  bpf_map_update_elem(&index_map, &z , &z , BPF_ANY);
-  struct argVal  val;
-    __builtin_memset(&val, 0, sizeof(val));
+    unsigned int key_tgid = bpf_get_current_pid_tgid(); 
+    u32 arg_k = 0;
+    struct argVal  *args_buf = bpf_map_lookup_elem(&cmd_args_buf, &arg_k);
+    if (args_buf == NULL){
+      return ;
+    }
+    __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
     // add number of args here 
-    #pragma unroll
     for (int i = 0; i < 5; i++)
     {   
-        j = bpf_map_lookup_elem(&index_map, &z);
-        if (!j){
-            bpf_printk("Failed to loarray \n");
-            break; 
-        }
         const char *const *curr_ptr = (void *)&ptr[i] ;
         const char *argp = NULL;
         bpf_probe_read(&argp, sizeof(argp), curr_ptr);
-        int k = *j;
-        if (*j < 0 || *j >= 4)
-            break;
         if (argp)
           {
-            // bpf_printk("in execve arg - %s , key %u ",argp , key_tgid);
-            bpf_probe_read_str(val.argsArray[k], sizeof(val.argsArray[0]), argp);
-            k++ ; // Increment the index
+            bpf_probe_read_str(args_buf->argsArray[i], sizeof(args_buf->argsArray[0]), argp);
+            bpf_map_update_elem(&args_store, &key_tgid, args_buf, BPF_ANY);
           }
-        *j = k;
-        bpf_map_update_elem(&index_map, &z, j, BPF_ANY);
+        else {
+            break;
+        }
     }
-    bpf_map_update_elem(&args_store, &key_tgid, &val, BPF_ANY);
+  
+ 
  }
 
 // ==== Container Exec Events ====
