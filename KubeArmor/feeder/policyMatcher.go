@@ -266,7 +266,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
 
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, name)
+		if _, ok := fd.SecurityPolicies[name]; ok {
+			delete(fd.SecurityPolicies, name)
+		}
 		return
 	}
 
