@@ -49,7 +49,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   bufs_k *pk = bpf_map_lookup_elem(&bufk, &two);
   if (pk == NULL)
     return 0;
-
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   // Extract full path from file structure provided by LSM Hook
   bufs_t *path_buf = get_buf(PATH_BUFFER);
   if (path_buf == NULL)
@@ -126,6 +126,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
                     RULE_HINT)) { // true directory match and not a hint suggests
                                   // there are no possibility of child dir
                   val = dirval;
+
                   goto decision;
                 } else if (dirval->processmask &
                           RULE_RECURSIVE) { // It's a directory match but also a
@@ -175,12 +176,12 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   val = bpf_map_lookup_elem(inner, pk);
 
   if (val && (val->processmask & RULE_EXEC)) {
+
     match = true;
     goto decision;
   }
 
   recursivebuthint = false;
-bpf_printk(" source = %s path= %s match %d " , store->source , store->path);
 
 #pragma unroll
   for (int i = 0; i < 64; i++) {
@@ -239,20 +240,18 @@ decision:
      // clearing to avoid processing garbage values 
       __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
       __builtin_memset(&a_key->store, 0, sizeof(a_key->store));
-
+      
       bpf_probe_read(&a_key->okey.mnt_ns, sizeof(okey.mnt_ns) , &okey.mnt_ns);
       bpf_probe_read(&a_key->okey.pid_ns, sizeof(okey.pid_ns) , &okey.pid_ns);
       bpf_probe_read_str(&a_key->store.path, sizeof(store->path) , store->path);
-      bpf_printk(" source = %s path= %s " , store->source , store->path);
-      if (pk->source[0] != '\0') {
-          bpf_probe_read_str(&a_key->store.source, sizeof(pk->source) , store->source);
-          bpf_printk(" pksource empty a_key->path %s , a_key->source - %s ", a_key->store.path , a_key->store.source);
-      }
-          
+      
+      if (pk->path[0] == '\0') {
+          bpf_probe_read_str(&a_key->store.source, sizeof(store->source) , store->source);
+      } 
       if (argval) {
         for( int i = 1 ; i< num && i<10; i++ ){
             bpf_printk("Argurment %d : %s\n", i,  argval->argsArray[i]);
-             __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
+            __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
             bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), argval->argsArray[i]);
             x  = bpf_map_lookup_elem(&a_map ,a_key); 
             bpf_printk("a_key->path %s , a_key->source - %s ", a_key->store.path , a_key->store.source);
