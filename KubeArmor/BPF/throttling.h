@@ -4,15 +4,15 @@
 #ifndef __THROTTLING_H
 #define __THROTTLING_H
 
+struct outer_key {
+  u32 pid_ns;
+  u32 mnt_ns;
+};
+// Throttling 
 struct alert_throttle_state {
   u64 first_event_timestamp;
   u64 event_count;
   u64 throttle;
-};
-
-struct outer_key {
-  u32 pid_ns;
-  u32 mnt_ns;
 };
 
 struct alert {
