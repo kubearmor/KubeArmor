@@ -1,4 +1,6 @@
 // +build ignore
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright 2023 Authors of KubeArmor */
 
 #include "shared.h"
 
@@ -16,15 +18,7 @@ struct {
   __uint(max_entries, 1 << 24);
 } events SEC(".maps");
 
-struct preset_map {
-  __uint(type, BPF_MAP_TYPE_HASH);
-  __uint(max_entries, 256);
-  __uint(key_size, sizeof(struct outer_key));
-  __uint(value_size, sizeof(u32));
-  __uint(pinning, LIBBPF_PIN_BY_NAME);
-};
-
-struct preset_map kubearmor_preset_containers SEC(".maps");
+struct preset_map protectenv_preset_containers SEC(".maps");
 
 #define DIR_PROC "/proc/"
 
@@ -67,7 +61,7 @@ int BPF_PROG(enforce_file, struct file *file) {
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  u32 *present = bpf_map_lookup_elem(&kubearmor_preset_containers, &okey);
+  u32 *present = bpf_map_lookup_elem(&protectenv_preset_containers, &okey);
 
   if (!present) {
     return 0;
@@ -99,7 +93,7 @@ int BPF_PROG(enforce_file, struct file *file) {
 
     pevent *task_info;
 
-    task_info = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+    task_info = bpf_ringbuf_reserve(&events, sizeof(pevent), 0);
     if (!task_info) {
       return 0;
     }
