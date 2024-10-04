@@ -74,6 +74,14 @@ struct {
   __uint(max_entries, 3);
 } bufk SEC(".maps");
 
+struct preset_map {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 256);
+  __uint(key_size, sizeof(struct outer_key));
+  __uint(value_size, sizeof(u32));
+  __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
 typedef struct {
   u64 ts;
 
@@ -93,6 +101,9 @@ typedef struct {
   u8 comm[TASK_COMM_LEN];
 
   bufs_k data;
+
+  u32 argnum;
+  unsigned long args[6];
 } event;
 
 struct {

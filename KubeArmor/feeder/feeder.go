@@ -534,7 +534,13 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
-	if (cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer != "BPFLSM") || (fd.Enforcer != "BPFLSM" && !cfg.GlobalCfg.DefaultPostureLogs) {
+	presetlog := false
+	if strings.Contains(log.Enforcer, "PRESET") {
+		kg.Printf("PRESET log 1: %+v\n", log)
+		presetlog = true
+	}
+
+	if (cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer == "eBPF Monitor") || (fd.Enforcer != "BPFLSM" && !cfg.GlobalCfg.DefaultPostureLogs) {
 		log = fd.UpdateMatchedPolicy(log)
 		if (log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy") && ((fd.Enforcer == "BPFLSM" && (strings.Contains(log.PolicyName, "DefaultPosture") || !strings.Contains(log.Action, "Audit"))) || (fd.Enforcer != "BPFLSM" && strings.Contains(log.PolicyName, "DefaultPosture"))) {
 			if log.Type == "MatchedPolicy" {
@@ -545,7 +551,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 	} else {
 		log = fd.UpdateMatchedPolicy(log)
-		if fd.Enforcer == "BPFLSM" {
+		if fd.Enforcer == "BPFLSM" && !strings.Contains(log.Enforcer, "PRESET") {
 			log.Enforcer = "BPFLSM"
 		}
 	}
@@ -553,9 +559,16 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	if log.Source == "" {
 		// even if a log doesn't have a source, it must have a type
 		if log.Type == "" {
+			if strings.Contains(log.Enforcer, "PRESET") {
+				kg.Printf("no source and type: %s\n", log.Enforcer)
+			}
 			return
 		}
 		fd.Debug("Pushing Telemetry without source")
+	}
+
+	if presetlog {
+		kg.Printf("PRESET LOG 2: %+v\n", log)
 	}
 
 	// set hostname
@@ -577,8 +590,13 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		fd.StrToFile(string(arr))
 	}
 
+	if strings.Contains(log.Enforcer, "PRESET") {
+		kg.Printf("PRESET_LOG: \n%+v\n", &log)
+	}
+
 	// gRPC output
 	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
+
 		pbAlert := pb.Alert{}
 
 		pbAlert.Timestamp = log.Timestamp
@@ -663,6 +681,10 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer fd.EventStructs.AlertLock.Unlock()
 		counter := 0
 		lenAlert := len(fd.EventStructs.AlertStructs)
+
+		if strings.Contains(log.Enforcer, "PRESET") {
+			kg.Printf("PRESET_ALERT: \n%s\n", &pbAlert)
+		}
 
 		for uid := range fd.EventStructs.AlertStructs {
 			select {

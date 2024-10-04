@@ -430,12 +430,19 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 					// update NsMap
 					dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 					dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+					if dm.Presets != nil {
+						dm.Presets.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+					}
 
 					if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
 						dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
 						if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 							// enforce security policies
 							dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
+						}
+						if dm.Presets != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							// enforce preset rules
+							dm.Presets.UpdateSecurityPolicies(endPoint)
 						}
 					}
 				}
@@ -622,6 +629,11 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 					// enforce security policies
 					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 				}
+
+				if dm.Presets != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce preset rules
+					dm.Presets.UpdateSecurityPolicies(endPoint)
+				}
 			}
 		}
 
@@ -699,6 +711,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			// update NsMap
 			dm.SystemMonitor.DeleteContainerIDFromNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.UnregisterContainer(containerID)
+			if dm.Presets != nil {
+				dm.Presets.UnregisterContainer(containerID)
+			}
 		}
 
 		dm.Logger.Printf("Detected a container (removed/%.12s)", containerID)
