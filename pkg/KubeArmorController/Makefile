@@ -8,7 +8,7 @@ IMG ?= kubearmor/kubearmor-controller
 # Image Tag to use all building/pushing image targets
 TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+CRD_OPTIONS ?= "crd"
 # Target platforms for build
 PLATFORM ?= "linux/amd64,linux/arm64/v8"
 

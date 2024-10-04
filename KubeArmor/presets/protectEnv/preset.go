@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Authors of KubeArmor
+
 package protectenv
 
 import (
@@ -11,7 +14,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
+	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
 
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
@@ -27,7 +30,7 @@ type eventBPF struct {
 	Comm  [80]uint8
 }
 type EnvPreset struct {
-	presets.BasePreset
+	base.BasePreset
 
 	BPFContainerMap *ebpf.Map
 
