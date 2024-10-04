@@ -526,6 +526,13 @@ type SyscallsType struct {
 	Message  string   `json:"message,omitempty"`
 }
 
+// PresetType type
+type PresetType string
+
+const (
+	FilelessProcessExec PresetType = "filelessProcessExec"
+)
+
 // SecuritySpec Structure
 type SecuritySpec struct {
 	Selector SelectorType `json:"selector"`
@@ -535,6 +542,7 @@ type SecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
+	Presets      []PresetType     `json:"presets,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 
