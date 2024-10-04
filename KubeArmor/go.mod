@@ -4,8 +4,6 @@ go 1.21.0
 
 toolchain go1.21.12
 
-toolchain go1.21.3
-
 replace (
 	github.com/kubearmor/KubeArmor => ../../
 	github.com/kubearmor/KubeArmor/KubeArmor => ../

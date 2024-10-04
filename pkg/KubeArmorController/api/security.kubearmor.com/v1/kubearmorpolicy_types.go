@@ -51,6 +51,7 @@ type KubeArmorPolicySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
+	Presets      []PresetType     `json:"presets,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 
