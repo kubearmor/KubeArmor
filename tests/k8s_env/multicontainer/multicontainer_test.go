@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/protobuf"
+
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -59,13 +61,16 @@ var _ = Describe("Multicontainer", func() {
 			fmt.Printf("---START---\n%s---END---\n", sout)
 			Expect(sout).To(MatchRegexp(".*Permission denied"))
 
+			expect := protobuf.Alert{
+				PolicyName:    "container-1-block-ls",
+				Severity:      "2",
+				ContainerName: "container-1",
+			}
+
 			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("container-1-block-ls"))
-			Expect(alerts[0].Severity).To(Equal("2"))
-			Expect(alerts[0].ContainerName).To(Equal("container-1"))
+			Expect(res.Found).To(BeTrue())
 
 			//container-2 should run ls
 			sout, _, err = K8sExecInPodWithContainer(multicontainer, "multicontainer", "container-2", []string{"bash", "-c", "ls"})
@@ -87,12 +92,16 @@ var _ = Describe("Multicontainer", func() {
 			Expect(sout).To(MatchRegexp(".*Permission denied"))
 
 			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName:    "empty-array-ls-block",
+				Severity:      "4",
+				ContainerName: "container-1",
+			}
+
+			// check policy violation alert
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("empty-array-ls-block"))
-			Expect(alerts[0].Severity).To(Equal("4"))
-			Expect(alerts[0].ContainerName).To(Equal("container-1"))
+			Expect(res.Found).To(BeTrue())
 
 			sout, _, err = K8sExecInPodWithContainer(multicontainer, "multicontainer", "container-2", []string{"bash", "-c", "ls"})
 			Expect(err).To(BeNil())
@@ -100,13 +109,16 @@ var _ = Describe("Multicontainer", func() {
 			Expect(sout).To(MatchRegexp(".*Permission denied"))
 
 			// check policy violation alert
-			_, alerts, err = KarmorGetLogs(5*time.Second, 1)
-			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("empty-array-ls-block"))
-			Expect(alerts[0].Severity).To(Equal("4"))
-			Expect(alerts[0].ContainerName).To(Equal("container-2"))
+			expect = protobuf.Alert{
+				PolicyName:    "empty-array-ls-block",
+				Severity:      "4",
+				ContainerName: "container-2",
+			}
 
+			// check policy violation alert
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
 		})
 
 		//kubearmor.io/container.name: ""
@@ -123,12 +135,16 @@ var _ = Describe("Multicontainer", func() {
 			Expect(sout).To(MatchRegexp(".*Permission denied"))
 
 			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName:    "empty-array-ls-block",
+				Severity:      "4",
+				ContainerName: "container-1",
+			}
+
+			// check policy violation alert
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("empty-array-ls-block"))
-			Expect(alerts[0].Severity).To(Equal("4"))
-			Expect(alerts[0].ContainerName).To(Equal("container-1"))
+			Expect(res.Found).To(BeTrue())
 
 			sout, _, err = K8sExecInPodWithContainer(multicontainer, "multicontainer", "container-2", []string{"bash", "-c", "ls"})
 			Expect(err).To(BeNil())
@@ -136,12 +152,16 @@ var _ = Describe("Multicontainer", func() {
 			Expect(sout).To(MatchRegexp(".*Permission denied"))
 
 			// check policy violation alert
-			_, alerts, err = KarmorGetLogs(5*time.Second, 1)
+			expect = protobuf.Alert{
+				PolicyName:    "empty-array-ls-block",
+				Severity:      "4",
+				ContainerName: "container-2",
+			}
+
+			// check policy violation alert
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("empty-array-ls-block"))
-			Expect(alerts[0].Severity).To(Equal("4"))
-			Expect(alerts[0].ContainerName).To(Equal("container-2"))
+			Expect(res.Found).To(BeTrue())
 
 		})
 
@@ -158,12 +178,16 @@ var _ = Describe("Multicontainer", func() {
 			Expect(sout).To(MatchRegexp(".*Permission denied"))
 
 			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
+			expect := protobuf.Alert{
+				PolicyName:    "malformated-array-ls-block",
+				Severity:      "4",
+				ContainerName: "container-1",
+			}
+
+			// check policy violation alert
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("malformated-array-ls-block"))
-			Expect(alerts[0].Severity).To(Equal("4"))
-			Expect(alerts[0].ContainerName).To(Equal("container-1"))
+			Expect(res.Found).To(BeTrue())
 
 			//container-2 should run ls
 			sout, _, err = K8sExecInPodWithContainer(multicontainer, "multicontainer", "container-2", []string{"bash", "-c", "ls"})
