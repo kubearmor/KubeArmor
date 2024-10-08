@@ -382,7 +382,7 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
-                        argset: 
+                        allowedArgs: 
                           items: 
                             type: string
                           type: array
