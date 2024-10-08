@@ -12,13 +12,17 @@
 
 // values stored for argument map
 struct argVal{
-  char argsArray[20][50];
+  char argsArray[80];
+};
+struct cmd_args_key {
+  u64 tgid ;
+  u64 ind;
 };
 
 struct {
  __uint(type, BPF_MAP_TYPE_LRU_HASH);
  __uint(max_entries, MAX_ENTRIES);
- __type(key, unsigned int);
+ __type(key, struct cmd_args_key);
  __type(value, struct argVal);
  __uint(pinning, LIBBPF_PIN_BY_NAME);
 } args_store SEC(".maps");
