@@ -102,7 +102,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		KeySize:    776,
 		ValueSize:  1,
 		MaxEntries: 100,
-		Name:       "a_map",
+		Name:       "kubearmor_arguments",
 		Pinning:    ebpf.PinByName,
 	}, ebpf.MapOptions{
 		PinPath: pinpath,
