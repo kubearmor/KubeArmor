@@ -120,7 +120,7 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			if path.OwnerOnly {
 				val[PROCESS] = val[PROCESS] | OWNER
 			}
-			if len(path.ArgSet) > 0 {
+			if len(path.AllowedArgs) > 0 {
 				val[PROCESS] = val[PROCESS] | ARGSET
 			}
 			if len(path.FromSource) == 0 {
@@ -154,12 +154,12 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 					}
 				}
 			}
-			if len(path.ArgSet) > 0 {
+			if len(path.AllowedArgs) > 0 {
 				var argList []string
 				argKey.InnerKey = key
 				argKey.MntNS = be.ContainerMap[id].Key.MntNS
 				argKey.PidNS = be.ContainerMap[id].Key.PidNS
-				argList = append(argList, path.ArgSet...)
+				argList = append(argList, path.AllowedArgs...)
 				newrules.ArgumentsList[argKey] = argList
 			}
 		}
