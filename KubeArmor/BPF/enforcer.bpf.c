@@ -11,19 +11,11 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
   event *task_info;
   int retval = ret;
-  // variables required for argument matching---------| 
-  struct argVal *argval ;
-  unsigned int num = BPF_CORE_READ(bprm , argc);
-  unsigned int argKey; 
-  unsigned int *x ;
-  u32 arg_k = 0;
-  arg_bufs_k *a_key = bpf_map_lookup_elem(&args_bufk, &arg_k);
-   if (a_key == NULL)
-    return 0;
-  bool argmatch = false;
-  bool frmsource = false;
-  // -------------------------------------------------|
 
+  // no of arguments
+  unsigned int num_of_args = BPF_CORE_READ(bprm , argc);
+  bool argmatch = false;
+ 
   bool match = false; 
   struct outer_key okey;
   get_outer_key(&okey, t);
@@ -94,7 +86,9 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   if (src_ptr == NULL)
     fromSourceCheck = false;
 
+
   if (fromSourceCheck) {
+
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
     val = bpf_map_lookup_elem(inner, store);
@@ -102,8 +96,6 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       match = true;
       goto decision;
     }
-    // bpf_printk(" source = %s path= %s " , store->source , store->path);
-
     #pragma unroll
         for (int i = 0; i < 64; i++) {
           if (store->path[i] == '\0')
@@ -234,43 +226,14 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
 decision:  
   if (match) {
-    if (val && (val->processmask & RULE_ARGSET)) {
-      argKey =  bpf_get_current_pid_tgid();
-      argval = bpf_map_lookup_elem(&args_store, &argKey);
-
-     // clearing to avoid processing garbage values 
-      __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
-      __builtin_memset(&a_key->store, 0, sizeof(a_key->store));
-  
-      bpf_probe_read(&a_key->okey.mnt_ns, sizeof(okey.mnt_ns) , &okey.mnt_ns);
-      bpf_probe_read(&a_key->okey.pid_ns, sizeof(okey.pid_ns) , &okey.pid_ns);
-      bpf_probe_read_str(&a_key->store.path, sizeof(store->path) , store->path);
-     
-      if (pk->path[0] == '\0') {
-          bpf_probe_read_str(&a_key->store.source, sizeof(store->source) , store->source);
-      } 
-      if (argval) {
-        for( int i = 0 ; i< num && i < 100; i++ ){
-            __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
-            bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), argval->argsArray[i]);
-            x  = bpf_map_lookup_elem(&a_map ,a_key);
-            bpf_printk("a_key->path %s , a_key->source - %s ", a_key->store.path , a_key->store.source);
-            if (x) {
-                bpf_printk("argument matched");
-                argmatch = true;
-                if (i != 0) {  
-                    continue;  
-                }
-            } else {
-                if (i != 0) {
-                    argmatch = false;
-                    break;  
-                }
-            }
-        }
-        }
+    if (val && (val->processmask & RULE_ARGSET)){ 
+      argmatch = matchArguments( num_of_args , &okey , store , pk);
+      if(argmatch){
+        // if arguments matches allow the process to be executed
+        return 0;
+      }
     }
-    
+
     if (val && (val->processmask & RULE_OWNER)) {
       if (!is_owner(bprm->file)) {
         if((val->processmask & RULE_ARGSET) && argmatch){
@@ -283,10 +246,6 @@ decision:
       }
     }
     if (val && (val->processmask & RULE_DENY)) {
-      // Allow if allowedArgs matches
-      if((val->processmask & RULE_ARGSET) && argmatch){
-          return 0;
-      }
       retval = -EPERM;
     }
   }
@@ -304,14 +263,6 @@ decision:
         retval = -EPERM;
       }
       goto ringbuf;
-    } else {
-         // allow policy + match + !argmatch = action based on default posture
-        if((val->processmask & RULE_ARGSET) && !argmatch){
-                if (allow->processmask == BLOCK_POSTURE) {
-                    retval = -EPERM;
-              }
-            goto ringbuf;
-        }
     }
   }
 
