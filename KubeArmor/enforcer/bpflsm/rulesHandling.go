@@ -5,7 +5,6 @@ package bpflsm
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 
@@ -376,7 +375,6 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 	} else if len(newrules.FileRuleList) == 0 && len(newrules.ProcessRuleList) == 0 && len(newrules.NetworkRuleList) == 0 && len(newrules.CapabilitiesRuleList) == 0 {
 		// All Policies removed for the container
 		be.Logger.Printf("Deleting inner map for %s", id)
-		fmt.Println("policies are being deleted")
 		be.DeleteContainerInnerMap(id)
 		return
 	}
@@ -430,7 +428,6 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			argKey.InnerKey = key.InnerKey
 			argKey.NsKey = key.NsKey
 			copy(argKey.Argument[:], []byte(arg))
-			fmt.Printf("Adding ARGUMENTS rule to container id %s , key = pid-%d  mntid- %d argument - %s ", id, argKey.PidNS, argKey.MntNS, argKey.Argument)
 			be.BPFArgumentsMap.Put(argKey, uint8(1))
 		}
 	}
@@ -554,7 +551,6 @@ func (be *BPFEnforcer) resolveConflictsProcessRules(newRuleList, oldRuleList map
 					bpfArgKey.NsKey = argKey.NsKey
 					copy(bpfArgKey.Argument[:], []byte(arg))
 					be.BPFArgumentsMap.Delete(bpfArgKey)
-					fmt.Println("deleting Arguments", bpfArgKey)
 				}
 				delete(argListMap, argKey)
 			}
