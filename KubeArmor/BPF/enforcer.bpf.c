@@ -240,29 +240,32 @@ decision:
      // clearing to avoid processing garbage values 
       __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
       __builtin_memset(&a_key->store, 0, sizeof(a_key->store));
-      
+  
       bpf_probe_read(&a_key->okey.mnt_ns, sizeof(okey.mnt_ns) , &okey.mnt_ns);
       bpf_probe_read(&a_key->okey.pid_ns, sizeof(okey.pid_ns) , &okey.pid_ns);
       bpf_probe_read_str(&a_key->store.path, sizeof(store->path) , store->path);
-      
+     
       if (pk->path[0] == '\0') {
           bpf_probe_read_str(&a_key->store.source, sizeof(store->source) , store->source);
       } 
       if (argval) {
-        for( int i = 1 ; i< num && i<10; i++ ){
-            bpf_printk("Argurment %d : %s\n", i,  argval->argsArray[i]);
+        for( int i = 0 ; i< num && i < 100; i++ ){
             __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
             bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), argval->argsArray[i]);
-            x  = bpf_map_lookup_elem(&a_map ,a_key); 
+            x  = bpf_map_lookup_elem(&a_map ,a_key);
             bpf_printk("a_key->path %s , a_key->source - %s ", a_key->store.path , a_key->store.source);
-            if(x){
-              bpf_printk("argument matched");
-              argmatch = true;
+            if (x) {
+                bpf_printk("argument matched");
+                argmatch = true;
+                if (i != 0) {  
+                    continue;  
+                }
             } else {
-              bpf_printk("argument not matched");
-              argmatch = false;
-              break;
-            }  
+                if (i != 0) {
+                    argmatch = false;
+                    break;  
+                }
+            }
         }
         }
     }
@@ -279,7 +282,7 @@ decision:
       }
     }
     if (val && (val->processmask & RULE_DENY)) {
-      // Allow if argset matches
+      // Allow if allowedArgs matches
       if((val->processmask & RULE_ARGSET) && argmatch){
           return 0;
       }
