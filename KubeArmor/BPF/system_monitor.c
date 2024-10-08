@@ -1146,23 +1146,28 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     return false; 
 }
  static __always_inline void  save_cmd_args_to_buffer(const char __user *const __user *ptr){
-    unsigned int key_tgid = bpf_get_current_pid_tgid(); 
+   
+
+    struct cmd_args_key key;
+    key.tgid = bpf_get_current_pid_tgid(); 
     u32 arg_k = 0;
     struct argVal  *args_buf = bpf_map_lookup_elem(&cmd_args_buf, &arg_k);
     if (args_buf == NULL){
       return ;
     }
-    __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
-    // add number of args here 
-    for (int i = 0; i < 5; i++)
+    // add number of args here // pragmaunroll
+    for ( u8 i = 0; i < 16; i++)
     {   
+        key.ind = i;
         const char *const *curr_ptr = (void *)&ptr[i] ;
         const char *argp = NULL;
         bpf_probe_read(&argp, sizeof(argp), curr_ptr);
         if (argp)
           {
-            bpf_probe_read_str(args_buf->argsArray[i], sizeof(args_buf->argsArray[0]), argp);
-            bpf_map_update_elem(&args_store, &key_tgid, args_buf, BPF_ANY);
+            __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
+            bpf_probe_read_str(&args_buf->argsArray, sizeof(args_buf->argsArray), argp);
+            // bpf_printk("argp = %s argsBuf = %s" , argp , args_buf->argsArray);
+            bpf_map_update_elem(&args_store, &key, args_buf, BPF_ANY);
           }
         else {
             break;
