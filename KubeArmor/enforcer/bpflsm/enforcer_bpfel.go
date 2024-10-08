@@ -21,7 +21,7 @@ type enforcerArgBufsK struct {
 	Arg   [256]int8
 }
 
-type enforcerArgVal struct{ ArgsArray [20][50]int8 }
+type enforcerArgVal struct{ ArgsArray [80]int8 }
 
 type enforcerBufsK struct {
 	Path   [256]int8
@@ -29,6 +29,11 @@ type enforcerBufsK struct {
 }
 
 type enforcerBufsT struct{ Buf [32768]int8 }
+
+type enforcerCmdArgsKey struct {
+	Tgid uint64
+	Ind  uint64
+}
 
 // loadEnforcer returns the embedded CollectionSpec for enforcer.
 func loadEnforcer() (*ebpf.CollectionSpec, error) {
@@ -85,7 +90,6 @@ type enforcerProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type enforcerMapSpecs struct {
-	A_map                  *ebpf.MapSpec `ebpf:"a_map"`
 	ArgsBufk               *ebpf.MapSpec `ebpf:"args_bufk"`
 	ArgsStore              *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                   *ebpf.MapSpec `ebpf:"bufk"`
@@ -93,6 +97,7 @@ type enforcerMapSpecs struct {
 	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
 	CmdArgsBuf             *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	KubearmorAlertThrottle *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArguments     *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -125,7 +130,6 @@ func (o *enforcerObjects) Close() error {
 //
 // It can be passed to loadEnforcerObjects or ebpf.CollectionSpec.LoadAndAssign.
 type enforcerMaps struct {
-	A_map                  *ebpf.Map `ebpf:"a_map"`
 	ArgsBufk               *ebpf.Map `ebpf:"args_bufk"`
 	ArgsStore              *ebpf.Map `ebpf:"args_store"`
 	Bufk                   *ebpf.Map `ebpf:"bufk"`
@@ -133,6 +137,7 @@ type enforcerMaps struct {
 	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
 	CmdArgsBuf             *ebpf.Map `ebpf:"cmd_args_buf"`
 	KubearmorAlertThrottle *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArguments     *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
@@ -141,7 +146,6 @@ type enforcerMaps struct {
 
 func (m *enforcerMaps) Close() error {
 	return _EnforcerClose(
-		m.A_map,
 		m.ArgsBufk,
 		m.ArgsStore,
 		m.Bufk,
@@ -149,6 +153,7 @@ func (m *enforcerMaps) Close() error {
 		m.BufsOff,
 		m.CmdArgsBuf,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,

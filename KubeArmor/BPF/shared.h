@@ -112,7 +112,7 @@ struct {
     __type(key, arg_bufs_k);  // Composite key of okey+bufkey+argname
     __type(value, u8);            // Value is a u8 integer
     __uint(pinning, LIBBPF_PIN_BY_NAME);            
-} a_map SEC(".maps");
+} kubearmor_arguments SEC(".maps");
 
 //--------------------------------------------//
 
