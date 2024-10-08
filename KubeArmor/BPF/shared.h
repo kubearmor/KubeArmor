@@ -11,6 +11,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "throttling.h"
+#include "common.h"
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define EPERM 13
@@ -98,7 +99,7 @@ struct {
     __type(key, arg_bufs_k);  // Composite key of okey+bufkey+argname
     __type(value, u8);            // Value is a u8 integer
     __uint(pinning, LIBBPF_PIN_BY_NAME);            
-} a_map SEC(".maps");
+} kubearmor_arguments SEC(".maps");
 
 //--------------------------------------------//
 
@@ -743,6 +744,66 @@ ringbuf:
   task_info->retval = retval;
   bpf_ringbuf_submit(task_info, 0);
   return retval;
+}
+static inline bool matchArguments( unsigned int num_of_args , struct outer_key *okey , bufs_k *store , bufs_k *pk ) {
+    
+    bool argmatch = false;
+    unsigned int *x ;
+    
+    unsigned int argKey;
+    struct argVal *argval ;
+    
+    u32 arg_k = 0;
+    arg_bufs_k *a_key = bpf_map_lookup_elem(&args_bufk, &arg_k);
+    if (a_key == NULL)
+      return 0;
+    
+    // clearing to avoid processing garbage values 
+    __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
+    __builtin_memset(&a_key->store, 0, sizeof(a_key->store));
+    
+    bpf_probe_read(&a_key->okey.mnt_ns, sizeof(okey->mnt_ns) , &okey->mnt_ns);
+    bpf_probe_read(&a_key->okey.pid_ns, sizeof(okey->pid_ns) , &okey->pid_ns);
+    bpf_probe_read_str(&a_key->store.path, sizeof(store->path) , &store->path);
+
+    struct cmd_args_key cmd_args_buf_k;
+    cmd_args_buf_k.tgid = bpf_get_current_pid_tgid();
+
+    if (pk->path[0] == '\0') {
+      // pk->path[0] will be null for fromSource rules
+        bpf_probe_read_str(&a_key->store.source, sizeof(store->source) , store->source);
+    }
+
+      for( u8 i = 0 ; i< num_of_args && i < 16; i++ ){
+        cmd_args_buf_k.ind = i;
+        bpf_printk(" tgid %llu ind %d" , cmd_args_buf_k.tgid , cmd_args_buf_k.ind);
+
+        argval = bpf_map_lookup_elem(&args_store , &cmd_args_buf_k);
+        
+        bpf_printk("argval %d %s " , argval , argval->argsArray);
+        if(argval){
+          __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
+          bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), &argval->argsArray);
+          x = bpf_map_lookup_elem(&kubearmor_arguments ,a_key);    
+          if (x){
+            argmatch = true;
+            } 
+          else {
+              argmatch = false;
+              if (i != 0) {
+                break;  
+              }
+            }
+        }
+        else {
+
+            struct argVal try ;
+             int y = bpf_map_update_elem(&args_store, &cmd_args_buf_k, &try, BPF_NOEXIST);
+             bpf_printk("update elem return %d" , y);
+        }
+      }
+  
+  return argmatch; 
 }
 
 /*
