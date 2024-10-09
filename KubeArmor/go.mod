@@ -27,7 +27,8 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/cilium/cilium v1.14.12
 	github.com/cilium/ebpf v0.12.3
-	github.com/containerd/containerd v1.7.13
+	github.com/containerd/containerd v1.7.22
+	github.com/containerd/containerd/api v1.7.19
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/golang/protobuf v1.5.4
@@ -53,12 +54,14 @@ require (
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/Microsoft/go-winio v0.6.1 // indirect
+	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/containerd/ttrpc v1.2.3 // indirect
+	github.com/containerd/errdefs v0.1.0 // indirect
+	github.com/containerd/log v0.1.0 // indirect
+	github.com/containerd/ttrpc v1.2.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/distribution/reference v0.5.0 // indirect
+	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.2 // indirect
@@ -112,14 +115,11 @@ require (
 	go.opentelemetry.io/otel/trace v1.25.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240725223205-93522f1f2a9f // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
