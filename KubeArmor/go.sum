@@ -1,3 +1,5 @@
+github.com/5GSEC/SentryFlow/protobuf v0.0.0-20240513071927-c6689c164ec8 h1:vOjDsj/1zs1O4V2UG2SINC7/maAx3WEQsE0bz5n0skI=
+github.com/5GSEC/SentryFlow/protobuf v0.0.0-20240513071927-c6689c164ec8/go.mod h1:cvmCAKkLBDXx6Rlk97XQQuAtcOhkM/wsWNbxGOC3yfE=
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOElx5B5HZ4hJQsoJ/PvUvKRhJHDQXO8P8=
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Masterminds/goutils v1.1.1 h1:5nUrii3FMTL5diU80unEVvNevw1nH4+ZV4DSLVJLSYI=

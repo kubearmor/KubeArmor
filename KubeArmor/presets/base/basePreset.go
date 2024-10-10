@@ -13,6 +13,20 @@ const (
 	PRESET_ENFORCER string = "PRESET-"
 )
 
+type PresetType uint8
+
+const (
+	FilelessExec PresetType = 1
+	AnonMapExec  PresetType = 2
+)
+
+type PresetAction uint32
+
+const (
+	Audit PresetAction = 1
+	Block PresetAction = 2
+)
+
 type BasePreset struct {
 	Logger  *fd.Feeder
 	Monitor *mon.SystemMonitor
