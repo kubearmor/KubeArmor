@@ -530,7 +530,8 @@ type SyscallsType struct {
 type PresetType string
 
 const (
-	FilelessProcessExec PresetType = "filelessProcessExec"
+	AnonMapExec  PresetType = "anonymousMapExec"
+	FilelessExec PresetType = "filelessExec"
 )
 
 // SecuritySpec Structure

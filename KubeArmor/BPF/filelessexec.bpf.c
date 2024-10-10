@@ -4,81 +4,72 @@
 
 #include "shared.h"
 
-#define PROT_EXEC 0x4  /* page can be executed */
-#define MAP_ANONYMOUS 0x20
-#define MAP_ANON MAP_ANONYMOUS
-
-#define S_IFIFO 0010000
-#define _FILELESS_EXEC 1
 
 struct {
   __uint(type, BPF_MAP_TYPE_RINGBUF);
   __uint(max_entries, 1 << 24);
 } events SEC(".maps");
 
-typedef struct {
-  u64 ts;
 
-  u32 pid_id;
-  u32 mnt_id;
+// Force emitting struct mmap_event into the ELF.
+const event *unused __attribute__((unused));
 
-  u32 host_ppid;
-  u32 host_pid;
+struct preset_map fileless_exec_preset_containers SEC(".maps");
 
-  u32 ppid;
-  u32 pid;
-  u32 uid;
+#define MEMFD "memfd:"
 
-  u32 event_id;
-  s64 retval;
-
-  u8 comm[TASK_COMM_LEN];
-
-  unsigned long args[6];
-} mmap_event;
-
-static __always_inline u32 init_mmap_context(mmap_event *event_data) {
-  struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-
-  event_data->ts = bpf_ktime_get_ns();
-
-  event_data->host_ppid = get_task_ppid(task);
-  event_data->host_pid = bpf_get_current_pid_tgid() >> 32;
-
-  u32 pid = get_task_ns_tgid(task);
-  if (event_data->host_pid == pid) { // host
-    event_data->pid_id = 0;
-    event_data->mnt_id = 0;
-
-    event_data->ppid = get_task_ppid(task);
-    event_data->pid = bpf_get_current_pid_tgid() >> 32;
-  } else { // container
-    event_data->pid_id = get_task_pid_ns_id(task);
-    event_data->mnt_id = get_task_mnt_ns_id(task);
-
-    event_data->ppid = get_task_ns_ppid(task);
-    event_data->pid = pid;
+static __always_inline int is_memfd(char *name) {
+  char memfd[] = MEMFD;
+  int i = 0;
+  while (i < sizeof(MEMFD) - 1 && name[i] != '\0' && name[i] == memfd[i]) {
+    i++;
   }
 
-  event_data->uid = bpf_get_current_uid_gid();
-
-  // Clearing array to avoid garbage values
-  __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
-  bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
+  if (i == sizeof(MEMFD) - 1) {
+    return 1;
+  }
 
   return 0;
 }
 
+#define RUN_SHM "/run/shm/"
 
-// Force emitting struct mmap_event into the ELF.
-const mmap_event *unused __attribute__((unused));
+static __always_inline int is_run_shm(char *name) {
+  char run_shm[] = RUN_SHM;
+  int i = 0;
+  while (i < sizeof(RUN_SHM) - 1 && name[i] != '\0' && name[i] == run_shm[i]) {
+    i++;
+  }
 
-struct preset_map fileless_exec_preset_containers SEC(".maps");
+  if (i == sizeof(RUN_SHM) - 1) {
+    return 1;
+  }
 
+  return 0;
+}
 
-SEC("lsm/mmap_file")
-int BPF_PROG(enforce_mmap_file, struct file *file, unsigned long reqprot,
-	 unsigned long prot, unsigned long flags){
+#define DEV_SHM "/dev/shm/"
+
+static __always_inline int is_dev_shm(char *name) {
+  char dev_shm[] = DEV_SHM;
+  int i = 0;
+  while (i < sizeof(DEV_SHM) - 1 && name[i] != '\0' && name[i] == dev_shm[i]) {
+    i++;
+  }
+
+  if (i == sizeof(DEV_SHM) - 1) {
+    return 1;
+  }
+
+  return 0;
+}
+
+struct pathname {
+  char path[256];
+};
+
+SEC("lsm/bprm_check_security")
+int BPF_PROG(enforce_bprm_check_security, struct linux_binprm *bprm){
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
@@ -91,29 +82,62 @@ int BPF_PROG(enforce_mmap_file, struct file *file, unsigned long reqprot,
     return 0;
   }
 
-  // only if PROT_EXEC is assigned
-  if (prot & PROT_EXEC) {
-    if (flags & MAP_ANONYMOUS) {
-      mmap_event *event_data;
-      event_data = bpf_ringbuf_reserve(&events, sizeof(mmap_event), 0);
+  struct pathname path_data = {};
 
-      if (!event_data) {
+  struct file *file = BPF_CORE_READ(bprm, file);
+  if (file == NULL)
+    return 0;
+
+  bufs_t *path_buf = get_buf(PATH_BUFFER);
+  if (path_buf == NULL)
+    return 0;
+
+  // prepend path is needed to capture /dev/shm and /run/shm paths
+  if (!prepend_path(&(file->f_path), path_buf)){
+    // memfd files have no path in the filesystem -> extract their name
+    struct dentry *dentry = BPF_CORE_READ(&file->f_path, dentry);
+    struct qstr d_name = BPF_CORE_READ(dentry, d_name);
+    bpf_probe_read_kernel_str(path_data.path, MAX_STRING_SIZE, (void *) d_name.name);
+  } else {
+    u32 *path_offset = get_buf_off(PATH_BUFFER);
+    if (path_offset == NULL)
       return 0;
-      }
 
-      init_mmap_context(event_data);
+    void *path_ptr = &path_buf->buf[*path_offset];
+    bpf_probe_read_str(path_data.path, MAX_STRING_SIZE, path_ptr);
+  }
 
-      __builtin_memset(event_data->args, 0, sizeof(event_data->args));
+  const char *filename = BPF_CORE_READ(bprm, filename);
 
-      event_data->args[0] = reqprot;
-      event_data->args[1] = prot;
-      event_data->args[2] = flags;
-      event_data->event_id = _FILELESS_EXEC;
+  if (is_memfd(path_data.path) || is_run_shm(path_data.path) || is_dev_shm(path_data.path)) {
+    event *event_data;
+    event_data = bpf_ringbuf_reserve(&events, sizeof(event), 0);
+
+    if (!event_data) {
+      return 0;
+    }
+
+    __builtin_memset(event_data->data.path, 0, sizeof(event_data->data.path));
+    __builtin_memset(event_data->data.source, 0, sizeof(event_data->data.source));
+
+    bpf_probe_read_str(event_data->data.path, MAX_STRING_SIZE, path_data.path);
+    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, filename);
+    
+    init_context(event_data);
+    event_data->event_id = FILELESS_EXEC;
+    
+    // mapping not backed by any file with executable permission, denying mapping
+    if (*present == BLOCK) {
       event_data->retval = -13;
       bpf_ringbuf_submit(event_data, 0);
-      // mapping not backed by any file with executable permission, denying mapping
+      // bpf_printk("[bprm] fileless execution detected with pid %d, denying execution", event_data->pid);
       return -13;
+    } else {
+      event_data->retval = 0;
+      bpf_ringbuf_submit(event_data, 0);
+      return 0;
     }
   }
+  
   return 0;
 }

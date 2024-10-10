@@ -622,6 +622,9 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			if dm.Presets != nil {
+				dm.Presets.RegisterContainer(containerID, container.PidNS, container.MntNS)
+			}
 
 			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
 				dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
