@@ -8,8 +8,9 @@ import (
 
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
+	anonmap "github.com/kubearmor/KubeArmor/KubeArmor/presets/anonmapexec"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
-	fileless "github.com/kubearmor/KubeArmor/KubeArmor/presets/filelessexec"
+	filelessexec "github.com/kubearmor/KubeArmor/KubeArmor/presets/filelessexec"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -27,7 +28,8 @@ func NewPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) *Preset {
 	p.Monitor = monitor
 
 	// add all presets
-	p.List[fileless.NAME] = fileless.NewFilelessExecPreset()
+	p.List[anonmap.NAME] = anonmap.NewAnonMapExecPreset()
+	p.List[filelessexec.NAME] = filelessexec.NewFilelessExecPreset()
 
 	// register all presets
 	p.RegisterPresets()

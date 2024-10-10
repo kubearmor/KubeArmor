@@ -60,7 +60,7 @@ type filelessexecSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type filelessexecProgramSpecs struct {
-	EnforceMmapFile *ebpf.ProgramSpec `ebpf:"enforce_mmap_file"`
+	EnforceBprmCheckSecurity *ebpf.ProgramSpec `ebpf:"enforce_bprm_check_security"`
 }
 
 // filelessexecMapSpecs contains maps before they are loaded into the kernel.
@@ -126,12 +126,12 @@ func (m *filelessexecMaps) Close() error {
 //
 // It can be passed to loadFilelessexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type filelessexecPrograms struct {
-	EnforceMmapFile *ebpf.Program `ebpf:"enforce_mmap_file"`
+	EnforceBprmCheckSecurity *ebpf.Program `ebpf:"enforce_bprm_check_security"`
 }
 
 func (p *filelessexecPrograms) Close() error {
 	return _FilelessexecClose(
-		p.EnforceMmapFile,
+		p.EnforceBprmCheckSecurity,
 	)
 }
 
