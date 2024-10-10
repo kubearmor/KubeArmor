@@ -18,6 +18,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/kubearmor/KubeArmor/KubeArmor/policy"
+	"github.com/kubearmor/KubeArmor/KubeArmor/presets"
 	"github.com/kubearmor/KubeArmor/KubeArmor/state"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"google.golang.org/grpc/health"
@@ -27,10 +28,9 @@ import (
 
 	efc "github.com/kubearmor/KubeArmor/KubeArmor/enforcer"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
-	pb "github.com/kubearmor/KubeArmor/protobuf"
-
 	kvm "github.com/kubearmor/KubeArmor/KubeArmor/kvmAgent"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
 // ====================== //
@@ -93,6 +93,9 @@ type KubeArmorDaemon struct {
 
 	// runtime enforcer
 	RuntimeEnforcer *efc.RuntimeEnforcer
+
+	// presets
+	Presets *presets.Preset
 
 	// kvm agent
 	KVMAgent *kvm.KVMAgent
@@ -297,6 +300,25 @@ func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
 func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 	if err := dm.RuntimeEnforcer.DestroyRuntimeEnforcer(); err != nil {
 		dm.Logger.Errf("Failed to destory KubeArmor Enforcer (%s)", err.Error())
+		return false
+	}
+	return true
+}
+
+// ============= //
+// == Presets == //
+// ============= //
+
+// InitPresets Function
+func (dm *KubeArmorDaemon) InitPresets(logger *fd.Feeder, monitor *mon.SystemMonitor) bool {
+	dm.Presets = presets.NewPreset(dm.Logger, dm.SystemMonitor)
+	return dm.Presets != nil
+}
+
+// ClosePresets Function
+func (dm *KubeArmorDaemon) ClosePresets() bool {
+	if err := dm.Presets.Destroy(); err != nil {
+		dm.Logger.Errf("Failed to destry preset (%s)", err.Error())
 		return false
 	}
 	return true
@@ -557,6 +579,13 @@ func KubeArmor() {
 			} else if cfg.GlobalCfg.Policy && cfg.GlobalCfg.HostPolicy {
 				dm.Logger.Print("Started to protect a host and containers")
 			}
+		}
+
+		// initialize presets
+		if !dm.InitPresets(dm.Logger, dm.SystemMonitor) {
+			dm.Logger.Print("Disabled Presets since no presets are enabled")
+		} else {
+			dm.Logger.Print("Initialized Presets")
 		}
 	}
 
