@@ -1,0 +1,13 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-preset-audit-fileless
+  namespace: presets
+spec:
+  action: Audit
+  presets:
+  - filelessExec
+  selector:
+    matchLabels:
+      app: fileless
+  severity: 8
