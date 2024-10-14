@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package presets contains preset rules components
 package presets
 
 import (
@@ -14,16 +15,18 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
+// Preset struct
 type Preset struct {
-	base.BasePreset
+	base.Preset
 
-	List map[string]base.BasePresetInterface
+	List map[string]base.PresetInterface
 }
 
+// NewPreset returns an instance of Preset
 func NewPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) *Preset {
 	p := &Preset{}
 
-	p.List = make(map[string]base.BasePresetInterface)
+	p.List = make(map[string]base.PresetInterface)
 	p.Logger = logger
 	p.Monitor = monitor
 

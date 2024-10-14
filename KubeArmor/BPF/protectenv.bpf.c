@@ -21,36 +21,14 @@ struct {
 struct preset_map protectenv_preset_containers SEC(".maps");
 
 #define DIR_PROC "/proc/"
-
-static __always_inline int isProcDir(char *path) {
-  char procDir[] = DIR_PROC;
-  int i = 0;
-  while (i < sizeof(DIR_PROC) - 1 && path[i] != '\0' && path[i] == procDir[i]) {
-    i++;
-  }
-
-  if (i == sizeof(DIR_PROC) - 1) {
-    return 1;
-  }
-
-  return 0;
-}
-
 #define FILE_ENVIRON "/environ"
 
+static __always_inline int isProcDir(char *path) {
+  return string_prefix_match(path, DIR_PROC, sizeof(DIR_PROC));
+}
+
 static __always_inline int isEnviron(char *path) {
-  char envFile[] = FILE_ENVIRON;
-  int i = 0;
-  while (i < sizeof(FILE_ENVIRON) - 1 && path[i] != '\0' &&
-         path[i] == envFile[i]) {
-    i++;
-  }
-
-  if (i == sizeof(FILE_ENVIRON) - 1) {
-    return 1;
-  }
-
-  return 0;
+  return string_prefix_match(path, FILE_ENVIRON, sizeof(FILE_ENVIRON));
 }
 
 SEC("lsm/file_open")
@@ -101,7 +79,7 @@ int BPF_PROG(enforce_file, struct file *file) {
     task_info->pid_ns = okey.pid_ns;
     task_info->mnt_ns = okey.mnt_ns;
     bpf_ringbuf_submit(task_info, 0);
-    return -13;
+    return -EPERM;
   }
 
   return 0;

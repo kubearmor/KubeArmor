@@ -41,7 +41,7 @@ type ContainerVal struct {
 }
 
 type AnonMapExecPreset struct {
-	base.BasePreset
+	base.Preset
 
 	BPFContainerMap *ebpf.Map
 
@@ -91,10 +91,10 @@ func (p *AnonMapExecPreset) Name() string {
 	return NAME
 }
 
-func (p *AnonMapExecPreset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.BasePresetInterface, error) {
+func (p *AnonMapExecPreset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.PresetInterface, error) {
 
 	if logger.Enforcer != "BPFLSM" {
-		// it's based on actibe enforcer, it might possible that node support bpflsm but
+		// it's based on active enforcer, it might possible that node support bpflsm but
 		// current enforcer is not bpflsm
 		return nil, errors.New("AnonExecutionPreset not supported if bpflsm not supported")
 	}

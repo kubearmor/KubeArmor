@@ -32,11 +32,13 @@ const (
 	NAME string = "FilelessExecutionPreset"
 )
 
+// NsKey struct
 type NsKey struct {
 	PidNS uint32
 	MntNS uint32
 }
 
+// ContainerVal struct
 type ContainerVal struct {
 	NsKey  NsKey
 	Policy string
@@ -44,7 +46,7 @@ type ContainerVal struct {
 
 // Preset struct
 type Preset struct {
-	base.BasePreset
+	base.Preset
 
 	BPFContainerMap *ebpf.Map
 
@@ -61,6 +63,7 @@ type Preset struct {
 	obj filelessexecObjects
 }
 
+// NewFilelessExecPreset creates an instance of FilelessExec Preset
 func NewFilelessExecPreset() *Preset {
 	p := &Preset{}
 	p.ContainerMap = make(map[string]ContainerVal)
@@ -68,14 +71,16 @@ func NewFilelessExecPreset() *Preset {
 	return p
 }
 
+// Name returns name of Preset
 func (p *Preset) Name() string {
 	return NAME
 }
 
-func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.BasePresetInterface, error) {
+// RegisterPreset register FilelessExec preset
+func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.PresetInterface, error) {
 
 	if logger.Enforcer != "BPFLSM" {
-		// it's based on actibe enforcer, it might possible that node support bpflsm but
+		// it's based on active enforcer, it might possible that node support bpflsm but
 		// current enforcer is not bpflsm
 		return nil, errors.New("FilelessExecutionPreset not supported if bpflsm not supported")
 	}
@@ -193,7 +198,7 @@ func (p *Preset) TraceEvents() {
 			log.Type = "MatchedPolicy"
 		}
 
-		log.Operation = "File"
+		log.Operation = "Process"
 
 		if event.Retval >= 0 {
 			log.Result = "Passed"
@@ -215,6 +220,7 @@ func (p *Preset) TraceEvents() {
 	}
 }
 
+// RegisterContainer registers a container to filelessexec preset
 func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 	ckv := NsKey{PidNS: pidns, MntNS: mntns}
 
@@ -224,6 +230,7 @@ func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
+// UnregisterContainer func unregisters a container from filelessexec preset
 func (p *Preset) UnregisterContainer(containerID string) {
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
@@ -238,6 +245,7 @@ func (p *Preset) UnregisterContainer(containerID string) {
 	}
 }
 
+// AddContainerIDToMap adds a container id to ebpf map
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
 	p.Logger.Printf("[FilelessExec] adding container with id to anon_map exec map: %s\n", id)
 	a := base.Block
@@ -251,6 +259,7 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 	return nil
 }
 
+// DeleteContainerIDFromMap deletes a container id from ebpf map
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
 	p.Logger.Printf("[FilelessExec] deleting container with id to anon_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
@@ -262,6 +271,7 @@ func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
 	return nil
 }
 
+// UpdateSecurityPolicies updates filelessexec policy for a given endpoint
 func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	var filelessExecPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
@@ -303,6 +313,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	}
 }
 
+// Destroy func gracefully destroys filelessexec preset
 func (p *Preset) Destroy() error {
 	if p == nil {
 		return nil
