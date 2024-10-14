@@ -23,7 +23,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang anonmapexec  ../../BPF/anon_map_exec.bpf.c -type mmap_event -no-global-types -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang anonmapexec  ../../BPF/anonmapexec.bpf.c -type mmap_event -no-global-types -- -I/usr/include/ -O2 -g
 
 const (
 	NAME   string = "AnonMapExecutionPreset"
