@@ -193,7 +193,7 @@ func (p *Preset) TraceEvents() {
 			log.Type = "MatchedPolicy"
 		}
 
-		log.Operation = "File"
+		log.Operation = "Process"
 
 		if event.Retval >= 0 {
 			log.Result = "Passed"
