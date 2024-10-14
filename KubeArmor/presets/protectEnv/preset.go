@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
+// Package protectenv contains components for protectenv preset rule
 package protectenv
 
 import (
@@ -29,8 +30,10 @@ type eventBPF struct {
 	MntNS uint32
 	Comm  [80]uint8
 }
+
+// EnvPreset struct
 type EnvPreset struct {
-	base.BasePreset
+	base.Preset
 
 	BPFContainerMap *ebpf.Map
 
@@ -47,6 +50,8 @@ type EnvPreset struct {
 	obj protectenvObjects
 }
 
+// RegisterPreset register protectenv preset and returns an instance of EnvPreset on success
+// otherwise returns an error
 func RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (*EnvPreset, error) {
 	p := &EnvPreset{}
 
@@ -145,15 +150,22 @@ func (p *EnvPreset) TraceEvents() {
 	}
 }
 
+// RegisterContainer registers a container
 func (p *EnvPreset) RegisterContainer(containerID string, pidns, mntns uint32) {
 
 }
+
+// UnregisterContainer unregisters a container
 func (p *EnvPreset) UnregisterContainer(containerID string) {
 
 }
+
+// UpdateSecurityPolicies updates protectenv policy rules
 func (p *EnvPreset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 
 }
+
+// Destroy func deletes EnvPreset instance
 func (p *EnvPreset) Destroy() error {
 	return nil
 }

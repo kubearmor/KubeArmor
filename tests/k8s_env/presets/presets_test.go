@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2022 Authors of KubeArmor
+
 package presets
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kubearmor/KubeArmor/protobuf"
@@ -37,7 +41,7 @@ var _ = Describe("Presets", func() {
 	var fp string
 
 	BeforeEach(func() {
-		fp = getfilelessPod("fileless-", nil)
+		fp = getfilelessPod("fileless-", []string{"kubearmor-policy: enabled"})
 	})
 
 	AfterEach(func() {
@@ -50,12 +54,15 @@ var _ = Describe("Presets", func() {
 
 	Describe("Policy Apply", func() {
 		It("can audit fileless execution", func() {
+			if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("fileless execution preset requires bpf-lsm")
+			}
 			// Apply policy
 			err := K8sApplyFile("res/ksp-preset-audit-fileless.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
-			err = KarmorLogStart("policy", "presets", "File", fp)
+			err = KarmorLogStart("policy", "presets", "Process", fp)
 			Expect(err).To(BeNil())
 
 			// wait for policy creation
@@ -80,12 +87,15 @@ var _ = Describe("Presets", func() {
 		})
 
 		It("can block fileless execution", func() {
+			if !strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("fileless execution preset requires bpf-lsm")
+			}
 			// Apply policy
 			err := K8sApplyFile("res/ksp-preset-block-fileless.yaml")
 			Expect(err).To(BeNil())
 
 			// Start Kubearmor Logs
-			err = KarmorLogStart("policy", "presets", "File", fp)
+			err = KarmorLogStart("policy", "presets", "Process", fp)
 			Expect(err).To(BeNil())
 
 			// wait for policy creation

@@ -534,11 +534,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	   in case of enforcer = AppArmor only Default Posture logs will be converted to
 	   container/host log depending upon the defaultPostureLogs flag
 	*/
-	presetlog := false
-	if strings.Contains(log.Enforcer, "PRESET") {
-		kg.Printf("PRESET log 1: %+v\n", log)
-		presetlog = true
-	}
 
 	if (cfg.GlobalCfg.EnforcerAlerts && fd.Enforcer == "BPFLSM" && log.Enforcer == "eBPF Monitor") || (fd.Enforcer != "BPFLSM" && !cfg.GlobalCfg.DefaultPostureLogs) {
 		log = fd.UpdateMatchedPolicy(log)
@@ -567,10 +562,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		fd.Debug("Pushing Telemetry without source")
 	}
 
-	if presetlog {
-		kg.Printf("PRESET LOG 2: %+v\n", log)
-	}
-
 	// set hostname
 	log.HostName = cfg.GlobalCfg.Host
 
@@ -588,10 +579,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 	} else if fd.Output != "none" {
 		arr, _ := json.Marshal(log)
 		fd.StrToFile(string(arr))
-	}
-
-	if strings.Contains(log.Enforcer, "PRESET") {
-		kg.Printf("PRESET_LOG: \n%+v\n", &log)
 	}
 
 	// gRPC output
@@ -694,10 +681,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		defer fd.EventStructs.AlertLock.Unlock()
 		counter := 0
 		lenAlert := len(fd.EventStructs.AlertStructs)
-
-		if strings.Contains(log.Enforcer, "PRESET") {
-			kg.Printf("PRESET_ALERT: \n%s\n", &pbAlert)
-		}
 
 		for uid := range fd.EventStructs.AlertStructs {
 			select {

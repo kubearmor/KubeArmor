@@ -17,51 +17,19 @@ const event *unused __attribute__((unused));
 struct preset_map fileless_exec_preset_containers SEC(".maps");
 
 #define MEMFD "memfd:"
-
-static __always_inline int is_memfd(char *name) {
-  char memfd[] = MEMFD;
-  int i = 0;
-  while (i < sizeof(MEMFD) - 1 && name[i] != '\0' && name[i] == memfd[i]) {
-    i++;
-  }
-
-  if (i == sizeof(MEMFD) - 1) {
-    return 1;
-  }
-
-  return 0;
-}
-
 #define RUN_SHM "/run/shm/"
-
-static __always_inline int is_run_shm(char *name) {
-  char run_shm[] = RUN_SHM;
-  int i = 0;
-  while (i < sizeof(RUN_SHM) - 1 && name[i] != '\0' && name[i] == run_shm[i]) {
-    i++;
-  }
-
-  if (i == sizeof(RUN_SHM) - 1) {
-    return 1;
-  }
-
-  return 0;
-}
-
 #define DEV_SHM "/dev/shm/"
 
+static __always_inline int is_memfd(char *name) {
+  return string_prefix_match(name, MEMFD, sizeof(MEMFD));
+}
+
+static __always_inline int is_run_shm(char *name) {
+  return string_prefix_match(name, RUN_SHM, sizeof(RUN_SHM));
+}
+
 static __always_inline int is_dev_shm(char *name) {
-  char dev_shm[] = DEV_SHM;
-  int i = 0;
-  while (i < sizeof(DEV_SHM) - 1 && name[i] != '\0' && name[i] == dev_shm[i]) {
-    i++;
-  }
-
-  if (i == sizeof(DEV_SHM) - 1) {
-    return 1;
-  }
-
-  return 0;
+  return string_prefix_match(name, DEV_SHM, sizeof(DEV_SHM));
 }
 
 struct pathname {

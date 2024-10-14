@@ -75,6 +75,18 @@ struct {
 } bufk SEC(".maps");
 
 // ============
+// match prefix
+// ============
+
+static __always_inline int string_prefix_match(const char *name, const char *prefix, size_t prefix_len) {
+    int i = 0;
+    while (i < prefix_len - 1 && name[i] != '\0' && name[i] == prefix[i]) {
+        i++;
+    }
+    return (i == prefix_len - 1) ? 1 : 0;
+}
+
+// ============
 // == preset ==
 // ============
 

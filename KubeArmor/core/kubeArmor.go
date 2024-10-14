@@ -318,7 +318,7 @@ func (dm *KubeArmorDaemon) InitPresets(logger *fd.Feeder, monitor *mon.SystemMon
 // ClosePresets Function
 func (dm *KubeArmorDaemon) ClosePresets() bool {
 	if err := dm.Presets.Destroy(); err != nil {
-		dm.Logger.Errf("Failed to destry preset (%s)", err.Error())
+		dm.Logger.Errf("Failed to destroy preset (%s)", err.Error())
 		return false
 	}
 	return true

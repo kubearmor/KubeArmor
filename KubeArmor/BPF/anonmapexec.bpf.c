@@ -109,14 +109,14 @@ int BPF_PROG(enforce_mmap_file, struct file *file, unsigned long reqprot,
       event_data->args[2] = flags;
       event_data->event_id = ANON_MAP_EXEC;
       if (*present == BLOCK) {
-        event_data->retval = -13;
+        event_data->retval = -EPERM;
       } else {
         event_data->retval = 0;
       }
       bpf_ringbuf_submit(event_data, 0);
       // mapping not backed by any file with executable permission, denying mapping
       if (*present == BLOCK) {
-        return -13;
+        return -EPERM;
       } else {
         return 0;
       }

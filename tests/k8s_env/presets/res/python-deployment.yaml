@@ -25,6 +25,5 @@ spec:
     spec:
       containers:
       - name: fileless
-        image: rksharma95/python:fileless
-        command: ["tail", "-f", "/dev/null"]
+        image: kubearmor/ubuntu-w-utils:0.2
 
