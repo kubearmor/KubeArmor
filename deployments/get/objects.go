@@ -264,6 +264,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var terminationGracePeriodSeconds = int64(60)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
+		"-procfsMount=/host/procfs",
 	}
 
 	var containerVolumeMounts = []corev1.VolumeMount{
@@ -381,7 +382,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Operator: "Exists",
 						},
 					},
-					HostPID:       true,
 					HostNetwork:   true,
 					RestartPolicy: "Always",
 					DNSPolicy:     "ClusterFirstWithHostNet",
