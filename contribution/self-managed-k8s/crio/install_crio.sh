@@ -24,6 +24,7 @@ echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.i
 # install
 sudo apt-get update
 sudo apt-get install -y cri-o
+sudo dpkg -i --force-overwrite /var/cache/apt/archives/cri-o_*.deb
 
 # this option is not supported in ubuntu 18.04
 if [ "$VERSION_ID" == "18.04" ]; then

@@ -5,10 +5,14 @@ package controllers
 
 import (
 	"context"
-	"strings"
+	"fmt"
 	"time"
 
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/common"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/informer"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,7 +21,8 @@ import (
 
 type PodRefresherReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme  *runtime.Scheme
+	Cluster *types.Cluster
 }
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;list;create;update;delete
@@ -32,20 +37,57 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log.Info("Watching for blocked pods")
 	poddeleted := false
 	for _, pod := range podList.Items {
-		if strings.Contains(pod.Status.Message, "Cannot enforce AppArmor") {
+		if pod.DeletionTimestamp != nil {
+			continue
+		}
+		if pod.Spec.NodeName == "" {
+			continue
+		}
+		r.Cluster.ClusterLock.RLock()
+		enforcer := ""
+		if _, ok := r.Cluster.Nodes[pod.Spec.NodeName]; ok {
+			enforcer = "apparmor"
+		} else {
+			enforcer = "bpf"
+		}
+
+		r.Cluster.ClusterLock.RUnlock()
+
+		if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
+			orginalPod := pod.DeepCopy()
+			common.AddCommonAnnotations(&pod)
+			patch := client.MergeFrom(orginalPod)
+			err := r.Patch(ctx, &pod, patch)
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					log.Info(fmt.Sprintf("Failed to patch pod annotations: %s", err.Error()))
+				}
+			}
+		}
+
+		// restart not required for special pods and already annotated pods
+
+		restartPod := requireRestart(pod, enforcer)
+
+		if restartPod {
+			// for annotating pre-existing pods on apparmor-nodes
 			// the pod is managed by a controller (e.g: replicaset)
 			if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 {
 				log.Info("Deleting pod " + pod.Name + "in namespace " + pod.Namespace + " as it is managed")
 				if err := r.Delete(ctx, &pod); err != nil {
-					log.Error(err, "Could not delete pod "+pod.Name+" in namespace "+pod.Namespace)
+					if !errors.IsNotFound(err) {
+						log.Error(err, "Could not delete pod "+pod.Name+" in namespace "+pod.Namespace)
+					}
 				}
 			} else {
 				// single pods
 				// mimic kubectl replace --force
 				// delete the pod --force ==> grace period equals zero
-				log.Info("deleting single pod " + pod.Name + " in namespace " + pod.Namespace)
+				log.Info("Deleting single pod " + pod.Name + " in namespace " + pod.Namespace)
 				if err := r.Delete(ctx, &pod, client.GracePeriodSeconds(0)); err != nil {
-					log.Error(err, "Could'nt delete pod "+pod.Name+" in namespace "+pod.Namespace)
+					if !errors.IsNotFound(err) {
+						log.Error(err, "Could'nt delete pod "+pod.Name+" in namespace "+pod.Namespace)
+					}
 				}
 
 				// clean the pre-polutated attributes
@@ -71,4 +113,24 @@ func (r *PodRefresherReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(r)
+}
+func requireRestart(pod corev1.Pod, enforcer string) bool {
+
+	if pod.Namespace == "kube-system" {
+		return false
+	}
+	if _, ok := pod.Labels["io.cilium/app"]; ok {
+		return false
+	}
+
+	if _, ok := pod.Labels["kubearmor-app"]; ok {
+		return false
+	}
+
+	// !hasApparmorAnnotations && enforcer == "apparmor"
+	if informer.HandleAppArmor(pod.Annotations) && enforcer == "apparmor" {
+		return true
+	}
+
+	return false
 }

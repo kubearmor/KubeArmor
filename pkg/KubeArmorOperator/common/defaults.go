@@ -53,6 +53,11 @@ var (
 	SecurityFsLabel string = "kubearmor.io/securityfs"
 	SeccompLabel    string = "kubearmor.io/seccomp"
 
+	// node taints label
+	NotreadyTaint      string = "node.kubernetes.io/not-ready"
+	UnreachableTaint   string = "node.kubernetes.io/unreachable"
+	UnschedulableTaint string = "node.kubernetes.io/unschedulable"
+
 	// if any node with securityfs/lsm present
 	IfNodeWithSecurtiyFs bool = false
 
@@ -114,6 +119,11 @@ var (
 	KubeArmorRelayServerSecretName string   = "kubearmor-relay-server-certs"
 	DefaultTlsCertPath             string   = "/var/lib/kubearmor/tls"
 	DefaultMode                    int32    = 420 // deciaml representation of octal value 644
+
+	// throttling
+	AlertThrottling       bool   = true
+	DefaultMaxAlertPerSec string = "10"
+	DefaultThrottleSec    string = "30"
 )
 
 var ConfigMapData = map[string]string{
@@ -124,7 +134,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
 	ConfigDefaultPostureLogs:         "true",
-	ConfigAlertThrottling:            "false",
+	ConfigAlertThrottling:            "true",
 	ConfigMaxAlertPerSec:             "10",
 	ConfigThrottleSec:                "30",
 }

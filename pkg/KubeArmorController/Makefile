@@ -53,6 +53,9 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/CRD/KubeArmorPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml crd/KubeArmorPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/ksp.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorclusterpolicies.yaml ../../deployments/CRD/KubeArmorClusterPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorclusterpolicies.yaml crd/KubeArmorClusterPolicy.yaml
+	cp config/crd/bases/security.kubearmor.com_kubearmorclusterpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/csp.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/CRD/KubeArmorHostPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml crd/KubeArmorHostPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorhostpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/hsp.yaml

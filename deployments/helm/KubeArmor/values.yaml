@@ -94,7 +94,7 @@ kubearmorConfigMap:
   defaultCapabilitiesPosture: audit
   defaultNetworkPosture: audit
   visibility: process,network
-  alertThrottling: false
+  alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30
 

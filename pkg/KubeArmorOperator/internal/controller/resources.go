@@ -442,19 +442,8 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
 			common.SecurityFsLabel: "yes",
 		}
-		deployment.Spec.Template.Spec.Containers = deployments.GetKubeArmorControllerDeployment(common.Namespace).Spec.Template.Spec.Containers
 	} else {
 		deployment.Spec.Template.Spec.NodeSelector = nil
-		for i, container := range deployment.Spec.Template.Spec.Containers {
-			if container.Name == "manager" {
-				for j, mount := range container.VolumeMounts {
-					if mount.MountPath == "/sys/kernel/security" {
-						deployment.Spec.Template.Spec.Containers[i].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[i].VolumeMounts[:j],
-							deployment.Spec.Template.Spec.Containers[i].VolumeMounts[j+1:]...)
-					}
-				}
-			}
-		}
 	}
 	controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployment.Name, metav1.GetOptions{})
 	if isNotfound(err) {
@@ -531,6 +520,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		if !isAlreadyExists(err) {
 			installErr = err
 			clusterWatcher.Log.Warnf("Cannot install Hsp CRD, error=%s", err.Error())
+		}
+	}
+	csp := crds.GetCspCRD()
+	csp = addOwnership(csp).(extv1.CustomResourceDefinition)
+	if _, err := clusterWatcher.ExtClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), &csp, metav1.CreateOptions{}); err != nil && !metav1errors.IsAlreadyExists(err) {
+		if !isAlreadyExists(err) {
+			installErr = err
+			clusterWatcher.Log.Warnf("Cannot install Csp CRD, error=%s", err.Error())
 		}
 	}
 	// kubearmor-controller and relay-server deployments

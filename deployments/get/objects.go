@@ -6,7 +6,6 @@ package deployments
 import (
 	"strconv"
 
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 )
 
 // GetServiceAccount Function
@@ -43,22 +44,27 @@ func GetClusterRole() *rbacv1.ClusterRole {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"pods", "nodes", "namespaces", "configmaps"},
-				Verbs:     []string{"get", "patch", "list", "watch", "update"},
+				Resources: []string{"namespaces"},
+				Verbs:     []string{"get", "list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods", "nodes", "configmaps"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{"apps"},
 				Resources: []string{"deployments", "replicasets", "daemonsets", "statefulsets"},
-				Verbs:     []string{"get", "patch", "list", "watch", "update"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{"batch"},
 				Resources: []string{"jobs", "cronjobs"},
-				Verbs:     []string{"get", "patch", "list", "watch", "update"},
+				Verbs:     []string{"get", "list", "watch"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"get", "list", "watch", "update", "delete"},
 			},
 			{
@@ -215,7 +221,7 @@ func GetRelayClusterRole() *rbacv1.ClusterRole {
 			{
 				APIGroups: []string{""},
 				Resources: []string{"pods"},
-				Verbs:     []string{"get", "list"},
+				Verbs:     []string{"list", "watch"},
 			},
 		},
 	}
@@ -507,16 +513,6 @@ var KubeArmorControllerCertVolume = corev1.Volume{
 	},
 }
 
-var KubeArmorControllerHostPathVolume = corev1.Volume{
-	Name: "sys-path",
-	VolumeSource: corev1.VolumeSource{
-		HostPath: &corev1.HostPathVolumeSource{
-			Path: "/sys/kernel/security",
-			Type: &hostPathDirectory,
-		},
-	},
-}
-
 var KubeArmorControllerAllowPrivilegeEscalation = false
 
 // GetKubeArmorControllerDeployment Function
@@ -549,7 +545,6 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 					ServiceAccountName: KubeArmorControllerServiceAccountName,
 					Volumes: []corev1.Volume{
 						KubeArmorControllerCertVolume,
-						KubeArmorControllerHostPathVolume,
 					},
 					Containers: []corev1.Container{
 						{
@@ -599,11 +594,6 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 									Name:      KubeArmorControllerCertVolume.Name,
 									ReadOnly:  true,
 									MountPath: "/tmp/k8s-webhook-server/serving-certs",
-								},
-								{
-									Name:      KubeArmorControllerHostPathVolume.Name,
-									ReadOnly:  true,
-									MountPath: "/sys/kernel/security",
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
@@ -675,13 +665,18 @@ func GetKubeArmorControllerClusterRole() *rbacv1.ClusterRole {
 				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
 			},
 			{
+				APIGroups: []string{""},
+				Resources: []string{"nodes"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies", "kubearmorhostpolicies"},
+				Resources: []string{"kubearmorpolicies", "kubearmorclusterpolicies", "kubearmorhostpolicies"},
 				Verbs:     []string{"create", "delete", "get", "patch", "list", "watch", "update"},
 			},
 			{
 				APIGroups: []string{"security.kubearmor.com"},
-				Resources: []string{"kubearmorpolicies/status", "kubearmorhostpolicies/status"},
+				Resources: []string{"kubearmorpolicies/status", "kubearmorclusterpolicies/status", "kubearmorhostpolicies/status"},
 				Verbs:     []string{"get", "patch", "update"},
 			},
 		},
@@ -978,6 +973,9 @@ func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data[cfg.ConfigDefaultCapabilitiesPosture] = "audit"
 	data[cfg.ConfigDefaultNetworkPosture] = "audit"
 	data[cfg.ConfigDefaultPostureLogs] = "true"
+	data[cfg.ConfigAlertThrottling] = "true"
+	data[cfg.ConfigMaxAlertPerSec] = "10"
+	data[cfg.ConfigThrottleSec] = "30"
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

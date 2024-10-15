@@ -1,0 +1,18 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-in-operator-block-process
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: In
+        values:
+          - nginx1
+          - nginx-later
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+  action:
+    Block

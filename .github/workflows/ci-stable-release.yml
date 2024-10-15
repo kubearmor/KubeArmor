@@ -13,7 +13,7 @@ jobs:
   push-stable-version:
     name: Create KubeArmor stable release
     if: github.repository == 'kubearmor/kubearmor'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
@@ -43,10 +43,19 @@ jobs:
           regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
           regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
 
+      - name: Publish Helm chart
+        env:
+          # Access token which can push to a different repo in the same org
+          GH_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+          gh release create --repo kubearmor/charts $STABLE_VERSION --generate-notes
+
+
   update-helm-chart:
     name: Update KubeArmor Helm chart version
     if: github.repository == 'kubearmor/kubearmor'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
       contents: write

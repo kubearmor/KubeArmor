@@ -1,0 +1,67 @@
+name: ci-merge-coverage
+
+on:
+  workflow_run:
+    workflows: [ci-test-ginkgo]
+    types:
+      - completed
+
+jobs:
+  merge-coverage-files:
+    name: Download and merge files
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check if all required workflows completed successfully
+        id: check-workflows
+        run: |
+          workflows=("ci-test-ginkgo")
+          all_completed=true
+
+          commit_sha=$(git rev-parse HEAD)
+
+          for workflow in "${workflows[@]}"; do
+              conclusion=$(gh run list --workflow=$workflow --json conclusion,headSha,event,headBranch | jq -r --arg sha "$commit_sha" --arg event "pull_request" '.[] | select(.headSha == $sha and .event == $event) | .conclusion')
+
+              if [[ -z "$conclusion" ]]; then
+                  conclusion="pending"
+              fi
+
+              if [[ "$conclusion" != "success" ]]; then
+                  all_completed=false
+              fi
+
+              echo "${workflow}_status=$conclusion" >> $GITHUB_ENV
+          done
+
+          if [[ "$all_completed" == "true" ]]; then
+              echo "All workflows completed successfully for commit $commit_sha."
+              echo "all_succeeded=true" >> $GITHUB_ENV
+          else
+              echo "Not all workflows completed successfully for commit $commit_sha."
+              exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Download k8s coverage files from ci-test-ginkgo
+        if: ${{ env.ci-test-ginkgo_status == 'success' }}
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: ci-test-ginkgo.yml
+          name: coverage.*
+          path: KubeArmor/
+          name_is_regexp: true
+          search_artifacts: true
+
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

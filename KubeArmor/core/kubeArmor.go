@@ -708,8 +708,8 @@ func KubeArmor() {
 
 	// == //
 
+	timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		timeout, err := time.ParseDuration(cfg.GlobalCfg.InitTimeout)
 		if err != nil {
 			dm.Logger.Warnf("Not a valid InitTimeout duration: %q, defaulting to '60s'", cfg.GlobalCfg.InitTimeout)
 			timeout = 60 * time.Second
@@ -724,6 +724,14 @@ func KubeArmor() {
 			return
 		}
 		dm.Logger.Print("Started to monitor security policies")
+
+		// watch cluster security policies
+		clusterSecurityPoliciesSynced := dm.WatchClusterSecurityPolicies(timeout)
+		if clusterSecurityPoliciesSynced == nil {
+			dm.Logger.Warn("error while monitoring cluster security policies, informer cache not synced")
+		} else {
+			dm.Logger.Print("Started to monitor cluster security policies")
+		}
 
 		// watch default posture
 		defaultPostureSynced := dm.WatchDefaultPosture()
@@ -766,12 +774,14 @@ func KubeArmor() {
 
 	if dm.K8sEnabled && cfg.GlobalCfg.HostPolicy {
 		// watch host security policies
-		go dm.WatchHostSecurityPolicies()
-		dm.Logger.Print("Started to monitor host security policies")
+		go dm.WatchHostSecurityPolicies(timeout)
 	}
 
 	if !dm.K8sEnabled && (enableContainerPolicy || cfg.GlobalCfg.HostPolicy) {
-		policyService := &policy.PolicyServer{}
+		policyService := &policy.PolicyServer{
+			ContainerPolicyEnabled: enableContainerPolicy,
+			HostPolicyEnabled:      cfg.GlobalCfg.HostPolicy,
+		}
 		if enableContainerPolicy {
 			policyService.UpdateContainerPolicy = dm.ParseAndUpdateContainerSecurityPolicy
 			dm.Logger.Print("Started to monitor container security policies on gRPC")
