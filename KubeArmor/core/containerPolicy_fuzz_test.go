@@ -88,7 +88,6 @@ spec:
 		`),
 	}
 
-
 	f.Add(Data1.Policy)
 	f.Add(Data2.Policy)
 	f.Add(Data3.Policy)
@@ -96,7 +95,8 @@ spec:
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		p := &policy.PolicyServer{
-			UpdateContainerPolicy: dm.ParseAndUpdateContainerSecurityPolicy,
+			UpdateContainerPolicy:  dm.ParseAndUpdateContainerSecurityPolicy,
+			ContainerPolicyEnabled: true,
 		}
 		policy := &pb.Policy{
 			Policy: data,
@@ -105,7 +105,7 @@ spec:
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
-		if res.Status != pb.PolicyStatus_Invalid && res.Status != pb.PolicyStatus_Applied && res.Status != pb.PolicyStatus_Modified{
+		if res.Status != pb.PolicyStatus_Invalid && res.Status != pb.PolicyStatus_Applied && res.Status != pb.PolicyStatus_Modified {
 			t.Errorf("Unexpected status: %v, %v", res.Status, data)
 		}
 	})
