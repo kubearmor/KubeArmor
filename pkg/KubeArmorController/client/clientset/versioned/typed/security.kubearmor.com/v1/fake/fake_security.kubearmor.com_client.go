@@ -15,6 +15,10 @@ type FakeSecurityV1 struct {
 	*testing.Fake
 }
 
+func (c *FakeSecurityV1) KubeArmorClusterPolicies() v1.KubeArmorClusterPolicyInterface {
+	return &FakeKubeArmorClusterPolicies{c}
+}
+
 func (c *FakeSecurityV1) KubeArmorHostPolicies() v1.KubeArmorHostPolicyInterface {
 	return &FakeKubeArmorHostPolicies{c}
 }

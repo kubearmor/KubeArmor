@@ -182,8 +182,25 @@ func KarmorGetTargetAlert(timeout time.Duration, target *pb.Alert) (EventResult,
 	return res, nil
 }
 
+// drainEventChan drains all events from the eventChan.
+func drainEventChan() {
+	if eventChan == nil {
+		return
+	}
+	for {
+		select {
+		case <-eventChan:
+		default:
+			return
+		}
+	}
+}
+
 // KarmorLogStart start observing for kubearmor telemetry events
 func KarmorLogStart(logFilter string, ns string, op string, pod string) error {
+	// reset eventChan
+	drainEventChan()
+
 	if eventChan == nil {
 		eventChan = make(chan klog.EventInfo, maxEvents)
 	}

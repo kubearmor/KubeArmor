@@ -6,12 +6,10 @@ package main
 import (
 	"flag"
 	"os"
-	"path/filepath"
-	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,10 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"github.com/go-logr/logr"
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/controllers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/informer"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -92,25 +90,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("Adding mutation webhook")
-	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
-		Handler: &handlers.PodAnnotator{
-			Client:   mgr.GetClient(),
-			Logger:   setupLog,
-			Enforcer: detectEnforcer(setupLog),
-			Decoder:  admission.NewDecoder(mgr.GetScheme()),
-		},
-	})
-
-	setupLog.Info("Adding pod refresher controller")
-	if err = (&controllers.PodRefresherReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
-	}
-
 	setupLog.Info("Adding KubeArmor Host policy controller")
 	if err = (&controllers.KubeArmorHostPolicyReconciler{
 		Client: mgr.GetClient(),
@@ -118,7 +97,6 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KubeArmorHostPolicy")
-		os.Exit(1)
 	}
 
 	setupLog.Info("Adding KubeArmor policy controller")
@@ -131,6 +109,37 @@ func main() {
 		os.Exit(1)
 	}
 
+	client, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "Cannot init kuberntes client")
+		os.Exit(1)
+	}
+
+	cluster := informer.InitCluster()
+	setupLog.Info("Starting node watcher")
+	go informer.NodeWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("NodeWatcher"))
+	setupLog.Info("Starting pod watcher")
+	go informer.PodWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("PodWatcher"))
+
+	setupLog.Info("Adding mutation webhook")
+	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
+		Handler: &handlers.PodAnnotator{
+			Client:  mgr.GetClient(),
+			Logger:  setupLog,
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+			Cluster: &cluster,
+		},
+	})
+
+	setupLog.Info("Adding pod refresher controller")
+	if err = (&controllers.PodRefresherReconciler{
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
+		Cluster: &cluster,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
@@ -138,36 +147,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-
-// detect the enforcer on the node
-func detectEnforcer(logger logr.Logger) string {
-	// assumption: all nodes have the same OSes
-
-	lsm := []byte{}
-	lsmPath := "/sys/kernel/security/lsm"
-
-	if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-		lsm, err = os.ReadFile(lsmPath)
-		if err != nil {
-			logger.Info("Failed to read /sys/kernel/security/lsm " + err.Error())
-			return ""
-		}
-	}
-
-	enforcer := string(lsm)
-
-	if strings.Contains(enforcer, "bpf") {
-		logger.Info("Detected BPFLSM as the cluster Enforcer")
-		return "BPFLSM"
-	} else if strings.Contains(enforcer, "apparmor") {
-		logger.Info("Detected AppArmor as the cluster Enforcer")
-		return "AppArmor"
-	} else if strings.Contains(enforcer, "selinux") {
-		logger.Info("Detected SELinux as the cluster Enforcer")
-		return "SELinux"
-	}
-
-	logger.Info("No enforcer was detected")
-	return ""
 }

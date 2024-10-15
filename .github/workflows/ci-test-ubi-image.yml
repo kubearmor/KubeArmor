@@ -45,6 +45,14 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'KubeArmor/go.mod'
+      
+      - name: Check what paths were updated
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            controller:
+              - 'pkg/KubeArmorController/**'
  
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -63,17 +71,34 @@ jobs:
         working-directory: pkg/KubeArmorOperator
         run: |
           make docker-build
+      
+      - name: Build KubeArmorController
+        if: steps.filter.outputs.controller == 'true'
+        run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
       - name: Run KubeArmor
         run: |
-          sudo podman pull docker-daemon:kubearmor/kubearmor-init:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-ubi:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-operator:latest
-          sudo podman pull docker-daemon:kubearmor/kubearmor-snitch:latest
+          docker save kubearmor/kubearmor-init:latest | sudo podman load
+          docker save kubearmor/kubearmor-ubi:latest | sudo podman load
+          docker save kubearmor/kubearmor-operator:latest | sudo podman load
+          docker save kubearmor/kubearmor-snitch:latest | sudo podman load
+          
+          if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then 
+            docker save kubearmor/kubearmor-controller:latest | sudo podman load
+          fi          
+          
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
           kubectl get pods -A
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
-          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml
+
+          if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml --dry-run=client -o json | \
+            jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
+            kubectl apply -f -
+          else 
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-ubi-test.yaml
+          fi
+
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
           kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch,kubearmor-app!=kubearmor-controller -n kubearmor
           kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor

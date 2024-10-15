@@ -109,10 +109,27 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
+
 			if node, ok := newObj.(*corev1.Node); ok {
 				oldRand := ""
 				if old, ok := oldObj.(*corev1.Node); ok {
 					oldRand = old.Labels[common.RandLabel]
+
+					nodeRestart := checkNodeRestart(node, old)
+					if nodeRestart {
+						runtime := node.Status.NodeInfo.ContainerRuntimeVersion
+						runtime = strings.Split(runtime, ":")[0]
+						clusterWatcher.Log.Infof("Node might have been restarted, redeploying snitch ")
+						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
+							log.Infof("Installing snitch on node %s", node.Name)
+							_, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
+							if err != nil {
+								log.Errorf("Cannot run snitch on node %s, error=%s", node.Name, err.Error())
+								return
+							}
+							log.Infof("Snitch was installed on node %s", node.Name)
+						}
+					}
 				}
 				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" && oldRand != node.Labels[common.RandLabel] {
 					newNode := Node{}
@@ -789,27 +806,27 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		}
 	}
 	AlertThrottlingEnabled := strconv.FormatBool(config.AlertThrottling)
-	if AlertThrottlingEnabled != "" {
-		if common.ConfigMapData[common.ConfigAlertThrottling] != AlertThrottlingEnabled {
-			common.ConfigMapData[common.ConfigAlertThrottling] = AlertThrottlingEnabled
-			updated = true
-		}
+	if common.ConfigMapData[common.ConfigAlertThrottling] != AlertThrottlingEnabled {
+		common.ConfigMapData[common.ConfigAlertThrottling] = AlertThrottlingEnabled
+		updated = true
 	}
 	MaxAlertPerSec := strconv.FormatInt(int64(config.MaxAlertPerSec), 10)
-	if MaxAlertPerSec != "" {
-		if common.ConfigMapData[common.ConfigMaxAlertPerSec] != MaxAlertPerSec {
-			common.ConfigMapData[common.ConfigMaxAlertPerSec] = MaxAlertPerSec
-			updated = true
-		}
+	if config.MaxAlertPerSec == 0 {
+		MaxAlertPerSec = common.DefaultMaxAlertPerSec
 	}
-	ThrottleSec := strconv.FormatInt(int64(config.ThrottleSec), 10)
-	if MaxAlertPerSec != "" {
-		if common.ConfigMapData[common.ConfigThrottleSec] != ThrottleSec {
-			common.ConfigMapData[common.ConfigThrottleSec] = ThrottleSec
-			updated = true
-		}
+	if common.ConfigMapData[common.ConfigMaxAlertPerSec] != MaxAlertPerSec {
+		common.ConfigMapData[common.ConfigMaxAlertPerSec] = MaxAlertPerSec
+		updated = true
 	}
 
+	ThrottleSec := strconv.FormatInt(int64(config.ThrottleSec), 10)
+	if config.ThrottleSec == 0 {
+		ThrottleSec = common.DefaultThrottleSec
+	}
+	if common.ConfigMapData[common.ConfigThrottleSec] != ThrottleSec {
+		common.ConfigMapData[common.ConfigThrottleSec] = ThrottleSec
+		updated = true
+	}
 	return updated
 }
 
@@ -870,4 +887,34 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 	}
 
 	return updated
+}
+func checkNodeRestart(new, old *corev1.Node) bool {
+
+	oldTaints := false
+	newTaints := false
+
+	for _, val := range old.Spec.Taints {
+		if val.Key == common.NotreadyTaint || val.Key == common.UnreachableTaint || val.Key == common.UnschedulableTaint {
+			oldTaints = true
+			break
+		}
+
+	}
+	for _, val := range new.Spec.Taints {
+		if val.Key == common.NotreadyTaint || val.Key == common.UnreachableTaint || val.Key == common.UnschedulableTaint {
+			newTaints = true
+			break
+		}
+	}
+	/* Based on observation that when a node is restarted an update event
+	   is generated with old node having following node taints
+	   "node.kubernetes.io/not-ready" , "node.kubernetes.io/unreachable", "node.kubernetes.io/unschedulable"
+	   and new node having none of these taints
+	*/
+	if oldTaints && !newTaints {
+		// node might have been restarted
+		return true
+	}
+
+	return false
 }

@@ -219,7 +219,7 @@
         ~/KubeArmor/KubeArmor$ make
         ```
 
-        If you see any error messages, please let us know the issue with the full error messages through KubeArmor's slack.
+        If you see any error messages, please let us know the issue with the full error messages through #kubearmor-development channel on CNCF slack.
 
    * Execution
 

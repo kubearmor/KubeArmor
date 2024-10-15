@@ -13,6 +13,7 @@ import (
 
 type SecurityV1Interface interface {
 	RESTClient() rest.Interface
+	KubeArmorClusterPoliciesGetter
 	KubeArmorHostPoliciesGetter
 	KubeArmorPoliciesGetter
 }
@@ -20,6 +21,10 @@ type SecurityV1Interface interface {
 // SecurityV1Client is used to interact with features provided by the security.kubearmor.com group.
 type SecurityV1Client struct {
 	restClient rest.Interface
+}
+
+func (c *SecurityV1Client) KubeArmorClusterPolicies() KubeArmorClusterPolicyInterface {
+	return newKubeArmorClusterPolicies(c)
 }
 
 func (c *SecurityV1Client) KubeArmorHostPolicies() KubeArmorHostPolicyInterface {

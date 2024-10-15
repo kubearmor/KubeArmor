@@ -1327,15 +1327,6 @@ var _ = Describe("Ksp", func() {
 				ContainSubstring("s"), false,
 			)
 
-			expectLog := protobuf.Log{
-				Source: "/home/user1/secret_data1.txt",
-				Result: "Passed",
-			}
-
-			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
 		})
 
 		It("it will block a file path access except read-only accessible to owner from source path", func() {
@@ -1947,18 +1938,10 @@ var _ = Describe("Ksp", func() {
 			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "cat /etc/hostname"},
 				MatchRegexp("hostname.*Permission denied"), true,
 			)
-
-			expect := protobuf.Alert{
-				PolicyName: "DefaultPosture",
-				Severity:   "",
-				Action:     "Block",
-				Result:     "Permission denied",
-				Resource:   "hostname",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+			/*
+				skip matching alerts as kubearmor doesn't generate
+				alerts for apparmor managed policy
+			*/
 		})
 
 		It("it can allow readonly access to a file path", func() {

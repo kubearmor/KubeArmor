@@ -428,9 +428,11 @@ int BPF_PROG(enforce_net_create, int family, int type, int protocol) {
 
 #define LSM_NET(name, ID)                                                      \
   int BPF_PROG(name, struct socket *sock) {                                    \
-    int type = sock->type;                                                     \
-    int protocol = sock->sk->sk_protocol;                                      \
-    return match_net_rules(type, protocol, ID);                                \
+    int sock_type = BPF_CORE_READ(sock, type);                                 \
+    struct sock *sk;                                                           \
+    sk = BPF_CORE_READ(sock, sk);                                              \
+    int protocol = BPF_CORE_READ(sk, sk_protocol);                             \
+    return match_net_rules(sock_type, protocol, ID);                           \
   }
 
 SEC("lsm/socket_connect")

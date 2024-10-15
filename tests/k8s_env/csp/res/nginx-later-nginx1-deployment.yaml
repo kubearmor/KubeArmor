@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-later
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-later-deploy
+  namespace: nginx-later
+  labels:
+    app: nginx
+    deployment: nginx-later
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+      deployment: nginx-later
+  template:
+    metadata:
+      labels:
+        app: nginx
+        deployment: nginx-later
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80

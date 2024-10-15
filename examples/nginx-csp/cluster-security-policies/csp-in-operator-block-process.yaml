@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-in-operator-block-process
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: In
+        values:
+          - nginx1
+  process:
+    matchPaths:
+    - path: /usr/bin/apt
+  action:
+    Block
+
+# cluster_policy_test_1
+
+# test
+# $ dash -c apt
+# dash: 1: apt: Permission denied

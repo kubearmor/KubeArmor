@@ -18,7 +18,7 @@ KubeArmor client tool (karmor) provides a way (`karmor recommend`) to fetch the 
 The output is a set of [`KubeArmorPolicy`](security_policy_specification.md) or [`KubeArmorHostPolicy`](host_security_policy_specification.md) that can be applied using k8s native tools (such as `kubectl apply`).
 
 The rules in hardening policies are based on inputs from:
-1. [MITRE TTPs](https://github.com/kubearmor/policy-templates/)
+1. [MITRE TTPs](https://attack.mitre.org/)
 2. [Security Technical Implementation Guides (STIGs)](https://public.cyber.mil/stigs/)
 3. [NIST SP 800-53A](https://csrc.nist.gov/publications/detail/sp/800-53a/rev-4/final)
 4. [Center for Internet Security (CIS)](https://www.cisecurity.org/cis-benchmarks/)
