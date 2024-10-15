@@ -1,0 +1,86 @@
+services:
+  kubearmor-init:
+    container_name: kubearmor-init
+    image: docker.io/cheithanya/kubearmor-init:latest
+    pull_policy: "always"
+    user: root
+    labels:
+      app: kubearmor-init
+    volumes:
+      - "/tmp:/opt/kubearmor/BPF:rw,z"
+      - "/lib/modules:/lib/modules:ro,z"
+      - "/sys/fs/bpf:/sys/fs/bpf:ro,z"
+      - "/sys/kernel/security:/sys/kernel/security:ro,z"
+      - "/sys/kernel/debug:/sys/kernel/debug:ro,z"
+      - "/usr/src:/usr/src:z"
+      - "/media/root/etc/os-release:/media/root/etc/os-release:ro,z"
+      - "/etc/containers/oci/hooks.d/:/etc/containers/oci/hooks.d/:rw,z"
+      - "/usr/share/kubearmor:/usr/share/kubearmor:rw,z"
+    restart: on-failure
+    privileged: true
+    cap_add:
+      - SETUID
+      - SETGID
+      - SETPCAP
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - MAC_ADMIN
+      - SYS_RESOURCE
+      - IPC_LOCK
+      - DAC_OVERRIDE
+      - DAC_READ_SEARCH
+
+  kubearmor:
+    depends_on:
+      kubearmor-init:
+        condition: service_completed_successfully
+    hostname: cheithanya
+    container_name: kubearmor
+    image: "docker.io/cheithanya/kubearmor:latest"
+    pull_policy: "always"
+    user: root
+    command:
+      - "-k8s=false"
+      - "-enableKubeArmorPolicy"
+      - "-enableKubeArmorHostPolicy"
+      - "-visibility=process,network"
+      - "-hostVisibility=process,network"
+      - "-criSocket=unix:///run/podman/podman.sock"
+      - "-defaultFilePosture=audit"
+      - "-defaultNetworkPosture=audit"
+      - "-defaultCapabilitiesPosture=audit"
+      - "-hostDefaultFilePosture=audit"
+      - "-hostDefaultNetworkPosture=audit"
+      - "-hostDefaultCapabilitiesPosture=audit"
+    labels:
+      app: kubearmor
+    volumes:
+      - "/tmp:/opt/kubearmor/BPF"
+      - "/sys/fs/bpf:/sys/fs/bpf"
+      - "/sys/kernel/security:/sys/kernel/security"
+      - "/sys/kernel/debug:/sys/kernel/debug"
+      - "/etc/apparmor.d:/etc/apparmor.d"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/run/docker:/run/docker"
+      - "/var/lib/docker:/var/lib/docker"
+      - "/etc/containers/oci/hooks.d/:/etc/containers/oci/hooks.d/:rw"
+      - "/usr/share/kubearmor:/usr/share/kubearmor:rw"
+      - "/var/run/kubearmor:/var/run/kubearmor:rw"
+    restart: always
+    ports:
+      - "32767:32767"
+    pid: "host"
+    privileged: true
+    cap_add:
+      - SETUID
+      - SETGID
+      - SETPCAP
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - MAC_ADMIN
+      - SYS_RESOURCE
+      - IPC_LOCK
+      - DAC_OVERRIDE
+      - DAC_READ_SEARCH
+
+
