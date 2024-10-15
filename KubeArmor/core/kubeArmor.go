@@ -653,6 +653,8 @@ func KubeArmor() {
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
+			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "podman") {
+			   go dm.ListenToPodmanHook()
 			} else {
 				enableContainerPolicy = false
 				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
