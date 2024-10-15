@@ -179,16 +179,16 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 		}
 	} else { // DELETED
 		// update security policies after policy deletion
-		dm.EndPoints[endpointIdx] = newPoint
-
-		dm.Logger.UpdateSecurityPolicies("DELETED", newPoint)
-		dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
-
-		// delete endpoint if no containers or policies
-		if len(newPoint.Containers) == 0 && len(newPoint.SecurityPolicies) == 0 {
-			dm.EndPoints = append(dm.EndPoints[:endpointIdx], dm.EndPoints[endpointIdx+1:]...)
-			// since the length of endpoints slice reduced
-			endpointIdx--
+		if endpointIdx >= 0 {
+			dm.EndPoints[endpointIdx] = newPoint
+			dm.Logger.UpdateSecurityPolicies("DELETED", newPoint)
+			dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+			// delete endpoint if no containers or policies
+			if len(newPoint.Containers) == 0 && len(newPoint.SecurityPolicies) == 0 {
+				dm.EndPoints = append(dm.EndPoints[:endpointIdx], dm.EndPoints[endpointIdx+1:]...)
+				// since the length of endpoints slice reduced
+				endpointIdx--
+			}
 		}
 	}
 
