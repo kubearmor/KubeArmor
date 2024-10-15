@@ -2,6 +2,29 @@
 # Copyright 2021 Authors of KubeArmor
 
 ### Make compiler image
+
+FROM golang:1.22-alpine3.20 AS builder
+RUN apk --no-cache update
+RUN apk add --no-cache git clang llvm make gcc protobuf
+RUN apk add --no-cache linux-headers pkgconfig
+RUN apk add --no-cache gpgme-dev
+RUN apk add --no-cache btrfs-progs-dev
+ARG GOARCH
+ARG GOOS 
+
+WORKDIR /KubeArmor
+
+COPY . .
+WORKDIR /KubeArmor/KubeArmor
+
+RUN go mod download
+
+WORKDIR /KubeArmor/KubeArmor/deployHook
+RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -o deployHook .
+
+WORKDIR /KubeArmor/KubeArmor/hook
+RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -tags 'containers_image_openpgp' -o hook .
+
 FROM redhat/ubi9-minimal as kubearmor-init
 
 ARG VERSION=latest
@@ -34,7 +57,15 @@ RUN groupadd --gid 1000 default \
 COPY LICENSE /licenses/license.txt
 COPY ./KubeArmor/BPF /KubeArmor/BPF/
 COPY ./KubeArmor/build/compile.sh /KubeArmor/compile.sh
+COPY --from=builder /KubeArmor/KubeArmor/hook/hook /hook
+COPY --from=builder /KubeArmor/KubeArmor/deployHook/deployHook /KubeArmor/deployHook
+
+# Copy the custom entrypoint script
+COPY ./KubeArmor/build/entrypoint.sh /KubeArmor/entrypoint.sh
+RUN chmod +x /KubeArmor/entrypoint.sh
+
 RUN chown -R default:default /KubeArmor
 
 USER 1000
-ENTRYPOINT ["/KubeArmor/compile.sh"]
+
+ENTRYPOINT ["/KubeArmor/entrypoint.sh"]
