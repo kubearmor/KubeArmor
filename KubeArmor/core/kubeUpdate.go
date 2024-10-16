@@ -731,9 +731,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				// exception: kubearmor
-				if _, ok := pod.Labels["kubearmor-app"]; ok {
-					pod.Annotations["kubearmor-policy"] = "audited"
-				}
+				// if _, ok := pod.Labels["kubearmor-app"]; ok {
+				// 	pod.Annotations["kubearmor-policy"] = "audited"
+				// }
 
 				// == Visibility == //
 
