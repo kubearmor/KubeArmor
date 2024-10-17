@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-udp-block-curl
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  network:
+    matchProtocols:
+    - protocol: udp
+      fromSource:
+      - path: /usr/bin/curl
+  action:
+    Block
+
+
+# curl google.com
+# curl: (6) Could not resolve host: google.com
+
+# curl 142.250.194.142
+# ... content
+
+# resolving google.com requires udp protocol
