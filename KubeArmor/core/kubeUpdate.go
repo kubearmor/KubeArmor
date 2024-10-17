@@ -1089,6 +1089,10 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					// update security policies
 					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
+					if action == "DELETED" {
+						fmt.Println("policies are being delete in kubeupdate updatesecuritypoliccy")
+					}
+
 					if dm.RuntimeEnforcer != nil {
 						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 							// enforce security policies

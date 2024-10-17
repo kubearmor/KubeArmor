@@ -48,6 +48,7 @@
 #include <bpf_tracing.h>
 #include "syscalls.h"
 #include "throttling.h"
+#include "common.h"
 
 
 #ifdef RHEL_RELEASE_CODE
@@ -259,6 +260,8 @@ typedef struct __attribute__((__packed__)) sys_context
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
 BPF_LRU_HASH(pid_ns_map, u32, u32);
+
+
 
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
@@ -1114,6 +1117,32 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
     return false; 
 }
+ static __always_inline void  save_cmd_args_to_buffer(const char __user *const __user *ptr){
+    unsigned int key_tgid = bpf_get_current_pid_tgid(); 
+    u32 arg_k = 0;
+    struct argVal  *args_buf = bpf_map_lookup_elem(&cmd_args_buf, &arg_k);
+    if (args_buf == NULL){
+      return ;
+    }
+    __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
+    // add number of args here 
+    for (int i = 0; i < 5; i++)
+    {   
+        const char *const *curr_ptr = (void *)&ptr[i] ;
+        const char *argp = NULL;
+        bpf_probe_read(&argp, sizeof(argp), curr_ptr);
+        if (argp)
+          {
+            bpf_probe_read_str(args_buf->argsArray[i], sizeof(args_buf->argsArray[0]), argp);
+            bpf_map_update_elem(&args_store, &key_tgid, args_buf, BPF_ANY);
+          }
+        else {
+            break;
+        }
+    }
+  
+ 
+ }
 
 SEC("kprobe/security_path_mknod")
 int kprobe__security_path_mknod(struct pt_regs *ctx)
@@ -1246,6 +1275,10 @@ int kprobe__execve(struct pt_regs *ctx)
     char *filename = (char *)READ_KERN(PT_REGS_PARM1(ctx2));
     unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
 #endif
+    
+    if(get_kubearmor_config(_ENFORCER_BPFLSM)){
+        save_cmd_args_to_buffer((const char *const *)argv);
+    }
 
     init_context(&context);
 
