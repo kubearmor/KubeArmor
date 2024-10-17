@@ -35,8 +35,8 @@ jobs:
       - name: Build and push multi-architecture image
         uses: docker/build-push-action@v6
         with:
-            context: .
-            file: examples/multiubuntu/build/Dockerfile  
+            context: examples/multiubuntu/build  
+            file: examples/multiubuntu/build/Dockerfile
             push: true
             tags: ${{ secrets.DOCKER_USERNAME }}/multiubuntu:latest
             platforms: linux/amd64,linux/arm64/v8 
