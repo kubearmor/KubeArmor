@@ -192,6 +192,7 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 		}
 
 		pid := strconv.Itoa(int(taskRes.Processes[0].Pid))
+		container.Pid = int(taskRes.Processes[0].Pid)
 
 		if data, err := os.Readlink("/proc/" + pid + "/ns/pid"); err == nil {
 			if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
