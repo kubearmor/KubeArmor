@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -266,7 +267,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 		}
 	}
 
-	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), types.ContainerListOptions{}); err == nil {
+	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), container.ListOptions{}); err == nil {
 		for _, dcontainer := range containerList {
 			// get container information from docker client
 			container, err := Docker.GetContainerInfo(dcontainer.ID, dm.OwnerInfo)
