@@ -1,15 +1,13 @@
-name: ci-build-and-push
+name: ci-build-and-push-ubuntu
 
 on:
   push:
     branches:
       - main  
-  pull_request:
-    branches:
-      - main  
 
 jobs:
   build:
+    if: github.repository == 'kubearmor/kubearmor'
     runs-on: ubuntu-latest
 
     steps:
