@@ -6,6 +6,9 @@ on:
     types:
       - completed
 
+# Declare default permissions as read only.
+permissions: read-all
+
 jobs:
   merge-coverage-files:
     name: Download and merge files
