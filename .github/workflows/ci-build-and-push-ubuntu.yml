@@ -36,7 +36,7 @@ jobs:
             context: examples/multiubuntu/build  
             file: examples/multiubuntu/build/Dockerfile
             push: true
-            tags: ${{ secrets.DOCKER_USERNAME }}/multiubuntu:latest
+            tags: kubearmor/ubuntu-w-utils:latest
             platforms: linux/amd64,linux/arm64/v8 
 
       - name: Logout from Docker Hub
