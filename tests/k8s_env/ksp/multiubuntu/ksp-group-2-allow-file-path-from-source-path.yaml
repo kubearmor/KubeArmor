@@ -12,12 +12,12 @@ spec:
   process:
     matchDirectories:
       - dir: /bin/
-        recursive: true
+      - dir: /usr/bin/
   file:
     matchPaths:
     - path: /secret.txt
       fromSource:
-      - path: /bin/cat
+      - path: /usr/bin/cat
     - path: /dev/tty
     - path: /lib/terminfo/x/xterm
     matchDirectories:
@@ -29,6 +29,7 @@ spec:
         recursive: true
       - dir: /lib/x86_64-linux-gnu/
       - dir: /bin/
+      - dir: /usr/bin/
   action:
     Allow
 

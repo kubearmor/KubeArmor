@@ -13,7 +13,7 @@ spec:
     - path: /home/user1/secret_data1.txt
       ownerOnly: true
       fromSource:
-      - path: /bin/cat
+      - path: /usr/bin/cat
   action:
     Block
 

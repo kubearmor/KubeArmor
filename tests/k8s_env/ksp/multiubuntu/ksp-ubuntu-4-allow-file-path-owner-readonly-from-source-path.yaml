@@ -15,7 +15,7 @@ spec:
     matchPaths:
     - path: /home/user1/readwrite
     #   fromSource:
-    #   - path: /bin/su
+    #   - path: /usr/bin/su
     matchDirectories:
     - dir: /bin/ # required to change root to user1 / try 'su - user1'
       recursive: true
@@ -29,7 +29,7 @@ spec:
       fromSource:
       - path: /home/user1/readwrite
     - path: /home/user1/readwrite 
-      # - path: /bin/su
+      # - path: /usr/bin/su
     - path: /root/.bashrc # used by root
     - path: /root/.bash_history # used by root
     - path: /home/user1/.profile # used by user1
@@ -49,6 +49,8 @@ spec:
     - dir: /usr/bin/
       recursive: true
     - dir: /bin/
+      recursive: true  
+    - dir: /usr/bin/
       recursive: true  
   action:
     Allow

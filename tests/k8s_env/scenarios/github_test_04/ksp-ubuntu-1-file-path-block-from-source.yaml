@@ -13,6 +13,6 @@ spec:
     matchPaths:
       - path: /secret.txt
         fromSource:
-        - path: /bin/cat
+        - path: /usr/bin/cat
   action:
     Block

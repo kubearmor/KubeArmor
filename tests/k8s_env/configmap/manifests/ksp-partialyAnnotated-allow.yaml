@@ -15,7 +15,7 @@ spec:
       - path: /usr/bin/curl
   process:
     matchDirectories:
-    - dir: /bin/ # required to change root to user1
+    - dir: /usr/bin/ # required to change root to user1
       recursive: true
     - dir: /usr/bin/ # used in changing accounts
       recursive: true

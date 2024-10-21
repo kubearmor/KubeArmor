@@ -13,7 +13,7 @@ spec:
       container: ubuntu-4
   file:
     matchDirectories:
-    - dir: /bin/ # used by root
+    - dir: /usr/bin/ # used by root
       recursive: true
     - dir: /pts/
       recursive: true

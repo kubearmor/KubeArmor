@@ -21,6 +21,7 @@ spec:
     - dir: /pts/
     - dir: /bin/
     - dir: /usr/bin/
+    - dir: /usr/bin/
     - dir: /proc/
       recursive: true
     - dir: /dev/
@@ -33,6 +34,7 @@ spec:
   process:
     matchDirectories:
     - dir: /bin/ # required to change root to user1
+    - dir: /usr/bin/ # required to change root to user1
     - dir: /usr/bin/ # used in changing accounts
   action: 
     Allow

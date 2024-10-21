@@ -11,7 +11,7 @@ spec:
       group: group-1
   process:
     matchPaths:
-    - path: /bin/sleep
+    - path: /usr/bin/sleep
   action:
     Block
 
@@ -19,4 +19,4 @@ spec:
 
 # test
 # $ sleep 1
-# bash: /bin/sleep: Permission denied
+# bash: /usr/bin/sleep: Permission denied

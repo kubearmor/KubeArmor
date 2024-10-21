@@ -11,9 +11,9 @@ spec:
       group: group-1
   process:
     matchPaths:
-    - path: /bin/ls
+    - path: /usr/bin/ls
       fromSource:
-      - path: /bin/dash
+      - path: /usr/bin/dash
   action:
     Block
 

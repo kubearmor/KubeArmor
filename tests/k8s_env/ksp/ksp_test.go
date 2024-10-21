@@ -1832,7 +1832,7 @@ var _ = Describe("Ksp", func() {
 			)
 
 			expectLog := protobuf.Log{
-				Source: "/bin/cat /dev/shm/new",
+				Source: "/usr/bin/cat /dev/shm/new",
 				Result: "Passed",
 			}
 

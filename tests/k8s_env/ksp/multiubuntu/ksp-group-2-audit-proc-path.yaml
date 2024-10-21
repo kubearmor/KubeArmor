@@ -10,7 +10,7 @@ spec:
       group: group-2
   process:
     matchPaths:
-    - path: /bin/sleep
+    - path: /usr/bin/sleep
   action:
     Audit
 
