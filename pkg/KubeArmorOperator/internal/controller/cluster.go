@@ -45,6 +45,7 @@ var deployment_uuid types.UID
 var deployment_name string = "kubearmor-operator"
 var PathPrefix string
 var initDeploy bool
+var ProviderHostname, ProviderEndpoint string
 
 type ClusterWatcher struct {
 	Nodes          []Node
@@ -68,7 +69,7 @@ type Node struct {
 	Seccomp       string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name string, initdeploy bool) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy bool) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -85,6 +86,9 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	PathPrefix = pathPrefix
 	deployment_name = deploy_name
 	initDeploy = initdeploy
+	ProviderHostname = providerHostname
+	ProviderEndpoint = providerEndpoint
+
 	return &ClusterWatcher{
 		Nodes:          []Node{},
 		Daemonsets:     make(map[string]int),
