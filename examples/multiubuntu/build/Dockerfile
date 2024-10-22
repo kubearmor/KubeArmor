@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
-FROM ubuntu:22.04 as builder
+FROM ubuntu:22.04 AS builder
 
 RUN apt-get update && apt install -y gcc python3 pipx python3-venv
 COPY helloworld/ /helloworld/
@@ -47,6 +47,7 @@ RUN echo "key file" >> /credentials/keys/priv.key
 
 RUN useradd --create-home --shell /bin/bash user1
 RUN echo 'user1:passwd1' | chpasswd
+COPY --from=builder /hello /hello
 COPY --from=builder /hello /home/user1/hello
 RUN chown user1:user1 /home/user1/hello
 
@@ -61,6 +62,7 @@ RUN chown user1:user1 /home/user1/dir1/key1.txt
 RUN echo "other file" >> /home/user1/otherfile.txt
 RUN chown user1:user1 /home/user1/otherfile.txt
 
+COPY --from=builder /readwriter /readwrite
 COPY --from=builder /readwriter /home/user1/readwrite
 RUN chown user1:user1 /home/user1/readwrite
 

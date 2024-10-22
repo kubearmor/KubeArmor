@@ -12,5 +12,6 @@ spec:
   process:
     matchDirectories:
     - dir: /sbin/
+    - dir: /usr/sbin/
   action:
     Block
