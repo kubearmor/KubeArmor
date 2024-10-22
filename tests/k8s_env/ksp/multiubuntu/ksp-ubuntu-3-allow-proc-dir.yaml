@@ -13,6 +13,8 @@ spec:
     matchDirectories:
     - dir: /bin/
       recursive: true 
+    - dir: /usr/bin/
+      recursive: true 
   file:
     matchPaths:
       - path: /root/.bashrc # used by root
@@ -30,6 +32,7 @@ spec:
       recursive: true
     - dir: /lib/x86_64-linux-gnu/
     - dir: /bin/     
+    - dir: /usr/bin/     
     # - dir: /etc/ # required to change root to user1 (coarse-grained way)
     #   recursive: true  
     # - dir: /lib/ # used by root and user1

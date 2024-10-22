@@ -11,7 +11,7 @@ spec:
       kubearmor.io/container.name: ""
   process:
     matchPaths:
-    - path: /bin/ls
+    - path: /usr/bin/ls
       # ls
   action:
     Block

@@ -14,5 +14,6 @@ spec:
       - unlink
       fromSource:
         - dir: /bin
+        - dir: /usr/bin
   action:
     Audit

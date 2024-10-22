@@ -14,6 +14,6 @@ spec:
       path: /home/
       recursive: true
       fromSource:
-        - dir: /bin/
+        - dir: /usr/bin/
   action:
     Audit
