@@ -291,8 +291,6 @@ func LoadConfig() error {
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
 
-	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
-
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
 
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
@@ -328,6 +326,9 @@ func LoadDynamicConfig() {
 			GlobalCfg.HostVisibility = "none"
 		}
 	}
+
+	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
+	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
 
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
