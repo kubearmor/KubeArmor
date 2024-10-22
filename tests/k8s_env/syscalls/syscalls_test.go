@@ -86,9 +86,6 @@ var _ = Describe("Syscalls", func() {
 			err = KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
 			Expect(err).To(BeNil())
 
-			_, _, err = K8sExecInPod(ubuntu, "syscalls", []string{"bash", "-c", "cp /usr/bin/unlink /bin/unlink"})
-			Expect(err).To(BeNil())
-
 			_, _, err = K8sExecInPod(ubuntu, "syscalls", []string{"bash", "-c", "touch /dummy"})
 			Expect(err).To(BeNil())
 			_, _, err = K8sExecInPod(ubuntu, "syscalls", []string{"bash", "-c", "/bin/unlink /dummy"})
