@@ -10,6 +10,7 @@ on:
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+      - "examples/multiubuntu/build/**"
   pull_request:
     branches: [main]
     paths:
