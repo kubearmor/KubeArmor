@@ -7,6 +7,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -470,6 +473,160 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 	return nil
 }
 
+func (clusterWatcher *ClusterWatcher) getProvider(providerHostname, providerEndpoint string) (string, string, string) {
+	nodes, err := clusterWatcher.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Error listing nodes: %s\n", err.Error())
+	}
+
+	for _, node := range nodes.Items {
+		for key, label := range node.Labels {
+			if strings.Contains(key, "gke") || strings.Contains(label, "gke") {
+				if providerHostname != "" && providerEndpoint == "" {
+					providerEndpoint = "/computeMetadata/v1/instance/attributes/cluster-name"
+				} else if providerHostname == "" && providerEndpoint != "" {
+					providerHostname = "http://metadata.google.internal"
+				} else if providerHostname == "" && providerEndpoint == "" {
+					providerHostname = "http://metadata.google.internal"
+					providerEndpoint = "/computeMetadata/v1/instance/attributes/cluster-name"
+				}
+				return "gke", providerHostname, providerEndpoint
+			} else if strings.Contains(key, "eks") || strings.Contains(label, "eks") {
+				if providerHostname != "" && providerEndpoint == "" {
+					providerEndpoint = "/latest/user-data"
+				} else if providerHostname == "" && providerEndpoint != "" {
+					providerHostname = "http://169.254.169.254"
+				} else if providerHostname == "" && providerEndpoint == "" {
+					providerHostname = "http://169.254.169.254"
+					providerEndpoint = "/latest/user-data"
+				}
+				return "eks", providerHostname, providerEndpoint
+			}
+		}
+	}
+	return "default", "", ""
+}
+
+func (clusterWatcher *ClusterWatcher) fetchClusterNameFromGKE(providerHostname, providerEndpoint string) (string, error) {
+	url := providerHostname + providerEndpoint
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to create request: %w, check provider host name and endpoint", err)
+		return "", err
+	}
+
+	// Set the required header
+	req.Header.Set("Metadata-Flavor", "Google")
+
+	// Create an HTTP client and make the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		clusterWatcher.Log.Warnf("error making request: %w, check provider host name and endpoint", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// Check for a successful response
+	if resp.StatusCode != http.StatusOK {
+		clusterWatcher.Log.Warnf("failed to fetch from metadata, status code: %d", resp.StatusCode)
+		return "", err
+	}
+
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		clusterWatcher.Log.Warnf("error reading response body: %w", err)
+		return "", err
+	}
+
+	return string(body), nil
+}
+
+func (clusterWatcher *ClusterWatcher) fetchClusterNameFromAWS(providerHostname, providerEndpoint string) (string, error) {
+	var token []byte
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest("PUT", providerHostname+"/latest/api/token", nil)
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to create request for fetching token: %w, check provider host name", err)
+		return "", err
+	}
+	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		clusterWatcher.Log.Warnf("error making request: %w", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		token, err = io.ReadAll(resp.Body)
+		if err != nil {
+			clusterWatcher.Log.Warnf("failed to read token: %d", err)
+			return "", err
+		}
+	}
+
+	// Fetch the EKS cluster name from user data
+	url := providerHostname + providerEndpoint
+	req, err = http.NewRequest("GET", url, nil)
+	client = &http.Client{Timeout: 2 * time.Second}
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to create request for fetching metadata: %w, check provider host name and endpoint", err)
+		return "", err
+	}
+	req.Header.Set("X-aws-ec2-metadata-token", string(token))
+
+	resp, err = client.Do(req)
+	if err != nil {
+		clusterWatcher.Log.Warnf("error making request: %w", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		clusterWatcher.Log.Warnf("failed to fetch from metadata, status code: %d", resp.StatusCode)
+		return "", err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to read metadata: %d", err)
+		return "", err
+	}
+
+	// Extract EKS cluster name
+	re := regexp.MustCompile(`/etc/eks/bootstrap\.sh (\S+)`)
+	match := re.FindStringSubmatch(string(body))
+	if len(match) > 0 {
+		return match[1], nil
+	}
+
+	return "", err
+}
+
+func (clusterWatcher *ClusterWatcher) GetClusterName(providerHostname, providerEndpoint string) string {
+	provider, pHostname, pEndpoint := clusterWatcher.getProvider(ProviderHostname, providerEndpoint)
+	if provider == "gke" {
+		clusterWatcher.Log.Infof("Provider is GKE")
+		if clusterName, err := clusterWatcher.fetchClusterNameFromGKE(pHostname, pEndpoint); err != nil {
+			clusterWatcher.Log.Warnf("Cannot fetch cluster name for GKE %s", err.Error())
+		} else {
+			return clusterName
+		}
+	} else if provider == "eks" {
+		clusterWatcher.Log.Infof("Provider is EKS")
+		if clusterName, err := clusterWatcher.fetchClusterNameFromAWS(pHostname, pEndpoint); err != nil {
+			clusterWatcher.Log.Warnf("Cannot fetch cluster name for EKS %s", err.Error())
+		} else {
+			return clusterName
+		}
+	}
+
+	return "default"
+}
+
 func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	var caCert, tlsCrt, tlsKey *bytes.Buffer
 	var kGenErr, err, installErr error
@@ -647,6 +804,7 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	// kubearmor configmap
 	configmap := addOwnership(deployments.GetKubearmorConfigMap(common.Namespace, deployments.KubeArmorConfigMapName)).(*corev1.ConfigMap)
 	configmap.Data = common.ConfigMapData
+	configmap.Data["cluster"] = clusterWatcher.GetClusterName(ProviderHostname, ProviderEndpoint)
 
 	for {
 		caCert, tlsCrt, tlsKey, kGenErr = common.GeneratePki(common.Namespace, deployments.KubeArmorControllerWebhookServiceName)

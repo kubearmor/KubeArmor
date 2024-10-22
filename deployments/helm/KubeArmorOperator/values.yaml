@@ -33,7 +33,8 @@ kubearmorOperator:
     repository: kubearmor/kubearmor-operator
     tag: ""
   imagePullPolicy: IfNotPresent
-  initDeploy: true
+  args:
+    - "--initDeploy=true"
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit
