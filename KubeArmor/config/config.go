@@ -238,6 +238,7 @@ func LoadConfig() error {
 	if cfgfile == "" {
 		cfgfile = "kubearmor.yaml"
 	}
+
 	if _, err := os.Stat(cfgfile); err == nil {
 		kg.Printf("setting config from file [%s]", cfgfile)
 		viper.SetConfigFile(cfgfile)
@@ -246,6 +247,8 @@ func LoadConfig() error {
 			return err
 		}
 	}
+
+	kg.Printf("Configuration [%+v]", GlobalCfg)
 
 	GlobalCfg.Cluster = viper.GetString(ConfigCluster)
 	GlobalCfg.Host = viper.GetString(ConfigHost)
@@ -268,9 +271,6 @@ func LoadConfig() error {
 		return fmt.Errorf("CRI socket must start with 'unix://' (%s is invalid)", GlobalCfg.CRISocket)
 	}
 
-	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
-	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
-
 	GlobalCfg.Policy = viper.GetBool(ConfigKubearmorPolicy)
 	GlobalCfg.HostPolicy = viper.GetBool(ConfigKubearmorHostPolicy)
 	GlobalCfg.KVMAgent = viper.GetBool(ConfigKubearmorVM)
@@ -278,27 +278,9 @@ func LoadConfig() error {
 
 	GlobalCfg.Debug = viper.GetBool(ConfigDebug)
 
-	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
-	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
-	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
-
-	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
-	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
-	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
-
-	kg.Printf("Configuration [%+v]", GlobalCfg)
-
 	if GlobalCfg.KVMAgent {
 		GlobalCfg.Policy = false
 		GlobalCfg.HostPolicy = true
-	}
-
-	if GlobalCfg.HostVisibility == "default" {
-		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
-			GlobalCfg.HostVisibility = "process,file,network,capabilities"
-		} else { // k8s
-			GlobalCfg.HostVisibility = "none"
-		}
 	}
 
 	GlobalCfg.CoverageTest = viper.GetBool(ConfigCoverageTest)
@@ -309,20 +291,46 @@ func LoadConfig() error {
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
 
-	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
-
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
 
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
-	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
-	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
-	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
+
+	LoadDynamicConfig()
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 
 	return nil
+}
+
+// LoadDynamicConfig set dynamic configuration which can be updated at runtime without restarting kubearmor
+func LoadDynamicConfig() {
+	GlobalCfg.DefaultFilePosture = viper.GetString(ConfigDefaultFilePosture)
+	GlobalCfg.DefaultNetworkPosture = viper.GetString(ConfigDefaultNetworkPosture)
+	GlobalCfg.DefaultCapabilitiesPosture = viper.GetString(ConfigDefaultCapabilitiesPosture)
+
+	GlobalCfg.HostDefaultFilePosture = viper.GetString(ConfigHostDefaultFilePosture)
+	GlobalCfg.HostDefaultNetworkPosture = viper.GetString(ConfigHostDefaultNetworkPosture)
+	GlobalCfg.HostDefaultCapabilitiesPosture = viper.GetString(ConfigHostDefaultCapabilitiesPosture)
+
+	GlobalCfg.Visibility = viper.GetString(ConfigVisibility)
+	GlobalCfg.HostVisibility = viper.GetString(ConfigHostVisibility)
+
+	if GlobalCfg.HostVisibility == "default" {
+		if GlobalCfg.KVMAgent || (!GlobalCfg.K8sEnv && GlobalCfg.HostPolicy) {
+			GlobalCfg.HostVisibility = "process,file,network,capabilities"
+		} else { // k8s
+			GlobalCfg.HostVisibility = "none"
+		}
+	}
+
+	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
+	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
+	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
+	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 }
