@@ -76,6 +76,9 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 
 		// Update throttling configs
 		dm.SystemMonitor.UpdateThrottlingConfig()
+
+		// Update the default posture for the unorchestrated containers
+		dm.UpdateHostSecurityPolicies()
 	})
 	viper.WatchConfig()
 }
