@@ -172,6 +172,37 @@ var _ = Describe("Multicontainer", func() {
 			Expect(sout).NotTo(MatchRegexp(".*Permission denied"))
 
 		})
+
+		It("Can enforce on container-1 even if non-existent container is present in array", func() {
+			err := K8sDeploymentCheck("multicontainer-deployment", "multicontainer", 5*time.Minute)
+			Expect(err).To(BeNil())
+
+			err = K8sApply([]string{"manifests/non-existent-container-block-ls.yaml"})
+			Expect(err).To(BeNil())
+
+			err = KarmorLogStart("policy", "multicontainer", "Process", multicontainer)
+			Expect(err).To(BeNil())
+
+			// container-1 should not run ls
+			sout, _, err := K8sExecInPodWithContainer(multicontainer, "multicontainer", "container-1", []string{"bash", "-c", "ls"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+			Expect(sout).To(MatchRegexp(".*Permission denied"))
+
+			// check policy violation alert
+			_, alerts, err := KarmorGetLogs(10*time.Second, 1)
+			Expect(err).To(BeNil())
+			Expect(len(alerts)).To(BeNumerically(">=", 1))
+			Expect(alerts[0].PolicyName).To(Equal("non-existent-container-block-ls"))
+			Expect(alerts[0].Severity).To(Equal("5"))
+			Expect(alerts[0].ContainerName).To(Equal("container-1"))
+
+			// container-2 should run ls
+			sout, _, err = K8sExecInPodWithContainer(multicontainer, "multicontainer", "container-2", []string{"bash", "-c", "ls"})
+			Expect(err).To(BeNil())
+			fmt.Printf("---START---\n%s---END---\n", sout)
+			Expect(sout).NotTo(MatchRegexp(".*Permission denied"))
+		})
 	})
 
 })
