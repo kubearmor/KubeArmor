@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -472,7 +473,6 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 }
 
 func (clusterWatcher *ClusterWatcher) getProvider() string {
-
 	nodes, err := clusterWatcher.Client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		clusterWatcher.Log.Warnf("Error listing nodes: %s\n", err.Error())
@@ -492,12 +492,12 @@ func (clusterWatcher *ClusterWatcher) getProvider() string {
 	return "default"
 }
 
-func (clusterWatcher *ClusterWatcher) fetchClusterNameFromGoogle() string {
+func (clusterWatcher *ClusterWatcher) fetchClusterNameFromGoogle() (string, error) {
 	url := "http://metadata.google.internal/computeMetadata/v1/instance/attributes/cluster-name"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		clusterWatcher.Log.Warnf("failed to create request: %w", err)
-		return ""
+		return "", err
 	}
 
 	// Set the required header
@@ -508,51 +508,114 @@ func (clusterWatcher *ClusterWatcher) fetchClusterNameFromGoogle() string {
 	resp, err := client.Do(req)
 	if err != nil {
 		clusterWatcher.Log.Warnf("error making request: %w", err)
-		return ""
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
 		clusterWatcher.Log.Warnf("failed to fetch from metadata, status code: %d", resp.StatusCode)
-		return ""
+		return "", err
 	}
 
 	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		clusterWatcher.Log.Warnf("error reading response body: %w", err)
-		return ""
+		return "", err
 	}
 
-	return string(body)
+	return string(body), nil
+}
+
+func (clusterWatcher *ClusterWatcher) fetchClusterNameFromAWS() (string, error) {
+	var token []byte
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest("PUT", "http://169.254.169.254/latest/api/token", nil)
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to create request for fetching token: %w", err)
+		return "", err
+	}
+	req.Header.Set("X-aws-ec2-metadata-token-ttl-seconds", "21600")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		clusterWatcher.Log.Warnf("error making request: %w", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		token, err = io.ReadAll(resp.Body)
+		if err != nil {
+			clusterWatcher.Log.Warnf("failed to read token: %d", err)
+			return "", err
+		}
+	}
+
+	// Fetch the EKS cluster name from user data
+	req, err = http.NewRequest("GET", "http://169.254.169.254/latest/user-data", nil)
+	client = &http.Client{Timeout: 2 * time.Second}
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to create request for fetching metadata: %w", err)
+		return "", err
+	}
+	req.Header.Set("X-aws-ec2-metadata-token", string(token))
+
+	resp, err = client.Do(req)
+	if err != nil {
+		clusterWatcher.Log.Warnf("error making request: %w", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		clusterWatcher.Log.Warnf("failed to fetch from metadata, status code: %d", resp.StatusCode)
+		return "", err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		clusterWatcher.Log.Warnf("failed to read metadata: %d", err)
+		return "", err
+	}
+
+	// Extract EKS cluster name
+	re := regexp.MustCompile(`/etc/eks/bootstrap\.sh (\S+)`)
+	match := re.FindStringSubmatch(string(body))
+	if len(match) > 0 {
+		return match[1], nil
+	}
+
+	return "", err
 }
 
 func (clusterWatcher *ClusterWatcher) getClusterName() string {
 	provider := clusterWatcher.getProvider()
 	if provider == "gke" {
 		clusterWatcher.Log.Infof("Provider is GKE")
-		if clusterName := clusterWatcher.fetchClusterNameFromGoogle(); clusterName == "" {
-			clusterWatcher.Log.Warnf("Cannot fetch cluster name for GKE")
+		if clusterName, err := clusterWatcher.fetchClusterNameFromGoogle(); err != nil {
+			clusterWatcher.Log.Warnf("Cannot fetch cluster name for GKE %s", err.Error())
+		} else {
+			return clusterName
+		}
+	} else if provider == "eks" {
+		clusterWatcher.Log.Infof("Provider is EKS")
+		if clusterName, err := clusterWatcher.fetchClusterNameFromAWS(); err != nil {
+			clusterWatcher.Log.Warnf("Cannot fetch cluster name for EKS %s", err.Error())
 		} else {
 			return clusterName
 		}
 	}
-	// } else if provider == "eks" {
-	// 	if clusterName, err := fetchClusterNameFromAWS(); err != nil {
-	// 		clusterWatcher.Log.Warnf("Cannot fetch cluster name %s, err.Error()")
-	// 	} else {
-	// 		return clusterName
-	// 	}
-	// }
-	// else if provider == "aks" {
+	// } else if provider == "aks" {
 	// 	if clusterName, err := fetchClusterNameFromAzure(); err != nil {
 	// 		clusterWatcher.Log.Warnf("Cannot fetch cluster name %s, err.Error()")
 	// 	} else {
 	// 		return clusterName
 	// 	}
 	// }
-	return provider
+
+	return "default"
 }
 
 func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
