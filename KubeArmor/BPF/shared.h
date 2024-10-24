@@ -74,6 +74,28 @@ struct {
   __uint(max_entries, 3);
 } bufk SEC(".maps");
 
+// ============
+// == preset ==
+// ============
+
+enum preset_action {
+  AUDIT = 1,
+  BLOCK
+};
+
+enum preset_type {
+  FILELESS_EXEC = 1001,
+  ANON_MAP_EXEC
+};
+
+struct preset_map {
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 256);
+  __uint(key_size, sizeof(struct outer_key));
+  __uint(value_size, sizeof(u32));
+  __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
 typedef struct {
   u64 ts;
 
@@ -172,8 +194,8 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
     return false;
   }
 
-  struct dentry *dentry = path->dentry;
-  struct vfsmount *vfsmnt = path->mnt;
+  struct dentry *dentry = BPF_CORE_READ(path, dentry);
+  struct vfsmount *vfsmnt = BPF_CORE_READ(path, mnt);
 
   struct mount *mnt = real_mount(vfsmnt);
 
@@ -183,7 +205,7 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
   struct qstr d_name;
 
 #pragma unroll
-  for (int i = 0; i < 30; i++) {
+  for (int i = 0; i < 20; i++) {
     parent = BPF_CORE_READ(dentry, d_parent);
     mnt_root = BPF_CORE_READ(vfsmnt, mnt_root);
 
