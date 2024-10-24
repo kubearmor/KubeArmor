@@ -13,7 +13,7 @@ import (
 
 var clusterPtr, gRPCPtr, logPathPtr *string
 var enableKubeArmorPolicyPtr, enableKubeArmorHostPolicyPtr, enableKubeArmorVMPtr, coverageTestPtr, enableK8sEnv, tlsEnabled *bool
-var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr *string
+var defaultFilePosturePtr, defaultCapabilitiesPosturePtr, defaultNetworkPosturePtr, hostDefaultCapabilitiesPosturePtr, hostDefaultNetworkPosturePtr, hostDefaultFilePosturePtr, procFsMountPtr *string
 
 func init() {
 	// options (string)
@@ -32,6 +32,8 @@ func init() {
 	hostDefaultNetworkPosturePtr = flag.String("hostDefaultNetworkPosture", "block", "configuring default enforcement action in global network context {allow|audit|block}")
 	hostDefaultCapabilitiesPosturePtr = flag.String("hostDefaultCapabilitiesPosture", "block", "configuring default enforcement action in global capability context {allow|audit|block}")
 
+	procFsMountPtr = flag.String("procfsMount", "/proc", "Path to the BPF filesystem to use for storing maps")
+
 	// options (boolean)
 	enableKubeArmorPolicyPtr = flag.Bool("enableKubeArmorPolicy", true, "enabling KubeArmorPolicy")
 	enableKubeArmorHostPolicyPtr = flag.Bool("enableKubeArmorHostPolicy", true, "enabling KubeArmorHostPolicy")
@@ -42,6 +44,7 @@ func init() {
 
 	// options (boolean)
 	coverageTestPtr = flag.Bool("coverageTest", false, "enabling CoverageTest")
+
 }
 
 // TestMain - test to drive external testing coverage
@@ -64,6 +67,7 @@ func TestMain(t *testing.T) {
 		fmt.Sprintf("-enableKubeArmorHostPolicy=%s", strconv.FormatBool(*enableKubeArmorHostPolicyPtr)),
 		fmt.Sprintf("-coverageTest=%s", strconv.FormatBool(*coverageTestPtr)),
 		fmt.Sprintf("-tlsEnabled=%s", strconv.FormatBool(*tlsEnabled)),
+		fmt.Sprintf("-procfsMount=%s", *procFsMountPtr),
 	}
 
 	t.Log("[INFO] Executed KubeArmor")
