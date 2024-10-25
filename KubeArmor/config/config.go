@@ -291,8 +291,6 @@ func LoadConfig() error {
 
 	GlobalCfg.BPFFsPath = viper.GetString(BPFFsPath)
 
-	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
-
 	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
 
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
