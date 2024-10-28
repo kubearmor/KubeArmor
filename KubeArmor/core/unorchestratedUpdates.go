@@ -587,6 +587,7 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 	newPoint := tp.EndPoint{}
 	policyStatus := pb.PolicyStatus_Applied
 
+	// consider reducing coverage for this lock
 	dm.EndPointsLock.Lock()
 	defer dm.EndPointsLock.Unlock()
 	for idx, endPoint := range dm.EndPoints {
