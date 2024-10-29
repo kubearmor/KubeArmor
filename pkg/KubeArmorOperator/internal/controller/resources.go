@@ -484,8 +484,6 @@ func (clusterWatcher *ClusterWatcher) getProvider() string {
 				return "gke"
 			} else if strings.Contains(key, "eks") || strings.Contains(label, "eks") {
 				return "eks"
-			} else if strings.Contains(key, "aks") || strings.Contains(label, "aks") {
-				return "aks"
 			}
 		}
 	}
@@ -607,13 +605,6 @@ func (clusterWatcher *ClusterWatcher) getClusterName() string {
 			return clusterName
 		}
 	}
-	// } else if provider == "aks" {
-	// 	if clusterName, err := fetchClusterNameFromAzure(); err != nil {
-	// 		clusterWatcher.Log.Warnf("Cannot fetch cluster name %s, err.Error()")
-	// 	} else {
-	// 		return clusterName
-	// 	}
-	// }
 
 	return "default"
 }
