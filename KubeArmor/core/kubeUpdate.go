@@ -349,10 +349,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			// update security policies
 			for _, endpoint := range endpoints {
 				dm.Logger.UpdateSecurityPolicies(action, endpoint)
-				if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 					// enforce security policies
 					if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endpoint.NamespaceName) {
-						dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+						if dm.RuntimeEnforcer != nil {
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+						}
+						if dm.Presets != nil {
+							dm.Presets.UpdateSecurityPolicies(endpoint)
+						}
 					} else {
 						dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endpoint.NamespaceName)
 					}
@@ -533,10 +538,15 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					// update security policies
 					dm.Logger.UpdateSecurityPolicies(action, endpoint)
 
-					if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					if endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
 						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endpoint.NamespaceName) {
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+							if dm.RuntimeEnforcer != nil {
+								dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+							}
+							if dm.Presets != nil {
+								dm.Presets.UpdateSecurityPolicies(endpoint)
+							}
 						} else {
 							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endpoint.NamespaceName)
 						}
@@ -1089,16 +1099,20 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					// update security policies
 					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
-					if dm.RuntimeEnforcer != nil {
-						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-							// enforce security policies
-							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+						// enforce security policies
+						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+							if dm.RuntimeEnforcer != nil {
 								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
-							} else {
-								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
 							}
+							if dm.Presets != nil {
+								dm.Presets.UpdateSecurityPolicies(dm.EndPoints[idx])
+							}
+						} else {
+							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
 						}
 					}
+
 				}
 			}
 		} else if secPolicyType == KubeArmorClusterPolicy {
@@ -1151,14 +1165,17 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					// update security policies
 					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
 
-					if dm.RuntimeEnforcer != nil {
-						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-							// enforce security policies
-							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+						// enforce security policies
+						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+							if dm.RuntimeEnforcer != nil {
 								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
-							} else {
-								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
 							}
+							if dm.Presets != nil {
+								dm.Presets.UpdateSecurityPolicies(dm.EndPoints[idx])
+							}
+						} else {
+							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
 						}
 					}
 				}
