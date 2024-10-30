@@ -1,0 +1,30 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-allow-proc-args
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block all arguments except allowedArgs"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPaths:
+    - path: /usr/bin/python3.6
+      allowedArgs:
+        - -m
+        - random 
+  action:
+    Block
+
+# multiubuntu_test_12
+
+# test
+# python -m random
+# allowed
+# python -m pydoc
+# permission denied
+# python 
+# permission denied
+
