@@ -54,7 +54,8 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 	InitTimeout        string   // Timeout for main thread init stages
 
-	StateAgent bool // enable KubeArmor state agent
+	StateAgent  bool // enable KubeArmor state agent
+	UseOCIHooks bool
 
 	AlertThrottling   bool // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int  // Maximum alerts allowed per second
@@ -105,6 +106,7 @@ const (
 	ConfigMaxAlertPerSec                 string = "maxAlertPerSec"
 	ConfigThrottleSec                    string = "throttleSec"
 	ConfigAnnotateResources              string = "annotateResources"
+	UseOCIHooks                          string = "useOCIHooks"
 )
 
 func readCmdLineParams() {
@@ -152,6 +154,7 @@ func readCmdLineParams() {
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
+	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
 
 	alertThrottling := flag.Bool(ConfigAlertThrottling, true, "enabling Alert Throttling")
 
@@ -222,6 +225,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigThrottleSec, *throttleSec)
 
 	viper.SetDefault(ConfigAnnotateResources, *annotateResources)
+
+	viper.SetDefault(UseOCIHooks, *useOCIHooks)
 }
 
 // LoadConfig Load configuration
@@ -321,6 +326,7 @@ func LoadConfig() error {
 	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
 	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
+	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 

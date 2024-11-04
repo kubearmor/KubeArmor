@@ -52,6 +52,7 @@ var (
 	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
 	SecurityFsLabel string = "kubearmor.io/securityfs"
 	SeccompLabel    string = "kubearmor.io/seccomp"
+	OCIHooksLabel   string = "kubearmor.io/oci-hooks"
 
 	// node taints label
 	NotreadyTaint      string = "node.kubernetes.io/not-ready"

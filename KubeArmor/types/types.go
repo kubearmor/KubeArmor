@@ -654,3 +654,20 @@ type PidNode struct {
 
 // KubeArmorHostPolicyEventCallback Function
 type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
+
+// =========== //
+// == Hooks == //
+// =========== //
+
+type HookRequest struct {
+	Operation HookOperation `json:"operation"`
+	Detached  bool          `json:"detached"`
+	Container Container     `json:"container"`
+}
+
+type HookOperation int
+
+const (
+	HookContainerCreate HookOperation = iota
+	HookContainerDelete
+)
