@@ -20,10 +20,14 @@ spec:
     spec:
       containers:
       - args:
+        {{- if .Values.kubearmorRelay.args -}}
+        {{- toYaml .Values.kubearmorRelay.args | trim | nindent 8 }}
+        {{- end }}
         {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
         {{printf "- -tlsCertPath=%s" .Values.kubearmorRelay.tls.tlsCertPath}}
         {{printf "- -tlsCertProvider=%s" .Values.kubearmorRelay.tls.tlsCertProvider}}
-        image: {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
+        image: {{ include "kubearmor.images" (dict "image" .Values.kubearmorRelay.image "Values" .Values "Chart" .Chart) }} 
+        # {{printf "%s:%s" .Values.kubearmorRelay.image.repository .Values.kubearmorRelay.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorRelay.imagePullPolicy }}
         name: kubearmor-relay-server
         env:
@@ -39,8 +43,16 @@ spec:
         volumeMounts:
           {{- toYaml .Values.kubearmorRelay.tls.certVolumeMount | trim | nindent 10 }}
         {{- end}}
+      {{- if or .Values.globalImagePullSecrets .Values.kubearmorRelay.imagePullSecrets }}
+      {{- include "imagePullSecrets" (dict "globalImagePullSecrets" .Values.globalImagePullSecrets "imagePullSecrets" .Values.kubearmorRelay.imagePullSecrets) | trim | nindent 6 }}
+      {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
+      tolerations:
+        {{- toYaml .Values.kubearmorRelay.tolerations | trim | nindent 8 }}
+      {{- if .Values.kubearmorRelay.priorityClassName -}}
+      priorityClassName: {{ .Values.kubearmorRelay.priorityClassName }}
+      {{- end }}
       serviceAccountName: kubearmor-relay
       {{- if .Values.tls.enabled }}
       volumes:
@@ -48,6 +60,9 @@ spec:
       {{- end }}
 {{- end }}
 ---
+# controller deployment
+{{- $hasApparmor := (include "hasApparmorEnforcer" (list .Values.nodes))}}
+{{- if eq $hasApparmor "true"}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -72,12 +87,16 @@ spec:
     spec:
       containers:
       - args:
+        {{- if .Values.kubearmorController.args -}}
+        {{- toYaml .Values.kubearmorController.args | trim | nindent 8 }}
+        {{- end }}
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         command:
         - /manager
-        image: {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
+        image: {{ include "kubearmor.images" (dict "image" .Values.kubearmorController.image "Values" .Values "Chart" .Chart) }} 
+        # {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorController.imagePullPolicy }}
         livenessProbe:
           httpGet:
@@ -112,11 +131,15 @@ spec:
         - mountPath: /sys/kernel/security
           name: sys-path
       - args:
+        {{- if .Values.kubeRbacProxy.args -}}
+        {{- toYaml .Values.kubeRbacProxy.args | trim | nindent 8 }}
+        {{- end }}
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080/
         - --logtostderr=true
         - --v=0
-        image: {{printf "%s:%s" .Values.kubeRbacProxy.image.repository .Values.kubeRbacProxy.image.tag}}
+        image: {{ include "vendor.images" (dict "image" .Values.kubeRbacProxy.image "Values" .Values "Chart" .Chart) }} 
+        # {{printf "%s:%s" .Values.kubeRbacProxy.image.repository .Values.kubeRbacProxy.image.tag}}
         name: kube-rbac-proxy
         ports:
         - containerPort: 8443
@@ -134,9 +157,17 @@ spec:
           capabilities:
             drop:
             - ALL
+      {{- if or .Values.globalImagePullSecrets .Values.kubearmorController.imagePullSecrets }}
+      {{- include "imagePullSecrets" (dict "globalImagePullSecrets" .Values.globalImagePullSecrets "imagePullSecrets" .Values.kubearmorController.imagePullSecrets) | trim | nindent 6 }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
       serviceAccountName: {{ .Values.kubearmorController.name }}
+      {{- if .Values.kubearmorController.priorityClassName -}}
+      priorityClassName: {{ .Values.kubearmorController.priorityClassName }}
+      {{- end }}
+      tolerations:
+        {{- toYaml .Values.kubearmorController.tolerations | trim | nindent 8 }}
       terminationGracePeriodSeconds: 10
       volumes:
       - name: cert
@@ -147,3 +178,4 @@ spec:
           path: /sys/kernel/security
           type: Directory
         name: sys-path
+{{- end }}

@@ -1,28 +1,67 @@
 # Default values for kubearmor.
 # Declare variables to be passed into your templates.
 
-environment:
-  # The target environment to install KubeArmor in. Possible values: generic, GKE, EKS, BottleRocket, k0s, k3s, minikube, microk8s
-  name: generic
+nodes:
+# - config:
+#     enforcer: bpf
+#     runtime: cri-o
+#     socket: run_crio_crio.sock
+#     arch: "amd64"
+#     btf: "yes"
+#     apparmorfs: "yes"
+#     seccomp: "no"
+# - config:
+#     enforcer: apparmor
+#     runtime: containerd
+#     socket: run_containerd_containerd.sock
+#     btf: "no"
+#     arch: "amd64"
+#     apparmorfs: "yes"
+#     seccomp: "yes"
 
+# registry flags
+globalRegistry: kubearmor
+# if set to true, override registry for third party container images
+# not managed by the kubearmor. i.e. kuberbacproxy
+# it would be useful in cases where all the container images should be
+# used from a particular registry for example on marketplaces
+useGlobalRegistryForVendorImages: false
+globalImagePullSecrets: []
+seccomp:
+  enabled: false
+  profiles:
+    kubearmor: kubearmor-seccomp.json
+    kubearmorInit: kubearmor-init-seccomp.json
 tls:
-  enabled: false  
-
+  enabled: false
 kubearmorRelay:
   # to enable/disable kubearmor-relay
   enabled: true
   image:
+    # if defined it will be preferred over global registry
+    registry: ""
     # kubearmor-init image repo
-    repository: kubearmor/kubearmor-relay-server
+    repository: kubearmor-relay-server
     # kubearmor-init image tag
     tag: latest
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
+  # imagePullSecrets:
+  #   - name: secretName
+  imagePullSecrets: []
+  args: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  # - key: "key"
+  #   operator: "Equal|Exists"
+  #   value: "value"
+  #   effect: "NoSchedule|PreferNoSchedule|NoExecute"
+  tolerations: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+  priorityClassName: ""
   # Add environment variables for STDOUT logging
   enableStdoutLogs: "false"
   enableStdoutAlerts: "false"
   enableStdoutMsg: "false"
-
   tls:
     extraDnsNames: ["localhost"]
     extraIpAddresses: ["127.0.0.1"]
@@ -30,65 +69,78 @@ kubearmorRelay:
     tlsCertProvider: external
     certSecretName: kubearmor-relay-server-certs
     certVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
-      name: kubearmor-relay-certs-secrets
-      readOnly: true
+      - mountPath: /var/lib/kubearmor/tls
+        name: kubearmor-relay-certs-secrets
+        readOnly: true
     certVolume:
-    - name: kubearmor-relay-certs-secrets
-      projected:
-        defaultMode: 0444
-        sources:
-        - secret:
-            name: kubearmor-relay-server-certs
-            items:
-            - key: tls.crt
-              path: server.crt
-            - key: tls.key
-              path: server.key
-            - key: ca.crt
-              path: ca.crt
-        - secret:
-            name: kubearmor-client-certs
-            items:
-            - key: tls.crt
-              path: client.crt
-            - key: tls.key
-              path: client.key  
-
-
+      - name: kubearmor-relay-certs-secrets
+        projected:
+          defaultMode: 0444
+          sources:
+            - secret:
+                name: kubearmor-relay-server-certs
+                items:
+                  - key: tls.crt
+                    path: server.crt
+                  - key: tls.key
+                    path: server.key
+                  - key: ca.crt
+                    path: ca.crt
+            - secret:
+                name: kubearmor-client-certs
+                items:
+                  - key: tls.crt
+                    path: client.crt
+                  - key: tls.key
+                    path: client.key
 kubearmorInit:
+  deploy: true
   image:
+    # if defined it will be preferred over global registry
+    registry: ""
     # kubearmor-init image repo
-    repository: kubearmor/kubearmor-init
+    repository: kubearmor-init
     # kubearmor-init image tag
     tag: stable
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
-
+  args: []
 kubeRbacProxy:
   image:
+    # it will be override if
+    # useGlobalRegistryForVendorImages: true
+    registry: gcr.io/kubebuilder
     # kube-rbac-proxy image repo
-    repository: gcr.io/kubebuilder/kube-rbac-proxy
+    repository: kube-rbac-proxy
     # kube-rbac-proxy image tag
     tag: v0.15.0
   # kube-rbac-proxy imagePullPolicy
   imagePullPolicy: Always
-
+  args: []
 kubearmorController:
   name: kubearmor-controller
   # kubearmor-controller replicas
   replicas: 1
   image:
+    # if defined it will be preferred over global registry
+    registry: ""
     # kubearmor-controller image repo
-    repository: kubearmor/kubearmor-controller
+    repository: kubearmor-controller
     # kubearmor-controller image tag
     tag: latest
   mutation:
     # kubearmor-controller failure policy
     failurePolicy: Ignore
   # kubearmor-controller imagePullPolicy
-  imagePullPolicy: Always
-
+  imagePullPolicy: "Always"
+  # imagePullSecrets:
+  #   - name: secretName
+  imagePullSecrets: []
+  args: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  tolerations: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+  priorityClassName: ""
 kubearmorConfigMap:
   defaultFilePosture: audit
   defaultCapabilitiesPosture: audit
@@ -97,578 +149,101 @@ kubearmorConfigMap:
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30
-
 #volume mounts and volumes
 kubearmor:
   image:
+    # if defined it will be preferred over global registry
+    registry: ""
     # kubearmor daemonset image repo
-    repository: kubearmor/kubearmor
+    repository: kubearmor
     # kubearmor daemonset image tag
     tag: stable
-
   # kubearmor daemonset imagePullPolicy
   imagePullPolicy: Always
-
+  # imagePullSecrets:
+  #   - name: secretName
+  imagePullSecrets: []
   # kubearmor daemonset arguments. See `kubearmor --help`
-  args: []
-
+  args: [-gRPC=32767]
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  tolerations: []
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/
+  priorityClassName: ""
   tls:
     tlsCertPath: /var/lib/kubearmor/tls
     tlsCertProvider: self
     caSecretName: kubearmor-ca
     clientCertSecretName: kubearmor-client-certs
     kubearmorCACertVolumeMount:
-    - mountPath: /var/lib/kubearmor/tls
-      name: kubearmor-ca-secret
-      readOnly: true
+      - mountPath: /var/lib/kubearmor/tls
+        name: kubearmor-ca-secret
+        readOnly: true
     kubearmorCACertVolume:
-    - name: kubearmor-ca-secret
-      projected:
-        defaultMode: 0444
-        sources:
-        - secret:
-            name: kubearmor-ca
-            items:
-            - key: tls.crt
-              path: ca.crt
-            - key: tls.key
-              path: ca.key
-
-  capabilities:
-    add:
-    - SETUID
-    - SETGID
-    - SETPCAP
-    - SYS_ADMIN
-    - SYS_PTRACE
-    - MAC_ADMIN
-    - SYS_RESOURCE
-    - IPC_LOCK
-    - CAP_DAC_OVERRIDE
-    - CAP_DAC_READ_SEARCH
-    drop:
-    - ALL
-
-  commonMounts:
-  - mountPath: /opt/kubearmor/BPF
-    name: bpf
-
-  commonVolumes:
-  - emptyDir: {}
-    name: bpf
-
-  initMounts:
-  - mountPath: /opt/kubearmor/BPF
-    name: bpf
-  - mountPath: /lib/modules
-    name: lib-modules-path
-    readOnly: true
-  - mountPath: /sys/kernel/security
-    name: sys-kernel-security-path
-  - mountPath: /sys/kernel/debug
-    name: sys-kernel-debug-path
-  - mountPath: /media/root/etc/os-release
-    name: os-release-path
-    readOnly: true
-  - mountPath: /usr/src
-    name: usr-src-path
-    readOnly: true
-
-  volumeMountsGeneric:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/containerd/containerd.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumeMountsDocker:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/docker.sock
-      name: docker-sock-path
-      readOnly: true
-
-  volumeMountsCRIO:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/crio/crio.sock
-      name: crio-sock-path
-      readOnly: true
-
-  volumeMountsMicroK8s:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/snap/microk8s/common/run/containerd.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumeMountsK0s:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/containerd/containerd.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumeMountsK3s:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/containerd/containerd.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumeMountsMinikube:
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/docker.sock
-      name: docker-sock-path
-
-  volumeMountsGKE:
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /media/root/usr
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/containerd/containerd.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumeMountsBottleRocket:
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/containerd/container.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumeMountsEKS:
-    - mountPath: /lib/modules
-      name: lib-modules-path
-      readOnly: true
-    - mountPath: /sys/kernel/security
-      name: sys-kernel-security-path
-    - mountPath: /sys/kernel/debug
-      name: sys-kernel-debug-path
-    - mountPath: /media/root/etc/os-release
-      name: os-release-path
-      readOnly: true
-    - mountPath: /usr/src
-      name: usr-src-path
-      readOnly: true
-    - mountPath: /etc/apparmor.d
-      name: etc-apparmor-d-path
-    - mountPath: /var/run/containerd/containerd.sock
-      name: containerd-sock-path
-      readOnly: true
-
-  volumesGeneric:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
+      - name: kubearmor-ca-secret
+        projected:
+          defaultMode: 0444
+          sources:
+            - secret:
+                name: kubearmor-ca
+                items:
+                  - key: tls.crt
+                    path: ca.crt
+                  - key: tls.key
+                    path: ca.key
+volumes:
+  common:
     - hostPath:
         path: /sys/kernel/debug
         type: Directory
       name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/containerd/containerd.sock
-        type: Socket
-      name: containerd-sock-path
-
-  volumesDocker:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
+  enforcer:
+    apparmor:
+      - hostPath:
+          path: /etc/apparmor.d
+          type: DirectoryOrCreate
+        name: etc-apparmor-d-path
+  init:
+    bpf:
+      - emptyDir: {}
+        name: bpf
+    kernelHeader:
+      - hostPath:
+          path: /lib/modules
+          type: DirectoryOrCreate
+        name: lib-modules-path
+      - hostPath:
+          path: /usr/src
+          type: Directory
+        name: usr-src-path
+volumeMounts:
+  common:
+    - mountPath: /sys/kernel/debug
       name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/docker.sock
-        type: Socket
-      name: docker-sock-path
-
-  volumesCRIO:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/crio/crio.sock
-        type: Socket
-      name: crio-sock-path
-
-  volumesMicroK8s:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/snap/microk8s/common/run/containerd.sock
-        type: Socket
-      name: containerd-sock-path
-
-  volumesK0s:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /run/k0s/containerd.sock
-        type: Socket
-      name: containerd-sock-path
-
-  volumesK3s:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: Directory
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /run/k3s/containerd/containerd.sock
-        type: Socket
-      name: containerd-sock-path
-
-  volumesMinikube:
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/docker.sock
-        type: Socket
-      name: docker-sock-path
-
-  volumesGKE:
-    - hostPath:
-        path: /usr
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/containerd/containerd.sock
-        type: Socket
-      name: containerd-sock-path
-
-  volumesBottleRocket:
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/containerd/container.sock
-        type: Socket
-      name: containerd-sock-path
-
-  volumesEKS:
-    - hostPath:
-        path: /lib/modules
-        type: DirectoryOrCreate
-      name: lib-modules-path
-    - hostPath:
-        path: /sys/kernel/security
-        type: Directory
-      name: sys-kernel-security-path
-    - hostPath:
-        path: /sys/kernel/debug
-        type: Directory
-      name: sys-kernel-debug-path
-    - hostPath:
-        path: /etc/os-release
-        type: File
-      name: os-release-path
-    - hostPath:
-        path: /usr/src
-        type: Directory
-      name: usr-src-path
-    - hostPath:
-        path: /etc/apparmor.d
-        type: DirectoryOrCreate
-      name: etc-apparmor-d-path
-    - hostPath:
-        path: /var/run/containerd/containerd.sock
-        type: Socket
-      name: containerd-sock-path
+  enforcer:
+    apparmor:
+      - mountPath: /etc/apparmor.d
+        name: etc-apparmor-d-path
+  runtime:
+    containerd:
+      - mountPath: /var/run/containerd/containerd.sock
+        name: containerd-socket
+        readOnly: true
+    docker:
+      - mountPath: /var/run/docker.sock
+        name: docker-socket
+        readOnly: true
+    cri-o:
+      - mountPath: /var/run/crio/crio.sock
+        name: cri-o-socket
+        readOnly: true
+  init:
+    bpf:
+      - mountPath: /opt/kubearmor/BPF
+        name: bpf
+    kernelHeader:
+      - mountPath: /lib/modules
+        name: lib-modules-path
+        readOnly: true
+      - mountPath: /usr/src
+        name: usr-src-path
+        readOnly: true

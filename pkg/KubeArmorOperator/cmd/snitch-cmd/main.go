@@ -9,15 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
-
-	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/enforcer"
-	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/k8s"
 	runtimepkg "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/runtime"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -25,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/homedir"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 type metadata struct {
@@ -38,7 +35,6 @@ type metadataSpec struct {
 
 var K8sClient *kubernetes.Clientset
 var Logger *zap.SugaredLogger
-var KubeConfig string
 var Context string
 var LsmOrder string
 var PathPrefix string = "/rootfs"
@@ -57,9 +53,9 @@ var Cmd = &cobra.Command{
 		config.Level.SetLevel(level)
 		log, _ := config.Build()
 		Logger = log.Sugar()
-		K8sClient = k8s.NewClient(*Logger, KubeConfig)
+		K8sClient, err = kubernetes.NewForConfig(ctrl.GetConfigOrDie())
 		//Initialise k8sClient for all child commands to inherit
-		if K8sClient == nil {
+		if err != nil {
 			return errors.New("couldn't create k8s client")
 		}
 		return nil
@@ -69,7 +65,6 @@ var Cmd = &cobra.Command{
 		Logger.Infof("lsm order=%s", LsmOrder)
 		Logger.Infof("path prefix=%s", PathPrefix)
 		Logger.Infof("k8s runtime=%s", Runtime)
-		Logger.Infof("KubeConfig path=%s", KubeConfig)
 		snitch()
 
 	},
@@ -86,11 +81,6 @@ operation) of containers at the system level.
 }
 
 func init() {
-	if home := homedir.HomeDir(); home != "" {
-		Cmd.PersistentFlags().StringVar(&KubeConfig, "kubeconfig", filepath.Join(home, ".kube", "config"), "Path to the kubeconfig file to use")
-	} else {
-		Cmd.PersistentFlags().StringVar(&KubeConfig, "kubeconfig", "", "Path to the kubeconfig file to use")
-	}
 	Cmd.PersistentFlags().StringVar(&LsmOrder, "lsm", "bpf,apparmor,selinux", "lsm preference order to use")
 	Cmd.PersistentFlags().StringVar(&NodeName, "nodename", "", "node name to label")
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs", "path prefix for runtime search")

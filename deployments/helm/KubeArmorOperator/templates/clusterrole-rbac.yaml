@@ -46,6 +46,7 @@ rules:
   - mutatingwebhookconfigurations
   verbs:
   - get
+  - patch
   - create
   - delete
 - apiGroups:
@@ -89,6 +90,7 @@ rules:
   resources:
   - customresourcedefinitions
   verbs:
+  - get
   - create
 - apiGroups:
   - batch
@@ -97,6 +99,18 @@ rules:
   - cronjobs
   verbs:
   - get
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - patch
+  - update
+  resourceNames:
+  - kubearmorconfigs.operator.kubearmor.com
+  - kubearmorhostpolicies.security.kubearmor.com
+  - kubearmorclusterpolicies.security.kubearmor.com
+  - kubearmorpolicies.security.kubearmor.com
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -139,7 +153,7 @@ rules:
   - patch
   - list
   - watch
-  - update
+  - update  
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -256,6 +270,7 @@ rules:
   - secrets
   verbs:
   - get
+  - patch
   - update
   - delete
   resourceNames:
@@ -270,4 +285,59 @@ rules:
   - secrets
   verbs:
   - create
+  - list
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.kubearmorOperator.name }}-resource-cleanup-clusterrole
+rules:
+- apiGroups:
+  - "rbac.authorization.k8s.io"
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  verbs:
+  - delete
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - delete  
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.kubearmorOperator.name }}-resource-cleanup-role
+  namespace: {{ .Release.Namespace }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - delete
+  # required to update helm record
+  - update
+- apiGroups:
+  - "rbac.authorization.k8s.io"
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.snitch.name }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - patch

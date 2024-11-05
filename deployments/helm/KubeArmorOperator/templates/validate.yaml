@@ -1,0 +1,11 @@
+{{- if and (.Values.helm.repository) (not .Values.helm.chart) }}
+{{- fail "Error: 'chart' must be specified when 'repository' is provided." }}
+{{- end }}
+
+{{- if (and (regexMatch "^oci://" .Values.helm.repository) (not .Values.helm.version)) }}
+{{- fail "Error: 'version' must not be empty when 'repository' is an OCI repository." }}
+{{- end }}
+
+{{- if (and (not .Values.helm.repository) (not .Values.helm.directory)) }}
+{{- fail "Error: either 'directory' or 'repository' must be provided." }}
+{{- end }}

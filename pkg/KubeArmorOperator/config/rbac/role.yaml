@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - operator.kubearmor.com
+  resources:
+  - kubearmorconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operator.kubearmor.com
+  resources:
+  - kubearmorconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - operator.kubearmor.com
+  resources:
+  - kubearmorconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
