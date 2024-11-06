@@ -734,23 +734,25 @@ func KubeArmor() {
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// Check if cri socket set, if not then auto detect
-		if !cfg.GlobalCfg.UseOCIHooks {
-			if cfg.GlobalCfg.CRISocket == "" {
-				if kl.GetCRISocket("") == "" {
-					dm.Logger.Warnf("Error while looking for CRI socket file")
-					enableContainerPolicy = false
-				} else {
-					cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
-				}
+
+		// Check if OCI Hooks is enabled
+		if cfg.GlobalCfg.UseOCIHooks {
+			go dm.HandleFile(cfg.GlobalCfg.HookFilePath)
+		} else if cfg.GlobalCfg.CRISocket == "" {
+			// Check if cri socket set, if not then auto detect
+			if kl.GetCRISocket("") == "" {
+				dm.Logger.Warnf("Error while looking for CRI socket file")
+				enableContainerPolicy = false
 			} else {
-				// CRI socket supplied by user, check for existence
-				criSocketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
-				_, err := os.Stat(criSocketPath)
-				if err != nil {
-					enableContainerPolicy = false
-					dm.Logger.Warnf("Error while looking for CRI socket file %s", err.Error())
-				}
+				cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
+			}
+		} else {
+			// CRI socket supplied by user, check for existence
+			criSocketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
+			_, err := os.Stat(criSocketPath)
+			if err != nil {
+				enableContainerPolicy = false
+				dm.Logger.Warnf("Error while looking for CRI socket file %s", err.Error())
 			}
 		}
 
@@ -778,8 +780,10 @@ func KubeArmor() {
 			} else if cfg.GlobalCfg.UseOCIHooks {
 				go dm.ListenToNonK8sHook()
 			} else {
-				enableContainerPolicy = false
-				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
+				if !cfg.GlobalCfg.UseOCIHooks {
+					dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
+					enableContainerPolicy = false
+				}
 			}
 
 			if cfg.GlobalCfg.UseOCIHooks {
