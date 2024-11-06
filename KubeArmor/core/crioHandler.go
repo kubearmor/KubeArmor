@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
@@ -273,29 +272,7 @@ func (dm *KubeArmorDaemon) UpdateCrioContainer(ctx context.Context, containerID,
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
 			// for throttling
-			dm.SystemMonitor.Logger.ContainerNsKey[containerID] = common.OuterKey{
-				MntNs: container.MntNS,
-				PidNs: container.PidNS,
-			}
-
-			// update NsMap
-			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
-			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
-			if dm.Presets != nil {
-				dm.Presets.RegisterContainer(containerID, container.PidNS, container.MntNS)
-			}
-
-			if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
-				dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
-				if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
-				}
-				if dm.Presets != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce preset rules
-					dm.Presets.UpdateSecurityPolicies(endpoint)
-				}
-			}
+			dm.PopulateMaps(endpoint, container)
 		}
 
 		if !dm.K8sEnabled {
