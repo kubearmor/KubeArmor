@@ -20,7 +20,7 @@ import (
 func (dm *KubeArmorDaemon) HandleFile(file string) {
 	f, err := os.Open(file)
 	if err != nil {
-		log.Println("Error opening file:", err)
+		log.Fatalln("Error opening file:", err)
 	}
 
 	decoder := json.NewDecoder(f)
@@ -65,7 +65,6 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 			}
 
 			if e.Op&fsnotify.Write == fsnotify.Write {
-				dm.Logger.Warnf("Detected changes in output.json")
 				f, err := os.Open(file)
 				if err != nil {
 					log.Println("Error opening file:", err)
@@ -163,7 +162,6 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container tp.Container) {
 			labels = append(labels, "kubearmor.io/container.name="+container.ContainerName)
 			container.Labels = strings.Join(labels, ",")
 
-
 			containerLabels, containerIdentities := kl.GetLabelsFromString(container.Labels)
 			dm.EndPointsLock.Lock()
 
@@ -225,7 +223,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container tp.Container) {
 		}
 		dm.EndPointsLock.Unlock()
 	}
-	
+
 	if len(dm.OwnerInfo) > 0 {
 		container.Owner = dm.OwnerInfo[container.EndPointName]
 	}

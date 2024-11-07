@@ -741,6 +741,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 			if data, err := os.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
 
 				var k struct {
+					Kind     string            `json:"kind"`
 					Metadata map[string]string `json:"metadata"`
 				}
 
@@ -750,10 +751,10 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 					continue
 				}
 
-				if _, ok := k.Metadata["namespaceName"]; ok { // ContainerPolicy contains namespaceName
+				if k.Kind == KubeArmorPolicy { // ContainerPolicy contains namespaceName
 					var containerPolicy tp.K8sKubeArmorPolicy
 					if err := json.Unmarshal(data, &containerPolicy); err == nil {
-						containerPolicy.Metadata.Name = k.Metadata["policyName"]
+						containerPolicy.Metadata.Name = k.Metadata["name"]
 						dm.ParseAndUpdateContainerSecurityPolicy(tp.K8sKubeArmorPolicyEvent{
 							Type:   "ADDED",
 							Object: containerPolicy,
@@ -763,7 +764,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 				} else { // HostSecurityPolicy
 					var hostPolicy tp.K8sKubeArmorHostPolicy
 					if err := json.Unmarshal(data, &hostPolicy); err == nil {
-						hostPolicy.Metadata.Name = k.Metadata["policyName"]
+						hostPolicy.Metadata.Name = k.Metadata["name"]
 						dm.ParseAndUpdateHostSecurityPolicy(tp.K8sKubeArmorHostPolicyEvent{
 							Type:   "ADDED",
 							Object: hostPolicy,

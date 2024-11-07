@@ -55,7 +55,7 @@ type KubearmorConfig struct {
 	InitTimeout        string   // Timeout for main thread init stages
 
 	UseOCIHooks bool // Use OCI hooks for container visibility instead of CRI socket
-	StateAgent bool // enable KubeArmor state agent
+	StateAgent  bool // enable KubeArmor state agent
 
 	AlertThrottling   bool // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int  // Maximum alerts allowed per second
@@ -97,7 +97,7 @@ const (
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
-	UseOCIHooks 						 string = "useOCIHooks"
+	UseOCIHooks                          string = "useOCIHooks"
 	ConfigUntrackedNs                    string = "untrackedNs"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
