@@ -227,7 +227,7 @@ func readCmdLineParams() {
 // LoadConfig Load configuration
 func LoadConfig() error {
 	// Read configuration from command line
-	readCmdLineParams()
+	// readCmdLineParams()
 
 	// Read configuration from env var
 	// Note that the env var has to be set in uppercase for e.g, CLUSTER=xyz ./kubearmor
