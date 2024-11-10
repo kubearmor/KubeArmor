@@ -4,7 +4,6 @@
 package core
 
 import (
-	"encoding/json"
 	"os"
 	"regexp"
 	"sort"
@@ -15,6 +14,7 @@ import (
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	yl "sigs.k8s.io/yaml"
 )
 
 // SetContainerVisibility function enables visibility flag arguments for un-orchestrated container and updates the visibility map
@@ -695,7 +695,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 	var err error
 
 	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := json.Marshal(policy); err == nil {
+		if policyBytes, err := yl.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
 					dm.Logger.Errf(err.Error())
@@ -719,7 +719,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 	var err error
 
 	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := json.Marshal(policy); err == nil {
+		if policyBytes, err := yl.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
 					dm.Logger.Errf(err.Error())
@@ -749,7 +749,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 					Metadata map[string]string `json:"metadata"`
 				}
 
-				err := json.Unmarshal(data, &k)
+				err := yl.Unmarshal(data, &k)
 				if err != nil {
 					kg.Errf("Failed to unmarshal policy: %v", err)
 					continue
@@ -757,7 +757,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 
 				if k.Kind == KubeArmorPolicy { // ContainerPolicy contains namespaceName
 					var containerPolicy tp.K8sKubeArmorPolicy
-					if err := json.Unmarshal(data, &containerPolicy); err == nil {
+					if err := yl.Unmarshal(data, &containerPolicy); err == nil {
 						containerPolicy.Metadata.Name = k.Metadata["name"]
 						dm.ParseAndUpdateContainerSecurityPolicy(tp.K8sKubeArmorPolicyEvent{
 							Type:   "ADDED",
@@ -767,7 +767,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 
 				} else { // HostSecurityPolicy
 					var hostPolicy tp.K8sKubeArmorHostPolicy
-					if err := json.Unmarshal(data, &hostPolicy); err == nil {
+					if err := yl.Unmarshal(data, &hostPolicy); err == nil {
 						hostPolicy.Metadata.Name = k.Metadata["name"]
 						dm.ParseAndUpdateHostSecurityPolicy(tp.K8sKubeArmorHostPolicyEvent{
 							Type:   "ADDED",
