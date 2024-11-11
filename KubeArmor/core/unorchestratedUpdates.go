@@ -686,7 +686,8 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.GlobalCfg.RestorePath); err != nil {
 		if err = os.MkdirAll(cfg.GlobalCfg.RestorePath, 0700); err != nil {
-			kg.Warnf("Dir creation failed for [%v]", cfg.GlobalCfg.RestorePath)
+			kg.Warnf("Dir creation failed for [%v], setting restore path to %s", cfg.GlobalCfg.RestorePath, cfg.PolicyDir)
+			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
 			return
 		}
 	}
@@ -710,7 +711,8 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(cfg.GlobalCfg.RestorePath); err != nil {
 		if err = os.MkdirAll(cfg.GlobalCfg.RestorePath, 0700); err != nil {
-			kg.Warnf("Dir creation failed for [%v]", cfg.GlobalCfg.RestorePath)
+			kg.Warnf("Dir creation failed for [%v], setting restore path to %s", cfg.GlobalCfg.RestorePath, cfg.PolicyDir)
+			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
 			return
 		}
 	}
@@ -731,11 +733,11 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 
 func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 	if _, err := os.Stat(cfg.GlobalCfg.RestorePath); err != nil {
-		if _, err := os.Stat(cfg.PolicyDir); err != nil {
-			kg.Warn("Policies dir not found for restoration")
+		if err = os.MkdirAll(cfg.GlobalCfg.RestorePath, 0700); err != nil {
+			kg.Warnf("Dir creation failed for [%v], setting restore path to %s", cfg.GlobalCfg.RestorePath, cfg.PolicyDir)
+			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
 			return
 		} else {
-			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
 		}
 	}
 

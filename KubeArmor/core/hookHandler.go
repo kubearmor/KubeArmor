@@ -37,7 +37,9 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 			break
 		}
 	}
-	f.Close()
+	
+	defer f.Close()
+
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal("Error creating new watcher:", err)
@@ -92,60 +94,6 @@ func (dm *KubeArmorDaemon) HandleFile(file string) {
 }
 
 func (dm *KubeArmorDaemon) handleContainerCreate(container tp.Container) {
-	// endpoint := types.EndPoint{}
-
-	// dm.ContainersLock.Lock()
-	// defer dm.ContainersLock.Unlock()
-	// if _, ok := dm.Containers[container.ContainerID]; !ok {
-	// 	dm.Containers[container.ContainerID] = container
-	// } else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
-	// 	c := dm.Containers[container.ContainerID]
-	// 	c.MntNS = container.MntNS
-	// 	c.PidNS = container.PidNS
-	// 	c.AppArmorProfile = container.AppArmorProfile
-	// 	dm.Containers[c.ContainerID] = c
-	// 	dm.EndPointsLock.Lock()
-	// 	for idx, endPoint := range dm.EndPoints {
-	// 		if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
-
-	// 			// update apparmor profiles
-	// 			if !kl.ContainsElement(endPoint.AppArmorProfiles, container.AppArmorProfile) {
-	// 				dm.EndPoints[idx].AppArmorProfiles = append(dm.EndPoints[idx].AppArmorProfiles, container.AppArmorProfile)
-	// 			}
-
-	// 			if container.Privileged && dm.EndPoints[idx].PrivilegedContainers != nil {
-	// 				dm.EndPoints[idx].PrivilegedContainers[container.ContainerName] = struct{}{}
-	// 			}
-
-	// 			endpoint = dm.EndPoints[idx]
-
-	// 			break
-	// 		}
-	// 	}
-	// 	dm.EndPointsLock.Unlock()
-	// }
-
-	// if len(dm.OwnerInfo) > 0 {
-	// 	container.Owner = dm.OwnerInfo[container.EndPointName]
-	// }
-
-	// if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
-	// 	dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
-	// 	dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
-
-	// 	if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
-	// 		dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
-	// 		if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == types.KubeArmorPolicyEnabled {
-	// 			// enforce security policies
-	// 			dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
-	// 		}
-	// 	}
-	// }
-
-	// if container.ContainerID == "" {
-	// 	return false
-	// }
-
 	endPoint := tp.EndPoint{}
 
 	dm.ContainersLock.Lock()
@@ -164,36 +112,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container tp.Container) {
 
 			containerLabels, containerIdentities := kl.GetLabelsFromString(container.Labels)
 			dm.EndPointsLock.Lock()
-
-			endPoint.EndPointName = container.ContainerName
-			endPoint.NamespaceName = container.NamespaceName
-			endPoint.Containers = []string{container.ContainerID}
-			endPoint.Labels = containerLabels
-			endPoint.Identities = containerIdentities
-			endPoint.PolicyEnabled = tp.KubeArmorPolicyEnabled
-			endPoint.ProcessVisibilityEnabled = true
-			endPoint.FileVisibilityEnabled = true
-			endPoint.NetworkVisibilityEnabled = true
-			endPoint.CapabilitiesVisibilityEnabled = true
-
-			endPoint.AppArmorProfiles = []string{"kubearmor_" + container.ContainerName}
-
-			globalDefaultPosture := tp.DefaultPosture{
-				FileAction:         cfg.GlobalCfg.DefaultFilePosture,
-				NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
-				CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
-			}
-			endPoint.DefaultPosture = globalDefaultPosture
-
-			dm.SecurityPoliciesLock.RLock()
-			for _, secPol := range dm.SecurityPolicies {
-				if kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) {
-					endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPol)
-				}
-			}
-			dm.SecurityPoliciesLock.RUnlock()
-
-			dm.EndPoints = append(dm.EndPoints, endPoint)
+			dm.CreateEndpoint(&endPoint, container, containerLabels, containerIdentities, "ADDED")
 			dm.EndPointsLock.Unlock()
 		}
 	} else if dm.Containers[container.ContainerID].PidNS == 0 && dm.Containers[container.ContainerID].MntNS == 0 {
@@ -229,23 +148,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container tp.Container) {
 	}
 
 	if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
-		// for throttling
-		dm.SystemMonitor.Logger.ContainerNsKey[container.ContainerID] = kl.OuterKey{
-			MntNs: container.MntNS,
-			PidNs: container.PidNS,
-		}
-
-		// update NsMap
-		dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
-		dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
-
-		if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
-			dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
-			if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
-			}
-		}
+		dm.PopulateMaps(endPoint, container)
 	}
 
 	if cfg.GlobalCfg.StateAgent {
