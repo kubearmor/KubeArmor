@@ -270,7 +270,7 @@ spec:
                         message:
                           type: string
                         protocol:
-                          pattern: (icmp|ICMP|tcp|TCP|udp|UDP|raw|RAW)$
+                          pattern: (tcp|TCP|udp|UDP|raw|RAW|icmp|ICMP|icmpv6|ICMPV6|sctp|SCTP|stream|STREAM|dgram|DGRAM|rdm|RDM|seqpacket|SEQPACKET|dccp|DCCP|packet|PACKET|all|ALL)$
                           type: string
                         severity:
                           maximum: 10

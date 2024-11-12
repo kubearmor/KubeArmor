@@ -117,6 +117,12 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 			PinPath: pinpath,
 		},
 	}); err != nil {
+		var ve *ebpf.VerifierError
+		if errors.As(err, &ve) {
+			// Using %+v will print the whole verifier error, not just the last
+			// few lines.
+			be.Logger.Errf("Verifier error: %+v", ve)
+		}
 		be.Logger.Errf("error loading BPF LSM objects: %v", err)
 		return be, err
 	}
@@ -351,9 +357,7 @@ func (be *BPFEnforcer) TraceEvents() {
 			sockProtocol = int32(event.Data.Path[1])
 			log.Operation = "Network"
 			if event.Data.Path[0] == 2 {
-				if event.Data.Path[1] == 3 {
-					log.Resource = fd.GetProtocolFromName("raw")
-				}
+				log.Resource = fd.GetProtocolFromType(int32(event.Data.Path[1]))
 			} else if event.Data.Path[0] == 3 {
 				log.Resource = fd.GetProtocolFromName(mon.GetProtocol(sockProtocol))
 			}

@@ -310,8 +310,8 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
     return 0;
 
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  int p0;
-  int p1;
+  int p0_t, p1_t;
+  int p0_p, p1_p;
   struct data_t *val = bpf_map_lookup_elem(inner, p);
   bool fromSourceCheck = true;
 
@@ -329,30 +329,42 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-  void *ptr = &src_buf->buf[*src_offset];
 
+  // socket type check
+  if (type == SOCK_STREAM || type == SOCK_DGRAM || type == SOCK_RAW || type == SOCK_RDM || type == SOCK_SEQPACKET || type == SOCK_DCCP || type == SOCK_PACKET) {
+    p0_t = sock_type;
+    p1_t = type;
+  }
+  
+  // protocol check
   if (type == SOCK_STREAM && (protocol == IPPROTO_TCP || protocol == 0)) {
-    p0 = sock_proto;
-    p1 = IPPROTO_TCP;
+    p0_p = sock_proto;
+    p1_p = IPPROTO_TCP;
   } else if (type == SOCK_DGRAM && (protocol == IPPROTO_UDP || protocol == 0)) {
-    p0 = sock_proto;
-    p1 = IPPROTO_UDP;
+    p0_p = sock_proto;
+    p1_p = IPPROTO_UDP;
   } else if (protocol == IPPROTO_ICMP &&
              (type == SOCK_DGRAM || type == SOCK_RAW)) {
-    p0 = sock_proto;
-    p1 = IPPROTO_ICMP;
-  } else if (type == SOCK_RAW && protocol == 0) {
-    p0 = sock_type;
-    p1 = SOCK_RAW;
+    p0_p = sock_proto;
+    p1_p = IPPROTO_ICMP;
+  } else if (protocol == IPPROTO_ICMPV6 &&
+             (type == SOCK_DGRAM || type == SOCK_RAW)) {
+    p0_p = sock_proto;
+    p1_p = IPPROTO_ICMPV6;
+  } else if ((type == SOCK_STREAM || type == SOCK_SEQPACKET) && (protocol == IPPROTO_SCTP || protocol == 0)) {
+    p0_p = sock_proto;
+    p1_p = IPPROTO_SCTP;
   } else {
-    p0 = sock_proto;
-    p1 = protocol;
+    p0_p = sock_proto;
+    p1_p = protocol;
   }
 
+  // socket type fromsource check
   if (fromSourceCheck) {
+    void *ptr = &src_buf->buf[*src_offset];
     bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
-    p->path[0] = p0;
-    p->path[1] = p1;
+    p->path[0] = p0_t;
+    p->path[1] = p1_t;
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
     val = bpf_map_lookup_elem(inner, p);
     if (val) {
@@ -360,10 +372,37 @@ static inline int match_net_rules(int type, int protocol, u32 eventID) {
       goto decision;
     }
   }
-  // check for rules without fromSource
+
+  // protocol fromsource check
+  if (fromSourceCheck) {
+    void *ptr = &src_buf->buf[*src_offset];
+    bpf_probe_read_str(p->source, MAX_STRING_SIZE, ptr);
+    p->path[0] = p0_p;
+    p->path[1] = p1_p;
+    bpf_probe_read_str(store->source, MAX_STRING_SIZE, p->source);
+    val = bpf_map_lookup_elem(inner, p);
+    if (val) {
+      match = true;
+      goto decision;
+    }
+  }
+
+  // check for type rules without fromSource
   bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
-  p->path[0] = p0;
-  p->path[1] = p1;
+  p->path[0] = p0_t;
+  p->path[1] = p1_t;
+
+  val = bpf_map_lookup_elem(inner, p);
+
+  if (val) {
+    match = true;
+    goto decision;
+  }
+
+  // check for protocol rules without fromSource
+  bpf_map_update_elem(&bufk, &one, z, BPF_ANY);
+  p->path[0] = p0_p;
+  p->path[1] = p1_p;
 
   val = bpf_map_lookup_elem(inner, p);
 
