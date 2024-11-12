@@ -243,9 +243,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 	rule.Deny = deny
 	rule.Allow = !deny
 	if len(proto.FromSource) == 0 {
-		if proto.Protocol != "all" {
-			addRuletoMap(rule, proto.Protocol, prof.NetworkRules)
-		}
+		addRuletoMap(rule, proto.Protocol, prof.NetworkRules)
 		return
 	}
 
@@ -267,9 +265,7 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 				prof.FromSource[source] = val
 			}
 		}
-		if proto.Protocol != "all" {
-			addRuletoMap(rule, proto.Protocol, prof.FromSource[source].NetworkRules)
-		}
+		addRuletoMap(rule, proto.Protocol, prof.FromSource[source].NetworkRules)
 	}
 }
 
@@ -391,9 +387,9 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 				if proto.Action == "Allow" {
-					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block" || proto.Protocol == "all")
+					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
 				} else if proto.Action == "Block" {
-					ae.SetNetworkMatchProtocols(proto, &profile, true, true && proto.Protocol != "all")
+					ae.SetNetworkMatchProtocols(proto, &profile, true, true)
 				}
 			}
 		}
