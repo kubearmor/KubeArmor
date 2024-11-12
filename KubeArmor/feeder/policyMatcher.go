@@ -59,9 +59,9 @@ func GetProtocolFromType(proto int32) string {
 }
 
 func fetchProtocol(resource string) string {
-	if strings.Contains(resource, "protocol=TCP") || (strings.Contains(resource, "SOCK_STREAM") && strings.Contains(resource, "protocol=0")) {
+	if strings.Contains(resource, "protocol=TCP") || (strings.Contains(resource, "SOCK_STREAM") && strings.Contains(resource, "protocol=HOPOPT")) {
 		return "tcp"
-	} else if strings.Contains(resource, "protocol=UDP") || (strings.Contains(resource, "SOCK_DGRAM") && strings.Contains(resource, "protocol=0")) {
+	} else if strings.Contains(resource, "protocol=UDP") || (strings.Contains(resource, "SOCK_DGRAM") && strings.Contains(resource, "protocol=HOPOPT")) {
 		return "udp"
 	} else if strings.Contains(resource, "protocol=ICMP") {
 		return "icmp"
