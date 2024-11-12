@@ -28,10 +28,33 @@ func GetProtocolFromName(proto string) string {
 		return "protocol=UDP,type=SOCK_DGRAM"
 	case "icmp":
 		return "protocol=ICMP,type=SOCK_RAW"
-	case "raw":
-		return "type=SOCK_RAW"
+	case "icmpv6":
+		return "protocol=ICMPv6,type=SOCK_RAW"
+	case "sctp":
+		return "protocol=SCTP,type=SOCK_STREAM|SOCK_SEQPACKET"
 	default:
-		return "unknown"
+		return proto
+	}
+}
+
+func GetProtocolFromType(proto int32) string {
+	switch proto {
+	case 1:
+		return "type=SOCK_STREAM"
+	case 2:
+		return "type=SOCK_DGRAM"
+	case 3:
+		return "type=SOCK_RAW"
+	case 4:
+		return "type=SOCK_RDM"
+	case 5:
+		return "type=SOCK_SEQPACKET"
+	case 6:
+		return "type=SOCK_DCCP"
+	case 10:
+		return "type=SOCK_PACKET"
+	default:
+		return string(proto)
 	}
 }
 
@@ -44,9 +67,24 @@ func fetchProtocol(resource string) string {
 		return "icmp"
 	} else if strings.Contains(resource, "SOCK_RAW") {
 		return "raw"
+	} else if strings.Contains(resource, "protocol=ICMPv6") {
+		return "icmpv6"
+	} else if strings.Contains(resource, "protocol=SCTP") {
+		return "sctp"
+	} else if strings.Contains(resource, "SOCK_STREAM") {
+		return "stream"
+	} else if strings.Contains(resource, "SOCK_DGRAM") {
+		return "dgram"
+	} else if strings.Contains(resource, "SOCK_RDM") {
+		return "rdm"
+	} else if strings.Contains(resource, "SOCK_SEQPACKET") {
+		return "seqpacket"
+	} else if strings.Contains(resource, "SOCK_DCCP") {
+		return "dccp"
+	} else if strings.Contains(resource, "SOCK_PACKET") {
+		return "packet"
 	}
-
-	return "unknown"
+	return resource
 }
 
 func getFileProcessUID(path string) string {
@@ -204,7 +242,7 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Message = npt.Message
 
 		match.Operation = "Network"
-		match.Resource = npt.Protocol
+		match.Resource = strings.ToLower(npt.Protocol)
 		match.ResourceType = "Protocol"
 
 		// TODO: Handle cases where AppArmor network enforcement is not present
@@ -1303,7 +1341,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					matchedFlags := false
 
 					protocol := fetchProtocol(log.Resource)
-					if protocol == secPolicy.Resource {
+					if protocol == secPolicy.Resource || secPolicy.Resource == "all" {
 						matchedFlags = true
 					}
 
