@@ -25,6 +25,10 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define BLOCK_POSTURE 141
 #define CAPABLE_KEY 200
 
+enum {
+  IPPROTO_ICMPV6 = 58
+};
+
 enum file_hook_type { dpath = 0, dfileread, dfilewrite };
 
 enum deny_by_default {
