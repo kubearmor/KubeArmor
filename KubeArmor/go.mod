@@ -31,11 +31,13 @@ require (
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/docker/docker v25.0.5+incompatible
 	github.com/golang/protobuf v1.5.4
+	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20240110164432-c2c1b121cd94
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20240110164432-c2c1b121cd94
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/spf13/viper v1.18.2
+	github.com/vishvananda/netns v0.0.4
 	go.uber.org/zap v1.26.0
 	golang.org/x/exp v0.0.0-20240110193028-0dcbfd608b1e
 	golang.org/x/sys v0.22.0

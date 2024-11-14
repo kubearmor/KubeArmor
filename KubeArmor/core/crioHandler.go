@@ -130,6 +130,7 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string,
 	container.Privileged = containerInfo.Privileged
 
 	pid := strconv.Itoa(containerInfo.Pid)
+	container.Pid = containerInfo.Pid
 
 	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
