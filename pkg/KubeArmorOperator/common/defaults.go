@@ -237,26 +237,12 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
-	{
-		Name: "proc-fs-mount",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/proc",
-				Type: &HostPathDirectory,
-			},
-		},
-	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
 	{
 		Name:      "sys-kernel-debug-path",
 		MountPath: "/sys/kernel/debug",
-	},
-	{
-		Name:      "proc-fs-mount",
-		MountPath: "/host/procfs",
-		ReadOnly:  true,
 	},
 }
 
