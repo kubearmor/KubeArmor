@@ -36,6 +36,7 @@ func FuzzConfig(f *testing.F){
 cluster: "default"
 gRPC: "32767"
 hostVisibility: "process,file,network,capabilities"
+visibility: "process,file,network,capabilities"
 enableKubeArmorHostPolicy: true
 enableKubeArmorVm: false
 k8s: false
