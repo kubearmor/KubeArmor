@@ -567,8 +567,6 @@ func KubeArmor() {
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
 
-		dm.SetContainerNSVisibility()
-
 		// Check if cri socket set, if not then auto detect
 		if cfg.GlobalCfg.CRISocket == "" {
 			if kl.GetCRISocket("") == "" {
@@ -577,26 +575,39 @@ func KubeArmor() {
 			} else {
 				cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
 			}
-		}
-
-		// monitor containers
-		if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
-			// update already deployed containers
-			dm.GetAlreadyDeployedDockerContainers()
-			// monitor docker events
-			go dm.MonitorDockerEvents()
-		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
-			// monitor containerd events
-			go dm.MonitorContainerdEvents()
-		} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
-			// monitor crio events
-			go dm.MonitorCrioEvents()
 		} else {
-			dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
-			enableContainerPolicy = false
+			// CRI socket supplied by user, check for existence
+			criSocketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
+			_, err := os.Stat(criSocketPath)
+			if err != nil {
+				enableContainerPolicy = false
+				dm.Logger.Warnf("Error while looking for CRI socket file %s", err.Error())
+			}
 		}
 
-		dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
+		if enableContainerPolicy {
+			dm.SetContainerNSVisibility()
+
+			// monitor containers
+			if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
+				// update already deployed containers
+				dm.GetAlreadyDeployedDockerContainers()
+				// monitor docker events
+				go dm.MonitorDockerEvents()
+			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
+				// monitor containerd events
+				go dm.MonitorContainerdEvents()
+			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
+				// monitor crio events
+				go dm.MonitorCrioEvents()
+			} else {
+				enableContainerPolicy = false
+				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
+			}
+
+			dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
+		}
+
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
