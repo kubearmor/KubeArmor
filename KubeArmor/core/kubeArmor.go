@@ -799,6 +799,7 @@ func KubeArmor() {
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
 
 		dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+		dm.SetHealthStatus(pb.ProbeService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	}
 
 	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
