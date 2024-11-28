@@ -589,8 +589,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			} else if alert && !throttle {
 				log.Operation = "AlertThreshold"
 				log.Type = "SystemEvent"
-				log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-				log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
+				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 			}
 		}
 		pbAlert := pb.Alert{}
