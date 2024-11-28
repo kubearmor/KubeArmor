@@ -1067,6 +1067,12 @@ static __always_inline u32 init_context(sys_context_t *context)
 // To check if subsequent alerts should be dropped per container
 static __always_inline bool should_drop_alerts_per_container(sys_context_t *context, struct pt_regs *ctx, u32 types, args_t *args) {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(5, 2, 0)
+
+    // throttling for host in case of apparmor is handled in userspace
+    if (context->pid_id == 0 && context->mnt_id == 0) {
+        return false;
+    }
+
     u64 current_timestamp = bpf_ktime_get_ns();
 
     struct outer_key key = {
