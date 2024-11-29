@@ -32,6 +32,7 @@ spec:
         # initDeploy flag is only supported from v1.4.0
         args:
           - --initDeploy={{.Values.kubearmorOperator.initDeploy }}
+          - --loglevel={{.Values.kubearmorOperator.logLevel}}
         {{- end }}
 
       serviceAccountName: {{ .Values.kubearmorOperator.name }}

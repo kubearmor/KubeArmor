@@ -83,6 +83,7 @@ kubearmorController:
     repository: kubearmor/kubearmor-controller
     # kubearmor-controller image tag
     tag: latest
+  logLevel: info
   mutation:
     # kubearmor-controller failure policy
     failurePolicy: Ignore
