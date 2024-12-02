@@ -1299,7 +1299,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					break // break, so that once source is matched for a log it doesn't look for other cases
 				}
 				// match sources
-				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					matchedFlags := false
 
 					protocol := fetchProtocol(log.Resource)
@@ -1481,7 +1481,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					continue
 				}
 				// match sources
-				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					skip := false
 
 					for _, matchCapability := range strings.Split(secPolicy.Resource, ",") {
@@ -1741,20 +1741,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return tp.Log{}
 			}
 
-			// check for throttling for "Audit" alerts
-			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
-				nsKey := fd.ContainerNsKey[log.ContainerID]
-				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
-				if alert && throttle {
-					return tp.Log{}
-				} else if alert && !throttle {
-					log.Operation = "AlertThreshold"
-					log.Type = "SystemEvent"
-					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
-				}
-			}
-
 			return log
 		}
 	} else { // host
@@ -1782,20 +1768,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
-			}
-
-			// check for throttling for "Audit" alerts
-			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
-				nsKey := fd.ContainerNsKey[log.ContainerID]
-				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
-				if alert && throttle {
-					return tp.Log{}
-				} else if alert && !throttle {
-					log.Operation = "AlertThreshold"
-					log.Type = "SystemEvent"
-					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
-				}
 			}
 
 			return log

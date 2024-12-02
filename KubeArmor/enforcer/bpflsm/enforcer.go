@@ -375,8 +375,8 @@ func (be *BPFEnforcer) TraceEvents() {
 		case mon.DropAlert:
 			log.Operation = "AlertThreshold"
 			log.Type = "SystemEvent"
-			log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-			log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+			log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
+			log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 		}
 		// fallback logic if we don't receive source from BuildLogBase()
 		if log.Operation != "Process" && len(log.Source) == 0 {

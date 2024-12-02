@@ -56,10 +56,10 @@ type KubearmorConfig struct {
 
 	StateAgent bool // enable KubeArmor state agent
 
-	AlertThrottling   bool // Enable/Disable Alert Throttling
-	MaxAlertPerSec    int  // Maximum alerts allowed per second
-	ThrottleSec       int  // Number of seconds for which subsequent alerts will be dropped
-	AnnotateResources bool // enable annotations by kubearmor if kubearmor-controller is not present
+	AlertThrottling   bool  // Enable/Disable Alert Throttling
+	MaxAlertPerSec    int32 // Maximum alerts allowed per second
+	ThrottleSec       int32 // Number of seconds for which subsequent alerts will be dropped
+	AnnotateResources bool  // enable annotations by kubearmor if kubearmor-controller is not present
 
 	ProcFsMount string // path where procfs is hosted
 }
@@ -325,8 +325,8 @@ func LoadConfig() error {
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
-	GlobalCfg.MaxAlertPerSec = viper.GetInt(ConfigMaxAlertPerSec)
-	GlobalCfg.ThrottleSec = viper.GetInt(ConfigThrottleSec)
+	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
+	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
 
 	GlobalCfg.ProcFsMount = viper.GetString(ConfigProcFsMount)

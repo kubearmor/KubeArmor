@@ -517,8 +517,8 @@ func (mon *SystemMonitor) UpdateLogs() {
 			case DropAlert: // throttling alert
 				log.Operation = "AlertThreshold"
 				log.Type = "SystemEvent"
-				log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-				log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
+				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 
 			default:
 				continue

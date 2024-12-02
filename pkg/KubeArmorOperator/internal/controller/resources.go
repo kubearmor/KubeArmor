@@ -534,6 +534,22 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 
+	// update relay env vars
+	relayServer.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
+		{
+			Name:  "ENABLE_STDOUT_LOGS",
+			Value: common.KubearmorRelayEnvMap[common.EnableStdOutLogs],
+		},
+		{
+			Name:  "ENABLE_STDOUT_ALERTS",
+			Value: common.KubearmorRelayEnvMap[common.EnableStdOutAlerts],
+		},
+		{
+			Name:  "ENABLE_STDOUT_MSGS",
+			Value: common.KubearmorRelayEnvMap[common.EnableStdOutMsgs],
+		},
+	}
+
 	if common.EnableTls {
 		relayServer.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.KubeArmorRelayTlsVolumeMount...)
