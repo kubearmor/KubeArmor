@@ -579,6 +579,20 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 	// gRPC output
 	if log.Type == "MatchedPolicy" || log.Type == "MatchedHostPolicy" || log.Type == "SystemEvent" {
+
+		// checking throttling condition for "Audit" alerts when enforcer is 'eBPF Monitor'
+		if cfg.GlobalCfg.AlertThrottling && ((strings.Contains(log.Action, "Audit") && log.Enforcer == "eBPF Monitor") || (log.Type == "MatchedHostPolicy" && (log.Enforcer == "AppArmor" || log.Enforcer == "eBPF Monitor"))) {
+			nsKey := fd.ContainerNsKey[log.ContainerID]
+			alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
+			if alert && throttle {
+				return
+			} else if alert && !throttle {
+				log.Operation = "AlertThreshold"
+				log.Type = "SystemEvent"
+				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
+				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
+			}
+		}
 		pbAlert := pb.Alert{}
 
 		pbAlert.Timestamp = log.Timestamp

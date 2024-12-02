@@ -2740,16 +2740,18 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
 				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
-					cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+					maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
 					if err != nil {
 						dm.Logger.Warnf("Error: %s", err)
 					}
+					cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
 				}
-				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
-					cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				if _, ok := cm.Data[cfg.ConfigThrottleSec]; ok {
+					throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
 					if err != nil {
 						dm.Logger.Warnf("Error: %s", err)
 					}
+					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				}
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
@@ -2790,14 +2792,18 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
-				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+
+				maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
 				if err != nil {
 					dm.Logger.Warnf("Error: %s", err)
 				}
-				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
+
+				throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
 				if err != nil {
 					dm.Logger.Warnf("Error: %s", err)
 				}
+				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				dm.SystemMonitor.UpdateThrottlingConfig()
 			}
 		},
