@@ -2,6 +2,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-clusterrole
+  labels:
+    kubearmor-app: {{ .Values.kubearmorOperator.name }}
 rules:
 - apiGroups:
   - ""
