@@ -79,7 +79,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   {{template "file-section" . }}
 	## == DISPATCHER START == ##
   {{- range $source, $value:= $.FromSource}}
-				{{$source}} px -> {{$.Name}}-{{$source}},
+				{{$source}} px -> {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A-Z 0-9]" $source "" }},
   {{- end}}
 	{{- range $value, $data := .ProcessPaths}}
 		{{- $suffix := ""}}
@@ -146,7 +146,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 
 ## == FromSource per binary profiles START == ##
 {{- range $source, $value := $.FromSource}}
-profile {{$.Name}}-{{$source}} {
+profile {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A-Z 0-9]" $source "" }} {
 	{{$source}} rix,
 	{{template "pre-section" $value }}
   {{template "file-section" $value}}
