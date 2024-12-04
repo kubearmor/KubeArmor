@@ -114,11 +114,11 @@ profile apparmor-default flags=(attach_disconnected,mediate_deleted) {
 
 	existingProfiles := []string{}
 
-	if pids, err := os.ReadDir(filepath.Clean("/proc")); err == nil {
+	if pids, err := os.ReadDir(filepath.Clean(cfg.GlobalCfg.ProcFsMount)); err == nil {
 		for _, f := range pids {
 			if f.IsDir() {
 				if _, err := strconv.Atoi(f.Name()); err == nil {
-					if content, err := os.ReadFile(filepath.Clean("/proc/" + f.Name() + "/attr/current")); err == nil {
+					if content, err := os.ReadFile(filepath.Clean(cfg.GlobalCfg.ProcFsMount + "/" + f.Name() + "/attr/current")); err == nil {
 						line := strings.Split(string(content), "\n")[0]
 						words := strings.Split(line, " ")
 

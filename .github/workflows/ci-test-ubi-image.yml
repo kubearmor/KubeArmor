@@ -17,6 +17,7 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
+      - "examples/multiubuntu/build/**"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
 

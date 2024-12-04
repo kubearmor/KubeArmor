@@ -1,36 +1,28 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2024 Authors of KubeArmor
 
-FROM ubuntu:22.04 as builder
+FROM ubuntu:18.04 AS builder
 
-RUN apt-get update && apt install -y gcc python3 pipx python3-venv
+RUN apt-get update && apt install -y gcc
 COPY helloworld/ /helloworld/
 COPY readwrite/ /readwrite/
 
 RUN gcc -o hello /helloworld/hello.c
 RUN gcc -o readwriter /readwrite/readwrite.c
 
-RUN pipx install fee
-
-ENV PATH=$PATH:/root/.local/bin
-
-RUN fee /bin/ls > /ls.py
-
-
-FROM ubuntu:22.04
+FROM ubuntu:18.04
 
 RUN apt-get update
 
 RUN apt-get install -y net-tools iputils-ping telnet ssh tcpdump nmap dsniff arping
-RUN apt-get install -y curl iperf3 netperf ethtool python3 python3-scapy python3-flask pipx python3-venv
+RUN apt-get install -y curl iperf3 netperf ethtool python-scapy python-pip
 RUN apt-get install -y iptables bridge-utils apache2 vim
 
 RUN apt-get clean
 RUN apt-get autoremove -y
 RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
 
-
-RUN ln -s $(which python3) /usr/bin/python
+RUN pip install flask
 ADD flask/http_test.py /
 COPY entrypoint.sh /entrypoint.sh
 
@@ -47,6 +39,7 @@ RUN echo "key file" >> /credentials/keys/priv.key
 
 RUN useradd --create-home --shell /bin/bash user1
 RUN echo 'user1:passwd1' | chpasswd
+COPY --from=builder /hello /hello
 COPY --from=builder /hello /home/user1/hello
 RUN chown user1:user1 /home/user1/hello
 
@@ -61,9 +54,8 @@ RUN chown user1:user1 /home/user1/dir1/key1.txt
 RUN echo "other file" >> /home/user1/otherfile.txt
 RUN chown user1:user1 /home/user1/otherfile.txt
 
+COPY --from=builder /readwriter /readwrite
 COPY --from=builder /readwriter /home/user1/readwrite
-RUN chown user1:user1 /home/user1/readwrite
-
-COPY --from=builder /ls.py /ls.py
+RUN chown user1:user1 /home/user1/readwrite  
 
 CMD [ "/entrypoint.sh" ]
