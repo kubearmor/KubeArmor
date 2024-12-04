@@ -6,7 +6,6 @@ package deployments
 import (
 	"strconv"
 
-	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 )
 
 // GetServiceAccount Function
@@ -220,7 +221,7 @@ func GetRelayClusterRole() *rbacv1.ClusterRole {
 			{
 				APIGroups: []string{""},
 				Resources: []string{"pods"},
-				Verbs:     []string{"get", "list"},
+				Verbs:     []string{"list", "watch"},
 			},
 		},
 	}
@@ -263,6 +264,7 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 	var terminationGracePeriodSeconds = int64(60)
 	var args = []string{
 		"-gRPC=" + strconv.Itoa(int(port)),
+		"-procfsMount=/host/procfs",
 	}
 
 	var containerVolumeMounts = []corev1.VolumeMount{
@@ -380,7 +382,6 @@ func GenerateDaemonSet(env, namespace string) *appsv1.DaemonSet {
 							Operator: "Exists",
 						},
 					},
-					HostPID:       true,
 					HostNetwork:   true,
 					RestartPolicy: "Always",
 					DNSPolicy:     "ClusterFirstWithHostNet",
@@ -972,6 +973,9 @@ func GetKubearmorConfigMap(namespace, name string) *corev1.ConfigMap {
 	data[cfg.ConfigDefaultCapabilitiesPosture] = "audit"
 	data[cfg.ConfigDefaultNetworkPosture] = "audit"
 	data[cfg.ConfigDefaultPostureLogs] = "true"
+	data[cfg.ConfigAlertThrottling] = "true"
+	data[cfg.ConfigMaxAlertPerSec] = "10"
+	data[cfg.ConfigThrottleSec] = "30"
 
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

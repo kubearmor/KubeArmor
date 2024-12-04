@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2024 Authors of KubeArmor
+
+FROM ubuntu:18.04 AS builder
+
+RUN apt-get update && apt install -y gcc
+COPY helloworld/ /helloworld/
+COPY readwrite/ /readwrite/
+
+RUN gcc -o hello /helloworld/hello.c
+RUN gcc -o readwriter /readwrite/readwrite.c
 
 FROM ubuntu:18.04
 
@@ -30,7 +39,8 @@ RUN echo "key file" >> /credentials/keys/priv.key
 
 RUN useradd --create-home --shell /bin/bash user1
 RUN echo 'user1:passwd1' | chpasswd
-COPY hello /home/user1/hello
+COPY --from=builder /hello /hello
+COPY --from=builder /hello /home/user1/hello
 RUN chown user1:user1 /home/user1/hello
 
 RUN echo "secret file user1" >> /home/user1/secret_data1.txt
@@ -44,8 +54,8 @@ RUN chown user1:user1 /home/user1/dir1/key1.txt
 RUN echo "other file" >> /home/user1/otherfile.txt
 RUN chown user1:user1 /home/user1/otherfile.txt
 
-COPY readwriter /readwrite
-COPY readwriter /home/user1/readwrite
+COPY --from=builder /readwriter /readwrite
+COPY --from=builder /readwriter /home/user1/readwrite
 RUN chown user1:user1 /home/user1/readwrite  
 
 CMD [ "/entrypoint.sh" ]

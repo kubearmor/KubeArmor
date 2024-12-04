@@ -14,7 +14,7 @@ For information regarding the security of this project please join our [slack ch
 - You think you discovered a vulnerability in the dependency of KubeArmor. For those projects, please leverage their reporting policy.
 
 ### When you should not?
-- You need assistance in configuring KubeArmor for security - please discuss this is in the [slack channel](https://join.slack.com/t/kubearmor/shared_invite/zt-2bhlgoxw1-WTLMm_ica8PIhhNBNr2GfA).
+- You need assistance in configuring KubeArmor for security - please discuss this is in the [slack channel](https://cloud-native.slack.com/archives/C07EF44HWQM)
 - You need help applying security-related updates.
 - Your issue is not security-related.
 

@@ -5,6 +5,7 @@ package monitor
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -231,7 +232,7 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 
 	if readlink {
 		// just in case that it couldn't still get the full path
-		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(ctx.HostPPID), 10) + "/exe"); err == nil && data != "" && data != "/" {
+		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPPID), 10), "/exe")); err == nil && data != "" && data != "/" {
 			// // Store it in the ActiveHostPidMap so we don't need to read procfs again
 			// // We don't call BuildPidNode Here cause that will put this into a cyclic function call loop
 			// if pidMap, ok := ActiveHostPidMap[containerID]; ok {
@@ -276,7 +277,7 @@ func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, re
 
 	if readlink {
 		// just in case that it couldn't still get the full path
-		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(ctx.HostPID), 10) + "/exe"); err == nil && data != "" && data != "/" {
+		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPID), 10), "/exe")); err == nil && data != "" && data != "/" {
 			// // Store it in the ActiveHostPidMap so we don't need to read procfs again
 			// if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 			// 	if node, ok := pidMap[ctx.HostPID]; ok {
@@ -318,7 +319,7 @@ func (mon *SystemMonitor) GetCommand(containerID string, ctx SyscallContext, rea
 
 	if readlink {
 		// just in case that it couldn't still get the full path
-		if data, err := os.Readlink("/proc/" + strconv.FormatUint(uint64(ctx.HostPID), 10) + "/exe"); err == nil && data != "" && data != "/" {
+		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPID), 10), "/exe")); err == nil && data != "" && data != "/" {
 			return data
 		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())

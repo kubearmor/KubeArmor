@@ -75,7 +75,10 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   if (src_offset == NULL)
     fromSourceCheck = false;
 
-  void *src_ptr = &src_buf->buf[*src_offset];
+  void *src_ptr;
+  if (src_buf->buf[*src_offset]) {
+    src_ptr = &src_buf->buf[*src_offset];
+  }
   if (src_ptr == NULL)
     fromSourceCheck = false;
 
@@ -152,10 +155,9 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
     goto decision;
   }
 
-
   // match exec name
   struct qstr d_name;
-  d_name = BPF_CORE_READ(f_path.dentry,d_name);
+  d_name = BPF_CORE_READ(f_path.dentry, d_name);
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
 
@@ -428,9 +430,11 @@ int BPF_PROG(enforce_net_create, int family, int type, int protocol) {
 
 #define LSM_NET(name, ID)                                                      \
   int BPF_PROG(name, struct socket *sock) {                                    \
-    int type = sock->type;                                                     \
-    int protocol = sock->sk->sk_protocol;                                      \
-    return match_net_rules(type, protocol, ID);                                \
+    int sock_type = BPF_CORE_READ(sock, type);                                 \
+    struct sock *sk;                                                           \
+    sk = BPF_CORE_READ(sock, sk);                                              \
+    int protocol = BPF_CORE_READ(sk, sk_protocol);                             \
+    return match_net_rules(sock_type, protocol, ID);                           \
   }
 
 SEC("lsm/socket_connect")

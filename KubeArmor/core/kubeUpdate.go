@@ -351,7 +351,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				dm.Logger.UpdateSecurityPolicies(action, endpoint)
 				if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+					if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endpoint.NamespaceName) {
+						dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+					} else {
+						dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endpoint.NamespaceName)
+					}
 				}
 			}
 		}
@@ -531,7 +535,11 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 
 					if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endpoint.NamespaceName) {
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+						} else {
+							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endpoint.NamespaceName)
+						}
 					}
 				}
 			}
@@ -723,9 +731,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				// exception: kubearmor
-				if _, ok := pod.Labels["kubearmor-app"]; ok {
-					pod.Annotations["kubearmor-policy"] = "audited"
-				}
+				// if _, ok := pod.Labels["kubearmor-app"]; ok {
+				// 	pod.Annotations["kubearmor-policy"] = "audited"
+				// }
 
 				// == Visibility == //
 
@@ -1084,7 +1092,11 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					if dm.RuntimeEnforcer != nil {
 						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 							// enforce security policies
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							} else {
+								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+							}
 						}
 					}
 				}
@@ -1142,7 +1154,11 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					if dm.RuntimeEnforcer != nil {
 						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 							// enforce security policies
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							} else {
+								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+							}
 						}
 					}
 				}
@@ -2418,7 +2434,11 @@ func (dm *KubeArmorDaemon) UpdateDefaultPostureWithCM(endPoint *tp.EndPoint, act
 		if dm.RuntimeEnforcer != nil {
 			if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(*endPoint)
+				if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endPoint.NamespaceName) {
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(*endPoint)
+				} else {
+					dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
+				}
 			}
 		}
 	}
@@ -2480,7 +2500,12 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 				if dm.RuntimeEnforcer != nil {
 					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+						} else {
+							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+						}
+
 					}
 				}
 			}
@@ -2714,13 +2739,19 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
-				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
+				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
+					maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
+					if err != nil {
+						dm.Logger.Warnf("Error: %s", err)
+					}
+					cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
 				}
-				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
-				if err != nil {
-					dm.Logger.Warnf("Error: %s", err)
+				if _, ok := cm.Data[cfg.ConfigThrottleSec]; ok {
+					throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
+					if err != nil {
+						dm.Logger.Warnf("Error: %s", err)
+					}
+					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				}
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
@@ -2761,14 +2792,18 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
-				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+
+				maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
 				if err != nil {
 					dm.Logger.Warnf("Error: %s", err)
 				}
-				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
+
+				throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
 				if err != nil {
 					dm.Logger.Warnf("Error: %s", err)
 				}
+				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				dm.SystemMonitor.UpdateThrottlingConfig()
 			}
 		},

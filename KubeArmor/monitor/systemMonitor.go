@@ -286,6 +286,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 		if err := mon.BpfConfigMap.Update(uint32(3), uint32(1), cle.UpdateAny); err != nil {
 			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
 		}
+	} else {
+		if err := mon.BpfConfigMap.Update(uint32(3), uint32(0), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable alert throttling : %s", err.Error())
+		}
 	}
 	if err := mon.BpfConfigMap.Update(uint32(4), uint32(cfg.GlobalCfg.MaxAlertPerSec), cle.UpdateAny); err != nil {
 		mon.Logger.Errf("Error Updating System Monitor Config Map to set max alerts per sec : %s", err.Error())
@@ -293,6 +297,10 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 	if err := mon.BpfConfigMap.Update(uint32(5), uint32(cfg.GlobalCfg.ThrottleSec), cle.UpdateAny); err != nil {
 		mon.Logger.Errf("Error Updating System Monitor Config Map to set time interval for dropping subsequent alerts : %s", err.Error())
 	}
+	mon.Logger.Printf("Alert Throttling configured {alertThrottling:%v, maxAlertPerSec:%v, throttleSec:%v}",
+		cfg.GlobalCfg.AlertThrottling,
+		cfg.GlobalCfg.MaxAlertPerSec,
+		cfg.GlobalCfg.ThrottleSec)
 }
 
 // UpdateNsKeyMap Function
@@ -778,12 +786,17 @@ func (mon *SystemMonitor) TraceSyscall() {
 						nodeArgs = val
 					}
 
+					// generate a log with the base information
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+
+					// fallback logic: in case we get relative path as execPath then we join cwd + execPath to get pull path
+					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
+						execPath = filepath.Join(log.Cwd, execPath)
+					}
+
 					// build a pid node
 					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs)
 					mon.AddActivePid(containerID, pidNode)
-
-					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
 
 					// add arguments
 					log.Resource = execPath
@@ -833,12 +846,22 @@ func (mon *SystemMonitor) TraceSyscall() {
 				continue
 			} else if ctx.EventID == SysExecveAt {
 				if len(args) == 4 { // enter
-					// build a pid node
-					pidNode := mon.BuildPidNode(containerID, ctx, args[1].(string), args[2].([]string))
-					mon.AddActivePid(containerID, pidNode)
+					var execPath string
 
 					// generate a log with the base information
 					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+
+					if val, ok := args[1].(string); ok {
+						execPath = val // procExecPath
+					}
+					// fallback logic: in case we get relative path in execPath then we join cwd + execPath to get pull path
+					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
+						execPath = filepath.Join(log.Cwd, execPath)
+					}
+
+					// build a pid node
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, args[2].([]string))
+					mon.AddActivePid(containerID, pidNode)
 
 					fd := ""
 					procExecFlag := ""
@@ -847,9 +870,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					if val, ok := args[0].(int32); ok {
 						fd = strconv.Itoa(int(val))
 					}
-					if val, ok := args[1].(string); ok {
-						log.Resource = val // procExecPath
-					}
+					log.Resource = execPath
 					if val, ok := args[2].([]string); ok {
 						for idx, arg := range val { // procArgs
 							if idx == 0 {

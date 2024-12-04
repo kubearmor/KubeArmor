@@ -14,7 +14,7 @@ If the path in your process rule is not an absolute path but a symlink, policy e
 Policy enforcement on symbolic links like `/usr/bin/python` doesn't work and one has to specify the path of the actual executable that they link to.
 
 ### Checkout Platform Support
-Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.md) and if the platform is not listed there then raise a new issue or connect to kubearmor community of slack.
+Check `karmor probe` output and check whether `Container Security` is false. If it is false, the KubeArmor enforcement is not supported on that platform. You should check the [KubeArmor Support Matrix](support_matrix.md) and if the platform is not listed there then raise a new issue or connect to kubearmor community of [slack](https://cloud-native.slack.com/archives/C07EF44HWQM).
 
 ### Checkout Default Posture
 If you are applying an Allow-based policies and expecting unknown actions to be blocked, please make sure to check the [default security posture](default_posture.md). The default security posture is set to Audit by default since KubeArmor v0.7.

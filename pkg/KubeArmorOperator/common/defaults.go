@@ -119,6 +119,11 @@ var (
 	KubeArmorRelayServerSecretName string   = "kubearmor-relay-server-certs"
 	DefaultTlsCertPath             string   = "/var/lib/kubearmor/tls"
 	DefaultMode                    int32    = 420 // deciaml representation of octal value 644
+
+	// throttling
+	AlertThrottling       bool   = true
+	DefaultMaxAlertPerSec string = "10"
+	DefaultThrottleSec    string = "30"
 )
 
 var ConfigMapData = map[string]string{
@@ -129,7 +134,7 @@ var ConfigMapData = map[string]string{
 	ConfigDefaultNetworkPosture:      "audit",
 	ConfigVisibility:                 "process,network,capabilities",
 	ConfigDefaultPostureLogs:         "true",
-	ConfigAlertThrottling:            "false",
+	ConfigAlertThrottling:            "true",
 	ConfigMaxAlertPerSec:             "10",
 	ConfigThrottleSec:                "30",
 }
@@ -232,12 +237,26 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: "proc-fs-mount",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/proc",
+				Type: &HostPathDirectory,
+			},
+		},
+	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
 	{
 		Name:      "sys-kernel-debug-path",
 		MountPath: "/sys/kernel/debug",
+	},
+	{
+		Name:      "proc-fs-mount",
+		MountPath: "/host/procfs",
+		ReadOnly:  true,
 	},
 }
 

@@ -266,8 +266,9 @@ func (fd *Feeder) UpdateSecurityPolicies(action string, endPoint tp.EndPoint) {
 	name := endPoint.NamespaceName + "_" + endPoint.EndPointName
 
 	if action == "DELETED" {
-		delete(fd.SecurityPolicies, name)
-		return
+		if _, ok := fd.SecurityPolicies[name]; ok {
+			delete(fd.SecurityPolicies, name)
+		}
 	}
 
 	// ADDED | MODIFIED
@@ -934,9 +935,17 @@ func matchResources(secPolicy tp.MatchPolicy, log tp.Log) bool {
 		if secPolicy.ResourceType == "Path" && secPolicy.Resource == firstLogResource {
 			return true
 		}
+
+		// check if the log's resource directory starts with the policy's resource directory
 		if secPolicy.ResourceType == "Directory" && (strings.HasPrefix(firstLogResourceDir, secPolicy.Resource) &&
+			// for non-recursive rule - check if the directory depth of the log matches the policy resource's depth
 			((!secPolicy.Recursive && firstLogResourceDirCount == strings.Count(secPolicy.Resource, "/")) ||
-				(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) || (secPolicy.Resource == (log.Resource + "/")) {
+				// for recursive rule - check the log's directory is at the same or deeper level than the policy's resource
+				(secPolicy.Recursive && firstLogResourceDirCount >= strings.Count(secPolicy.Resource, "/")))) ||
+			// exact matching - check if the policy's resource is exactly the logged resource with a trailing slash
+			(secPolicy.Resource == (log.Resource + "/")) ||
+			// match if the policy is recursive and applies to the root directory
+			(secPolicy.Resource == "/" && secPolicy.Recursive) {
 			return true
 		}
 	}
@@ -1054,6 +1063,11 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					continue
 				}
 
+				// when one of the below rule is already matched for the log event, we will skip for further matches
+				if skip {
+					break // break, so that once source is matched for a log it doesn't look for other cases
+				}
+
 				// match sources
 				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
 					matchedRegex := false
@@ -1159,6 +1173,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 							log.Enforcer = "eBPF Monitor"
 							log.Action = secPolicy.Action
 
+							skip = true
 							continue
 						}
 
@@ -1190,6 +1205,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 							log.Action = secPolicy.Action
 
+							skip = true
 							continue
 						}
 
@@ -1283,7 +1299,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					break // break, so that once source is matched for a log it doesn't look for other cases
 				}
 				// match sources
-				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					matchedFlags := false
 
 					protocol := fetchProtocol(log.Resource)
@@ -1465,7 +1481,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					continue
 				}
 				// match sources
-				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (secPolicy.Source == log.ParentProcessName || secPolicy.Source == log.ProcessName)) {
+				if (!secPolicy.IsFromSource) || (secPolicy.IsFromSource && (strings.HasPrefix(log.Source, secPolicy.Source+" ") || secPolicy.Source == log.ProcessName)) {
 					skip := false
 
 					for _, matchCapability := range strings.Split(secPolicy.Resource, ",") {
@@ -1725,39 +1741,25 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				return tp.Log{}
 			}
 
-			// check for throttling for "Audit" alerts
-			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
-				nsKey := fd.ContainerNsKey[log.ContainerID]
-				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
-				if alert && throttle {
-					return tp.Log{}
-				} else if alert && !throttle {
-					log.Operation = "AlertThreshold"
-					log.Type = "SystemEvent"
-					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
-				}
-			}
-
 			return log
 		}
 	} else { // host
 		if log.Type == "" {
 			// host log
 			if log.Operation == "Process" {
-				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.ProcessVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.ProcessVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "File" {
-				if setLogFields(&log, existFileAllowPolicy, "allow", fd.Node.FileVisibilityEnabled, false) {
+				if setLogFields(&log, existFileAllowPolicy, cfg.GlobalCfg.DefaultFilePosture, fd.Node.FileVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Network" {
-				if setLogFields(&log, existNetworkAllowPolicy, "allow", fd.Node.NetworkVisibilityEnabled, false) {
+				if setLogFields(&log, existNetworkAllowPolicy, cfg.GlobalCfg.DefaultNetworkPosture, fd.Node.NetworkVisibilityEnabled, false) {
 					return log
 				}
 			} else if log.Operation == "Capabilities" {
-				if setLogFields(&log, existCapabilitiesAllowPolicy, "allow", fd.Node.CapabilitiesVisibilityEnabled, false) {
+				if setLogFields(&log, existCapabilitiesAllowPolicy, cfg.GlobalCfg.DefaultCapabilitiesPosture, fd.Node.CapabilitiesVisibilityEnabled, false) {
 					return log
 				}
 			}
@@ -1766,20 +1768,6 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 
 			if log.Action == "Allow" && log.Result == "Passed" {
 				return tp.Log{}
-			}
-
-			// check for throttling for "Audit" alerts
-			if cfg.GlobalCfg.AlertThrottling && strings.Contains(log.Action, "Audit") {
-				nsKey := fd.ContainerNsKey[log.ContainerID]
-				alert, throttle := fd.ShouldDropAlertsPerContainer(nsKey.PidNs, nsKey.MntNs)
-				if alert && throttle {
-					return tp.Log{}
-				} else if alert && !throttle {
-					log.Operation = "AlertThreshold"
-					log.Type = "SystemEvent"
-					log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-					log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
-				}
 			}
 
 			return log

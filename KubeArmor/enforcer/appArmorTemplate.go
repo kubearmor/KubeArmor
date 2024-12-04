@@ -79,7 +79,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   {{template "file-section" . }}
 	## == DISPATCHER START == ##
   {{- range $source, $value:= $.FromSource}}
-				{{$source}} px -> {{$.Name}}-{{$source}},
+				{{$source}} px -> {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A-Z 0-9]" $source "" }},
   {{- end}}
 	{{- range $value, $data := .ProcessPaths}}
 		{{- $suffix := ""}}
@@ -121,17 +121,16 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   
 	## == POST START == ##
 	/lib/x86_64-linux-gnu/{*,**} rm,
-	
+
+	{{ if not .Privileged }}
 	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
 	deny @{PROC}/sysrq-trigger rwklx,
 	deny @{PROC}/mem rwklx,
 	deny @{PROC}/kmem rwklx,
 	deny @{PROC}/kcore rwklx,
 
-	{{ if not .Privileged }}
 	deny mount,
-	{{end}}
-
+	
 	deny /sys/[^f]*/** wklx,
 	deny /sys/f[^s]*/** wklx,
 	deny /sys/fs/[^c]*/** wklx,
@@ -139,6 +138,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 	deny /sys/fs/cg[^r]*/** wklx,
 	deny /sys/firmware/efi/efivars/** rwklx,
 	deny /sys/kernel/security/** rwklx,
+	{{end}}
 
 	## == POST END == ##
 }
@@ -146,7 +146,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
 
 ## == FromSource per binary profiles START == ##
 {{- range $source, $value := $.FromSource}}
-profile {{$.Name}}-{{$source}} {
+profile {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A-Z 0-9]" $source "" }} {
 	{{$source}} rix,
 	{{template "pre-section" $value }}
   {{template "file-section" $value}}
@@ -287,24 +287,6 @@ profile {{$.Name}}-{{$source}} {
 {{ define "post-section"}}
 	## == POST START == ##
 	/lib/x86_64-linux-gnu/{*,**} rm,
-
-	deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
-	deny @{PROC}/sysrq-trigger rwklx,
-	deny @{PROC}/mem rwklx,
-	deny @{PROC}/kmem rwklx,
-	deny @{PROC}/kcore rwklx,
-
-	{{ if not .Privileged }}
-	deny mount,
-	{{end}}
-
-	deny /sys/[^f]*/** wklx,
-	deny /sys/f[^s]*/** wklx,
-	deny /sys/fs/[^c]*/** wklx,
-	deny /sys/fs/c[^g]*/** wklx,
-	deny /sys/fs/cg[^r]*/** wklx,
-	deny /sys/firmware/efi/efivars/** rwklx,
-	deny /sys/kernel/security/** rwklx,
 
 	## == POST END == ##
 {{- end -}}
