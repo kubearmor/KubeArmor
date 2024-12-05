@@ -35,7 +35,7 @@
         * Check audit logs
 
             ```text
-            $ karmor log --json
+            $ karmor logs --json
 
             Run the above command in other terminal to see logs live.
             To install karmor cli tool [refer](https://github.com/kubearmor/kubearmor-client).
