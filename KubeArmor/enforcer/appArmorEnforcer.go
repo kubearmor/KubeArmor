@@ -374,6 +374,7 @@ umount,
 signal,
 unix,
 ptrace,
+dbus,
 
 file,
 network,
