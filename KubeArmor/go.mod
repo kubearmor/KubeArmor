@@ -29,6 +29,7 @@ require (
 	github.com/cilium/ebpf v0.12.3
 	github.com/containerd/containerd/api v1.8.0
 	github.com/containerd/containerd/v2 v2.0.0
+	github.com/containerd/nri v0.8.0
 	github.com/containerd/typeurl/v2 v2.2.2
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/fsnotify/fsnotify v1.7.0
