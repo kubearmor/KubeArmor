@@ -307,6 +307,13 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 		endpoint := tp.EndPoint{}
 
 		dm.ContainersLock.Lock()
+
+		if len(dm.OwnerInfo) > 0 {
+			if podOwnerInfo, ok := dm.OwnerInfo[container.EndPointName]; ok {
+				container.Owner = podOwnerInfo
+			}
+		}
+
 		if _, ok := dm.Containers[container.ContainerID]; !ok {
 			dm.Containers[container.ContainerID] = container
 			dm.ContainersLock.Unlock()
