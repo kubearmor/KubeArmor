@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"flag"
@@ -283,9 +284,12 @@ func LoadConfig() error {
 		return fmt.Errorf("CRI socket must start with 'unix://' (%s is invalid)", GlobalCfg.CRISocket)
 	}
 
-	GlobalCfg.NRISocket = os.Getenv("NRI_SOCKET")
+	socket := strings.ReplaceAll(os.Getenv("NRI_SOCKET"), "\"", "")
+	GlobalCfg.NRISocket = filepath.Clean(socket)
+
 	if GlobalCfg.NRISocket == "" {
-		GlobalCfg.NRISocket = viper.GetString(ConfigNRISocket)
+		socket := strings.ReplaceAll(viper.GetString(ConfigNRISocket), "\"", "")
+		GlobalCfg.NRISocket = filepath.Clean(socket)
 	}
 
 	GlobalCfg.NRIIndex = viper.GetString(ConfigNRIIndex)
