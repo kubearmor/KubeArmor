@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/stub"
@@ -254,15 +256,16 @@ func nriToKubeArmorContainer(nriContainer *api.Container) tp.Container {
 
 	// Read PID and mount namespaces from container root PID
 	if nriContainer.Pid != 0 {
-		nsPath := fmt.Sprintf("/proc/%d/ns", nriContainer.Pid)
+		pid := strconv.Itoa(int(nriContainer.Pid))
 
-		if data, err := os.Readlink(nsPath + "/pid"); err == nil {
+		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
+			// if data, err := os.Readlink(nsPath + "/pid"); err == nil {
 			if _, err := fmt.Sscanf(data, "pid:[%d]", &container.PidNS); err != nil {
 				kg.Warnf("Unable to get PidNS (%s, %s, %s)", nriContainer.Id, nriContainer.Pid, err.Error())
 			}
 		}
 
-		if data, err := os.Readlink(nsPath + "/mnt"); err == nil {
+		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
 			if _, err := fmt.Sscanf(data, "mnt:[%d]", &container.MntNS); err != nil {
 				kg.Warnf("Unable to get MntNS (%s, %s, %s)", nriContainer.Id, nriContainer.Pid, err.Error())
 			}
