@@ -304,6 +304,8 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 	}
 
 	handleNewContainer := func(container tp.Container) {
+		endpoint := tp.EndPoint{}
+
 		dm.ContainersLock.Lock()
 		if _, ok := dm.Containers[container.ContainerID]; !ok {
 			dm.Containers[container.ContainerID] = container
@@ -333,9 +335,11 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 			for idx, endPoint := range dm.EndPoints {
 				if endPoint.NamespaceName == container.NamespaceName && endPoint.EndPointName == container.EndPointName && kl.ContainsElement(endPoint.Containers, container.ContainerID) {
 					// update containers
-					if !kl.ContainsElement(endPoint.Containers, container.ContainerID) {
+					if !kl.ContainsElement(endPoint.Containers, container.ContainerID) { // does not make sense but need to verify
 						dm.EndPoints[idx].Containers = append(dm.EndPoints[idx].Containers, container.ContainerID)
 					}
+
+					endpoint = dm.EndPoints[idx]
 
 					break
 				}
@@ -350,6 +354,14 @@ func (dm *KubeArmorDaemon) MonitorNRIEvents() {
 			// update NsMap
 			dm.SystemMonitor.AddContainerIDToNsMap(container.ContainerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(container.ContainerID, container.PidNS, container.MntNS)
+
+			if len(endpoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endpoint yet
+				dm.Logger.UpdateSecurityPolicies("ADDED", endpoint)
+				if dm.RuntimeEnforcer != nil && endpoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(endpoint)
+				}
+			}
 		}
 
 		if !dm.K8sEnabled {
