@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -2271,6 +2272,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		new := true
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if reflect.DeepEqual(policy, secPolicy) {
+					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.HostSecurityPoliciesLock.Unlock()
+					return pb.PolicyStatus_Applied
+				}
+
 				dm.HostSecurityPolicies[idx] = secPolicy
 				event.Type = "MODIFIED"
 				new = false
@@ -2283,6 +2290,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	} else if event.Type == "MODIFIED" {
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if reflect.DeepEqual(policy, secPolicy) {
+					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.HostSecurityPoliciesLock.Unlock()
+					return pb.PolicyStatus_Applied
+				}
+
 				dm.HostSecurityPolicies[idx] = secPolicy
 				break
 			}
