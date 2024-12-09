@@ -74,10 +74,11 @@ var _ = Describe("Posture", func() {
 				MatchRegexp("curl.*Could not resolve host: google.com"), true,
 			)
 
-			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", out)
-			Expect(out).To(MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "curl 142.250.193.46"},
+				MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"),
+				false)
+
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
@@ -101,16 +102,17 @@ var _ = Describe("Posture", func() {
 			Expect(err).To(BeNil())
 
 			//curl needs UDP for DNS resolution
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat wp-config.php"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp("cat.*Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat wp-config.php"},
+				MatchRegexp("cat.*Permission denied"),
+				false)
 
 			//test that tcp is whitelisted
-			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "cat readme.html"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", out)
-			Expect(out).To(MatchRegexp("<!DOCTYPE html>((?:.*\r?\n?)*)</html>"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat readme.html"},
+				MatchRegexp("<!DOCTYPE html>((?:.*\r?\n?)*)</html>"),
+				false)
+
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
