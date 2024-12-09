@@ -13,7 +13,18 @@ spec:
     metadata:
       labels:
         kubearmor-app: {{ .Values.kubearmorOperator.name }}
+      {{- with .Values.kubearmorOperator.podLabels }}
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kubearmorOperator.podAnnotations }}
+      annotations:
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
     spec:
+      {{- with .Values.kubearmorOperator.podSecurityContext }}
+      securityContext:
+            {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: {{ .Values.kubearmorOperator.name }}
         env:
@@ -32,6 +43,14 @@ spec:
         # initDeploy flag is only supported from v1.4.0
         args:
           - --initDeploy={{.Values.kubearmorOperator.initDeploy }}
+        {{- end }}
+        {{- with .Values.kubearmorOperator.securityContext }}
+        securityContext:
+              {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.kubearmorOperator.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
 
       serviceAccountName: {{ .Values.kubearmorOperator.name }}

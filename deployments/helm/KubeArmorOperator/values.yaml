@@ -38,6 +38,12 @@ kubearmorOperator:
   imagePullPolicy: IfNotPresent
   initDeploy: true
 
+  resources: {}
+  podLabels: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+
 kubearmorConfig:
   defaultCapabilitiesPosture: audit
   defaultFilePosture: audit
