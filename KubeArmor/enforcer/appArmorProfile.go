@@ -231,6 +231,11 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 	//forcing the protocol to lowercase
 	proto.Protocol = strings.ToLower(proto.Protocol)
 
+	// handle icmpv6 protocol same as icmp
+	if proto.Protocol == "icmpv6" {
+		proto.Protocol = "icmp"
+	}
+
 	if !deny {
 		prof.Network = head
 	}
@@ -238,7 +243,9 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 	rule.Deny = deny
 	rule.Allow = !deny
 	if len(proto.FromSource) == 0 {
-		addRuletoMap(rule, proto.Protocol, prof.NetworkRules)
+		if proto.Protocol != "all" {
+			addRuletoMap(rule, proto.Protocol, prof.NetworkRules)
+		}
 		return
 	}
 
@@ -260,7 +267,9 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 				prof.FromSource[source] = val
 			}
 		}
-		addRuletoMap(rule, proto.Protocol, prof.FromSource[source].NetworkRules)
+		if proto.Protocol != "all" {
+			addRuletoMap(rule, proto.Protocol, prof.FromSource[source].NetworkRules)
+		}
 	}
 }
 
@@ -382,9 +391,9 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
 			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
 				if proto.Action == "Allow" {
-					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
+					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block" || proto.Protocol == "all")
 				} else if proto.Action == "Block" {
-					ae.SetNetworkMatchProtocols(proto, &profile, true, true)
+					ae.SetNetworkMatchProtocols(proto, &profile, true, true && proto.Protocol != "all")
 				}
 			}
 		}
