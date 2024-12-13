@@ -18,22 +18,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    kubearmor-app: {{ .Values.kubearmorController.name }}
-  name: {{ .Values.kubearmorController.name }}-metrics-service
-  namespace: {{.Release.Namespace}}
-spec:
-  ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: https
-  selector:
-    kubearmor-app: {{ .Values.kubearmorController.name }}
----
-apiVersion: v1
-kind: Service
-metadata:
   name: {{ .Values.kubearmorController.name }}-webhook-service
   namespace: {{.Release.Namespace}}
 spec:
