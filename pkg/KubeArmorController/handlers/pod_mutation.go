@@ -19,7 +19,7 @@ import (
 // PodAnnotator Structure
 type PodAnnotator struct {
 	Client  client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 	Logger  logr.Logger
 	Cluster *types.Cluster
 }

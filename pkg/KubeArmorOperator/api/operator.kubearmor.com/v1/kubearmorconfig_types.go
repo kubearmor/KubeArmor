@@ -83,6 +83,8 @@ type KubeArmorConfigSpec struct {
 	// +kubebuilder:validation:optional
 	KubeArmorControllerImage ImageSpec `json:"kubearmorControllerImage,omitempty"`
 	// +kubebuilder:validation:optional
+	// +kubebuilder:deprecatedversion:warning="kube-rbac-proxy has been deprecated with controller authz"
+	// Deprecated: This type would be removed in one of the upcoming releases.
 	KubeRbacProxyImage ImageSpec `json:"kubeRbacProxyImage,omitempty"`
 	// +kubebuilder:validation:optional
 	Tls Tls `json:"tls,omitempty"`

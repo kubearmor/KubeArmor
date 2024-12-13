@@ -434,8 +434,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 					if container.Name == "manager" {
 						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
-					} else {
-						(*containers)[i].Image = common.GetApplicationImage(common.KubeRbacProxyName)
 					}
 				}
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
@@ -626,11 +624,6 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 	if UpdateIfDefinedAndUpdated(&common.KubeArmorControllerImage, config.KubeArmorControllerImage.Image) ||
 		UpdateIfDefinedAndUpdated(&common.KubeArmorControllerImagePullPolicy, config.KubeArmorControllerImage.ImagePullPolicy) {
 		updatedImages = append(updatedImages, "controller")
-	}
-	// if kube-rbac-proxy image or imagePullPolicy got updated
-	if UpdateIfDefinedAndUpdated(&common.KubeRbacProxyImage, config.KubeRbacProxyImage.Image) ||
-		UpdateIfDefinedAndUpdated(&common.KubeRbacProxyImagePullPolicy, config.KubeRbacProxyImage.ImagePullPolicy) {
-		updatedImages = append(updatedImages, "rbac")
 	}
 	return updatedImages
 }

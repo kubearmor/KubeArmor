@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- security_v1_kubearmorpolicy.yaml
+- security_v1_kubearmorhostpolicy.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
