@@ -86,6 +86,8 @@ var (
 	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
 	ConfigThrottleSec                string = "throttleSec"
 
+	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
+	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
 	//KubearmorRelayEnvVariables
 
 	EnableStdOutAlerts string = "enableStdOutAlerts"
@@ -93,23 +95,40 @@ var (
 	EnableStdOutMsgs   string = "enableStdOutMsgs"
 
 	// Images
-	KubeArmorName                      string = "kubearmor"
-	KubeArmorImage                     string = "kubearmor/kubearmor:stable"
-	KubeArmorImagePullPolicy           string = "Always"
-	KubeArmorInitName                  string = "kubearmor-init"
-	KubeArmorInitImage                 string = "kubearmor/kubearmor-init:stable"
-	KubeArmorInitImagePullPolicy       string = "Always"
-	KubeArmorRelayName                 string = "kubearmor-relay"
-	KubeArmorRelayImage                string = "kubearmor/kubearmor-relay-server:latest"
-	KubeArmorRelayImagePullPolicy      string = "Always"
-	KubeArmorControllerName            string = "kubearmor-controller"
-	KubeArmorControllerImage           string = "kubearmor/kubearmor-controller:latest"
-	KubeArmorControllerImagePullPolicy string = "Always"
-	KubeRbacProxyName                  string = "kube-rbac-proxy"
-	KubeRbacProxyImage                 string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0"
-	KubeRbacProxyImagePullPolicy       string = "Always"
-	SeccompProfile                            = "kubearmor-seccomp.json"
-	SeccompInitProfile                        = "kubearmor-init-seccomp.json"
+	KubeArmorName             string                        = "kubearmor"
+	KubeArmorArgs             []string                      = []string{}
+	KubeArmorImage            string                        = "kubearmor/kubearmor:stable"
+	KubeArmorImagePullPolicy  string                        = "Always"
+	KubeArmorImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
+	KubeArmorTolerations      []corev1.Toleration           = []corev1.Toleration{}
+
+	KubeArmorInitName             string                        = "kubearmor-init"
+	KubeArmorInitArgs             []string                      = []string{}
+	KubeArmorInitImage            string                        = "kubearmor/kubearmor-init:stable"
+	KubeArmorInitImagePullPolicy  string                        = "Always"
+	KubeArmorInitImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
+	KubeArmorInitTolerations      []corev1.Toleration           = []corev1.Toleration{}
+
+	KubeArmorRelayName             string                        = "kubearmor-relay"
+	KubeArmorRelayArgs             []string                      = []string{}
+	KubeArmorRelayImage            string                        = "kubearmor/kubearmor-relay-server:latest"
+	KubeArmorRelayImagePullPolicy  string                        = "Always"
+	KubeArmorRelayImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
+	KubeArmorRelayTolerations      []corev1.Toleration           = []corev1.Toleration{}
+
+	KubeArmorControllerName             string                        = "kubearmor-controller"
+	KubeArmorControllerArgs             []string                      = []string{}
+	KubeArmorControllerImage            string                        = "kubearmor/kubearmor-controller:latest"
+	KubeArmorControllerImagePullPolicy  string                        = "Always"
+	KubeArmorControllerImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
+	KubeArmorControllerTolerations      []corev1.Toleration           = []corev1.Toleration{}
+
+	KubeRbacProxyName            string = "kube-rbac-proxy"
+	KubeRbacProxyImage           string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0"
+	KubeRbacProxyImagePullPolicy string = "Always"
+
+	SeccompProfile     = "kubearmor-seccomp.json"
+	SeccompInitProfile = "kubearmor-init-seccomp.json"
 
 	// tls
 	EnableTls                      bool     = false
