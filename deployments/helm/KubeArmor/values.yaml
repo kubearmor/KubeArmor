@@ -20,6 +20,7 @@ kubearmorRelay:
     imagePullSecrets: ""
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
+  tolerations: ""
 
   # Add environment variables for STDOUT logging
   enableStdoutLogs: "false"
@@ -92,6 +93,7 @@ kubearmorController:
     tag: latest
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
     imagePullSecrets: ""
+  tolerations: ""  
   mutation:
     # kubearmor-controller failure policy
     failurePolicy: Ignore
@@ -109,6 +111,8 @@ kubearmorConfigMap:
 
 #volume mounts and volumes
 kubearmor:
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  tolerations: ""
   image:
     # kubearmor daemonset image repo
     repository: kubearmor/kubearmor
