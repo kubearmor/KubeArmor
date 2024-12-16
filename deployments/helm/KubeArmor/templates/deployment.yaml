@@ -22,6 +22,10 @@ spec:
       imagePullSecrets:
       {{ toYaml .Values.kubearmorRelay.image.imagePullSecrets | indent 6 }}
       {{- end }}
+      {{- if .Values.kubearmorRelay.tolerations }}
+      tolerations:
+      {{ toYaml .Values.kubearmorRelay.tolerations | indent 6 }}
+      {{- end }}
       containers:
       - args:
         {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
@@ -85,6 +89,10 @@ spec:
       {{- if .Values.kubearmorController.image.imagePullSecrets }}
         imagePullSecrets:
       {{ toYaml .Values.kubearmorController.image.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.kubearmorController.tolerations }}
+      tolerations:
+      {{ toYaml .Values.kubearmorController.tolerations | indent 6 }}
       {{- end }}
         livenessProbe:
           httpGet:

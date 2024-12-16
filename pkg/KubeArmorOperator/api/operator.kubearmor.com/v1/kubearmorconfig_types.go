@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2023 Authors of KubeArmor
 
+// +kubebuilder:validation:optional
 package v1
 
 import (
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -13,21 +15,26 @@ import (
 
 // ImageSpec defines the image specifications
 type ImageSpec struct {
-	// +kubebuilder:validation:optional
+	Args []string `json:"args,omitempty"`
+
 	Image string `json:"image,omitempty"`
-	// +kubebuilder:validation:optional
+
 	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
 	// +kubebuilder:default:=Always
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 type Tls struct {
-	// +kubebuilder:validation:optional
+
 	// +kubebuilder:default:=false
 	Enable bool `json:"enable,omitempty"`
-	// +kubebuilder:validation:optional
+
 	RelayExtraDnsNames []string `json:"extraDnsNames,omitempty"`
-	// +kubebuilder:validation:optional
+
 	RelayExtraIpAddresses []string `json:"extraIpAddresses,omitempty"`
 }
 
@@ -64,45 +71,48 @@ type KubeArmorConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// +kubebuilder:validation:optional
 	RecommendedPolicies RecommendedPolicies `json:"recommendedPolicies,omitempty"`
-	// +kubebuilder:validation:optional
+
 	DefaultFilePosture PostureType `json:"defaultFilePosture,omitempty"`
-	// +kubebuilder:validation:optional
+
 	DefaultCapabilitiesPosture PostureType `json:"defaultCapabilitiesPosture,omitempty"`
-	// +kubebuilder:validation:optional
+
 	DefaultNetworkPosture PostureType `json:"defaultNetworkPosture,omitempty"`
-	// +kubebuilder:validation:optional
+
 	DefaultVisibility string `json:"defaultVisibility,omitempty"`
-	// +kubebuilder:validation:optional
+
+	GloabalImagePullSecrets []corev1.LocalObjectReference `json:"globalImagePullSecrets,omitempty"`
+
+	GlobalTolerations []corev1.Toleration `json:"globalTolerations,omitempty"`
+
 	KubeArmorImage ImageSpec `json:"kubearmorImage,omitempty"`
-	// +kubebuilder:validation:optional
+
 	KubeArmorInitImage ImageSpec `json:"kubearmorInitImage,omitempty"`
-	// +kubebuilder:validation:optional
+
 	KubeArmorRelayImage ImageSpec `json:"kubearmorRelayImage,omitempty"`
-	// +kubebuilder:validation:optional
+
 	KubeArmorControllerImage ImageSpec `json:"kubearmorControllerImage,omitempty"`
-	// +kubebuilder:validation:optional
+
 	// +kubebuilder:deprecatedversion:warning="kube-rbac-proxy has been deprecated with controller authz"
 	// Deprecated: This type would be removed in one of the upcoming releases.
 	KubeRbacProxyImage ImageSpec `json:"kubeRbacProxyImage,omitempty"`
-	// +kubebuilder:validation:optional
+
 	Tls Tls `json:"tls,omitempty"`
-	// +kubebuilder:validation:optional
+
 	EnableStdOutLogs bool `json:"enableStdOutLogs,omitempty"`
-	// +kubebuilder:validation:optional
+
 	EnableStdOutAlerts bool `json:"enableStdOutAlerts,omitempty"`
-	// +kubebuilder:validation:optional
+
 	EnableStdOutMsgs bool `json:"enableStdOutMsgs,omitempty"`
-	// +kubebuilder:validation:Optional
+
 	SeccompEnabled bool `json:"seccompEnabled,omitempty"`
-	// +kubebuilder:validation:Optional
+
 	AlertThrottling bool `json:"alertThrottling,omitempty"`
-	// +kubebuilder:validation:Optional
+
 	MaxAlertPerSec int `json:"maxAlertPerSec,omitempty"`
-	// +kubebuilder:validation:Optional
+
 	ThrottleSec int `json:"throttleSec,omitempty"`
-	// +kubebuilder:validation:Optional
+
 	Adapters Adapters `json:"adapters,omitempty"`
 }
 
@@ -110,9 +120,9 @@ type KubeArmorConfigSpec struct {
 type KubeArmorConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	// +kubebuilder:validation:optional
+
 	Phase string `json:"phase,omitempty"`
-	// +kubebuilder:validation:optional
+
 	Message string `json:"message,omitempty"`
 }
 
