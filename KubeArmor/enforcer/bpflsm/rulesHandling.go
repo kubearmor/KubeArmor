@@ -130,7 +130,6 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				val[PROCESS] = val[PROCESS] | ARGSET
 			}
 			if len(path.FromSource) == 0 {
-
 				if len(path.ExecName) > 0 {
 					copy(key.Path[:], []byte(path.ExecName))
 				} else {
