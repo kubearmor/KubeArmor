@@ -440,32 +440,37 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorHostProfile() bool {
 		return true
 	}
 
+	ae.Logger.Printf("Unregistering the KubeArmor host profile from %s", cfg.GlobalCfg.Host)
+
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
-	if err := ae.CreateAppArmorHostProfile(); err != nil {
-		ae.Logger.Warnf("Unable to reset the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+	if err := kl.RunCommandAndWaitWithErr("aa-remove-unknown", []string{}); err != nil {
+		ae.Logger.Warnf("Unable to cleanup the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+
+		if err := ae.CreateAppArmorHostProfile(); err != nil {
+			ae.Logger.Warnf("Unable to reset the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+
+			if err := os.Remove(appArmorHostFile); err != nil {
+				ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
+			}
+
+			return false
+		}
+
+		if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "-C", appArmorHostFile}); err != nil {
+			ae.Logger.Warnf("Unable to reset the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
+
+			if err := os.Remove(appArmorHostFile); err != nil {
+				ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
+			}
+
+		}
 
 		if err := os.Remove(appArmorHostFile); err != nil {
 			ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
+			return false
 		}
-
-		return false
-	}
-
-	if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "-C", appArmorHostFile}); err != nil {
-		ae.Logger.Warnf("Unable to reset the KubeArmor host profile in %s", cfg.GlobalCfg.Host)
-
-		if err := os.Remove(appArmorHostFile); err != nil {
-			ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
-		}
-
-		return false
-	}
-
-	if err := os.Remove(appArmorHostFile); err != nil {
-		ae.Logger.Warnf("Unable to remove the KubeArmor host profile from %s (%s)", cfg.GlobalCfg.Host, err.Error())
-		return false
 	}
 
 	ae.Logger.Printf("Unregistered the KubeArmor host profile from %s", cfg.GlobalCfg.Host)
