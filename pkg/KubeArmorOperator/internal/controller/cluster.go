@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -790,68 +791,62 @@ func (clusterWatcher *ClusterWatcher) UpdateTlsConfigurations(tlsEnabled bool) e
 }
 
 func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
-	switch common.RecommendedPolicies.Enable {
-	case true:
-		policies, err := recommend.CRDFs.ReadDir(".")
-		if err != nil {
-			clusterWatcher.Log.Warnf("error reading policies FS", err)
-			return err
-		}
-		for _, policy := range policies {
-			if !policy.IsDir() {
-				yamlBytes, err := recommend.CRDFs.ReadFile(policy.Name())
-				if err != nil {
-					clusterWatcher.Log.Warnf("error reading csp", policy.Name())
-					continue
-				}
-				csp := &secv1.KubeArmorClusterPolicy{}
-				if err := runtime.DecodeInto(scheme.Codecs.UniversalDeserializer(), yamlBytes, csp); err != nil {
-					clusterWatcher.Log.Warnf("error decoding csp", policy.Name())
-					continue
-				}
-				csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
-				_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
-				if err != nil && !metav1errors.IsAlreadyExists(err) {
-					clusterWatcher.Log.Warnf("error creating csp", csp.GetName())
-					continue
-				} else if metav1errors.IsAlreadyExists(err) {
-					pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
-					if err != nil {
-						clusterWatcher.Log.Warnf("error getting csp", csp.GetName())
-						continue
-					}
-					if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
-						pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
-						_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
-						if err != nil {
-							clusterWatcher.Log.Warnf("error updating csp", csp.GetName())
-							continue
-						} else {
-							clusterWatcher.Log.Info("updated csp", csp.GetName())
-						}
-					}
-				} else {
-					clusterWatcher.Log.Info("created csp", csp.GetName())
-				}
-			}
-		}
-	case false:
-		policies, err := recommend.CRDFs.ReadDir(".")
-		if err != nil {
-			clusterWatcher.Log.Warnf("error reading policies FS", err)
-			return err
-		}
-		for _, policy := range policies {
-			yamlBytes, err := recommend.CRDFs.ReadFile(policy.Name())
+	var yamlBytes []byte
+	policies, err := recommend.CRDFs.ReadDir(".")
+	if err != nil {
+		clusterWatcher.Log.Warnf("error reading policies FS", err)
+		return err
+	}
+	for _, policy := range policies {
+		csp := &secv1.KubeArmorClusterPolicy{}
+		if !policy.IsDir() {
+			yamlBytes, err = recommend.CRDFs.ReadFile(policy.Name())
 			if err != nil {
 				clusterWatcher.Log.Warnf("error reading csp", policy.Name())
 				continue
 			}
-			csp := &secv1.KubeArmorClusterPolicy{}
 			if err := runtime.DecodeInto(scheme.Codecs.UniversalDeserializer(), yamlBytes, csp); err != nil {
 				clusterWatcher.Log.Warnf("error decoding csp", policy.Name())
 				continue
 			}
+		}
+		switch common.RecommendedPolicies.Enable {
+		case true:
+			if slices.Contains(common.RecommendedPolicies.ExcludePolicy, csp.Name) {
+				clusterWatcher.Log.Infof("excluding csp ", csp.Name)
+				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
+				if err != nil && !metav1errors.IsNotFound(err) {
+					clusterWatcher.Log.Warnf("error deleting csp", csp.GetName())
+				} else if err == nil {
+					clusterWatcher.Log.Infof("deleted csp", csp.GetName())
+				}
+				continue
+			}
+			csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+			_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
+			if err != nil && !metav1errors.IsAlreadyExists(err) {
+				clusterWatcher.Log.Warnf("error creating csp", csp.GetName())
+				continue
+			} else if metav1errors.IsAlreadyExists(err) {
+				pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
+				if err != nil {
+					clusterWatcher.Log.Warnf("error getting csp", csp.GetName())
+					continue
+				}
+				if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+					pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+					_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
+					if err != nil {
+						clusterWatcher.Log.Warnf("error updating csp", csp.GetName())
+						continue
+					} else {
+						clusterWatcher.Log.Info("updated csp", csp.GetName())
+					}
+				}
+			} else {
+				clusterWatcher.Log.Info("created csp", csp.GetName())
+			}
+		case false:
 			if !policy.IsDir() {
 				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
 				if err != nil && !metav1errors.IsNotFound(err) {
@@ -873,11 +868,13 @@ func UpdateRecommendedPolicyConfig(config *opv1.KubeArmorConfigSpec) bool {
 		common.RecommendedPolicies.Enable = config.RecommendedPolicies.Enable
 		updated = true
 	}
-	if len(config.RecommendedPolicies.MatchExpressions) > 0 {
-		if reflect.DeepEqual(config.RecommendedPolicies.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
-			common.RecommendedPolicies.MatchExpressions = config.RecommendedPolicies.MatchExpressions
-			updated = true
-		}
+	if !reflect.DeepEqual(config.RecommendedPolicies.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+		common.RecommendedPolicies.MatchExpressions = slices.Clone(config.RecommendedPolicies.MatchExpressions)
+		updated = true
+	}
+	if !reflect.DeepEqual(config.RecommendedPolicies.ExcludePolicy, common.RecommendedPolicies.ExcludePolicy) {
+		common.RecommendedPolicies.ExcludePolicy = slices.Clone(config.RecommendedPolicies.ExcludePolicy)
+		updated = true
 	}
 	return updated
 }
