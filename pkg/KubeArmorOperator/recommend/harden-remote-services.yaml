@@ -1,0 +1,29 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-remote-services
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /etc/ssh/
+    matchPaths:
+    - path: /etc/passwd
+    - path: /etc/shadow
+    - path: /var/log/auth.log
+    - path: /var/log/wtmp
+    - path: /var/run/utmp
+  message: Warning! access sensitive files detected
+  selector:
+    matchExpressions:
+  severity: 3
+  tags:
+  - 5G
+  - FGT1021
+  - FIGHT
+  - MITRE
+  - MITRE_T1021_Remote_Services
+

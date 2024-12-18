@@ -6,6 +6,7 @@ package k8s
 import (
 	"os"
 
+	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	"go.uber.org/zap"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -106,6 +107,43 @@ func NewOpv1Client(log zap.SugaredLogger, kubeconfig string) *opv1client.Clients
 	}
 
 	client, err := opv1client.NewForConfig(cfg)
+	if err != nil {
+		log.Errorf("Couldn't create operatorv1 clientset Error=%s", err.Error())
+		os.Exit(1)
+	}
+
+	if client == nil {
+		log.Warn("opv1client is nil")
+	}
+
+	return client
+}
+
+func NewSecv1Client(log zap.SugaredLogger, kubeconfig string) *secv1client.Clientset {
+	var cfg *rest.Config
+	log.Info("Trying to load InCluster configuration")
+	inClusterConfig, err := rest.InClusterConfig()
+	if err == rest.ErrNotInCluster {
+		log.Info("Not inside a k8s Cluster, Loading kubeconfig")
+		kubeConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
+			&clientcmd.ConfigOverrides{}).ClientConfig()
+		if err != nil {
+			log.Errorf("Couldn't load configuration from kubeconfig Error=%s", err.Error())
+			os.Exit(1)
+		}
+		log.Info("Loaded configuration from kubeconfig")
+		cfg = kubeConfig
+	} else if err != nil {
+		log.Errorf("Couldn't load inCluster configuration Error=%s", err.Error())
+		os.Exit(1)
+
+	} else {
+		log.Info("Loaded InCluster configuration")
+		cfg = inClusterConfig
+	}
+
+	client, err := secv1client.NewForConfig(cfg)
 	if err != nil {
 		log.Errorf("Couldn't create operatorv1 clientset Error=%s", err.Error())
 		os.Exit(1)

@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-maint-tools-access
+spec:
+  action: Audit
+  message: restricted maintenance tool access attempt detected
+  process:
+    matchDirectories:
+    - dir: /sbin/
+      recursive: true
+  selector:
+    matchExpressions:
+  severity: 1
+  tags:
+  - MITRE
+  - MITRE_T1553_Subvert_Trust_Controls
+  - PCI_DSS
+

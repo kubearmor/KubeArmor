@@ -1,0 +1,25 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-write-under-dev-dir
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /dev/
+      readOnly: true
+      recursive: true
+  message: Alert! File creation under /dev/ directory detected.
+  selector:
+    matchExpressions:
+  severity: 5
+  tags:
+  - MITRE
+  - MITRE_T1036_masquerading
+  - NIST
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+

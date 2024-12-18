@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,17 +15,22 @@ import (
 
 	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
+	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
+	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/scheme"
 	opv1Informer "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/recommend"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -46,6 +52,7 @@ type ClusterWatcher struct {
 	Client         *kubernetes.Clientset
 	ExtClient      *apiextensionsclientset.Clientset
 	Opv1Client     *opv1client.Clientset
+	Secv1Client    *secv1client.Clientset
 	Daemonsets     map[string]int
 	DaemonsetsLock *sync.Mutex
 }
@@ -60,7 +67,7 @@ type Node struct {
 	Seccomp       string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, pathPrefix, deploy_name string, initdeploy bool) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name string, initdeploy bool) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -86,6 +93,7 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 		Client:         client,
 		ExtClient:      extClient,
 		Opv1Client:     opv1Client,
+		Secv1Client:    secv1Client,
 	}
 }
 
@@ -299,6 +307,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
+						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -322,6 +331,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
+						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						// return if only status has been updated
 						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
 							return
@@ -777,6 +787,99 @@ func (clusterWatcher *ClusterWatcher) UpdateTlsConfigurations(tlsEnabled bool) e
 		clusterWatcher.DeleteAllTlsSecrets()
 	}
 	return nil
+}
+
+func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
+	switch common.RecommendedPolicies.Enable {
+	case true:
+		policies, err := recommend.CRDFs.ReadDir(".")
+		if err != nil {
+			clusterWatcher.Log.Warnf("error reading policies FS", err)
+			return err
+		}
+		for _, policy := range policies {
+			if !policy.IsDir() {
+				yamlBytes, err := recommend.CRDFs.ReadFile(policy.Name())
+				if err != nil {
+					clusterWatcher.Log.Warnf("error reading csp", policy.Name())
+					continue
+				}
+				csp := &secv1.KubeArmorClusterPolicy{}
+				if err := runtime.DecodeInto(scheme.Codecs.UniversalDeserializer(), yamlBytes, csp); err != nil {
+					clusterWatcher.Log.Warnf("error decoding csp", policy.Name())
+					continue
+				}
+				csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+				_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
+				if err != nil && !metav1errors.IsAlreadyExists(err) {
+					clusterWatcher.Log.Warnf("error creating csp", csp.GetName())
+					continue
+				} else if metav1errors.IsAlreadyExists(err) {
+					pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
+					if err != nil {
+						clusterWatcher.Log.Warnf("error getting csp", csp.GetName())
+						continue
+					}
+					if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+						pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+						_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
+						if err != nil {
+							clusterWatcher.Log.Warnf("error updating csp", csp.GetName())
+							continue
+						} else {
+							clusterWatcher.Log.Info("updated csp", csp.GetName())
+						}
+					}
+				} else {
+					clusterWatcher.Log.Info("created csp", csp.GetName())
+				}
+			}
+		}
+	case false:
+		policies, err := recommend.CRDFs.ReadDir(".")
+		if err != nil {
+			clusterWatcher.Log.Warnf("error reading policies FS", err)
+			return err
+		}
+		for _, policy := range policies {
+			yamlBytes, err := recommend.CRDFs.ReadFile(policy.Name())
+			if err != nil {
+				clusterWatcher.Log.Warnf("error reading csp", policy.Name())
+				continue
+			}
+			csp := &secv1.KubeArmorClusterPolicy{}
+			if err := runtime.DecodeInto(scheme.Codecs.UniversalDeserializer(), yamlBytes, csp); err != nil {
+				clusterWatcher.Log.Warnf("error decoding csp", policy.Name())
+				continue
+			}
+			if !policy.IsDir() {
+				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
+				if err != nil && !metav1errors.IsNotFound(err) {
+					clusterWatcher.Log.Warnf("error deleting csp", csp.GetName())
+					continue
+				} else {
+					clusterWatcher.Log.Info("deleted csp", csp.GetName())
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func UpdateRecommendedPolicyConfig(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.RecommendedPolicies.Enable != common.RecommendedPolicies.Enable {
+		common.RecommendedPolicies.Enable = config.RecommendedPolicies.Enable
+		updated = true
+	}
+	if len(config.RecommendedPolicies.MatchExpressions) > 0 {
+		if reflect.DeepEqual(config.RecommendedPolicies.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+			common.RecommendedPolicies.MatchExpressions = config.RecommendedPolicies.MatchExpressions
+			updated = true
+		}
+	}
+	return updated
 }
 
 func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {

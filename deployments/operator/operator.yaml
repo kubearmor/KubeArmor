@@ -126,6 +126,31 @@ spec:
                     - Never
                     type: string
                 type: object
+              maxAlertPerSec:
+                type: integer
+              recommendedPolicies:
+                properties:
+                  enable:
+                    type: boolean
+                  matchExpressions:
+                    items:
+                      properties:
+                        key:
+                          enum:
+                          - namespace
+                          type: string
+                        operator:
+                          enum:
+                          - In
+                          - NotIn
+                          type: string
+                        values:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                type: object
               seccompEnabled:
                 type: boolean
               alertThrottling:
