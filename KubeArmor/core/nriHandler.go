@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/containerd/nri/pkg/api"
 	"github.com/containerd/nri/pkg/stub"
@@ -16,6 +17,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NRI Handler
@@ -252,7 +254,27 @@ func nriToKubeArmorContainer(nriContainer *api.Container) tp.Container {
 		}
 	}
 
-	// TODO: Not sure how to get the apparmor profile from NRI
+	var podName string
+	var podNamespace string
+
+	if name, ok := nriContainer.Labels["io.kubernetes.pod.name"]; ok {
+		podName = name
+	}
+	if namespace, ok := nriContainer.Labels["io.kubernetes.pod.namespace"]; ok {
+		podNamespace = namespace
+	}
+
+	pod, err := K8s.K8sClient.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	if err != nil {
+		kg.Warnf("failed to fetch Pod: %w\n", err)
+	}
+
+	if appArmorProfile, ok := pod.Annotations["container.apparmor.security.beta.kubernetes.io/"+nriContainer.Name]; ok {
+		profile := strings.Split(appArmorProfile, "/")
+		if len(profile) > 1 {
+			container.AppArmorProfile = profile[1]
+		}
+	}
 
 	// Read PID and mount namespaces from container root PID
 	if nriContainer.Pid != 0 {
