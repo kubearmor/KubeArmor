@@ -4,6 +4,7 @@
 package v1
 
 import (
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,11 +31,21 @@ type Tls struct {
 	RelayExtraIpAddresses []string `json:"extraIpAddresses,omitempty"`
 }
 
+type RecommendedPolicies struct {
+	Enable bool `json:"enable,omitempty"`
+
+	MatchExpressions []securityv1.MatchExpressionsType `json:"matchExpressions,omitempty"`
+
+	ExcludePolicy []string `json:"excludePolicy,omitempty"`
+}
+
 // KubeArmorConfigSpec defines the desired state of KubeArmorConfig
 type KubeArmorConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// +kubebuilder:validation:optional
+	RecommendedPolicies RecommendedPolicies `json:"recommendedPolicies,omitempty"`
 	// +kubebuilder:validation:optional
 	DefaultFilePosture PostureType `json:"defaultFilePosture,omitempty"`
 	// +kubebuilder:validation:optional

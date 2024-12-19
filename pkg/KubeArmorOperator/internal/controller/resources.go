@@ -748,6 +748,10 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			clusterWatcher.Log.Error(err.Error())
 		}
 
+		if err := clusterWatcher.WatchRecommendedPolicies(); err != nil {
+			installErr = err
+		}
+
 		// update operatingConfigCrd status to Running
 		if common.OperatorConfigCrd != nil {
 			if installErr != nil {
