@@ -1,8 +1,8 @@
 module github.com/kubearmor/KubeArmor/tests
 
-go 1.21.0
+go 1.22.0
 
-toolchain go1.21.12
+toolchain go1.22.9
 
 replace (
 	github.com/cilium/cilium => github.com/cilium/cilium v1.14.12
