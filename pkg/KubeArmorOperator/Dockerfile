@@ -47,6 +47,7 @@ ARG VERSION=latest
 
 LABEL name="kubearmor-operator" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-operator container image based on redhat ubi" \
@@ -73,6 +74,7 @@ ARG VERSION=latest
 
 LABEL name="kubearmor-snitch" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-snitch container image based on redhat ubi" \
