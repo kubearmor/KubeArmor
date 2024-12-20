@@ -586,6 +586,49 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		},
 	}
 
+	ElasticSearchAdapterCaVolume := []corev1.Volume{
+		{
+			Name: "elastic-ca",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: common.Adapter.ElasticSearch.Auth.CAcertSecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  common.Adapter.ElasticSearch.Auth.CaCertKey,
+							Path: common.ElasticSearchAdapterCaCertPath,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	ElasticSearchAdapterCaVolumeMount := []corev1.VolumeMount{
+		{
+			Name:      "elastic-ca",
+			MountPath: common.ElasticSearchAdapterCaCertPath,
+		},
+	}
+
+	if common.Adapter.ElasticSearch.Auth.CAcertSecretName != "" {
+		relayServer.Spec.Template.Spec.Containers[0].Env = append(relayServer.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  "ES_CA_CERT_PATH",
+			Value: common.ElasticSearchAdapterCaCertPath + "/" + common.Adapter.ElasticSearch.Auth.CaCertKey,
+		})
+
+		common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relayServer.Spec.Template.Spec.Volumes, common.AddAction)
+		common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
+	} else {
+		common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relayServer.Spec.Template.Spec.Volumes, common.DeleteAction)
+		common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
+	}
+
+	if common.Adapter.ElasticSearch.Auth.AllowTlsInsecure {
+		relayServer.Spec.Template.Spec.Containers[0].Env = append(relayServer.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  "ES_ALLOW_INSECURE_TLS",
+			Value: "true",
+		})
+	}
 	if common.EnableTls {
 		relayServer.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.KubeArmorRelayTlsVolumeMount...)

@@ -509,6 +509,50 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorRelayEnv(cfg *opv1.KubeArmo
 				},
 			},
 		}
+
+		ElasticSearchAdapterCaVolume := []corev1.Volume{
+			{
+				Name: "elastic-ca",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: common.Adapter.ElasticSearch.Auth.CAcertSecretName,
+						Items: []corev1.KeyToPath{
+							{
+								Key:  common.Adapter.ElasticSearch.Auth.CaCertKey,
+								Path: common.ElasticSearchAdapterCaCertPath,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		ElasticSearchAdapterCaVolumeMount := []corev1.VolumeMount{
+			{
+				Name:      "elastic-ca",
+				MountPath: common.ElasticSearchAdapterCaCertPath,
+			},
+		}
+		if common.Adapter.ElasticSearch.Auth.CAcertSecretName != "" {
+			relay.Spec.Template.Spec.Containers[0].Env = append(relay.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "ES_CA_CERT_PATH",
+				Value: common.ElasticSearchAdapterCaCertPath + "/" + common.Adapter.ElasticSearch.Auth.CaCertKey,
+			})
+
+			common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relay.Spec.Template.Spec.Volumes, common.AddAction)
+			common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relay.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
+		} else {
+			common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relay.Spec.Template.Spec.Volumes, common.DeleteAction)
+			common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relay.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
+		}
+
+		if common.Adapter.ElasticSearch.Auth.AllowTlsInsecure {
+			relay.Spec.Template.Spec.Containers[0].Env = append(relay.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "ES_ALLOW_INSECURE_TLS",
+				Value: "true",
+			})
+		}
+
 		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
@@ -998,6 +1042,10 @@ func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
 			updated = true
 			common.Adapter.ElasticSearch.Enabled = config.Adapters.ElasticSearch.Enabled
 		}
+		if common.Adapter.ElasticSearch.Auth.AllowTlsInsecure != config.Adapters.ElasticSearch.Auth.AllowTlsInsecure {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.AllowTlsInsecure = config.Adapters.ElasticSearch.Auth.AllowTlsInsecure
+		}
 		if common.Adapter.ElasticSearch.AlertsIndexName != config.Adapters.ElasticSearch.AlertsIndexName {
 			updated = true
 			common.Adapter.ElasticSearch.AlertsIndexName = config.Adapters.ElasticSearch.AlertsIndexName
@@ -1006,17 +1054,21 @@ func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
 			updated = true
 			common.Adapter.ElasticSearch.Url = config.Adapters.ElasticSearch.Url
 		}
-		if common.Adapter.ElasticSearch.Auth.SecretName != config.Adapters.ElasticSearch.Auth.SecretName {
+		if config.Adapters.ElasticSearch.Auth.SecretName != "" && common.Adapter.ElasticSearch.Auth.SecretName != config.Adapters.ElasticSearch.Auth.SecretName {
 			updated = true
 			common.Adapter.ElasticSearch.Auth.SecretName = config.Adapters.ElasticSearch.Auth.SecretName
 		}
-		if common.Adapter.ElasticSearch.Auth.UserNameKey != config.Adapters.ElasticSearch.Auth.UserNameKey {
+		if config.Adapters.ElasticSearch.Auth.UserNameKey != "" && common.Adapter.ElasticSearch.Auth.UserNameKey != config.Adapters.ElasticSearch.Auth.UserNameKey {
 			updated = true
 			common.Adapter.ElasticSearch.Auth.UserNameKey = config.Adapters.ElasticSearch.Auth.UserNameKey
 		}
-		if common.Adapter.ElasticSearch.Auth.PasswordKey != config.Adapters.ElasticSearch.Auth.PasswordKey {
+		if config.Adapters.ElasticSearch.Auth.PasswordKey != "" && common.Adapter.ElasticSearch.Auth.PasswordKey != config.Adapters.ElasticSearch.Auth.PasswordKey {
 			updated = true
 			common.Adapter.ElasticSearch.Auth.PasswordKey = config.Adapters.ElasticSearch.Auth.PasswordKey
+		}
+		if config.Adapters.ElasticSearch.Auth.CAcertSecretName != "" && common.Adapter.ElasticSearch.Auth.CAcertSecretName != config.Adapters.ElasticSearch.Auth.CAcertSecretName {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.CAcertSecretName = config.Adapters.ElasticSearch.Auth.CAcertSecretName
 		}
 	}
 	return updated

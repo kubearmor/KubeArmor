@@ -51,6 +51,12 @@ spec:
                         type: string
                       auth:
                         properties:
+                          allowInsecureTLS:
+                            type: boolean
+                          caCertKey:
+                            type: string
+                          caCertSecretName:
+                            type: string
                           passwordKey:
                             type: string
                           secretName:

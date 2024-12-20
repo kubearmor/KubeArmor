@@ -40,9 +40,12 @@ type RecommendedPolicies struct {
 }
 
 type ElasticSearchAuth struct {
-	SecretName  string `json:"secretName,omitempty"`
-	UserNameKey string `json:"usernameKey,omitempty"`
-	PasswordKey string `json:"passwordKey,omitempty"`
+	SecretName       string `json:"secretName,omitempty"`
+	UserNameKey      string `json:"usernameKey,omitempty"`
+	PasswordKey      string `json:"passwordKey,omitempty"`
+	AllowTlsInsecure bool   `json:"allowInsecureTLS,omitempty"`
+	CAcertSecretName string `json:"caCertSecretName,omitempty"`
+	CaCertKey        string `json:"caCertKey,omitempty"`
 }
 
 type ElasticSearchAdapter struct {
