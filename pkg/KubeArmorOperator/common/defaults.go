@@ -146,12 +146,17 @@ var (
 			Url:             "",
 			AlertsIndexName: "kubearmor-alerts",
 			Auth: opv1.ElasticSearchAuth{
-				SecretName:  "elastic-secret",
-				UserNameKey: "username",
-				PasswordKey: "password",
+				SecretName:       "elastic-secret",
+				UserNameKey:      "username",
+				PasswordKey:      "password",
+				AllowTlsInsecure: false,
+				CAcertSecretName: "",
+				CaCertKey:        "ca.crt",
 			},
 		},
 	}
+
+	ElasticSearchAdapterCaCertPath = "/cert"
 )
 var Pointer2True bool = true
 
