@@ -139,7 +139,21 @@ var (
 			},
 		},
 	}
+
+	Adapter opv1.Adapters = opv1.Adapters{
+		ElasticSearch: opv1.ElasticSearchAdapter{
+			Enabled:         false,
+			Url:             "",
+			AlertsIndexName: "kubearmor-alerts",
+			Auth: opv1.ElasticSearchAuth{
+				SecretName:  "",
+				UserNameKey: "username",
+				PasswordKey: "password",
+			},
+		},
+	}
 )
+var Pointer2True bool = true
 
 var ConfigMapData = map[string]string{
 	ConfigGRPC:                       "32767",
