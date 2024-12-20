@@ -5,6 +5,8 @@ package core
 
 import (
 	"encoding/json"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 	"os"
 	"regexp"
 	"sort"
@@ -36,6 +38,50 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	}
 
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
+}
+
+// =================== //
+// == Config Update == //
+// =================== //
+
+// WatchConfigChanges watches for configuration changes and updates the default posture
+func (dm *KubeArmorDaemon) WatchConfigChanges() {
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		dm.Logger.Printf("Config file changed: %s", e.Name)
+		cfg.LoadDynamicConfig()
+
+		// Update the default posture
+		globalPosture := tp.DefaultPosture{
+			FileAction:         validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultFilePosture),
+			NetworkAction:      validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultNetworkPosture),
+			CapabilitiesAction: validateGlobalDefaultPosture(cfg.GlobalCfg.DefaultCapabilitiesPosture),
+		}
+		// Update the visibility
+		visibility := tp.Visibility{
+			File:         dm.validateVisibility("file", cfg.GlobalCfg.Visibility),
+			Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
+			Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
+			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+		}
+
+		// Apply the changes to the daemon
+		dm.UpdateGlobalPosture(globalPosture)
+
+		// Update default posture for endpoints
+		for _, ep := range dm.EndPoints {
+			dm.Logger.Printf("Updating Default Posture for endpoint %s", ep.EndPointName)
+			dm.UpdateDefaultPosture("MODIFIED", ep.NamespaceName, globalPosture, false)
+			dm.UpdateVisibility("MODIFIED", ep.NamespaceName, visibility)
+		}
+
+		// Update throttling configs
+		dm.SystemMonitor.UpdateThrottlingConfig()
+
+		// Update the default posture and visibility for the unorchestrated containers
+		dm.SystemMonitor.UpdateVisibility()
+		dm.UpdateHostSecurityPolicies()
+	})
+	viper.WatchConfig()
 }
 
 // ====================================== //
