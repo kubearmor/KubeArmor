@@ -472,6 +472,42 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorRelayEnv(cfg *opv1.KubeArmo
 				Name:  "ENABLE_STDOUT_MSGS",
 				Value: common.KubearmorRelayEnvMap[common.EnableStdOutMsgs],
 			},
+			{
+				Name:  "ENABLE_DASHBOARDS",
+				Value: strconv.FormatBool(common.Adapter.ElasticSearch.Enabled),
+			},
+			{
+				Name:  "ES_URL",
+				Value: common.Adapter.ElasticSearch.Url,
+			},
+			{
+				Name:  "ES_ALERTS_INDEX",
+				Value: common.Adapter.ElasticSearch.AlertsIndexName,
+			},
+			{
+				Name: "ES_USERNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: common.Adapter.ElasticSearch.Auth.SecretName,
+						},
+						Key:      common.Adapter.ElasticSearch.Auth.UserNameKey,
+						Optional: &common.Pointer2True,
+					},
+				},
+			},
+			{
+				Name: "ES_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: common.Adapter.ElasticSearch.Auth.SecretName,
+						},
+						Key:      common.Adapter.ElasticSearch.Auth.PasswordKey,
+						Optional: &common.Pointer2True,
+					},
+				},
+			},
 		}
 		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
 		if err != nil {
@@ -953,6 +989,34 @@ func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
 		if common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] != stringEnableStdOutMsgs {
 			common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] = stringEnableStdOutMsgs
 			updated = true
+		}
+	}
+
+	stringEnableElasticAdapter := strconv.FormatBool(config.Adapters.ElasticSearch.Enabled)
+	if stringEnableElasticAdapter != "" {
+		if common.Adapter.ElasticSearch.Enabled != config.Adapters.ElasticSearch.Enabled {
+			updated = true
+			common.Adapter.ElasticSearch.Enabled = config.Adapters.ElasticSearch.Enabled
+		}
+		if common.Adapter.ElasticSearch.AlertsIndexName != config.Adapters.ElasticSearch.AlertsIndexName {
+			updated = true
+			common.Adapter.ElasticSearch.AlertsIndexName = config.Adapters.ElasticSearch.AlertsIndexName
+		}
+		if common.Adapter.ElasticSearch.Url != config.Adapters.ElasticSearch.Url {
+			updated = true
+			common.Adapter.ElasticSearch.Url = config.Adapters.ElasticSearch.Url
+		}
+		if common.Adapter.ElasticSearch.Auth.SecretName != config.Adapters.ElasticSearch.Auth.SecretName {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.SecretName = config.Adapters.ElasticSearch.Auth.SecretName
+		}
+		if common.Adapter.ElasticSearch.Auth.UserNameKey != config.Adapters.ElasticSearch.Auth.UserNameKey {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.UserNameKey = config.Adapters.ElasticSearch.Auth.UserNameKey
+		}
+		if common.Adapter.ElasticSearch.Auth.PasswordKey != config.Adapters.ElasticSearch.Auth.PasswordKey {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.PasswordKey = config.Adapters.ElasticSearch.Auth.PasswordKey
 		}
 	}
 	return updated

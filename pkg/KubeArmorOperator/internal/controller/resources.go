@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -533,7 +534,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
-
 	// update relay env vars
 	relayServer.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
 		{
@@ -547,6 +547,42 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		{
 			Name:  "ENABLE_STDOUT_MSGS",
 			Value: common.KubearmorRelayEnvMap[common.EnableStdOutMsgs],
+		},
+		{
+			Name:  "ENABLE_DASHBOARDS",
+			Value: strconv.FormatBool(common.Adapter.ElasticSearch.Enabled),
+		},
+		{
+			Name:  "ES_URL",
+			Value: common.Adapter.ElasticSearch.Url,
+		},
+		{
+			Name:  "ES_ALERTS_INDEX",
+			Value: common.Adapter.ElasticSearch.AlertsIndexName,
+		},
+		{
+			Name: "ES_USERNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.Adapter.ElasticSearch.Auth.SecretName,
+					},
+					Key:      common.Adapter.ElasticSearch.Auth.UserNameKey,
+					Optional: &common.Pointer2True,
+				},
+			},
+		},
+		{
+			Name: "ES_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.Adapter.ElasticSearch.Auth.SecretName,
+					},
+					Key:      common.Adapter.ElasticSearch.Auth.PasswordKey,
+					Optional: &common.Pointer2True,
+				},
+			},
 		},
 	}
 
