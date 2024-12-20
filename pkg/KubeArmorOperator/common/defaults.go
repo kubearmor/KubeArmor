@@ -146,7 +146,7 @@ var (
 			Url:             "",
 			AlertsIndexName: "kubearmor-alerts",
 			Auth: opv1.ElasticSearchAuth{
-				SecretName:  "",
+				SecretName:  "elastic-secret",
 				UserNameKey: "username",
 				PasswordKey: "password",
 			},
