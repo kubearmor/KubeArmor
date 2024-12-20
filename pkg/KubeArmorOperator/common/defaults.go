@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,6 +125,20 @@ var (
 	AlertThrottling       bool   = true
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
+
+	// recommend policies
+	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
+		MatchExpressions: []securityv1.MatchExpressionsType{
+			{
+				Key:      "namespace",
+				Operator: "NotIn",
+				Values: []string{
+					"kube-system",
+					"kubearmor",
+				},
+			},
+		},
+	}
 )
 
 var ConfigMapData = map[string]string{
@@ -237,12 +252,26 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: "proc-fs-mount",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/proc",
+				Type: &HostPathDirectory,
+			},
+		},
+	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
 	{
 		Name:      "sys-kernel-debug-path",
 		MountPath: "/sys/kernel/debug",
+	},
+	{
+		Name:      "proc-fs-mount",
+		MountPath: "/host/procfs",
+		ReadOnly:  true,
 	},
 }
 

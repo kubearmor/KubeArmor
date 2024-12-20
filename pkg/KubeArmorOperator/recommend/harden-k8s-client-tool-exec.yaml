@@ -1,0 +1,38 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-k8s-client-tool-exec
+spec:
+  action: Block
+  message: Alert! k8s client tool executed inside the container.
+  process:
+    matchPaths:
+    - path: /usr/bin/docker
+    - path: /usr/bin/cri-ctl
+    - path: /usr/bin/kubectl
+    matchPatterns:
+    - pattern: /*/*/*/kubectl
+    - pattern: /*/*/kubectl
+    - pattern: /*/kubectl
+    - pattern: /*/*/*/cri-ctl
+    - pattern: /*/*/cri-ctl  
+    - pattern: /*/cri-ctl
+    - pattern: /*/*/*/docker
+    - pattern: /*/*/docker
+    - pattern: /*/docker
+  selector:
+    matchExpressions:
+  severity: 5
+  tags:
+  - MITRE
+  - MITRE_T1609_container_administration_command
+  - MITRE_T1610_deploy_container
+  - MITRE_TA0002_execution
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_AU-2
+  - NIST_800-53_SI-4
+

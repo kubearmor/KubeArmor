@@ -609,48 +609,68 @@ static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
     return 0;
 }
 
-static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr)
-{
-
+static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr) {
     u32 *off = get_buffer_offset(DATA_BUF_TYPE);
-
-    if (off == NULL)
-    {
+    if (off == NULL) {
         return -1;
     }
 
-    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int))
-    {
-        return 0; // no enough space
+    if (*off >= MAX_BUFFER_SIZE) {
+        return 0;
     }
 
-    u8 type = STR_T;
-    bpf_probe_read(&(bufs_p->buf[*off & (MAX_BUFFER_SIZE - 1)]), 1, &type);
-
-    *off += 1;
-
-    if (*off > MAX_BUFFER_SIZE - MAX_STRING_SIZE - sizeof(int))
-    {
-        return 0; // no enough space
+    u32 type_pos = *off;
+    if (type_pos >= MAX_BUFFER_SIZE || type_pos + 1 > MAX_BUFFER_SIZE) {
+        return 0;
     }
 
-    int sz = bpf_probe_read_str(&(bufs_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
-    if (sz > 0)
-    {
-        if (*off > MAX_BUFFER_SIZE - sizeof(int))
-        {
-            return 0; // no enough space
-        }
-
-        bpf_probe_read(&(bufs_p->buf[*off]), sizeof(int), &sz);
-
-        *off += sz + sizeof(int);
-        set_buffer_offset(DATA_BUF_TYPE, *off);
-
-        return sz + sizeof(int);
+    if (MAX_BUFFER_SIZE - type_pos < (1 + sizeof(int) + 1)) {
+        return 0;
     }
 
-    return 0;
+    u32 size_pos = type_pos + 1;
+    if (size_pos >= MAX_BUFFER_SIZE || 
+        size_pos + sizeof(int) > MAX_BUFFER_SIZE) {
+        return 0;
+    }
+
+    u8 type_val = STR_T;
+    if (bpf_probe_read(&(bufs_p->buf[type_pos]), sizeof(u8), &type_val) < 0) {
+        return 0;
+    }
+
+    u32 str_pos = size_pos + sizeof(int);
+    if (str_pos >= MAX_BUFFER_SIZE || str_pos + MAX_STRING_SIZE > MAX_BUFFER_SIZE) {
+        return 0;
+    }
+
+    u32 remaining_space = MAX_BUFFER_SIZE - str_pos;
+    u32 read_size = remaining_space;
+    if (read_size > MAX_STRING_SIZE) {
+        read_size = MAX_STRING_SIZE;
+    }
+
+    if (read_size < MAX_STRING_SIZE) {
+        return 0;
+    }
+
+    int sz = bpf_probe_read_str(&(bufs_p->buf[str_pos]), read_size, ptr);
+    if (sz <= 0) {
+        return 0;
+    }
+
+    if (bpf_probe_read(&(bufs_p->buf[size_pos]), sizeof(int), &sz) < 0) {
+        return 0;
+    }
+
+    u32 new_off = str_pos + sz;
+    if (new_off > MAX_BUFFER_SIZE) {
+        return 0;
+    }
+    
+    set_buffer_offset(DATA_BUF_TYPE, new_off);
+    
+    return sz + sizeof(int);
 }
 
 static __always_inline bool prepend_path(struct path *path, bufs_t *string_p, int buf_type)
@@ -1019,7 +1039,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         }
     }
 
-#if (defined(BTF_SUPPORTED))
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 2, 0) // min version that supports 1 million instructions
     struct fs_struct *fs;
     fs = READ_KERN(task->fs);
     struct path path = READ_KERN(fs->pwd);
@@ -1046,6 +1066,13 @@ static __always_inline u32 init_context(sys_context_t *context)
 
 // To check if subsequent alerts should be dropped per container
 static __always_inline bool should_drop_alerts_per_container(sys_context_t *context, struct pt_regs *ctx, u32 types, args_t *args) {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 2, 0)
+
+    // throttling for host in case of apparmor is handled in userspace
+    if (context->pid_id == 0 && context->mnt_id == 0) {
+        return false;
+    }
+
     u64 current_timestamp = bpf_ktime_get_ns();
 
     struct outer_key key = {
@@ -1112,6 +1139,7 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     }
 
     bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
+#endif
     return false; 
 }
 

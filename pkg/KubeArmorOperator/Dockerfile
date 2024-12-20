@@ -35,6 +35,7 @@ COPY $OPERATOR_DIR/enforcer enforcer
 COPY $OPERATOR_DIR/k8s k8s
 COPY $OPERATOR_DIR/runtime runtime
 COPY $OPERATOR_DIR/seccomp seccomp
+COPY $OPERATOR_DIR/recommend recommend
 
 # Build
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o operator cmd/operator/main.go
@@ -46,6 +47,7 @@ ARG VERSION=latest
 
 LABEL name="kubearmor-operator" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-operator container image based on redhat ubi" \
@@ -72,6 +74,7 @@ ARG VERSION=latest
 
 LABEL name="kubearmor-snitch" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-snitch container image based on redhat ubi" \

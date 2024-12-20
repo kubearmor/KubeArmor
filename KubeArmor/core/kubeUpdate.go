@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -345,6 +346,8 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 		// add the endpoint into the endpoint list
 		dm.EndPoints = append(dm.EndPoints, endpoints...)
 
+		dm.EndPointsLock.Unlock()
+
 		if cfg.GlobalCfg.Policy {
 			// update security policies
 			for _, endpoint := range endpoints {
@@ -360,19 +363,18 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			}
 		}
 
-		dm.EndPointsLock.Unlock()
-
 	} else if action == "MODIFIED" {
 		newEndPoint := tp.EndPoint{}
 		endpoints := []tp.EndPoint{}
 
-		dm.EndPointsLock.Lock()
+		dm.EndPointsLock.RLock()
 		for _, endPoint := range dm.EndPoints {
 			if pod.Metadata["namespaceName"] == endPoint.NamespaceName && pod.Metadata["podName"] == endPoint.EndPointName {
 				endpoints = append(endpoints, endPoint)
+				break
 			}
 		}
-		dm.EndPointsLock.Unlock()
+		dm.EndPointsLock.RUnlock()
 		if len(endpoints) == 0 {
 			// No endpoints were added as containers ID have been just added
 			// Same logic as ADDED
@@ -527,7 +529,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				}
 				idx++
 			}
-
+			dm.EndPointsLock.Unlock()
 			for _, endpoint := range endpoints {
 				if cfg.GlobalCfg.Policy {
 					// update security policies
@@ -543,8 +545,6 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 					}
 				}
 			}
-
-			dm.EndPointsLock.Unlock()
 		}
 
 	} else { // DELETED
@@ -731,9 +731,9 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				}
 
 				// exception: kubearmor
-				if _, ok := pod.Labels["kubearmor-app"]; ok {
-					pod.Annotations["kubearmor-policy"] = "audited"
-				}
+				// if _, ok := pod.Labels["kubearmor-app"]; ok {
+				// 	pod.Annotations["kubearmor-policy"] = "audited"
+				// }
 
 				// == Visibility == //
 
@@ -746,7 +746,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 				if event.Type == "ADDED" || event.Type == "MODIFIED" {
 					exist := false
 
-					dm.K8sPodsLock.Lock()
+					dm.K8sPodsLock.RLock()
 					for _, k8spod := range dm.K8sPods {
 						if k8spod.Metadata["namespaceName"] == pod.Metadata["namespaceName"] && k8spod.Metadata["podName"] == pod.Metadata["podName"] {
 							if k8spod.Annotations["kubearmor-policy"] == "patched" {
@@ -755,7 +755,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							}
 						}
 					}
-					dm.K8sPodsLock.Unlock()
+					dm.K8sPodsLock.RUnlock()
 
 					if exist {
 						continue
@@ -1020,8 +1020,8 @@ func matchClusterSecurityPolicyRule(policy tp.SecurityPolicy) bool {
 
 // GetSecurityPolicies Function
 func (dm *KubeArmorDaemon) GetSecurityPolicies(identities []string, namespaceName string) []tp.SecurityPolicy {
-	dm.SecurityPoliciesLock.Lock()
-	defer dm.SecurityPoliciesLock.Unlock()
+	dm.SecurityPoliciesLock.RLock()
+	defer dm.SecurityPoliciesLock.RUnlock()
 
 	secPolicies := []tp.SecurityPolicy{}
 
@@ -1049,10 +1049,15 @@ func containsPolicy(endPointPolicies []tp.SecurityPolicy, secPolicy tp.SecurityP
 
 // UpdateSecurityPolicy Function
 func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType string, secPolicy tp.SecurityPolicy) {
-	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
+	dm.EndPointsLock.RLock()
+	endPointsLength := len(dm.EndPoints)
+	dm.EndPointsLock.RUnlock()
 
-	for idx, endPoint := range dm.EndPoints {
+	for idx := 0; idx < endPointsLength; idx++ {
+		dm.EndPointsLock.RLock()
+		endPoint := dm.EndPoints[idx]
+		dm.EndPointsLock.RUnlock()
+
 		// update a security policy
 		if secPolicyType == KubeArmorPolicy {
 			if kl.MatchIdentities(secPolicy.Spec.Selector.Identities, endPoint.Identities) && (len(secPolicy.Spec.Selector.Containers) == 0 || kl.ContainsElement(secPolicy.Spec.Selector.Containers, endPoint.ContainerName)) {
@@ -1066,12 +1071,12 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 						}
 					}
 					if new {
-						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
+						endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPolicy)
 					}
 				} else if action == "MODIFIED" {
 					for idxP, policy := range endPoint.SecurityPolicies {
 						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-							dm.EndPoints[idx].SecurityPolicies[idxP] = secPolicy
+							endPoint.SecurityPolicies[idxP] = secPolicy
 							break
 						}
 					}
@@ -1079,23 +1084,27 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					// remove the given policy from the security policy list of this endpoint
 					for idxP, policy := range endPoint.SecurityPolicies {
 						if policy.Metadata["namespaceName"] == secPolicy.Metadata["namespaceName"] && policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-							dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
+							endPoint.SecurityPolicies = append(endPoint.SecurityPolicies[:idxP], endPoint.SecurityPolicies[idxP+1:]...)
 							break
 						}
 					}
 				}
 
+				dm.EndPointsLock.Lock()
+				dm.EndPoints[idx] = endPoint
+				dm.EndPointsLock.Unlock()
+
 				if cfg.GlobalCfg.Policy {
 					// update security policies
-					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
+					dm.Logger.UpdateSecurityPolicies("UPDATED", endPoint)
 
 					if dm.RuntimeEnforcer != nil {
-						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+						if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 							// enforce security policies
-							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
-								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endPoint.NamespaceName) {
+								dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 							} else {
-								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
 							}
 						}
 					}
@@ -1115,7 +1124,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 						}
 					}
 					if new {
-						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
+						endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPolicy)
 					}
 				} else if action == "MODIFIED" {
 					// when policy is modified and new ns is added in secPolicy.Spec.Selector.MatchExpressions[i].Values
@@ -1125,39 +1134,43 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
 							if !kl.ContainsElement(secPolicy.Spec.Selector.NamespaceList, endPoint.NamespaceName) {
 								// when policy is modified and this endPoint's ns is removed from secPolicy.Spec.Selector.MatchExpressions[i].Values
-								dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
+								endPoint.SecurityPolicies = append(endPoint.SecurityPolicies[:idxP], endPoint.SecurityPolicies[idxP+1:]...)
 								addNewPolicy = false
 								break
 							}
-							dm.EndPoints[idx].SecurityPolicies[idxP] = secPolicy
+							endPoint.SecurityPolicies[idxP] = secPolicy
 							addNewPolicy = false
 							break
 						}
 					}
 					if addNewPolicy {
-						dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies, secPolicy)
+						endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPolicy)
 					}
 				} else if action == "DELETED" {
 					// remove the given policy from the security policy list of this endpoint
 					for idxP, policy := range endPoint.SecurityPolicies {
 						if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
-							dm.EndPoints[idx].SecurityPolicies = append(dm.EndPoints[idx].SecurityPolicies[:idxP], dm.EndPoints[idx].SecurityPolicies[idxP+1:]...)
+							endPoint.SecurityPolicies = append(endPoint.SecurityPolicies[:idxP], endPoint.SecurityPolicies[idxP+1:]...)
 							break
 						}
 					}
 				}
 
+				dm.EndPointsLock.Lock()
+				dm.EndPoints[idx] = endPoint
+				dm.EndPointsLock.Unlock()
+
 				if cfg.GlobalCfg.Policy {
 					// update security policies
-					dm.Logger.UpdateSecurityPolicies("UPDATED", dm.EndPoints[idx])
+					dm.Logger.UpdateSecurityPolicies("UPDATED", endPoint)
 
 					if dm.RuntimeEnforcer != nil {
-						if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+						if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 							// enforce security policies
-							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
-								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endPoint.NamespaceName) {
+								dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 							} else {
-								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+								dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
 							}
 						}
 					}
@@ -1830,12 +1843,17 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 // UpdateHostSecurityPolicies Function
 func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
-	dm.HostSecurityPoliciesLock.Lock()
-	defer dm.HostSecurityPoliciesLock.Unlock()
+	dm.HostSecurityPoliciesLock.RLock()
+	hostSecurityPoliciesLength := len(dm.HostSecurityPolicies)
+	dm.HostSecurityPoliciesLock.RUnlock()
 
 	secPolicies := []tp.HostSecurityPolicy{}
 
-	for _, policy := range dm.HostSecurityPolicies {
+	for idx := 0; idx < hostSecurityPoliciesLength; idx++ {
+		dm.EndPointsLock.RLock()
+		policy := dm.HostSecurityPolicies[idx]
+		dm.EndPointsLock.RUnlock()
+
 		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 			secPolicies = append(secPolicies, policy)
 		}
@@ -2254,6 +2272,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		new := true
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if reflect.DeepEqual(policy, secPolicy) {
+					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.HostSecurityPoliciesLock.Unlock()
+					return pb.PolicyStatus_Applied
+				}
+
 				dm.HostSecurityPolicies[idx] = secPolicy
 				event.Type = "MODIFIED"
 				new = false
@@ -2266,6 +2290,12 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 	} else if event.Type == "MODIFIED" {
 		for idx, policy := range dm.HostSecurityPolicies {
 			if policy.Metadata["policyName"] == secPolicy.Metadata["policyName"] {
+				if reflect.DeepEqual(policy, secPolicy) {
+					kg.Debugf("No updates to policy %s", policy.Metadata["policyName"])
+					dm.HostSecurityPoliciesLock.Unlock()
+					return pb.PolicyStatus_Applied
+				}
+
 				dm.HostSecurityPolicies[idx] = secPolicy
 				break
 			}
@@ -2465,9 +2495,6 @@ func validateDefaultPosture(key string, ns *corev1.Namespace, defaultPosture str
 
 // UpdateDefaultPosture Function
 func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string, defaultPosture tp.DefaultPosture, annotated bool) {
-	dm.EndPointsLock.Lock()
-	defer dm.EndPointsLock.Unlock()
-
 	dm.DefaultPosturesLock.Lock()
 	defer dm.DefaultPosturesLock.Unlock()
 
@@ -2485,25 +2512,36 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 	}
 	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
 
-	for idx, endPoint := range dm.EndPoints {
+	dm.EndPointsLock.RLock()
+	endPointsLen := len(dm.EndPoints)
+	dm.EndPointsLock.RUnlock()
+
+	for idx := 0; idx < endPointsLen; idx++ {
+		dm.EndPointsLock.RLock()
+		endPoint := dm.EndPoints[idx]
+		dm.EndPointsLock.RUnlock()
 		// update a security policy
 		if namespace == endPoint.NamespaceName {
-			if dm.EndPoints[idx].DefaultPosture == defaultPosture {
+			if endPoint.DefaultPosture == defaultPosture {
 				continue
 			}
 
-			dm.Logger.Printf("Updating default posture for %s with %v namespace default %v", endPoint.EndPointName, dm.EndPoints[idx].DefaultPosture, defaultPosture)
-			dm.EndPoints[idx].DefaultPosture = defaultPosture
+			dm.Logger.Printf("Updating default posture for %s with %v namespace default %v", endPoint.EndPointName, endPoint.DefaultPosture, defaultPosture)
+			endPoint.DefaultPosture = defaultPosture
+
+			dm.EndPointsLock.Lock()
+			dm.EndPoints[idx] = endPoint
+			dm.EndPointsLock.Unlock()
 
 			if cfg.GlobalCfg.Policy {
 				// update security policies
 				if dm.RuntimeEnforcer != nil {
-					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
 						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, endPoint.NamespaceName) {
+							dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 						} else {
-							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", endPoint.NamespaceName)
 						}
 
 					}
@@ -2740,16 +2778,18 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
 				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
-					cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+					maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
 					if err != nil {
 						dm.Logger.Warnf("Error: %s", err)
 					}
+					cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
 				}
-				if _, ok := cm.Data[cfg.ConfigMaxAlertPerSec]; ok {
-					cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				if _, ok := cm.Data[cfg.ConfigThrottleSec]; ok {
+					throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
 					if err != nil {
 						dm.Logger.Warnf("Error: %s", err)
 					}
+					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				}
 				dm.SystemMonitor.UpdateThrottlingConfig()
 
@@ -2790,14 +2830,18 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				if _, ok := cm.Data[cfg.ConfigAlertThrottling]; ok {
 					cfg.GlobalCfg.AlertThrottling = (cm.Data[cfg.ConfigAlertThrottling] == "true")
 				}
-				cfg.GlobalCfg.MaxAlertPerSec, err = strconv.Atoi(cm.Data[cfg.ConfigMaxAlertPerSec])
+
+				maxAlertPerSec, err := strconv.ParseInt(cm.Data[cfg.ConfigMaxAlertPerSec], 10, 32)
 				if err != nil {
 					dm.Logger.Warnf("Error: %s", err)
 				}
-				cfg.GlobalCfg.ThrottleSec, err = strconv.Atoi(cm.Data[cfg.ConfigThrottleSec])
+				cfg.GlobalCfg.MaxAlertPerSec = int32(maxAlertPerSec)
+
+				throttleSec, err := strconv.ParseInt(cm.Data[cfg.ConfigThrottleSec], 10, 32)
 				if err != nil {
 					dm.Logger.Warnf("Error: %s", err)
 				}
+				cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				dm.SystemMonitor.UpdateThrottlingConfig()
 			}
 		},

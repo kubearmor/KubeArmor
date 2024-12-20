@@ -1,0 +1,42 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-crypto-miners
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /bin/
+      readOnly: true
+      recursive: true
+    - dir: /boot/
+      readOnly: true
+      recursive: true
+    - dir: /sbin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/bin/
+      readOnly: true
+      recursive: true
+    - dir: /usr/local/bin/
+      readOnly: true
+      recursive: true
+    - dir: /var/local/bin/
+      readOnly: true
+      recursive: true
+  message: cryptominer detected and blocked
+  process:
+    matchDirectories:
+    - dir: /tmp/
+      recursive: true
+  selector:
+    matchExpressions:
+  severity: 10
+  tags:
+  - MITRE
+  - MITRE_T1496_resource_hijacking
+  - cryptominer
+

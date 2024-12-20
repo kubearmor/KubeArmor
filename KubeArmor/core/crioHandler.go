@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -130,7 +131,7 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string,
 
 	pid := strconv.Itoa(containerInfo.Pid)
 
-	if data, err := os.Readlink("/proc/" + pid + "/ns/pid"); err == nil {
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
 		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
 			kg.Warnf("Unable to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
 		}
@@ -138,7 +139,7 @@ func (ch *CrioHandler) GetContainerInfo(ctx context.Context, containerID string,
 		return container, err
 	}
 
-	if data, err := os.Readlink("/proc/" + pid + "/ns/mnt"); err == nil {
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/mnt")); err == nil {
 		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
 			kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
 		}

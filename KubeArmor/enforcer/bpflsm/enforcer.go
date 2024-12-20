@@ -23,8 +23,8 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer ../../BPF/enforcer.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang enforcer_path ../../BPF/enforcer_path.bpf.c -- -I/usr/include/ -O2 -g -fno-stack-protector
 
 // ===================== //
 // == BPFLSM Enforcer == //
@@ -375,8 +375,8 @@ func (be *BPFEnforcer) TraceEvents() {
 		case mon.DropAlert:
 			log.Operation = "AlertThreshold"
 			log.Type = "SystemEvent"
-			log.MaxAlertsPerSec = int32(cfg.GlobalCfg.MaxAlertPerSec)
-			log.DroppingAlertsInterval = int32(cfg.GlobalCfg.ThrottleSec)
+			log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
+			log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 		}
 		// fallback logic if we don't receive source from BuildLogBase()
 		if log.Operation != "Process" && len(log.Source) == 0 {
