@@ -49,7 +49,7 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	go mod tidy; $(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	go mod tidy; $(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/CRD/KubeArmorPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml crd/KubeArmorPolicy.yaml
 	cp config/crd/bases/security.kubearmor.com_kubearmorpolicies.yaml ../../deployments/helm/KubeArmor/templates/crds/ksp.yaml
