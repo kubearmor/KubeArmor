@@ -860,7 +860,16 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// build a pid node
-					pidNode := mon.BuildPidNode(containerID, ctx, execPath, args[2].([]string))
+					args_2 := []string{}
+					switch v := args[2].(type) {
+					case []string:
+						args_2 = append(args_2, v...)
+					case string:
+						args_2 = append(args_2, v)
+					default:
+						mon.Logger.Warnf("Unexpected args[2] type")
+					}
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, args_2)
 					mon.AddActivePid(containerID, pidNode)
 
 					fd := ""
