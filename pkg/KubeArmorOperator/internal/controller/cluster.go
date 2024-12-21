@@ -516,12 +516,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorRelayEnv(cfg *opv1.KubeArmo
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: common.Adapter.ElasticSearch.Auth.CAcertSecretName,
-						Items: []corev1.KeyToPath{
-							{
-								Key:  common.Adapter.ElasticSearch.Auth.CaCertKey,
-								Path: common.ElasticSearchAdapterCaCertPath,
-							},
-						},
 					},
 				},
 			},
