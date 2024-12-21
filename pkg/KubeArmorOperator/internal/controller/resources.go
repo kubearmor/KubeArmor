@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -533,7 +534,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
-
 	// update relay env vars
 	relayServer.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
 		{
@@ -548,8 +548,81 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 			Name:  "ENABLE_STDOUT_MSGS",
 			Value: common.KubearmorRelayEnvMap[common.EnableStdOutMsgs],
 		},
+		{
+			Name:  "ENABLE_DASHBOARDS",
+			Value: strconv.FormatBool(common.Adapter.ElasticSearch.Enabled),
+		},
+		{
+			Name:  "ES_URL",
+			Value: common.Adapter.ElasticSearch.Url,
+		},
+		{
+			Name:  "ES_ALERTS_INDEX",
+			Value: common.Adapter.ElasticSearch.AlertsIndexName,
+		},
+		{
+			Name: "ES_USERNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.Adapter.ElasticSearch.Auth.SecretName,
+					},
+					Key:      common.Adapter.ElasticSearch.Auth.UserNameKey,
+					Optional: &common.Pointer2True,
+				},
+			},
+		},
+		{
+			Name: "ES_PASSWORD",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.Adapter.ElasticSearch.Auth.SecretName,
+					},
+					Key:      common.Adapter.ElasticSearch.Auth.PasswordKey,
+					Optional: &common.Pointer2True,
+				},
+			},
+		},
 	}
 
+	ElasticSearchAdapterCaVolume := []corev1.Volume{
+		{
+			Name: "elastic-ca",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: common.Adapter.ElasticSearch.Auth.CAcertSecretName,
+				},
+			},
+		},
+	}
+
+	ElasticSearchAdapterCaVolumeMount := []corev1.VolumeMount{
+		{
+			Name:      "elastic-ca",
+			MountPath: common.ElasticSearchAdapterCaCertPath,
+		},
+	}
+
+	if common.Adapter.ElasticSearch.Auth.CAcertSecretName != "" {
+		relayServer.Spec.Template.Spec.Containers[0].Env = append(relayServer.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  "ES_CA_CERT_PATH",
+			Value: common.ElasticSearchAdapterCaCertPath + "/" + common.Adapter.ElasticSearch.Auth.CaCertKey,
+		})
+
+		common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relayServer.Spec.Template.Spec.Volumes, common.AddAction)
+		common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
+	} else {
+		common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relayServer.Spec.Template.Spec.Volumes, common.DeleteAction)
+		common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
+	}
+
+	if common.Adapter.ElasticSearch.Auth.AllowTlsInsecure {
+		relayServer.Spec.Template.Spec.Containers[0].Env = append(relayServer.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+			Name:  "ES_ALLOW_INSECURE_TLS",
+			Value: "true",
+		})
+	}
 	if common.EnableTls {
 		relayServer.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(relayServer.Spec.Template.Spec.Containers[0].VolumeMounts, common.KubeArmorRelayTlsVolumeMount...)

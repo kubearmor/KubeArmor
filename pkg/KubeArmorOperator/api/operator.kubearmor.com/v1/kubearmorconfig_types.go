@@ -39,6 +39,26 @@ type RecommendedPolicies struct {
 	ExcludePolicy []string `json:"excludePolicy,omitempty"`
 }
 
+type ElasticSearchAuth struct {
+	SecretName       string `json:"secretName,omitempty"`
+	UserNameKey      string `json:"usernameKey,omitempty"`
+	PasswordKey      string `json:"passwordKey,omitempty"`
+	AllowTlsInsecure bool   `json:"allowInsecureTLS,omitempty"`
+	CAcertSecretName string `json:"caCertSecretName,omitempty"`
+	CaCertKey        string `json:"caCertKey,omitempty"`
+}
+
+type ElasticSearchAdapter struct {
+	Enabled         bool              `json:"enabled,omitempty"`
+	Url             string            `json:"url,omitempty"`
+	AlertsIndexName string            `json:"alertsIndex,omitempty"`
+	Auth            ElasticSearchAuth `json:"auth,omitempty"`
+}
+
+type Adapters struct {
+	ElasticSearch ElasticSearchAdapter `json:"elasticsearch,omitempty"`
+}
+
 // KubeArmorConfigSpec defines the desired state of KubeArmorConfig
 type KubeArmorConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -80,6 +100,8 @@ type KubeArmorConfigSpec struct {
 	MaxAlertPerSec int `json:"maxAlertPerSec,omitempty"`
 	// +kubebuilder:validation:Optional
 	ThrottleSec int `json:"throttleSec,omitempty"`
+	// +kubebuilder:validation:Optional
+	Adapters Adapters `json:"adapters,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig
