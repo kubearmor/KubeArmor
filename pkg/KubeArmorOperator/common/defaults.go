@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,7 +125,40 @@ var (
 	AlertThrottling       bool   = true
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
+
+	// recommend policies
+	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
+		MatchExpressions: []securityv1.MatchExpressionsType{
+			{
+				Key:      "namespace",
+				Operator: "NotIn",
+				Values: []string{
+					"kube-system",
+					"kubearmor",
+				},
+			},
+		},
+	}
+
+	Adapter opv1.Adapters = opv1.Adapters{
+		ElasticSearch: opv1.ElasticSearchAdapter{
+			Enabled:         false,
+			Url:             "",
+			AlertsIndexName: "kubearmor-alerts",
+			Auth: opv1.ElasticSearchAuth{
+				SecretName:       "elastic-secret",
+				UserNameKey:      "username",
+				PasswordKey:      "password",
+				AllowTlsInsecure: false,
+				CAcertSecretName: "",
+				CaCertKey:        "ca.crt",
+			},
+		},
+	}
+
+	ElasticSearchAdapterCaCertPath = "/cert"
 )
+var Pointer2True bool = true
 
 var ConfigMapData = map[string]string{
 	ConfigGRPC:                       "32767",

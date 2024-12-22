@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,17 +16,22 @@ import (
 
 	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
+	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
+	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 	opv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/api/operator.kubearmor.com/v1"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/cert"
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned/scheme"
 	opv1Informer "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/informers/externalversions"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/recommend"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -46,6 +53,7 @@ type ClusterWatcher struct {
 	Client         *kubernetes.Clientset
 	ExtClient      *apiextensionsclientset.Clientset
 	Opv1Client     *opv1client.Clientset
+	Secv1Client    *secv1client.Clientset
 	Daemonsets     map[string]int
 	DaemonsetsLock *sync.Mutex
 }
@@ -60,7 +68,7 @@ type Node struct {
 	Seccomp       string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, pathPrefix, deploy_name string, initdeploy bool) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name string, initdeploy bool) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -86,6 +94,7 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 		Client:         client,
 		ExtClient:      extClient,
 		Opv1Client:     opv1Client,
+		Secv1Client:    secv1Client,
 	}
 }
 
@@ -299,6 +308,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
+						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -322,6 +332,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
+						UpdateRecommendedPolicyConfig(&cfg.Spec)
 						// return if only status has been updated
 						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
 							return
@@ -461,7 +472,81 @@ func (clusterWatcher *ClusterWatcher) UpdateKubearmorRelayEnv(cfg *opv1.KubeArmo
 				Name:  "ENABLE_STDOUT_MSGS",
 				Value: common.KubearmorRelayEnvMap[common.EnableStdOutMsgs],
 			},
+			{
+				Name:  "ENABLE_DASHBOARDS",
+				Value: strconv.FormatBool(common.Adapter.ElasticSearch.Enabled),
+			},
+			{
+				Name:  "ES_URL",
+				Value: common.Adapter.ElasticSearch.Url,
+			},
+			{
+				Name:  "ES_ALERTS_INDEX",
+				Value: common.Adapter.ElasticSearch.AlertsIndexName,
+			},
+			{
+				Name: "ES_USERNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: common.Adapter.ElasticSearch.Auth.SecretName,
+						},
+						Key:      common.Adapter.ElasticSearch.Auth.UserNameKey,
+						Optional: &common.Pointer2True,
+					},
+				},
+			},
+			{
+				Name: "ES_PASSWORD",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: common.Adapter.ElasticSearch.Auth.SecretName,
+						},
+						Key:      common.Adapter.ElasticSearch.Auth.PasswordKey,
+						Optional: &common.Pointer2True,
+					},
+				},
+			},
 		}
+
+		ElasticSearchAdapterCaVolume := []corev1.Volume{
+			{
+				Name: "elastic-ca",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: common.Adapter.ElasticSearch.Auth.CAcertSecretName,
+					},
+				},
+			},
+		}
+
+		ElasticSearchAdapterCaVolumeMount := []corev1.VolumeMount{
+			{
+				Name:      "elastic-ca",
+				MountPath: common.ElasticSearchAdapterCaCertPath,
+			},
+		}
+		if common.Adapter.ElasticSearch.Auth.CAcertSecretName != "" {
+			relay.Spec.Template.Spec.Containers[0].Env = append(relay.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "ES_CA_CERT_PATH",
+				Value: common.ElasticSearchAdapterCaCertPath + "/" + common.Adapter.ElasticSearch.Auth.CaCertKey,
+			})
+
+			common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relay.Spec.Template.Spec.Volumes, common.AddAction)
+			common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relay.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
+		} else {
+			common.AddOrRemoveVolume(&ElasticSearchAdapterCaVolume, &relay.Spec.Template.Spec.Volumes, common.DeleteAction)
+			common.AddOrRemoveVolumeMount(&ElasticSearchAdapterCaVolumeMount, &relay.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
+		}
+
+		if common.Adapter.ElasticSearch.Auth.AllowTlsInsecure {
+			relay.Spec.Template.Spec.Containers[0].Env = append(relay.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "ES_ALLOW_INSECURE_TLS",
+				Value: "true",
+			})
+		}
+
 		_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), relay, v1.UpdateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.RelayDeploymentName, err.Error())
@@ -779,6 +864,95 @@ func (clusterWatcher *ClusterWatcher) UpdateTlsConfigurations(tlsEnabled bool) e
 	return nil
 }
 
+func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
+	var yamlBytes []byte
+	policies, err := recommend.CRDFs.ReadDir(".")
+	if err != nil {
+		clusterWatcher.Log.Warnf("error reading policies FS", err)
+		return err
+	}
+	for _, policy := range policies {
+		csp := &secv1.KubeArmorClusterPolicy{}
+		if !policy.IsDir() {
+			yamlBytes, err = recommend.CRDFs.ReadFile(policy.Name())
+			if err != nil {
+				clusterWatcher.Log.Warnf("error reading csp", policy.Name())
+				continue
+			}
+			if err := runtime.DecodeInto(scheme.Codecs.UniversalDeserializer(), yamlBytes, csp); err != nil {
+				clusterWatcher.Log.Warnf("error decoding csp", policy.Name())
+				continue
+			}
+		}
+		switch common.RecommendedPolicies.Enable {
+		case true:
+			if slices.Contains(common.RecommendedPolicies.ExcludePolicy, csp.Name) {
+				clusterWatcher.Log.Infof("excluding csp ", csp.Name)
+				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
+				if err != nil && !metav1errors.IsNotFound(err) {
+					clusterWatcher.Log.Warnf("error deleting csp", csp.GetName())
+				} else if err == nil {
+					clusterWatcher.Log.Infof("deleted csp", csp.GetName())
+				}
+				continue
+			}
+			csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+			_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
+			if err != nil && !metav1errors.IsAlreadyExists(err) {
+				clusterWatcher.Log.Warnf("error creating csp", csp.GetName())
+				continue
+			} else if metav1errors.IsAlreadyExists(err) {
+				pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
+				if err != nil {
+					clusterWatcher.Log.Warnf("error getting csp", csp.GetName())
+					continue
+				}
+				if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+					pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+					_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
+					if err != nil {
+						clusterWatcher.Log.Warnf("error updating csp", csp.GetName())
+						continue
+					} else {
+						clusterWatcher.Log.Info("updated csp", csp.GetName())
+					}
+				}
+			} else {
+				clusterWatcher.Log.Info("created csp", csp.GetName())
+			}
+		case false:
+			if !policy.IsDir() {
+				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
+				if err != nil && !metav1errors.IsNotFound(err) {
+					clusterWatcher.Log.Warnf("error deleting csp", csp.GetName())
+					continue
+				} else {
+					clusterWatcher.Log.Info("deleted csp", csp.GetName())
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func UpdateRecommendedPolicyConfig(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.RecommendedPolicies.Enable != common.RecommendedPolicies.Enable {
+		common.RecommendedPolicies.Enable = config.RecommendedPolicies.Enable
+		updated = true
+	}
+	if !reflect.DeepEqual(config.RecommendedPolicies.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+		common.RecommendedPolicies.MatchExpressions = slices.Clone(config.RecommendedPolicies.MatchExpressions)
+		updated = true
+	}
+	if !reflect.DeepEqual(config.RecommendedPolicies.ExcludePolicy, common.RecommendedPolicies.ExcludePolicy) {
+		common.RecommendedPolicies.ExcludePolicy = slices.Clone(config.RecommendedPolicies.ExcludePolicy)
+		updated = true
+	}
+	return updated
+}
+
 func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
 	if config.DefaultFilePosture != "" {
@@ -853,6 +1027,42 @@ func UpdatedKubearmorRelayEnv(config *opv1.KubeArmorConfigSpec) bool {
 		if common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] != stringEnableStdOutMsgs {
 			common.KubearmorRelayEnvMap[common.EnableStdOutMsgs] = stringEnableStdOutMsgs
 			updated = true
+		}
+	}
+
+	stringEnableElasticAdapter := strconv.FormatBool(config.Adapters.ElasticSearch.Enabled)
+	if stringEnableElasticAdapter != "" {
+		if common.Adapter.ElasticSearch.Enabled != config.Adapters.ElasticSearch.Enabled {
+			updated = true
+			common.Adapter.ElasticSearch.Enabled = config.Adapters.ElasticSearch.Enabled
+		}
+		if common.Adapter.ElasticSearch.Auth.AllowTlsInsecure != config.Adapters.ElasticSearch.Auth.AllowTlsInsecure {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.AllowTlsInsecure = config.Adapters.ElasticSearch.Auth.AllowTlsInsecure
+		}
+		if common.Adapter.ElasticSearch.AlertsIndexName != config.Adapters.ElasticSearch.AlertsIndexName {
+			updated = true
+			common.Adapter.ElasticSearch.AlertsIndexName = config.Adapters.ElasticSearch.AlertsIndexName
+		}
+		if common.Adapter.ElasticSearch.Url != config.Adapters.ElasticSearch.Url {
+			updated = true
+			common.Adapter.ElasticSearch.Url = config.Adapters.ElasticSearch.Url
+		}
+		if config.Adapters.ElasticSearch.Auth.SecretName != "" && common.Adapter.ElasticSearch.Auth.SecretName != config.Adapters.ElasticSearch.Auth.SecretName {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.SecretName = config.Adapters.ElasticSearch.Auth.SecretName
+		}
+		if config.Adapters.ElasticSearch.Auth.UserNameKey != "" && common.Adapter.ElasticSearch.Auth.UserNameKey != config.Adapters.ElasticSearch.Auth.UserNameKey {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.UserNameKey = config.Adapters.ElasticSearch.Auth.UserNameKey
+		}
+		if config.Adapters.ElasticSearch.Auth.PasswordKey != "" && common.Adapter.ElasticSearch.Auth.PasswordKey != config.Adapters.ElasticSearch.Auth.PasswordKey {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.PasswordKey = config.Adapters.ElasticSearch.Auth.PasswordKey
+		}
+		if config.Adapters.ElasticSearch.Auth.CAcertSecretName != "" && common.Adapter.ElasticSearch.Auth.CAcertSecretName != config.Adapters.ElasticSearch.Auth.CAcertSecretName {
+			updated = true
+			common.Adapter.ElasticSearch.Auth.CAcertSecretName = config.Adapters.ElasticSearch.Auth.CAcertSecretName
 		}
 	}
 	return updated

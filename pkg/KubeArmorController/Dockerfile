@@ -30,6 +30,7 @@ ARG VERSION=latest
 
 LABEL name="kubearmor-controller" \
       vendor="AccuKnox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-controller container image based on redhat ubi" \

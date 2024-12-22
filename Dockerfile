@@ -83,6 +83,7 @@ ENV KUBEARMOR_UBI=true
 
 LABEL name="kubearmor" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor container image based on redhat ubi" \
@@ -119,6 +120,7 @@ ENV KUBEARMOR_UBI=true
 
 LABEL name="kubearmor" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor container image based on redhat ubi" \

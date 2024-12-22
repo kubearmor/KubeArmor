@@ -1,0 +1,30 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-trusted-cert-mod
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/pki/
+      readOnly: true
+      recursive: true
+    - dir: /etc/ssl/
+      readOnly: true
+      recursive: true
+    - dir: /usr/local/share/ca-certificates/
+      readOnly: true
+      recursive: true
+  message: Credentials modification denied
+  selector:
+    matchExpressions:
+  severity: 1
+  tags:
+  - FGT1555
+  - FIGHT
+  - MITRE
+  - MITRE_T1552_unsecured_credentials
+

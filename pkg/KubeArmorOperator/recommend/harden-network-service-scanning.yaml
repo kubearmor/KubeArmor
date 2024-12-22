@@ -1,0 +1,38 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-network-service-scanning
+spec:
+  action: Audit
+  message: Network service has been scanned!
+  process:
+    matchPaths:
+    - path: /usr/bin/netstat
+    - path: /bin/netstat
+    - path: /usr/sbin/ip
+    - path: /usr/bin/ip
+    - path: /sbin/ip
+    - path: /bin/ip
+    - path: /usr/sbin/iw
+    - path: /sbin/iw
+    - path: /usr/sbin/ethtool
+    - path: /sbin/ethtool
+    - path: /usr/sbin/ifconfig
+    - path: /sbin/ifconfig
+    - path: /usr/sbin/arp
+    - path: /sbin/arp
+    - path: /usr/sbin/iwconfig
+    - path: /sbin/iwconfig
+  selector:
+    matchExpressions:
+  severity: 5
+  tags:
+  - 5G
+  - FGT1046
+  - FIGHT
+  - MITRE
+  - MITRE_T1046_Network_Service_Discovery
+

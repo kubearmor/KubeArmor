@@ -1,0 +1,30 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-write-etc-dir
+spec:
+  action: Block
+  file:
+    matchDirectories:
+    - dir: /etc/
+      readOnly: true
+      recursive: true
+  message: Alert! File creation under /etc/ directory detected.
+  selector:
+    matchExpressions:
+  severity: 5
+  tags:
+  - MITRE
+  - MITRE_T1036.005_match_legitimate_name_or_location
+  - MITRE_T1036_masquerading
+  - MITRE_T1562.001_disable_or_modify_tools
+  - MITRE_TA0003_persistence
+  - MITRE_TA0005_defense_evasion
+  - NIST
+  - NIST_800-53
+  - NIST_800-53_SI-4
+  - NIST_800-53_SI-7
+

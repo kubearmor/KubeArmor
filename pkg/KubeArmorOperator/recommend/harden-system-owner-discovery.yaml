@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-system-owner-discovery
+spec:
+  action: Block
+  message: System owner discovery command execution denied
+  process:
+    matchPaths:
+      - path: /usr/bin/who
+      - path: /usr/bin/w
+      - path: /usr/bin/id
+      - path: /usr/bin/whoami
+  selector:
+    matchExpressions:
+  severity: 3
+  tags:
+  - MITRE
+  - MITRE_T1082_system_information_discovery
+

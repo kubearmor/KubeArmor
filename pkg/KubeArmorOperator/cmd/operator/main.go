@@ -8,6 +8,7 @@ import (
 	"errors"
 	"path/filepath"
 
+	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
 	opv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/client/clientset/versioned"
 	controllers "github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/internal/controller"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/k8s"
@@ -28,6 +29,7 @@ var PathPrefix string
 var DeploymentName string
 var ExtClient *apiextensionsclientset.Clientset
 var Opv1Client *opv1client.Clientset
+var Secv1Client *secv1client.Clientset
 var InitDeploy bool
 var LogLevel string
 
@@ -45,6 +47,7 @@ var Cmd = &cobra.Command{
 		K8sClient = k8s.NewClient(*Logger, KubeConfig)
 		ExtClient = k8s.NewExtClient(*Logger, KubeConfig)
 		Opv1Client = k8s.NewOpv1Client(*Logger, KubeConfig)
+		Secv1Client = k8s.NewSecv1Client(*Logger, KubeConfig)
 		//Initialise k8sClient for all child commands to inherit
 		if K8sClient == nil {
 			return errors.New("couldn't create k8s client")
@@ -52,7 +55,7 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		nodeWatcher := controllers.NewClusterWatcher(K8sClient, Logger, ExtClient, Opv1Client, PathPrefix, DeploymentName, InitDeploy)
+		nodeWatcher := controllers.NewClusterWatcher(K8sClient, Logger, ExtClient, Opv1Client, Secv1Client, PathPrefix, DeploymentName, InitDeploy)
 		go nodeWatcher.WatchConfigCrd()
 		nodeWatcher.WatchNodes()
 

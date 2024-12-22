@@ -213,6 +213,7 @@ profile {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A
 	signal,
 	unix,
 	ptrace,
+	dbus,
 	{{end}}
 	{{ if .File}}file,{{end}}
 	{{ if .Network}}network,{{end}}

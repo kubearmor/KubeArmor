@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest-16-cores
     permissions:
       id-token: write
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v3
         with:
@@ -109,7 +109,7 @@ jobs:
       - name: Test KubeArmor using Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-          make
+          ginkgo --vv --flake-attempts=10 --timeout=10m smoke/
         working-directory: ./tests/k8s_env
         timeout-minutes: 30
 

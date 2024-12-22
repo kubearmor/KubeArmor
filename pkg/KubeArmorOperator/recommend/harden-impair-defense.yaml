@@ -1,0 +1,28 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: harden
+  name: harden-impair-defense
+spec:
+  action: Audit
+  file:
+    matchDirectories:
+    - dir: /etc/apparmor.d/
+      recursive: true
+    - dir: /etc/sysconfig/selinux/
+      recursive: true
+    matchPaths:
+    - path: /etc/selinux/semanage.conf
+  message: Selinux Files Accessed by Unknown Process
+  selector:
+    matchExpressions:
+  severity: 6
+  tags:
+  - 5G
+  - FGT1562
+  - FIGHT
+  - MITRE
+  - MITRE_T1562_Impair _Defenses
+

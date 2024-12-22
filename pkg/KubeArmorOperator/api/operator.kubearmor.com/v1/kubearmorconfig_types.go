@@ -4,6 +4,7 @@
 package v1
 
 import (
+	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,11 +31,41 @@ type Tls struct {
 	RelayExtraIpAddresses []string `json:"extraIpAddresses,omitempty"`
 }
 
+type RecommendedPolicies struct {
+	Enable bool `json:"enable,omitempty"`
+
+	MatchExpressions []securityv1.MatchExpressionsType `json:"matchExpressions,omitempty"`
+
+	ExcludePolicy []string `json:"excludePolicy,omitempty"`
+}
+
+type ElasticSearchAuth struct {
+	SecretName       string `json:"secretName,omitempty"`
+	UserNameKey      string `json:"usernameKey,omitempty"`
+	PasswordKey      string `json:"passwordKey,omitempty"`
+	AllowTlsInsecure bool   `json:"allowInsecureTLS,omitempty"`
+	CAcertSecretName string `json:"caCertSecretName,omitempty"`
+	CaCertKey        string `json:"caCertKey,omitempty"`
+}
+
+type ElasticSearchAdapter struct {
+	Enabled         bool              `json:"enabled,omitempty"`
+	Url             string            `json:"url,omitempty"`
+	AlertsIndexName string            `json:"alertsIndex,omitempty"`
+	Auth            ElasticSearchAuth `json:"auth,omitempty"`
+}
+
+type Adapters struct {
+	ElasticSearch ElasticSearchAdapter `json:"elasticsearch,omitempty"`
+}
+
 // KubeArmorConfigSpec defines the desired state of KubeArmorConfig
 type KubeArmorConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// +kubebuilder:validation:optional
+	RecommendedPolicies RecommendedPolicies `json:"recommendedPolicies,omitempty"`
 	// +kubebuilder:validation:optional
 	DefaultFilePosture PostureType `json:"defaultFilePosture,omitempty"`
 	// +kubebuilder:validation:optional
@@ -69,6 +100,8 @@ type KubeArmorConfigSpec struct {
 	MaxAlertPerSec int `json:"maxAlertPerSec,omitempty"`
 	// +kubebuilder:validation:Optional
 	ThrottleSec int `json:"throttleSec,omitempty"`
+	// +kubebuilder:validation:Optional
+	Adapters Adapters `json:"adapters,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

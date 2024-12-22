@@ -8,6 +8,7 @@ ARG VERSION=latest
 
 LABEL name="kubearmor-init" \
       vendor="Accuknox" \
+      maintainer="Barun Acharya, Ramakant Sharma" \
       version=${VERSION} \
       release=${VERSION} \
       summary="kubearmor-init container image based on redhat ubi" \

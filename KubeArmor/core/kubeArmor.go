@@ -413,6 +413,8 @@ func KubeArmor() {
 		dm.Node.KernelVersion = kl.GetCommandOutputWithoutErr("uname", []string{"-r"})
 		dm.Node.KernelVersion = strings.TrimSuffix(dm.Node.KernelVersion, "\n")
 
+		dm.WatchConfigChanges()
+
 		dm.NodeLock.Unlock()
 
 	} else if cfg.GlobalCfg.K8sEnv {
