@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-proc-path-block
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  process:
+    matchPaths:
+    - path: /usr/bin/diff
+  action:
+    Block
+
+# kubearmor-dev_test_01
+
+# test
+# $ diff --help
+# -bash: /usr/bin/diff: Permission denied
+
+# expectation
+# anyone cannot execute /usr/bin/diff

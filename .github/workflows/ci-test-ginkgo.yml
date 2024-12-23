@@ -126,7 +126,7 @@ jobs:
           kubectl wait --timeout=7m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch,kubearmor-app!=kubearmor-controller -n kubearmor
           kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app=kubearmor-controller -n kubearmor
           kubectl get pods -A
-
+     
           sleep 10
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
           echo "DaemonSet: $DAEMONSET_NAME"
@@ -159,7 +159,10 @@ jobs:
           ]'
 
           sleep 15
-
+          
+      - name: Add KubeArmor host visibility
+        run: ./.github/workflows/host-visibility.sh
+        
       - name: Get KubeArmor POD info
         run: |
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
