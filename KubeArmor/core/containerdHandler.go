@@ -102,6 +102,7 @@ func NewContainerdHandler() *ContainerdHandler {
 	// Subscribe to containerd events
 
 	// docker namespace
+	ch.docker = context.Background()
 	ch.docker = namespaces.WithNamespace(context.Background(), "moby")
 
 	dockerEventsCh, _ := client.EventService().Subscribe(ch.docker, "")
@@ -128,7 +129,7 @@ func (ch *ContainerdHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function
-func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID string, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
+func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID string, eventpid uint32, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
 	res, err := ch.client.ContainerService().Get(ctx, containerID)
 	if err != nil {
 		return tp.Container{}, err
@@ -184,6 +185,36 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 	}
 
 	// == //
+	if eventpid == 0 {
+		taskReq := task.ListPidsRequest{ContainerID: container.ContainerID}
+		if taskRes, err := ch.client.TaskService().ListPids(ctx, &taskReq); err == nil {
+			if len(taskRes.Processes) == 0 {
+				return container, err
+			}
+
+			container.Pid = taskRes.Processes[0].Pid
+
+		} else {
+			return container, err
+		}
+
+	} else {
+		container.Pid = eventpid
+	}
+
+	pid := strconv.Itoa(int(container.Pid))
+
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/pid")); err == nil {
+		if _, err := fmt.Sscanf(data, "pid:[%d]\n", &container.PidNS); err != nil {
+			kg.Warnf("Unable to get PidNS (%s, %s, %s)", containerID, pid, err.Error())
+		}
+	}
+
+	if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, pid, "/ns/mnt")); err == nil {
+		if _, err := fmt.Sscanf(data, "mnt:[%d]\n", &container.MntNS); err != nil {
+			kg.Warnf("Unable to get MntNS (%s, %s, %s)", containerID, pid, err.Error())
+		}
+	}
 
 	taskReq := task.ListPidsRequest{ContainerID: container.ContainerID}
 	if taskRes, err := ch.client.TaskService().ListPids(ctx, &taskReq); err == nil {
@@ -267,7 +298,7 @@ func (ch *ContainerdHandler) GetContainerdContainers() map[string]context.Contex
 }
 
 // UpdateContainerdContainer Function
-func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID, action string) bool {
+func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, containerID string, containerPid uint32, action string) bool {
 	// check if Containerd exists
 	if Containerd == nil {
 		return false
@@ -275,7 +306,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 	if action == "start" {
 		// get container information from containerd client
-		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.OwnerInfo)
+		container, err := Containerd.GetContainerInfo(ctx, containerID, containerPid, dm.OwnerInfo)
 		if err != nil {
 			kg.Err(err.Error())
 			return false
@@ -554,7 +585,7 @@ func (dm *KubeArmorDaemon) MonitorContainerdEvents() {
 
 	if len(containers) > 0 {
 		for containerID, context := range containers {
-			if !dm.UpdateContainerdContainer(context, containerID, "start") {
+			if !dm.UpdateContainerdContainer(context, containerID, 0, "start") {
 				continue
 			}
 		}
@@ -588,7 +619,7 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		if err != nil {
 			kg.Errf("failed to unmarshal container's delete event: %v", err)
 		}
-		dm.UpdateContainerdContainer(context, deleteContainer.GetID(), "destroy")
+		dm.UpdateContainerdContainer(context, deleteContainer.GetID(), 0, "destroy")
 
 	case "/tasks/start":
 		startTask := &apievents.TaskStart{}
@@ -597,7 +628,7 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		if err != nil {
 			kg.Errf("failed to unmarshal container's start task: %v", err)
 		}
-		dm.UpdateContainerdContainer(context, startTask.GetContainerID(), "start")
+		dm.UpdateContainerdContainer(context, startTask.GetContainerID(), startTask.GetPid(), "start")
 
 	case "/tasks/exit":
 		exitTask := &apievents.TaskStart{}
@@ -612,7 +643,7 @@ func (dm *KubeArmorDaemon) handleContainerdEvent(envelope *events.Envelope, cont
 		dm.ContainersLock.RUnlock()
 
 		if pid == exitTask.GetPid() {
-			dm.UpdateContainerdContainer(context, exitTask.GetContainerID(), "destroy")
+			dm.UpdateContainerdContainer(context, exitTask.GetContainerID(), pid, "destroy")
 		}
 
 	}
