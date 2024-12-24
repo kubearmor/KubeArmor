@@ -95,7 +95,8 @@ spec:
               enableStdOutMsgs:
                 type: boolean
               kubeRbacProxyImage:
-                description: ImageSpec defines the image specifications
+                description: 'Deprecated: This type would be removed in one of the
+                  upcoming releases.'
                 properties:
                   image:
                     type: string

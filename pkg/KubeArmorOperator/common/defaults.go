@@ -105,9 +105,6 @@ var (
 	KubeArmorControllerName            string = "kubearmor-controller"
 	KubeArmorControllerImage           string = "kubearmor/kubearmor-controller:latest"
 	KubeArmorControllerImagePullPolicy string = "Always"
-	KubeRbacProxyName                  string = "kube-rbac-proxy"
-	KubeRbacProxyImage                 string = "gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0"
-	KubeRbacProxyImagePullPolicy       string = "Always"
 	SeccompProfile                            = "kubearmor-seccomp.json"
 	SeccompInitProfile                        = "kubearmor-init-seccomp.json"
 
@@ -484,11 +481,6 @@ func GetApplicationImage(app string) string {
 			return image
 		}
 		return KubeArmorControllerImage
-	case KubeRbacProxyName:
-		if image := os.Getenv("RELATED_IMAGE_KUBE_RBAC_PROXY"); image != "" {
-			return image
-		}
-		return KubeRbacProxyImage
 	case SnitchName:
 		if image := os.Getenv("RELATED_IMAGE_KUBEARMOR_SNITCH"); image != "" {
 			return image

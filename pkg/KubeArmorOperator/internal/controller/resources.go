@@ -484,14 +484,12 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		addOwnership(genSnitchRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
-		addOwnership(deployments.GetKubeArmorControllerProxyRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole),
 	}
 	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{
 		addOwnership(deployments.GetClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetRelayClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetKubeArmorControllerClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
-		addOwnership(deployments.GetKubeArmorControllerProxyRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(genSnitchRoleBinding()).(*rbacv1.ClusterRoleBinding),
 	}
 	roles := []*rbacv1.Role{
@@ -502,7 +500,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 
 	svcs := []*corev1.Service{
-		addOwnership(deployments.GetKubeArmorControllerMetricsService(common.Namespace)).(*corev1.Service),
 		addOwnership(deployments.GetKubeArmorControllerWebhookService(common.Namespace)).(*corev1.Service),
 		addOwnership(deployments.GetRelayService(common.Namespace)).(*corev1.Service),
 	}
@@ -639,9 +636,6 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		if container.Name == "manager" {
 			(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
-		} else {
-			(*containers)[i].Image = common.GetApplicationImage(common.KubeRbacProxyName)
-			(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeRbacProxyImagePullPolicy)
 		}
 	}
 	relayServer.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorRelayName)

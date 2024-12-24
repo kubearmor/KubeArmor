@@ -25,9 +25,6 @@ oci_meta:
     kubearmorOperator:
       image: kubearmor-operator
       tag: latest
-    kubeRbacProxy:
-      image: kube-rbac-proxy
-      tag: v0.15.0
 
 # in case if image pinning is disabled
 kubearmorOperator:
