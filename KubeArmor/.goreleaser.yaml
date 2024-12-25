@@ -10,6 +10,13 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - "-X main.BuildDate={{.Date}}"
+      - "-X main.GitCommit={{.Commit}}"
+      - "-X main.GitBranch={{.Branch}}"
+      - "-X main.GitState={{.State}}"
+      - "-X main.GitSummary={{.Tag}}-{{.ShortCommit}}-{{.CommitDirty}}"
+
 
 release:
   replace_existing_artifacts: true
