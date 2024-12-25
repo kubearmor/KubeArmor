@@ -1,0 +1,208 @@
+project_name: kubearmor
+release:
+  github:
+    owner: Atharva-Kanherkar
+    name: KubeArmor
+  make_latest: "false"
+  name_template: '{{.Tag}}'
+  mode: replace
+  replace_existing_artifacts: true
+builds:
+  - id: kubearmor
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v1
+    go386:
+      - sse2
+    goarm:
+      - "6"
+    goarm64:
+      - v8.0
+    gomips:
+      - hardfloat
+    goppc64:
+      - power8
+    goriscv64:
+      - rva20u64
+    targets:
+      - linux_amd64_v1
+      - linux_arm64_v8.0
+    dir: .
+    main: .
+    binary: opt/kubearmor/kubearmor
+    builder: go
+    tool: go
+    command: build
+    ldflags:
+      - -X main.BuildDate={{.Date}}
+      - -X main.GitCommit={{.Commit}}
+      - -X main.GitBranch={{.Branch}}
+      - -X main.GitState={{.State}}
+      - -X main.GitSummary={{.Tag}}-{{.ShortCommit}}-{{.CommitDirty}}
+    env:
+      - CGO_ENABLED=0
+archives:
+  - id: kubearmor
+    builds:
+      - kubearmor
+    name_template: '{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}'
+    format: tar.gz
+    files:
+      - src: ./BPF/*
+        dst: /opt/kubearmor/BPF/
+      - src: ./templates/*
+        dst: /opt/kubearmor/templates/
+      - src: ./packaging/kubearmor.yaml
+        dst: /opt/kubearmor/
+        strip_parent: true
+      - src: ./packaging/kubearmor.service
+        dst: /usr/lib/systemd/system/
+        strip_parent: true
+      - src: ./karmor
+        dst: /usr/local/bin/karmor
+nfpms:
+  - file_name_template: '{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}'
+    package_name: kubearmor
+    replaces:
+      - kubearmor
+    contents:
+      - dst: /opt/kubearmor
+        type: dir
+      - src: ./BPF/*
+        dst: /opt/kubearmor/BPF
+      - src: ./templates/*
+        dst: /opt/kubearmor/templates/
+      - src: ./packaging/kubearmor.yaml
+        dst: /opt/kubearmor/kubearmor.yaml
+        type: config
+      - src: ./packaging/kubearmor.service
+        dst: /usr/lib/systemd/system/kubearmor.service
+        type: config
+      - src: /opt/kubearmor/kubearmor
+        dst: /usr/local/bin/kubearmor
+        type: symlink
+      - src: ./karmor
+        dst: /usr/local/bin/karmor
+    scripts:
+      postinstall: packaging/post-install.sh
+    overrides:
+      deb:
+        recommends:
+          - make
+          - libelf-dev
+          - clang
+          - llvm
+          - linux-headers-generic
+      rpm:
+        recommends:
+          - make
+          - elfutils-libelf-devel
+          - clang
+          - llvm
+          - kernel-devel
+          - policycoreutils-devel
+          - setools-console
+    id: kubearmor
+    builds:
+      - kubearmor
+    formats:
+      - deb
+      - rpm
+    vendor: kubearmor
+    homepage: https://kubearmor.com
+    maintainer: Barun Acharya <barun.acharya@accuknox.com>
+    description: |
+      Cloud-native Runtime Security Enforcement System
+    license: Apache 2
+    bindir: /
+    libdirs:
+      header: /usr/include
+      carchive: /usr/lib
+      cshared: /usr/lib
+snapshot:
+  version_template: '{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}'
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
+changelog:
+  format: '{{ .SHA }}: {{ .Message }} ({{ with .AuthorUsername }}@{{ . }}{{ else }}{{ .AuthorName }} <{{ .AuthorEmail }}>{{ end }})'
+dist: dist
+signs:
+  - id: default
+    cmd: cosign
+    args:
+      - sign-blob
+      - --output-certificate=${certificate}
+      - --output-signature=${signature}
+      - ${artifact}
+      - --yes
+    signature: ${artifact}.sig
+    artifacts: all
+    certificate: ${artifact}.cert
+    output: true
+env_files:
+  github_token: ~/.config/goreleaser/github_token
+  gitlab_token: ~/.config/goreleaser/gitlab_token
+  gitea_token: ~/.config/goreleaser/gitea_token
+source:
+  name_template: '{{ .ProjectName }}-{{ .Version }}'
+  format: tar.gz
+gomod:
+  gobinary: go
+announce:
+  twitter:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+  mastodon:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    server: ""
+  reddit:
+    title_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    url_template: '{{ .ReleaseURL }}'
+  slack:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    username: GoReleaser
+  discord:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    author: GoReleaser
+    color: "3888754"
+    icon_url: https://goreleaser.com/static/avatar.png
+  teams:
+    title_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    color: '#2D313E'
+    icon_url: https://goreleaser.com/static/avatar.png
+  smtp:
+    subject_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    body_template: 'You can view details from: {{ .ReleaseURL }}'
+  mattermost:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+    title_template: '{{ .ProjectName }} {{ .Tag }} is out!'
+    username: GoReleaser
+  linkedin:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+  telegram:
+    message_template: '{{ mdv2escape .ProjectName }} {{ mdv2escape .Tag }} is out{{ mdv2escape "!" }} Check it out at {{ mdv2escape .ReleaseURL }}'
+    parse_mode: MarkdownV2
+  webhook:
+    message_template: '{ "message": "{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}"}'
+    content_type: application/json; charset=utf-8
+    expected_status_codes:
+      - 200
+      - 201
+      - 202
+      - 204
+  opencollective:
+    title_template: '{{ .Tag }}'
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out!<br/>Check it out at <a href="{{ .ReleaseURL }}">{{ .ReleaseURL }}</a>'
+  bluesky:
+    message_template: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
+git:
+  tag_sort: -version:refname
+github_urls:
+  download: https://github.com
+gitlab_urls:
+  download: https://gitlab.com
