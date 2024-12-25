@@ -11,7 +11,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - "-X main.BuildDate={{.Date}} -X main.GitCommit={{.Commit}} -X main.GitBranch={{.Branch}} -X main.GitState={{.FullState}} -X main.GitSummary={{.Summary}}"
+      - "-X main.BuildDate={{.Date}} -X main.GitCommit={{.Commit}} -X main.GitBranch={{.Branch}} -X main.GitSummary={{.Summary}}"
 
 
 
