@@ -498,7 +498,7 @@ func (fd *Feeder) PushMessage(level, message string) {
 	pbMsg.UpdatedTime = updatedTime
 
 	//pbMsg.ClusterName = cfg.GlobalCfg.Cluster
-	pbMsg.ClusterName = fd.Node.ClusterName
+	pbMsg.ClusterName = cfg.GlobalCfg.Cluster
 
 	pbMsg.HostName = cfg.GlobalCfg.Host
 	pbMsg.HostIP = fd.Node.NodeIP
@@ -598,7 +598,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Timestamp = log.Timestamp
 		pbAlert.UpdatedTime = log.UpdatedTime
 
-		pbAlert.ClusterName = fd.Node.ClusterName
+		pbAlert.ClusterName = cfg.GlobalCfg.Cluster
 		pbAlert.HostName = fd.Node.NodeName
 
 		pbAlert.NamespaceName = log.NamespaceName
@@ -696,7 +696,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.Timestamp = log.Timestamp
 		pbLog.UpdatedTime = log.UpdatedTime
 
-		pbLog.ClusterName = fd.Node.ClusterName
+		pbLog.ClusterName = cfg.GlobalCfg.Cluster
 		pbLog.HostName = fd.Node.NodeName
 
 		pbLog.NamespaceName = log.NamespaceName
