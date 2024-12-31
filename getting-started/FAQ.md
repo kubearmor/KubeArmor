@@ -156,6 +156,8 @@ Unbreakable Enterprise Kernel Release 7 (UEK R7) is based on Linux kernel 5.15 L
 
 ### Checking if BPF-LSM is supported in the Kernel
 
+> Note: KubeArmor now supports upgrading the nodes to BPF-LSM using [an updater daemonset](#kubearmor-enforcement-is-not-enabledworking). The following text is just an FYI but need not be used manually for k8s env.
+
 We check for BPF LSM Support in Kernel Config
 
 ```sh
@@ -322,85 +324,22 @@ kubectl patch deploy -n $(kubectl get deploy -l kubearmor-app=kubearmor-relay -A
 </details>
 
 <details>
-<summary><h4>Debug KubeArmor installation issue</h4></summary>
-In certain scenarios, the expected behavior of KubeArmor might not be observed. One way to investigate this is by using the KubeArmor Command Line Interface (CLI) utility, commonly referred to as [karmor cli](https://github.com/kubearmor/kubearmor-client). 
+<summary><h4>KubeArmor enforcement is not enabled/working</h4></summary>
 
-To check the status and configuration of KubeArmor, you can use the following command:
-
+KubeArmor enforcement mode requires support of LSMs on the hosts. Certain distributions might not enable it out of the box. There are two ways to check this:
+1. During KubeArmor installation, it shows the following warning message:
 ```
-karmor probe
+KubeArmor is running in Audit mode, only Observability will be available and Policy Enforcement won't be available.
 ```
+2. Another way to check it is using `karmor probe`. If the `Active LSM` shown is blank, then the enforcement won't work.
 
-```
-pc:~$ karmor probe
-
-Found KubeArmor running in Kubernetes
-
-Daemonset :
-
-kubearmor Desired: 1 Ready: 1 Available: 1 Deployments :
-
-kubearmor-controller        Desired: 1   Ready: 1   Available: 1 
-kubearmor-operator          Desired: 1   Ready: 1   Available: 1 
-kubearmor-relay             Desired: 1   Ready: 1   Available: 1
-
-Containers :
-
-kubearmor -apparmor-containerd-98c2c-z772n     Running: 1    Image Version: kubearmor/kubearmor:stable 
-kubearmor-controller -6b5d689967-4wxnh         Running: 2    Image Version: gcr.io/kubebuilder/kube-rbac-proxy:v0.12. 
-kubearmor -operator -6fb47dd855-6tk5r          Running: 1    Image Version: kubearmor/kubearmor-operator: latest
-kubearmor -relay-6966976dbb-hq96h              Running: 1    Image Version: kubearmor/kubearmor-relay-server
-
-Node 1 :
-
-OS Image:                    Debian GNU/Linux 11 (bullseye)
-
-Kernel Version:              6.2.0-36-generic
-
-Kubelet Version:             v1.27.3
-
-Container Runtime:           containerd://1.7.1
-
-Active LSM:
-
-Host Security:               false
-
-Container Security:          false
-
-Container Default Posture:   audit(File)   audit(Capabilities)    audit (Network) 
-Host Default Posture:        audit(File)   audit(Capabilities)   audit (Network) 
-Host Visibility:             none
-
-Armored Up pods :
-
-------------------------------------------------------------
-
-| NAMESPACE | DEFAULT POSTURE | VISIBILITY | NAME | POLICY |
-```
-
-When executing this command, check the output for the value of **ActiveLSM** field, if it is not assigned any value, it means that no active LSM is available for KubeArmor to enforce policies. Under normal circumstances, this value should be assigned a specific Linux Security Module (LSM) that KubeArmor uses to enforce security policies. Additionally, ensure that the **Container Security** field is set to true.
-
-However, there are situations where ActiveLSM might not be assigned any value. This situation indicates that Kubearmor is unable to identify the appropriate LSM in a environment, which is commonly used in Kubernetes setups.
-
-To address this issue, KubeArmor provides a solution involving the use of BPF-LSM. BPF (Berkeley Packet Filter) is a technology that allows efficient packet filtering in the Linux kernel. Enabling support for BPF LSM ensures that KubeArmor can apply and enforce policies as expected in Dockerized environments associated with Kubernetes. Please note that BPFLSM is only available on kernel versions above 5.8 or on RHEL distros > 8.5.
-
-So we need to enable [bpf-lsm](FAQ.md#checking-and-enabling-support-for-bpf-lsm) for Kubearmor to apply and enforce policies as expected.
-
-You can also enable AppArmor if you want to use it as a security module to enforce KubeArmor policies, please refer [here](FAQ.md#using-kubearmor-with-kind-clusters). There is a chance that neither AppArmor nor BPF-LSM is enabled on some nodes. 
-
-**We can apply the following manifest which automatically detects and installs BPFLSM/AppArmor whichever is needed in kubernetes worker nodes.**
-
-```
-kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/updaterscript.yaml
-```
-
-The above updater daemonset will update all the nodes at the same time and thus all the nodes will restart simultaneously. If you want a RollingUpdate of the nodes, then you can use the following command instead.
-
+Following `updater` daemonset will enable the required LSM on the nodes (in the future if new nodes are dynamically added, those nodes will be auto enabled as well).
 ```
 kubectl apply -f https://raw.githubusercontent.com/kubearmor/KubeArmor/main/deployments/controller/ka-updater-kured.yaml
 ```
+> Note: Nodes who do not have necessary LSM will be restarted after the deployment of updater.
 
-**Warning:** After running the above script the nodes will restart.
+Once the nodes are restarted, `karmor probe` would then show `Active LSM` with appropriate value.
 </details>
 
 <details><summary><h4>KubeArmor with WSL2</h4></summary>
