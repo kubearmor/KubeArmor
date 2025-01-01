@@ -217,10 +217,23 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 // GetEventChannel Function
 func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 	if dh.DockerClient != nil {
-		event, _ := dh.DockerClient.Events(context.Background(), types.EventsOptions{})
-		return event
-	}
+		eventBuffer := make(chan events.Message, 256)
 
+		go func() {
+			eventStream, _ := dh.DockerClient.Events(context.Background(), types.EventsOptions{})
+			defer close(eventBuffer)
+
+			for event := range eventStream {
+				select {
+				case eventBuffer <- event:
+				default:
+					kg.Warnf("Docker channel full.")
+				}
+			}
+		}()
+
+		return eventBuffer
+	}
 	return nil
 }
 
