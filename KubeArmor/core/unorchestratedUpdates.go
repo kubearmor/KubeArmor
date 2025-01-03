@@ -103,9 +103,14 @@ func (dm *KubeArmorDaemon) MatchandUpdateContainerSecurityPolicies(cid string) {
 			if cfg.GlobalCfg.Policy {
 				// update security policies
 				dm.Logger.UpdateSecurityPolicies("MODIFIED", ep)
-				if dm.RuntimeEnforcer != nil && ep.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					// enforce security policies
-					dm.RuntimeEnforcer.UpdateSecurityPolicies(ep)
+				if ep.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+					if dm.RuntimeEnforcer != nil {
+						// enforce security policies
+						dm.RuntimeEnforcer.UpdateSecurityPolicies(ep)
+					}
+					if dm.Presets != nil {
+						dm.Presets.UpdateSecurityPolicies(ep)
+					}
 				}
 			}
 		}
@@ -207,9 +212,14 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 			// update security policies
 			dm.Logger.UpdateSecurityPolicies("ADDED", newPoint)
 
-			if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+			if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				if dm.RuntimeEnforcer != nil {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+				}
+				if dm.Presets != nil {
+					dm.Presets.UpdateSecurityPolicies(newPoint)
+				}
 			}
 		}
 	} else if eventType == "MODIFIED" {
@@ -218,9 +228,15 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 			// update security policies
 			dm.Logger.UpdateSecurityPolicies("MODIFIED", newPoint)
 
-			if dm.RuntimeEnforcer != nil && newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-				// enforce security policies
-				dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+			if newPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+				if dm.RuntimeEnforcer != nil {
+					// enforce security policies
+					dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+				}
+				if dm.Presets != nil {
+					// enforce preset rules
+					dm.Presets.UpdateSecurityPolicies(newPoint)
+				}
 			}
 		}
 	} else { // DELETED
@@ -229,6 +245,9 @@ func (dm *KubeArmorDaemon) handlePolicyEvent(eventType string, createEndPoint bo
 			dm.EndPoints[endpointIdx] = newPoint
 			dm.Logger.UpdateSecurityPolicies("DELETED", newPoint)
 			dm.RuntimeEnforcer.UpdateSecurityPolicies(newPoint)
+			if dm.Presets != nil {
+				dm.Presets.UpdateSecurityPolicies(newPoint)
+			}
 			// delete endpoint if no containers or policies
 			if len(newPoint.Containers) == 0 && len(newPoint.SecurityPolicies) == 0 {
 				dm.EndPoints = append(dm.EndPoints[:endpointIdx], dm.EndPoints[endpointIdx+1:]...)
@@ -652,7 +671,9 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 					dm.Logger.UpdateSecurityPolicies("DELETED", endPoint)
 					endPoint.SecurityPolicies = append(endPoint.SecurityPolicies[:0], endPoint.SecurityPolicies[1:]...)
 					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
-
+					if dm.Presets != nil {
+						dm.Presets.UpdateSecurityPolicies(endPoint)
+					}
 					endPoint = tp.EndPoint{}
 					endPointIndex--
 				} else if len(endPoint.SecurityPolicies) >= 1 {
@@ -669,9 +690,15 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 						// update security policies
 						dm.Logger.UpdateSecurityPolicies("MODIFIED", endPoint)
 
-						if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-							// enforce security policies
-							dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
+						if endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
+							if dm.RuntimeEnforcer != nil {
+								// enforce security policies
+								dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
+							}
+							if dm.Presets != nil {
+								// enforce preset rules
+								dm.Presets.UpdateSecurityPolicies(endPoint)
+							}
 						}
 					}
 				}
