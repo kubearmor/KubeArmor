@@ -27,10 +27,14 @@ message policy {
 message ContainerData {
   repeated string policyList = 1;
   int32 policyEnabled = 2;
+  repeated policy policyDataList = 3;
 }
+
 message HostSecurityPolicies {
   repeated string policyList = 1;
+  repeated policy policyDataList = 2;
 }
+
 message ProbeResponse {
    repeated string containerList = 1;
    map<string, ContainerData> containerMap = 2;
