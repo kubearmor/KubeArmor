@@ -231,6 +231,11 @@ func (ae *AppArmorEnforcer) SetNetworkMatchProtocols(proto tp.NetworkProtocolTyp
 	//forcing the protocol to lowercase
 	proto.Protocol = strings.ToLower(proto.Protocol)
 
+	// handle icmpv6 protocol same as icmp
+	if proto.Protocol == "icmpv6" {
+		proto.Protocol = "icmp"
+	}
+
 	if !deny {
 		prof.Network = head
 	}

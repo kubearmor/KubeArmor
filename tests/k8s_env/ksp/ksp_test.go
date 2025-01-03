@@ -266,6 +266,32 @@ var _ = Describe("Ksp", func() {
 
 		})
 
+		It("it can block all network traffic", func() {
+
+			// Apply Policy
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-net-all.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+			Expect(err).To(BeNil())
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"},
+				MatchRegexp("ping.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-block-net-all",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+		})
+
 	})
 
 	Describe("Apply Capabilities Policy", func() {
