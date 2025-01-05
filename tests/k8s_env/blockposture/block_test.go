@@ -74,10 +74,10 @@ var _ = Describe("Posture", func() {
 				MatchRegexp("curl.*Could not resolve host: google.com"), true,
 			)
 
-			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", out)
-			Expect(out).To(MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"))
+			AssertCommand(
+				wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"},
+				MatchRegexp("<HTML>((?:.*\\r?\\n?)*)</HTML>"), true,
+			)
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
 			Expect(err).To(BeNil())
