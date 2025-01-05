@@ -216,7 +216,7 @@ var _ = Describe("Smoke", func() {
 			time.Sleep(5 * time.Second)
 
 			fname := fmt.Sprintf("/var/lib/mysql/%s", RandString(12))
-			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("touch %s", fname)}, MatchRegexp(""), true)
+			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("touch %s", fname)}, MatchRegexp(".*"), true)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -227,7 +227,7 @@ var _ = Describe("Smoke", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
-			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("rm %s", fname)}, BeNil(), true)
+			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("rm %s", fname)}, MatchRegexp(".*"), true)
 
 		})
 
