@@ -84,9 +84,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("all", "nginx", "", pods.Items[0].Name)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(pods.Items[0].Name, "nginx", []string{"ls"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
+			AssertCommand(
+				pods.Items[0].Name, "nginx", []string{"ls"},
+				MatchRegexp(".*"), true,
+			)			
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)
@@ -225,10 +226,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub4)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "sleep 1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "sleep 1"},
+				MatchRegexp(".*"), true,
+			)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-group-2-audit-proc-path",
@@ -432,11 +433,10 @@ var _ = Describe("Ksp", func() {
 			AssertCommand(ub3, "multiubuntu", []string{"bash", "-c", "/home/user1/hello"},
 				MatchRegexp("hello.*Permission denied"), true,
 			)
-			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
-				[]string{"bash", "-c", "/home/user1/hello"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("hello.*Permission denied"))
+			AssertCommand(
+				ub3, "multiubuntu", []string{"bash", "-c", "/home/user1/hello"},
+				MatchRegexp("hello.*Permission denied"), true,
+			)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-ubuntu-3-block-proc-path-owner",
@@ -820,10 +820,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub1)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-				[]string{"bash", "-c", "touch  /home/user1/new1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub1, "multiubuntu", []string{"bash", "-c", "touch /home/user1/new1"},
+				MatchRegexp(".*"), true,
+			)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-ubuntu-1-audit-file-access-owner-readonly",
@@ -1401,10 +1401,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("system", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "su - user1 -c 'cat /home/user1/secret_data1.txt'"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'cat /home/user1/secret_data1.txt'"},
+				MatchRegexp(".*"), true,
+			)
 			// Expect(sout).To(ContainSubstring("secret file user1"))
 
 			expectLog := protobuf.Log{
@@ -1518,10 +1518,10 @@ var _ = Describe("Ksp", func() {
 
 			// Test 3: write operation on the file by the owner should also be allowed
 			// No need for AssertCommand here since there is nothing to match
-			sout, _, err := K8sExecInPod(ub3, "multiubuntu",
-				[]string{"bash", "-c", "su - user1 -c 'echo user1 >> /home/user1/secret_data1.txt'"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub3, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'echo user1 >> /home/user1/secret_data1.txt'"},
+				MatchRegexp(".*"), true,
+			)
 
 		})
 
@@ -1578,11 +1578,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("system", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "./readwrite -r /secret.txt"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(ContainSubstring("s"))
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -r /secret.txt"},
+				ContainSubstring("s"), true,
+			)
 
 			expectLog = protobuf.Log{
 				Resource: "secret.txt",
@@ -1613,10 +1612,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "./readwrite -w /credentials/password"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -w /credentials/password"},
+				MatchRegexp(".*"), true,
+			)
 
 			expect := protobuf.Alert{
 				PolicyName: "DefaultPosture",
@@ -1632,10 +1631,10 @@ var _ = Describe("Ksp", func() {
 
 			// Test 3: reading some other file should be denied as not allowed by the policy
 
-			sout, _, err = K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "./readwrite -r /secret.txt"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -r /secret.txt"},
+				MatchRegexp(".*"), true,
+			)
 
 			expect = protobuf.Alert{
 				PolicyName: "DefaultPosture",
@@ -1711,10 +1710,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "touch /dev/shm/new"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "touch /dev/shm/new"},
+				MatchRegexp(".*"), true,
+			)
 
 			expect := protobuf.Alert{
 				PolicyName: "ksp-ubuntu-4-audit-file-path-readonly",
@@ -1884,11 +1883,10 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("system", "multiubuntu", "File", ub4)
 			Expect(err).To(BeNil())
 
-			sout, _, err := K8sExecInPod(ub4, "multiubuntu",
-				[]string{"bash", "-c", "cat /credentials/password"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(ContainSubstring("password file"))
+			AssertCommand(
+				ub4, "multiubuntu", []string{"bash", "-c", "cat /credentials/password"},
+				ContainSubstring("password file"), true,
+			)
 		})
 
 	})
