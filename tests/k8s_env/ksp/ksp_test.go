@@ -1729,7 +1729,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 
 			AssertCommand(
-				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -r /secret.txt"},
+				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -w /credentials/password"},
 				MatchRegexp(".*"), true,
 			)
 
