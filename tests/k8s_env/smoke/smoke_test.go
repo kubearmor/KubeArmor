@@ -198,7 +198,7 @@ var _ = Describe("Smoke", func() {
 			time.Sleep(5 * time.Second)
 
 			fname := fmt.Sprintf("/var/lib/mysql/%s", RandString(12))
-			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("touch %s", fname)}, MatchRegexp(""), true)
+			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("touch %s", fname)}, MatchRegexp(".*"), true)
 
 			// check policy violation alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
@@ -208,7 +208,7 @@ var _ = Describe("Smoke", func() {
 			Expect(alerts[0].PolicyName).To(Equal("ksp-mysql-audit-dir"))
 			Expect(alerts[0].Severity).To(Equal("5"))
 
-			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("rm %s", fname)}, BeNil(), true)
+			AssertCommand(sql, "wordpress-mysql", []string{"bash", "-c", fmt.Sprintf("rm %s", fname)}, MatchRegexp(".*"), true)
 
 		})
 

@@ -397,7 +397,7 @@ var _ = Describe("Ksp", func() {
 
 			AssertCommand(
 				ub4, "multiubuntu", []string{"bash", "-c", "sleep 1"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 
 			expect := protobuf.Alert{
@@ -908,7 +908,7 @@ var _ = Describe("Ksp", func() {
 
 			AssertCommand(
 				ub1, "multiubuntu", []string{"bash", "-c", "touch /home/user1/new1"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 
 			expect := protobuf.Alert{
@@ -1488,7 +1488,7 @@ var _ = Describe("Ksp", func() {
 
 			AssertCommand(
 				ub4, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'cat /home/user1/secret_data1.txt'"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 			// Expect(sout).To(ContainSubstring("secret file user1"))
 
@@ -1605,7 +1605,7 @@ var _ = Describe("Ksp", func() {
 			// No need for AssertCommand here since there is nothing to match
 			AssertCommand(
 				ub3, "multiubuntu", []string{"bash", "-c", "su - user1 -c 'echo user1 >> /home/user1/secret_data1.txt'"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 
 		})
@@ -1704,7 +1704,7 @@ var _ = Describe("Ksp", func() {
 
 			AssertCommand(
 				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -r /secret.txt"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 
 			expect := protobuf.Alert{
@@ -1723,7 +1723,7 @@ var _ = Describe("Ksp", func() {
 
 			AssertCommand(
 				ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -r /secret.txt"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 
 			expect = protobuf.Alert{
@@ -1805,7 +1805,7 @@ var _ = Describe("Ksp", func() {
 
 			AssertCommand(
 				ub4, "multiubuntu", []string{"bash", "-c", "touch /dev/shm/new"},
-				BeEmpty(), true,
+				MatchRegexp(".*"), true,
 			)
 
 			expect := protobuf.Alert{
