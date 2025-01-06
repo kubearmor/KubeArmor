@@ -139,6 +139,22 @@ CONTROLLER_GEN = $(GOBIN)/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
+# go-get-tool will 'go get' any package $2 and install it to $1.
+define go-get-tool
+@echo "GOBIN=$(HOME)/go/bin go install $(2)" 
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+go mod tidy ;\
+go get $(2) ;\
+GOBIN=$(HOME)/go/bin go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
+
 client/gen:
 	@echo "--> Running code-generator to generate clients"
 	# prepare tool code-generator
