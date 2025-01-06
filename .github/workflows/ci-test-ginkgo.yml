@@ -83,6 +83,7 @@ jobs:
           kubectl get pods -A
 
       - name: Run KubeArmor
+        timeout-minutes: 7
         run: |
           if [[ ${{ matrix.runtime }} == "containerd" ]]; then
             docker save kubearmor/kubearmor-test-init:latest | sudo k3s ctr images import -
@@ -123,10 +124,13 @@ jobs:
           fi
 
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app -n kubearmor
-          kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
-          kubectl wait --timeout=1m --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor
-          kubectl get pods -A
+          
+          while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
+            kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
+            kubectl get pods -A
+          done
 
           sleep 10
           DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
