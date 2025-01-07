@@ -16,8 +16,12 @@ kubearmorRelay:
     repository: kubearmor/kubearmor-relay-server
     # kubearmor-init image tag
     tag: latest
+    # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
+    imagePullSecrets: ""
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
+  tolerations: ""
+
   # Add environment variables for STDOUT logging
   enableStdoutLogs: "false"
   enableStdoutAlerts: "false"
@@ -62,6 +66,8 @@ kubearmorInit:
     repository: kubearmor/kubearmor-init
     # kubearmor-init image tag
     tag: stable
+    # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
+    imagePullSecrets: ""
   # kubearmor-init imagePullPolicy
   imagePullPolicy: Always
 
@@ -71,6 +77,8 @@ kubeRbacProxy:
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     # kube-rbac-proxy image tag
     tag: v0.15.0
+    # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
+    imagePullSecrets: ""
   # kube-rbac-proxy imagePullPolicy
   imagePullPolicy: Always
 
@@ -83,6 +91,9 @@ kubearmorController:
     repository: kubearmor/kubearmor-controller
     # kubearmor-controller image tag
     tag: latest
+    # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
+    imagePullSecrets: ""
+  tolerations: ""  
   mutation:
     # kubearmor-controller failure policy
     failurePolicy: Ignore
@@ -100,12 +111,15 @@ kubearmorConfigMap:
 
 #volume mounts and volumes
 kubearmor:
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  tolerations: ""
   image:
     # kubearmor daemonset image repo
     repository: kubearmor/kubearmor
     # kubearmor daemonset image tag
     tag: stable
-
+    # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
+    imagePullSecrets: ""
   # kubearmor daemonset imagePullPolicy
   imagePullPolicy: Always
 

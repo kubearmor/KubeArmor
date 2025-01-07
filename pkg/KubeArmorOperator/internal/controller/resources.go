@@ -99,6 +99,9 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 		daemonset.Spec.Template.Spec.InitContainers[0].VolumeMounts = commonVolMnts
 		daemonset.Spec.Template.Spec.InitContainers[0].Image = common.GetApplicationImage(common.KubeArmorInitName)
 		daemonset.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorInitImagePullPolicy)
+		UpdateArgsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.InitContainers[0].Args, common.KubeArmorInitArgs)
+		UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorInitImagePullSecrets)
+		UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
 	}
 	// update images
 	if seccompPresent == "yes" && common.ConfigDefaultSeccompEnabled == "true" {
@@ -117,6 +120,15 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 
 	daemonset.Spec.Template.Spec.Containers[0].Image = common.GetApplicationImage(common.KubeArmorName)
 	daemonset.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorImagePullPolicy)
+	UpdateArgsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Containers[0].Args, common.KubeArmorArgs)
+	UpdateImagePullSecretsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorImagePullSecrets)
+	UpdateTolerationsIfDefinedAndUpdated(&daemonset.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations)
+	if len(daemonset.Spec.Template.Spec.ImagePullSecrets) < 1 {
+		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &daemonset.Spec.Template.Spec.ImagePullSecrets)
+	}
+	if len(daemonset.Spec.Template.Spec.Tolerations) < 1 {
+		updateTolerationFromGlobal(common.GlobalTolerations, &daemonset.Spec.Template.Spec.Tolerations)
+	}
 	daemonset = addOwnership(daemonset).(*appsv1.DaemonSet)
 	fmt.Printf("generated daemonset: %v", daemonset)
 	return daemonset
@@ -688,6 +700,25 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
+	// update args, imagePullSecrets and tolerations
+	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
+	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
+	UpdateTolerationsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
+	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
+		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
+	}
+	if len(controller.Spec.Template.Spec.Tolerations) < 1 {
+		updateTolerationFromGlobal(common.GlobalTolerations, &controller.Spec.Template.Spec.Tolerations)
+	}
+	UpdateArgsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Containers[0].Args, common.KubeArmorRelayArgs)
+	UpdateImagePullSecretsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
+	UpdateTolerationsIfDefinedAndUpdated(&relayServer.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
+	if len(relayServer.Spec.Template.Spec.ImagePullSecrets) < 1 {
+		updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &relayServer.Spec.Template.Spec.ImagePullSecrets)
+	}
+	if len(relayServer.Spec.Template.Spec.Tolerations) < 1 {
+		updateTolerationFromGlobal(common.GlobalTolerations, &relayServer.Spec.Template.Spec.Tolerations)
+	}
 	// update relay env vars
 	relayServer.Spec.Template.Spec.Containers[0].Env = []corev1.EnvVar{
 		{
