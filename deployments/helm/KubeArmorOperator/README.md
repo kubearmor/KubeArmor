@@ -23,6 +23,11 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorOperator.image.repository | string | kubearmor/kubearmor-operator | image repository to pull KubeArmorOperator from |
 | kubearmorOperator.image.tag | string | latest | KubeArmorOperator image tag |
 | kubearmorOperator.imagePullPolicy | string | IfNotPresent | pull policy for operator image |
+| kubearmorOperator.podLabels | object | {} | additional pod labels |
+| kubearmorOperator.podAnnotations | object | {} | additional pod annotations |
+| kubearmorOperator.resources | object | {} | operator container resources |
+| kubearmorOperator.podSecurityContext | object | {} | pod security context |
+| kubearmorOperator.securityContext | object | {} | operator container security context |
 | kubearmorConfig | object | [values.yaml](values.yaml) | KubeArmor default configurations |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
 
