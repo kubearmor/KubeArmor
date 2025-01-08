@@ -62,6 +62,7 @@ jobs:
           make docker-build
 
       - name: Install KubeArmor Latest and KubeArmorController using Helm
+        timeout-minutes: 7
         run: |
           # save images
           docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
@@ -86,32 +87,15 @@ jobs:
             jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never" | .spec.kubearmorImage.imagePullPolicy = "Always" | .spec.kubearmorInitImage.imagePullPolicy = "Always"' | \
             kubectl apply -f -
           fi
+
           kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
-          timeout 7m bash -c -- '
-          while true; do
-          all_running=true
-          echo "Checking pod status..."
-          for pod_status in $(kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch --output=jsonpath="{.items[*].status.phase}" 2>/dev/null); do
-          if [ "$pod_status" != "Running" ]; then
-          all_running=false
-          echo "Waiting for pods to be Running..."
-          break
-          fi
-          done
           
-          if $all_running; then
-          echo "All pods are Running."
-          break
-          fi
-          
-          if kubectl get pod -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-snitch | grep CrashLoopBackOff; then
-          echo "Error: Pod in CrashLoopBackOff state"
-          exit 1
-          fi
-          
-          sleep 1
-          done
-          '
+          while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
+            kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
+            kubectl get pods -A
+          done         
 
       - name: Test KubeArmor using Ginkgo
         run: |

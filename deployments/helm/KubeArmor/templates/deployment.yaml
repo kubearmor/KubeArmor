@@ -18,6 +18,14 @@ spec:
       labels:
         kubearmor-app: kubearmor-relay
     spec:
+      {{- if .Values.kubearmorRelay.image.imagePullSecrets }}
+      imagePullSecrets:
+      {{ toYaml .Values.kubearmorRelay.image.imagePullSecrets | indent 6 }}
+      {{- end }}
+      {{- if .Values.kubearmorRelay.tolerations }}
+      tolerations:
+      {{ toYaml .Values.kubearmorRelay.tolerations | indent 6 }}
+      {{- end }}
       containers:
       - args:
         {{printf "- -tlsEnabled=%t" .Values.tls.enabled}}
@@ -78,6 +86,14 @@ spec:
         - /manager
         image: {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}
         imagePullPolicy: {{ .Values.kubearmorController.imagePullPolicy }}
+      {{- if .Values.kubearmorController.image.imagePullSecrets }}
+        imagePullSecrets:
+      {{ toYaml .Values.kubearmorController.image.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.kubearmorController.tolerations }}
+      tolerations:
+      {{ toYaml .Values.kubearmorController.tolerations | indent 6 }}
+      {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
