@@ -927,6 +927,7 @@ func (clusterWatcher *ClusterWatcher) UpdateCrdStatus(cfg, phase, message string
 				// retry the update
 				return false, nil
 			}
+			clusterWatcher.Log.Info("Config CR Status Updated Successfully")
 		}
 		return true, nil
 	})
@@ -934,7 +935,6 @@ func (clusterWatcher *ClusterWatcher) UpdateCrdStatus(cfg, phase, message string
 		clusterWatcher.Log.Errorf("Error updating the ConfigCR status %s", err)
 		return
 	}
-	clusterWatcher.Log.Info("Config CR Status Updated Successfully")
 }
 
 func (clusterWatcher *ClusterWatcher) UpdateKubeArmorConfigMap(cfg *opv1.KubeArmorConfig) {
@@ -1141,7 +1141,7 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 	var yamlBytes []byte
 	policies, err := recommend.CRDFs.ReadDir(".")
 	if err != nil {
-		clusterWatcher.Log.Warnf("error reading policies FS", err)
+		clusterWatcher.Log.Warnf("error reading policies FS %s", err)
 		return err
 	}
 	for _, policy := range policies {
@@ -1149,11 +1149,11 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 		if !policy.IsDir() {
 			yamlBytes, err = recommend.CRDFs.ReadFile(policy.Name())
 			if err != nil {
-				clusterWatcher.Log.Warnf("error reading csp", policy.Name())
+				clusterWatcher.Log.Warnf("error reading csp %s", policy.Name())
 				continue
 			}
 			if err := runtime.DecodeInto(scheme.Codecs.UniversalDeserializer(), yamlBytes, csp); err != nil {
-				clusterWatcher.Log.Warnf("error decoding csp", policy.Name())
+				clusterWatcher.Log.Warnf("error decoding csp %s", policy.Name())
 				continue
 			}
 		}
@@ -1163,31 +1163,31 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				clusterWatcher.Log.Infof("excluding csp ", csp.Name)
 				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
 				if err != nil && !metav1errors.IsNotFound(err) {
-					clusterWatcher.Log.Warnf("error deleting csp", csp.GetName())
+					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
 				} else if err == nil {
-					clusterWatcher.Log.Infof("deleted csp", csp.GetName())
+					clusterWatcher.Log.Infof("deleted csp :%s", csp.GetName())
 				}
 				continue
 			}
 			csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
 			_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
 			if err != nil && !metav1errors.IsAlreadyExists(err) {
-				clusterWatcher.Log.Warnf("error creating csp", csp.GetName())
+				clusterWatcher.Log.Warnf("error creating csp %s", csp.GetName())
 				continue
 			} else if metav1errors.IsAlreadyExists(err) {
 				pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
 				if err != nil {
-					clusterWatcher.Log.Warnf("error getting csp", csp.GetName())
+					clusterWatcher.Log.Warnf("error getting csp %s", csp.GetName())
 					continue
 				}
 				if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
 					pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
 					_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
 					if err != nil {
-						clusterWatcher.Log.Warnf("error updating csp", csp.GetName())
+						clusterWatcher.Log.Warnf("error updating csp %s", csp.GetName())
 						continue
 					} else {
-						clusterWatcher.Log.Info("updated csp", csp.GetName())
+						clusterWatcher.Log.Infof("updated csp %s", csp.GetName())
 					}
 				}
 			} else {
@@ -1197,10 +1197,10 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 			if !policy.IsDir() {
 				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
 				if err != nil && !metav1errors.IsNotFound(err) {
-					clusterWatcher.Log.Warnf("error deleting csp", csp.GetName())
+					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
 					continue
-				} else {
-					clusterWatcher.Log.Info("deleted csp", csp.GetName())
+				} else if err == nil {
+					clusterWatcher.Log.Info("deleted csp %s", csp.GetName())
 				}
 			}
 		}
