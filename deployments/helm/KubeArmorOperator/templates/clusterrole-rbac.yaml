@@ -247,6 +247,34 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: {{ .Values.kubearmorOperator.name }}-manage-snitch-job
+  namespace: {{ .Release.Namespace }}
+rules:
+# to handle snitch mounts dynamically  
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list  
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - create
+  - delete  
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
   name: {{ .Values.kubearmorOperator.name }}-tls-secrets-role
   namespace: {{ .Release.Namespace }}
 rules:

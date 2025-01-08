@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -103,6 +104,142 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	}
 }
 
+func extractVolumeFromMessage(message string) (string, bool) {
+	// find volume name between quotes after "volume"
+	// Message: MountVolume.SetUp failed for volume \"notexists-path\"
+	re := regexp.MustCompile(`volume\s*\"([^\"]+)\"`)
+	matches := re.FindStringSubmatch(message)
+
+	if len(matches) > 1 {
+		return matches[1], true
+	}
+	return "", false
+}
+
+func extractPathFromMessage(message string) (string, bool) {
+	// find mount path between quotes after "mkdir"
+	// Message: failed to mkdir \"/etc/apparmor.d/\": mkdir /etc/apparmor.d/: read-only file system
+	re := regexp.MustCompile(`mkdir\s+\"([^\"]+)\"`)
+	matches := re.FindStringSubmatch(message)
+
+	if len(matches) > 1 {
+		return matches[1], true
+	}
+	return "", false
+}
+
+func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename string) {
+	defer func() {
+		clusterWatcher.Log.Infof("checkJobStatus completed for job: %s", job)
+	}()
+
+	for {
+		select {
+		case <-time.After(5 * time.Minute):
+			clusterWatcher.Log.Infof("watcher exit after timeout for job: %s", job)
+			return
+		default:
+			clusterWatcher.Log.Infof("watching status for job: %s", job)
+
+			j, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Get(context.TODO(), job, v1.GetOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("cannot get job: %s", job)
+				return
+			}
+
+			if j.Status.Succeeded > 0 {
+				return
+			}
+
+			podsList, err := clusterWatcher.Client.CoreV1().Pods(common.Namespace).List(context.TODO(), v1.ListOptions{
+				LabelSelector: fmt.Sprintf("job-name=%s", job),
+			})
+
+			if err != nil {
+				clusterWatcher.Log.Warnf("Cannot get job pod: %s", job)
+				return
+			}
+
+			for _, pod := range podsList.Items {
+				mountFailure := false
+				failedMount := ""
+				events, err := clusterWatcher.Client.CoreV1().Events(common.Namespace).List(context.TODO(), v1.ListOptions{
+					FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
+				})
+				if err != nil {
+					clusterWatcher.Log.Warnf("cannot get pod events for pod: %s", pod.Name)
+					return
+				}
+
+				for _, event := range events.Items {
+					if event.Type == "Warning" && (event.Reason == "FailedMount" ||
+						event.Reason == "FailedAttachVolume" ||
+						event.Reason == "VolumeMountsFailed") {
+						clusterWatcher.Log.Infof("Got Failed Event for job pod: %v", event.Message)
+						mountFailure = true
+						failedMount, _ = extractVolumeFromMessage(event.Message)
+						clusterWatcher.Log.Infof("FailedMount: %s", failedMount)
+						break
+					}
+
+					if event.Type == "Warning" && event.Reason == "Failed" && strings.Contains(event.Message, "mkdir") {
+						clusterWatcher.Log.Infof("Got Failed Event for job pod: %v", event.Message)
+						if path, readOnly := extractPathFromMessage(event.Message); readOnly {
+							failedMount = path
+							mountFailure = true
+							clusterWatcher.Log.Infof("ReadOnly FS: %s", failedMount)
+							break
+						}
+					}
+				}
+
+				if mountFailure {
+					propogatePodDeletion := v1.DeletePropagationBackground
+					err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Delete(context.TODO(), job, v1.DeleteOptions{
+						PropagationPolicy: &propogatePodDeletion,
+					})
+					if err != nil {
+						clusterWatcher.Log.Warnf("Cannot delete job: %s, err=%s", job, err)
+						return
+					}
+
+					newJob := deploySnitch(nodename, runtime)
+
+					volumeToDelete := ""
+					for _, vol := range newJob.Spec.Template.Spec.Volumes {
+						if vol.HostPath.Path == failedMount || vol.Name == failedMount {
+							volumeToDelete = vol.Name
+							break
+						}
+					}
+
+					newJob.Spec.Template.Spec.Volumes = slices.DeleteFunc(newJob.Spec.Template.Spec.Volumes, func(vol corev1.Volume) bool {
+						if vol.Name == volumeToDelete {
+							return true
+						}
+						return false
+					})
+
+					newJob.Spec.Template.Spec.Containers[0].VolumeMounts = slices.DeleteFunc(newJob.Spec.Template.Spec.Containers[0].VolumeMounts, func(volMount corev1.VolumeMount) bool {
+						if volMount.Name == volumeToDelete {
+							return true
+						}
+						return false
+					})
+
+					newJ, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.TODO(), newJob, v1.CreateOptions{})
+					if err != nil {
+						clusterWatcher.Log.Warnf("Cannot create job: %s, error=%s", newJob.Name, err)
+						return
+					}
+					job = newJ.Name
+					break
+				}
+			}
+		}
+	}
+}
+
 func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	log := clusterWatcher.Log
 	nodeInformer := informer.Core().V1().Nodes().Informer()
@@ -113,12 +250,13 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 				runtime = strings.Split(runtime, ":")[0]
 				if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
 					log.Infof("Installing snitch on node %s", node.Name)
-					_, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
+					snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 					if err != nil {
 						log.Errorf("Cannot run snitch on node %s, error=%s", node.Name, err.Error())
 						return
 					}
 					log.Infof("Snitch was installed on node %s", node.Name)
+					go clusterWatcher.checkJobStatus(snitchJob.Name, runtime, node.Name)
 				}
 			}
 		},
@@ -136,12 +274,13 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 						clusterWatcher.Log.Infof("Node might have been restarted, redeploying snitch ")
 						if val, ok := node.Labels[common.OsLabel]; ok && val == "linux" {
 							log.Infof("Installing snitch on node %s", node.Name)
-							_, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
+							snitchJob, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Create(context.Background(), deploySnitch(node.Name, runtime), v1.CreateOptions{})
 							if err != nil {
 								log.Errorf("Cannot run snitch on node %s, error=%s", node.Name, err.Error())
 								return
 							}
 							log.Infof("Snitch was installed on node %s", node.Name)
+							go clusterWatcher.checkJobStatus(snitchJob.Name, runtime, node.Name)
 						}
 					}
 				}
