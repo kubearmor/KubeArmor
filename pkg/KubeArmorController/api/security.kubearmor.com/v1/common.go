@@ -332,3 +332,9 @@ type SyscallsType struct {
 	// +kubebuilder:validation:optional
 	Message string `json:"message,omitempty"`
 }
+
+type PresetType string
+
+const (
+	FilelessProcessExec PresetType = "filelessProcessExec"
+)

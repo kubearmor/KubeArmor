@@ -471,6 +471,11 @@ func (in *KubeArmorPolicySpec) DeepCopyInto(out *KubeArmorPolicySpec) {
 	in.Network.DeepCopyInto(&out.Network)
 	in.Capabilities.DeepCopyInto(&out.Capabilities)
 	in.Syscalls.DeepCopyInto(&out.Syscalls)
+	if in.Presets != nil {
+		in, out := &in.Presets, &out.Presets
+		*out = make([]PresetType, len(*in))
+		copy(*out, *in)
+	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
 		*out = make([]string, len(*in))

@@ -1,0 +1,13 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-preset-block-fileless
+  namespace: presets
+spec:
+  action: Block
+  presets:
+  - filelessExec
+  selector:
+    matchLabels:
+      app: fileless
+  severity: 8
