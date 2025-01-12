@@ -53,11 +53,18 @@ var protocols = map[string]uint8{
 	"TCP":    6,
 	"UDP":    17,
 	"ICMPv6": 58,
+	"SCTP":   132,
 }
 
 // Socket Type Identifiers for Network Rules
 var netType = map[string]uint8{
-	"RAW": 3,
+	"STREAM":    1,
+	"DGRAM":     2,
+	"RAW":       3,
+	"RDM":       4,
+	"SEQPACKET": 5,
+	"DCCP":      6,
+	"PACKET":    10,
 }
 
 // Array Keys for Network Rule Keys
@@ -250,6 +257,9 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 				}
 			}
 		}
+
+		// handle protocol: all|ALL rules
+		handleAllNetworkRule(&secPolicy.Spec.Network.MatchProtocols)
 
 		for _, net := range secPolicy.Spec.Network.MatchProtocols {
 			var val [2]uint8

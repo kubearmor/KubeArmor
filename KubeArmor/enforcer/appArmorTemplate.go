@@ -225,7 +225,11 @@ profile {{$v := $.Name | split "."}}{{$v._0}}_{{ regexReplaceAllLiteral "[^a-z A
   ## == Network START == ##
 	{{- range $value, $data := .NetworkRules}}
     {{- if $data.Deny}}
+	  {{- if eq $value "all" }}
+	  deny network,
+	  {{- else }}
       deny network {{$value}},
+	  {{- end}}
     {{- end}}
     {{- if $data.Allow}}
       network {{$value}},
