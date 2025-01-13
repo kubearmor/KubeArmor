@@ -322,7 +322,7 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
 								Path: "/etc/apparmor.d/",
-								Type: &common.HostPathDirectoryOrCreate,
+								Type: &common.HostPathDirectory,
 							},
 						},
 					},
