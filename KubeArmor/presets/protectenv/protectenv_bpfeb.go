@@ -12,12 +12,28 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type protectenvArgBufsK struct {
+	Okey struct {
+		PidNs uint32
+		MntNs uint32
+	}
+	Store protectenvBufsK
+	Arg   [256]int8
+}
+
+type protectenvArgVal struct{ ArgsArray [80]int8 }
+
 type protectenvBufsK struct {
 	Path   [256]int8
 	Source [256]int8
 }
 
 type protectenvBufsT struct{ Buf [32768]int8 }
+
+type protectenvCmdArgsKey struct {
+	Tgid uint64
+	Ind  uint64
+}
 
 // loadProtectenv returns the embedded CollectionSpec for protectenv.
 func loadProtectenv() (*ebpf.CollectionSpec, error) {
@@ -68,11 +84,15 @@ type protectenvProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectenvMapSpecs struct {
+	ArgsBufk                   *ebpf.MapSpec `ebpf:"args_bufk"`
+	ArgsStore                  *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                                *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                                *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                             *ebpf.MapSpec `ebpf:"bufs_off"`
+	CmdArgsBuf                 *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                              *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle              *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArguments         *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig                     *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers                 *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents                     *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -107,11 +127,15 @@ func (o *protectenvObjects) Close() error {
 //
 // It can be passed to loadProtectenvObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectenvMaps struct {
+	ArgsBufk                   *ebpf.Map `ebpf:"args_bufk"`
+	ArgsStore                  *ebpf.Map `ebpf:"args_store"`
 	Bufk                                *ebpf.Map `ebpf:"bufk"`
 	Bufs                                *ebpf.Map `ebpf:"bufs"`
 	BufsOff                             *ebpf.Map `ebpf:"bufs_off"`
+	CmdArgsBuf                 *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                              *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle              *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArguments         *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig                     *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers                 *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents                     *ebpf.Map `ebpf:"kubearmor_events"`
@@ -121,11 +145,15 @@ type protectenvMaps struct {
 
 func (m *protectenvMaps) Close() error {
 	return _ProtectenvClose(
+		m.ArgsBufk,
+		m.ArgsStore,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
+		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
