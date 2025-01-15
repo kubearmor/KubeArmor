@@ -29,6 +29,7 @@ helm upgrade --install kubearmor-operator . -n kubearmor --create-namespace
 | kubearmorOperator.podSecurityContext | object | {} | pod security context |
 | kubearmorOperator.securityContext | object | {} | operator container security context |
 | kubearmorConfig | object | [values.yaml](values.yaml) | KubeArmor default configurations |
+| kubearmorOperator.annotateResource | bool | false | flag to control RBAC permissions conditionally, use `--annotateResource=<value>` arg as well to pass the same value to operator configuration |
 | autoDeploy | bool | false | Auto deploy KubeArmor with default configurations |
 
 The operator needs a `KubeArmorConfig` object in order to create resources related to KubeArmor. A default config is present in Helm `values.yaml` which can be overridden during Helm install. To install KubeArmor with default configuration use `--set autoDeploy=true` flag with helm install/upgrade command. It is possible to specify configuration even after KubeArmor resources have been installed by directly editing the created `KubeArmorConfig` CR.
