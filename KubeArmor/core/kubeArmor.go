@@ -598,6 +598,22 @@ func KubeArmor() {
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
 
+		// Check if nri socket set, if not then auto detect
+		if cfg.GlobalCfg.NRISocket == "" {
+			if kl.GetNRISocket("") != "" {
+				cfg.GlobalCfg.NRISocket = kl.GetNRISocket("")
+			} else {
+				dm.Logger.Warnf("Error while looking for NRI socket file")
+				enableContainerPolicy = false
+			}
+		} else {
+			// NRI socket supplied by user, check for existence
+			_, err := os.Stat(cfg.GlobalCfg.NRISocket)
+			if err != nil {
+				dm.Logger.Warnf("Error while looking for NRI socket file %s", err.Error())
+			}
+		}
+
 		// Check if cri socket set, if not then auto detect
 		if cfg.GlobalCfg.CRISocket == "" {
 			if kl.GetCRISocket("") == "" {
@@ -620,7 +636,10 @@ func KubeArmor() {
 			dm.SetContainerNSVisibility()
 
 			// monitor containers
-			if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
+			if cfg.GlobalCfg.NRISocket != "" {
+				// monitor NRI events
+				go dm.MonitorNRIEvents()
+			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 				// update already deployed containers
 				dm.GetAlreadyDeployedDockerContainers()
 				// monitor docker events
@@ -642,8 +661,26 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// check if the CRI socket set while executing kubearmor exists
-		if cfg.GlobalCfg.CRISocket != "" {
+		// Check if nri socket set, if not then auto detect
+		if cfg.GlobalCfg.NRISocket == "" {
+			if kl.GetNRISocket("") != "" {
+				cfg.GlobalCfg.NRISocket = kl.GetNRISocket("")
+			} else {
+				dm.Logger.Warnf("Error while looking for NRI socket file")
+				enableContainerPolicy = false
+			}
+		} else {
+			// NRI socket supplied by user, check for existence
+			_, err := os.Stat(cfg.GlobalCfg.NRISocket)
+			if err != nil {
+				dm.Logger.Warnf("Error while looking for NRI socket file %s", err.Error())
+			}
+		}
+
+		if cfg.GlobalCfg.NRISocket != "" {
+			// monitor NRI events
+			go dm.MonitorNRIEvents()
+		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
 			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
