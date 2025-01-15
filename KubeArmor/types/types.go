@@ -35,6 +35,7 @@ type Container struct {
 
 	PidNS uint32 `json:"pidns"`
 	MntNS uint32 `json:"mntns"`
+	Pid   uint32 `json:"pid"`
 
 	// == //
 
