@@ -505,8 +505,8 @@ var _ = Describe("Ksp", func() {
 			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
 			Expect(err).To(BeNil())
 
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "'python -m pydoc'"},
-				MatchRegexp("*Permission denied"), true,
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "python3 -m pydoc"},
+				MatchRegexp(".*Permission denied"), true,
 			)
 
 			expect := protobuf.Alert{

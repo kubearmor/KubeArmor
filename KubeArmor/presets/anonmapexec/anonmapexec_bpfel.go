@@ -85,13 +85,13 @@ type anonmapexecProgramSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type anonmapexecMapSpecs struct {
 	ArgsBufk                    *ebpf.MapSpec `ebpf:"args_bufk"`
-	ArgsStore                   *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                                 *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                                 *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                              *ebpf.MapSpec `ebpf:"bufs_off"`
 	CmdArgsBuf                  *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                               *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle               *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore          *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
 	KubearmorArguments          *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorAnonMapExecPresetContainers *ebpf.MapSpec `ebpf:"kubearmor_anon_map_exec_preset_containers"`
 	KubearmorConfig                      *ebpf.MapSpec `ebpf:"kubearmor_config"`
@@ -128,13 +128,13 @@ func (o *anonmapexecObjects) Close() error {
 // It can be passed to loadAnonmapexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type anonmapexecMaps struct {
 	ArgsBufk                    *ebpf.Map `ebpf:"args_bufk"`
-	ArgsStore                   *ebpf.Map `ebpf:"args_store"`
 	Bufk                                 *ebpf.Map `ebpf:"bufk"`
 	Bufs                                 *ebpf.Map `ebpf:"bufs"`
 	BufsOff                              *ebpf.Map `ebpf:"bufs_off"`
 	CmdArgsBuf                  *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                               *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle               *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore          *ebpf.Map `ebpf:"kubearmor_args_store"`
 	KubearmorArguments          *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorAnonMapExecPresetContainers *ebpf.Map `ebpf:"kubearmor_anon_map_exec_preset_containers"`
 	KubearmorConfig                      *ebpf.Map `ebpf:"kubearmor_config"`
@@ -146,13 +146,13 @@ type anonmapexecMaps struct {
 func (m *anonmapexecMaps) Close() error {
 	return _AnonmapexecClose(
 		m.ArgsBufk,
-		m.ArgsStore,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
 		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArgsStore,
 		m.KubearmorArguments,
 		m.KubearmorAnonMapExecPresetContainers,
 		m.KubearmorConfig,

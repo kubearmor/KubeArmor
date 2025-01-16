@@ -530,12 +530,12 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 	}
-	if be.obj.enforcerMaps.ArgsStore != nil {
-		if err := be.obj.enforcerMaps.ArgsStore.Unpin(); err != nil {
+	if be.obj.enforcerMaps.KubearmorArgsStore != nil {
+		if err := be.obj.enforcerMaps.KubearmorArgsStore.Unpin(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
-		if err := be.obj.enforcerMaps.ArgsStore.Close(); err != nil {
+		if err := be.obj.enforcerMaps.KubearmorArgsStore.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}

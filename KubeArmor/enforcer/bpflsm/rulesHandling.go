@@ -427,7 +427,10 @@ func (be *BPFEnforcer) UpdateContainerRules(id string, securityPolicies []tp.Sec
 			argKey.InnerKey = key.InnerKey
 			argKey.NsKey = key.NsKey
 			copy(argKey.Argument[:], []byte(arg))
-			be.BPFArgumentsMap.Put(argKey, uint8(1))
+			if err := be.BPFArgumentsMap.Put(argKey, uint8(1)); err != nil {
+				be.Logger.Errf("error adding allowed args map for container %s: %s", id, err)
+			}
+
 		}
 	}
 	if newrules.FileWhiteListPosture {
@@ -549,7 +552,9 @@ func (be *BPFEnforcer) resolveConflictsProcessRules(newRuleList, oldRuleList map
 					bpfArgKey.InnerKey = argKey.InnerKey
 					bpfArgKey.NsKey = argKey.NsKey
 					copy(bpfArgKey.Argument[:], []byte(arg))
-					be.BPFArgumentsMap.Delete(bpfArgKey)
+					if err := be.BPFArgumentsMap.Delete(bpfArgKey);err!=nil {
+						be.Logger.Errf("error deleting arguments rules for container %s: %s", id, err)
+					}
 				}
 				delete(argListMap, argKey)
 			}
