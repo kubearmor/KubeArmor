@@ -373,6 +373,7 @@ spec:
                           items: 
                             type: string
                           type: array
+                          maxItems: 16
                         severity:
                           maximum: 10
                           minimum: 1

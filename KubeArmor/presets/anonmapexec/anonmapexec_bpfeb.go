@@ -86,13 +86,13 @@ type anonmapexecProgramSpecs struct {
 type anonmapexecMapSpecs struct {
 	AnonMapExecPresetContainers *ebpf.MapSpec `ebpf:"anon_map_exec_preset_containers"`
 	ArgsBufk                    *ebpf.MapSpec `ebpf:"args_bufk"`
-	ArgsStore                   *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                        *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                        *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                     *ebpf.MapSpec `ebpf:"bufs_off"`
 	CmdArgsBuf                  *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                      *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle      *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore          *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
 	KubearmorArguments          *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig             *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.MapSpec `ebpf:"kubearmor_containers"`
@@ -128,13 +128,13 @@ func (o *anonmapexecObjects) Close() error {
 type anonmapexecMaps struct {
 	AnonMapExecPresetContainers *ebpf.Map `ebpf:"anon_map_exec_preset_containers"`
 	ArgsBufk                    *ebpf.Map `ebpf:"args_bufk"`
-	ArgsStore                   *ebpf.Map `ebpf:"args_store"`
 	Bufk                        *ebpf.Map `ebpf:"bufk"`
 	Bufs                        *ebpf.Map `ebpf:"bufs"`
 	BufsOff                     *ebpf.Map `ebpf:"bufs_off"`
 	CmdArgsBuf                  *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                      *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle      *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore          *ebpf.Map `ebpf:"kubearmor_args_store"`
 	KubearmorArguments          *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig             *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.Map `ebpf:"kubearmor_containers"`
@@ -145,13 +145,13 @@ func (m *anonmapexecMaps) Close() error {
 	return _AnonmapexecClose(
 		m.AnonMapExecPresetContainers,
 		m.ArgsBufk,
-		m.ArgsStore,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
 		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArgsStore,
 		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
