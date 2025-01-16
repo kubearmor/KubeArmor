@@ -85,13 +85,13 @@ type protectenvProgramSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectenvMapSpecs struct {
 	ArgsBufk                   *ebpf.MapSpec `ebpf:"args_bufk"`
-	ArgsStore                  *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                       *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                       *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                    *ebpf.MapSpec `ebpf:"bufs_off"`
 	CmdArgsBuf                 *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                     *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle     *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore         *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
 	KubearmorArguments         *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig            *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers        *ebpf.MapSpec `ebpf:"kubearmor_containers"`
@@ -127,13 +127,13 @@ func (o *protectenvObjects) Close() error {
 // It can be passed to loadProtectenvObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectenvMaps struct {
 	ArgsBufk                   *ebpf.Map `ebpf:"args_bufk"`
-	ArgsStore                  *ebpf.Map `ebpf:"args_store"`
 	Bufk                       *ebpf.Map `ebpf:"bufk"`
 	Bufs                       *ebpf.Map `ebpf:"bufs"`
 	BufsOff                    *ebpf.Map `ebpf:"bufs_off"`
 	CmdArgsBuf                 *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                     *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle     *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore         *ebpf.Map `ebpf:"kubearmor_args_store"`
 	KubearmorArguments         *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig            *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers        *ebpf.Map `ebpf:"kubearmor_containers"`
@@ -144,13 +144,13 @@ type protectenvMaps struct {
 func (m *protectenvMaps) Close() error {
 	return _ProtectenvClose(
 		m.ArgsBufk,
-		m.ArgsStore,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
 		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArgsStore,
 		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,

@@ -1166,8 +1166,8 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
           {
             __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
             bpf_probe_read_str(&args_buf->argsArray, sizeof(args_buf->argsArray), argp);
-            // bpf_printk("argp = %s argsBuf = %s" , argp , args_buf->argsArray);
-            bpf_map_update_elem(&args_store, &key, args_buf, BPF_ANY);
+
+            bpf_map_update_elem(&kubearmor_args_store, &key, args_buf, BPF_ANY);
           }
         else {
             break;
