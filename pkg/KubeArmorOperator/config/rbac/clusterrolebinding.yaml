@@ -35,4 +35,17 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator
-  namespace: kubearmor  
+  namespace: kubearmor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-operator-manage-relay-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-operator-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-operator
+  namespace: default  

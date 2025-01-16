@@ -85,6 +85,17 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 			},
 		}
 	}
+
+	// TODO: handle passing annotateResource flag to kubearmor
+	// ideally this configuration should be part of kubearmoconfig to avoid hardcoding version checks
+	// to detect flag compatibility
+
+	// if annotateResource {
+	// 	common.AddOrReplaceArg("-annotateResource=true", "-annotateResource=false", &daemonset.Spec.Template.Spec.Containers[0].Args)
+	// } else {
+	// 	common.AddOrReplaceArg("-annotateResource=false", "-annotateResource=true", &daemonset.Spec.Template.Spec.Containers[0].Args)
+	// }
+
 	if common.EnableTls {
 		vols = append(vols, common.KubeArmorCaVolume...)
 		volMnts = append(volMnts, common.KubeArmorCaVolumeMount...)
@@ -651,10 +662,27 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	clusterRoles := []*rbacv1.ClusterRole{
 		addOwnership(genSnitchRole()).(*rbacv1.ClusterRole),
-		addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole),
 	}
+
+	kaClusterRole := addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole)
+	if annotateResource {
+		kaClusterRole.Rules = append(kaClusterRole.Rules, []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments", "replicasets", "daemonsets", "statefulsets"},
+				Verbs:     []string{"patch", "update"},
+			},
+			{
+				APIGroups: []string{"batch"},
+				Resources: []string{"jobs", "cronjobs"},
+				Verbs:     []string{"patch", "update"},
+			},
+		}...)
+	}
+	clusterRoles = append(clusterRoles, kaClusterRole)
+
 	clusterRoleBindings := []*rbacv1.ClusterRoleBinding{
 		addOwnership(deployments.GetClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),
 		addOwnership(deployments.GetRelayClusterRoleBinding(common.Namespace)).(*rbacv1.ClusterRoleBinding),

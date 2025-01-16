@@ -13,34 +13,6 @@ rules:
   - list
   - patch
 - apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - serviceaccounts
-  - services
-  - configmaps
-  verbs:
-  - get
-  - create
-  - delete
-  - update
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - daemonsets
-  verbs:
-  - list
-  - get
-  - create
-  - delete
-  - update
-- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - mutatingwebhookconfigurations
@@ -49,16 +21,8 @@ rules:
   - create
   - delete
 - apiGroups:
-  - batch
-  verbs:
-  - create
-  resources:
-  - jobs
-- apiGroups:
   - rbac.authorization.k8s.io
   resources:
-  - roles
-  - rolebindings
   - clusterroles
   - clusterrolebindings
   verbs:
@@ -90,13 +54,6 @@ rules:
   - customresourcedefinitions
   verbs:
   - create
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  - cronjobs
-  verbs:
-  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -106,16 +63,22 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - nodes
   - namespaces
-  - configmaps
   verbs:
   - get
-  - patch
   - list
   - watch
   - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -125,10 +88,12 @@ rules:
   - statefulsets
   verbs:
   - get
-  - patch
   - list
   - watch
+  {{- if .Values.kubearmorOperator.annotateResource }}
+  - patch
   - update
+  {{- end }}
 - apiGroups:
   - batch
   resources:
@@ -136,10 +101,12 @@ rules:
   - cronjobs
   verbs:
   - get
-  - patch
   - list
   - watch
+  {{- if .Values.kubearmorOperator.annotateResource }}
+  - patch
   - update
+  {{- end }}
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -161,13 +128,25 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: {{ .Values.kubearmorOperator.name }}-manage-relay-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   name: {{ .Values.kubearmorOperator.name }}-manage-controller-clusterrole
 rules:
 - apiGroups:
   - ""
   resources:
   - pods
-  - configmaps
   verbs:
   - create
   - delete
@@ -180,10 +159,10 @@ rules:
   - ""
   resources:
   - nodes
-  verbs: 
-  - get 
-  - list 
-  - watch
+  verbs:
+  - get
+  - list
+  - watch   
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -208,94 +187,3 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ .Values.kubearmorOperator.name }}-manage-snitch-job
-  namespace: {{ .Release.Namespace }}
-rules:
-# to handle snitch mounts dynamically  
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - list  
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - create
-  - delete  
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ .Values.kubearmorOperator.name }}-tls-secrets-role
-  namespace: {{ .Release.Namespace }}
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - update
-  - delete
-  resourceNames:
-  - {{ .Values.tlsSecrets.kubearmorCa }}
-  - {{ .Values.tlsSecrets.kubearmorClient }}
-  - {{ .Values.tlsSecrets.relayServer }}
-  - {{ .Values.tlsSecrets.controllerWebhook }}
-# cannot restric create by resource name, https://kubernetes.io/docs/reference/access-authn-authz/rbac/  
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
----

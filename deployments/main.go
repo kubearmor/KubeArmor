@@ -46,15 +46,11 @@ func main() {
 			dp.GetClusterRole(),
 			dp.GetRelayClusterRole(),
 			dp.GetKubeArmorControllerClusterRole(),
-			dp.GetKubeArmorControllerProxyRole(),
-			dp.GetKubeArmorControllerMetricsReaderRole(),
 
 			// ClusterRoleBindings
 			dp.GetClusterRoleBinding(namespace),
 			dp.GetRelayClusterRoleBinding(namespace),
 			dp.GetKubeArmorControllerClusterRoleBinding(namespace),
-			dp.GetKubeArmorControllerProxyRoleBinding(namespace),
-			dp.GetKubeArmorControllerMetricsReaderRoleBinding(namespace),
 
 			// Roles
 			dp.GetKubeArmorControllerLeaderElectionRole(namespace),
@@ -62,7 +58,6 @@ func main() {
 
 			// Services
 			dp.GetRelayService(namespace),
-			dp.GetKubeArmorControllerMetricsService(namespace),
 			dp.GetKubeArmorControllerWebhookService(namespace),
 
 			// Apps

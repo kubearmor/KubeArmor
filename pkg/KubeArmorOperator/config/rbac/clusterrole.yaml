@@ -13,35 +13,6 @@ rules:
   - list
   - patch
 - apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - serviceaccounts
-  - services
-  - configmaps
-  verbs:
-  - get
-  - create
-  - delete
-  - update
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - daemonsets
-  verbs:
-  - list
-  - get
-  - create
-  - delete
-  - update
-- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - mutatingwebhookconfigurations
@@ -50,16 +21,8 @@ rules:
   - create
   - delete
 - apiGroups:
-  - batch
-  verbs:
-  - create
-  resources:
-  - jobs
-- apiGroups:
   - rbac.authorization.k8s.io
   resources:
-  - roles
-  - rolebindings
   - clusterroles
   - clusterrolebindings
   verbs:
@@ -84,7 +47,7 @@ rules:
   verbs:
   - get
   - patch
-  - update
+  - update  
 - apiGroups:
   - apiextensions.k8s.io
   resources:
@@ -100,16 +63,22 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - nodes
   - namespaces
-  - configmaps
   verbs:
   - get
-  - patch
   - list
   - watch
   - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -119,10 +88,8 @@ rules:
   - statefulsets
   verbs:
   - get
-  - patch
   - list
   - watch
-  - update
 - apiGroups:
   - batch
   resources:
@@ -130,10 +97,8 @@ rules:
   - cronjobs
   verbs:
   - get
-  - patch
   - list
   - watch
-  - update
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -155,13 +120,25 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: kubearmor-operator-manage-relay-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - watch  
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
   name: kubearmor-operator-manage-controller-clusterrole
 rules:
 - apiGroups:
   - ""
   resources:
   - pods
-  - configmaps
   verbs:
   - create
   - delete
@@ -177,7 +154,7 @@ rules:
   verbs:
   - get
   - list
-  - watch
+  - watch   
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -202,38 +179,3 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get

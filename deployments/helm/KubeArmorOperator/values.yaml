@@ -28,18 +28,17 @@ oci_meta:
 
 # in case if image pinning is disabled
 kubearmorOperator:
+  annotateResource: false
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
     tag: ""
   imagePullPolicy: IfNotPresent
-  args:
-    - "--initDeploy=true"
+  args: []
   # https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
   tolerations: ""
   # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
   imagePullSecrets: ""
-
   resources: {}
   podLabels: {}
   podAnnotations: {}
