@@ -304,7 +304,6 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 				dm.ContainersLock.Lock()
 				if _, ok := dm.Containers[container.ContainerID]; !ok {
 					dm.Containers[container.ContainerID] = container
-					fmt.Println("container id ", container.ContainerID)
 					dm.ContainersLock.Unlock()
 
 					// create/update endpoint in non-k8s mode

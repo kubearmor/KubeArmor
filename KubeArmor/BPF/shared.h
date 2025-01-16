@@ -915,7 +915,7 @@ static inline bool matchArguments( unsigned int num_of_args , struct outer_key *
     }
       for( u8 i = 0 ; i< num_of_args && i <= 16; i++ ){
         cmd_args_buf_k.ind = i;
-        argval = bpf_map_lookup_elem(&args_store , &cmd_args_buf_k);
+        argval = bpf_map_lookup_elem(&kubearmor_args_store , &cmd_args_buf_k);
                 if(argval){
           __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
           bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), &argval->argsArray);
