@@ -25,7 +25,7 @@ struct {
  __type(key, struct cmd_args_key);
  __type(value, struct argVal);
  __uint(pinning, LIBBPF_PIN_BY_NAME);
-} args_store SEC(".maps");
+} kubearmor_args_store SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
