@@ -12,12 +12,28 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type filelessexecArgBufsK struct {
+	Okey struct {
+		PidNs uint32
+		MntNs uint32
+	}
+	Store filelessexecBufsK
+	Arg   [256]int8
+}
+
+type filelessexecArgVal struct{ ArgsArray [80]int8 }
+
 type filelessexecBufsK struct {
 	Path   [256]int8
 	Source [256]int8
 }
 
 type filelessexecBufsT struct{ Buf [32768]int8 }
+
+type filelessexecCmdArgsKey struct {
+	Tgid uint64
+	Ind  uint64
+}
 
 // loadFilelessexec returns the embedded CollectionSpec for filelessexec.
 func loadFilelessexec() (*ebpf.CollectionSpec, error) {
@@ -67,12 +83,16 @@ type filelessexecProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type filelessexecMapSpecs struct {
+	ArgsBufk                     *ebpf.MapSpec `ebpf:"args_bufk"`
+	ArgsStore                    *ebpf.MapSpec `ebpf:"args_store"`
 	Bufk                         *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                         *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                      *ebpf.MapSpec `ebpf:"bufs_off"`
+	CmdArgsBuf                   *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                       *ebpf.MapSpec `ebpf:"events"`
 	FilelessExecPresetContainers *ebpf.MapSpec `ebpf:"fileless_exec_preset_containers"`
 	KubearmorAlertThrottle       *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArguments           *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig              *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers          *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents              *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -97,12 +117,16 @@ func (o *filelessexecObjects) Close() error {
 //
 // It can be passed to loadFilelessexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type filelessexecMaps struct {
+	ArgsBufk                     *ebpf.Map `ebpf:"args_bufk"`
+	ArgsStore                    *ebpf.Map `ebpf:"args_store"`
 	Bufk                         *ebpf.Map `ebpf:"bufk"`
 	Bufs                         *ebpf.Map `ebpf:"bufs"`
 	BufsOff                      *ebpf.Map `ebpf:"bufs_off"`
+	CmdArgsBuf                   *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                       *ebpf.Map `ebpf:"events"`
 	FilelessExecPresetContainers *ebpf.Map `ebpf:"fileless_exec_preset_containers"`
 	KubearmorAlertThrottle       *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArguments           *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig              *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers          *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents              *ebpf.Map `ebpf:"kubearmor_events"`
@@ -110,12 +134,16 @@ type filelessexecMaps struct {
 
 func (m *filelessexecMaps) Close() error {
 	return _FilelessexecClose(
+		m.ArgsBufk,
+		m.ArgsStore,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
+		m.CmdArgsBuf,
 		m.Events,
 		m.FilelessExecPresetContainers,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
