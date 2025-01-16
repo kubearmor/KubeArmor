@@ -113,6 +113,9 @@ jobs:
       - name: Operator may take upto 10 sec to enable TLS, Sleep for 15Sec
         run: |
           sleep 15
+
+      - name: Enable KubeArmor host visibility
+        run: ./.github/workflows/host-visibility.sh
       
       - name: Test KubeArmor using Ginkgo
         run: |

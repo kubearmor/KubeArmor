@@ -164,6 +164,9 @@ jobs:
           ]'
 
           sleep 15
+          
+      - name: Enable KubeArmor host visibility
+        run: ./.github/workflows/host-visibility.sh
 
       - name: Get KubeArmor POD info
         run: |
