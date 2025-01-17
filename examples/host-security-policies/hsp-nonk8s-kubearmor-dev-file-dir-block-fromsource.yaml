@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorHostPolicy
+metadata:
+  name: hsp-kubearmor-dev-file-dir-block-fromsource
+spec:
+  nodeSelector:
+    matchLabels:
+      kubearmor.io/hostname: "*"
+  severity: 5
+  file:
+    matchDirectories:
+    - dir: /etc/default/
+      fromSource:
+      - path: /usr/bin/head
+  action:
+    Block
