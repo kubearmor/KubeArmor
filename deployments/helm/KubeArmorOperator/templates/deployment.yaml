@@ -45,14 +45,9 @@ spec:
         {{- end }}
         image: {{ include "operatorImage" . }}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
-        
-        {{- $tag := (split ":" (include "operatorImage" .))._1 -}}
-        {{- if or (eq $tag "latest") (and (hasPrefix "v" $tag) (semverCompare "^1.4.0" $tag)) }}
-        # initDeploy flag is only supported from v1.4.0
         args:
         {{- if .Values.kubearmorOperator.args -}}
-        {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
-        {{- end }}
+          {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
         {{- end }}
         {{- with .Values.kubearmorOperator.securityContext }}
         securityContext:
@@ -62,6 +57,5 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-
       serviceAccountName: {{ .Values.kubearmorOperator.name }}
   

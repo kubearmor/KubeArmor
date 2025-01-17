@@ -25,20 +25,6 @@ subjects:
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ .Values.kubearmorOperator.name }}-tls-secrets-rolebinding
-  namespace: {{.Release.Namespace}}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ .Values.kubearmorOperator.name }}-tls-secrets-role
-subjects:
-- kind: ServiceAccount
-  name: {{ .Values.kubearmorOperator.name }}
-  namespace: {{ .Release.Namespace }}
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-manage-controller-clusterrole-binding
@@ -49,4 +35,17 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.kubearmorOperator.name }}
-  namespace: {{ .Release.Namespace }} 
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.kubearmorOperator.name }}-manage-relay-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.kubearmorOperator.name }}-manage-relay-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.kubearmorOperator.name }}
+  namespace: {{ .Release.Namespace }}   
