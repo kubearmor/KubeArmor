@@ -4,7 +4,7 @@
 package syscalls
 
 import (
-	"fmt"
+
 	"time"
 
 	"github.com/kubearmor/KubeArmor/protobuf"
