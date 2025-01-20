@@ -597,7 +597,6 @@ func KubeArmor() {
 
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
-
 		// Check if cri socket set, if not then auto detect
 		if cfg.GlobalCfg.CRISocket == "" {
 			if kl.GetCRISocket("") == "" {
@@ -626,8 +625,14 @@ func KubeArmor() {
 				// monitor docker events
 				go dm.MonitorDockerEvents()
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
-				// monitor containerd events
-				go dm.MonitorContainerdEvents()
+				// insuring NRI monitoring only in case containerd is present
+				if dm.checkNRIAvailability() {
+					// monitor NRI events
+					go dm.MonitorNRIEvents()
+				} else {
+					// monitor containerd events
+					go dm.MonitorContainerdEvents()
+				}
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
@@ -642,8 +647,10 @@ func KubeArmor() {
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		// check if the CRI socket set while executing kubearmor exists
-		if cfg.GlobalCfg.CRISocket != "" {
+		if dm.checkNRIAvailability() {
+			// monitor NRI events
+			go dm.MonitorNRIEvents()
+		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
 			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())
@@ -891,4 +898,24 @@ func KubeArmor() {
 
 	// destroy the daemon
 	dm.DestroyKubeArmorDaemon()
+}
+
+func (dm *KubeArmorDaemon) checkNRIAvailability() bool {
+	// Check if nri socket is set, if not then auto detect
+	if cfg.GlobalCfg.NRISocket == "" {
+		if kl.GetNRISocket("") != "" {
+			cfg.GlobalCfg.NRISocket = kl.GetNRISocket("")
+		} else {
+			dm.Logger.Warnf("Error while looking for NRI socket file")
+			return false
+		}
+	} else {
+		// NRI socket supplied by user, check for existence
+		_, err := os.Stat(cfg.GlobalCfg.NRISocket)
+		if err != nil {
+			dm.Logger.Warnf("Error while looking for NRI socket file %s", err.Error())
+			return false
+		}
+	}
+	return true
 }

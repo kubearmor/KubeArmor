@@ -442,6 +442,24 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	},
 }
 
+// NRISocketMap Structure
+var NRISocketMap = map[string][]string{
+	"nri": {
+		"/var/run/nri/nri.sock",
+		"/run/nri/nri.sock",
+	},
+}
+
+// GetNRISocket Function
+func GetNRISocket(ContainerRuntime string) string {
+	for _, candidate := range NRISocketMap["nri"] {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
 // GetCRISocket Function
 func GetCRISocket(ContainerRuntime string) string {
 	for _, k := range ContainerRuntimeSocketKeys {

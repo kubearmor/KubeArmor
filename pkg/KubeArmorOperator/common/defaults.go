@@ -213,6 +213,8 @@ var ContainerRuntimeSocketMap = map[string][]string{
 		"/run/docker.sock",
 	},
 	"containerd": {
+		"/run/nri/nri.sock",
+		"/var/run/nri/nri.sock",
 		"/var/snap/microk8s/common/run/containerd.sock",
 		"/run/k0s/containerd.sock",
 		"/run/k3s/containerd/containerd.sock",
@@ -223,6 +225,10 @@ var ContainerRuntimeSocketMap = map[string][]string{
 	"cri-o": {
 		"/var/run/crio/crio.sock",
 		"/run/crio/crio.sock",
+	},
+	"nri": {
+		"/var/run/nri/nri.sock",
+		"/run/nri/nri.sock",
 	},
 }
 
@@ -258,6 +264,7 @@ var RuntimeSocketLocation = map[string]string{
 	"docker":     "/var/run/docker.sock",
 	"containerd": "/var/run/containerd/containerd.sock",
 	"cri-o":      "/var/run/crio/crio.sock",
+	"nri":        "/var/run/nri/nri.sock",
 }
 
 func ShortSHA(s string) string {
