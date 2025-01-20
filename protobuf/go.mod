@@ -1,8 +1,6 @@
 module github.com/kubearmor/KubeArmor/protobuf
 
-go 1.21.0
-
-toolchain go1.21.12
+go 1.23.4
 
 replace (
 	github.com/kubearmor/KubeArmor => ../
@@ -14,13 +12,13 @@ replace (
 
 require (
 	github.com/golang/protobuf v1.5.4
-	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	google.golang.org/grpc v1.69.4
+	google.golang.org/protobuf v1.36.3
 )
 
 require (
-	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240725223205-93522f1f2a9f // indirect
+	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 )

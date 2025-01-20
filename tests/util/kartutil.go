@@ -679,7 +679,7 @@ func AssertCommand(wp string, namespace string, cmd []string, match gomegaTypes.
 // SendPolicy sends kubearmor policy using grpc client
 func SendPolicy(eventType, path string) error {
 	var policyOptions kclient.PolicyOptions
-	err := kclient.PolicyHandling(eventType, path, policyOptions, "", false)
+	err := kclient.PolicyHandling(eventType, path, policyOptions)
 
 	return err
 }
