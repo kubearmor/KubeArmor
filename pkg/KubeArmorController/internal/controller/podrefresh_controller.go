@@ -30,10 +30,12 @@ type PodRefresherReconciler struct {
 func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 	var podList corev1.PodList
+	
 	if err := r.List(ctx, &podList); err != nil {
 		log.Error(err, "Unable to list pods")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	
 	log.Info("Watching for blocked pods")
 	poddeleted := false
 	for _, pod := range podList.Items {
@@ -43,6 +45,32 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if pod.Spec.NodeName == "" {
 			continue
 		}
+
+
+		for _,ref := range pod.OwnerReferences {
+
+			if *ref.Controller{
+				fmt.Println("Pod with controller ")
+				fmt.Println(ref.Kind)
+				// if ref.Kind == "ReplicaSet" {
+				// 	// replicaSet, err := clientset.AppsV1().ReplicaSets(namespace).Get(ctx, ownerRef.Name, metav1.GetOptions{})
+				// // if err != nil {
+				// // 	fmt.Printf("Failed to get ReplicaSet %s: %v\n", ownerRef.Name, err)
+				// // 	continue
+				// // }
+
+				// // Check if the ReplicaSet is managed by a Deployment
+				// // for _, rsOwnerRef := range replicaSet.OwnerReferences {
+				// // 	if rsOwnerRef.Kind == "Deployment" {
+				// // 		deploymentName := rsOwnerRef.Name
+				// // 		deploymentMap[deploymentName] = append(deploymentMap[deploymentName], podName)
+				// // 	}
+				// }
+				}
+			}
+		} 
+		fmt.Println("pod Kind ", pod.OwnerReferences)
+
 		r.Cluster.ClusterLock.RLock()
 		enforcer := ""
 		if _, ok := r.Cluster.Nodes[pod.Spec.NodeName]; ok {
@@ -74,6 +102,11 @@ func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// the pod is managed by a controller (e.g: replicaset)
 			if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 {
 				log.Info("Deleting pod " + pod.Name + "in namespace " + pod.Namespace + " as it is managed")
+
+				kind := ""
+
+
+				// find out deployment--- patch it
 				if err := r.Delete(ctx, &pod); err != nil {
 					if !errors.IsNotFound(err) {
 						log.Error(err, "Could not delete pod "+pod.Name+" in namespace "+pod.Namespace)
