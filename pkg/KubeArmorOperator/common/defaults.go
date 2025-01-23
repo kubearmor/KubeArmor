@@ -76,6 +76,8 @@ var (
 
 	// KubeArmorConfigMapName string = "kubearmor-config"
 
+	KubeArmorConfigFileName string = "karmor.yaml"
+
 	// ConfigMap Data
 	ConfigGRPC                       string = "gRPC"
 	ConfigVisibility                 string = "visibility"
