@@ -98,7 +98,7 @@ spec:
         - |
           grep "bpf" /rootfs/sys/kernel/security/lsm >/dev/null
           [[ $? -eq 0 ]] && echo "sysfs already has BPF enabled" && rm /sentinel/reboot-required && sleep infinity
-          grep "GRUB_CMDLINE_LINUX.*bpf" /rootfs/etc/default/grub >/dev/null
+          grep 'GRUB_CMDLINE_LINUX="[^"]*lsm=[^"]*\bbpf\b[^"]*"' /rootfs/etc/default/grub >/dev/null
           [[ $? -eq 0 ]] && echo "grub already has BPF enabled" && sleep infinity
           cat <<EOF >/rootfs/updater.sh
           #!/bin/bash
