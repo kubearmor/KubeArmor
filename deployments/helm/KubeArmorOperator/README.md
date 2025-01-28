@@ -62,6 +62,12 @@ spec:
     # default visibility configuration
     defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,network
 
+    # enabling NRI
+    # Naming convention for kubearmor daemonset in case of NRI will be effective only when initally NRI is available & enabled. 
+    # In case snitch service account token is already present before its deployment, the naming convention won't show NRI, 
+    # it will be based on the runtime present. This happens because operator won't get KubearmorConfig event(initially).
+    enableNRI: [true|false] # DEFAULT - false
+
     # KubeArmor image and pull policy
     kubearmorImage:
         image: [image-repo:tag]                                # DEFAULT - kubearmor/kubearmor:stable

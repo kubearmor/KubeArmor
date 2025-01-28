@@ -61,14 +61,15 @@ type ClusterWatcher struct {
 	DaemonsetsLock *sync.Mutex
 }
 type Node struct {
-	Name          string
-	Enforcer      string
-	Runtime       string
-	RuntimeSocket string
-	Arch          string
-	BTF           string
-	ApparmorFs    string
-	Seccomp       string
+	Name             string
+	Enforcer         string
+	Runtime          string
+	RuntimeSocket    string
+	NRIRuntimeSocket string
+	Arch             string
+	BTF              string
+	ApparmorFs       string
+	Seccomp          string
 }
 
 func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource bool) *ClusterWatcher {
@@ -300,6 +301,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					if val, ok := node.Labels[common.SocketLabel]; ok {
 						newNode.RuntimeSocket = val
 					}
+					if val, ok := node.Labels[common.NRISocketLabel]; ok {
+						newNode.NRIRuntimeSocket = val
+					}
 					if val, ok := node.Labels[common.BTFLabel]; ok {
 						newNode.BTF = val
 					}
@@ -325,6 +329,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 							clusterWatcher.Nodes[i].Name != newNode.Name ||
 							clusterWatcher.Nodes[i].Runtime != newNode.Runtime ||
 							clusterWatcher.Nodes[i].RuntimeSocket != newNode.RuntimeSocket ||
+							clusterWatcher.Nodes[i].NRIRuntimeSocket != newNode.NRIRuntimeSocket ||
 							clusterWatcher.Nodes[i].BTF != newNode.BTF ||
 							clusterWatcher.Nodes[i].Seccomp != newNode.Seccomp {
 							clusterWatcher.Nodes[i] = newNode
@@ -334,9 +339,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.NodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
+						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
 					}
-					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
+					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
 				}
 			} else {
 				log.Errorf("Cannot convert object to node struct")
@@ -355,7 +360,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 				}
 				clusterWatcher.NodesLock.Unlock()
-				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp)
+				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.NRIRuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp)
 			}
 		},
 	})
@@ -363,7 +368,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	nodeInformer.Run(wait.NeverStop)
 }
 
-func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string) {
+func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string) {
 	clusterWatcher.Log.Info("updating daemonset")
 	daemonsetName := strings.Join([]string{
 		"kubearmor",
@@ -399,7 +404,7 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		}
 	}
 	if newDaemonSet {
-		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent, initDeploy)
+		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent, initDeploy)
 		_, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Create(context.Background(), daemonset, v1.CreateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())
@@ -570,6 +575,18 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						ds.Spec.Template.Spec.ImagePullSecrets = append(ds.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorInitImagePullSecrets...)
 						ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations...)
 					}
+
+					NRIVolume, NRIVolumeMount := common.GenerateNRIvol(ds.Spec.Selector.MatchLabels["kubearmor.io/nri-socket"])
+					if common.NRIEnabled {
+						// update daemonset volumeMount and volumes
+						common.AddOrRemoveVolumeMount(&NRIVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
+						common.AddOrRemoveVolume(&NRIVolume, &ds.Spec.Template.Spec.Volumes, common.AddAction)
+					} else {
+						// update daemonset volumeMount and volumes
+						common.AddOrRemoveVolumeMount(&NRIVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
+						common.AddOrRemoveVolume(&NRIVolume, &ds.Spec.Template.Spec.Volumes, common.DeleteAction)
+					}
+
 					_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
 					if err != nil {
 						clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
@@ -866,6 +883,14 @@ func UpdateTolerationsIfDefinedAndUpdated(common *[]corev1.Toleration, in []core
 	return false
 }
 
+func UpdateNRIAvailabilityIfDefinedAndUpdated(common *bool, in bool) bool {
+	if in != *common {
+		*common = in
+		return true
+	}
+	return false
+}
+
 func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 	updatedImages := []string{}
 	// if kubearmor image or imagePullPolicy got updated
@@ -873,7 +898,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateIfDefinedAndUpdated(&common.KubeArmorImagePullPolicy, config.KubeArmorImage.ImagePullPolicy) ||
 		UpdateArgsIfDefinedAndUpdated(&common.KubeArmorArgs, config.KubeArmorImage.Args) ||
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorImagePullSecrets, config.KubeArmorImage.ImagePullSecrets) ||
-		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) {
+		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) ||
+		UpdateNRIAvailabilityIfDefinedAndUpdated(&common.NRIEnabled, config.EnableNRI) {
 		updatedImages = append(updatedImages, "kubearmor")
 	}
 	// if kubearmor-init image or imagePullPolicy got updated
