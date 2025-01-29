@@ -1,14 +1,22 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021 Authors of KubeArmor
+# Copyright 2024 Authors of KubeArmor
 
 # Cleanup function
 cleanup() {
   echo "Performing cleanup..."
   
-  /usr/local/bin/k3s-killall.sh
+  if [ -f /usr/local/bin/k3s-killall.sh ]; then
+    /usr/local/bin/k3s-killall.sh
+  else
+    echo "/usr/local/bin/k3s-killall.sh not found. Skipping..."
+  fi
   
-  /usr/local/bin/k3s-uninstall.sh
+  if [ -f /usr/local/bin/k3s-uninstall.sh ]; then
+    /usr/local/bin/k3s-uninstall.sh
+  else
+    echo "/usr/local/bin/k3s-uninstall.sh not found. Skipping..."
+  fi
   
   docker system prune -a -f
   
