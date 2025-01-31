@@ -10,6 +10,7 @@ on:
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+      - "examples/multiubuntu/build/**"
   pull_request:
     branches: [main]
     paths:
@@ -51,6 +52,8 @@ jobs:
           filters: |
             controller:
               - 'pkg/KubeArmorController/**'
+            multiubuntu:
+              - 'examples/multiubuntu/build/**'
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -76,11 +79,23 @@ jobs:
         if: steps.filter.outputs.controller == 'true'
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
+      - name: Build multiubuntu docker image
+        working-directory: examples/multiubuntu/build
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: docker build -t kubearmor/ubuntu-w-utils:latest .
+
       - name: deploy pre existing pod 
         run: |
           kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
           sleep 60
           kubectl get pods -A
+
+      - name: make changes in multiubuntu-deployment
+        working-directory: tests/k8s_env/ksp/multiubuntu
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: |
+          sed -i 's/imagePullPolicy: Always/imagePullPolicy: Never/g' \
+          multiubuntu-deployment.yaml
 
       - name: Run KubeArmor
         timeout-minutes: 7
@@ -93,6 +108,9 @@ jobs:
             
             if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then 
               docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
+            fi
+            if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
+              docker save kubearmor/ubuntu-w-utils:latest | sudo k3s ctr images import -
             fi
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
@@ -107,6 +125,10 @@ jobs:
               if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
                 docker save kubearmor/kubearmor-controller:latest | sudo podman load
                 sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
+              fi
+              if [ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]; then
+                docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
+                sudo podman tag localhost/latest:latest docker.io/kubearmor/ubuntu-w-utils:latest
               fi
             fi
           fi
