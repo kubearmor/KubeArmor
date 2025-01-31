@@ -22,8 +22,10 @@ spec:
     spec:
       containers:
         - name: priv-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           securityContext:
             privileged: true
         - name: unpriv-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always

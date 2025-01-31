@@ -22,4 +22,5 @@ spec:
     spec:
       containers:
       - name: ubuntu-1-container
-        image: kubearmor/ubuntu-w-utils:0.1
+        image: kubearmor/ubuntu-w-utils:latest
+        imagePullPolicy: Always

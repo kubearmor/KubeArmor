@@ -22,7 +22,8 @@ spec:
     spec:
       containers:
       - name: ubuntu-1
-        image: kubearmor/ubuntu-w-utils:0.1
+        image: kubearmor/ubuntu-w-utils:latest
+        imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Namespace
@@ -51,7 +52,8 @@ spec:
     spec:
       containers:
       - name: ubuntu-1
-        image: kubearmor/ubuntu-w-utils:0.1
+        image: kubearmor/ubuntu-w-utils:latest
+        imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Namespace
@@ -82,5 +84,6 @@ spec:
     spec:
       containers:
       - name: ubuntu-1
-        image: kubearmor/ubuntu-w-utils:0.1
+        image: kubearmor/ubuntu-w-utils:latest
+        imagePullPolicy: Always
         
