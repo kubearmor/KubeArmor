@@ -94,7 +94,7 @@ jobs:
         working-directory: tests/k8s_env
         if: steps.filter.outputs.multiubuntu == 'true'
         run: |
-          grep -rl "kubearmor/ubuntu-w-utils:latest" ./ | while read -r file; do sed -i 's/imagePullPolicy: Never/imagePullPolicy: Always/g' "$file"; done
+          grep -rl "kubearmor/ubuntu-w-utils:latest" ./ | while read -r file; do sed -i 's/imagePullPolicy: Always/imagePullPolicy: Never/g' "$file"; done
 
       - name: Run KubeArmor
         timeout-minutes: 7
