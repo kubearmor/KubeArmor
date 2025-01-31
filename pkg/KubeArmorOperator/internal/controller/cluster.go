@@ -144,7 +144,7 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 
 			j, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Get(context.TODO(), job, v1.GetOptions{})
 			if err != nil {
-				clusterWatcher.Log.Warnf("cannot get job: %s", job)
+				clusterWatcher.Log.Warnf("cannot get job: %s err: %s", job, err)
 				return
 			}
 
@@ -157,7 +157,7 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 			})
 
 			if err != nil {
-				clusterWatcher.Log.Warnf("Cannot get job pod: %s", job)
+				clusterWatcher.Log.Warnf("Cannot get job pod: %s err: %s", job, err)
 				return
 			}
 
@@ -168,7 +168,7 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 					FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 				})
 				if err != nil {
-					clusterWatcher.Log.Warnf("cannot get pod events for pod: %s", pod.Name)
+					clusterWatcher.Log.Warnf("cannot get pod events for pod: %s err: %s", pod.Name, err)
 					return
 				}
 
