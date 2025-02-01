@@ -258,13 +258,14 @@ func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 }
 
 // GetAlreadyDeployedDockerContainers Function
-func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
+func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() error {
 	// check if Docker exists else instantiate
 	if Docker == nil {
 		var err error
 		Docker, err = NewDockerHandler()
 		if err != nil {
 			dm.Logger.Errf("Failed to create new Docker client: %s", err)
+			return err
 		}
 	}
 
@@ -455,6 +456,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 	} else {
 		dm.Logger.Warnf("Error while listing containers: %s", err)
 	}
+	return nil
 }
 
 // UpdateDockerContainer Function
