@@ -114,6 +114,8 @@ type KubeArmorConfigSpec struct {
 	ThrottleSec int `json:"throttleSec,omitempty"`
 
 	Adapters Adapters `json:"adapters,omitempty"`
+
+	EnableNRI bool `json:"enableNRI,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

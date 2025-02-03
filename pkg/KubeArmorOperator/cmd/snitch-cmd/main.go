@@ -122,7 +122,7 @@ func snitch() {
 	}
 
 	// Detecting runtime
-	runtime, socket := runtimepkg.DetectRuntimeViaMap(PathPrefix, Runtime, *Logger)
+	runtime, socket, nriSocket := runtimepkg.DetectRuntimeViaMap(PathPrefix, Runtime, *Logger)
 	if runtime != "NA" {
 		Logger.Infof("Detected %s as node runtime, runtime socket=%s", runtime, socket)
 	} else {
@@ -140,6 +140,9 @@ func snitch() {
 	patchNode.Metadata.Labels[common.RuntimeLabel] = runtime
 	patchNode.Metadata.Labels[common.SeccompLabel] = seccomp.CheckIfSeccompProfilePresent()
 	patchNode.Metadata.Labels[common.SocketLabel] = strings.ReplaceAll(socket[1:], "/", "_")
+	if len(nriSocket) > 0 {
+		patchNode.Metadata.Labels[common.NRISocketLabel] = strings.ReplaceAll(nriSocket[1:], "/", "_")
+	}
 	patchNode.Metadata.Labels[common.EnforcerLabel] = nodeEnforcer
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent

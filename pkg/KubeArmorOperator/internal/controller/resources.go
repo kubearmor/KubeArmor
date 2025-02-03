@@ -28,13 +28,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool) *appsv1.DaemonSet {
+func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool) *appsv1.DaemonSet {
 	enforcerVolumes := []corev1.Volume{}
 	enforcerVolumeMounts := []corev1.VolumeMount{}
 	if !(enforcer == "apparmor" && apparmorfs == "no") {
 		enforcerVolumes, enforcerVolumeMounts = genEnforcerVolumes(enforcer)
 	}
-	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket)
+	runtimeVolumes, runtimeVolumeMounts := genRuntimeVolumes(runtime, socket, nriSocket)
 	vols := []corev1.Volume{}
 	volMnts := []corev1.VolumeMount{}
 	vols = append(vols, enforcerVolumes...)
@@ -59,6 +59,16 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 	if btfPresent != "no" && !initDeploy {
 		daemonset.Spec.Template.Spec.InitContainers = []corev1.Container{}
 	}
+
+	if nriSocket != "" && common.NRIEnabled {
+		name = strings.Join([]string{
+			"kubearmor",
+			strings.ReplaceAll(enforcer, ".", "-"),
+			"nri",
+			common.ShortSHA(nriSocket),
+		}, "-")
+	}
+
 	daemonset.Name = name
 	labels := map[string]string{
 		common.EnforcerLabel: enforcer,
@@ -67,6 +77,9 @@ func generateDaemonset(name, enforcer, runtime, socket, btfPresent, apparmorfs, 
 		common.OsLabel:       "linux",
 		common.BTFLabel:      btfPresent,
 		common.SeccompLabel:  seccompPresent,
+	}
+	if nriSocket != "" {
+		labels[common.NRISocketLabel] = nriSocket
 	}
 	daemonset.Spec.Template.Spec.NodeSelector = common.CopyStrMap(labels)
 	labels["kubearmor-app"] = "kubearmor"
@@ -156,7 +169,7 @@ func genEnforcerVolumes(enforcer string) (vol []corev1.Volume, volMnt []corev1.V
 	return
 }
 
-func genRuntimeVolumes(runtime, runtimeSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
+func genRuntimeVolumes(runtime, runtimeSocket, nriSocket string) (vol []corev1.Volume, volMnt []corev1.VolumeMount) {
 	// lookup socket
 	for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
 		if strings.ReplaceAll(socket[1:], "/", "_") == runtimeSocket {
@@ -177,6 +190,30 @@ func genRuntimeVolumes(runtime, runtimeSocket string) (vol []corev1.Volume, volM
 				ReadOnly:  true,
 			})
 			break
+		}
+	}
+	if nriSocket != "" && common.NRIEnabled {
+		runtime = "nri"
+		for _, socket := range common.ContainerRuntimeSocketMap[runtime] {
+			if strings.ReplaceAll(socket[1:], "/", "_") == nriSocket {
+				vol = append(vol, corev1.Volume{
+					Name: runtime + "-socket",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: socket,
+							Type: &common.HostPathSocket,
+						},
+					},
+				})
+
+				socket = common.RuntimeSocketLocation[runtime]
+				volMnt = append(volMnt, corev1.VolumeMount{
+					Name:      runtime + "-socket",
+					MountPath: socket,
+					ReadOnly:  true,
+				})
+				break
+			}
 		}
 	}
 	return
