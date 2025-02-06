@@ -640,7 +640,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr) {
     }
 
     u32 str_pos = size_pos + sizeof(int);
-    if (str_pos >= MAX_BUFFER_SIZE || str_pos + MAX_STRING_SIZE > MAX_BUFFER_SIZE) {
+    if (str_pos >= MAX_BUFFER_SIZE -1 || str_pos + MAX_STRING_SIZE > MAX_BUFFER_SIZE -1) {
         return 0;
     }
 

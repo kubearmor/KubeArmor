@@ -644,7 +644,13 @@ decision:
   if (id == dpath) { // Path Hooks
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
-        if (!is_owner_path(f_path->dentry)) {
+        struct dentry *dent ;
+        if(eventID  == _FILE_MKNOD || eventID == _FILE_MKDIR){
+          dent = BPF_CORE_READ(f_path , dentry , d_parent);
+        } else {
+          dent = f_path->dentry ;
+        }
+        if (!is_owner_path(dent)) {
           retval = -EPERM;
         } else {
           return 0;
@@ -677,6 +683,7 @@ decision:
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
           retval = -EPERM;
+          goto ringbuf;
         } else {
           return 0;
         }
@@ -715,8 +722,8 @@ decision:
         }
       }
       if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
-        retval = -EPERM;
-        goto ringbuf;
+          retval = -EPERM;
+          goto ringbuf;
       }
     }
 

@@ -23,6 +23,12 @@ spec:
       recursive: true
     - dir: /etc/
       recursive: true    
+    - dir: /sys/kernel/
+      recursive: true 
+    - dir: /dev/pts/
+      recursive: true 
+    - dir: /proc/
+      recursive: true 
     matchPaths:
     - path: /root/.bashrc
     - path: /lib/terminfo/x/xterm
