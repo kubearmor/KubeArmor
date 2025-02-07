@@ -95,7 +95,8 @@ jobs:
             kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
             kubectl get pods -A
-          done         
+          done  
+          docker system prune -a -f 
 
       - name: Test KubeArmor using Ginkgo
         run: |

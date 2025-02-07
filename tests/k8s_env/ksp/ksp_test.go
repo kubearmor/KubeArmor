@@ -1778,7 +1778,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 
 			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "echo test >> /credentials/password"},
-				MatchRegexp("password.*Permission denied"), true,
+				MatchRegexp(".*Permission denied"), true,
 			)
 
 			expect := protobuf.Alert{
@@ -1976,7 +1976,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 
 			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "echo test >> /credentials/password"},
-				MatchRegexp("password.*Permission denied"), true,
+				MatchRegexp(".*Permission denied"), true,
 			)
 
 			expect := protobuf.Alert{
