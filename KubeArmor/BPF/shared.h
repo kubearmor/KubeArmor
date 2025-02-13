@@ -661,13 +661,13 @@ decision:
       }
     }
 
-    if (retval == -EPERM) {
-      goto ringbuf;
-    }
-
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+    
+    if (retval == -EPERM && !(allow && !fromSourceCheck)) {
+      goto ringbuf;
+    }
 
     if (allow) {
       if (!match) {
@@ -697,13 +697,15 @@ decision:
       }
     }
 
-    if (retval == -EPERM) {
-      goto ringbuf;
-    }
+ 
 
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+    if (retval == -EPERM && !(allow && !fromSourceCheck)) {
+      goto ringbuf;
+    }
 
     if (allow) {
       if (!match) {
