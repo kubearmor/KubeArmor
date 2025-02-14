@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: caps-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           securityContext:
             capabilities:
               add: [ "ALL" ]

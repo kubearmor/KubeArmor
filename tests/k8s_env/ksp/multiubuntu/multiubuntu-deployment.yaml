@@ -24,7 +24,8 @@ spec:
     spec:
       containers:
         - name: ubuntu-1-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           securityContext:
             capabilities:
               add: ["AUDIT_WRITE", "NET_RAW","SYS_CHROOT","MKNOD","SETFCAP"]
@@ -50,7 +51,8 @@ spec:
     spec:
       containers:
         - name: ubuntu-2-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           securityContext:
             capabilities:
               add: ["AUDIT_WRITE", "NET_RAW","SYS_CHROOT","MKNOD","SETFCAP"]
@@ -76,7 +78,8 @@ spec:
     spec:
       containers:
         - name: ubuntu-3-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           volumeMounts:
             - name: var-log-path
               mountPath: /host/var/log
@@ -106,11 +109,12 @@ spec:
     metadata:
       labels:
         group: group-2
-        container: ubuntu-4  
+        container: ubuntu-4
     spec:
       containers:
         - name: ubuntu-4-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           securityContext:
             capabilities:
               add: ["AUDIT_WRITE", "NET_RAW","SYS_CHROOT","MKNOD","SETFCAP"]
@@ -132,11 +136,12 @@ spec:
     metadata:
       labels:
         group: group-2
-        container: ubuntu-5      
+        container: ubuntu-5
     spec:
       containers:
         - name: ubuntu-5-container
-          image: kubearmor/ubuntu-w-utils:0.1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
           securityContext:
             capabilities:
               add: ["AUDIT_WRITE", "NET_RAW","SYS_CHROOT","MKNOD","SETFCAP"]
