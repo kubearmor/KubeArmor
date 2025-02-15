@@ -644,7 +644,13 @@ decision:
   if (id == dpath) { // Path Hooks
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
-        if (!is_owner_path(f_path->dentry)) {
+        struct dentry *dent ;
+        if(eventID  == _FILE_MKNOD || eventID == _FILE_MKDIR){
+          dent = BPF_CORE_READ(f_path , dentry , d_parent);
+        } else {
+          dent = f_path->dentry ;
+        }
+        if (!is_owner_path(dent)) {
           retval = -EPERM;
         } else {
           return 0;
@@ -655,13 +661,13 @@ decision:
       }
     }
 
-    if (retval == -EPERM) {
-      goto ringbuf;
-    }
-
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+    
+    if (retval == -EPERM && !(allow && !fromSourceCheck)) {
+      goto ringbuf;
+    }
 
     if (allow) {
       if (!match) {
@@ -677,6 +683,7 @@ decision:
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
           retval = -EPERM;
+          goto ringbuf;
         } else {
           return 0;
         }
@@ -690,13 +697,15 @@ decision:
       }
     }
 
-    if (retval == -EPERM) {
-      goto ringbuf;
-    }
+ 
 
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+    if (retval == -EPERM && !(allow && !fromSourceCheck)) {
+      goto ringbuf;
+    }
 
     if (allow) {
       if (!match) {
@@ -708,9 +717,15 @@ decision:
     }
   } else if (id == dfilewrite) { // file write
     if (match) {
-      if (val && (val->filemask & RULE_DENY)) {
-        retval = -EPERM;
-        goto ringbuf;
+      if (val && (val->filemask & RULE_OWNER)) {
+        if (!is_owner_path(f_path->dentry)) {
+          retval = -EPERM;
+          goto ringbuf;
+        }
+      }
+      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
+          retval = -EPERM;
+          goto ringbuf;
       }
     }
 

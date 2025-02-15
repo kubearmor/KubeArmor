@@ -16,6 +16,7 @@ spec:
     - path: /home/user1/readwrite
     #   fromSource:
     #   - path: /bin/su
+    - path: /dev/ptmx
     matchDirectories:
     - dir: /bin/ # required to change root to user1 / try 'su - user1'
       recursive: true
@@ -37,6 +38,7 @@ spec:
     - path: /run/utmp # required to change root to user1
     - path: /dev/tty
     - path: /lib/terminfo/x/xterm
+    - path: /runc
     matchDirectories:
     - dir: /etc/ # required to change root to user1 (coarse-grained way)
       recursive: true
@@ -50,6 +52,10 @@ spec:
       recursive: true
     - dir: /bin/
       recursive: true  
+    - dir: /sys/kernel/
+      recursive: true 
+    - dir: /dev/pts/
+      recursive: true 
   action:
     Allow
 
