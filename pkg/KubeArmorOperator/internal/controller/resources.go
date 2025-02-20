@@ -987,7 +987,8 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 					installErr = err
 					clusterWatcher.Log.Warnf("Cannot create cluster role %s, error=%s", clusterRole.Name, err.Error())
 				}
-			} else if !reflect.DeepEqual(role.Rules, clusterRole.Rules) {
+			} else if err == nil && !reflect.DeepEqual(role.Rules, clusterRole.Rules) {
+				// update clusterroles if there's a change in rules
 				clusterWatcher.Log.Infof("Updating cluster role %s", clusterRole.Name)
 				_, err := clusterWatcher.Client.RbacV1().ClusterRoles().Update(context.Background(), clusterRole, metav1.UpdateOptions{})
 				if err != nil {

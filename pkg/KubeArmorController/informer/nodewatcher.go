@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -18,7 +19,7 @@ import (
 
 func InitCluster() types.Cluster {
 	return types.Cluster{
-		Nodes:              make(map[string]string),
+		Nodes:              make(map[string]*types.NodeInfo),
 		HomogeneousStatus:  true,
 		ClusterLock:        &sync.RWMutex{},
 		HomogenousApparmor: false,
@@ -42,9 +43,19 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *types.Cluster, log logr.Logge
 						cluster.ClusterLock.Lock()
 						defer cluster.ClusterLock.Unlock()
 						cluster.TotalNodes++
-
 						if enforcer == "apparmor" {
-							cluster.Nodes[node.Name] = enforcer
+
+							cluster.Nodes[node.Name] = &types.NodeInfo{}
+							cluster.Nodes[node.Name].Enforcer = enforcer
+
+							kubearmorStatus, err := common.CheckKubearmorStatus(node.Name, c)
+							if err != nil {
+								log.Info(fmt.Sprintf("unable to get kubearmor status on node %s : %s", node.Name, err.Error()))
+							}
+							cluster.Nodes[node.Name].KubeArmorActive = kubearmorStatus
+							if !cluster.Nodes[node.Name].KubeArmorActive {
+								log.Info(fmt.Sprintf("kubearmor not found on node %s :", node.Name))
+							}
 						}
 						// re-compute homogeneous status
 						homogeneous := true
@@ -80,12 +91,24 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *types.Cluster, log logr.Logge
 				if enforcer, ok := node.Labels["kubearmor.io/enforcer"]; ok {
 					if _, ok := cluster.Nodes[node.Name]; ok {
 						// in case the enforcer has been updated to bpflsm from apparmor
-						if enforcer != cluster.Nodes[node.Name] {
+						if enforcer != cluster.Nodes[node.Name].Enforcer {
 							delete(cluster.Nodes, node.Name)
 						}
-					} else {
-						if enforcer == "apparmor" {
-							cluster.Nodes[node.Name] = enforcer
+					}
+					if enforcer == "apparmor" {
+						if _, ok := cluster.Nodes[node.Name]; !ok {
+							cluster.Nodes[node.Name] = &types.NodeInfo{}
+						}
+						cluster.Nodes[node.Name].Enforcer = enforcer
+						var err error
+						kubearmorStatus, err := common.CheckKubearmorStatus(node.Name, c)
+						if err != nil {
+							log.Error(err, fmt.Sprintf("unable to get kubearmor status on node %s", node.Name))
+						}
+						cluster.Nodes[node.Name].KubeArmorActive = kubearmorStatus
+
+						if !cluster.Nodes[node.Name].KubeArmorActive {
+							log.Info(fmt.Sprintf("kubearmor not found on node %s", node.Name))
 						}
 					}
 					// re-compute homogeneous status
@@ -140,7 +163,6 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *types.Cluster, log logr.Logge
 					}
 				}
 				cluster.HomogenousApparmor = homogeneousApparmor
-
 			}
 		},
 	})

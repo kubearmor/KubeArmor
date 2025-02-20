@@ -29,6 +29,6 @@ spec:
     imagePullPolicy: Always
   kubearmorControllerImage:
     image: kubearmor/kubearmor-controller:latest
-    imagePullPolicy: Never
+    imagePullPolicy: Always
   tls:
     enable: true  
