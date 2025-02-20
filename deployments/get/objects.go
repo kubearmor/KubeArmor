@@ -526,6 +526,7 @@ func GetKubeArmorControllerDeployment(namespace string) *appsv1.Deployment {
 							Args: []string{
 								"--leader-elect",
 								"--health-probe-bind-address=:8081",
+								"--annotateExisting=false",
 							},
 							Command: []string{"/manager"},
 							Ports: []corev1.ContainerPort{
@@ -769,7 +770,7 @@ func GetKubeArmorControllerMutationAdmissionConfiguration(namespace string, caCe
 						Rule: admissionregistrationv1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
-							Resources:   []string{"pods"},
+							Resources:   []string{"pods", "pods/binding"},
 						},
 						Operations: []admissionregistrationv1.OperationType{
 							admissionregistrationv1.Create,

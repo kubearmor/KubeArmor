@@ -28,6 +28,7 @@ rules:
   verbs:
   - create
   - get
+  - update
 - apiGroups:
   - operator.kubearmor.com
   resources:
@@ -155,6 +156,18 @@ rules:
   - list
   - watch
   - update
+{{- if .Values.kubearmorOperator.annotateExisting }}
+- apiGroups:
+  - "apps"
+  resources:
+  - deployments
+  - statefulsets
+  - daemonsets
+  - replicasets
+  verbs:
+  - get
+  - update
+{{- end }}
 - apiGroups:
   - ""
   resources:

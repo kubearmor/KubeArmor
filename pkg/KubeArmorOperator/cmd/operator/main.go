@@ -31,6 +31,7 @@ var ExtClient *apiextensionsclientset.Clientset
 var Opv1Client *opv1client.Clientset
 var Secv1Client *secv1client.Clientset
 var AnnotateResource bool
+var AnnotateExisting bool
 var InitDeploy bool
 var LogLevel string
 var ProviderHostname, ProviderEndpoint string
@@ -57,7 +58,7 @@ var Cmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		nodeWatcher := controllers.NewClusterWatcher(K8sClient, Logger, ExtClient, Opv1Client, Secv1Client, PathPrefix, DeploymentName, ProviderHostname, ProviderEndpoint, InitDeploy, AnnotateResource)
+		nodeWatcher := controllers.NewClusterWatcher(K8sClient, Logger, ExtClient, Opv1Client, Secv1Client, PathPrefix, DeploymentName, ProviderHostname, ProviderEndpoint, InitDeploy, AnnotateResource, AnnotateExisting)
 		go nodeWatcher.WatchConfigCrd()
 		nodeWatcher.WatchNodes()
 
@@ -89,6 +90,7 @@ func init() {
 	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", true, "Init container deployment")
 	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
 	Cmd.PersistentFlags().BoolVar(&AnnotateResource, "annotateResource", false, "when true kubearmor annotate k8s resources with apparmor annotation")
+	Cmd.PersistentFlags().BoolVar(&AnnotateExisting, "annotateExisting", false, "when true kubearmor-controller restarts and annotates existing resources, with required annotations")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
