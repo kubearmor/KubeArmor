@@ -326,11 +326,11 @@ var CommonVolumes = []corev1.Volume{
 		},
 	},
 	{
-		Name: "kubearmor-config",
+		Name: deployments.KubeArmorConfigMapName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: "kubearmor-config",
+					Name: deployments.KubeArmorConfigMapName,
 				},
 				Items: []corev1.KeyToPath{
 					{
@@ -354,7 +354,7 @@ var CommonVolumesMount = []corev1.VolumeMount{
 		ReadOnly:  true,
 	},
 	{
-		Name:      "kubearmor-config",
+		Name:      deployments.KubeArmorConfigMapName,
 		MountPath: filepath.Join("/opt/kubearmor", KubeArmorConfigFileName),
 		SubPath:   KubeArmorConfigFileName,
 	},
