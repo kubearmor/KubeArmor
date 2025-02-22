@@ -623,10 +623,11 @@ func KubeArmor() {
 				// update already deployed containers
 				err := dm.GetAlreadyDeployedDockerContainers()
 				if err != nil {
-					dm.DestroyKubeArmorDaemon()
+					dm.Logger.Warnf("Failed to get already deployed docker containers %s", err.Error())
+				} else {
+					// monitor docker events
+					go dm.MonitorDockerEvents()
 				}
-				// monitor docker events
-				go dm.MonitorDockerEvents()
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// insuring NRI monitoring only in case containerd is present
 				if cfg.GlobalCfg.NRIEnabled && dm.checkNRIAvailability() {
@@ -669,6 +670,7 @@ func KubeArmor() {
 				err := dm.GetAlreadyDeployedDockerContainers()
 				if err != nil {
 					dm.DestroyKubeArmorDaemon()
+					return
 				}
 				// monitor docker events
 				go dm.MonitorDockerEvents()
@@ -700,6 +702,7 @@ func KubeArmor() {
 					err := dm.GetAlreadyDeployedDockerContainers()
 					if err != nil {
 						dm.DestroyKubeArmorDaemon()
+						return
 					}
 					// monitor docker events
 					go dm.MonitorDockerEvents()

@@ -750,6 +750,7 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 		Docker, err = NewDockerHandler()
 		if err != nil {
 			dm.Logger.Errf("Failed to create new Docker client: %s", err)
+			return
 		}
 	}
 
