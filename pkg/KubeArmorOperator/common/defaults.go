@@ -324,6 +324,22 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: "kubearmor-config",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "kubearmor-config",
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "karmor.yaml",
+						Path: "karmor.yaml",
+					},
+				},
+			},
+		},
+	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
@@ -335,6 +351,11 @@ var CommonVolumesMount = []corev1.VolumeMount{
 		Name:      "proc-fs-mount",
 		MountPath: "/host/procfs",
 		ReadOnly:  true,
+	},
+	{
+		Name:      "kubearmor-config",
+		MountPath: "/opt/kubearmor/karmor.yaml",
+		SubPath:   "karmor.yaml",
 	},
 }
 
