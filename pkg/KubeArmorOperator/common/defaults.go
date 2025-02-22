@@ -8,6 +8,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strings"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
@@ -324,8 +325,8 @@ var CommonVolumes = []corev1.Volume{
 				},
 				Items: []corev1.KeyToPath{
 					{
-						Key:  "karmor.yaml",
-						Path: "karmor.yaml",
+						Key:  KubeArmorConfigFileName,
+						Path: KubeArmorConfigFileName,
 					},
 				},
 			},
@@ -345,8 +346,8 @@ var CommonVolumesMount = []corev1.VolumeMount{
 	},
 	{
 		Name:      "kubearmor-config",
-		MountPath: "/opt/kubearmor/karmor.yaml",
-		SubPath:   "karmor.yaml",
+		MountPath: filepath.Join("/opt/kubearmor", KubeArmorConfigFileName),
+		SubPath:   KubeArmorConfigFileName,
 	},
 }
 
