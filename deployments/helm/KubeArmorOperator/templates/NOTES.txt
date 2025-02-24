@@ -1,0 +1,12 @@
+{{- if not .Values.kubearmorOperator.annotateExisting }}
+⚠️  WARNING: Pre-existing pods will not be annotated. Policy enforcement for already existing pods on Apparmor nodes will not work.  
+  • To check enforcer present on nodes use:
+    ➤ kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name} {.metadata.labels.kubearmor\.io/enforcer}{"\n"}{end}' 
+  • To annotate existing pods use: 
+    ➤ helm upgrade --install {{ .Values.kubearmorOperator.name }} kubearmor/kubearmor-operator -n kubearmor --create-namespace --set annotateExisting=true  
+    Our controller will automatically rollout restart deployments during the Helm upgrade to force the admission controller to add annotations.  
+  • Alternatively, if you prefer manual control, you can restart your deployments yourself:
+    ➤ kubectl rollout restart deployment <deployment> -n <namespace>
+{{- end }}
+ℹ️  Your release is named {{ .Release.Name }}.
+💙 Thank you for installing KubeArmor.

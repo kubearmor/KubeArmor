@@ -82,6 +82,7 @@ spec:
       - args:
         - --health-probe-bind-address=:8081
         - --leader-elect
+        - --anotateExisting=false
         command:
         - /manager
         image: {{printf "%s:%s" .Values.kubearmorController.image.repository .Values.kubearmorController.image.tag}}

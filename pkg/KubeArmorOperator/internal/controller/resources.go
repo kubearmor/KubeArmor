@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -519,7 +520,7 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 		}
 	} else {
 		if (common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector == nil) ||
-			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) {
+			(!common.IfNodeWithSecurtiyFs && controller.Spec.Template.Spec.NodeSelector != nil) || !reflect.DeepEqual(controller.Spec.Template.Spec.Containers[0].Args, deployment.Spec.Template.Spec.Containers[0].Args) {
 			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
 			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
 			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
@@ -700,8 +701,18 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	clusterRoles := []*rbacv1.ClusterRole{
 		addOwnership(genSnitchRole()).(*rbacv1.ClusterRole),
 		addOwnership(deployments.GetRelayClusterRole()).(*rbacv1.ClusterRole),
-		addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole),
 	}
+	controllerClusterRole := addOwnership(deployments.GetKubeArmorControllerClusterRole()).(*rbacv1.ClusterRole)
+	if annotateExisting {
+		controllerClusterRole.Rules = append(controllerClusterRole.Rules, []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments", "statefulsets", "daemonsets", "replicasets"},
+				Verbs:     []string{"get", "update"},
+			},
+		}...)
+	}
+	clusterRoles = append(clusterRoles, controllerClusterRole)
 
 	kaClusterRole := addOwnership(deployments.GetClusterRole()).(*rbacv1.ClusterRole)
 	if annotateResource {
@@ -767,6 +778,9 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
+	if annotateExisting {
+		UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"annotateExisting=true"})
+	}
 	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	UpdateTolerationsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
@@ -965,13 +979,21 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		}
 
 		for _, clusterRole := range clusterRoles {
-			_, err = clusterWatcher.Client.RbacV1().ClusterRoles().Get(context.Background(), clusterRole.Name, metav1.GetOptions{})
+			role, err := clusterWatcher.Client.RbacV1().ClusterRoles().Get(context.Background(), clusterRole.Name, metav1.GetOptions{})
 			if isNotfound(err) {
 				clusterWatcher.Log.Infof("Creating cluster role %s", clusterRole.Name)
 				_, err := clusterWatcher.Client.RbacV1().ClusterRoles().Create(context.Background(), clusterRole, metav1.CreateOptions{})
 				if err != nil {
 					installErr = err
 					clusterWatcher.Log.Warnf("Cannot create cluster role %s, error=%s", clusterRole.Name, err.Error())
+				}
+			} else if err == nil && !reflect.DeepEqual(role.Rules, clusterRole.Rules) {
+				// update clusterroles if there's a change in rules
+				clusterWatcher.Log.Infof("Updating cluster role %s", clusterRole.Name)
+				_, err := clusterWatcher.Client.RbacV1().ClusterRoles().Update(context.Background(), clusterRole, metav1.UpdateOptions{})
+				if err != nil {
+					installErr = err
+					clusterWatcher.Log.Warnf("Cannot update cluster role %s, error=%s", clusterRole.Name, err.Error())
 				}
 			}
 		}
