@@ -11,6 +11,7 @@ TAG ?= v0.1
 CRD_OPTIONS ?= "crd"
 # Target platforms for build
 PLATFORM ?= "linux/amd64,linux/arm64/v8"
+NAMESPACE="kubearmor"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -145,6 +146,7 @@ delete-cert-manager: ## Delete cert-manager when deleting the admission controll
 
 deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager; $(KUSTOMIZE) edit set image controller=${IMG}:latest
+	kubectl get namespace | grep -q "^$(NAMESPACE)" || kubectl create namespace $(NAMESPACE)
 	cd $(CURDIR); $(KUSTOMIZE) build config/default | \
 		sed 's/control-plane: controller-manager/kubearmor-app: kubearmor-controller/g' | \
 		sed -e "1,7d" | kubectl apply -f -
