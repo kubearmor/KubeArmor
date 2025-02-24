@@ -2,9 +2,12 @@ name: ci-merge-coverage
 
 on:
   workflow_run:
-    workflows: [ci-test-ginkgo]
+    workflows: [ci-test-ginkgo, ci-test-systemd]
     types:
       - completed
+
+# Declare default permissions as read only.
+permissions: read-all
 
 jobs:
   merge-coverage-files:
@@ -12,10 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
       - name: Check if all required workflows completed successfully
         id: check-workflows
         run: |
-          workflows=("ci-test-ginkgo")
+          workflows=("ci-test-ginkgo" "ci-test-systemd")
           all_completed=true
 
           commit_sha=$(git rev-parse HEAD)
@@ -43,10 +50,6 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
           
       - uses: actions/setup-go@v5
         with:
@@ -57,6 +60,16 @@ jobs:
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: ci-test-ginkgo.yml
+          name: coverage.*
+          path: KubeArmor/
+          name_is_regexp: true
+          search_artifacts: true
+
+      - name: Download systemd coverage files from ci-test-systemd
+        if: ${{ env.ci-test-systemd_status == 'success' }}
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: ci-test-systemd.yml
           name: coverage.*
           path: KubeArmor/
           name_is_regexp: true
