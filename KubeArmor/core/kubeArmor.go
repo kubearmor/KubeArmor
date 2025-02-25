@@ -621,9 +621,13 @@ func KubeArmor() {
 			// monitor containers
 			if strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 				// update already deployed containers
-				dm.GetAlreadyDeployedDockerContainers()
-				// monitor docker events
-				go dm.MonitorDockerEvents()
+				err := dm.GetAlreadyDeployedDockerContainers()
+				if err != nil {
+					dm.Logger.Warnf("Failed to get already deployed docker containers %s", err.Error())
+				} else {
+					// monitor docker events
+					go dm.MonitorDockerEvents()
+				}
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// insuring NRI monitoring only in case containerd is present
 				if cfg.GlobalCfg.NRIEnabled && dm.checkNRIAvailability() {
@@ -663,7 +667,11 @@ func KubeArmor() {
 			// monitor containers
 			if strings.Contains(dm.Node.ContainerRuntimeVersion, "docker") || strings.Contains(cfg.GlobalCfg.CRISocket, "docker") {
 				// update already deployed containers
-				dm.GetAlreadyDeployedDockerContainers()
+				err := dm.GetAlreadyDeployedDockerContainers()
+				if err != nil {
+					dm.DestroyKubeArmorDaemon()
+					return
+				}
 				// monitor docker events
 				go dm.MonitorDockerEvents()
 			} else if strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") || strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
@@ -691,8 +699,11 @@ func KubeArmor() {
 					cfg.GlobalCfg.CRISocket = "unix://" + socketFile
 
 					// update already deployed containers
-					dm.GetAlreadyDeployedDockerContainers()
-
+					err := dm.GetAlreadyDeployedDockerContainers()
+					if err != nil {
+						dm.DestroyKubeArmorDaemon()
+						return
+					}
 					// monitor docker events
 					go dm.MonitorDockerEvents()
 				} else {
