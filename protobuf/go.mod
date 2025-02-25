@@ -5,7 +5,7 @@ go 1.23.6
 replace (
 	github.com/kubearmor/KubeArmor => ../
 	github.com/kubearmor/KubeArmor/protobuf => ./
-	github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.18
+	github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.24
 	github.com/pkg/sftp => github.com/pkg/sftp v1.11.0
 	golang.org/x/image => golang.org/x/image v0.7.0
 )
