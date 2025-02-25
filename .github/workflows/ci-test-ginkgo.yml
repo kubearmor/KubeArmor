@@ -18,9 +18,9 @@ on:
       - "tests/**"
       - "protobuf/**"
       - ".github/workflows/ci-test-ginkgo.yml"
-      - "examples/multiubuntu/build/**"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+      - "examples/multiubuntu/build/**"
 
 # Declare default permissions as read only.
 permissions: read-all
@@ -78,6 +78,11 @@ jobs:
       - name: Build KubeArmorController
         if: steps.filter.outputs.controller == 'true'
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
+      
+      - name: Build multiubuntu image
+        run: |
+          cd examples/multiubuntu/build
+          docker build -t kubearmor/ubuntu-w-utils:latest .
 
       - name: Build multiubuntu docker image
         working-directory: examples/multiubuntu/build
@@ -104,7 +109,8 @@ jobs:
             docker save kubearmor/kubearmor-test:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
             docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
-            
+            docker save kubearmor/ubuntu-w-utils:latest | sudo k3s ctr images import -
+
             if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then 
               docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
             fi
@@ -121,6 +127,9 @@ jobs:
               sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
               sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
+              docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/ubuntu-w-utils:latest
+
               if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
                 docker save kubearmor/kubearmor-controller:latest | sudo podman load
                 sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
