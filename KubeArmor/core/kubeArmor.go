@@ -665,10 +665,11 @@ func KubeArmor() {
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
 
-			if cfg.GlobalCfg.UseOCIHooks {
-				go dm.ListenToHook()
-
-			} else if dm.checkNRIAvailability() {
+			if cfg.GlobalCfg.UseOCIHooks && 
+			    (strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") || 
+				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability())) {
+					go dm.ListenToHook()
+	 		} else if dm.checkNRIAvailability() {
 				// monitor NRI events
 				go dm.MonitorNRIEvents()
 			} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists

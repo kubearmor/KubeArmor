@@ -73,12 +73,15 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 )
 
-require github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250701060635-600e11526ec1 // indirect
+require (
+	github.com/containers/storage v1.55.0 // indirect
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250701060635-600e11526ec1 // indirect
+)
 
 require (
 	github.com/cilium/ebpf v0.19.0 // indirect
-	github.com/containerd/containerd v1.7.23
-	github.com/containers/common v0.58.1
+	github.com/containerd/containerd v1.7.27
+	github.com/containers/common v0.60.4
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
