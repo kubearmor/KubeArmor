@@ -43,15 +43,16 @@ func (p *PolicyServer) ContainerPolicy(c context.Context, data *pb.Policy) (*pb.
 			res.Status = pb.PolicyStatus_Invalid
 			kg.Warn("Empty Container Policy Event")
 		}
-
+		return res, nil
+		
 	} else {
 
 		kg.Warn("Invalid Container Policy Event")
 
 		res.Status = pb.PolicyStatus_Invalid
+		return res, err
 	}
 
-	return res, nil
 }
 
 // HostPolicy accepts host policy event on gRPC service and updates host security policies. It responds with 1 if success else 0.
@@ -78,11 +79,12 @@ func (p *PolicyServer) HostPolicy(c context.Context, data *pb.Policy) (*pb.Respo
 			res.Status = pb.PolicyStatus_Invalid
 
 		}
+		return res, nil
 
 	} else {
 		kg.Warn("Invalid Host Policy Event")
 		res.Status = pb.PolicyStatus_Invalid
+		return res, err
 	}
 
-	return res, nil
 }
