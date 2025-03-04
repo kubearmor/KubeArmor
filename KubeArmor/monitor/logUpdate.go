@@ -564,6 +564,16 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Result = "Passed"
 			}
 
+			// exec event
+
+			if msg.ContextSys.IsExec == 0 {
+				log.IsExec = false
+				log.ExecID = "0"
+			} else if msg.ContextSys.IsExec == 1 {
+				log.IsExec = true
+				log.ExecID = strconv.FormatUint(msg.ContextSys.ExecID, 10)
+			}
+
 			// push the generated log
 			if mon.Logger != nil {
 				go mon.Logger.PushLog(log)
