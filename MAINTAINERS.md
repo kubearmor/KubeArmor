@@ -12,5 +12,5 @@ The list is sorted in ascending order.
 * [Jaehyun Nam](https://github.com/nam-jaehyun) (Dankook Univ)
 * [Rahul Jadhav](https://github.com/nyrahul) (AccuKnox)
 * [Ramakant Sharma](https://github.com/rksharma95) (AccuKnox)
-* [Rudraksh Pareek](https://github.com/DelusionalOptimist) (AccuKnox) 
+* [Rudraksh Pareek](https://github.com/DelusionalOptimist) (CERN) 
 
