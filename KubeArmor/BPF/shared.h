@@ -198,6 +198,7 @@ enum
     _ALERT_THROTTLING = 3,
     _MAX_ALERT_PER_SEC = 4,
     _THROTTLE_SEC = 5,
+    _MATCH_ARGS = 6,
 };
 
 struct kaconfig
