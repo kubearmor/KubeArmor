@@ -18,6 +18,7 @@ spec:
   alertThrottling: false
   maxAlertPerSec: 10
   throttleSec: 30
+  matchArgs: true
   kubearmorImage:
     image: kubearmor/kubearmor-test:latest
     imagePullPolicy: Never
