@@ -108,6 +108,7 @@ kubearmorConfigMap:
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30
+  matchArgs: true
 
 #volume mounts and volumes
 kubearmor:

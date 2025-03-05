@@ -302,6 +302,19 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 		cfg.GlobalCfg.MaxAlertPerSec,
 		cfg.GlobalCfg.ThrottleSec)
 }
+func (mon *SystemMonitor) UpdateMatchArgsConfig() {
+	if cfg.GlobalCfg.MatchArgs {
+		if err := mon.BpfConfigMap.Update(uint32(6), uint32(1), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable argument matching: %s", err.Error())
+		}
+	} else {
+		if err := mon.BpfConfigMap.Update(uint32(6), uint32(0), cle.UpdateAny); err != nil {
+			mon.Logger.Errf("Error Updating System Monitor Config Map to enable argument matching : %s", err.Error())
+		}
+	}
+
+	mon.Logger.Printf("Argument matching configured {matchArgs:%v}", cfg.GlobalCfg.AlertThrottling)
+}
 
 // UpdateNsKeyMap Function
 func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility tp.Visibility) {
