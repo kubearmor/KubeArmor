@@ -243,6 +243,10 @@ type Log struct {
 	PID      int32 `json:"pid"`
 	UID      int32 `json:"uid"`
 
+	// exec
+	IsExec bool
+	ExecID string
+
 	// process
 	ParentProcessName string `json:"parentProcessName"`
 	ProcessName       string `json:"processName"`
