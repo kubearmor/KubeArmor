@@ -226,7 +226,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
 
 decision:  
   if (match) {
-    if (val && (val->processmask & RULE_ARGSET)){ 
+    if (val && (val->processmask & RULE_ARGSET) && get_kubearmor_config(_MATCH_ARGS)){ 
       argmatch = matchArguments( num_of_args , &okey , store , pk);
       if(argmatch){
         // if arguments matches allow the process to be executed
