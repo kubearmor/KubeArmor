@@ -360,6 +360,7 @@ enum
     _ALERT_THROTTLING = 3,
     _MAX_ALERT_PER_SEC = 4,
     _THROTTLE_SEC = 5,
+    _MATCH_ARGS = 6,
 };
 
 struct kaconfig
@@ -1530,7 +1531,7 @@ int kprobe__execve(struct pt_regs *ctx)
     unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
 #endif
     
-    if(get_kubearmor_config(_ENFORCER_BPFLSM)){
+    if(get_kubearmor_config(_ENFORCER_BPFLSM) && (get_kubearmor_config(_MATCH_ARGS))){
         save_cmd_args_to_buffer((const char *const *)argv);
     }
 

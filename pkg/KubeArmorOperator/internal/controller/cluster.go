@@ -1326,6 +1326,11 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	if config.ThrottleSec == 0 {
 		ThrottleSec = common.DefaultThrottleSec
 	}
+	MatchArgsEnabled := strconv.FormatBool(config.MatchArgs)
+	if common.ConfigMapData[common.ConfigArgMatching] != MatchArgsEnabled {
+		common.ConfigMapData[common.ConfigArgMatching] = MatchArgsEnabled
+		updated = true
+	}
 	if common.ConfigMapData[common.ConfigThrottleSec] != ThrottleSec {
 		common.ConfigMapData[common.ConfigThrottleSec] = ThrottleSec
 		updated = true
