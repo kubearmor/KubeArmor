@@ -297,7 +297,16 @@ spec:
                 type: object
               presets:
                 items:
-                  type: string
+                  properties:
+                    action:
+                      enum:
+                      - Allow
+                      - Audit
+                      - Block
+                      type: string
+                    name:
+                      type: string
+                  type: object
                 type: array
               process:
                 properties:
