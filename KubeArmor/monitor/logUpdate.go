@@ -82,10 +82,10 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.UID = int32(msg.ContextSys.UID)
 
 		log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys, readlink)
-		log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
+		log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink, false)
 
 		if msg.ContextSys.EventID == SysExecve || msg.ContextSys.EventID == SysExecveAt {
-			log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)
+			log.Source = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink, false)
 		} else {
 			log.Source = mon.GetCommand(msg.ContainerID, msg.ContextSys, readlink)
 		}
@@ -110,7 +110,7 @@ func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 		log.ProcessName = processName
 	}
 
-	parentProcessName := mon.GetParentExecPath(log.ContainerID, ctx, true)
+	parentProcessName := mon.GetParentExecPath(log.ContainerID, ctx, true, false)
 	if parentProcessName != "" {
 		log.ParentProcessName = parentProcessName
 		log.Source = parentProcessName
