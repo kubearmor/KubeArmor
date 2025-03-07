@@ -161,6 +161,12 @@ func main() {
 	setupLog.Info("Starting node watcher")
 	go informer.NodeWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("NodeWatcher"))
 
+	ctx := ctrl.SetupSignalHandler()
+	if cluster.Version, err = informer.GetClusterVersion(ctx, client); err != nil {
+		setupLog.Error(err, "unable to get cluster version")
+		os.Exit(1)
+	}
+
 	setupLog.Info("Adding mutation webhook")
 	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
 		Handler: &handlers.PodAnnotator{
@@ -194,7 +200,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

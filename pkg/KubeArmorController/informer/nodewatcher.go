@@ -4,7 +4,9 @@
 package informer
 
 import (
+	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -168,4 +170,18 @@ func NodeWatcher(c *kubernetes.Clientset, cluster *types.Cluster, log logr.Logge
 	})
 
 	inf.Run(wait.NeverStop)
+}
+
+func GetClusterVersion(ctx context.Context, client *kubernetes.Clientset) (string, error) {
+	nodes, err := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+		Limit: 1,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to list nodes: %v", err)
+	}
+	for _, node := range nodes.Items {
+		return node.Status.NodeInfo.KubeletVersion, nil
+	}
+
+	return "", nil
 }
