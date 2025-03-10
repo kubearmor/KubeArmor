@@ -154,7 +154,6 @@ func (mon *SystemMonitor) BuildPidNode(containerID string, ctx SyscallContext, e
 	}
 
 	node.Exited = false
-
 	return node
 }
 
@@ -208,17 +207,24 @@ func (mon *SystemMonitor) UpdateExecPath(containerID string, hostPid uint32, exe
 func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallContext, readlink bool, lock bool) string {
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
-	if !lock {
-		ActivePidMapLock.Lock()
-		defer ActivePidMapLock.Unlock()
-	}
+	// if !lock {
+	// 	ActivePidMapLock.Lock()
+	// 	fmt.Println("creating lock for get parent exec path")
+	// 	defer ActivePidMapLock.Unlock()
+	// }
 
 	path := ""
-
+	if !lock {
+		ActivePidMapLock.RLock()
+	}
+	// use readlock ===
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
 			path = node.ParentExecPath
 			if path != "/" && strings.HasPrefix(path, "/") {
+				if !lock {
+					ActivePidMapLock.RUnlock()
+				}
 				return path
 			}
 		}
@@ -226,16 +232,26 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 		if node, ok := pidMap[ctx.HostPPID]; ok {
 			path = node.ExecPath
 			if path != "/" && strings.HasPrefix(path, "/") {
+				if !lock {
+					ActivePidMapLock.RUnlock()
+				}
 				return path
 			}
 		}
 	}
+	if !lock {
+		ActivePidMapLock.RUnlock()
+	}
+	// use readlock ===
 
 	if readlink {
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPPID), 10), "/exe")); err == nil && data != "" && data != "/" {
 			// // Store it in the ActiveHostPidMap so we don't need to read procfs again
 			// // We don't call BuildPidNode Here cause that will put this into a cyclic function call loop
+			if !lock {
+				ActivePidMapLock.Lock()
+			}
 			if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 				if node, ok := pidMap[ctx.HostPPID]; ok {
 					node.ExecPath = data
@@ -245,6 +261,9 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 					pidMap[ctx.HostPID] = node
 				}
 			}
+			if !lock {
+				ActivePidMapLock.Unlock()
+			}
 			return data
 		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
@@ -252,7 +271,6 @@ func (mon *SystemMonitor) GetParentExecPath(containerID string, ctx SyscallConte
 			mon.Logger.Debugf("Could not read path from procfs due to unknown error")
 		}
 	}
-
 	// return non full path
 	return path
 }
@@ -262,23 +280,23 @@ func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, re
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
-
 	path := ""
-
+	ActivePidMapLock.RLock()
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
 			path = node.ExecPath
 			if path != "/" && strings.HasPrefix(path, "/") {
+				ActivePidMapLock.RUnlock()
 				return path
 			}
 		}
 	}
+	ActivePidMapLock.RUnlock()
 
 	if readlink {
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPID), 10), "/exe")); err == nil && data != "" && data != "/" {
+			ActivePidMapLock.Lock()
 			// // Store it in the ActiveHostPidMap so we don't need to read procfs again
 			if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 				if node, ok := pidMap[ctx.HostPID]; ok {
@@ -289,6 +307,7 @@ func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, re
 					pidMap[ctx.HostPID] = newPidNode
 				}
 			}
+			ActivePidMapLock.Unlock()
 			return data
 		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
@@ -306,8 +325,8 @@ func (mon *SystemMonitor) GetCommand(containerID string, ctx SyscallContext, rea
 	ActiveHostPidMap := *(mon.ActiveHostPidMap)
 	ActivePidMapLock := *(mon.ActivePidMapLock)
 
-	ActivePidMapLock.Lock()
-	defer ActivePidMapLock.Unlock()
+	ActivePidMapLock.RLock()
+	defer ActivePidMapLock.RUnlock()
 
 	if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 		if node, ok := pidMap[ctx.HostPID]; ok {
@@ -328,7 +347,6 @@ func (mon *SystemMonitor) GetCommand(containerID string, ctx SyscallContext, rea
 			mon.Logger.Debugf("Could not read path from procfs due to an unknown error")
 		}
 	}
-
 	return ""
 }
 

@@ -104,7 +104,6 @@ func (mon *SystemMonitor) UpdateLogBase(ctx SyscallContext, log tp.Log) tp.Log {
 	// update the process paths, since we would have received actual exec paths from bprm hook
 	// in case bprm hook has not populated the map with full path, we will fallback to reading from procfs
 	// else we will send out relative path
-
 	processName := mon.GetExecPath(log.ContainerID, ctx, true)
 	if processName != "" {
 		log.ProcessName = processName
