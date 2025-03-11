@@ -41,7 +41,7 @@ type Tls struct {
 type RecommendedPolicies struct {
 	Enable bool `json:"enable,omitempty"`
 
-	MatchExpressions []securityv1.MatchExpressionsType `json:"matchExpressions,omitempty"`
+	MatchExpressions []securityv1.ClusterMatchExpressionsType `json:"matchExpressions,omitempty"`
 
 	ExcludePolicy []string `json:"excludePolicy,omitempty"`
 }
