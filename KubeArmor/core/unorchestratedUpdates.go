@@ -316,7 +316,8 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 		secPolicy.Spec.Selector.Identities = append(secPolicy.Spec.Selector.Identities, k+"="+v)
 		// TODO: regex based matching
 		if k == "kubearmor.io/container.name" {
-			expr, err := regexp.CompilePOSIX(v)
+			pattern := "^" + strings.ReplaceAll(v, "*", ".*") + "$"
+			expr, err := regexp.CompilePOSIX(pattern)
 			if err != nil {
 				dm.Logger.Warnf("Failed to parse expression for \"kubearmor.io/container.name\": %s", err.Error())
 				return pb.PolicyStatus_Invalid
