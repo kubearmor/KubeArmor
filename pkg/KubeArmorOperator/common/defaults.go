@@ -155,7 +155,7 @@ var (
 
 	// recommend policies
 	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
-		MatchExpressions: []securityv1.MatchExpressionsType{
+		MatchExpressions: []securityv1.ClusterMatchExpressionsType{
 			{
 				Key:      "namespace",
 				Operator: "NotIn",

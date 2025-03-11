@@ -7,8 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type MatchExpressionsType struct {
-	// +kubebuilder:validation:Enum=namespace
+type ClusterMatchExpressionsType struct {
+	// +kubebuilder:validation:Enum=namespace;label
 	Key string `json:"key,omitempty"`
 
 	// +kubebuilder:validation:Enum=In;NotIn
@@ -18,7 +18,7 @@ type MatchExpressionsType struct {
 }
 
 type NsSelectorType struct {
-	MatchExpressions []MatchExpressionsType `json:"matchExpressions,omitempty"`
+	MatchExpressions []ClusterMatchExpressionsType `json:"matchExpressions,omitempty"`
 }
 
 // KubeArmorClusterPolicySpec defines the desired state of KubeArmorClusterPolicy
