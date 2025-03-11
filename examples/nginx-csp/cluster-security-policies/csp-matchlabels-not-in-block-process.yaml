@@ -1,0 +1,21 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-matchlabels-not-in-block-process
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: NotIn
+        values:
+          - nginx2
+      - key: label
+        operator: NotIn
+        values:
+          - app=nginx
+  process:
+    matchPaths:
+      - path: /usr/bin/apt
+  action:
+    Block
