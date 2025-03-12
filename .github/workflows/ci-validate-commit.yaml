@@ -1,0 +1,48 @@
+name: Validate Commits
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-commits:
+    name: Check if KubeArmor compiles for every commit
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Configure git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Validate each commit
+        run: |
+          # Loop through each commit in the PR from oldest to newest
+          for commit in $(git rev-list --reverse ${{ github.event.pull_request.base.sha }}..${{ github.sha }}); do
+            echo "========================================="
+            echo "Checking out commit $commit..."
+            git checkout $commit
+
+            # Attempt to build the project
+            cd KubeArmor
+            echo "Building KubeArmor for commit $commit..."
+            if make build; then
+              echo "✅ Commit $commit compiled successfully."
+            else
+              echo "❌ Commit $commit failed to compile!"
+              echo "========================================="
+              exit 1
+            fi
+            cd -
+            echo "========================================="
+          done
