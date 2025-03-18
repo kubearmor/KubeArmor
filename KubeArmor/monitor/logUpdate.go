@@ -574,6 +574,10 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.ExecID = strconv.FormatUint(msg.ContextSys.ExecID, 10)
 			}
 
+			if comm := strings.TrimRight(string(msg.ContextSys.Comm[:]), "\x00"); len(comm) > 0 {
+				log.ExecName = comm
+			}
+
 			// push the generated log
 			if mon.Logger != nil {
 				go mon.Logger.PushLog(log)

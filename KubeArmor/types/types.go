@@ -244,8 +244,9 @@ type Log struct {
 	UID      int32 `json:"uid"`
 
 	// exec
-	IsExec bool
-	ExecID string
+	IsExec   bool
+	ExecID   string
+	ExecName string
 
 	// process
 	ParentProcessName string `json:"parentProcessName"`

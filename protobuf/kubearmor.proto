@@ -80,6 +80,7 @@ message Alert {
 
   bool IsExec = 36;
   string ExecID = 37;
+  string ExecutableName = 38;
 }
 
 // log struct
@@ -120,6 +121,7 @@ message Log {
 
   bool IsExec = 27;
   string ExecID = 28;
+  string ExecutableName = 29;
 }
 
 // request message

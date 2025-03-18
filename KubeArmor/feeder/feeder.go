@@ -668,6 +668,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.IsExec = log.IsExec
 		pbAlert.ExecID = log.ExecID
+		pbAlert.ExecutableName = log.ExecName
 
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
@@ -748,6 +749,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.IsExec = log.IsExec
 		pbLog.ExecID = log.ExecID
+		pbLog.ExecutableName = log.ExecName
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
