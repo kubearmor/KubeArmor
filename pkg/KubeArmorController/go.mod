@@ -3,6 +3,7 @@ module github.com/kubearmor/KubeArmor/pkg/KubeArmorController
 go 1.23.6
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/go-logr/logr v1.4.2
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.35.1
