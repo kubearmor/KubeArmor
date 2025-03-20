@@ -222,9 +222,6 @@ typedef struct __attribute__((__packed__)) sys_context
     u32 pid;
     u32 uid;
 
-    u8 is_exec;
-    u64 exec_id;
-
     u32 event_id;
     u32 argnum;
     s64 retval;
@@ -233,6 +230,8 @@ typedef struct __attribute__((__packed__)) sys_context
     char cwd[CWD_LEN];
     char tty[TTY_LEN];
     u32 oid; // owner id
+    // exec event will have non-zero execID
+    u64 exec_id;
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
@@ -358,7 +357,18 @@ struct kaconfig kubearmor_config SEC(".maps");
 
 // exec maps
 BPF_LRU_HASH(ns_transition, u32, struct outer_key);
-BPF_LRU_HASH(exec_pids, u32, u64);
+
+struct exec_pid_map
+{
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u32);
+    __type(value, u64);
+    __uint(max_entries, 10240);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+// BPF_LRU_HASH(exec_pids, u32, u64);
+struct exec_pid_map exec_pids SEC(".maps");
 
 // == Kernel Helpers == //
 
@@ -1008,6 +1018,7 @@ static __always_inline u32 init_context(sys_context_t *context)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
+    __builtin_memset((void *)&context->exec_id, 0, sizeof(context->exec_id));
     context->ts = bpf_ktime_get_ns();
 
     context->host_ppid = get_task_ppid(task);
@@ -1033,11 +1044,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         // check if process is part of exec
         u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &(context->host_pid));
         if (exec_id) {
-            context->is_exec = 1;
             context->exec_id = *exec_id;
-        } else {
-            context->is_exec = 0;
-            context->exec_id = 0;
         }
     }
 

@@ -565,17 +565,9 @@ func (mon *SystemMonitor) UpdateLogs() {
 			}
 
 			// exec event
-
-			if msg.ContextSys.IsExec == 0 {
-				log.IsExec = false
-				log.ExecID = "0"
-			} else if msg.ContextSys.IsExec == 1 {
-				log.IsExec = true
-				log.ExecID = strconv.FormatUint(msg.ContextSys.ExecID, 10)
-			}
-
+			log.ExecEvent.ExecID = strconv.FormatUint(msg.ContextSys.ExecID, 10)
 			if comm := strings.TrimRight(string(msg.ContextSys.Comm[:]), "\x00"); len(comm) > 0 {
-				log.ExecName = comm
+				log.ExecEvent.ExecutableName = comm
 			}
 
 			// push the generated log

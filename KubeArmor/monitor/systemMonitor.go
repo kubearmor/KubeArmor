@@ -77,9 +77,6 @@ type SyscallContext struct {
 	PID  uint32
 	UID  uint32
 
-	IsExec uint8
-	ExecID uint64
-
 	EventID int32
 	Argnum  int32
 	Retval  int64
@@ -88,6 +85,9 @@ type SyscallContext struct {
 	Cwd  [80]byte
 	TTY  [64]byte
 	OID  uint32
+
+	// exec events
+	ExecID uint64
 }
 
 // ContextCombined Structure
@@ -840,6 +840,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 						log.Result = "Passed"
 					}
 
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
+					}
+
 					// push the generated log
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
@@ -927,6 +932,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 						}
 					} else {
 						log.Result = "Passed"
+					}
+
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
 					}
 
 					// push the generated log
