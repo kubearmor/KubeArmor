@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debian-app
+  namespace: nginx1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debian-app
+  template:
+    metadata:
+      labels:
+        app: debian-app
+    spec:
+      containers:
+      - name: debian-container
+        image: debian:latest
+        command: ["sleep", "infinity"]
