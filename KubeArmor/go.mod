@@ -28,7 +28,7 @@ require (
 	github.com/cilium/cilium v1.16.6
 	github.com/cilium/ebpf v0.17.1
 	github.com/containerd/containerd/api v1.8.0
-	github.com/containerd/containerd/v2 v2.0.2
+	github.com/containerd/containerd/v2 v2.0.4
 	github.com/containerd/nri v0.9.0
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/docker/docker v27.5.0+incompatible
@@ -160,6 +160,6 @@ require (
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.5.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
-	tags.cncf.io/container-device-interface v0.8.0 // indirect
+	tags.cncf.io/container-device-interface v0.8.1 // indirect
 	tags.cncf.io/container-device-interface/specs-go v0.8.0 // indirect
 )
