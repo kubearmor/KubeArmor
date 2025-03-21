@@ -296,7 +296,7 @@ func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, re
 	if readlink {
 		// just in case that it couldn't still get the full path
 		if data, err := os.Readlink(filepath.Join(cfg.GlobalCfg.ProcFsMount, strconv.FormatUint(uint64(ctx.HostPID), 10), "/exe")); err == nil && data != "" && data != "/" {
-			ActivePidMapLock.Lock()
+			ActivePidMapLock.RLock()
 			// // Store it in the ActiveHostPidMap so we don't need to read procfs again
 			if pidMap, ok := ActiveHostPidMap[containerID]; ok {
 				if node, ok := pidMap[ctx.HostPID]; ok {
@@ -307,7 +307,7 @@ func (mon *SystemMonitor) GetExecPath(containerID string, ctx SyscallContext, re
 					pidMap[ctx.HostPID] = newPidNode
 				}
 			}
-			ActivePidMapLock.Unlock()
+			ActivePidMapLock.RUnlock()
 			return data
 		} else if err != nil {
 			mon.Logger.Debugf("Could not read path from procfs due to %s", err.Error())
