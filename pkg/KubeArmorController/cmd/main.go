@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -28,6 +29,7 @@ import (
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/handlers"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/informer"
 	controllers "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/internal/controller"
+	"github.com/kubearmor/KubeArmor/pkg/KubeArmorController/metrics"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -136,6 +138,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize collector (before manager.Start)
+	collector := metrics.NewPolicyCollector(mgr.GetClient(), 30*time.Second)
+
+	// Create controller reconcilers
 	if err = (&controllers.KubeArmorPolicyReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -198,8 +204,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Start collector (before manager.Start)
+	ctx := ctrl.SetupSignalHandler()
+	collector.Start(ctx)
+
+	// Start manager (this will start the metrics server)
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
