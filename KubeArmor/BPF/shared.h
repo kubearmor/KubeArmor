@@ -103,6 +103,7 @@ enum preset_type {
   FILELESS_EXEC = 1001,
   ANON_MAP_EXEC,
   PROTECT_ENV,
+  EXEC,
 };
 
 struct preset_map {
@@ -132,6 +133,9 @@ typedef struct {
   u8 comm[TASK_COMM_LEN];
 
   bufs_k data;
+
+  // exec event
+  u64 exec_id;
 } event;
 
 struct {
@@ -185,6 +189,17 @@ struct outer_hash {
 };
 
 struct outer_hash kubearmor_containers SEC(".maps");
+
+struct exec_pid_map
+{
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u32);
+    __type(value, u64);
+    __uint(max_entries, 10240);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct exec_pid_map exec_pids SEC(".maps");
 
 static __always_inline bufs_t *get_buf(int idx) {
   return bpf_map_lookup_elem(&bufs, &idx);
@@ -343,6 +358,13 @@ static __always_inline u32 init_context(event *event_data) {
   // Clearing array to avoid garbage values
   __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
   bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
+
+  // check if process is part of exec
+  __builtin_memset((void *)&event_data->exec_id, 0, sizeof(event_data->exec_id));
+  u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &(event_data->host_pid));
+  if (exec_id) {
+      event_data->exec_id = *exec_id;
+  }
 
   return 0;
 }
