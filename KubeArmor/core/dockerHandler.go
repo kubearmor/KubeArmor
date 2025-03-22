@@ -264,7 +264,8 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 		var err error
 		Docker, err = NewDockerHandler()
 		if err != nil {
-			dm.Logger.Errf("Failed to create new Docker client: %s", err)
+			dm.Logger.Errf("Failed to create new Docker client: %s", err.Error())
+			return
 		}
 	}
 
@@ -747,7 +748,8 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 		var err error
 		Docker, err = NewDockerHandler()
 		if err != nil {
-			dm.Logger.Errf("Failed to create new Docker client: %s", err)
+			dm.Logger.Errf("Failed to create new Docker client: %s", err.Error())
+			return
 		}
 	}
 
