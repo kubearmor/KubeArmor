@@ -9,7 +9,7 @@ replace (
 )
 
 require (
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250117172841-503b97db4876
+	github.com/kubearmor/KubeArmor/KubeArmor 136a8a117434
 	github.com/kubearmor/KubeArmor/deployments v0.0.0-20250117172841-503b97db4876
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250117172841-503b97db4876
 	github.com/spf13/cobra v1.8.1
