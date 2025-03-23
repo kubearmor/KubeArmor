@@ -31,8 +31,8 @@ type KubeArmorClusterPolicySpec struct {
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
 
-	AppArmor string `json:"apparmor,omitempty"`
-
+	AppArmor string       `json:"apparmor,omitempty"`
+	Presets  []PresetType `json:"presets,omitempty"`
 	// +kubebuilder:validation:optional
 	Severity SeverityType `json:"severity,omitempty"`
 	// +kubebuilder:validation:optional

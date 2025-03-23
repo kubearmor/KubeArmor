@@ -4,9 +4,9 @@ metadata:
   name: nginx
 ---
 apiVersion: apps/v1
-kind: ReplicaSet
+kind: Deployment
 metadata:
-  name: nginx-replicaset
+  name: nginx-deployment
   namespace: nginx
 spec:
   replicas: 3
@@ -22,6 +22,7 @@ spec:
       containers:
       - name: my-container
         image: nginx
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet

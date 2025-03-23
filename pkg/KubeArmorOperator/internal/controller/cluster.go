@@ -46,7 +46,7 @@ var informer informers.SharedInformerFactory
 var deployment_uuid types.UID
 var deployment_name string = "kubearmor-operator"
 var PathPrefix string
-var initDeploy, annotateResource bool
+var initDeploy, annotateResource, annotateExisting bool
 var ProviderHostname, ProviderEndpoint string
 
 type ClusterWatcher struct {
@@ -72,7 +72,7 @@ type Node struct {
 	Seccomp          string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource bool) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource, annotateexisting bool) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -90,6 +90,7 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	deployment_name = deploy_name
 	initDeploy = initdeploy
 	annotateResource = annotateresource
+	annotateExisting = annotateexisting
 	ProviderHostname = providerHostname
 	ProviderEndpoint = providerEndpoint
 
@@ -1197,6 +1198,7 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				continue
 			}
 			csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+			csp.Annotations["app.kubernetes.io/managed-by"] = "kubearmor-operator"
 			_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
 			if err != nil && !metav1errors.IsAlreadyExists(err) {
 				clusterWatcher.Log.Warnf("error creating csp %s", csp.GetName())
@@ -1221,7 +1223,7 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				clusterWatcher.Log.Info("created csp", csp.GetName())
 			}
 		case false:
-			if !policy.IsDir() {
+			if !policy.IsDir() && csp.Annotations["app.kubernetes.io/managed-by"] == "kubearmor-operator" {
 				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
 				if err != nil && !metav1errors.IsNotFound(err) {
 					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())

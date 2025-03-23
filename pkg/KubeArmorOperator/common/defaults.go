@@ -131,6 +131,7 @@ var (
 	KubeArmorControllerArgs []string = []string{
 		"--leader-elect",
 		"--health-probe-bind-address=:8081",
+		"--annotateExisting=false",
 	}
 	KubeArmorControllerImage            string                        = "kubearmor/kubearmor-controller:latest"
 	KubeArmorControllerImagePullPolicy  string                        = "Always"

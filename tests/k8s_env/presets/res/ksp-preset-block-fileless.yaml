@@ -4,9 +4,9 @@ metadata:
   name: ksp-preset-block-fileless
   namespace: presets
 spec:
-  action: Block
   presets:
-  - filelessExec
+  - name: filelessExec
+    action: Block
   selector:
     matchLabels:
       app: fileless

@@ -527,12 +527,22 @@ type SyscallsType struct {
 	Message  string   `json:"message,omitempty"`
 }
 
-// PresetType type
-type PresetType string
+// PresetName type
+type PresetName string
+
+// PresetType Structure
+type PresetType struct {
+	Name   PresetName `json:"name,omitempty"`
+	Action string     `json:"action,omitempty"`
+}
 
 const (
-	AnonMapExec  PresetType = "anonymousMapExec"
-	FilelessExec PresetType = "filelessExec"
+	// AnonMapExec Preset
+	AnonMapExec PresetName = "anonymousMapExec"
+	// FilelessExec Preset
+	FilelessExec PresetName = "filelessExec"
+	// ProtectEnv Preset
+	ProtectEnv PresetName = "protectEnv"
 )
 
 // SecuritySpec Structure

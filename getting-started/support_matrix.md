@@ -21,6 +21,7 @@ KubeArmor supports following types of workloads:
 | AWS        | [EKS] | Amazon Linux 2 (kernel >=5.8) | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
 | AWS        | [EKS] | Ubuntu | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor |
 | AWS        | [EKS] | [Bottlerocket] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
+| AWS        | [EKS-Auto-Mode] | [Bottlerocket] | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | [BPFLSM] |
 | AWS        | [Graviton] | Ubuntu | ARM | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | AppArmor |
 | AWS        | [Graviton] | Amazon Linux 2 | ARM | :heavy_check_mark: | :heavy_check_mark: | :x: | :heavy_check_mark: | SELinux |
 | RedHat     | [OpenShift] | [RHEL] <=8.4 | x86_64 | :heavy_check_mark: | :heavy_check_mark: | :x:  | :heavy_check_mark: | SELinux |
@@ -40,6 +41,7 @@ KubeArmor supports following types of workloads:
 [Network-Segmentation]: network_segmentation.md
 [GKE]: https://cloud.google.com/kubernetes-engine
 [EKS]: https://aws.amazon.com/eks/
+[EKS-Auto-Mode]: https://aws.amazon.com/eks/auto-mode/
 [AKS]: https://azure.microsoft.com/
 [COS]: https://cloud.google.com/container-optimized-os/docs/concepts/features-and-benefits
 [GKE-REL]: https://cloud.google.com/kubernetes-engine/docs/concepts/release-channels

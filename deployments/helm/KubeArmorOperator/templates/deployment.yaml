@@ -46,6 +46,8 @@ spec:
         image: {{ include "operatorImage" . }}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
         args:
+        - --annotateExisting={{ .Values.kubearmorOperator.annotateExisting }}
+        - --annotateResource={{ .Values.kubearmorOperator.annotateResource }}
         {{- if .Values.kubearmorOperator.args -}}
           {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
         {{- end }}

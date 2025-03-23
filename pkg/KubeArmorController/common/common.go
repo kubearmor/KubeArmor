@@ -4,19 +4,21 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const k8sVisibility = "process,file,network,capabilities"
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
-const KubeArmorRestartedAnnotation = "kubearmor.io/restarted"
-const KubeArmorForceAppArmorAnnotation = "kubearmor.io/force-apparmor"
+const KubeArmorRestartedAnnotation = "kubearmor.kubernetes.io/restartedAt"
 
 // == Add AppArmor annotations == //
-func AppArmorAnnotator(pod *corev1.Pod) {
+func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool) {
 	podAnnotations := map[string]string{}
 	var podOwnerName string
 
@@ -64,52 +66,57 @@ func AppArmorAnnotator(pod *corev1.Pod) {
 		if v == "unconfined" {
 			continue
 		}
-		pod.Annotations[appArmorAnnotation+k] = "localhost/" + v
+		if isBinding {
+			binding.Annotations[appArmorAnnotation+k] = "localhost/" + v
+		} else {
+			pod.Annotations[appArmorAnnotation+k] = "localhost/" + v
+		}
 	}
 }
-func AddCommonAnnotations(pod *corev1.Pod) {
-	if pod.Annotations == nil {
-		pod.Annotations = map[string]string{}
+func AddCommonAnnotations(obj *metav1.ObjectMeta) {
+
+	if obj.Annotations == nil {
+		obj.Annotations = map[string]string{}
 	}
 
 	// == Policy == //
 
-	if _, ok := pod.Annotations["kubearmor-policy"]; !ok {
+	if _, ok := obj.Annotations["kubearmor-policy"]; !ok {
 		// if no annotation is set enable kubearmor by default
-		pod.Annotations["kubearmor-policy"] = "enabled"
-	} else if pod.Annotations["kubearmor-policy"] != "enabled" && pod.Annotations["kubearmor-policy"] != "disabled" && pod.Annotations["kubearmor-policy"] != "audited" {
+		obj.Annotations["kubearmor-policy"] = "enabled"
+	} else if obj.Annotations["kubearmor-policy"] != "enabled" && obj.Annotations["kubearmor-policy"] != "disabled" && obj.Annotations["kubearmor-policy"] != "audited" {
 		// if kubearmor policy is not set correctly, default it to enabled
-		pod.Annotations["kubearmor-policy"] = "enabled"
+		obj.Annotations["kubearmor-policy"] = "enabled"
 	}
 	// == Exception == //
 
 	// exception: kubernetes app
-	if pod.Namespace == "kube-system" {
-		if _, ok := pod.Labels["k8s-app"]; ok {
-			pod.Annotations["kubearmor-policy"] = "audited"
+	if obj.Namespace == "kube-system" {
+		if _, ok := obj.Labels["k8s-app"]; ok {
+			obj.Annotations["kubearmor-policy"] = "audited"
 		}
 
-		if value, ok := pod.Labels["component"]; ok {
+		if value, ok := obj.Labels["component"]; ok {
 			if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" || value == "kube-proxy" {
-				pod.Annotations["kubearmor-policy"] = "audited"
+				obj.Annotations["kubearmor-policy"] = "audited"
 			}
 		}
 	}
 
 	// exception: cilium-operator
-	if _, ok := pod.Labels["io.cilium/app"]; ok {
-		pod.Annotations["kubearmor-policy"] = "audited"
+	if _, ok := obj.Labels["io.cilium/app"]; ok {
+		obj.Annotations["kubearmor-policy"] = "audited"
 	}
 
 	// exception: kubearmor
-	if _, ok := pod.Labels["kubearmor-app"]; ok {
-		pod.Annotations["kubearmor-policy"] = "audited"
+	if _, ok := obj.Labels["kubearmor-app"]; ok {
+		obj.Annotations["kubearmor-policy"] = "audited"
 	}
 
 	// == Visibility == //
 
-	if _, ok := pod.Annotations["kubearmor-visibility"]; !ok {
-		pod.Annotations["kubearmor-visibility"] = k8sVisibility
+	if _, ok := obj.Annotations["kubearmor-visibility"]; !ok {
+		obj.Annotations["kubearmor-visibility"] = k8sVisibility
 	}
 }
 
@@ -124,4 +131,65 @@ func RemoveApparmorAnnotation(pod *corev1.Pod) {
 	for _, key := range annotations {
 		delete(pod.Annotations, key)
 	}
+}
+
+func CheckKubearmorStatus(nodeName string, c *kubernetes.Clientset) (bool, error) {
+	pods, err := c.CoreV1().Pods("kubearmor").List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "kubearmor-app=kubearmor",
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to list pods: %v", err)
+	}
+	// Filter Pods by nodeName and return their status.phase
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName == nodeName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+
+}
+func hasApparmorAnnotation(annotations map[string]string) bool {
+	for key := range annotations {
+		if strings.HasPrefix(key, "container.apparmor.security.beta.kubernetes.io/") {
+			return true
+		}
+	}
+	return false
+}
+
+func HandleAppArmor(annotations map[string]string) bool {
+	return !hasApparmorAnnotation(annotations)
+}
+
+func HandleBPF(annotations map[string]string) bool {
+	return hasApparmorAnnotation(annotations)
+}
+
+func IsAppArmorExempt(labels map[string]string, namespace string) bool {
+
+	// exception: kubernetes app
+	if namespace == "kube-system" {
+		if _, ok := labels["k8s-app"]; ok {
+			return true
+		}
+
+		if value, ok := labels["component"]; ok {
+			if value == "etcd" || value == "kube-apiserver" || value == "kube-controller-manager" || value == "kube-scheduler" || value == "kube-proxy" {
+				return true
+			}
+		}
+	}
+
+	// exception: cilium-operator
+	if _, ok := labels["io.cilium/app"]; ok {
+		return true
+	}
+
+	// exception: kubearmor
+	if _, ok := labels["kubearmor-app"]; ok {
+		return true
+	}
+	return false
 }

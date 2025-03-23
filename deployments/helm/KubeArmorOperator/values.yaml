@@ -29,6 +29,7 @@ oci_meta:
 # in case if image pinning is disabled
 kubearmorOperator:
   annotateResource: false
+  annotateExisting: false
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator

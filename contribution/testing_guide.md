@@ -1,20 +1,17 @@
 # Testing Guide
 
 There are two ways to check the functionalities of KubeArmor: 1) testing KubeArmor manually and 2) using the testing framework.
+# 0. Make sure Kubernetes cluster is running 
 
-# 0. Make sure that the annotation controller is installed on the cluster (Applicable for Steps 1 and 2)
+Although there are many ways to run a Kubernetes cluster (like minikube or kind), it will not work with locally developed KubeArmor. KubeArmor needs to be on the same node as where the Kubernetes nodes exist. If you try to do this it will not identify your node since minikube and kind use virtualized nodes. You would either need to build your images and deploy them into these clusters or you can simply use `k3s` or `kubeadm` for development purposes. If you are new to these terms then the easiest way to do this is by following this guide: [K3s installation guide](k3s/README.md)
 
-- To install the controller from KubeArmor docker repository to your cluster run
-
+## 0.1. Firstly Run 'kubectl proxy' in background
 ```text
-$ cd KubeArmor/pkg/KubeArmorAnnotation
-~/KubeArmor/pkg/KubeArmorAnnotation$ make deploy
+$ kubectl proxy &
 ```
-- To install the controller (local version) to your cluster run
-
+## 0.2. Now run KubeArmor
 ```text
-$ cd KubeArmor/pkg/KubeArmorAnnotation
-~/KubeArmor/pkg/KubeArmorAnnotation$ make docker-build deploy
+~/KubeArmor/KubeArmor$ make run
 ```
 
 # 1.  Test KubeArmor manually
@@ -92,78 +89,6 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
     
 
 # 2.  Test KubeArmor using the auto-testing framework
-
-## 2.1. Prepare microservices and test scenarios
-
-The auto-testing framework operates based on two things: microservices and test scenarios for each microservice.
-
-- Microservices
-
-    Create a directory for a microservice in [microservices](../tests/microservices)
-
-    ```text
-    $ cd KubeArmor/tests/microservices
-    ~/KubeArmor/tests/microservices$ mkdir [microservice name]
-    ```
-
-    Then, create YAML files for the microservice
-
-    ```text
-    $ cd KubeArmor/tests/microservices/[microservice name]
-    ~/KubeArmor/tests/microservices/[microservice name]$ ...
-    ```
-
-    As an example, we created 'multiubuntu' in [microservices](../tests/microservices) and defined 'multiubuntu-deployment.yaml' in [multiubuntu](../examples/multiubuntu).
-
-- Test scenarios
-
-    Create a directory whose name is like '[microservice name]_[scenario name]' in [scenarios](../tests/scenarios)
-    
-    ```text
-    $ cd KubeArmor/tests/scenarios
-    ~/KubeArmor/tests/scenarios$ mkdir [microservice name]_[scenario name]
-    ```
-    
-    Then, define a YAML file for a test policy in the directory
-    
-    ```text
-    ~/KubeArmor/tests/scenarios$ cd [microservice name]_[scenario name]
-    .../[microservice name]_[scenario name]$ vi [policy name].yaml
-    ```
-
-    Create cmd files whose names are like 'cmd#'
-    
-    ```text
-    .../[microservice name]_[scenario name]$ vi cmd1 / cmd2 / ...
-    ```
-    
-    Here is a template for a cmd file.
-
-    ```text
-    source: [pod name]
-    cmd: [command to trigger a policy violation]
-    result: [expected result], { passed | failed }
-    ---
-    operation: [operation], { Process | File | Network }
-    condition: [matching string]
-    action: [action in a policy] { Allow | Audit | Block }
-    ```
-
-    This is a cmd example of a test scenario.
-
-    ```text
-    source: ubuntu-1-deployment
-    cmd: sleep 1
-    result: failed
-    ---
-    operation: Process
-    condition: sleep
-    action: Block
-    ```
-
-    You can refer to predefined testcases in [scenarios](../tests/scenarios).
-
-## 2.2. Test KubeArmor
     
 - The case that KubeArmor is directly running in a host
 
@@ -200,4 +125,9 @@ The auto-testing framework operates based on two things: microservices and test 
 
     ```text
     ~/KubeArmor/tests$ cat /tmp/kubearmor.test
+    ```
+
+- To run a specific suit of tests move to the directory of test and run
+    ```text
+    ~/KubeArmor/tests/test_directory$ ginkgo --focus "Suit_Name"
     ```

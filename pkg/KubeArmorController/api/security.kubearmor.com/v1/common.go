@@ -333,8 +333,17 @@ type SyscallsType struct {
 	Message string `json:"message,omitempty"`
 }
 
-type PresetType string
+type PresetName string
+
+type PresetType struct {
+	Name PresetName `json:"name,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
 
 const (
-	FilelessProcessExec PresetType = "filelessProcessExec"
+	// ProtectEnv Preset
+	ProtectEnv PresetName = "protectEnv"
+	// FilelessExec Preset
+	FilelessExec PresetName = "filelessExec"
 )

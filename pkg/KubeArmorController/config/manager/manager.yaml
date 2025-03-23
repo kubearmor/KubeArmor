@@ -21,7 +21,6 @@ spec:
     metadata:
       annotations:
         container.apparmor.security.beta.kubernetes.io/manager: unconfined
-        container.apparmor.security.beta.kubernetes.io/kube-rbac-proxy: unconfined
         kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
