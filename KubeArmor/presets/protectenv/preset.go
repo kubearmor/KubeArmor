@@ -111,9 +111,9 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return p, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceFile})
+	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnvPresetEnforceFile})
 	if err != nil {
-		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceFile.String(), err)
+		p.Logger.Errf("opening lsm %s: %s", p.obj.EnvPresetEnforceFile.String(), err)
 		return p, err
 	}
 

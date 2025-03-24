@@ -61,7 +61,7 @@ type execSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type execProgramSpecs struct {
-	EnforceBprmCheckSecurity *ebpf.ProgramSpec `ebpf:"enforce_bprm_check_security"`
+	ExecPresetBprmCheckSecurity *ebpf.ProgramSpec `ebpf:"exec_preset_bprm_check_security"`
 }
 
 // execMapSpecs contains maps before they are loaded into the kernel.
@@ -145,12 +145,12 @@ type execVariables struct {
 //
 // It can be passed to loadExecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type execPrograms struct {
-	EnforceBprmCheckSecurity *ebpf.Program `ebpf:"enforce_bprm_check_security"`
+	ExecPresetBprmCheckSecurity *ebpf.Program `ebpf:"exec_preset_bprm_check_security"`
 }
 
 func (p *execPrograms) Close() error {
 	return _ExecClose(
-		p.EnforceBprmCheckSecurity,
+		p.ExecPresetBprmCheckSecurity,
 	)
 }
 

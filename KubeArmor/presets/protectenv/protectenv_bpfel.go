@@ -61,7 +61,7 @@ type protectenvSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectenvProgramSpecs struct {
-	EnforceFile *ebpf.ProgramSpec `ebpf:"enforce_file"`
+	EnvPresetEnforceFile *ebpf.ProgramSpec `ebpf:"env_preset_enforce_file"`
 }
 
 // protectenvMapSpecs contains maps before they are loaded into the kernel.
@@ -145,12 +145,12 @@ type protectenvVariables struct {
 //
 // It can be passed to loadProtectenvObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectenvPrograms struct {
-	EnforceFile *ebpf.Program `ebpf:"enforce_file"`
+	EnvPresetEnforceFile *ebpf.Program `ebpf:"env_preset_enforce_file"`
 }
 
 func (p *protectenvPrograms) Close() error {
 	return _ProtectenvClose(
-		p.EnforceFile,
+		p.EnvPresetEnforceFile,
 	)
 }
 

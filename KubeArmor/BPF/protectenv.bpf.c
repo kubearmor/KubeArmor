@@ -29,7 +29,7 @@ struct pathname {
 };
 
 SEC("lsm/file_open")
-int BPF_PROG(enforce_file, struct file *file) {
+int BPF_PROG(env_preset_enforce_file, struct file *file) {
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
