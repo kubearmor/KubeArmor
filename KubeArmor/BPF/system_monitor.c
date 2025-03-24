@@ -1022,7 +1022,8 @@ static __always_inline u32 init_context(sys_context_t *context)
     context->ts = bpf_ktime_get_ns();
 
     context->host_ppid = get_task_ppid(task);
-    context->host_pid = bpf_get_current_pid_tgid() >> 32;
+    __u32 host_pid = bpf_get_current_pid_tgid() >> 32;
+    context->host_pid = host_pid;
 
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid)
@@ -1042,7 +1043,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         context->pid = pid;
         
         // check if process is part of exec
-        u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &(context->host_pid));
+        u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &host_pid);
         if (exec_id) {
             context->exec_id = *exec_id;
         }
