@@ -61,7 +61,7 @@ type filelessexecSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type filelessexecProgramSpecs struct {
-	EnforceBprmCheckSecurity *ebpf.ProgramSpec `ebpf:"enforce_bprm_check_security"`
+	FilelessPresetBprmCheckSecurity *ebpf.ProgramSpec `ebpf:"fileless_preset_bprm_check_security"`
 }
 
 // filelessexecMapSpecs contains maps before they are loaded into the kernel.
@@ -145,12 +145,12 @@ type filelessexecVariables struct {
 //
 // It can be passed to loadFilelessexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type filelessexecPrograms struct {
-	EnforceBprmCheckSecurity *ebpf.Program `ebpf:"enforce_bprm_check_security"`
+	FilelessPresetBprmCheckSecurity *ebpf.Program `ebpf:"fileless_preset_bprm_check_security"`
 }
 
 func (p *filelessexecPrograms) Close() error {
 	return _FilelessexecClose(
-		p.EnforceBprmCheckSecurity,
+		p.FilelessPresetBprmCheckSecurity,
 	)
 }
 

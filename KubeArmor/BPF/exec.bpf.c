@@ -20,7 +20,7 @@ struct pathname {
 };
 
 SEC("lsm/bprm_check_security")
-int BPF_PROG(enforce_bprm_check_security, struct linux_binprm *bprm){
+int BPF_PROG(exec_preset_bprm_check_security, struct linux_binprm *bprm){
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 

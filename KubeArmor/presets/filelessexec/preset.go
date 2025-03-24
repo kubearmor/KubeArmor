@@ -120,9 +120,9 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return nil, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceBprmCheckSecurity})
+	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.FilelessPresetBprmCheckSecurity})
 	if err != nil {
-		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceBprmCheckSecurity.String(), err)
+		p.Logger.Errf("opening lsm %s: %s", p.obj.FilelessPresetBprmCheckSecurity.String(), err)
 		return nil, err
 	}
 
