@@ -78,10 +78,10 @@ jobs:
         with:
           branch: update-helm-${{ steps.update.outputs.STABLE_VERSION }}
           add-paths: "deployments/helm/*/Chart.yaml"
-          commit-message: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          commit-message: "Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
           committer: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
           author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          title: "[skip ci] Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
+          title: "Update Helm Chart To ${{ steps.update.outputs.STABLE_VERSION }}"
           base: main
           signoff: true
           delete-branch: true
