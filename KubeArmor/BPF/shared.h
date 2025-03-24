@@ -290,6 +290,41 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
   return true;
 }
 
+static __always_inline long strtol(const char *buf, size_t buf_len, long *res) {
+  long val = 0;
+  size_t i = 0;
+  size_t consumed = 0;
+    
+#pragma unroll
+  for (int j = 0; j < 10; j++) {
+    if (j >= buf_len)
+      break;
+    // https://github.com/torvalds/linux/blob/586de92313fcab8ed84ac5f78f4d2aae2db92c59/tools/include/nolibc/ctype.h#L65
+    if (((unsigned int)buf[i] == ' ') || (unsigned int)(buf[i] - 0x09) < 5)
+      i++;
+    else
+      break;
+  }
+
+#pragma unroll
+  for (int j = 0; j < 10; j++) {
+      if (j >= buf_len)
+        break;
+      if (i < buf_len) {
+        if (buf[i] >= '0' && buf[i] <= '9') {
+            val = val * 10 + (buf[i] - '0');
+            i++;
+            consumed++;
+        } else {
+            break;
+        }
+      }
+  }
+    
+  *res = val;
+  return consumed;
+}
+
 static __always_inline u32 get_task_pid_ns_id(struct task_struct *task) {
   return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns).inum;
 }
@@ -343,7 +378,8 @@ static __always_inline u32 init_context(event *event_data) {
   event_data->ts = bpf_ktime_get_ns();
 
   event_data->host_ppid = get_task_ppid(task);
-  event_data->host_pid = bpf_get_current_pid_tgid() >> 32;
+  u32 host_pid = bpf_get_current_pid_tgid() >> 32;
+  event_data->host_pid = host_pid;
 
   struct outer_key okey;
   get_outer_key(&okey, task);
@@ -361,7 +397,7 @@ static __always_inline u32 init_context(event *event_data) {
 
   // check if process is part of exec
   __builtin_memset((void *)&event_data->exec_id, 0, sizeof(event_data->exec_id));
-  u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &(event_data->host_pid));
+  u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &host_pid);
   if (exec_id) {
       event_data->exec_id = *exec_id;
   }

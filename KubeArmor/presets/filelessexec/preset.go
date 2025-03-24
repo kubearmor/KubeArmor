@@ -12,6 +12,8 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -203,6 +205,11 @@ func (p *Preset) TraceEvents() {
 		}
 
 		log.Operation = "Process"
+
+		log.ExecEvent.ExecID = strconv.FormatUint(event.ExecID, 10)
+		if comm := strings.TrimRight(string(event.Comm[:]), "\x00"); len(comm) > 0 {
+			log.ExecEvent.ExecutableName = comm
+		}
 
 		if event.Retval >= 0 {
 			log.Result = "Passed"
