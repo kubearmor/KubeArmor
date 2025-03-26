@@ -64,7 +64,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 		}
 		a.Cluster.ClusterLock.RUnlock()
 		if annotate {
-			common.AppArmorAnnotator(pod, binding, true)
+			common.AppArmorAnnotator(pod, binding, true, a.Cluster.Version)
 		}
 		// == //
 		// send the mutation response
@@ -100,7 +100,7 @@ func (a *PodAnnotator) Handle(ctx context.Context, req admission.Request) admiss
 		}
 		a.Cluster.ClusterLock.RUnlock()
 		if annotate {
-			common.AppArmorAnnotator(pod, nil, false)
+			common.AppArmorAnnotator(pod, nil, false, a.Cluster.Version)
 		}
 
 	}
