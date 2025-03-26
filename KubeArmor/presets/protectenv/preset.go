@@ -84,6 +84,12 @@ func (p *Preset) Name() string {
 // otherwise returns an error
 func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.PresetInterface, error) {
 
+	if logger.Enforcer != "BPFLSM" {
+		// it's based on active enforcer, it might possible that node support bpflsm but
+		// current enforcer is not bpflsm
+		return nil, errors.New("FilelessExecutionPreset not supported if bpflsm not supported")
+	}
+
 	p.Logger = logger
 	p.Monitor = monitor
 	var err error
