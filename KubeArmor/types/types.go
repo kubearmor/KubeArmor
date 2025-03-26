@@ -543,6 +543,8 @@ const (
 	FilelessExec PresetName = "filelessExec"
 	// ProtectEnv Preset
 	ProtectEnv PresetName = "protectEnv"
+	// ProtectProc Preset
+	ProtectProc PresetName = "protectProc"
 )
 
 // SecuritySpec Structure
