@@ -24,7 +24,10 @@ jobs:
   kubearmor-operator-release:
     name: Build & Push KubeArmor Operator
     if: github.repository == 'kubearmor/kubearmor'        
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
     permissions:
       id-token: write
     timeout-minutes: 90
