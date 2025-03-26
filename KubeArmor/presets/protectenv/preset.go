@@ -109,7 +109,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 			PinPath: monitor.PinPath,
 		},
 	}); err != nil {
-		p.Logger.Errf("error loading BPF LSM objects: %v", err)
+		p.Logger.Errf("Error loading BPF LSM objects: %v", err)
 		return p, err
 	}
 
@@ -230,7 +230,7 @@ func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
-	p.Logger.Printf("[ProtectEnv] Registered container with id: %s\n", containerID)
+	p.Logger.Debugf("[ProtectEnv] Registered container with id: %s\n", containerID)
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
@@ -241,23 +241,23 @@ func (p *Preset) UnregisterContainer(containerID string) {
 
 	if val, ok := p.ContainerMap[containerID]; ok {
 		if err := p.DeleteContainerIDFromMap(containerID, val.NsKey); err != nil {
-			p.Logger.Errf("error deleting container %s: %s", containerID, err.Error())
+			p.Logger.Errf("Error deleting container %s: %s", containerID, err.Error())
 			return
 		}
-		p.Logger.Printf("[ProtectEnv] Unregistered container with id: %s\n", containerID)
+		p.Logger.Debugf("[ProtectEnv] Unregistered container with id: %s\n", containerID)
 		delete(p.ContainerMap, containerID)
 	}
 }
 
 // AddContainerIDToMap adds a container id to ebpf map
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
-	p.Logger.Printf("[ProtectEnv] adding container with id to protectEnv_map exec map: %s\n", id)
+	p.Logger.Debugf("[ProtectEnv] adding container with id to protectEnv_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
 		a = base.Audit
 	}
 	if err := p.BPFContainerMap.Put(ckv, a); err != nil {
-		p.Logger.Errf("error adding container %s to outer map: %s", id, err)
+		p.Logger.Errf("Error adding container %s to outer map: %s", id, err)
 		return err
 	}
 	return nil
@@ -265,10 +265,10 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 
 // DeleteContainerIDFromMap deletes a container id from ebpf map
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
-	p.Logger.Printf("[ProtectEnv] deleting container with id to protectEnv_map exec map: %s\n", id)
+	p.Logger.Debugf("[ProtectEnv] deleting container with id to protectEnv_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("error deleting container %s in protectenv_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in protectenv_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
@@ -280,11 +280,10 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	var protectEnvPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
 		protectEnvPresetRulePresent = false
-		p.Logger.Printf("Updating container preset rules for %s", cid)
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
 				if preset.Name == tp.ProtectEnv {
-					p.Logger.Printf("container matched for protectEnv rule: %s", cid)
+					p.Logger.Printf("Container matched for protectEnv rule: %s", cid)
 					protectEnvPresetRulePresent = true
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
@@ -293,7 +292,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					if !ok {
 						// It maybe possible that CRI has unregistered the containers but K8s construct still has not sent this update while the policy was being applied,
 						// so the need to check if the container is present in the map before we apply policy.
-						p.Logger.Warnf("container not registered in map: %s", cid)
+						p.Logger.Warnf("Container not registered in map: %s", cid)
 
 						return
 					}
@@ -302,7 +301,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
-						p.Logger.Warnf("updating policy for container %s :%s ", cid, err)
+						p.Logger.Warnf("Updating policy for container %s :%s ", cid, err)
 					}
 					p.ContainerMapLock.Unlock()
 				}
