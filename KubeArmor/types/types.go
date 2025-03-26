@@ -561,6 +561,8 @@ const (
 	ProtectEnv PresetName = "protectEnv"
 	// Exec Preset
 	Exec PresetName = "exec"
+	// ProtectProc Preset
+	ProtectProc PresetName = "protectProc"
 )
 
 // SecuritySpec Structure
