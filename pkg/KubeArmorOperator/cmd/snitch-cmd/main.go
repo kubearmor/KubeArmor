@@ -8,12 +8,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/seccomp"
+	"github.com/opencontainers/runtime-spec/specs-go"
 
+	hooks "github.com/containers/common/pkg/hooks/1.0.0"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/common"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/enforcer"
 	"github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator/k8s"
@@ -44,6 +47,7 @@ var LsmOrder string
 var PathPrefix string = "/rootfs"
 var NodeName string
 var Runtime string
+var EnableOCIHooks bool
 var LogLevel string
 
 // Cmd represents the base command when called without any subcommands
@@ -95,6 +99,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&NodeName, "nodename", "", "node name to label")
 	Cmd.PersistentFlags().StringVar(&PathPrefix, "pathprefix", "/rootfs", "path prefix for runtime search")
 	Cmd.PersistentFlags().StringVar(&Runtime, "runtime", "", "runtime detected by k8s")
+	Cmd.PersistentFlags().BoolVar(&EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
 	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
 }
 
@@ -130,6 +135,14 @@ func snitch() {
 		Logger.Errorf("Not able to detect runtime")
 		os.Exit(1)
 	}
+	ociHooksLabel := "no"
+	if runtime == "cri-o" || EnableOCIHooks {
+		ociHooksLabel = "yes"
+		if err := applyCRIOHook(socket); err != nil {
+			Logger.Errorf("Failed to apply OCI hook: %s", err.Error())
+			ociHooksLabel = "no"
+		}
+	}
 
 	// Check BTF support
 	btfPresent := enforcer.CheckBtfSupport(PathPrefix, *Logger)
@@ -147,6 +160,7 @@ func snitch() {
 	patchNode.Metadata.Labels[common.RandLabel] = rand.String(4)
 	patchNode.Metadata.Labels[common.BTFLabel] = btfPresent
 	patchNode.Metadata.Labels[common.ApparmorFsLabel] = enforcer.CheckIfApparmorFsPresent(PathPrefix, *Logger)
+	patchNode.Metadata.Labels[common.OCIHooksLabel] = ociHooksLabel
 
 	if nodeEnforcer == "none" {
 		patchNode.Metadata.Labels[common.SecurityFsLabel] = "no"
@@ -167,6 +181,64 @@ func snitch() {
 	} else {
 		Logger.Infof("Patched node %s, patch=%s", NodeName, string(patch))
 	}
+}
+
+func applyCRIOHook(socket string) error {
+	// TODO: hook path should be fetched from container runtime. This is the default path
+	hookDir := "/usr/share/containers/oci/hooks.d/"
+	if err := os.MkdirAll(hookDir, 0750); err != nil {
+		return err
+	}
+	dst, err := os.OpenFile(filepath.Join(hookDir, "ka.json"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	always := true
+	hook := hooks.Hook{
+		Version: "1.0.0",
+		Hook: specs.Hook{
+			Path: "/usr/share/kubearmor/hook",
+			Args: []string{
+				"/usr/share/kubearmor/hook",
+				"--runtime-socket",
+				socket,
+			},
+		},
+		When: hooks.When{Always: &always},
+		Stages: []string{
+			"createRuntime",
+			"poststop",
+		},
+	}
+	hookBytes, err := json.Marshal(hook)
+	if err != nil {
+		return err
+	}
+
+	_, err = dst.Write(hookBytes)
+	if err != nil {
+		return err
+	}
+
+	kaDir := "/usr/share/kubearmor"
+	if err := os.MkdirAll(kaDir, 0750); err != nil {
+		return err
+	}
+	dstBin, err := os.OpenFile(filepath.Join(kaDir, "hook"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if err != nil {
+		return err
+	}
+	defer dstBin.Close()
+	srcBin, err := os.Open("/hook")
+	if err != nil {
+		return err
+	}
+	defer srcBin.Close()
+	if _, err := io.Copy(dstBin, srcBin); err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
