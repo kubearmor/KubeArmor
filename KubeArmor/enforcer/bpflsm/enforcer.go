@@ -398,6 +398,10 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.ProcessName = log.Source
 		}
+		// fallback logic if we don't receive resource from BuildLogBase()
+		if len(log.Resource) == 0 {
+			log.Resource = log.ProcessName
+		}
 		if len(log.ProcessName) == 0 && len(log.Source) > 0 {
 			log.ProcessName = log.Source
 		}
