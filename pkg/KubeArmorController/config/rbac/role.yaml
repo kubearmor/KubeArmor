@@ -19,45 +19,7 @@ rules:
   - security.kubearmor.com
   resources:
   - kubearmorclusterpolicies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - security.kubearmor.com
-  resources:
-  - kubearmorclusterpolicies/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - security.kubearmor.com
-  resources:
   - kubearmorhostpolicies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - security.kubearmor.com
-  resources:
-  - kubearmorhostpolicies/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - security.kubearmor.com
-  resources:
   - kubearmorpolicies
   verbs:
   - create
@@ -70,6 +32,8 @@ rules:
 - apiGroups:
   - security.kubearmor.com
   resources:
+  - kubearmorclusterpolicies/status
+  - kubearmorhostpolicies/status
   - kubearmorpolicies/status
   verbs:
   - get
