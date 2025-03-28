@@ -31,7 +31,7 @@ require (
 	github.com/containerd/containerd/v2 v2.0.2
 	github.com/containerd/nri v0.9.0
 	github.com/containerd/typeurl/v2 v2.2.3
-	github.com/docker/docker v27.5.0+incompatible
+	github.com/docker/docker v27.5.1+incompatible
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/uuid v1.6.0
