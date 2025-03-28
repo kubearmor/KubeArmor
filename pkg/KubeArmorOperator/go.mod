@@ -10,7 +10,7 @@ replace (
 
 require (
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250117172841-503b97db4876
-	github.com/kubearmor/KubeArmor/deployments v0.0.0-20250117172841-503b97db4876
+	github.com/kubearmor/KubeArmor/deployments 3c18ec1c3403
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250117172841-503b97db4876
 	github.com/spf13/cobra v1.8.1
 	go.uber.org/zap v1.27.0
