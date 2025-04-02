@@ -101,7 +101,8 @@ enum preset_action {
 
 enum preset_type {
   FILELESS_EXEC = 1001,
-  ANON_MAP_EXEC
+  ANON_MAP_EXEC,
+  PROTECT_ENV,
 };
 
 struct preset_map {

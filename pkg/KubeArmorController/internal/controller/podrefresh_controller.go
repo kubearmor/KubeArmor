@@ -37,10 +37,6 @@ type ResourceInfo struct {
 func (r *PodRefresherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx)
-	if !r.AnnotateExisting {
-		log.Info(fmt.Sprintf("Not annotating existing resources as annotate existing is set to false \n"))
-		return ctrl.Result{}, nil
-	}
 	var podList corev1.PodList
 
 	if err := r.List(ctx, &podList); err != nil {

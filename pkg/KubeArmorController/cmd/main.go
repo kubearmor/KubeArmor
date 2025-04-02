@@ -171,16 +171,21 @@ func main() {
 			ClientSet: client,
 		},
 	})
-	setupLog.Info("Adding pod refresher controller")
-	if err = (&controllers.PodRefresherReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		Cluster:          &cluster,
-		ClientSet:        client,
-		AnnotateExisting: annotateExisting,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
+
+	if !annotateExisting {
+		setupLog.Info("Not annotating existing resources as annotate existing is set to false")
+	} else {
+		setupLog.Info("Adding pod refresher controller")
+		if err = (&controllers.PodRefresherReconciler{
+			Client:           mgr.GetClient(),
+			Scheme:           mgr.GetScheme(),
+			Cluster:          &cluster,
+			ClientSet:        client,
+			AnnotateExisting: annotateExisting,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Pod")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 

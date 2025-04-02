@@ -4,9 +4,9 @@ metadata:
   name: ksp-preset-audit-fileless
   namespace: presets
 spec:
-  action: Audit
   presets:
-  - filelessExec
+  - name: filelessExec
+    action: Audit
   selector:
     matchLabels:
       app: fileless

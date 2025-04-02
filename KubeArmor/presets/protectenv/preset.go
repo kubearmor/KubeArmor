@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package filelessexec ...
-package filelessexec
-
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang filelessexec  ../../BPF/filelessexec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
+// Package protectenv contains components for protectenv preset rule
+package protectenv
 
 import (
 	"bytes"
@@ -25,7 +23,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang filelessexec  ../../BPF/filelessexec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang protectenv  ../../BPF/protectenv.bpf.c -type pevent -no-global-types -- -I/usr/include/ -O2 -g
 
 var (
 	_ base.PresetInterface = (*Preset)(nil)
@@ -33,7 +31,7 @@ var (
 
 const (
 	// NAME of preset
-	NAME string = "FilelessExecutionPreset"
+	NAME string = "ProtectEnvPreset"
 )
 
 // NsKey struct
@@ -58,17 +56,17 @@ type Preset struct {
 	Events        *ringbuf.Reader
 	EventsChannel chan []byte
 
-	// ContainerID -> NsKey
+	// ContainerID -> NsKey + rules
 	ContainerMap     map[string]ContainerVal
 	ContainerMapLock *sync.RWMutex
 
 	Link link.Link
 
-	obj filelessexecObjects
+	obj protectenvObjects
 }
 
-// NewFilelessExecPreset creates an instance of FilelessExec Preset
-func NewFilelessExecPreset() *Preset {
+// NewProtectEnvPreset creates an instance of FilelessExec Preset
+func NewProtectEnvPreset() *Preset {
 	p := &Preset{}
 	p.ContainerMap = make(map[string]ContainerVal)
 	p.ContainerMapLock = new(sync.RWMutex)
@@ -80,14 +78,9 @@ func (p *Preset) Name() string {
 	return NAME
 }
 
-// RegisterPreset register FilelessExec preset
+// RegisterPreset register protectenv preset and returns an instance of EnvPreset on success
+// otherwise returns an error
 func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.PresetInterface, error) {
-
-	if logger.Enforcer != "BPFLSM" {
-		// it's based on active enforcer, it might possible that node support bpflsm but
-		// current enforcer is not bpflsm
-		return nil, errors.New("FilelessExecutionPreset not supported if bpflsm not supported")
-	}
 
 	p.Logger = logger
 	p.Monitor = monitor
@@ -95,10 +88,8 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 
 	if err = rlimit.RemoveMemlock(); err != nil {
 		p.Logger.Errf("Error removing rlimit %v", err)
-		return nil, err // Doesn't require clean up so not returning err
+		return nil, nil // Doesn't require clean up so not returning err
 	}
-
-	p.Logger.Printf("Preset Pinpath: %s\n", monitor.PinPath)
 
 	p.BPFContainerMap, _ = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
@@ -106,30 +97,30 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "fileless_exec_preset_containers",
+		Name:       "protectenv_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
 
-	if err := loadFilelessexecObjects(&p.obj, &ebpf.CollectionOptions{
+	if err := loadProtectenvObjects(&p.obj, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
 			PinPath: monitor.PinPath,
 		},
 	}); err != nil {
 		p.Logger.Errf("error loading BPF LSM objects: %v", err)
-		return nil, err
+		return p, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceBprmCheckSecurity})
+	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceFile})
 	if err != nil {
-		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceBprmCheckSecurity.String(), err)
-		return nil, err
+		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceFile.String(), err)
+		return p, err
 	}
 
 	p.Events, err = ringbuf.NewReader(p.obj.Events)
 	if err != nil {
 		p.Logger.Errf("opening ringbuf reader: %s", err)
-		return nil, err
+		return p, err
 	}
 	p.EventsChannel = make(chan []byte, mon.SyscallChannelSize)
 
@@ -145,7 +136,7 @@ func (p *Preset) TraceEvents() {
 	if p.Events == nil {
 		p.Logger.Err("ringbuf reader is nil, exiting trace events")
 	}
-	p.Logger.Print("Starting TraceEvents from FilelessExec Presets")
+	p.Logger.Print("Starting TraceEvents from ProtectEnv Presets")
 	go func() {
 		for {
 
@@ -177,7 +168,10 @@ func (p *Preset) TraceEvents() {
 			continue
 		}
 
-		readLink := true
+		readLink := false
+		if len(string(bytes.Trim(event.Data.Source[:], "\x00"))) == 0 {
+			readLink = true
+		}
 
 		containerID := ""
 
@@ -202,7 +196,7 @@ func (p *Preset) TraceEvents() {
 			log.Type = "MatchedPolicy"
 		}
 
-		log.Operation = "Process"
+		log.Operation = "File"
 
 		if event.Retval >= 0 {
 			log.Result = "Passed"
@@ -216,7 +210,6 @@ func (p *Preset) TraceEvents() {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 		}
 
-		// memfd:, /dev/shm/*, /run/shm/*
 		log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
 
 		p.Logger.PushLog(log)
@@ -224,17 +217,17 @@ func (p *Preset) TraceEvents() {
 	}
 }
 
-// RegisterContainer registers a container to filelessexec preset
+// RegisterContainer registers a container
 func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 	ckv := NsKey{PidNS: pidns, MntNS: mntns}
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
-	p.Logger.Printf("[FilelessExec] Registered container with id: %s\n", containerID)
+	p.Logger.Printf("[ProtectEnv] Registered container with id: %s\n", containerID)
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
-// UnregisterContainer func unregisters a container from filelessexec preset
+// UnregisterContainer unregisters a container
 func (p *Preset) UnregisterContainer(containerID string) {
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
@@ -244,14 +237,14 @@ func (p *Preset) UnregisterContainer(containerID string) {
 			p.Logger.Errf("error deleting container %s: %s", containerID, err.Error())
 			return
 		}
-		p.Logger.Printf("[FilelessExec] Unregistered container with id: %s\n", containerID)
+		p.Logger.Printf("[ProtectEnv] Unregistered container with id: %s\n", containerID)
 		delete(p.ContainerMap, containerID)
 	}
 }
 
 // AddContainerIDToMap adds a container id to ebpf map
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
-	p.Logger.Printf("[FilelessExec] adding container with id to fileless_map exec map: %s\n", id)
+	p.Logger.Printf("[ProtectEnv] adding container with id to protectEnv_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
 		a = base.Audit
@@ -265,27 +258,27 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 
 // DeleteContainerIDFromMap deletes a container id from ebpf map
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
-	p.Logger.Printf("[FilelessExec] deleting container with id to fileless_map exec map: %s\n", id)
+	p.Logger.Printf("[ProtectEnv] deleting container with id to protectEnv_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("error deleting container %s in fileless_exec_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("error deleting container %s in protectenv_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
 	return nil
 }
 
-// UpdateSecurityPolicies updates filelessexec policy for a given endpoint
+// UpdateSecurityPolicies updates protectenv policy rules
 func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
-	var filelessExecPresetRulePresent bool
+	var protectEnvPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
-		filelessExecPresetRulePresent = false
+		protectEnvPresetRulePresent = false
 		p.Logger.Printf("Updating container preset rules for %s", cid)
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
-				if preset.Name == tp.FilelessExec {
-					p.Logger.Printf("container matched for fileless exec rule: %s", cid)
-					filelessExecPresetRulePresent = true
+				if preset.Name == tp.ProtectEnv {
+					p.Logger.Printf("container matched for protectEnv rule: %s", cid)
+					protectEnvPresetRulePresent = true
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
 					ckv, ok := p.ContainerMap[cid]
@@ -308,7 +301,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 				}
 			}
 		}
-		if !filelessExecPresetRulePresent {
+		if !protectEnvPresetRulePresent {
 			p.ContainerMapLock.RLock()
 			ckv := p.ContainerMap[cid]
 			_ = p.DeleteContainerIDFromMap(cid, ckv.NsKey)
@@ -317,7 +310,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	}
 }
 
-// Destroy func gracefully destroys filelessexec preset
+// Destroy func deletes EnvPreset instance
 func (p *Preset) Destroy() error {
 	if p == nil {
 		return nil
