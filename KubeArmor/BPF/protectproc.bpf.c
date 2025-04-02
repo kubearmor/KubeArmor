@@ -23,6 +23,14 @@ struct pathname {
   char path[256];
 };
 
+struct {
+  __uint(type, BPF_MAP_TYPE_LRU_HASH);
+  __type(key, u64);
+  __type(value, struct pathname);
+  __uint(max_entries, 1024);
+  __uint(pinning, LIBBPF_PIN_BY_NAME);
+} proc_file_access SEC(".maps");
+
 SEC("lsm/file_open")
 int BPF_PROG(enforce_file, struct file *file) {
 
@@ -40,12 +48,19 @@ int BPF_PROG(enforce_file, struct file *file) {
   u64 id = bpf_get_current_pid_tgid();
   u32 tgid = id >> 32;
 
-  char path[80];
+  char path[80] = {};
   bpf_d_path(&file->f_path, path, 80);
 
   if (!isProcDir(path)) {
-    return 0;
+    struct pathname *sym = bpf_map_lookup_elem(&proc_file_access, &tgid);
+    if (sym) {
+        bpf_probe_read((void *)path, sizeof(path), &sym->path);
+    } else {
+      bpf_map_delete_elem(&proc_file_access, &id);
+      return 0;
+    }
   }
+  bpf_map_delete_elem(&proc_file_access, &id);
 
   long procpid;
   int count = bpf_strtol(path + sizeof(DIR_PROC) - 1, 10, 0, &procpid);
