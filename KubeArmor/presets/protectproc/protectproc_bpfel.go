@@ -19,6 +19,8 @@ type protectprocBufsK struct {
 
 type protectprocBufsT struct{ Buf [32768]int8 }
 
+type protectprocPathname struct{ Path [256]int8 }
+
 // loadProtectproc returns the embedded CollectionSpec for protectproc.
 func loadProtectproc() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_ProtectprocBytes)
@@ -76,6 +78,8 @@ type protectprocMapSpecs struct {
 	KubearmorConfig             *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents             *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids           *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	ProcFileAccess              *ebpf.MapSpec `ebpf:"proc_file_access"`
 	ProtectprocPresetContainers *ebpf.MapSpec `ebpf:"protectproc_preset_containers"`
 }
 
@@ -114,6 +118,8 @@ type protectprocMaps struct {
 	KubearmorConfig             *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents             *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids           *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	ProcFileAccess              *ebpf.Map `ebpf:"proc_file_access"`
 	ProtectprocPresetContainers *ebpf.Map `ebpf:"protectproc_preset_containers"`
 }
 
@@ -127,6 +133,8 @@ func (m *protectprocMaps) Close() error {
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
+		m.KubearmorExecPids,
+		m.ProcFileAccess,
 		m.ProtectprocPresetContainers,
 	)
 }
