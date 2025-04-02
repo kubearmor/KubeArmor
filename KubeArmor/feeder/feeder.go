@@ -634,6 +634,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.PPID = log.PPID
 		pbAlert.PID = log.PID
 		pbAlert.UID = log.UID
+		pbAlert.Username = log.Username
 
 		pbAlert.ParentProcessName = log.ParentProcessName
 		pbAlert.ProcessName = log.ProcessName
@@ -732,6 +733,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.PPID = log.PPID
 		pbLog.PID = log.PID
 		pbLog.UID = log.UID
+		pbLog.Username = log.Username
 
 		pbLog.ParentProcessName = log.ParentProcessName
 		pbLog.ProcessName = log.ProcessName

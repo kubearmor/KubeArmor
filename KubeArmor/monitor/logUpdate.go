@@ -5,6 +5,7 @@ package monitor
 
 import (
 	"fmt"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -55,6 +56,10 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 	log := tp.Log{}
 
 	timestamp, updatedTime := kl.GetDateTimeNow()
+	username, err := user.LookupId(fmt.Sprint(msg.ContextSys.UID))
+	if err != nil {
+		mon.Logger.Errf("error occured when fetching user %e", err)
+	}
 
 	log.Timestamp = timestamp
 	log.UpdatedTime = updatedTime
@@ -80,6 +85,7 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.PPID = int32(msg.ContextSys.PPID)
 		log.PID = int32(msg.ContextSys.PID)
 		log.UID = int32(msg.ContextSys.UID)
+		log.Username = username.Username
 
 		log.ProcessName = mon.GetExecPath(msg.ContainerID, msg.ContextSys, readlink)
 		log.ParentProcessName = mon.GetParentExecPath(msg.ContainerID, msg.ContextSys, readlink)

@@ -77,6 +77,7 @@ message Alert {
   string TTY = 33;
   int32 MaxAlertsPerSec = 34;
   int32 DroppingAlertsInterval = 35;
+  string Username = 36;
 }
 
 // log struct
@@ -114,6 +115,7 @@ message Log {
   string Result = 18;
   string Cwd = 25;
   string TTY = 26;
+  string Username = 27;
 }
 
 // request message
