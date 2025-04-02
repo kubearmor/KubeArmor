@@ -24,6 +24,29 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define AUDIT_POSTURE 140
 #define BLOCK_POSTURE 141
 #define CAPABLE_KEY 200
+#define TTY_LEN 64
+
+#ifdef BTF_SUPPORTED
+#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
+
+#define READ_KERN(ptr)                                    \
+    ({                                                    \
+        typeof(ptr) _val;                                 \
+        __builtin_memset((void *)&_val, 0, sizeof(_val)); \
+        bpf_core_read((void *)&_val, sizeof(_val), &ptr); \
+        _val;                                             \
+    })
+#else
+#define GET_FIELD_ADDR(field) &field
+
+#define READ_KERN(ptr)                                     \
+    ({                                                     \
+        typeof(ptr) _val;                                  \
+        __builtin_memset((void *)&_val, 0, sizeof(_val));  \
+        bpf_probe_read((void *)&_val, sizeof(_val), &ptr); \
+        _val;                                              \
+    })
+#endif
 
 enum {
   IPPROTO_ICMPV6 = 58
@@ -343,7 +366,16 @@ static __always_inline u32 init_context(event *event_data) {
   // Clearing array to avoid garbage values
   __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
   bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
-
+  
+  struct signal_struct *signal;
+  signal = READ_KERN(task->signal);
+  if (signal != NULL){
+      struct tty_struct *tty = READ_KERN(signal->tty);
+      if (tty != NULL){
+          // a tty is attached
+          bpf_probe_read_str(&event_data->tty, TTY_LEN, (void *)tty->name);
+      }
+  }
   return 0;
 }
 
