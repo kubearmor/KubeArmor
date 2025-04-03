@@ -26,19 +26,6 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define CAPABLE_KEY 200
 #define TTY_LEN 64
 
-#ifdef BTF_SUPPORTED
-#define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
-
-#define READ_KERN(ptr)                                    \
-    ({                                                    \
-        typeof(ptr) _val;                                 \
-        __builtin_memset((void *)&_val, 0, sizeof(_val)); \
-        bpf_core_read((void *)&_val, sizeof(_val), &ptr); \
-        _val;                                             \
-    })
-#else
-#define GET_FIELD_ADDR(field) &field
-
 #define READ_KERN(ptr)                                     \
     ({                                                     \
         typeof(ptr) _val;                                  \
@@ -46,7 +33,6 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
         bpf_probe_read((void *)&_val, sizeof(_val), &ptr); \
         _val;                                              \
     })
-#endif
 
 enum {
   IPPROTO_ICMPV6 = 58
