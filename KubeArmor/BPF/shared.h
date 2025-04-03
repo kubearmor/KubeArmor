@@ -141,6 +141,8 @@ typedef struct {
   u8 comm[TASK_COMM_LEN];
 
   bufs_k data;
+
+  char tty[TTY_LEN];
 } event;
 
 struct {
