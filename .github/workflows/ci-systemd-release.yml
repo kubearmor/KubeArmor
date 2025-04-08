@@ -22,6 +22,19 @@ jobs:
       id-token: write # requires for cosign keyless signing
       contents: write # requires for goreleaser to write to GitHub release
     steps:
+      - name: Validate version
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const Regex = /^v([0-9]+)\.([0-9]+)\.([0-9]+)$/;
+            const version = '${{ inputs.tag }}';
+            if (!Regex.test(version)) {
+              console.log(`Invalid version format: ${version}`);
+              core.setFailed(`Invalid version format: ${version}`);
+            } else {
+              console.log(`Valid version format: ${version}`);
+            }
+
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -63,7 +76,6 @@ jobs:
             echo "Checking out tag: ${{ inputs.tag }}"
             git checkout ${{ inputs.tag }}
             echo "GORELEASER_CURRENT_TAG=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-
             REF=${{ inputs.tag }}
             echo "tag=${REF#v}" >> $GITHUB_OUTPUT
           else
