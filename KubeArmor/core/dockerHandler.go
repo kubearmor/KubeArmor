@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
@@ -218,7 +217,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 // GetEventChannel Function
 func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
 	if dh.DockerClient != nil {
-		event, _ := dh.DockerClient.Events(context.Background(), types.EventsOptions{})
+		event, _ := dh.DockerClient.Events(context.Background(), events.ListOptions{})
 		return event
 	}
 
