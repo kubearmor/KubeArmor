@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/pkg/KubeArmorOperator
 
-go 1.24.0
+go 1.24.2
 
 replace (
 	github.com/kubearmor/KubeArmor/KubeArmor => ../../KubeArmor

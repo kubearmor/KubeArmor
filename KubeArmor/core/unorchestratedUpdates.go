@@ -5,12 +5,13 @@ package core
 
 import (
 	"encoding/json"
-	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -772,7 +773,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 		if policyBytes, err := json.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
-					dm.Logger.Errf(err.Error())
+					dm.Logger.Err(err.Error())
 				}
 			}
 		}
@@ -796,7 +797,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 		if policyBytes, err := json.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
-					dm.Logger.Errf(err.Error())
+					dm.Logger.Err(err.Error())
 				}
 			}
 		}
