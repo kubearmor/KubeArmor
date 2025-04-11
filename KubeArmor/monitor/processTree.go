@@ -61,6 +61,7 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 				Process:      val.Process,
 				Capabilities: val.Capability,
 				Network:      val.Network,
+				DNS:          val.DNS,
 			})
 		}
 	} else {
@@ -75,6 +76,7 @@ func (mon *SystemMonitor) AddContainerIDToNsMap(containerID string, namespace st
 			Process:      strings.Contains(cfg.GlobalCfg.Visibility, "process"),
 			Network:      strings.Contains(cfg.GlobalCfg.Visibility, "network"),
 			Capabilities: strings.Contains(cfg.GlobalCfg.Visibility, "capabilities"),
+			DNS:          strings.Contains(cfg.GlobalCfg.Visibility, "dns"),
 		}
 		mon.UpdateNsKeyMap("ADDED", key, visibility)
 	}
