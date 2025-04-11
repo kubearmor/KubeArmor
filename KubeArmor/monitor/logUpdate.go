@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/net/dns/dnsmessage"
+
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
@@ -513,6 +515,26 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Operation = "Network"
 				log.Resource = ""
 				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
+
+			case UDPSendMsg:
+				if len(msg.ContextArgs) != 1 {
+					mon.Logger.Debugf("udp send msg args is not 1: %d", len(msg.ContextArgs))
+					continue
+				}
+				dnsmsg := new(dnsmessage.Message)
+				if err := dnsmsg.Unpack(msg.ContextArgs[0].([]byte)); err != nil {
+					mon.Logger.Warnf("error unpacking dns message %v", err)
+					continue
+				}
+				domains := ""
+				for _, q := range dnsmsg.Questions {
+					domains += q.GoString() + ","
+				}
+				log.Data = "syscall=UDP_SENDMSG ," + "domains=" + domains
+				log.Operation = "Network"
+				log.Resource = "UDP PORT 53"
+
+				mon.Logger.Printf("udp domains: %s", domains)
 
 			case DropAlert: // throttling alert
 				log.Operation = "AlertThreshold"

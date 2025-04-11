@@ -92,6 +92,10 @@
 #define PTRACE_REQ_T 23UL
 #define MOUNT_FLAG_T 24UL
 #define UMOUNT_FLAG_T 25UL
+#define UDP_MSG 26UL
+
+#define MAX_LABELS 10  // max labels in domain name
+#define MAX_LABEL_LEN 63
 
 #define MAX_ARGS 6
 #define ENC_ARG_TYPE(n, type) type << (8 * n)
@@ -111,6 +115,12 @@
 #define PT_REGS_PARM6(x) ((x)->r9)
 #elif defined(bpf_target_arm64)
 #define PT_REGS_PARM6(x) ((x)->regs[5])
+#endif
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define ntohs(x) __builtin_bswap16(x)
+#else
+#define ntohs(x) (x)
 #endif
 
 #define UNDEFINED_SYSCALL 1000
@@ -184,6 +194,9 @@ enum
     _TCP_ACCEPT = 401,
     _TCP_CONNECT_v6 = 402,
     _TCP_ACCEPT_v6 = 403,
+
+    // UDP_MSG
+    _UDP_SENDMSG = 10000
 };
 
 #ifndef BTF_SUPPORTED
@@ -310,6 +323,7 @@ enum
     _PROCESS_PROBE = 1,
     _NETWORK_PROBE = 2,
     _CAPS_PROBE = 3,
+    _DNS_PROBE = 4,
 
     _TRACE_SYSCALL = 0,
     _IGNORE_SYSCALL = 1,
@@ -798,6 +812,62 @@ static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
 
+static __always_inline int save_bytes_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
+{
+// the biggest buffer that can be saved with this function should be defined here
+#define MAX_SIZE 512
+
+    if (type == 0)
+    {
+        return 0;
+    }
+
+    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    if (off == NULL)
+    {
+        return -1;
+    }
+
+    if (*off > MAX_BUFFER_SIZE - MAX_SIZE)
+    {
+        return 0;
+    }
+
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
+    {
+        return 0;
+    }
+
+    *off += 1;
+
+    u32 size_pos = *off;
+    if (size_pos >= MAX_BUFFER_SIZE || 
+        size_pos + sizeof(int) > MAX_BUFFER_SIZE) {
+        return 0;
+    }
+
+    if (bpf_probe_read(&(bufs_p->buf[size_pos]), sizeof(int), &size) < 0) {
+        return 0;
+    }else {
+        bpf_printk("written size: %d", size);
+    }
+    *off += sizeof(int);
+
+    if (*off > MAX_BUFFER_SIZE - MAX_SIZE)
+    {
+        return 0;
+    }
+
+    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
+    {
+        *off += size;
+        set_buffer_offset(DATA_BUF_TYPE, *off);
+        bpf_printk("written bytes + size: %d", size+ sizeof(int));
+        return size + sizeof(int);
+    }
+    return 0;
+}
+
 static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
 {
 // the biggest element that can be saved with this function should be defined here
@@ -871,7 +941,8 @@ static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __u
     save_str_to_buffer(bufs_p, (void *)ellipsis);
 
 out:
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);size_pos
+    size_pos
 
     return 0;
 }
@@ -951,6 +1022,90 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     }
 
     return 0;
+}
+
+static __always_inline void save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base) {
+#define MAX_DNS_Q_NAME_SIZE 255
+    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    if (off == NULL)
+    {
+        return -1;
+    }
+
+    if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+    {
+        return 0;
+    }
+
+    u32 size_off = *off;
+    *off += sizeof(int);
+    // header offset
+    // 0----------15--------31
+    // _______________________
+    // | id       | flags    |
+    // -----------------------
+    // | q_count  | a_count  |
+    // -----------------------
+    // | ns_count | ar_count |
+    // -----------------------
+    __u8 header_off = 12;
+    // question(s)
+    // RFC1035 maxed to 255 Bytes
+    // LL: Label length, LN: Label Name, NL: Null Label
+    // LL (1) + LN (63) + LL (1) + LN (63) + LL (1) + LN (63) LL (1) + LN (61) + NL (1)
+    int dpos = 0; // write position in domain buffer
+    int offset = header_off; // initial offset in the data stream
+#pragma unroll
+    for (int i = 0; i < MAX_LABELS; i++) {
+        u8 len = 0;
+        if (bpf_probe_read(&len, sizeof(len), base + offset) < 0)
+            return;
+
+        if (len == 0) {
+            if (dpos > 0 && dpos < MAX_DNS_Q_NAME_SIZE)
+                bufs_p->buf[*off] = '\0';
+            break;
+        }
+
+        if (len > MAX_LABEL_LEN)
+            return;
+
+        if (dpos >= MAX_DNS_Q_NAME_SIZE)
+            return;
+
+        if (dpos + len >= MAX_DNS_Q_NAME_SIZE)
+            return;
+
+        if (bpf_probe_read(&bufs_p->buf[*off], len, base + offset + 1) < 0)
+            return;
+
+        dpos += len;
+        if (dpos < MAX_DNS_Q_NAME_SIZE)
+            bufs_p->buf[dpos++] = '.';
+        *off = *off + len + 1;
+        set_buffer_offset(DATA_BUF_TYPE, *off);
+        offset += len + 1;
+    }
+
+    // should never be the case
+    if (size_off >= MAX_BUFFER_SIZE || 
+        size_off + sizeof(int) > MAX_BUFFER_SIZE) {
+        return 0;
+    }
+    if (bpf_probe_read(&(bufs_p->buf[size_off]), sizeof(int), &dpos) < 0) {
+        return 0;
+    }
+
+    // remove trailing .
+    if (dpos > 1) {
+        bpf_printk("hello");
+        bpf_printk("last char at pos %d", dpos);
+        bpf_printk("bufs_p->buf[dpos]: %c ",bufs_p->buf[*off-1]);
+    }
+    if (dpos > 0 && bufs_p->buf[*off-1] == '.'){
+        bpf_printk("trailing . found");
+        bufs_p->buf[*off - 1] = '\0';
+    }
 }
 
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
@@ -2320,4 +2475,70 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     return 0;
 }
+
+SEC("kprobe/udp_sendmsg")
+int kprobe__udp_sendmsg(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    if (sk == NULL)
+        return 0;
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    size_t len = (size_t)PT_REGS_PARM3(ctx);
+
+    struct iovec iov;
+    void *data = NULL;
+    __u16 dport = 0;
+
+    bpf_probe_read(&dport, sizeof(dport), &sk->__sk_common.skc_dport);
+    dport = ntohs(dport);
+    if (dport != 53)
+        return 0;
+    
+    bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+    bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+
+    __u32 safe_len = 512; // MAX_DNS_SIZE
+
+    if (len < 512)
+        safe_len = len;
+
+    sys_context_t context = {};
+    args_t args = {};
+    u64 types = 0;
+    init_context(&context);
+    context.argnum = 1;
+    context.retval = PT_REGS_RC(ctx);
+    context.event_id = _UDP_SENDMSG;
+
+    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
+    }
+
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+    save_context_to_buffer(bufs_p, (void *)&context);
+    bpf_printk("udp message size: %d", safe_len);
+    save_bytes_to_buffer(bufs_p, data, (int)safe_len, UDP_MSG);
+    events_perf_submit(ctx);
+    bpf_printk("upd sendmsg done");
+    return 0;
+}
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
