@@ -24,6 +24,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define AUDIT_POSTURE 140
 #define BLOCK_POSTURE 141
 #define CAPABLE_KEY 200
+#define TTY_LEN 64
 
 enum {
   IPPROTO_ICMPV6 = 58
@@ -130,6 +131,7 @@ typedef struct {
   s64 retval;
 
   u8 comm[TASK_COMM_LEN];
+  u8 tty[TTY_LEN];
 
   bufs_k data;
 } event;
@@ -324,27 +326,37 @@ static inline void get_outer_key(struct outer_key *pokey,
 
 static __always_inline u32 init_context(event *event_data) {
   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+  u32 tgid, pid;
+  u32 uid = bpf_get_current_uid_gid() & 0xffffffff;
 
   event_data->ts = bpf_ktime_get_ns();
-
+  event_data->pid_id = get_task_pid_ns_id(task);
+  event_data->mnt_id = get_task_mnt_ns_id(task);
   event_data->host_ppid = get_task_ppid(task);
   event_data->host_pid = bpf_get_current_pid_tgid() >> 32;
+  event_data->ppid = get_task_ns_ppid(task);
+  event_data->pid = get_task_ns_tgid(task);
+  event_data->uid = uid;
+
+  bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
+
+  // Get TTY information
+  struct signal_struct *signal = READ_KERN(task->signal);
+  if (signal != NULL) {
+    struct tty_struct *tty = READ_KERN(signal->tty);
+    if (tty != NULL) {
+      bpf_probe_read_str(&event_data->tty, TTY_LEN, (void *)tty->name);
+    } else {
+      event_data->tty[0] = '\0';
+    }
+  } else {
+    event_data->tty[0] = '\0';
+  }
 
   struct outer_key okey;
   get_outer_key(&okey, task);
-  event_data->pid_id = okey.pid_ns;
-  event_data->mnt_id = okey.mnt_ns;
 
-  event_data->ppid = get_task_ppid(task);
-  event_data->pid =  get_task_ns_tgid(task);
-
-  event_data->uid = bpf_get_current_uid_gid();
-
-  // Clearing array to avoid garbage values
-  __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
-  bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
-
-  return 0;
+  return okey.pid_ns;
 }
 
 
