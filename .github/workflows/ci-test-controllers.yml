@@ -14,7 +14,7 @@ permissions: read-all
 jobs:
   kubearmor-controller-test:
     name: Build and Test KubeArmorController Using Ginkgo
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       RUNTIME: "containerd"
