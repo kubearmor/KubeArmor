@@ -7,11 +7,11 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // KarmorData Structure
@@ -141,7 +141,7 @@ func (dm *KubeArmorDaemon) SetProbeContainerData() ([]string, map[string]*pb.Con
 }
 
 // GetProbeData sends policy data through grpc client
-func (p *Probe) GetProbeData(c context.Context, in *empty.Empty) (*pb.ProbeResponse, error) {
+func (p *Probe) GetProbeData(c context.Context, in *emptypb.Empty) (*pb.ProbeResponse, error) {
 	containerList, containerMap, hostMap := p.GetContainerData()
 	res := &pb.ProbeResponse{
 		ContainerList: containerList,
