@@ -16,7 +16,7 @@ permissions: read-all
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
       id-token: write # requires for cosign keyless signing
