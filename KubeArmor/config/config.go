@@ -5,11 +5,10 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
-
-	"flag"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
@@ -67,6 +66,8 @@ type KubearmorConfig struct {
 
 	ProcFsMount string // path where procfs is hosted
 
+	DropResourceFromProcessLogs bool // optionally drop resource field from process logs
+
 	MachineIDPath string // path to machine-id
 }
 
@@ -118,6 +119,7 @@ const (
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigArgMatching                    string = "matchArgs"
+	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
 	ConfigMachineIDPath                  string = "machineIDPath"
 )
 
@@ -183,6 +185,8 @@ func readCmdLineParams() {
 	machineIDPath := flag.String(ConfigMachineIDPath, "/etc/machine-id", "Path to machine-id file")
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
+
+	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -254,6 +258,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigProcFsMount, *procFsMount)
 
 	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
+
+	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 }
 
 // LoadConfig Load configuration
@@ -339,6 +345,8 @@ func LoadConfig() error {
 	GlobalCfg.ProcFsMount = viper.GetString(ConfigProcFsMount)
 
 	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
+
+	GlobalCfg.DropResourceFromProcessLogs = viper.GetBool(ConfigDropResourceFromProcessLogs)
 
 	LoadDynamicConfig()
 
