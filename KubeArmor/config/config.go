@@ -5,11 +5,10 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
-
-	"flag"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
@@ -68,6 +67,8 @@ type KubearmorConfig struct {
 
 	ProcFsMount string // path where procfs is hosted
 
+	DropResourceFromProcessLogs bool // optionally drop resource field from process logs
+
 	MachineIDPath string // path to machine-id
 }
 
@@ -119,6 +120,7 @@ const (
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigArgMatching                    string = "matchArgs"
+	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
 )
@@ -187,6 +189,8 @@ func readCmdLineParams() {
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
+
+	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -260,6 +264,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
 
 	viper.SetDefault(UseOCIHooks, *useOCIHooks)
+
+	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 }
 
 // LoadConfig Load configuration
@@ -345,6 +351,8 @@ func LoadConfig() error {
 	GlobalCfg.ProcFsMount = viper.GetString(ConfigProcFsMount)
 
 	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
+
+	GlobalCfg.DropResourceFromProcessLogs = viper.GetBool(ConfigDropResourceFromProcessLogs)
 
 	LoadDynamicConfig()
 
