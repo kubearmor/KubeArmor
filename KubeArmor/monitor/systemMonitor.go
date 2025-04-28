@@ -613,7 +613,7 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		}
 	}
 
-	mon.DestroyBPFMaps()
+	// mon.DestroyBPFMaps()
 	return nil
 }
 
@@ -722,9 +722,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 			if ctx.PPID == ctx.HostPPID {
 				ctx.PPID = 0
-			}
-			if ctx.EventID == UDPSendMsg {
-				mon.Logger.Printf("Got udpmsg event: %+v", ctx)
 			}
 			args, err := GetArgs(dataBuff, ctx.Argnum)
 			if err != nil {
@@ -981,7 +978,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					continue
 				}
 			} else if ctx.EventID == UDPSendMsg {
-				mon.Logger.Printf("got udp dns event: %v\n", ctx)
+				if len(args) != 1 {
+					continue
+				}
 			}
 			MonitorLock.Lock()
 			// push the context to the channel for logging
