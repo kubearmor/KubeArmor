@@ -812,62 +812,6 @@ static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
 
-static __always_inline int save_bytes_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
-{
-// the biggest buffer that can be saved with this function should be defined here
-#define MAX_SIZE 512
-
-    if (type == 0)
-    {
-        return 0;
-    }
-
-    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
-    if (off == NULL)
-    {
-        return -1;
-    }
-
-    if (*off > MAX_BUFFER_SIZE - MAX_SIZE)
-    {
-        return 0;
-    }
-
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
-    {
-        return 0;
-    }
-
-    *off += 1;
-
-    u32 size_pos = *off;
-    if (size_pos >= MAX_BUFFER_SIZE || 
-        size_pos + sizeof(int) > MAX_BUFFER_SIZE) {
-        return 0;
-    }
-
-    if (bpf_probe_read(&(bufs_p->buf[size_pos]), sizeof(int), &size) < 0) {
-        return 0;
-    }else {
-        bpf_printk("written size: %d", size);
-    }
-    *off += sizeof(int);
-
-    if (*off > MAX_BUFFER_SIZE - MAX_SIZE)
-    {
-        return 0;
-    }
-
-    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
-    {
-        *off += size;
-        set_buffer_offset(DATA_BUF_TYPE, *off);
-        bpf_printk("written bytes + size: %d", size+ sizeof(int));
-        return size + sizeof(int);
-    }
-    return 0;
-}
-
 static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
 {
 // the biggest element that can be saved with this function should be defined here
@@ -941,8 +885,7 @@ static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __u
     save_str_to_buffer(bufs_p, (void *)ellipsis);
 
 out:
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);size_pos
-    size_pos
+    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
 
     return 0;
 }
@@ -1024,7 +967,7 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
-static __always_inline void save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base) {
+static __always_inline int save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base, u8 type) {
 #define MAX_DNS_Q_NAME_SIZE 255
     u32 *off = get_buffer_offset(DATA_BUF_TYPE);
     if (off == NULL)
@@ -1034,8 +977,15 @@ static __always_inline void save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base
 
     if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
     {
-        return 0;
+        return -1;
     }
+
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
+    {
+        return -1;
+    }
+
+    *off += 1;
 
     u32 size_off = *off;
     *off += sizeof(int);
@@ -1049,40 +999,40 @@ static __always_inline void save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base
     // | ns_count | ar_count |
     // -----------------------
     __u8 header_off = 12;
+    // https://stackoverflow.com/a/32294443
     // question(s)
     // RFC1035 maxed to 255 Bytes
     // LL: Label length, LN: Label Name, NL: Null Label
     // LL (1) + LN (63) + LL (1) + LN (63) + LL (1) + LN (63) LL (1) + LN (61) + NL (1)
-    int dpos = 0; // write position in domain buffer
     int offset = header_off; // initial offset in the data stream
 #pragma unroll
     for (int i = 0; i < MAX_LABELS; i++) {
         u8 len = 0;
         if (bpf_probe_read(&len, sizeof(len), base + offset) < 0)
-            return;
+            return 0;
 
         if (len == 0) {
-            if (dpos > 0 && dpos < MAX_DNS_Q_NAME_SIZE)
+            if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
                 bufs_p->buf[*off] = '\0';
             break;
         }
 
         if (len > MAX_LABEL_LEN)
-            return;
-
-        if (dpos >= MAX_DNS_Q_NAME_SIZE)
-            return;
-
-        if (dpos + len >= MAX_DNS_Q_NAME_SIZE)
-            return;
+            return 0;
+        
+        if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+        {
+            return 0;
+        }
 
         if (bpf_probe_read(&bufs_p->buf[*off], len, base + offset + 1) < 0)
-            return;
+            return 0;
 
-        dpos += len;
-        if (dpos < MAX_DNS_Q_NAME_SIZE)
-            bufs_p->buf[dpos++] = '.';
-        *off = *off + len + 1;
+        *off += len;
+        if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE){
+            bufs_p->buf[*off] = 0x2E; // "." char
+            *off += 1;
+        }
         set_buffer_offset(DATA_BUF_TYPE, *off);
         offset += len + 1;
     }
@@ -1090,22 +1040,14 @@ static __always_inline void save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base
     // should never be the case
     if (size_off >= MAX_BUFFER_SIZE || 
         size_off + sizeof(int) > MAX_BUFFER_SIZE) {
-        return 0;
+        return -1;
     }
-    if (bpf_probe_read(&(bufs_p->buf[size_off]), sizeof(int), &dpos) < 0) {
-        return 0;
+    int size = *off - size_off - sizeof(int) + 1;
+    if (bpf_probe_read(&(bufs_p->buf[size_off]), sizeof(int), &size) < 0) {
+        return -1;
     }
 
-    // remove trailing .
-    if (dpos > 1) {
-        bpf_printk("hello");
-        bpf_printk("last char at pos %d", dpos);
-        bpf_printk("bufs_p->buf[dpos]: %c ",bufs_p->buf[*off-1]);
-    }
-    if (dpos > 0 && bufs_p->buf[*off-1] == '.'){
-        bpf_printk("trailing . found");
-        bufs_p->buf[*off - 1] = '\0';
-    }
+    return 0;
 }
 
 static __always_inline int events_perf_submit(struct pt_regs *ctx)
@@ -2505,17 +2447,15 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
     bpf_probe_read(&data, sizeof(data), &iov.iov_base);
 
-    __u32 safe_len = 512; // MAX_DNS_SIZE
-
-    if (len < 512)
-        safe_len = len;
+    if (len > 512)// MAX_DNS_SIZE
+        return 0; 
 
     sys_context_t context = {};
     args_t args = {};
     u64 types = 0;
     init_context(&context);
     context.argnum = 1;
-    context.retval = PT_REGS_RC(ctx);
+    context.retval = 0;
     context.event_id = _UDP_SENDMSG;
 
     if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
@@ -2534,10 +2474,8 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     if (bufs_p == NULL)
         return 0;
     save_context_to_buffer(bufs_p, (void *)&context);
-    bpf_printk("udp message size: %d", safe_len);
-    save_bytes_to_buffer(bufs_p, data, (int)safe_len, UDP_MSG);
+    save_dns_q_name_to_buffer(bufs_p, data, UDP_MSG);
     events_perf_submit(ctx);
-    bpf_printk("upd sendmsg done");
     return 0;
 }
 
