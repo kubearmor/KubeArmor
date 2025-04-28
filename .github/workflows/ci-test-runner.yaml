@@ -28,7 +28,7 @@ permissions: read-all
 jobs:
   build:
     name: Checking Apparmor network tests
-    runs-on: oracle-16cpu-64gb-x86-64
+    runs-on: equinix-32cpu-256gb
     env:
       RUNTIME: ${{ matrix.runtime }}
     strategy:
