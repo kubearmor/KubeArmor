@@ -1,0 +1,133 @@
+name: ci-test-apparmor-tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+      - "examples/multiubuntu/build/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-ginkgo.yml"
+      - "examples/multiubuntu/build/**"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  build:
+    name: Checking Apparmor network tests
+    runs-on: ubuntu-latest-16-cores
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: ["containerd"]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+      
+      - name: Check what paths were updated
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            controller:
+              - 'pkg/KubeArmorController/**'
+            multiubuntu:
+              - 'examples/multiubuntu/build/**'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
+
+
+      - name: Install Karmor client
+        run: |
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          karmor install
+          ls
+          kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test-apparmor.yaml
+          
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go mod tidy 
+          ginkgo -r --vv --flake-attempts=10 --timeout=30m
+          
+        working-directory: ./tests/k8s_env/blockposture
+        timeout-minutes: 30
+
+      - name: Kill KubeArmor prcoess in the pod
+        run: |
+          KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
+          kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
+          sleep 10
+        env:
+          POD_NAME: ${{ env.POD_NAME }}
+
+      - name: Extract coverage file
+        run: |
+          for i in {1..24}; do
+            if [ -f /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
+              cp /coverage/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+              break
+            fi
+            sleep 5
+          done
+          ls -l
+        working-directory: KubeArmor
+        
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
+
+      - name: Measure code coverage
+        if: ${{ always() }}
+        run: |
+          ls -l
+          go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+        working-directory: KubeArmor
+        env:
+          GOPATH: /home/runner/go
+
+      - name: Upload coverage file
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-k8s-${{ matrix.os }}-${{ matrix.runtime }}
+          path: KubeArmor/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
