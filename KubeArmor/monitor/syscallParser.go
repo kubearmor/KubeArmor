@@ -1078,18 +1078,10 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		}
 		res = GetSocketType(t)
 	case udpMsg:
-		size, err := readInt32FromBuff(dataBuff)
-		if err != nil {
-			return nil, fmt.Errorf("error reading message byte size: %v", err)
-		}
-		fmt.Printf("udm message byte size: %d", size)
-		t, err := readByteSliceFromBuff(dataBuff, int(size))
+		res, err = readStringFromBuff(dataBuff)
 		if err != nil {
 			return nil, err
-		} else {
-			fmt.Printf("udp message successfully received")
 		}
-		res = t
 	default:
 		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}
