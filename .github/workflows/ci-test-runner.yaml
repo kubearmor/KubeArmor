@@ -28,7 +28,7 @@ permissions: read-all
 jobs:
   build:
     name: Checking Apparmor network tests
-    runs-on: equinix-32cpu-256gb
+    runs-on: equinix-4cpu-16gb
     env:
       RUNTIME: ${{ matrix.runtime }}
     strategy:
@@ -53,12 +53,6 @@ jobs:
               - 'pkg/KubeArmorController/**'
             multiubuntu:
               - 'examples/multiubuntu/build/**'
-
-      - name: Install the latest LLVM toolchain
-        run: ./.github/workflows/install-llvm.sh
-
-      - name: Compile libbpf
-        run: ./.github/workflows/install-libbpf.sh
 
       - name: Setup a Kubernetes environment
         run: ./.github/workflows/install-k3s.sh
