@@ -2064,12 +2064,45 @@ int kprobe__tcp_connect(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
+    u32 tgid = bpf_get_current_pid_tgid();
+    u64 id = ((u64)_TCP_CONNECT << 32) | tgid;
+
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+
+    args_t args = {};
+    args.args[0] = (unsigned long)sk;
+
+    bpf_map_update_elem(&args_map, &id, &args, BPF_ANY);
+
+    return 0;
+}
+
+SEC("kretprobe/__x64_sys_tcp_connect")
+int kretprobe__tcp_connect(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    struct sock *sk;
+
+    u32 tgid = bpf_get_current_pid_tgid();
+    u64 id = ((u64)_TCP_CONNECT << 32) | tgid;
+
+    args_t *argp = bpf_map_lookup_elem(&args_map, &id);
+    if (!argp)
+        return 0;
+    bpf_map_delete_elem(&args_map, &id);
+    
+    unsigned long sk_ptr = argp->args[0];
+    if (!sk_ptr)
+        return 0;
+    sk = (struct sock *)sk_ptr;
+
     if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE))
     {
         return 0;
     }
 
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct sock_common conn = READ_KERN(sk->__sk_common);
     struct sockaddr_in sockv4;
     struct sockaddr_in6 sockv6;
@@ -2164,7 +2197,8 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
     init_context(&context);
     context.argnum = get_arg_num(types);
-    context.retval = PT_REGS_PARM3(ctx);
+    int *err_ptr = (int *)PT_REGS_PARM3(ctx);
+    bpf_probe_read(&context.retval, sizeof(context.retval), err_ptr);
 
     if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
     {
