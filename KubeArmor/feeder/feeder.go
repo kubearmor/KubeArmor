@@ -527,6 +527,64 @@ func (fd *Feeder) PushMessage(level, message string) {
 	}
 }
 
+func MarshalVisibilityLog(log tp.Log) *pb.Log {
+	pbLog := pb.Log{}
+
+	pbLog.Timestamp = log.Timestamp
+	pbLog.UpdatedTime = log.UpdatedTime
+
+	pbLog.ClusterName = cfg.GlobalCfg.Cluster
+
+	pbLog.NamespaceName = log.NamespaceName
+
+	var owner *pb.Podowner
+	if log.Owner != nil && (log.Owner.Ref != "" || log.Owner.Name != "" || log.Owner.Namespace != "") {
+		owner = &pb.Podowner{
+			Ref:       log.Owner.Ref,
+			Name:      log.Owner.Name,
+			Namespace: log.Owner.Namespace,
+		}
+	}
+
+	if pbLog.Owner == nil && owner != nil {
+		pbLog.Owner = owner
+	}
+
+	pbLog.PodName = log.PodName
+	pbLog.Labels = log.Labels
+
+	pbLog.ContainerID = log.ContainerID
+	pbLog.ContainerName = log.ContainerName
+	pbLog.ContainerImage = log.ContainerImage
+
+	pbLog.HostPPID = log.HostPPID
+	pbLog.HostPID = log.HostPID
+
+	pbLog.PPID = log.PPID
+	pbLog.PID = log.PID
+	pbLog.UID = log.UID
+
+	pbLog.ParentProcessName = log.ParentProcessName
+	pbLog.ProcessName = log.ProcessName
+
+	pbLog.Type = log.Type
+	pbLog.TTY = log.TTY
+	pbLog.Source = log.Source
+	pbLog.Operation = log.Operation
+	if !(pbLog.Operation == "Process" && cfg.GlobalCfg.DropResourceFromProcessLogs) {
+		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
+	}
+	pbLog.Cwd = log.Cwd
+
+	if len(log.Data) > 0 {
+		pbLog.Data = log.Data
+	}
+
+	pbLog.Result = log.Result
+
+	return &pbLog
+}
+
 // PushLog Function
 func (fd *Feeder) PushLog(log tp.Log) {
 	/* if enforcer == BPFLSM and log.Enforcer == ebpfmonitor ( block and default Posture Alerts from System
@@ -696,60 +754,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			}
 		}
 	} else { // ContainerLog || HostLog
-		pbLog := pb.Log{}
-
-		pbLog.Timestamp = log.Timestamp
-		pbLog.UpdatedTime = log.UpdatedTime
-
-		pbLog.ClusterName = cfg.GlobalCfg.Cluster
+		pbLog := MarshalVisibilityLog(log)
 		pbLog.HostName = fd.Node.NodeName
-
-		pbLog.NamespaceName = log.NamespaceName
-
-		var owner *pb.Podowner
-		if log.Owner != nil && (log.Owner.Ref != "" || log.Owner.Name != "" || log.Owner.Namespace != "") {
-			owner = &pb.Podowner{
-				Ref:       log.Owner.Ref,
-				Name:      log.Owner.Name,
-				Namespace: log.Owner.Namespace,
-			}
-		}
-
-		if pbLog.Owner == nil && owner != nil {
-			pbLog.Owner = owner
-		}
-
-		pbLog.PodName = log.PodName
-		pbLog.Labels = log.Labels
-
-		pbLog.ContainerID = log.ContainerID
-		pbLog.ContainerName = log.ContainerName
-		pbLog.ContainerImage = log.ContainerImage
-
-		pbLog.HostPPID = log.HostPPID
-		pbLog.HostPID = log.HostPID
-
-		pbLog.PPID = log.PPID
-		pbLog.PID = log.PID
-		pbLog.UID = log.UID
-
-		pbLog.ParentProcessName = log.ParentProcessName
-		pbLog.ProcessName = log.ProcessName
-
-		pbLog.Type = log.Type
-		pbLog.TTY = log.TTY
-		pbLog.Source = log.Source
-		pbLog.Operation = log.Operation
-		if !(pbLog.Operation == "Process" && cfg.GlobalCfg.DropResourceFromProcessLogs) {
-			pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
-		}
-		pbLog.Cwd = log.Cwd
-
-		if len(log.Data) > 0 {
-			pbLog.Data = log.Data
-		}
-
-		pbLog.Result = log.Result
 
 		fd.EventStructs.LogLock.Lock()
 		defer fd.EventStructs.LogLock.Unlock()
@@ -757,7 +763,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		lenlog := len(fd.EventStructs.LogStructs)
 		for uid := range fd.EventStructs.LogStructs {
 			select {
-			case fd.EventStructs.LogStructs[uid].Broadcast <- &pbLog:
+			case fd.EventStructs.LogStructs[uid].Broadcast <- pbLog:
 			default:
 				counter++
 				if counter == lenlog {
