@@ -83,17 +83,19 @@ var (
 	EnableOCIHooks bool = false
 
 	// ConfigMap Data
-	ConfigGRPC                       string = "gRPC"
-	ConfigVisibility                 string = "visibility"
-	ConfigCluster                    string = "cluster"
-	ConfigDefaultFilePosture         string = "defaultFilePosture"
-	ConfigDefaultCapabilitiesPosture string = "defaultCapabilitiesPosture"
-	ConfigDefaultNetworkPosture      string = "defaultNetworkPosture"
-	ConfigDefaultPostureLogs         string = "defaultPostureLogs"
-	ConfigAlertThrottling            string = "alertThrottling"
-	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
-	ConfigThrottleSec                string = "throttleSec"
-	ConfigEnableNRI                  string = "enableNRI"
+	ConfigGRPC                        string = "gRPC"
+	ConfigVisibility                  string = "visibility"
+	ConfigCluster                     string = "cluster"
+	ConfigDefaultFilePosture          string = "defaultFilePosture"
+	ConfigDefaultCapabilitiesPosture  string = "defaultCapabilitiesPosture"
+	ConfigDefaultNetworkPosture       string = "defaultNetworkPosture"
+	ConfigDefaultPostureLogs          string = "defaultPostureLogs"
+	ConfigAlertThrottling             string = "alertThrottling"
+	ConfigMaxAlertPerSec              string = "maxAlertPerSec"
+	ConfigThrottleSec                 string = "throttleSec"
+	ConfigEnableNRI                   string = "enableNRI"
+	ConfigArgMatching                 string = "matchArgs"
+	ConfigDropResourceFromProcessLogs string = "dropResourceFromProcessLogs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -208,16 +210,18 @@ var (
 var Pointer2True bool = true
 
 var ConfigMapData = map[string]string{
-	ConfigGRPC:                       "32767",
-	ConfigCluster:                    "default",
-	ConfigDefaultFilePosture:         "audit",
-	ConfigDefaultCapabilitiesPosture: "audit",
-	ConfigDefaultNetworkPosture:      "audit",
-	ConfigVisibility:                 "process,network,capabilities",
-	ConfigDefaultPostureLogs:         "true",
-	ConfigAlertThrottling:            "true",
-	ConfigMaxAlertPerSec:             "10",
-	ConfigThrottleSec:                "30",
+	ConfigGRPC:                        "32767",
+	ConfigCluster:                     "default",
+	ConfigDefaultFilePosture:          "audit",
+	ConfigDefaultCapabilitiesPosture:  "audit",
+	ConfigDefaultNetworkPosture:       "audit",
+	ConfigDropResourceFromProcessLogs: "false",
+	ConfigVisibility:                  "process,network,capabilities",
+	ConfigDefaultPostureLogs:          "true",
+	ConfigAlertThrottling:             "true",
+	ConfigMaxAlertPerSec:              "10",
+	ConfigThrottleSec:                 "30",
+	ConfigArgMatching:                 "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
