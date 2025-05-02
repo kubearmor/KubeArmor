@@ -323,28 +323,28 @@ var _ = Describe("KubeArmor-Config", func() {
 
 		It("respects DropResourceFromProcessLogs flag", func() {
 			// DropResourceFromProcessLogs is disabled (false) by default
-		    cm := NewDefaultConfigMapData()
+			cm := NewDefaultConfigMapData()
 			cm.Visibility = "process"
-		    err := cm.CreateKAConfigMap()
-		    Expect(err).To(BeNil())
-		    
-		    // Wait for config to update
-		    time.Sleep(5 * time.Second)
-		    
-		    // Start logging for process events
-		    err = KarmorLogStart("all", "fullyannotated", "Process", fullyAnnotated)
-		    Expect(err).To(BeNil())
-		    
-		    // Execute a process in the pod
-		    K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "ps"})
-		    Expect(err).To(BeNil())
-		    
+			err := cm.CreateKAConfigMap()
+			Expect(err).To(BeNil())
+
+			// Wait for config to update
+			time.Sleep(5 * time.Second)
+
+			// Start logging for process events
+			err = KarmorLogStart("all", "fullyannotated", "Process", fullyAnnotated)
+			Expect(err).To(BeNil())
+
+			// Execute a process in the pod
+			K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "ps"})
+			Expect(err).To(BeNil())
+
 			// Get process logs
-		    logs, _, err := KarmorGetLogs(5*time.Second, 50)
-		    Expect(err).To(BeNil())
-		    Expect(len(logs)).NotTo(Equal(0))
-		    
-		    // Confirm Resource field is present in logs
+			logs, _, err := KarmorGetLogs(5*time.Second, 50)
+			Expect(err).To(BeNil())
+			Expect(len(logs)).NotTo(Equal(0))
+
+			// Confirm Resource field is present in logs
 			fmt.Printf("got logs: %+v", logs)
 			for _, log := range logs {
 				Expect(log.Resource).NotTo(Equal(""))
@@ -354,27 +354,27 @@ var _ = Describe("KubeArmor-Config", func() {
 			cm = NewDefaultConfigMapData()
 			cm.Visibility = "process"
 			cm.DropResourceFromProcessLogs = "true"
-		    err = cm.CreateKAConfigMap()
-		    Expect(err).To(BeNil())
-		    
-		    // Wait for config to update
-		    time.Sleep(5 * time.Second)
-		    
-		    // Stop and start logs to drain queue
+			err = cm.CreateKAConfigMap()
+			Expect(err).To(BeNil())
+
+			// Wait for config to update
+			time.Sleep(5 * time.Second)
+
+			// Stop and start logs to drain queue
 			KarmorLogStop()
-		    err = KarmorLogStart("all", "fullyannotated", "Process", fullyAnnotated)
-		    Expect(err).To(BeNil())
-		    
-		    // Execute a process in the pod
-		    K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "ps"})
-		    Expect(err).To(BeNil())
-		    
+			err = KarmorLogStart("all", "fullyannotated", "Process", fullyAnnotated)
+			Expect(err).To(BeNil())
+
+			// Execute a process in the pod
+			K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "ps"})
+			Expect(err).To(BeNil())
+
 			// Get process logs
-		    logs, _, err = KarmorGetLogs(5*time.Second, 50)
-		    Expect(err).To(BeNil())
-		    Expect(len(logs)).NotTo(Equal(0))
-		    
-		    // Confirm Resource field is dropped in logs
+			logs, _, err = KarmorGetLogs(5*time.Second, 50)
+			Expect(err).To(BeNil())
+			Expect(len(logs)).NotTo(Equal(0))
+
+			// Confirm Resource field is dropped in logs
 			fmt.Printf("got logs: %+v", logs)
 			for _, log := range logs {
 				Expect(log.Resource).To(Equal(""))
