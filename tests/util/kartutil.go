@@ -42,15 +42,16 @@ var kcClient *kc.SecurityV1Client
 
 // ConfigMapData hosts the structure which is used to configure Config Map Data
 type ConfigMapData struct {
-	GRPC                       string
-	Visibility                 string
-	Cluster                    string
-	DefaultFilePosture         string
-	DefaultCapabilitiesPosture string
-	DefaultNetworkPosture      string
-	AlertThrottling            string
-	MaxAlertPerSec             string
-	ThrottleSec                string
+	GRPC                        string
+	Visibility                  string
+	Cluster                     string
+	DefaultFilePosture          string
+	DefaultCapabilitiesPosture  string
+	DefaultNetworkPosture       string
+	AlertThrottling             string
+	MaxAlertPerSec              string
+	ThrottleSec                 string
+	DropResourceFromProcessLogs string
 }
 
 // GetK8sClient function return instance of k8s client
@@ -109,6 +110,7 @@ func NewDefaultConfigMapData() *ConfigMapData {
 	data.AlertThrottling = "false"
 	data.MaxAlertPerSec = "10"
 	data.ThrottleSec = "30"
+	data.DropResourceFromProcessLogs = "false"
 
 	return data
 }
@@ -128,15 +130,16 @@ func (data *ConfigMapData) CreateKAConfigMap() error {
 			},
 		},
 		Data: map[string]string{
-			"gRPC":                       data.GRPC,
-			"cluster":                    data.Cluster,
-			"visibility":                 data.Visibility,
-			"defaultFilePosture":         data.DefaultFilePosture,
-			"defaultCapabilitiesPosture": data.DefaultCapabilitiesPosture,
-			"defaultNetworkPosture":      data.DefaultNetworkPosture,
-			"alertThrottling":            data.AlertThrottling,
-			"maxAlertPerSec":             data.MaxAlertPerSec,
-			"throttleSec":                data.ThrottleSec,
+			"gRPC":                        data.GRPC,
+			"cluster":                     data.Cluster,
+			"visibility":                  data.Visibility,
+			"defaultFilePosture":          data.DefaultFilePosture,
+			"defaultCapabilitiesPosture":  data.DefaultCapabilitiesPosture,
+			"defaultNetworkPosture":       data.DefaultNetworkPosture,
+			"alertThrottling":             data.AlertThrottling,
+			"maxAlertPerSec":              data.MaxAlertPerSec,
+			"throttleSec":                 data.ThrottleSec,
+			"dropResourceFromProcessLogs": data.DropResourceFromProcessLogs,
 		},
 	}
 
