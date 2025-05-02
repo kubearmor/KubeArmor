@@ -161,14 +161,6 @@ jobs:
         working-directory: ./tests/k8s_env/networktests
         timeout-minutes: 30
 
-      - name: Kill KubeArmor prcoess in the pod
-        run: |
-          KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
-          kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
-          sleep 10
-        env:
-          POD_NAME: ${{ env.POD_NAME }}
-
       - name: Get karmor sysdump
         if: ${{ failure() }}
         run: |
@@ -184,26 +176,20 @@ jobs:
           path: |
             /tmp/kubearmor/
             /tmp/kubearmor.*
+
       - name: Measure code coverage
         if: ${{ always() }}
         run: |
-            go install github.com/modocache/gover@latest
-            gover
-            go tool cover -func=gover.coverprofile
-            working-directory: KubeArmor
+          go install github.com/modocache/gover@latest
+          gover
+          go tool cover -func=gover.coverprofile
+        working-directory: KubeArmor
         env:
-            GOPATH: /home/vagrant/go
+          GOPATH: /home/vagrant/go
       - uses: codecov/codecov-action@v3
         if: ${{ always() }}
         with:
-            files: ./KubeArmor/gover.coverprofile
-      - name: Upload coverage file
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-k8s-${{ matrix.os }}-${{ matrix.runtime }}
-          path: KubeArmor/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
-      
+          files: ./KubeArmor/gover.coverprofile
       - name: Run cleanup
         if: ${{ always() }}
         run: ./.github/workflows/cleanup.sh

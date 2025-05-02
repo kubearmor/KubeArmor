@@ -37,255 +37,266 @@ func getUbuntuPod(name string, ant string) string {
 	return pods[0]
 }
 
-var _ = Describe("Network tests ksp", func() {
-	var ub1 string
-	BeforeEach(func() {
-		ub1 = getUbuntuPod("ubuntu-1", "kubearmor-policy: enabled")
-	})
-
-	AfterEach(func() {
-		KarmorLogStop()
-		err := DeleteAllKsp()
-		Expect(err).To(BeNil())
-	})
-	Describe("Apply Network Policies", func() {
-
-		It("it can audit all network trafic on icmp protocol", func() {
-			// multiubuntu_test_07, github_test_09
-
-			// Apply policy
-			err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-icmp.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-
-			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-				[]string{"bash", "-c", "ping -c 1 127.0.0.1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("PING.*127.0.0.1"))
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-audit-net-icmp",
-				Severity:   "8",
-				Action:     "Audit",
-				Result:     "Passed",
-			}
-
-			// check policy alert
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+var _ = Describe("Network Tests", func() {
+	Describe("Network tests ksp", func() {
+		var ub1 string
+		BeforeEach(func() {
+			ub1 = getUbuntuPod("ubuntu-1", "kubearmor-policy: enabled")
 		})
 
-		It("it can block all network traffic on net-raw protocol", func() {
-			// multiubuntu_test_03, github_test_10
-
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to policy not supported by bpflsm enforcer")
-			}
-
-			// Apply Policy
-			err := K8sApplyFile("res/ksp-ubuntu-1-block-net-raw-cap.yaml")
+		AfterEach(func() {
+			KarmorLogStop()
+			err := DeleteAllKsp()
 			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-
-			// to wait for apparmor policy to be generated
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
-				MatchRegexp("CAP_NET_RAW.*required"), true,
-			)
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-block-net-raw-cap",
-				Severity:   "1",
-				Action:     "Block",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
 		})
+		Describe("Apply Network Policies", func() {
 
-		It("it can allow all network traffic on tcp protocol from source path", func() {
-			// github_test_12
+			It("it can audit all network trafic on icmp protocol", func() {
+				// multiubuntu_test_07, github_test_09
 
-			// Test 1 : Initially there's no allow policy so network traffic on any protocol
-			// Should passed
+				// Apply policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-icmp.yaml")
+				Expect(err).To(BeNil())
 
-			err := KarmorLogStart("system", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl 142.250.193.46"},
-				MatchRegexp("<A HREF=\"http://www.google.com/\">here</A>"), true,
-			)
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
 
-			expect := protobuf.Log{
-				Result: "Passed",
-				Source: "/usr/bin/curl 142.250.193.46",
-			}
+				sout, _, err := K8sExecInPod(ub1, "multiubuntu",
+					[]string{"bash", "-c", "ping -c 1 127.0.0.1"})
+				Expect(err).To(BeNil())
+				fmt.Printf("OUTPUT: %s\n", sout)
+				Expect(sout).To(MatchRegexp("PING.*127.0.0.1"))
 
-			res, err := KarmorGetTargetLogs(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-audit-net-icmp",
+					Severity:   "8",
+					Action:     "Audit",
+					Result:     "Passed",
+				}
 
-			// Test 2: when policy applied only tcp traffic is allowed from source
+				// check policy alert
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+			})
 
-			// Apply Policy
-			err = K8sApplyFile("res/ksp-ubuntu-1-allow-net-tcp-from-source.yaml")
-			Expect(err).To(BeNil())
+			It("it can block all network traffic on net-raw protocol", func() {
+				// multiubuntu_test_03, github_test_10
 
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
+				if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+					Skip("Skipping due to policy not supported by bpflsm enforcer")
+				}
 
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl google.com"},
-				MatchRegexp("Could not resolve host: google.com"), true,
-			)
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-raw-cap.yaml")
+				Expect(err).To(BeNil())
 
-			expectAlert := protobuf.Alert{
-				PolicyName: "DefaultPosture",
-				Severity:   "",
-				Action:     "Block",
-				Result:     "Permission denied",
-			}
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &expectAlert)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+				// to wait for apparmor policy to be generated
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
+					MatchRegexp("CAP_NET_RAW.*required"), true,
+				)
 
-		})
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-block-net-raw-cap",
+					Severity:   "1",
+					Action:     "Block",
+				}
 
-		It("it can audit all network traffic on net-raw protocol", func() {
-			// github_test_13
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
 
-			// Apply Policy
-			err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-raw.yaml")
-			Expect(err).To(BeNil())
+			})
 
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
+			It("it can allow all network traffic on tcp protocol from source path", func() {
+				// github_test_12
 
-			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-				[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("ARPING 127.0.0.1"))
+				// Test 1 : Initially there's no allow policy so network traffic on any protocol
+				// Should passed
 
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-audit-net-raw",
-				Severity:   "8",
-				Action:     "Audit",
-				Result:     "Passed",
-			}
+				err := KarmorLogStart("system", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl 40.114.177.156"},
+					MatchRegexp("<html>((?:.*\r?\n?)*)</html>"), true,
+				)
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+				expect := protobuf.Log{
+					Result: "Passed",
+					Source: "/usr/bin/curl 40.114.177.156",
+				}
 
-		})
+				res, err := KarmorGetTargetLogs(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
 
-		It("it can block all network traffic on net-raw protocol", func() {
-			//  multiubuntu_test_28, github_test_14
+				// Test 2: when policy applied only tcp traffic is allowed from source
 
-			// Apply Policy
-			err := K8sApplyFile("res/ksp-ubuntu-1-block-net-raw.yaml")
-			Expect(err).To(BeNil())
+				// Apply Policy
+				err = K8sApplyFile("res/ksp-ubuntu-1-allow-net-tcp-from-source.yaml")
+				Expect(err).To(BeNil())
+				time.Sleep(5 * time.Second)
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
 
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
-				MatchRegexp("arping.*Permission denied"), true,
-			)
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl duckduckgo.com"},
+					MatchRegexp("Could not resolve host: duckduckgo.com"), true,
+				)
 
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-block-net-raw",
-				Severity:   "8",
-				Action:     "Block",
-				Result:     "Permission denied",
-			}
+				expectAlert := protobuf.Alert{
+					PolicyName: "DefaultPosture",
+					Severity:   "",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+				res, err = KarmorGetTargetAlert(5*time.Second, &expectAlert)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
 
-		})
+			})
 
-		It("it can block all network traffic", func() {
-			// Apply Policy
-			err := K8sApplyFile("res/ksp-ubuntu-1-block-net-all.yaml")
-			Expect(err).To(BeNil())
+			It("it can audit all network traffic on net-raw protocol", func() {
+				// github_test_13
 
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"},
-				MatchRegexp("ping.*Permission denied"), true,
-			)
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-audit-net-raw.yaml")
+				Expect(err).To(BeNil())
 
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-block-net-all",
-				Severity:   "8",
-				Action:     "Block",
-				Result:     "Permission denied",
-			}
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+				sout, _, err := K8sExecInPod(ub1, "multiubuntu",
+					[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
+				Expect(err).To(BeNil())
+				fmt.Printf("OUTPUT: %s\n", sout)
+				Expect(sout).To(MatchRegexp("ARPING 127.0.0.1"))
 
-		})
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-audit-net-raw",
+					Severity:   "8",
+					Action:     "Audit",
+					Result:     "Passed",
+				}
 
-	})
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
 
-})
-var _ = Describe("Network block posture tests", func() {
-	var ub1 string
-	BeforeEach(func() {
-		//annotate block posture on namespace level
-		_, err := Kubectl("annotate ns multiubuntu kubearmor-network-posture=block --overwrite")
-		Expect(err).To(BeNil())
-		ub1 = getUbuntuPod("ubuntu-1", "kubearmor-policy: enabled")
-	})
+			})
 
-	AfterEach(func() {
-		KarmorLogStop()
-		err := DeleteAllKsp()
-		Expect(err).To(BeNil())
-	})
+			It("it can block all network traffic on net-raw protocol", func() {
+				//  multiubuntu_test_28, github_test_14
 
-	Describe("Apply network policy", func() {
-		It("can whitelist use of certain network protocols used by a package, such as tcp", func() {
-			// Apply policy
-			err := K8sApplyFile("res/ksp-ubuntu-1-allow-net-tcp-from-source.yaml")
-			Expect(err).To(BeNil())
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-raw.yaml")
+				Expect(err).To(BeNil())
 
-			// Start Kubearmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
+					MatchRegexp("arping.*Permission denied"), true,
+				)
 
-			AssertCommand(
-				ub1, "multiubuntu", []string{"bash", "-c", "curl google.com"},
-				MatchRegexp("curl.*Could not resolve host: google.com"), true,
-			)
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-block-net-raw",
+					Severity:   "8",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
 
-			out, _, err := K8sExecInPod(ub1, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", out)
-			Expect(out).To(MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"))
-			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
-			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("DefaultPosture"))
-			Expect(alerts[0].Action).To(Equal("Block"))
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+
+			})
+
+			It("it can block all network traffic", func() {
+				// Apply Policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-block-net-all.yaml")
+				Expect(err).To(BeNil())
+
+				// Start KubeArmor Logs
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"},
+					MatchRegexp("ping.*Permission denied"), true,
+				)
+
+				expect := protobuf.Alert{
+					PolicyName: "ksp-ubuntu-1-block-net-all",
+					Severity:   "8",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
+
+				res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+
+			})
+
 		})
 
 	})
+	var _ = Describe("Network block posture tests", func() {
+		var ub1 string
+		BeforeEach(func() {
+			//annotate block posture on namespace level
+			_, err := Kubectl("annotate ns multiubuntu kubearmor-network-posture=block --overwrite")
+			Expect(err).To(BeNil())
+			ub1 = getUbuntuPod("ubuntu-1", "kubearmor-policy: enabled")
+			time.Sleep(5 * time.Second)
+		})
+
+		AfterEach(func() {
+			KarmorLogStop()
+			err := DeleteAllKsp()
+			Expect(err).To(BeNil())
+		})
+
+		Describe("Apply network policy", func() {
+			It("can whitelist use of certain network protocols used by a package, such as tcp", func() {
+				// Apply policy
+				err := K8sApplyFile("res/ksp-ubuntu-1-allow-net-tcp-from-source.yaml")
+				Expect(err).To(BeNil())
+				time.Sleep(5 * time.Second)
+				// Start Kubearmor Logs
+				err = KarmorLogStart("system", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl 40.114.177.156"},
+					MatchRegexp("<html>((?:.*\r?\n?)*)</html>"), true,
+				)
+
+				// test block posture
+				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
+				Expect(err).To(BeNil())
+
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl duckduckgo.com"},
+					MatchRegexp("Could not resolve host: duckduckgo.com"), true,
+				)
+
+				expectAlert := protobuf.Alert{
+					PolicyName: "DefaultPosture",
+					Severity:   "",
+					Action:     "Block",
+					Result:     "Permission denied",
+				}
+
+				res, err := KarmorGetTargetAlert(5*time.Second, &expectAlert)
+				Expect(err).To(BeNil())
+				Expect(res.Found).To(BeTrue())
+
+			})
+
+		})
+	})
+
 })
