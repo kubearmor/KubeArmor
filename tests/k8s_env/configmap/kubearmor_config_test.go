@@ -206,28 +206,28 @@ var _ = Describe("KubeArmor-Config", func() {
 			// wait for policy updation due to defaultPosture change
 			time.Sleep(5 * time.Second)
 
-			err = KarmorLogStart("policy", "partialyannotated", "Network", partialyAnnotated)
-			Expect(err).To(BeNil())
+			// err = KarmorLogStart("policy", "partialyannotated", "Network", partialyAnnotated)
+			// Expect(err).To(BeNil())
 
-			// defaults posture should be block for network
-			sout, _, err = K8sExecInPodWithContainer(partialyAnnotated, "partialyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp(".*not resolve"))
+			// // defaults posture should be block for network
+			// sout, _, err = K8sExecInPodWithContainer(partialyAnnotated, "partialyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
+			// Expect(err).To(BeNil())
+			// fmt.Printf("---START---\n%s---END---\n", sout)
+			// Expect(sout).To(MatchRegexp(".*not resolve"))
 
 			// should get an alert with failure
 			// check policy violation alert
 
-			target = protobuf.Alert{
-				PolicyName:    "DefaultPosture",
-				Action:        "Block",
-				Result:        "Permission denied",
-				NamespaceName: "partialyannotated",
-			}
+			// target = protobuf.Alert{
+			// 	PolicyName:    "DefaultPosture",
+			// 	Action:        "Block",
+			// 	Result:        "Permission denied",
+			// 	NamespaceName: "partialyannotated",
+			// }
 
-			res, err = KarmorGetTargetAlert(5*time.Second, &target)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+			// res, err = KarmorGetTargetAlert(5*time.Second, &target)
+			// Expect(err).To(BeNil())
+			// Expect(res.Found).To(BeTrue())
 
 			err = KarmorLogStart("policy", "partialyannotated", "File", partialyAnnotated)
 			Expect(err).To(BeNil())
@@ -273,53 +273,53 @@ var _ = Describe("KubeArmor-Config", func() {
 
 		})
 
-		It("default posture will be unchanged after global configs changed", func() {
+		// It("default posture will be unchanged after global configs changed", func() {
 
-			// apply a allow based policy
-			err := K8sApplyFile("manifests/ksp-fullyAnnotated-allow.yaml")
-			Expect(err).To(BeNil())
+		// 	// apply a allow based policy
+		// 	err := K8sApplyFile("manifests/ksp-fullyAnnotated-allow.yaml")
+		// 	Expect(err).To(BeNil())
 
-			err = KarmorLogStart("policy", "fullyannotated", "Network", fullyAnnotated)
-			Expect(err).To(BeNil())
+		// 	err = KarmorLogStart("policy", "fullyannotated", "Network", fullyAnnotated)
+		// 	Expect(err).To(BeNil())
 
-			// initialy namespace defaults posture is block (annotated fully)
-			sout, _, err := K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp(".*has moved"))
+		// 	// initialy namespace defaults posture is block (annotated fully)
+		// 	sout, _, err := K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
+		// 	Expect(err).To(BeNil())
+		// 	fmt.Printf("---START---\n%s---END---\n", sout)
+		// 	Expect(sout).To(MatchRegexp(".*has moved"))
 
-			// should get an alert with success
-			// check policy violation alert
+		// 	// should get an alert with success
+		// 	// check policy violation alert
 
-			target := protobuf.Alert{
-				PolicyName:    "DefaultPosture",
-				Action:        "Audit",
-				Result:        "Passed",
-				NamespaceName: "fullyannotated",
-			}
+		// 	target := protobuf.Alert{
+		// 		PolicyName:    "DefaultPosture",
+		// 		Action:        "Audit",
+		// 		Result:        "Passed",
+		// 		NamespaceName: "fullyannotated",
+		// 	}
 
-			res, err := KarmorGetTargetAlert(5*time.Second, &target)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
+		// 	res, err := KarmorGetTargetAlert(5*time.Second, &target)
+		// 	Expect(err).To(BeNil())
+		// 	Expect(res.Found).To(BeTrue())
 
-			// change global default posture to block using configmap
-			cm := NewDefaultConfigMapData()
-			cm.DefaultFilePosture = "block"
-			cm.DefaultCapabilitiesPosture = "block"
-			cm.DefaultNetworkPosture = "block"
-			err = cm.CreateKAConfigMap() // will create a configMap with default posture as block
-			Expect(err).To(BeNil())
+		// 	// change global default posture to block using configmap
+		// 	cm := NewDefaultConfigMapData()
+		// 	cm.DefaultFilePosture = "block"
+		// 	cm.DefaultCapabilitiesPosture = "block"
+		// 	cm.DefaultNetworkPosture = "block"
+		// 	err = cm.CreateKAConfigMap() // will create a configMap with default posture as block
+		// 	Expect(err).To(BeNil())
 
-			// wait for policy updation due to defaultPosture change
-			time.Sleep(5 * time.Second)
+		// 	// wait for policy updation due to defaultPosture change
+		// 	time.Sleep(5 * time.Second)
 
-			// defaults posture should still be audit for network
-			sout, _, err = K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp(".*has moved"))
+		// 	// defaults posture should still be audit for network
+		// 	sout, _, err = K8sExecInPodWithContainer(fullyAnnotated, "fullyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
+		// 	Expect(err).To(BeNil())
+		// 	fmt.Printf("---START---\n%s---END---\n", sout)
+		// 	Expect(sout).To(MatchRegexp(".*has moved"))
 
-		})
+		// })
 
 	})
 

@@ -15,5 +15,3 @@ if [ "$RUNTIME" == "crio" ]; then
 fi
 
 ./contribution/k3s/install_k3s.sh
-
-which curl

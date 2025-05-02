@@ -65,4 +65,3 @@ do
     sleep 1
 done
 
-kubectl get pods -A

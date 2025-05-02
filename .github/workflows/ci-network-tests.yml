@@ -1,0 +1,209 @@
+name: ci-network-test-ginkgo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-ginkgo.yml"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+      - "examples/multiubuntu/build/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "KubeArmor/**"
+      - "tests/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-test-ginkgo.yml"
+      - "examples/multiubuntu/build/**"
+      - "pkg/KubeArmorOperator/**"
+      - "deployments/helm/**"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  build:
+    name: Auto-testing Framework / ${{ matrix.os }} / ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: apparmor
+            runtime: containerd
+          - os: bpflsm
+            runtime: crio
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+      
+      - name: Check what paths were updated
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            controller:
+              - 'pkg/KubeArmorController/**'
+            multiubuntu:
+              - 'examples/multiubuntu/build/**'
+
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Setup a Kubernetes environment
+        run: ./.github/workflows/install-k3s.sh
+
+      - name: Generate KubeArmor artifacts
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+
+      - name: Build Kubearmor-Operator
+        working-directory: pkg/KubeArmorOperator
+        run: |
+          make docker-build
+      
+      - name: Build KubeArmorController
+        if: steps.filter.outputs.controller == 'true'
+        run: make -C pkg/KubeArmorController/ docker-build TAG=latest
+
+      - name: Build multiubuntu docker image
+        working-directory: examples/multiubuntu/build
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: docker build -t kubearmor/ubuntu-w-utils:latest .
+
+      - name: make changes in multiubuntu-deployment
+        working-directory: tests/k8s_env
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: |
+          grep -rl "kubearmor/ubuntu-w-utils:latest" ./ | while read -r file; do sed -i 's/imagePullPolicy: Always/imagePullPolicy: Never/g' "$file"; done
+
+      - name: Run KubeArmor
+        timeout-minutes: 7
+        run: |
+          if [[ ${{ matrix.runtime }} == "containerd" ]]; then
+            docker save kubearmor/kubearmor-init:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-operator:latest | sudo k3s ctr images import -
+            docker save kubearmor/kubearmor-snitch:latest | sudo k3s ctr images import -
+            
+            if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then 
+              docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
+            fi
+            if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
+              docker save kubearmor/ubuntu-w-utils:latest | sudo k3s ctr images import -
+            fi
+          else
+            if [ ${{ matrix.runtime }} == "crio" ]; then
+                docker save kubearmor/kubearmor-init:latest | sudo podman load
+                docker save kubearmor/kubearmor:latest | sudo podman load
+                docker save kubearmor/kubearmor-operator:latest | sudo podman load
+                docker save kubearmor/kubearmor-snitch:latest | sudo podman load
+              if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
+                docker save kubearmor/kubearmor-controller:latest | sudo podman load
+              fi
+              if [ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]; then
+                docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
+              fi
+            fi
+          fi
+
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
+          kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
+          kubectl get pods -A
+          if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml --dry-run=client -o json | \
+            jq '.spec.kubearmorControllerImage.imagePullPolicy = "Never"' | \
+            kubectl apply -f -
+          else 
+            kubectl apply -f pkg/KubeArmorOperator/config/samples/kubearmor-test.yaml
+          fi
+
+          kubectl wait -n kubearmor --timeout=5m --for=jsonpath='{.status.phase}'=Running kubearmorconfigs/kubearmorconfig-test
+          
+          while [ ! "$(kubectl wait --timeout=5s --for=condition=ready pod -l kubearmor-app,kubearmor-app!=kubearmor-snitch -n kubearmor >/dev/null 2>&1; echo $?)" -eq 0 ]; do
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app,kubearmor-app!=kubearmor-controller -n kubearmor
+            kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
+            kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
+            kubectl get pods -A
+          done
+     
+      - name: Operator may take upto 10 sec to enable TLS, Sleep for 15Sec
+        run: |
+          sleep 15
+
+      - name: Get KubeArmor POD info
+        run: |
+          DAEMONSET_NAME=$(kubectl get daemonset -n kubearmor -o jsonpath='{.items[0].metadata.name}')
+          LABEL_SELECTOR=$(kubectl get daemonset $DAEMONSET_NAME -n kubearmor -o jsonpath='{.spec.selector.matchLabels}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' | paste -sd, -)
+          POD_NAME=$(kubectl get pods -n kubearmor -l "$LABEL_SELECTOR" -o jsonpath='{.items[*].metadata.name}')
+          echo "Pod: $POD_NAME"
+          echo "POD_NAME=$POD_NAME" >> $GITHUB_ENV
+
+      - name: Test KubeArmor using Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+          go mod tidy
+          ginkgo --vv --flake-attempts=10 --timeout=15m 
+        working-directory: ./tests/k8s_env/networktests
+        timeout-minutes: 30
+
+      - name: Kill KubeArmor prcoess in the pod
+        run: |
+          KUBEARMOR_PID=$(kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "ps aux | grep '[K]ubeArmor/kubearmor-test' | awk '{print \$1}'")
+          kubectl exec ${{ env.POD_NAME }} -n kubearmor -c kubearmor -- sh -c "kill -s SIGINT $KUBEARMOR_PID"
+          sleep 10
+        env:
+          POD_NAME: ${{ env.POD_NAME }}
+
+      - name: Get karmor sysdump
+        if: ${{ failure() }}
+        run: |
+          kubectl describe pod -n kubearmor -l kubearmor-app=kubearmor
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          mkdir -p /tmp/kubearmor/ && cd /tmp/kubearmor && karmor sysdump
+
+      - name: Archive log artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubearmor.logs
+          path: |
+            /tmp/kubearmor/
+            /tmp/kubearmor.*
+      - name: Measure code coverage
+        if: ${{ always() }}
+        run: |
+            go install github.com/modocache/gover@latest
+            gover
+            go tool cover -func=gover.coverprofile
+            working-directory: KubeArmor
+        env:
+            GOPATH: /home/vagrant/go
+      - uses: codecov/codecov-action@v3
+        if: ${{ always() }}
+        with:
+            files: ./KubeArmor/gover.coverprofile
+      - name: Upload coverage file
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-k8s-${{ matrix.os }}-${{ matrix.runtime }}
+          path: KubeArmor/coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+      
+      - name: Run cleanup
+        if: ${{ always() }}
+        run: ./.github/workflows/cleanup.sh
