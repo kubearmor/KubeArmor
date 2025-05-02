@@ -62,6 +62,9 @@ spec:
     # default visibility configuration
     defaultVisibility: [comma separated: process|file|network] # DEFAULT - process,network
 
+    # optionally drop the Resource field (full cmdline) from process visibility logs
+    dropResourceFromProcessLogs: false                         # DEFAULT - false
+
     # enabling NRI
     # Naming convention for kubearmor daemonset in case of NRI will be effective only when initally NRI is available & enabled. 
     # In case snitch service account token is already present before its deployment, the naming convention won't show NRI, 
