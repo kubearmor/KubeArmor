@@ -15,6 +15,7 @@ TAG ?= v0.1
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # Target platforms for build
 PLATFORM ?= "linux/amd64,linux/arm64/v8"
+NAMESPACE="kubearmor"
 
 BUNDLE_PKG ?= kubearmor-operator
 BUNDLE_VER ?= latest
@@ -126,6 +127,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: kustomize ## Deploy Operator Deployment, ClusterRole and ServiceAccount objects.
+	kubectl get namespace | grep -q "^$(NAMESPACE)" || kubectl create namespace $(NAMESPACE)
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
