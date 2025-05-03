@@ -13,6 +13,7 @@ import (
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
 	filelessexec "github.com/kubearmor/KubeArmor/KubeArmor/presets/filelessexec"
 	protectenv "github.com/kubearmor/KubeArmor/KubeArmor/presets/protectenv"
+	protectproc "github.com/kubearmor/KubeArmor/KubeArmor/presets/protectproc"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
@@ -35,6 +36,7 @@ func NewPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) *Preset {
 	p.List[anonmap.NAME] = anonmap.NewAnonMapExecPreset()
 	p.List[filelessexec.NAME] = filelessexec.NewFilelessExecPreset()
 	p.List[protectenv.NAME] = protectenv.NewProtectEnvPreset()
+	p.List[protectproc.NAME] = protectproc.NewProtectProcPreset()
 
 	// register all presets
 	p.RegisterPresets()
