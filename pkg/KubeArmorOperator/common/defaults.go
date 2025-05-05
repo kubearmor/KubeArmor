@@ -184,6 +184,8 @@ var (
 	}
 
 	ElasticSearchAdapterCaCertPath = "/cert"
+
+	KubeArmorControllerPort = 9443
 )
 var Pointer2True bool = true
 

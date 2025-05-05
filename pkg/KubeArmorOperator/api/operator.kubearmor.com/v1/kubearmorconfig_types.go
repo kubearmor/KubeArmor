@@ -116,6 +116,8 @@ type KubeArmorConfigSpec struct {
 	Adapters Adapters `json:"adapters,omitempty"`
 
 	EnableNRI bool `json:"enableNRI,omitempty"`
+
+	ControllerPort int `json:"controllerPort,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

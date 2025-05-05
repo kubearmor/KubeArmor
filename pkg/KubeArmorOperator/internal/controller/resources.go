@@ -27,6 +27,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool) *appsv1.DaemonSet {
@@ -744,8 +745,11 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		addOwnership(deployments.GetKubeArmorControllerLeaderElectionRoleBinding(common.Namespace)).(*rbacv1.RoleBinding),
 	}
 
+	kubearmorControllerWebhookSvc := deployments.GetKubeArmorControllerWebhookService(common.Namespace)
+	kubearmorControllerWebhookSvc.Spec.Ports[0].TargetPort = intstr.FromInt(int(common.KubeArmorControllerPort))
 	svcs := []*corev1.Service{
-		addOwnership(deployments.GetKubeArmorControllerWebhookService(common.Namespace)).(*corev1.Service),
+
+		addOwnership(kubearmorControllerWebhookSvc).(*corev1.Service),
 		addOwnership(deployments.GetRelayService(common.Namespace)).(*corev1.Service),
 	}
 	// Install CRDs
@@ -775,6 +779,8 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
+	controller.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
+
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)

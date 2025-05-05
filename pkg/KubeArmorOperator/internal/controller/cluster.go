@@ -460,6 +460,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
+						UpdateControllerPort(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -645,6 +646,7 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						(*containers)[i].Args = common.KubeArmorControllerArgs
 					}
 				}
+				controller.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
 				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
 				if err != nil {
 					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
@@ -1396,6 +1398,16 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 
 	if len(config.Tls.RelayExtraIpAddresses) > 0 {
 		common.ExtraDnsNames = config.Tls.RelayExtraIpAddresses
+	}
+
+	return updated
+}
+func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.ControllerPort != common.KubeArmorControllerPort {
+		fmt.Printf("kubearmor controller-port changed: %v", config.ControllerPort)
+		common.KubeArmorControllerPort = config.ControllerPort
+		updated = true
 	}
 
 	return updated
