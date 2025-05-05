@@ -708,3 +708,18 @@ func ContainerInfo() (*pb.ProbeResponse, error) {
 	}
 	return resp, nil
 }
+
+// ExecCommandHost function executes command on the host
+func ExecCommandHost(command []string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return string(output), err
+	}
+
+	return string(output), nil
+}
