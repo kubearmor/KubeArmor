@@ -35,6 +35,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -481,12 +482,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
+						controllerPortUpdated := UpdateControllerPort(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
+
 						// return if only status has been updated
-						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
+						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
 							return
 						}
 						if tlsUpdated {
@@ -509,6 +512,10 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						if seccompEnabledUpdated {
 							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
+						}
+						if controllerPortUpdated {
+							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
+							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
 						}
 					}
 				}
@@ -646,14 +653,16 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						(*containers)[i].Args = common.KubeArmorControllerArgs
 					}
 				}
+
 				controller.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
-				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
+				_, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
 				if err != nil {
 					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
 					res = err
 				} else {
 					clusterWatcher.Log.Infof("Updated Deployment=%s", deployments.KubeArmorControllerDeploymentName)
 				}
+
 			}
 		}
 	}
@@ -1047,6 +1056,21 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 	}
 	return nil
 }
+func (clusterWatcher *ClusterWatcher) UpdateWebhookSvcPort(port int) {
+	// update webhook service port
+	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorControllerWebhookServiceName, v1.GetOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot get webhook service=%s error=%s", common.KubeArmorControllerWebhookServiceName, err.Error())
+	} else {
+		svc.Spec.Ports[0].TargetPort = intstr.FromInt(int(port))
+		_, err = clusterWatcher.Client.CoreV1().Services(common.Namespace).Update(context.Background(), svc, v1.UpdateOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot update webhook service=%s error=%s", common.KubeArmorControllerWebhookServiceName, err.Error())
+		} else {
+			clusterWatcher.Log.Infof("Updated webhook service=%s", common.KubeArmorControllerWebhookServiceName)
+		}
+	}
+}
 
 func UpdateTlsArguments(args *[]string, action string) {
 	if action == common.AddAction {
@@ -1405,8 +1429,10 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
 	if config.ControllerPort != common.KubeArmorControllerPort {
-		fmt.Printf("kubearmor controller-port changed: %v", config.ControllerPort)
+
+		common.ControllerPortLock.Lock()
 		common.KubeArmorControllerPort = config.ControllerPort
+		common.ControllerPortLock.Unlock()
 		updated = true
 	}
 
