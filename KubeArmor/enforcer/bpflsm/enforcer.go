@@ -365,9 +365,9 @@ func (be *BPFEnforcer) TraceEvents() {
 
 		case mon.SecurityBprmCheck:
 			log.Operation = "Process"
+			log.Resource = log.Source
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
-			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
-			log.ProcessName = log.Resource
+			log.ProcessName = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.ParentProcessName = log.Source
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
@@ -383,9 +383,13 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 		}
 		// fallback logic if we don't receive source from BuildLogBase()
-		if log.Operation != "Process" && len(log.Source) == 0 {
+		if log.Operation == "Process" && len(log.Source) == 0 {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.ProcessName = log.Source
+		}
+		// fallback logic if we don't receive resource from BuildLogBase()
+		if len(log.Resource) == 0 {
+			log.Resource = log.ProcessName
 		}
 		if len(log.ProcessName) == 0 && len(log.Source) > 0 {
 			log.ProcessName = log.Source
