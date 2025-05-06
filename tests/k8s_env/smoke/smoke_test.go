@@ -68,10 +68,10 @@ var _ = Describe("Smoke", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "apt"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp("apt.*Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"),
+				false)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -97,11 +97,10 @@ var _ = Describe("Smoke", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat /var/www/html/wp-config.php"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("wp-config.php.*Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /var/www/html/wp-config.php"},
+				MatchRegexp("wp-config.php.*Permission denied"),
+				false)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -127,11 +126,10 @@ var _ = Describe("Smoke", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat wp-config.php"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("wp-config.php.*Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat wp-config.php"},
+				MatchRegexp("wp-config.php.*Permission denied"),
+				false)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -156,11 +154,10 @@ var _ = Describe("Smoke", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("token.*Permission denied"))
+			AssertCommand("wp-pod-name", "wordpress-mysql",
+				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"},
+				MatchRegexp("token.*Permission denied"),
+				false)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -185,12 +182,10 @@ var _ = Describe("Smoke", func() {
 			time.Sleep(5 * time.Second)
 
 			// trigger policy violation alert
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "head /run/secrets/kubernetes.io/serviceaccount/token"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("token.*Permission denied"))
-
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "head /run/secrets/kubernetes.io/serviceaccount/token"},
+				MatchRegexp("token.*Permission denied"),
+				false)
 			// check policy violation alert
 			expect := protobuf.Alert{
 				PolicyName: "ksp-wordpress-lenient-allow-sa",
@@ -202,20 +197,20 @@ var _ = Describe("Smoke", func() {
 			Expect(res.Found).To(BeTrue())
 
 			// trigger normal operations permitted by policy
-			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"})
-			Expect(err).To(BeNil())
-			Expect(sout).To(Not(ContainSubstring("Permission denied")))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"},
+				Not(ContainSubstring("Permission denied")),
+				false)
 
-			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat /etc/passwd"})
-			Expect(err).To(BeNil())
-			Expect(sout).To(Not(ContainSubstring("Permission denied")))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /etc/passwd"},
+				Not(ContainSubstring("Permission denied")),
+				false)
 
-			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "head /etc/passwd"})
-			Expect(err).To(BeNil())
-			Expect(sout).To(Not(ContainSubstring("Permission denied")))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "head /etc/passwd"},
+				Not(ContainSubstring("Permission denied")),
+				false)
 
 			// check for no policy violation alert
 			expect = protobuf.Alert{
@@ -241,10 +236,10 @@ var _ = Describe("Smoke", func() {
 			time.Sleep(5 * time.Second)
 
 			fname := fmt.Sprintf("/var/lib/mysql/%s", RandString(12))
-			sout, _, err := K8sExecInPod(sql, "wordpress-mysql",
-				[]string{"bash", "-c", fmt.Sprintf("touch %s", fname)})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
+			AssertCommand(sql, "wordpress-mysql",
+				[]string{"bash", "-c", fmt.Sprintf("touch %s", fname)},
+				MatchRegexp(".*"),
+				false)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -255,9 +250,10 @@ var _ = Describe("Smoke", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 
-			_, _, err = K8sExecInPod(sql, "wordpress-mysql",
-				[]string{"bash", "-c", fmt.Sprintf("rm %s", fname)})
-			Expect(err).To(BeNil())
+			AssertCommand(sql, "wordpress-mysql",
+				[]string{"bash", "-c", fmt.Sprintf("rm %s", fname)},
+				MatchRegexp(".*"),
+				false)
 		})
 
 		It("can enforce multiple rules targeting same pod", func() {
@@ -270,17 +266,15 @@ var _ = Describe("Smoke", func() {
 			Expect(err).To(BeNil())
 
 			// trigger policy violation alert
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat /etc/passwd"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("/etc/passwd.*Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /etc/passwd"},
+				MatchRegexp("/etc/passwd.*Permission denied"),
+				false)
 
-			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "cat /etc/shadow"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("/etc/shadow.*Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "cat /etc/shadow"},
+				MatchRegexp("/etc/shadow.*Permission denied"),
+				false)
 		})
 
 		It("can block write access and only allow read access to mounted files", func() {
@@ -295,11 +289,10 @@ var _ = Describe("Smoke", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "touch /dev/shm/new"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(ContainSubstring("Permission denied"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "touch /dev/shm/new"},
+				ContainSubstring("Permission denied"),
+				false)
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -324,12 +317,10 @@ var _ = Describe("Smoke", func() {
 			// wait for policy creation
 			time.Sleep(5 * time.Second)
 
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "curl 142.250.193.46"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			// tcp action
-			Expect(sout).To(ContainSubstring("http://www.google.com/"))
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "curl 142.250.193.46"},
+				ContainSubstring("http://www.google.com/"),
+				false)
 
 			// check alert
 			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
@@ -338,12 +329,10 @@ var _ = Describe("Smoke", func() {
 			Expect(len(alerts)).To(Equal(0))
 
 			// tcp + udp + raw action
-			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(ContainSubstring("http://www.google.com/"))
-
+			AssertCommand(wp, "wordpress-mysql",
+				[]string{"bash", "-c", "curl google.com"},
+				ContainSubstring("http://www.google.com/"),
+				false)
 			// check alert
 			expect := protobuf.Alert{
 				PolicyName: "DefaultPosture",
