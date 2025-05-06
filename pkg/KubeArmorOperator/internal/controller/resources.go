@@ -784,9 +784,14 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
+	// add webhook port to controller args
+	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
+
+	// add annotateExisting flag to controller args
 	if annotateExisting {
 		UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"annotateExisting=true"})
 	}
+
 	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	UpdateTolerationsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
