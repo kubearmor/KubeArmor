@@ -19,6 +19,7 @@ rules:
   verbs:
   - get
   - create
+  - update
 - apiGroups:
   - ""
   resources:
