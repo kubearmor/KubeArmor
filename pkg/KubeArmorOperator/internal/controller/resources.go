@@ -504,6 +504,12 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 
 func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
 	deployment = addOwnership(deployment).(*appsv1.Deployment)
+
+	// add port to controller deployment
+	common.ControllerPortLock.Lock()
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
+	UpdateArgsIfDefinedAndUpdated(&deployment.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
+	common.ControllerPortLock.Unlock()
 	if common.IfNodeWithSecurtiyFs {
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
 			common.SecurityFsLabel: "yes",
@@ -525,6 +531,7 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
 			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
 			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
+			clusterWatcher.Log.Infoln("updated deployment", controller)
 			_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, metav1.UpdateOptions{})
 			if err != nil {
 				clusterWatcher.Log.Warnf("Cannot update deployment %s, error=%s", deployment.Name, err.Error())
@@ -779,13 +786,10 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
-	controller.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
 
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
-	// add webhook port to controller args
-	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
 
 	// add annotateExisting flag to controller args
 	if annotateExisting {

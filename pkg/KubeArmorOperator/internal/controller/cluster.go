@@ -632,11 +632,12 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 			}
 
 		case "controller", "rbac":
-			controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, v1.GetOptions{})
+			dep, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, v1.GetOptions{})
 			if err != nil {
 				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
 				res = err
 			} else {
+				controller := dep.DeepCopy()
 				controller.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorControllerImagePullSecrets
 				if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
 					updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
@@ -651,10 +652,11 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 						(*containers)[i].Args = common.KubeArmorControllerArgs
+						(*containers)[i].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
 					}
 				}
+				UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
 
-				controller.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
 				_, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
 				if err != nil {
 					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
@@ -662,7 +664,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 				} else {
 					clusterWatcher.Log.Infof("Updated Deployment=%s", deployments.KubeArmorControllerDeploymentName)
 				}
-
 			}
 		}
 	}
@@ -1428,7 +1429,7 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 }
 func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
-	if config.ControllerPort != common.KubeArmorControllerPort {
+	if config.ControllerPort != 0 && config.ControllerPort != common.KubeArmorControllerPort {
 
 		common.ControllerPortLock.Lock()
 		common.KubeArmorControllerPort = config.ControllerPort
