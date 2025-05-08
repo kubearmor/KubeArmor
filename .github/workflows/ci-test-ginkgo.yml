@@ -114,20 +114,20 @@ jobs:
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               docker save kubearmor/kubearmor-test-init:latest | sudo podman load
-              # sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test-init:latest
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test-init:latest
               docker save kubearmor/kubearmor-test:latest | sudo podman load
-              # sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test:latest
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test:latest
               docker save kubearmor/kubearmor-operator:latest | sudo podman load
-              # sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
-              # sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
+              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
               if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
                 docker save kubearmor/kubearmor-controller:latest | sudo podman load
-                # sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
+                sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
               fi
               if [ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]; then
                 docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
-                # sudo podman tag localhost/latest:latest docker.io/kubearmor/ubuntu-w-utils:latest
+                sudo podman tag localhost/latest:latest docker.io/kubearmor/ubuntu-w-utils:latest
               fi
             fi
           fi
