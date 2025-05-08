@@ -23,7 +23,9 @@ var _ = BeforeSuite(func() {
 
 	_, err = Kubectl("annotate ns wordpress-mysql kubearmor-file-posture=block --overwrite")
 	Expect(err).To(BeNil())
-	time.Sleep(10 * time.Second)
+
+	//give some time for the deployment to be up before applying whitelisting policies
+	time.Sleep(60 * time.Second)
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
@@ -48,6 +50,7 @@ var _ = Describe("Posture", func() {
 
 	BeforeEach(func() {
 		wp = getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
+
 	})
 
 	AfterEach(func() {
