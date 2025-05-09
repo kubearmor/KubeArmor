@@ -40,6 +40,7 @@ const (
 	ptraceReqT    uint8 = 23
 	mountFlagT    uint8 = 24
 	umountFlagT   uint8 = 25
+	udpMsg        uint8 = 26
 )
 
 // ======================= //
@@ -1076,6 +1077,11 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 			return nil, err
 		}
 		res = GetSocketType(t)
+	case udpMsg:
+		res, err = readStringFromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("error unknown argument type %v", at)
 	}
