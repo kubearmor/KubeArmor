@@ -73,6 +73,7 @@ type anonmapexecMapSpecs struct {
 	Bufs                        *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                     *ebpf.MapSpec `ebpf:"bufs_off"`
 	Events                      *ebpf.MapSpec `ebpf:"events"`
+	ExecPids                    *ebpf.MapSpec `ebpf:"exec_pids"`
 	KubearmorAlertThrottle      *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig             *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.MapSpec `ebpf:"kubearmor_containers"`
@@ -111,6 +112,7 @@ type anonmapexecMaps struct {
 	Bufs                        *ebpf.Map `ebpf:"bufs"`
 	BufsOff                     *ebpf.Map `ebpf:"bufs_off"`
 	Events                      *ebpf.Map `ebpf:"events"`
+	ExecPids                    *ebpf.Map `ebpf:"exec_pids"`
 	KubearmorAlertThrottle      *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig             *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers         *ebpf.Map `ebpf:"kubearmor_containers"`
@@ -124,6 +126,7 @@ func (m *anonmapexecMaps) Close() error {
 		m.Bufs,
 		m.BufsOff,
 		m.Events,
+		m.ExecPids,
 		m.KubearmorAlertThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,

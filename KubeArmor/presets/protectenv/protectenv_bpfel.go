@@ -61,7 +61,7 @@ type protectenvSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectenvProgramSpecs struct {
-	EnforceFile *ebpf.ProgramSpec `ebpf:"enforce_file"`
+	EnvPresetEnforceFile *ebpf.ProgramSpec `ebpf:"env_preset_enforce_file"`
 }
 
 // protectenvMapSpecs contains maps before they are loaded into the kernel.
@@ -72,6 +72,7 @@ type protectenvMapSpecs struct {
 	Bufs                       *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                    *ebpf.MapSpec `ebpf:"bufs_off"`
 	Events                     *ebpf.MapSpec `ebpf:"events"`
+	ExecPids                   *ebpf.MapSpec `ebpf:"exec_pids"`
 	KubearmorAlertThrottle     *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig            *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers        *ebpf.MapSpec `ebpf:"kubearmor_containers"`
@@ -110,6 +111,7 @@ type protectenvMaps struct {
 	Bufs                       *ebpf.Map `ebpf:"bufs"`
 	BufsOff                    *ebpf.Map `ebpf:"bufs_off"`
 	Events                     *ebpf.Map `ebpf:"events"`
+	ExecPids                   *ebpf.Map `ebpf:"exec_pids"`
 	KubearmorAlertThrottle     *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig            *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers        *ebpf.Map `ebpf:"kubearmor_containers"`
@@ -123,6 +125,7 @@ func (m *protectenvMaps) Close() error {
 		m.Bufs,
 		m.BufsOff,
 		m.Events,
+		m.ExecPids,
 		m.KubearmorAlertThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
@@ -142,12 +145,12 @@ type protectenvVariables struct {
 //
 // It can be passed to loadProtectenvObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectenvPrograms struct {
-	EnforceFile *ebpf.Program `ebpf:"enforce_file"`
+	EnvPresetEnforceFile *ebpf.Program `ebpf:"env_preset_enforce_file"`
 }
 
 func (p *protectenvPrograms) Close() error {
 	return _ProtectenvClose(
-		p.EnforceFile,
+		p.EnvPresetEnforceFile,
 	)
 }
 

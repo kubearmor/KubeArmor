@@ -666,6 +666,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Resource = strings.ToValidUTF8(log.Resource, "")
 		pbAlert.Cwd = log.Cwd
 
+		pbAlert.ExecEvent = &pb.ExecEvent{
+			ExecID:         log.ExecEvent.ExecID,
+			ExecutableName: log.ExecEvent.ExecutableName,
+		}
+
 		if len(log.Data) > 0 {
 			pbAlert.Data = log.Data
 		}
@@ -742,6 +747,11 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.Operation = log.Operation
 		pbLog.Resource = strings.ToValidUTF8(log.Resource, "")
 		pbLog.Cwd = log.Cwd
+
+		pbLog.ExecEvent = &pb.ExecEvent{
+			ExecID:         log.ExecEvent.ExecID,
+			ExecutableName: log.ExecEvent.ExecutableName,
+		}
 
 		if len(log.Data) > 0 {
 			pbLog.Data = log.Data
