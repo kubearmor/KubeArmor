@@ -54,6 +54,7 @@ echo "wait for initialization"
 sleep 15
 
 runtime="15 minute"
+
 endtime=$(date -ud "$runtime" +%s)
 
 while [[ $(date -u +%s) -le $endtime ]]
@@ -64,4 +65,3 @@ do
     sleep 1
 done
 
-kubectl get pods -A
