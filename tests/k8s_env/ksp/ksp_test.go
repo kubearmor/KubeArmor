@@ -495,6 +495,90 @@ var _ = Describe("Ksp", func() {
 			Expect(res.Found).To(BeTrue())
 		})
 
+		It("it can block process execution with matchExpression, In & NotIn operator", func() {
+			// multiubuntu_test_16
+
+			// Apply KubeArmor Policy
+			err := K8sApplyFile("multiubuntu/ksp-match-expression-in-notin-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-match-expression-in-notin-block-process",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub3)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub3, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectLog := protobuf.Log{
+				Resource: "/usr/bin/apt",
+				Result:   "Passed"}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("it can block process execution with matchExpression, NotIn operator", func() {
+			// multiubuntu_test_16
+
+			// Apply KubeArmor Policy
+			err := K8sApplyFile("multiubuntu/ksp-match-expression-notin-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectLog := protobuf.Log{
+				Resource: "/usr/bin/apt",
+				Result:   "Passed"}
+
+			res, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub3)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub3, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-match-expression-notin-block-process",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 	})
 
 	Describe("Apply Files Policies", func() {
