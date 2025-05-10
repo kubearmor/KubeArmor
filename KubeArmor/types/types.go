@@ -272,6 +272,7 @@ type Log struct {
 	Result                 string `json:"result"`
 	MaxAlertsPerSec        int32  `json:"MaxAlertsPerSec,omitempty"`
 	DroppingAlertsInterval int32  `json:"DroppingAlertsInterval,omitempty"`
+	Username			   string `json:"username"`
 	// == //
 
 	PolicyEnabled int `json:"policyEnabled,omitempty"`
