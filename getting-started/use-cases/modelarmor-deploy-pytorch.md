@@ -100,9 +100,9 @@ This guide demonstrates how to deploy a PyTorch application on Kubernetes and en
    docker push yourusername/pytorch-app:latest
    ```
 
-<img src="../.gitbook/assets/modelarmor/5.png" width="400" class="center" alt="Docker Build Process">
+<img src="../../.gitbook/assets/modelarmor/5.png" width="400" class="center" alt="Docker Build Process">
 
-<img src="../.gitbook/assets/modelarmor/6.png" width="400" class="center" alt="Docker Push to Container Registry">
+<img src="../../.gitbook/assets/modelarmor/6.png" width="400" class="center" alt="Docker Push to Container Registry">
 
 6. **Deploy on Kubernetes**:
 
@@ -111,19 +111,19 @@ kubectl apply -f pytorch-deployment.yaml
 kubectl apply -f pytorch-service.yaml
 ```
 
-<img src="../.gitbook/assets/modelarmor/7.png" width="400" class="center" alt="Apply Deployment Configuration">
+<img src="../../.gitbook/assets/modelarmor/7.png" width="400" class="center" alt="Apply Deployment Configuration">
 
 `kubectl get deployments`
 
-<img src="../.gitbook/assets/modelarmor/8.png" width="400" class="center" alt="Deployment Status Verification">
+<img src="../../.gitbook/assets/modelarmor/8.png" width="400" class="center" alt="Deployment Status Verification">
 
 `kubectl get services`
 
-<img src="../.gitbook/assets/modelarmor/10.png" width="400" class="center" alt="Service Status Check">
+<img src="../../.gitbook/assets/modelarmor/10.png" width="400" class="center" alt="Service Status Check">
 
 `kubectl get pods`
 
-<img src="../.gitbook/assets/modelarmor/11.png" width="400" class="center" alt="Pod Status Monitoring">
+<img src="../../.gitbook/assets/modelarmor/11.png" width="400" class="center" alt="Pod Status Monitoring">
 
 7. **Implement KubeArmor Policy**: Secure the deployment by applying the following policy in `kubearmor-policy.yaml`:
 
@@ -157,7 +157,7 @@ kubectl apply -f pytorch-service.yaml
    kubectl apply -f kubearmor-policy.yaml
    ```
 
-<img src="../.gitbook/assets/modelarmor/12.png" width="400" class="center" alt="Apply Policy to Deployment">
+<img src="../../.gitbook/assets/modelarmor/12.png" width="400" class="center" alt="Apply Policy to Deployment">
 
 ## Key Takeaways
 
