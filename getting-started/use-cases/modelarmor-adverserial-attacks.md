@@ -25,7 +25,7 @@ Adversarial attacks exploit vulnerabilities in AI systems by subtly altering inp
 
 Highly accurate models often exhibit reduced robustness against adversarial perturbations, creating a tradeoff between accuracy and security. For instance, Chen et al. found that better-performing models tend to be more sensitive to adversarial inputs.
 
-<img src="../.gitbook/assets/modelarmor/1.png" width="400" class="center" alt="Adversarial Model Performance">
+<img src="../../.gitbook/assets/modelarmor/1.png" width="400" class="center" alt="Adversarial Model Performance">
 
 ## **Defense Strategies**
 
@@ -39,7 +39,7 @@ Highly accurate models often exhibit reduced robustness against adversarial pert
    - Regularly update libraries to patch vulnerabilities.
    - Detect injection attempts with specialized tooling.
 
-<img src="../.gitbook/assets/modelarmor/2.png" width="400" class="center" alt="Defense Strategies">
+<img src="../../.gitbook/assets/modelarmor/2.png" width="400" class="center" alt="Defense Strategies">
 
 ## **Case Study: Pickle Injection Vulnerability**
 
