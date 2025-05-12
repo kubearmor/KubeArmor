@@ -15,10 +15,10 @@
 * [Least Permissive Access](getting-started/least_permissive_access.md)
 * [Application Behavior](getting-started/workload_visibility.md)
 * [Advanced](getting-started/use-cases/hardening.md)
-* [ModelArmor Overview](use-cases/modelarmor.md)
-  * [Pickle Code Injection PoC](use-cases/modelarmor-pickle-code.md)
-  * [Adversarial Attacks on Deep Learning Models](use-cases/modelarmor-adverserial-attacks.md)
-  * [Deploy PyTorch App with ModelKnox](use-cases/modelarmor-deploy-pytorch.md)
+* [ModelArmor Overview](getting-started/use-cases/modelarmor.md)
+  * [Pickle Code Injection PoC](getting-started/use-cases/modelarmor-pickle-code.md)
+  * [Adversarial Attacks on Deep Learning Models](getting-started/use-cases/modelarmor-adverserial-attacks.md)
+  * [Deploy PyTorch App with ModelKnox](getting-started/use-cases/modelarmor-deploy-pytorch.md)
 
 ## Documentation
 
