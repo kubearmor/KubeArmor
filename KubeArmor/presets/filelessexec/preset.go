@@ -106,7 +106,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "fileless_exec_preset_containers",
+		Name:       "kubearmor_fileless_exec_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
@@ -273,7 +273,7 @@ func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
 	p.Logger.Debugf("[FilelessExec] deleting container with id to fileless_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("Error deleting container %s in fileless_exec_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in kubearmor_fileless_exec_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}

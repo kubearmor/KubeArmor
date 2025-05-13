@@ -72,12 +72,12 @@ type execMapSpecs struct {
 	Bufs                   *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                *ebpf.MapSpec `ebpf:"bufs_off"`
 	Events                 *ebpf.MapSpec `ebpf:"events"`
-	ExecPids               *ebpf.MapSpec `ebpf:"exec_pids"`
 	ExecPresetContainers   *ebpf.MapSpec `ebpf:"exec_preset_containers"`
 	KubearmorAlertThrottle *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids      *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
 }
 
 // execVariableSpecs contains global variables before they are loaded into the kernel.
@@ -111,12 +111,12 @@ type execMaps struct {
 	Bufs                   *ebpf.Map `ebpf:"bufs"`
 	BufsOff                *ebpf.Map `ebpf:"bufs_off"`
 	Events                 *ebpf.Map `ebpf:"events"`
-	ExecPids               *ebpf.Map `ebpf:"exec_pids"`
 	ExecPresetContainers   *ebpf.Map `ebpf:"exec_preset_containers"`
 	KubearmorAlertThrottle *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
 	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids      *ebpf.Map `ebpf:"kubearmor_exec_pids"`
 }
 
 func (m *execMaps) Close() error {
@@ -125,12 +125,12 @@ func (m *execMaps) Close() error {
 		m.Bufs,
 		m.BufsOff,
 		m.Events,
-		m.ExecPids,
 		m.ExecPresetContainers,
 		m.KubearmorAlertThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
+		m.KubearmorExecPids,
 	)
 }
 

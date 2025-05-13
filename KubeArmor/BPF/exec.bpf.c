@@ -12,7 +12,7 @@ struct {
 // Force emitting struct mmap_event into the ELF.
 const event *unused __attribute__((unused));
 
-struct preset_map exec_preset_containers SEC(".maps");
+struct preset_map kubearmor_exec_preset_containers SEC(".maps");
 
 struct pathname {
     char path[256];
@@ -27,7 +27,7 @@ int BPF_PROG(exec_preset_bprm_check_security, struct linux_binprm *bprm){
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  u32 *present = bpf_map_lookup_elem(&exec_preset_containers, &okey);
+  u32 *present = bpf_map_lookup_elem(&kubearmor_exec_preset_containers, &okey);
 
   if (!present) {
     return 0;
@@ -48,12 +48,12 @@ int BPF_PROG(exec_preset_bprm_check_security, struct linux_binprm *bprm){
   }
 
   u32 host_pid = bpf_get_current_pid_tgid() >> 32;
-  u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &host_pid);
+  u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
   if (!exec_id) {
     return 0;
   }
 
-  // struct pathname path_data = {};
+
   u32 zero = 0;
   bufs_k *z = bpf_map_lookup_elem(&bufk, &zero);
   if (z == NULL)

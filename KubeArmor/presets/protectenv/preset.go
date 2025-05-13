@@ -105,7 +105,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "protectenv_preset_containers",
+		Name:       "kubearmor_protectenv_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
@@ -257,7 +257,7 @@ func (p *Preset) UnregisterContainer(containerID string) {
 
 // AddContainerIDToMap adds a container id to ebpf map
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
-	p.Logger.Debugf("[ProtectEnv] adding container with id to protectEnv_map exec map: %s\n", id)
+	p.Logger.Printf("[ProtectEnv] adding container with id to protectEnv_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
 		a = base.Audit
@@ -274,7 +274,7 @@ func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
 	p.Logger.Debugf("[ProtectEnv] deleting container with id to protectEnv_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("Error deleting container %s in protectenv_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in kubearmor_protectenv_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
@@ -307,7 +307,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
-						p.Logger.Warnf("Updating policy for container %s :%s ", cid, err)
+						p.Logger.Errf("Updating policy for container %s :%s ", cid, err)
 					}
 					p.ContainerMapLock.Unlock()
 				}

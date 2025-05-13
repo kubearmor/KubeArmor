@@ -11,7 +11,7 @@ struct {
   __uint(max_entries, 1 << 24);
 } events SEC(".maps");
 
-struct preset_map protectenv_preset_containers SEC(".maps");
+struct preset_map kubearmor_protectenv_preset_containers SEC(".maps");
 
 #define DIR_PROC "/proc/"
 #define FILE_ENVIRON "/environ"
@@ -37,7 +37,7 @@ int BPF_PROG(env_preset_enforce_file, struct file *file) {
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  u32 *present = bpf_map_lookup_elem(&protectenv_preset_containers, &okey);
+  u32 *present = bpf_map_lookup_elem(&kubearmor_protectenv_preset_containers, &okey);
 
   if (!present) {
     return 0;
@@ -48,7 +48,6 @@ int BPF_PROG(env_preset_enforce_file, struct file *file) {
 
   char path[PATH_BUF_SIZE] = {};
   bpf_d_path(&file->f_path, path, sizeof(path));
-  // bpf_probe_read_kernel(&path, sizeof(path), &file->f_path);
 
   if (!isProcDir(path)) {
     return 0;

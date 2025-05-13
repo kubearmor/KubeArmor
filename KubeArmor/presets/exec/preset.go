@@ -27,8 +27,6 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang exec  ../../BPF/exec.bpf.c -type exec_event -no-global-types -- -I/usr/include/ -O2 -g
-
 var (
 	_ base.PresetInterface = (*Preset)(nil)
 )
@@ -106,7 +104,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "exec_preset_containers",
+		Name:       "kubearmor_exec_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})

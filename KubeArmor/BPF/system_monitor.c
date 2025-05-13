@@ -367,8 +367,7 @@ struct exec_pid_map
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 };
 
-// BPF_LRU_HASH(exec_pids, u32, u64);
-struct exec_pid_map exec_pids SEC(".maps");
+struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 // == Kernel Helpers == //
 
@@ -1043,7 +1042,7 @@ static __always_inline u32 init_context(sys_context_t *context)
         context->pid = pid;
         
         // check if process is part of exec
-        u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &host_pid);
+        u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
         if (exec_id) {
             context->exec_id = *exec_id;
         }
@@ -1211,7 +1210,7 @@ int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
         u32 *matches = bpf_map_lookup_elem(&kubearmor_visibility, &key);
         u64 exec_id = bpf_ktime_get_ns() | pid;
         if (matches) {   
-          bpf_map_update_elem(&exec_pids, &pid, &exec_id, BPF_ANY);
+          bpf_map_update_elem(&kubearmor_exec_pids, &pid, &exec_id, BPF_ANY);
         }
 
     }
@@ -1225,9 +1224,9 @@ int sched_process_fork(struct trace_event_raw_sched_process_fork *ctx)
     u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
     u32 child_pid = ctx->child_pid;
     
-    u32 *exists = bpf_map_lookup_elem(&exec_pids, &parent_pid);
+    u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
     if (exists) {
-        bpf_map_update_elem(&exec_pids, &child_pid, exists, BPF_ANY);
+        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, exists, BPF_ANY);
     }
 
     return 0;
@@ -1563,7 +1562,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
     bpf_map_delete_elem(&file_map, &tgid);
 
     // delete entry for exec (host) pid
-    bpf_map_delete_elem(&exec_pids, &tgid);
+    bpf_map_delete_elem(&kubearmor_exec_pids, &tgid);
 
     sys_context_t context = {};
 

@@ -68,16 +68,16 @@ type protectenvProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectenvMapSpecs struct {
-	Bufk                       *ebpf.MapSpec `ebpf:"bufk"`
-	Bufs                       *ebpf.MapSpec `ebpf:"bufs"`
-	BufsOff                    *ebpf.MapSpec `ebpf:"bufs_off"`
-	Events                     *ebpf.MapSpec `ebpf:"events"`
-	ExecPids                   *ebpf.MapSpec `ebpf:"exec_pids"`
-	KubearmorAlertThrottle     *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorConfig            *ebpf.MapSpec `ebpf:"kubearmor_config"`
-	KubearmorContainers        *ebpf.MapSpec `ebpf:"kubearmor_containers"`
-	KubearmorEvents            *ebpf.MapSpec `ebpf:"kubearmor_events"`
-	ProtectenvPresetContainers *ebpf.MapSpec `ebpf:"protectenv_preset_containers"`
+	Bufk                                *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                                *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff                             *ebpf.MapSpec `ebpf:"bufs_off"`
+	Events                              *ebpf.MapSpec `ebpf:"events"`
+	KubearmorAlertThrottle              *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorConfig                     *ebpf.MapSpec `ebpf:"kubearmor_config"`
+	KubearmorContainers                 *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents                     *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids                   *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	KubearmorProtectenvPresetContainers *ebpf.MapSpec `ebpf:"kubearmor_protectenv_preset_containers"`
 }
 
 // protectenvVariableSpecs contains global variables before they are loaded into the kernel.
@@ -107,16 +107,16 @@ func (o *protectenvObjects) Close() error {
 //
 // It can be passed to loadProtectenvObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectenvMaps struct {
-	Bufk                       *ebpf.Map `ebpf:"bufk"`
-	Bufs                       *ebpf.Map `ebpf:"bufs"`
-	BufsOff                    *ebpf.Map `ebpf:"bufs_off"`
-	Events                     *ebpf.Map `ebpf:"events"`
-	ExecPids                   *ebpf.Map `ebpf:"exec_pids"`
-	KubearmorAlertThrottle     *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorConfig            *ebpf.Map `ebpf:"kubearmor_config"`
-	KubearmorContainers        *ebpf.Map `ebpf:"kubearmor_containers"`
-	KubearmorEvents            *ebpf.Map `ebpf:"kubearmor_events"`
-	ProtectenvPresetContainers *ebpf.Map `ebpf:"protectenv_preset_containers"`
+	Bufk                                *ebpf.Map `ebpf:"bufk"`
+	Bufs                                *ebpf.Map `ebpf:"bufs"`
+	BufsOff                             *ebpf.Map `ebpf:"bufs_off"`
+	Events                              *ebpf.Map `ebpf:"events"`
+	KubearmorAlertThrottle              *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorConfig                     *ebpf.Map `ebpf:"kubearmor_config"`
+	KubearmorContainers                 *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents                     *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids                   *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	KubearmorProtectenvPresetContainers *ebpf.Map `ebpf:"kubearmor_protectenv_preset_containers"`
 }
 
 func (m *protectenvMaps) Close() error {
@@ -125,12 +125,12 @@ func (m *protectenvMaps) Close() error {
 		m.Bufs,
 		m.BufsOff,
 		m.Events,
-		m.ExecPids,
 		m.KubearmorAlertThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
-		m.ProtectenvPresetContainers,
+		m.KubearmorExecPids,
+		m.KubearmorProtectenvPresetContainers,
 	)
 }
 

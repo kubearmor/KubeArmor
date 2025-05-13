@@ -68,16 +68,16 @@ type filelessexecProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type filelessexecMapSpecs struct {
-	Bufk                         *ebpf.MapSpec `ebpf:"bufk"`
-	Bufs                         *ebpf.MapSpec `ebpf:"bufs"`
-	BufsOff                      *ebpf.MapSpec `ebpf:"bufs_off"`
-	Events                       *ebpf.MapSpec `ebpf:"events"`
-	ExecPids                     *ebpf.MapSpec `ebpf:"exec_pids"`
-	FilelessExecPresetContainers *ebpf.MapSpec `ebpf:"fileless_exec_preset_containers"`
-	KubearmorAlertThrottle       *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorConfig              *ebpf.MapSpec `ebpf:"kubearmor_config"`
-	KubearmorContainers          *ebpf.MapSpec `ebpf:"kubearmor_containers"`
-	KubearmorEvents              *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	Bufk                                  *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                                  *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff                               *ebpf.MapSpec `ebpf:"bufs_off"`
+	Events                                *ebpf.MapSpec `ebpf:"events"`
+	KubearmorAlertThrottle                *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorConfig                       *ebpf.MapSpec `ebpf:"kubearmor_config"`
+	KubearmorContainers                   *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents                       *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids                     *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
+	KubearmorFilelessExecPresetContainers *ebpf.MapSpec `ebpf:"kubearmor_fileless_exec_preset_containers"`
 }
 
 // filelessexecVariableSpecs contains global variables before they are loaded into the kernel.
@@ -107,16 +107,16 @@ func (o *filelessexecObjects) Close() error {
 //
 // It can be passed to loadFilelessexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type filelessexecMaps struct {
-	Bufk                         *ebpf.Map `ebpf:"bufk"`
-	Bufs                         *ebpf.Map `ebpf:"bufs"`
-	BufsOff                      *ebpf.Map `ebpf:"bufs_off"`
-	Events                       *ebpf.Map `ebpf:"events"`
-	ExecPids                     *ebpf.Map `ebpf:"exec_pids"`
-	FilelessExecPresetContainers *ebpf.Map `ebpf:"fileless_exec_preset_containers"`
-	KubearmorAlertThrottle       *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorConfig              *ebpf.Map `ebpf:"kubearmor_config"`
-	KubearmorContainers          *ebpf.Map `ebpf:"kubearmor_containers"`
-	KubearmorEvents              *ebpf.Map `ebpf:"kubearmor_events"`
+	Bufk                                  *ebpf.Map `ebpf:"bufk"`
+	Bufs                                  *ebpf.Map `ebpf:"bufs"`
+	BufsOff                               *ebpf.Map `ebpf:"bufs_off"`
+	Events                                *ebpf.Map `ebpf:"events"`
+	KubearmorAlertThrottle                *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorConfig                       *ebpf.Map `ebpf:"kubearmor_config"`
+	KubearmorContainers                   *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents                       *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids                     *ebpf.Map `ebpf:"kubearmor_exec_pids"`
+	KubearmorFilelessExecPresetContainers *ebpf.Map `ebpf:"kubearmor_fileless_exec_preset_containers"`
 }
 
 func (m *filelessexecMaps) Close() error {
@@ -125,12 +125,12 @@ func (m *filelessexecMaps) Close() error {
 		m.Bufs,
 		m.BufsOff,
 		m.Events,
-		m.ExecPids,
-		m.FilelessExecPresetContainers,
 		m.KubearmorAlertThrottle,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
+		m.KubearmorExecPids,
+		m.KubearmorFilelessExecPresetContainers,
 	)
 }
 

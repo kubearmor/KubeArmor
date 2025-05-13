@@ -199,7 +199,7 @@ struct exec_pid_map
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 };
 
-struct exec_pid_map exec_pids SEC(".maps");
+struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 static __always_inline bufs_t *get_buf(int idx) {
   return bpf_map_lookup_elem(&bufs, &idx);
@@ -397,7 +397,7 @@ static __always_inline u32 init_context(event *event_data) {
 
   // check if process is part of exec
   __builtin_memset((void *)&event_data->exec_id, 0, sizeof(event_data->exec_id));
-  u64 *exec_id = bpf_map_lookup_elem(&exec_pids, &host_pid);
+  u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
   if (exec_id) {
       event_data->exec_id = *exec_id;
   }
