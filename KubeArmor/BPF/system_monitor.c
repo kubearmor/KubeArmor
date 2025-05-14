@@ -92,6 +92,10 @@
 #define PTRACE_REQ_T 23UL
 #define MOUNT_FLAG_T 24UL
 #define UMOUNT_FLAG_T 25UL
+#define UDP_MSG 26UL
+
+#define MAX_LABELS 10  // max labels in domain name
+#define MAX_LABEL_LEN 63
 
 #define MAX_ARGS 6
 #define ENC_ARG_TYPE(n, type) type << (8 * n)
@@ -111,6 +115,12 @@
 #define PT_REGS_PARM6(x) ((x)->r9)
 #elif defined(bpf_target_arm64)
 #define PT_REGS_PARM6(x) ((x)->regs[5])
+#endif
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define ntohs(x) __builtin_bswap16(x)
+#else
+#define ntohs(x) (x)
 #endif
 
 #define UNDEFINED_SYSCALL 1000
@@ -184,6 +194,9 @@ enum
     _TCP_ACCEPT = 401,
     _TCP_CONNECT_v6 = 402,
     _TCP_ACCEPT_v6 = 403,
+
+    // UDP_MSG
+    _UDP_SENDMSG = 10000
 };
 
 #ifndef BTF_SUPPORTED
@@ -308,6 +321,7 @@ enum
     _PROCESS_PROBE = 1,
     _NETWORK_PROBE = 2,
     _CAPS_PROBE = 3,
+    _DNS_PROBE = 4,
 
     _TRACE_SYSCALL = 0,
     _IGNORE_SYSCALL = 1,
@@ -932,6 +946,89 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
             save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
             break;
         }
+    }
+
+    return 0;
+}
+
+static __always_inline int save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base, u8 type) {
+#define MAX_DNS_Q_NAME_SIZE 255
+    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    if (off == NULL)
+    {
+        return -1;
+    }
+
+    if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+    {
+        return -1;
+    }
+
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
+    {
+        return -1;
+    }
+
+    *off += 1;
+
+    u32 size_off = *off;
+    *off += sizeof(int);
+    // header offset
+    // 0----------15--------31
+    // _______________________
+    // | id       | flags    |
+    // -----------------------
+    // | q_count  | a_count  |
+    // -----------------------
+    // | ns_count | ar_count |
+    // -----------------------
+    __u8 header_off = 12;
+    // https://stackoverflow.com/a/32294443
+    // question(s)
+    // RFC1035 maxed to 255 Bytes
+    // LL: Label length, LN: Label Name, NL: Null Label
+    // LL (1) + LN (63) + LL (1) + LN (63) + LL (1) + LN (63) LL (1) + LN (61) + NL (1)
+    int offset = header_off; // initial offset in the data stream
+#pragma unroll
+    for (int i = 0; i < MAX_LABELS; i++) {
+        u8 len = 0;
+        if (bpf_probe_read(&len, sizeof(len), base + offset) < 0)
+            return 0;
+
+        if (len == 0) {
+            if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+                bufs_p->buf[*off] = '\0';
+            break;
+        }
+
+        if (len > MAX_LABEL_LEN)
+            return 0;
+        
+        if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+        {
+            return 0;
+        }
+
+        if (bpf_probe_read(&bufs_p->buf[*off], len, base + offset + 1) < 0)
+            return 0;
+
+        *off += len;
+        if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE){
+            bufs_p->buf[*off] = 0x2E; // "." char
+            *off += 1;
+        }
+        set_buffer_offset(DATA_BUF_TYPE, *off);
+        offset += len + 1;
+    }
+
+    // should never be the case
+    if (size_off >= MAX_BUFFER_SIZE || 
+        size_off + sizeof(int) > MAX_BUFFER_SIZE) {
+        return -1;
+    }
+    int size = *off - size_off - sizeof(int) + 1;
+    if (bpf_probe_read(&(bufs_p->buf[size_off]), sizeof(int), &size) < 0) {
+        return -1;
     }
 
     return 0;
@@ -2228,4 +2325,69 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     return 0;
 }
+
+SEC("kprobe/udp_sendmsg")
+int kprobe__udp_sendmsg(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    if (sk == NULL)
+        return 0;
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    size_t len = (size_t)PT_REGS_PARM3(ctx);
+
+    struct iovec iov;
+    void *data = NULL;
+    __u16 dport = 0;
+
+    bpf_probe_read(&dport, sizeof(dport), &sk->__sk_common.skc_dport);
+    dport = ntohs(dport);
+    if (dport != 53)
+        return 0;
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13)
+        bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+    #else
+        bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.iov);
+    #endif
+    bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+
+    if (len > 512)// MAX_DNS_SIZE
+        return 0; 
+
+    sys_context_t context = {};
+    args_t args = {};
+    u64 types = 0;
+    init_context(&context);
+    context.argnum = 1;
+    context.retval = 0;
+    context.event_id = _UDP_SENDMSG;
+
+    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
+    }
+
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+    save_context_to_buffer(bufs_p, (void *)&context);
+    save_dns_q_name_to_buffer(bufs_p, data, UDP_MSG);
+    events_perf_submit(ctx);
+    return 0;
+}
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

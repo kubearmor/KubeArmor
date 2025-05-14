@@ -57,6 +57,7 @@ type NsVisibility struct {
 	Process    bool
 	Capability bool
 	Network    bool
+	DNS        bool
 }
 
 // ===================== //
@@ -197,7 +198,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 		Type:       cle.Hash,
 		KeySize:    4,
 		ValueSize:  4,
-		MaxEntries: 4,
+		MaxEntries: 5,
 	}
 
 	// assign the value of untracked ns from GlobalCfg
@@ -323,6 +324,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		Key:   uint32(3),
 		Value: visibilityOff,
 	}
+	dns := cle.MapKV{
+		Key:   uint32(4),
+		Value: visibilityOff,
+	}
 	if visibility.File {
 		file.Value = visibilityOn
 	}
@@ -335,6 +340,9 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 	if visibility.Network {
 		network.Value = visibilityOn
 	}
+	if visibility.DNS {
+		dns.Value = visibilityOn
+	}
 
 	if action == "ADDED" {
 		spec := mon.BpfVisibilityMapSpec
@@ -342,6 +350,7 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		spec.Contents = append(spec.Contents, process)
 		spec.Contents = append(spec.Contents, network)
 		spec.Contents = append(spec.Contents, capability)
+		spec.Contents = append(spec.Contents, dns)
 		visibilityMap, err := cle.NewMap(&spec)
 		if err != nil {
 			mon.Logger.Warnf("Cannot create bpf map %s", err)
@@ -375,6 +384,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		err = visibilityMap.Put(capability.Key, capability.Value)
 		if err != nil {
 			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=capability", nsKey, capability.Value)
+		}
+		err = visibilityMap.Put(dns.Key, dns.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=dns", nsKey, dns.Value)
 		}
 
 		// Need to lock NsMap to print the following log message
@@ -414,6 +427,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		if strings.Contains(visibilityParams, "capabilities") {
 			hostVisibility.Capabilities = true
 		}
+		if strings.Contains(visibilityParams, "dns") {
+			hostVisibility.DNS = true
+		}
 	}
 
 	nsKey := NsKey{
@@ -435,6 +451,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		}
 		if strings.Contains(visibilityParams, "capabilities") {
 			visibility.Capabilities = true
+		}
+		if strings.Contains(visibilityParams, "dns") {
+			visibility.DNS = true
 		}
 	}
 
@@ -508,6 +527,11 @@ func (mon *SystemMonitor) InitBPF() error {
 	if mon.BpfModule != nil {
 
 		mon.Probes = make(map[string]link.Link)
+
+		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
+		if err != nil {
+			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
+		}
 
 		for _, syscallName := range systemCalls {
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
@@ -951,6 +975,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == TCPConnectv6 {
 				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == UDPSendMsg {
+				if len(args) != 1 {
 					continue
 				}
 			}
