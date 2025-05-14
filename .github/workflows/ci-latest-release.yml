@@ -1,6 +1,12 @@
 name: ci-latest-release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: "string"
+        required: true
   push:
     branches:
       - "main"
@@ -67,9 +73,17 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const ref = context.ref;
-            const tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
-            core.setOutput("tag", tag);
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              tag = context.payload.inputs.tag;
+              core.info(`Checking out tag: ${tag}`);
+              await exec.exec('git', ['checkout', tag]);
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+            console.log(`Creating latest release with tag: ${tag}`);
       
       - name: Login to Docker Hub
         uses: docker/login-action@v2
