@@ -1,6 +1,12 @@
 name: ci-latest-release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: "string"
+        required: true
   push:
     branches:
       - "main"
@@ -65,11 +71,19 @@ jobs:
       - name: Get release tag
         id: vars
         run: |
-          if [ ${{ github.ref }} == "refs/heads/main" ]; then
-            echo "tag=latest" >> $GITHUB_OUTPUT
+          if [[ ${{ github.event_name }} == "workflow_dispatch" ]]; then
+            # checkout branch but use goreleaser config from latest
+            echo "Checking out tag: ${{ inputs.tag }}"
+            git checkout ${{ inputs.tag }}
+            REF=${{ inputs.tag }}
+            echo "tag=${REF}" >> $GITHUB_OUTPUT
           else
-            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-          fi  
+            if [ ${{ github.ref }} == "refs/heads/main" ]; then
+              echo "tag=latest" >> $GITHUB_OUTPUT
+            else
+              echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+            fi
+          fi 
       
       - name: Login to Docker Hub
         uses: docker/login-action@v2
