@@ -91,6 +91,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
 	Cmd.PersistentFlags().BoolVar(&AnnotateResource, "annotateResource", false, "when true kubearmor annotate k8s resources with apparmor annotation")
 	Cmd.PersistentFlags().BoolVar(&AnnotateExisting, "annotateExisting", false, "when true kubearmor-controller restarts and annotates existing resources, with required annotations")
+
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

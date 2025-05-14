@@ -50,6 +50,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var annotateExisting bool
+	var webhookPort int
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -63,6 +64,7 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.BoolVar(&annotateExisting, "annotateExisting", false,
 		"If 'true', controller will restart and annotate existing resources with required annotations")
+	flag.IntVar(&webhookPort, "webhook-port", 9443, "The address the webhook server binds to.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -88,6 +90,7 @@ func main() {
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: tlsOpts,
+		Port:    webhookPort,
 	})
 
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.

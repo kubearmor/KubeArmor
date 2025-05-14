@@ -1284,10 +1284,6 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
 
-	if secPolicy.Spec.Severity == 0 {
-		secPolicy.Spec.Severity = 1 // the lowest severity, by default
-	}
-
 	switch secPolicy.Spec.Action {
 	case "allow":
 		secPolicy.Spec.Action = "Allow"

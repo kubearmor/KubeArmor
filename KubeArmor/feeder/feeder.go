@@ -704,7 +704,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 			pbAlert.PolicyName = log.PolicyName
 		}
 
-		if len(log.Severity) > 0 {
+		if len(log.Severity) > 0 && log.Severity != "0" {
 			pbAlert.Severity = log.Severity
 		}
 

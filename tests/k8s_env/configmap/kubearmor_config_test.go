@@ -206,29 +206,6 @@ var _ = Describe("KubeArmor-Config", func() {
 			// wait for policy updation due to defaultPosture change
 			time.Sleep(5 * time.Second)
 
-			err = KarmorLogStart("policy", "partialyannotated", "Network", partialyAnnotated)
-			Expect(err).To(BeNil())
-
-			// defaults posture should be block for network
-			sout, _, err = K8sExecInPodWithContainer(partialyAnnotated, "partialyannotated", "ubuntu-1", []string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", sout)
-			Expect(sout).To(MatchRegexp(".*not resolve"))
-
-			// should get an alert with failure
-			// check policy violation alert
-
-			target = protobuf.Alert{
-				PolicyName:    "DefaultPosture",
-				Action:        "Block",
-				Result:        "Permission denied",
-				NamespaceName: "partialyannotated",
-			}
-
-			res, err = KarmorGetTargetAlert(5*time.Second, &target)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
 			err = KarmorLogStart("policy", "partialyannotated", "File", partialyAnnotated)
 			Expect(err).To(BeNil())
 

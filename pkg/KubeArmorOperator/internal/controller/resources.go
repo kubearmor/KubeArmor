@@ -27,6 +27,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func generateDaemonset(name, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string, initDeploy bool) *appsv1.DaemonSet {
@@ -503,6 +504,12 @@ func (clusterWatcher *ClusterWatcher) AreAllNodesProcessed() bool {
 
 func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *appsv1.Deployment) error {
 	deployment = addOwnership(deployment).(*appsv1.Deployment)
+
+	// add port to controller deployment
+	common.ControllerPortLock.Lock()
+	deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
+	UpdateArgsIfDefinedAndUpdated(&deployment.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
+	common.ControllerPortLock.Unlock()
 	if common.IfNodeWithSecurtiyFs {
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{
 			common.SecurityFsLabel: "yes",
@@ -524,6 +531,7 @@ func (clusterWatcher *ClusterWatcher) deployControllerDeployment(deployment *app
 			clusterWatcher.Log.Infof("Updating deployment %s", controller.Name)
 			controller.Spec.Template.Spec.NodeSelector = deployment.Spec.Template.Spec.NodeSelector
 			controller.Spec.Template.Spec.Containers = deployment.Spec.Template.Spec.Containers
+			clusterWatcher.Log.Infoln("updated deployment", controller)
 			_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, metav1.UpdateOptions{})
 			if err != nil {
 				clusterWatcher.Log.Warnf("Cannot update deployment %s, error=%s", deployment.Name, err.Error())
@@ -744,8 +752,11 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 		addOwnership(deployments.GetKubeArmorControllerLeaderElectionRoleBinding(common.Namespace)).(*rbacv1.RoleBinding),
 	}
 
+	kubearmorControllerWebhookSvc := deployments.GetKubeArmorControllerWebhookService(common.Namespace)
+	kubearmorControllerWebhookSvc.Spec.Ports[0].TargetPort = intstr.FromInt(int(common.KubeArmorControllerPort))
 	svcs := []*corev1.Service{
-		addOwnership(deployments.GetKubeArmorControllerWebhookService(common.Namespace)).(*corev1.Service),
+
+		addOwnership(kubearmorControllerWebhookSvc).(*corev1.Service),
 		addOwnership(deployments.GetRelayService(common.Namespace)).(*corev1.Service),
 	}
 	// Install CRDs
@@ -775,12 +786,16 @@ func (clusterWatcher *ClusterWatcher) WatchRequiredResources() {
 	}
 	// kubearmor-controller and relay-server deployments
 	controller := deployments.GetKubeArmorControllerDeployment(common.Namespace)
+
 	relayServer := deployments.GetRelayDeployment(common.Namespace)
 	// update args, imagePullSecrets and tolerations
 	UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, common.KubeArmorControllerArgs)
+
+	// add annotateExisting flag to controller args
 	if annotateExisting {
 		UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"annotateExisting=true"})
 	}
+
 	UpdateImagePullSecretsIfDefinedAndUpdated(&controller.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorControllerImagePullSecrets)
 	UpdateTolerationsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Tolerations, common.KubeArmorControllerTolerations)
 	if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {

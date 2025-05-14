@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 	appsV1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -697,7 +698,7 @@ func ContainerInfo() (*pb.ProbeResponse, error) {
 		gRPC = "localhost:32767"
 	}
 
-	conn, err := grpc.Dial(gRPC, grpc.WithInsecure())
+	conn, err := grpc.NewClient(gRPC, grpc.DialOption(grpc.WithTransportCredentials(insecure.NewCredentials())))
 	if err != nil {
 		return nil, err
 	}

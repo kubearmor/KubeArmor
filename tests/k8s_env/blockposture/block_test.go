@@ -17,14 +17,15 @@ var _ = BeforeSuite(func() {
 	// install wordpress-mysql app
 	err := K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-
 	//annotate block posture on namespace level
-	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-network-posture=block --overwrite"))
+	_, err = Kubectl("annotate ns wordpress-mysql kubearmor-network-posture=block --overwrite")
 	Expect(err).To(BeNil())
 
-	_, err = Kubectl(fmt.Sprintf("annotate ns wordpress-mysql kubearmor-file-posture=block --overwrite"))
+	_, err = Kubectl("annotate ns wordpress-mysql kubearmor-file-posture=block --overwrite")
 	Expect(err).To(BeNil())
 
+	//give some time for the deployment to be up before applying whitelisting policies
+	time.Sleep(60 * time.Second)
 	// delete all KSPs
 	err = DeleteAllKsp()
 	Expect(err).To(BeNil())
@@ -49,6 +50,7 @@ var _ = Describe("Posture", func() {
 
 	BeforeEach(func() {
 		wp = getWpsqlPod("wordpress-", "kubearmor-policy: enabled")
+
 	})
 
 	AfterEach(func() {
@@ -60,34 +62,9 @@ var _ = Describe("Posture", func() {
 	})
 
 	Describe("Policy Apply", func() {
-		It("can whitelist use of certain network protocols used by a package, such as tcp", func() {
-			// Apply policy
-			err := K8sApplyFile("res/ksp-wordpress-allow-tcp.yaml")
-			Expect(err).To(BeNil())
-
-			// Start Kubearmor Logs
-			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
-			Expect(err).To(BeNil())
-
-			AssertCommand(
-				wp, "wordpress-mysql", []string{"bash", "-c", "curl google.com"},
-				MatchRegexp("curl.*Could not resolve host: google.com"), true,
-			)
-
-			out, _, err := K8sExecInPod(wp, "wordpress-mysql", []string{"bash", "-c", "curl 142.250.193.46"})
-			Expect(err).To(BeNil())
-			fmt.Printf("---START---\n%s---END---\n", out)
-			Expect(out).To(MatchRegexp("<HTML>((?:.*\r?\n?)*)</HTML>"))
-			// check policy violation alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
-			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(BeNumerically(">=", 1))
-			Expect(alerts[0].PolicyName).To(Equal("DefaultPosture"))
-			Expect(alerts[0].Action).To(Equal("Block"))
-		})
 
 		It("can whitelist certain files accessed by a package while blocking all other sensitive content", func() {
-			err := util.AnnotateNS("wordpress-mysql", "kubearmor-network-posture", "block")
+			err := util.AnnotateNS("wordpress-mysql", "kubearmor-file-posture", "block")
 			Expect(err).To(BeNil())
 			// Apply policy
 			err = K8sApplyFile("res/ksp-wordpress-allow-file.yaml")

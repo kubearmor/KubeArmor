@@ -31,5 +31,13 @@ if [ "$VERSION_ID" == "18.04" ]; then
     sudo sed -i 's/,metacopy=on//g' /etc/containers/storage.conf
 fi
 
+git clone https://github.com/containernetworking/plugins
+cd plugins
+git checkout $(git tag -l | sort -V | tail -n 1)
+./build_linux.sh # or build_windows.sh
+
+sudo mkdir -p /opt/cni/bin
+sudo cp bin/* /opt/cni/bin/
+
 sudo systemctl daemon-reload
 sudo systemctl start crio.service

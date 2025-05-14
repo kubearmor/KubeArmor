@@ -554,6 +554,8 @@ spec:
                 type: boolean
               throttleSec:
                 type: integer
+              controllerPort:
+                type: integer
               tls:
                 properties:
                   enable:

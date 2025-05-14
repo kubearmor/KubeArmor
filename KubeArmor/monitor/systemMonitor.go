@@ -503,7 +503,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
 	netSyscalls := []string{"tcp_connect"}
-	netRetSyscalls := []string{"inet_csk_accept"}
+	netRetSyscalls := []string{"inet_csk_accept", "tcp_connect"}
 
 	if mon.BpfModule != nil {
 

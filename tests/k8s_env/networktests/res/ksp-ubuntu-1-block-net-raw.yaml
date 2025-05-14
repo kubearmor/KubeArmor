@@ -1,0 +1,15 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-net-raw
+  namespace: multiubuntu
+spec:
+  severity: 8
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  network:
+    matchProtocols:
+    - protocol: raw
+  action:
+    Block

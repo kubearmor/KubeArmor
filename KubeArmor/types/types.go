@@ -558,7 +558,7 @@ type SecuritySpec struct {
 
 	AppArmor string `json:"apparmor,omitempty"`
 
-	Severity int      `json:"severity"`
+	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
 	Action   string   `json:"action"`
@@ -592,7 +592,7 @@ type HostSecuritySpec struct {
 
 	AppArmor string `json:"apparmor,omitempty"`
 
-	Severity int      `json:"severity"`
+	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
 	Action   string   `json:"action"`

@@ -131,7 +131,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-fromsource-dir-recursive",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
@@ -162,7 +161,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-fromsource-path",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
@@ -193,7 +191,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
@@ -221,7 +218,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-file-path",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
@@ -252,7 +248,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-dir-recursive-fromsource-path",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
@@ -280,7 +275,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-dir-recursive-fromsource-recursive-dir",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
@@ -311,7 +305,6 @@ var _ = Describe("Syscalls", func() {
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-dir-recursive-fromsource-dir",
-				Severity:   "1",
 				Action:     "Audit",
 				Result:     "Passed",
 			}
