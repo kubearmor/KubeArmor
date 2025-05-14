@@ -2443,8 +2443,11 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     dport = ntohs(dport);
     if (dport != 53)
         return 0;
-    
-    bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13)
+        bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+    #else
+        bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.iov);
+    #endif
     bpf_probe_read(&data, sizeof(data), &iov.iov_base);
 
     if (len > 512)// MAX_DNS_SIZE
