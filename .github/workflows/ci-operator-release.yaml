@@ -54,7 +54,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const ref = github.context.ref;
+            const ref = context.ref;
             const tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
             core.setOutput("tag", tag);
 
