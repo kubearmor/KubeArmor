@@ -85,6 +85,9 @@ type SyscallContext struct {
 	Cwd  [80]byte
 	TTY  [64]byte
 	OID  uint32
+
+	// exec events
+	ExecID uint64
 }
 
 // ContextCombined Structure
@@ -500,7 +503,7 @@ func (mon *SystemMonitor) InitBPF() error {
 
 	systemCalls := []string{"open", "openat", "execve", "execveat", "socket", "connect", "accept", "bind", "listen", "unlink", "unlinkat", "rmdir", "ptrace", "chown", "setuid", "setgid", "fchownat", "mount", "umount"}
 	// {category, event}
-	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}}
+	sysTracepoints := [][2]string{{"syscalls", "sys_exit_openat"}, {"syscalls", "sys_enter_setns"}, {"syscalls", "sys_exit_setns"}, {"sched", "sched_process_fork"}}
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept", "tcp_connect"}
@@ -837,6 +840,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 						log.Result = "Passed"
 					}
 
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
+					}
+
 					// push the generated log
 					if mon.Logger != nil {
 						go mon.Logger.PushLog(log)
@@ -924,6 +932,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 						}
 					} else {
 						log.Result = "Passed"
+					}
+
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
 					}
 
 					// push the generated log

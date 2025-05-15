@@ -72,7 +72,7 @@ static __always_inline u32 init_mmap_context(mmap_event *event_data) {
 // Force emitting struct mmap_event into the ELF.
 const mmap_event *unused __attribute__((unused));
 
-struct preset_map anon_map_exec_preset_containers SEC(".maps");
+struct preset_map kubearmor_anon_map_exec_preset_containers SEC(".maps");
 
 
 SEC("lsm/mmap_file")
@@ -84,7 +84,7 @@ int BPF_PROG(enforce_mmap_file, struct file *file, unsigned long reqprot,
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  u32 *present = bpf_map_lookup_elem(&anon_map_exec_preset_containers, &okey);
+  u32 *present = bpf_map_lookup_elem(&kubearmor_anon_map_exec_preset_containers, &okey);
 
   if (!present) {
     return 0;

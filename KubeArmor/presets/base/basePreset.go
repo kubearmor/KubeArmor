@@ -61,6 +61,9 @@ type EventPreset struct {
 	Comm [80]byte
 
 	Data InnerKey
+
+	// exec events
+	ExecID uint64
 }
 
 // PresetInterface interface
