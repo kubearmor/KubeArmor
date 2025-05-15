@@ -1,0 +1,22 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  name: csp-matchlabels-in-block-process
+spec:
+  severity: 8
+  selector:
+    matchExpressions:
+      - key: namespace
+        operator: In
+        values:
+          - nginx1
+      - key: label
+        operator: In
+        values:
+          - app=nginx
+          - app=nginx-dev
+  process:
+    matchPaths:
+      - path: /usr/bin/apt
+  action:
+    Block
