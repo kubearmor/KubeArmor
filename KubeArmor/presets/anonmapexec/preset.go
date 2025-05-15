@@ -112,15 +112,13 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return nil, err // Doesn't require clean up so not returning err
 	}
 
-	p.Logger.Printf("Preset Pinpath: %s\n", monitor.PinPath)
-
 	p.BPFContainerMap, _ = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    8,
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "anon_map_exec_preset_containers",
+		Name:       "kubearmor_anon_map_exec_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
@@ -130,7 +128,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 			PinPath: monitor.PinPath,
 		},
 	}); err != nil {
-		p.Logger.Errf("error loading BPF LSM objects: %v", err)
+		p.Logger.Errf("Error loading BPF LSM objects: %v", err)
 		return nil, err
 	}
 
@@ -240,7 +238,7 @@ func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
-	p.Logger.Printf("[AnonMapExec] Registered container with id: %s\n", containerID)
+	p.Logger.Debugf("[AnonMapExec] Registered container with id: %s\n", containerID)
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
@@ -250,32 +248,32 @@ func (p *Preset) UnregisterContainer(containerID string) {
 
 	if val, ok := p.ContainerMap[containerID]; ok {
 		if err := p.DeleteContainerIDFromMap(containerID, val.NsKey); err != nil {
-			p.Logger.Errf("error deleting container %s: %s", containerID, err.Error())
+			p.Logger.Errf("Error deleting container %s: %s", containerID, err.Error())
 			return
 		}
-		p.Logger.Printf("[AnonMapExec] Unregistered container with id: %s\n", containerID)
+		p.Logger.Debugf("[AnonMapExec] Unregistered container with id: %s\n", containerID)
 		delete(p.ContainerMap, containerID)
 	}
 }
 
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
-	p.Logger.Printf("[AnonMapExec] adding container with id to anon_map exec map: %s\n", id)
+	p.Logger.Debugf("[AnonMapExec] adding container with id to anon_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
 		a = base.Audit
 	}
 	if err := p.BPFContainerMap.Put(ckv, a); err != nil {
-		p.Logger.Errf("error adding container %s to outer map: %s", id, err)
+		p.Logger.Errf("Error adding container %s to outer map: %s", id, err)
 		return err
 	}
 	return nil
 }
 
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
-	p.Logger.Printf("[AnonMapExec] deleting container with id to anon_map exec map: %s\n", id)
+	p.Logger.Debugf("[AnonMapExec] deleting container with id to anon_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("error deleting container %s in anon_map_exec_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in kubearmor_anon_map_exec_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
@@ -286,7 +284,6 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	var anonMapExecPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
 		anonMapExecPresetRulePresent = false
-		p.Logger.Printf("Updating container preset rules for %s", cid)
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
 				if preset.Name == tp.AnonMapExec {
@@ -304,7 +301,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
-						p.Logger.Warnf("updating policy for container %s :%s ", cid, err)
+						p.Logger.Warnf("Updating policy for container %s :%s ", cid, err)
 					}
 					p.ContainerMapLock.RUnlock()
 				}
