@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2021 Authors of KubeArmor
 
-// Package filelessexec ...
-package filelessexec
+// Package exec ...
+package exec
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang filelessexec  ../../BPF/filelessexec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang exec  ../../BPF/exec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
 
 import (
 	"bytes"
@@ -27,15 +27,13 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang filelessexec  ../../BPF/filelessexec.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
-
 var (
 	_ base.PresetInterface = (*Preset)(nil)
 )
 
 const (
 	// NAME of preset
-	NAME string = "FilelessExecutionPreset"
+	NAME string = "ExecPreset"
 )
 
 // NsKey struct
@@ -66,11 +64,11 @@ type Preset struct {
 
 	Link link.Link
 
-	obj filelessexecObjects
+	obj execObjects
 }
 
-// NewFilelessExecPreset creates an instance of FilelessExec Preset
-func NewFilelessExecPreset() *Preset {
+// NewExecPreset creates an instance of Exec Preset
+func NewExecPreset() *Preset {
 	p := &Preset{}
 	p.ContainerMap = make(map[string]ContainerVal)
 	p.ContainerMapLock = new(sync.RWMutex)
@@ -82,13 +80,13 @@ func (p *Preset) Name() string {
 	return NAME
 }
 
-// RegisterPreset register FilelessExec preset
+// RegisterPreset register Exec preset
 func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.PresetInterface, error) {
 
 	if logger.Enforcer != "BPFLSM" {
 		// it's based on active enforcer, it might possible that node support bpflsm but
 		// current enforcer is not bpflsm
-		return nil, errors.New("FilelessExecutionPreset not supported if bpflsm not supported")
+		return nil, errors.New("ExecutionPreset not supported if bpflsm not supported")
 	}
 
 	p.Logger = logger
@@ -106,12 +104,12 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "kubearmor_fileless_exec_preset_containers",
+		Name:       "kubearmor_exec_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
 
-	if err := loadFilelessexecObjects(&p.obj, &ebpf.CollectionOptions{
+	if err := loadExecObjects(&p.obj, &ebpf.CollectionOptions{
 		Maps: ebpf.MapOptions{
 			PinPath: monitor.PinPath,
 		},
@@ -120,9 +118,9 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return nil, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.FilelessPresetBprmCheckSecurity})
+	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.ExecPresetBprmCheckSecurity})
 	if err != nil {
-		p.Logger.Errf("opening lsm %s: %s", p.obj.FilelessPresetBprmCheckSecurity.String(), err)
+		p.Logger.Errf("opening lsm %s: %s", p.obj.ExecPresetBprmCheckSecurity.String(), err)
 		return nil, err
 	}
 
@@ -145,7 +143,7 @@ func (p *Preset) TraceEvents() {
 	if p.Events == nil {
 		p.Logger.Err("ringbuf reader is nil, exiting trace events")
 	}
-	p.Logger.Print("Starting TraceEvents from FilelessExec Presets")
+	p.Logger.Print("Starting TraceEvents from Exec Presets")
 	go func() {
 		for {
 
@@ -177,7 +175,10 @@ func (p *Preset) TraceEvents() {
 			continue
 		}
 
-		readLink := true
+		readLink := false
+		if len(string(bytes.Trim(event.Data.Source[:], "\x00"))) == 0 {
+			readLink = true
+		}
 
 		containerID := ""
 
@@ -203,7 +204,6 @@ func (p *Preset) TraceEvents() {
 		}
 
 		log.Operation = "Process"
-
 		log.ExecEvent.ExecID = strconv.FormatUint(event.ExecID, 10)
 		if comm := strings.TrimRight(string(event.Comm[:]), "\x00"); len(comm) > 0 {
 			log.ExecEvent.ExecutableName = comm
@@ -217,29 +217,27 @@ func (p *Preset) TraceEvents() {
 
 		log.Enforcer = base.PRESET_ENFORCER + NAME
 
-		if len(log.Source) == 0 {
-			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
-		}
-
-		// memfd:, /dev/shm/*, /run/shm/*
+		log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 		log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
+		log.ProcessName = log.Resource
+		log.ParentProcessName = log.Source
 
 		p.Logger.PushLog(log)
 
 	}
 }
 
-// RegisterContainer registers a container to filelessexec preset
+// RegisterContainer registers a container to exec preset
 func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 	ckv := NsKey{PidNS: pidns, MntNS: mntns}
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
-	p.Logger.Debugf("[FilelessExec] Registered container with id: %s\n", containerID)
+	p.Logger.Debugf("[Exec] Registered container with id: %s\n", containerID)
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
-// UnregisterContainer func unregisters a container from filelessexec preset
+// UnregisterContainer func unregisters a container from exec preset
 func (p *Preset) UnregisterContainer(containerID string) {
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
@@ -249,14 +247,14 @@ func (p *Preset) UnregisterContainer(containerID string) {
 			p.Logger.Errf("Error deleting container %s: %s", containerID, err.Error())
 			return
 		}
-		p.Logger.Debugf("[FilelessExec] Unregistered container with id: %s\n", containerID)
+		p.Logger.Debugf("[Exec] Unregistered container with id: %s\n", containerID)
 		delete(p.ContainerMap, containerID)
 	}
 }
 
 // AddContainerIDToMap adds a container id to ebpf map
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
-	p.Logger.Debugf("[FilelessExec] adding container with id to fileless_map exec map: %s\n", id)
+	p.Logger.Debugf("[Exec] adding container with id to exec_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
 		a = base.Audit
@@ -270,26 +268,26 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 
 // DeleteContainerIDFromMap deletes a container id from ebpf map
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
-	p.Logger.Debugf("[FilelessExec] deleting container with id to fileless_map exec map: %s\n", id)
+	p.Logger.Debugf("[Exec] deleting container with id to exec_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("Error deleting container %s in kubearmor_fileless_exec_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in exec_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
 	return nil
 }
 
-// UpdateSecurityPolicies updates filelessexec policy for a given endpoint
+// UpdateSecurityPolicies updates exec policy for a given endpoint
 func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
-	var filelessExecPresetRulePresent bool
+	var execPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
-		filelessExecPresetRulePresent = false
+		execPresetRulePresent = false
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
-				if preset.Name == tp.FilelessExec {
-					p.Logger.Printf("Container matched for fileless exec rule: %s", cid)
-					filelessExecPresetRulePresent = true
+				if preset.Name == tp.Exec {
+					p.Logger.Printf("Container matched for exec rule: %s", cid)
+					execPresetRulePresent = true
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
 					ckv, ok := p.ContainerMap[cid]
@@ -312,7 +310,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 				}
 			}
 		}
-		if !filelessExecPresetRulePresent {
+		if !execPresetRulePresent {
 			p.ContainerMapLock.RLock()
 			ckv := p.ContainerMap[cid]
 			_ = p.DeleteContainerIDFromMap(cid, ckv.NsKey)
@@ -321,7 +319,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	}
 }
 
-// Destroy func gracefully destroys filelessexec preset
+// Destroy func gracefully destroys exec preset
 func (p *Preset) Destroy() error {
 	if p == nil {
 		return nil

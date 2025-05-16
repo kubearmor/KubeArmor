@@ -14,7 +14,7 @@ struct {
 // Force emitting struct mmap_event into the ELF.
 const event *unused __attribute__((unused));
 
-struct preset_map fileless_exec_preset_containers SEC(".maps");
+struct preset_map kubearmor_fileless_exec_preset_containers SEC(".maps");
 
 #define MEMFD "memfd:"
 #define RUN_SHM "/run/shm/"
@@ -37,14 +37,14 @@ struct pathname {
 };
 
 SEC("lsm/bprm_check_security")
-int BPF_PROG(enforce_bprm_check_security, struct linux_binprm *bprm){
+int BPF_PROG(fileless_preset_bprm_check_security, struct linux_binprm *bprm){
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  u32 *present = bpf_map_lookup_elem(&fileless_exec_preset_containers, &okey);
+  u32 *present = bpf_map_lookup_elem(&kubearmor_fileless_exec_preset_containers, &okey);
 
   if (!present) {
     return 0;

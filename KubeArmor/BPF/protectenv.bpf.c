@@ -11,10 +11,11 @@ struct {
   __uint(max_entries, 1 << 24);
 } events SEC(".maps");
 
-struct preset_map protectenv_preset_containers SEC(".maps");
+struct preset_map kubearmor_protectenv_preset_containers SEC(".maps");
 
 #define DIR_PROC "/proc/"
 #define FILE_ENVIRON "/environ"
+#define PATH_BUF_SIZE 80
 
 static __always_inline int isProcDir(char *path) {
   return string_prefix_match(path, DIR_PROC, sizeof(DIR_PROC));
@@ -29,14 +30,14 @@ struct pathname {
 };
 
 SEC("lsm/file_open")
-int BPF_PROG(enforce_file, struct file *file) {
+int BPF_PROG(env_preset_enforce_file, struct file *file) {
 
   struct task_struct *t = (struct task_struct *)bpf_get_current_task();
 
   struct outer_key okey;
   get_outer_key(&okey, t);
 
-  u32 *present = bpf_map_lookup_elem(&protectenv_preset_containers, &okey);
+  u32 *present = bpf_map_lookup_elem(&kubearmor_protectenv_preset_containers, &okey);
 
   if (!present) {
     return 0;
@@ -45,15 +46,15 @@ int BPF_PROG(enforce_file, struct file *file) {
   u64 id = bpf_get_current_pid_tgid();
   u32 tgid = id >> 32;
 
-  char path[80];
-  bpf_d_path(&file->f_path, path, 80);
+  char path[PATH_BUF_SIZE] = {};
+  bpf_d_path(&file->f_path, path, sizeof(path));
 
   if (!isProcDir(path)) {
     return 0;
   }
 
   long envpid;
-  int count = bpf_strtol(path + sizeof(DIR_PROC) - 1, 10, 0, &envpid);
+  int count = strtol(path + sizeof(DIR_PROC) - 1, 10, &envpid);
   if (count < 0) {
     return 0;
   }
@@ -64,8 +65,7 @@ int BPF_PROG(enforce_file, struct file *file) {
 
   long pid = get_task_ns_tgid(t);
 
-  if (envpid != pid) {    
-
+  if (envpid != pid) {
     struct pathname path_data = {};
     
     struct file *file_p = get_task_file(t);   
