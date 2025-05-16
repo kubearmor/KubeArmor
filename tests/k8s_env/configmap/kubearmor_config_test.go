@@ -322,7 +322,6 @@ var _ = Describe("KubeArmor-Config", func() {
 			Expect(len(logs)).NotTo(Equal(0))
 
 			// Confirm Resource field is present in logs
-			fmt.Printf("got logs: %+v", logs)
 			for _, log := range logs {
 				Expect(log.Resource).NotTo(Equal(""))
 			}
@@ -352,7 +351,6 @@ var _ = Describe("KubeArmor-Config", func() {
 			Expect(len(logs)).NotTo(Equal(0))
 
 			// Confirm Resource field is dropped in logs
-			fmt.Printf("got logs: %+v", logs)
 			for _, log := range logs {
 				Expect(log.Resource).To(Equal(""))
 			}

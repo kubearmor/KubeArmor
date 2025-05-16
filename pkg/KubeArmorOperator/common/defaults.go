@@ -94,7 +94,6 @@ var (
 	ConfigMaxAlertPerSec              string = "maxAlertPerSec"
 	ConfigThrottleSec                 string = "throttleSec"
 	ConfigEnableNRI                   string = "enableNRI"
-	ConfigArgMatching                 string = "matchArgs"
 	ConfigDropResourceFromProcessLogs string = "dropResourceFromProcessLogs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
@@ -221,7 +220,6 @@ var ConfigMapData = map[string]string{
 	ConfigAlertThrottling:             "true",
 	ConfigMaxAlertPerSec:              "10",
 	ConfigThrottleSec:                 "30",
-	ConfigArgMatching:                 "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
