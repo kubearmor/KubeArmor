@@ -11,7 +11,7 @@ replace (
 require (
 	github.com/clarketm/json v1.17.1
 	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250328055045-3c18ec1c3403
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250328055045-3c18ec1c3403
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController 89a69a9a1bcf
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	sigs.k8s.io/yaml v1.4.0
