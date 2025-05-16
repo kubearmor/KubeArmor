@@ -117,6 +117,8 @@ type KubeArmorConfigSpec struct {
 
 	EnableNRI bool `json:"enableNRI,omitempty"`
 
+	DropResourceFromProcessLogs bool `json:"dropResourceFromProcessLogs,omitempty"`
+
 	ControllerPort int `json:"controllerPort,omitempty"`
 }
 
