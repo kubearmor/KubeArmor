@@ -34,7 +34,7 @@ require (
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250328055045-3c18ec1c3403
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController 89a69a9a1bcf
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250328055045-3c18ec1c3403
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/viper v1.20.1
