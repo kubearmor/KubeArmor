@@ -124,7 +124,6 @@ const (
 	ConfigThrottleSec                    string = "throttleSec"
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
-	ConfigArgMatching                    string = "matchArgs"
 	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"

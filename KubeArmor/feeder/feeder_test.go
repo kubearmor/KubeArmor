@@ -247,6 +247,7 @@ func TestMarshalVisibilityLog(t *testing.T) {
 		PPID:              914,
 		ParentProcessName: "/usr/bin/dockerd",
 		ProcessName:       "/usr/bin/runc",
+		ExecEvent:         tp.ExecEvent{},
 	}
 
 	expectedMarshaledLog := &pb.Log{
@@ -263,6 +264,7 @@ func TestMarshalVisibilityLog(t *testing.T) {
 		PPID:              914,
 		ParentProcessName: "/usr/bin/dockerd",
 		ProcessName:       "/usr/bin/runc",
+		ExecEvent:         &pb.ExecEvent{},
 	}
 
 	t.Run("WithResource", func(t *testing.T) {
