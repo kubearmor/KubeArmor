@@ -63,7 +63,7 @@ int BPF_PROG(enforce_file, struct file *file) {
   bpf_map_delete_elem(&proc_file_access, &id);
 
   long procpid;
-  int count = bpf_strtol(path + sizeof(DIR_PROC) - 1, 10, 0, &procpid);
+  int count = strtol(path + sizeof(DIR_PROC) - 1, 10, &procpid);
   if (count < 0) {
     return 0;
   }
