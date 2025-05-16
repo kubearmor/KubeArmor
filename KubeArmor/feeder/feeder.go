@@ -577,8 +577,8 @@ func MarshalVisibilityLog(log tp.Log) *pb.Log {
 	pbLog.Cwd = log.Cwd
 
 	pbLog.ExecEvent = &pb.ExecEvent{
-		ExecID:         log.ExecEvent.ExecID,
-		ExecutableName: log.ExecEvent.ExecutableName,
+		ExecID:			log.ExecEvent.ExecID,
+		ExecutableName:	log.ExecEvent.ExecutableName,
 	}
 
 	if len(log.Data) > 0 {
