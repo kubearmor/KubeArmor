@@ -75,6 +75,8 @@ jobs:
           script: |
             let tag;
             if (context.eventName === 'workflow_dispatch') {
+              // Fetch tags from remote
+              await exec.exec('git', ['fetch', '--tags']);
               tag = context.payload.inputs.tag;
               core.info(`Checking out tag: ${tag}`);
               await exec.exec('git', ['checkout', tag]);
@@ -202,12 +204,18 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const ref = context.ref;
-            const tag = ref === "refs/heads/main"
-              ? "latest"
-              : ref.replace(/^refs\/[^/]+\//, "");
-            core.setOutput("tag", tag);
-        
-
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              // Fetch tags from remote
+              await exec.exec('git', ['fetch', '--tags']);
+              tag = context.payload.inputs.tag;
+              core.info(`Checking out tag: ${tag}`);
+              await exec.exec('git', ['checkout', tag]);
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+      
       - name: Build & Push KubeArmorController
         run: make docker-buildx TAG=${{ steps.tag.outputs.tag }}
