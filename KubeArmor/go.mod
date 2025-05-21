@@ -20,7 +20,6 @@ replace (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
-
 )
 
 require (
@@ -28,7 +27,7 @@ require (
 	github.com/cilium/cilium v1.17.2
 	github.com/cilium/ebpf v0.18.0
 	github.com/containerd/containerd/api v1.8.0
-	github.com/containerd/containerd/v2 v2.0.4
+	github.com/containerd/containerd/v2 v2.0.5
 	github.com/containerd/nri v0.9.0
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/docker/docker v28.0.4+incompatible
