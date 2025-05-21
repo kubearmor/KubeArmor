@@ -7,20 +7,12 @@ ModelArmor can be used to enforce security policies on the model execution envir
 ## **TensorFlow Based Use Cases**
 
 ### FGSM Attack on a TensorFlow Model
-
-<iframe src="https://drive.google.com/file/d/1EnmsIiR4G4bYmoxBIHTk1bDkW2XatM4N/preview" width="1000" height="480" allow="autoplay"></iframe>
+[▶️ Watch FGSM Attack Video](https://drive.google.com/file/d/1EnmsIiR4G4bYmoxBIHTk1bDkW2XatM4N/preview)
 
 ### Keras Inject Attack and Apply Policies
+[▶️ Watch Keras Inject Video](https://drive.google.com/file/d/1olGBz3WUoJqmcAVdRY7uImKTHggRX6nK/preview)
 
-<iframe src="https://drive.google.com/file/d/1olGBz3WUoJqmcAVdRY7uImKTHggRX6nK/preview" width="1000" height="480" allow="autoplay"></iframe>
+---
 
 ## **Securing NVIDIA NIM**
-
-<div>
-  <iframe id="inlineFrameManual"
-      title="Inline Frame Manual"
-      width="150%"
-      height="850"
-      src="/resources/Securing_NVIDIA_NIM.pdf">
-  </iframe>
-</div>
+📄 [View PDF: Securing_NVIDIA_NIM.pdf](https://drive.google.com/file/d/16DjsSyOAWr1S4EwSTBSx63SLDHPFnSAh/preview)
