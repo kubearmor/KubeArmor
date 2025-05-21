@@ -1,6 +1,12 @@
 name: ci-release-operator
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: "string"
+        required: true
   push:
     branches:
       - "main"
@@ -51,12 +57,20 @@ jobs:
       
       - name: Get Tag
         id: vars
-        run: |
-          if [ ${{ github.ref }} == "refs/heads/main" ]; then
-            echo "tag=latest" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              tag = context.payload.inputs.tag;
+              core.info(`Checking out tag: ${tag}`);
+              await exec.exec('git', ['checkout', tag]);
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+            console.log(`Creating operator release with tag: ${tag}`);
 
       - name: Build & Push KubeArmor Operator
         working-directory: ./pkg/KubeArmorOperator

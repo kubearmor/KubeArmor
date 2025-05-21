@@ -11,7 +11,7 @@ metadata:
   name: [policy name]
 
 spec:
-  severity: [1-10]                         # --> optional (1 by default)
+  severity: [1-10]                         # --> optional 
   tags: ["tag", ...]                       # --> optional
   message: [message]                       # --> optional
 

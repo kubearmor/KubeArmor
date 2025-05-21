@@ -230,6 +230,8 @@ typedef struct __attribute__((__packed__)) sys_context
     char cwd[CWD_LEN];
     char tty[TTY_LEN];
     u32 oid; // owner id
+    // exec event will have non-zero execID
+    u64 exec_id;
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
@@ -352,6 +354,20 @@ struct kaconfig
 };
 
 struct kaconfig kubearmor_config SEC(".maps");
+
+// exec maps
+BPF_LRU_HASH(ns_transition, u32, struct outer_key);
+
+struct exec_pid_map
+{
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u32);
+    __type(value, u64);
+    __uint(max_entries, 10240);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 // == Kernel Helpers == //
 
@@ -1001,10 +1017,12 @@ static __always_inline u32 init_context(sys_context_t *context)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
+    __builtin_memset((void *)&context->exec_id, 0, sizeof(context->exec_id));
     context->ts = bpf_ktime_get_ns();
 
     context->host_ppid = get_task_ppid(task);
-    context->host_pid = bpf_get_current_pid_tgid() >> 32;
+    __u32 host_pid = bpf_get_current_pid_tgid() >> 32;
+    context->host_pid = host_pid;
 
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid)
@@ -1022,6 +1040,12 @@ static __always_inline u32 init_context(sys_context_t *context)
 
         context->ppid = get_task_ns_ppid(task);
         context->pid = pid;
+        
+        // check if process is part of exec
+        u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
+        if (exec_id) {
+            context->exec_id = *exec_id;
+        }
     }
 
     context->uid = bpf_get_current_uid_gid();
@@ -1141,6 +1165,71 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
 #endif
     return false; 
+}
+
+// ==== Container Exec Events ====
+
+SEC("tracepoint/syscalls/sys_enter_setns")
+int sys_enter_setns(struct trace_event_raw_sys_enter *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+
+    struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+    struct outer_key data = {};
+    data.pid_ns = get_task_pid_ns_id(t);
+    data.mnt_ns = get_task_mnt_ns_id(t);
+
+    bpf_map_update_elem(&ns_transition, &pid, &data, BPF_ANY);
+    
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_setns")
+int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+
+    struct outer_key *pre_ns_data;
+    
+    pre_ns_data = bpf_map_lookup_elem(&ns_transition, &pid);
+    if (!pre_ns_data)
+        return 0;
+    
+    struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+    u32 new_pid_ns = get_task_pid_ns_id(t);
+    u32 new_mnt_ns = get_task_mnt_ns_id(t);
+    
+    if (pre_ns_data->mnt_ns != new_mnt_ns || 
+        pre_ns_data->pid_ns != new_pid_ns ) {
+        
+        struct outer_key key = {};
+        key.mnt_ns = new_mnt_ns;
+        key.pid_ns = new_pid_ns;
+        
+        u32 *matches = bpf_map_lookup_elem(&kubearmor_visibility, &key);
+        u64 exec_id = bpf_ktime_get_ns() | pid;
+        if (matches) {   
+          bpf_map_update_elem(&kubearmor_exec_pids, &pid, &exec_id, BPF_ANY);
+        }
+
+    }
+    bpf_map_delete_elem(&ns_transition, &pid);
+    return 0;
+}
+
+SEC("tracepoint/sched/sched_process_fork")
+int sched_process_fork(struct trace_event_raw_sched_process_fork *ctx)
+{
+    u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
+    u32 child_pid = ctx->child_pid;
+    
+    u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
+    if (exists) {
+        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, exists, BPF_ANY);
+    }
+
+    return 0;
 }
 
 SEC("kprobe/security_path_mknod")
@@ -1471,6 +1560,9 @@ int kprobe__do_exit(struct pt_regs *ctx)
 
     // delete entry for file access which are not successful and are not deleted from file_map since kretprobe/__x64_sys_openat hook is not triggered
     bpf_map_delete_elem(&file_map, &tgid);
+
+    // delete entry for exec (host) pid
+    bpf_map_delete_elem(&kubearmor_exec_pids, &tgid);
 
     sys_context_t context = {};
 

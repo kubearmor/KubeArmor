@@ -1,6 +1,12 @@
 name: ci-latest-release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag which has to be updated"
+        type: "string"
+        required: true
   push:
     branches:
       - "main"
@@ -64,12 +70,22 @@ jobs:
 
       - name: Get release tag
         id: vars
-        run: |
-          if [ ${{ github.ref }} == "refs/heads/main" ]; then
-            echo "tag=latest" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-          fi  
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              // Fetch tags from remote
+              await exec.exec('git', ['fetch', '--tags']);
+              tag = context.payload.inputs.tag;
+              core.info(`Checking out tag: ${tag}`);
+              await exec.exec('git', ['checkout', tag]);
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+            console.log(`Creating latest release with tag: ${tag}`);
       
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -128,13 +144,15 @@ jobs:
 
       - name: Get tag
         id: match
-        run: |
-          value=`cat STABLE-RELEASE`
-          if [ ${{ github.ref }} == "refs/heads/$value" ]; then
-            echo "tag=true" >> $GITHUB_OUTPUT
-          else
-            echo "tag=false" >> $GITHUB_OUTPUT
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const stableBranch = fs.readFileSync('STABLE-RELEASE', 'utf8').trim();
+            const ref = context.ref;
+            const isMatch = ref === `refs/heads/${stableBranch}`;
+            core.setOutput('tag', isMatch.toString());
+      
 
       - name: Login to Docker Hub
         if: steps.match.outputs.tag == 'true'
@@ -183,12 +201,21 @@ jobs:
 
       - name: Get tag
         id: tag
-        run: |
-          if [ ${{ github.ref }} == "refs/heads/main" ]; then
-            echo "tag=latest" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
-          fi
-
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let tag;
+            if (context.eventName === 'workflow_dispatch') {
+              // Fetch tags from remote
+              await exec.exec('git', ['fetch', '--tags']);
+              tag = context.payload.inputs.tag;
+              core.info(`Checking out tag: ${tag}`);
+              await exec.exec('git', ['checkout', tag]);
+            } else {
+              const ref = context.ref;
+              tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+            }
+            core.setOutput('tag', tag);
+      
       - name: Build & Push KubeArmorController
         run: make docker-buildx TAG=${{ steps.tag.outputs.tag }}

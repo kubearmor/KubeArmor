@@ -10,6 +10,8 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -23,7 +25,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang protectenv  ../../BPF/protectenv.bpf.c -type pevent -no-global-types -- -I/usr/include/ -O2 -g
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang protectenv  ../../BPF/protectenv.bpf.c -type event -no-global-types -- -I/usr/include/ -O2 -g
 
 var (
 	_ base.PresetInterface = (*Preset)(nil)
@@ -82,6 +84,12 @@ func (p *Preset) Name() string {
 // otherwise returns an error
 func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (base.PresetInterface, error) {
 
+	if logger.Enforcer != "BPFLSM" {
+		// it's based on active enforcer, it might possible that node support bpflsm but
+		// current enforcer is not bpflsm
+		return nil, errors.New("FilelessExecutionPreset not supported if bpflsm not supported")
+	}
+
 	p.Logger = logger
 	p.Monitor = monitor
 	var err error
@@ -97,7 +105,7 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "protectenv_preset_containers",
+		Name:       "kubearmor_protectenv_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
@@ -107,13 +115,13 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 			PinPath: monitor.PinPath,
 		},
 	}); err != nil {
-		p.Logger.Errf("error loading BPF LSM objects: %v", err)
+		p.Logger.Errf("Error loading BPF LSM objects: %v", err)
 		return p, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceFile})
+	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnvPresetEnforceFile})
 	if err != nil {
-		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceFile.String(), err)
+		p.Logger.Errf("opening lsm %s: %s", p.obj.EnvPresetEnforceFile.String(), err)
 		return p, err
 	}
 
@@ -198,6 +206,11 @@ func (p *Preset) TraceEvents() {
 
 		log.Operation = "File"
 
+		log.ExecEvent.ExecID = strconv.FormatUint(event.ExecID, 10)
+		if comm := strings.TrimRight(string(event.Comm[:]), "\x00"); len(comm) > 0 {
+			log.ExecEvent.ExecutableName = comm
+		}
+
 		if event.Retval >= 0 {
 			log.Result = "Passed"
 		} else {
@@ -223,7 +236,7 @@ func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
-	p.Logger.Printf("[ProtectEnv] Registered container with id: %s\n", containerID)
+	p.Logger.Debugf("[ProtectEnv] Registered container with id: %s\n", containerID)
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
@@ -234,10 +247,10 @@ func (p *Preset) UnregisterContainer(containerID string) {
 
 	if val, ok := p.ContainerMap[containerID]; ok {
 		if err := p.DeleteContainerIDFromMap(containerID, val.NsKey); err != nil {
-			p.Logger.Errf("error deleting container %s: %s", containerID, err.Error())
+			p.Logger.Errf("Error deleting container %s: %s", containerID, err.Error())
 			return
 		}
-		p.Logger.Printf("[ProtectEnv] Unregistered container with id: %s\n", containerID)
+		p.Logger.Debugf("[ProtectEnv] Unregistered container with id: %s\n", containerID)
 		delete(p.ContainerMap, containerID)
 	}
 }
@@ -250,7 +263,7 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 		a = base.Audit
 	}
 	if err := p.BPFContainerMap.Put(ckv, a); err != nil {
-		p.Logger.Errf("error adding container %s to outer map: %s", id, err)
+		p.Logger.Errf("Error adding container %s to outer map: %s", id, err)
 		return err
 	}
 	return nil
@@ -258,10 +271,10 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 
 // DeleteContainerIDFromMap deletes a container id from ebpf map
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
-	p.Logger.Printf("[ProtectEnv] deleting container with id to protectEnv_map exec map: %s\n", id)
+	p.Logger.Debugf("[ProtectEnv] deleting container with id to protectEnv_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("error deleting container %s in protectenv_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in kubearmor_protectenv_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
@@ -273,11 +286,10 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	var protectEnvPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
 		protectEnvPresetRulePresent = false
-		p.Logger.Printf("Updating container preset rules for %s", cid)
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
 				if preset.Name == tp.ProtectEnv {
-					p.Logger.Printf("container matched for protectEnv rule: %s", cid)
+					p.Logger.Printf("Container matched for protectEnv rule: %s", cid)
 					protectEnvPresetRulePresent = true
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
@@ -286,7 +298,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					if !ok {
 						// It maybe possible that CRI has unregistered the containers but K8s construct still has not sent this update while the policy was being applied,
 						// so the need to check if the container is present in the map before we apply policy.
-						p.Logger.Warnf("container not registered in map: %s", cid)
+						p.Logger.Warnf("Container not registered in map: %s", cid)
 
 						return
 					}
@@ -295,7 +307,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
-						p.Logger.Warnf("updating policy for container %s :%s ", cid, err)
+						p.Logger.Errf("Updating policy for container %s :%s ", cid, err)
 					}
 					p.ContainerMapLock.Unlock()
 				}
