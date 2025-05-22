@@ -89,6 +89,8 @@ spec:
                 type: string
               defaultVisibility:
                 type: string
+              dropResourceFromProcessLogs:
+                type: boolean
               enableNRI:
                 type: boolean
               enableStdOutAlerts:
