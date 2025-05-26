@@ -991,7 +991,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					continue
 				}
 			} else if ctx.EventID == UDPSendMsg {
-				if len(args) != 1 {
+				if len(args) != 3 {
 					continue
 				}
 			}
