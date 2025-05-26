@@ -41,6 +41,7 @@ const (
 	mountFlagT    uint8 = 24
 	umountFlagT   uint8 = 25
 	udpMsg        uint8 = 26
+	qtype         uint8 = 27
 )
 
 // ======================= //
@@ -199,6 +200,13 @@ func readSockaddrFromBuff(buff io.Reader) (map[string]string, error) {
 			return nil, fmt.Errorf("error parsing sockaddr_in: %v", err)
 		}
 		res["sin_addr"] = readUint32IP(addr)
+
+		// https://elixir.bootlin.com/linux/v4.15/source/include/uapi/linux/in.h#L238
+		// Discard sin_zero (8 bytes padding)
+		_, err = readByteSliceFromBuff(buff, 8)
+		if err != nil {
+			return nil, fmt.Errorf("error skipping sin_zero padding: %v", err)
+		}
 	case 10: // AF_INET6
 		// https://man7.org/linux/man-pages/man7/ipv6.7.html
 		port, err := readUInt16BigendFromBuff(buff)
@@ -1079,6 +1087,11 @@ func readArgFromBuff(dataBuff io.Reader) (interface{}, error) {
 		res = GetSocketType(t)
 	case udpMsg:
 		res, err = readStringFromBuff(dataBuff)
+		if err != nil {
+			return nil, err
+		}
+	case qtype:
+		res, err = readUInt16BigendFromBuff(dataBuff)
 		if err != nil {
 			return nil, err
 		}

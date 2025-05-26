@@ -93,6 +93,7 @@
 #define MOUNT_FLAG_T 24UL
 #define UMOUNT_FLAG_T 25UL
 #define UDP_MSG 26UL
+#define QTYPE 27UL
 
 #define MAX_LABELS 10  // max labels in domain name
 #define MAX_LABEL_LEN 63
@@ -310,8 +311,8 @@ typedef struct buffers
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 4);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 4);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -613,6 +614,7 @@ static __always_inline u32 skip_syscall()
 #define EXEC_BUF_TYPE 1
 #define FILE_BUF_TYPE 2
 #define CWD_BUF_TYPE 3
+#define DNS_BUF_TYPE 4
 
 static __always_inline bufs_t *get_buffer(int buf_type)
 {
@@ -812,7 +814,7 @@ static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
 
-static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
+static __always_inline int save_to_buffer(bufs_t *bufs_p, int buf_type, void *ptr, int size, u8 type)
 {
 // the biggest element that can be saved with this function should be defined here
 #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
@@ -822,7 +824,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    u32 *off = get_buffer_offset(buf_type);
     if (off == NULL)
     {
         return -1;
@@ -848,7 +850,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
     if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
     {
         *off += size;
-        set_buffer_offset(DATA_BUF_TYPE, *off);
+        set_buffer_offset(buf_type, *off);
         return size;
     }
 
@@ -870,7 +872,7 @@ static __always_inline int save_argv(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr)
 {
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, NULL, 0, STR_ARR_T);
 
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
@@ -885,7 +887,7 @@ static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __u
     save_str_to_buffer(bufs_p, (void *)ellipsis);
 
 out:
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, NULL, 0, STR_ARR_T);
 
     return 0;
 }
@@ -911,31 +913,31 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         case NONE_T:
             break;
         case INT_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), INT_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), INT_T);
             break;
         case OPEN_FLAGS_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
             break;
         case FILE_TYPE_T:
             save_file_to_buffer(bufs_p, (void *)args->args[i]);
             break;
         case PTRACE_REQ_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), PTRACE_REQ_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), PTRACE_REQ_T);
             break;
         case MOUNT_FLAG_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);
             break;
         case UMOUNT_FLAG_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);
             break;
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;
         case SOCK_DOM_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), SOCK_DOM_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), SOCK_DOM_T);
             break;
         case SOCK_TYPE_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
             break;
         case SOCKADDR_T:
             if (args->args[i])
@@ -945,21 +947,21 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
                 switch (family)
                 {
                 case AF_UNIX:
-                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
                     break;
                 case AF_INET:
-                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
                     break;
                 case AF_INET6:
-                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
                     break;
                 default:
-                    save_to_buffer(bufs_p, (void *)&family, sizeof(short), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&family, sizeof(short), SOCKADDR_T);
                 }
             }
             break;
         case UNLINKAT_FLAG_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
             break;
         }
     }
@@ -967,9 +969,11 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
-static __always_inline int save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base, u8 type) {
-#define MAX_DNS_Q_NAME_SIZE 255
-    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+static __always_inline int save_dns_data_to_dns_buffer(bufs_t *bufs_p, void *base, u8 type) {
+// |  1B  |      4B     | 255B  |  1B  |   2B  |    
+// | TYPE | SIZE_OF_INT | QNAME | TYPE | QTYPE | 
+#define MAX_DNS_Q_NAME_SIZE 264
+    u32 *off = get_buffer_offset(DNS_BUF_TYPE);
     if (off == NULL)
     {
         return -1;
@@ -1009,7 +1013,7 @@ static __always_inline int save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base,
     for (int i = 0; i < MAX_LABELS; i++) {
         u8 len = 0;
         if (bpf_probe_read(&len, sizeof(len), base + offset) < 0)
-            return 0;
+            return -1;
 
         if (len == 0) {
             if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
@@ -1018,22 +1022,22 @@ static __always_inline int save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base,
         }
 
         if (len > MAX_LABEL_LEN)
-            return 0;
+            return -1;
         
         if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
         {
-            return 0;
+            return -1;
         }
 
         if (bpf_probe_read(&bufs_p->buf[*off], len, base + offset + 1) < 0)
-            return 0;
+            return -1;
 
         *off += len;
         if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE){
             bufs_p->buf[*off] = 0x2E; // "." char
             *off += 1;
         }
-        set_buffer_offset(DATA_BUF_TYPE, *off);
+        set_buffer_offset(DNS_BUF_TYPE, *off);
         offset += len + 1;
     }
 
@@ -1047,16 +1051,36 @@ static __always_inline int save_dns_q_name_to_buffer(bufs_t *bufs_p, void *base,
         return -1;
     }
 
+    // setting offset to next byte to null char
+    *off += 1;
+
+    if (*off > MAX_BUFFER_SIZE - 1)
+        return -1;
+    
+    __u8 qtype = QTYPE; 
+    // type for qtype
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &qtype) < 0)
+        return -1;
+    
+    *off += 1;
+    if (*off > MAX_BUFFER_SIZE - 2)
+        return -1;
+
+    // write qtype to buffer
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 2, base + offset + 1) < 0)
+        return -1;
+    *off += 2;    
+    set_buffer_offset(DNS_BUF_TYPE, *off);
     return 0;
 }
 
-static __always_inline int events_perf_submit(struct pt_regs *ctx)
+static __always_inline int events_perf_submit(struct pt_regs *ctx, int buf_type)
 {
-    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    bufs_t *bufs_p = get_buffer(buf_type);
     if (bufs_p == NULL)
         return -1;
 
-    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    u32 *off = get_buffer_offset(buf_type);
     if (off == NULL)
         return -1;
 
@@ -1255,7 +1279,7 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
             save_args_to_buffer(types, args);
         }
 
-        events_perf_submit(ctx);
+        events_perf_submit(ctx, DATA_BUF_TYPE);
         return true; 
     }
 
@@ -1414,7 +1438,7 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
     save_context_to_buffer(bufs_p, (void *)&context);
     save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1478,7 +1502,7 @@ int kprobe__execve(struct pt_regs *ctx)
     save_str_to_buffer(bufs_p, filename);
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1530,7 +1554,7 @@ int kretprobe__execve(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1584,12 +1608,12 @@ int kprobe__execveat(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    save_to_buffer(bufs_p, (void *)&dirfd, sizeof(int), INT_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&dirfd, sizeof(int), INT_T);
     save_str_to_buffer(bufs_p, (void *)pathname);
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
-    save_to_buffer(bufs_p, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1642,7 +1666,7 @@ int kretprobe__execveat(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1687,7 +1711,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1823,7 +1847,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
     return 0;
 }
 
@@ -2138,7 +2162,7 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &orig_args);
 
-    events_perf_submit((struct pt_regs *)args);
+    events_perf_submit((struct pt_regs *)args, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -2327,7 +2351,7 @@ int kretprobe__tcp_connect(struct pt_regs *ctx)
         return 0;
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -2413,7 +2437,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -2457,7 +2481,8 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     args_t args = {};
     u64 types = 0;
     init_context(&context);
-    context.argnum = 1;
+    context.argnum = 3;
+    // Presuming the success event
     context.retval = 0;
     context.event_id = _UDP_SENDMSG;
 
@@ -2472,13 +2497,26 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
         return 0;
     }
 
-    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
-    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    set_buffer_offset(DNS_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
     if (bufs_p == NULL)
         return 0;
     save_context_to_buffer(bufs_p, (void *)&context);
-    save_dns_q_name_to_buffer(bufs_p, data, UDP_MSG);
-    events_perf_submit(ctx);
+
+    // get socket info
+    struct sock_common conn = READ_KERN(sk->__sk_common);
+    // udp_sendmsg operates on AF_INET socket
+    struct sockaddr_in sockv4;
+    sockv4.sin_family = conn.skc_family;
+    sockv4.sin_addr.s_addr = conn.skc_daddr;
+    sockv4.sin_port = dport;
+
+    // save socket, domain-name(QNAME) and query-type (QTYPE) as args
+    save_to_buffer(bufs_p, DNS_BUF_TYPE, (void *)&sockv4, sizeof(struct sockaddr_in), SOCKADDR_T);
+    // save_to_dns_buffer(bufs_p, (void *)&sockv4, sizeof(struct sockaddr_in), SOCKADDR_T);
+    save_dns_data_to_dns_buffer(bufs_p, data, UDP_MSG);
+    // dns_events_perf_submit(ctx, DATA_BUF_TYPE);
+    events_perf_submit(ctx, DNS_BUF_TYPE);
     return 0;
 }
 
