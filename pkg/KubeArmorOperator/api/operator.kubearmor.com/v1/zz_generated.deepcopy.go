@@ -155,11 +155,6 @@ func (in *KubeArmorConfigList) DeepCopyObject() runtime.Object {
 func (in *KubeArmorConfigSpec) DeepCopyInto(out *KubeArmorConfigSpec) {
 	*out = *in
 	in.RecommendedPolicies.DeepCopyInto(&out.RecommendedPolicies)
-	out.KubeArmorImage = in.KubeArmorImage
-	out.KubeArmorInitImage = in.KubeArmorInitImage
-	out.KubeArmorRelayImage = in.KubeArmorRelayImage
-	out.KubeArmorControllerImage = in.KubeArmorControllerImage
-	out.KubeRbacProxyImage = in.KubeRbacProxyImage
 	if in.GloabalImagePullSecrets != nil {
 		in, out := &in.GloabalImagePullSecrets, &out.GloabalImagePullSecrets
 		*out = make([]corev1.LocalObjectReference, len(*in))
@@ -211,7 +206,7 @@ func (in *RecommendedPolicies) DeepCopyInto(out *RecommendedPolicies) {
 	*out = *in
 	if in.MatchExpressions != nil {
 		in, out := &in.MatchExpressions, &out.MatchExpressions
-		*out = make([]security_kubearmor_comv1.MatchExpressionsType, len(*in))
+		*out = make([]security_kubearmor_comv1.ClusterMatchExpressionsType, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

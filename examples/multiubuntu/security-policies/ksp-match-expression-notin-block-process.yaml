@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-match-expression-notin-block-process
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block execution of a matching binary name"
+  selector:
+    matchExpressions:
+      - key: label
+        operator: NotIn
+        values: 
+          - container=ubuntu-1
+  process:
+    matchPaths:
+    - execname: apt
+  action:
+    Block
