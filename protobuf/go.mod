@@ -3,6 +3,7 @@ module github.com/kubearmor/KubeArmor/protobuf
 go 1.24.3
 
 replace (
+	github.com/go-jose/go-jose/v4 => github.com/go-jose/go-jose/v4 v4.0.5
 	github.com/kubearmor/KubeArmor => ../
 	github.com/kubearmor/KubeArmor/protobuf => ./
 	github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.18
