@@ -76,7 +76,7 @@ kubeRbacProxy:
     # kube-rbac-proxy image repo
     repository: gcr.io/kubebuilder/kube-rbac-proxy
     # kube-rbac-proxy image tag
-    tag: v0.15.0
+    tag: v0.16.0
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
     imagePullSecrets: ""
   # kube-rbac-proxy imagePullPolicy
