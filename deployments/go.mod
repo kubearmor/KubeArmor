@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/deployments
 
-go 1.24.2
+go 1.24.3
 
 replace (
 	github.com/kubearmor/KubeArmor => ../
@@ -10,10 +10,10 @@ replace (
 
 require (
 	github.com/clarketm/json v1.17.1
-	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250328055045-3c18ec1c3403
-	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250328055045-3c18ec1c3403
-	k8s.io/api v0.32.3
-	k8s.io/apimachinery v0.32.3
+	github.com/kubearmor/KubeArmor/KubeArmor v0.0.0-20250526061550-bac6deab5fa8
+	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250526061550-bac6deab5fa8
+	k8s.io/api v0.33.1
+	k8s.io/apimachinery v0.33.1
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -31,21 +31,22 @@ require (
 	github.com/sagikazarmark/locafero v0.9.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.14.0 // indirect
-	github.com/spf13/cast v1.7.1 // indirect
+	github.com/spf13/cast v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.32.3 // indirect
+	k8s.io/apiextensions-apiserver v0.33.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e // indirect
+	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
+	sigs.k8s.io/randfill v1.0.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 )
