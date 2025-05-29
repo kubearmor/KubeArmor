@@ -2839,6 +2839,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
 				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
+				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
 				dm.NodeLock.Lock()
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
 				dm.NodeLock.Unlock()
@@ -2888,6 +2889,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
 				cfg.GlobalCfg.Cluster = cm.Data[cfg.ConfigCluster]
+				cfg.GlobalCfg.DropResourceFromProcessLogs = (cm.Data[cfg.ConfigDropResourceFromProcessLogs] == "true")
 				dm.Node.ClusterName = cm.Data[cfg.ConfigCluster]
 				if _, ok := cm.Data[cfg.ConfigDefaultPostureLogs]; ok {
 					cfg.GlobalCfg.DefaultPostureLogs = (cm.Data[cfg.ConfigDefaultPostureLogs] == "true")

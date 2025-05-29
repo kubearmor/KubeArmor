@@ -5,11 +5,10 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
-
-	"flag"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	"github.com/spf13/viper"
@@ -65,6 +64,8 @@ type KubearmorConfig struct {
 	AnnotateResources bool  // enable annotations by kubearmor if kubearmor-controller is not present
 
 	ProcFsMount string // path where procfs is hosted
+
+	DropResourceFromProcessLogs bool // optionally drop resource field from process logs
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -114,6 +115,7 @@ const (
 	ConfigThrottleSec                    string = "throttleSec"
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
+	ConfigDropResourceFromProcessLogs    string = "dropResourceFromProcessLogs"
 )
 
 func readCmdLineParams() {
@@ -174,6 +176,8 @@ func readCmdLineParams() {
 	annotateResources := flag.Bool(ConfigAnnotateResources, false, "for kubearmor deployment without kubearmor-controller")
 
 	procFsMount := flag.String(ConfigProcFsMount, "/proc", "Path to the BPF filesystem to use for storing maps")
+
+	dropResourceFromProcessLogs := flag.Bool(ConfigDropResourceFromProcessLogs, false, "drop resource field from process logs")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -241,6 +245,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigAnnotateResources, *annotateResources)
 
 	viper.SetDefault(ConfigProcFsMount, *procFsMount)
+
+	viper.SetDefault(ConfigDropResourceFromProcessLogs, *dropResourceFromProcessLogs)
 }
 
 // LoadConfig Load configuration
@@ -324,6 +330,8 @@ func LoadConfig() error {
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
 
 	GlobalCfg.ProcFsMount = viper.GetString(ConfigProcFsMount)
+
+	GlobalCfg.DropResourceFromProcessLogs = viper.GetBool(ConfigDropResourceFromProcessLogs)
 
 	LoadDynamicConfig()
 
