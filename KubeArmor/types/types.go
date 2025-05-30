@@ -635,6 +635,7 @@ type Visibility struct {
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
+	DNS          bool `json:"dns,omitempty"`
 }
 
 // ================== //
