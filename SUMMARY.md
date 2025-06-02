@@ -8,17 +8,14 @@
 - [Support Matrix](getting-started/support_matrix.md)
 - [Differentiation](getting-started/differentiation.md)
 - [VM/Bare-Metal Deployment](getting-started/kubearmor_vm.md)
-
-## Wiki
-
-- [KubeArmor Overview](wiki/kubearmor_overview.md)
-- [Security Policies (KSP, HSP, CSP)](wiki/security_policy.md)
-- [Container/Node Identity](wiki/container_node_identity.md)
-- [Runtime Enforcer](wiki/runtime_enforcer.md)
-- [System Monitor](wiki/system_monitor.md)
-- [BPF (eBPF)](wiki/bpf.md)
-- [KubeArmor Daemon](wiki/kubearmor_daemon.md)
-- [Log Feeder](wiki/log_feeder.md)
+- [Wiki](wiki/kubearmor_overview.md)
+  - [Security Policies (KSP, HSP, CSP)](wiki/security_policy.md)
+  - [Container/Node Identity](wiki/container_node_identity.md)
+  - [Runtime Enforcer](wiki/runtime_enforcer.md)
+  - [System Monitor](wiki/system_monitor.md)
+  - [BPF (eBPF)](wiki/bpf.md)
+  - [KubeArmor Daemon](wiki/kubearmor_daemon.md)
+  - [Log Feeder](wiki/log_feeder.md)
 
 ## Use-Cases
 
