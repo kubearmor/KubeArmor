@@ -65,22 +65,7 @@ The System Monitor relies heavily on eBPF programs loaded into the Linux kernel.
 
 Here's a simple sequence diagram illustrating this:
 
-```mermaid
-sequenceDiagram
-    participant User Process;
-    participant OS Kernel (eBPF Hooks);
-    participant KubeArmor System Monitor;
-    participant KubeArmor Log Feeder;
-
-    User Process->>OS Kernel (eBPF Hooks): Request action (e.g., open /etc/passwd)
-    OS Kernel (eBPF Hooks)->>OS Kernel (eBPF Hooks): Event intercepted by eBPF program
-    OS Kernel (eBPF Hooks)->>OS Kernel (eBPF Hooks): Collects event data + Namespace IDs
-    OS Kernel (eBPF Hooks)-->>KubeArmor System Monitor: Sends event data (via Ring Buffer)
-    KubeArmor System Monitor->>KubeArmor System Monitor: Reads event from buffer
-    KubeArmor System Monitor->>KubeArmor System Monitor: Looks up identity (Container/Node)
-    KubeArmor System Monitor->>KubeArmor System Monitor: Formats log message (who, what, when, where, result)
-    KubeArmor System Monitor-->>KubeArmor Log Feeder: Sends formatted log
-```
+<img src="../.gitbook/assets/wiki/system_monitor.png" class="center" alt="">
 
 This diagram shows how the eBPF programs in the kernel are the first point of contact for system events, collecting the initial data before sending it up to the KubeArmor Daemon for further processing, context addition, and logging.
 

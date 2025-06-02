@@ -66,28 +66,7 @@ KubeArmor builds and maintains an internal map that links these low-level identi
 
 Let's visualize how this identity mapping happens and is used:
 
-```mermaid
-sequenceDiagram
-    participant K8s API Server;
-    participant Container Runtime;
-    participant KubeArmor Daemon;
-    participant OS Kernel;
-    participant System Event;
-
-    K8s API Server-->>KubeArmor Daemon: Notify: New Pod/Node Started
-    Container Runtime-->>KubeArmor Daemon: Notify: New Container Started
-    KubeArmor Daemon->>K8s API Server: Get Pod/Node Details (Labels, Namespaces, Container IDs)
-    KubeArmor Daemon->>Container Runtime: Get Container Details (Host PID, Pid NS, Mnt NS)
-    KubeArmor Daemon->>KubeArmor Daemon: Build Internal Identity Map (PID NS/Mnt NS -> Container ID/Labels/etc)
-    Note over KubeArmor Daemon: Map: { PidNS:123, MntNS:456 } -> Container X (app: sensitive-data)
-
-    System Event->>OS Kernel: Process tries to read /sensitive/config
-    OS Kernel-->>KubeArmor Daemon: Notify: File Access Attempt (includes PID, Pid NS 123, Mnt NS 456)
-    KubeArmor Daemon->>KubeArmor Daemon: Lookup { PidNS:123, MntNS:456 } in Identity Map
-    KubeArmor Daemon->>KubeArmor Daemon: Found: Container X (app: sensitive-data)
-    KubeArmor Daemon->>KubeArmor Daemon: Check Policy for Container X (e.g., 'block-sensitive-file-read')
-    KubeArmor Daemon-->>OS Kernel: Instruct: Block File Access
-```
+<img src="../.gitbook/assets/wiki/container_node_identity.png" class="center" alt="">
 
 This diagram shows the two main phases:
 

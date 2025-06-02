@@ -65,35 +65,7 @@ Here's how the KubeArmor Daemon on the node hosting that database pod orchestrat
 8.  **Log Generation:** The Daemon formats a detailed log/alert message containing all the information: the event type (process execution), the command (`/bin/bash`), the outcome (Blocked), and the workload identity (container ID, Pod Name, Namespace, Labels).
 9.  **Log Forwarding:** The Daemon sends this formatted log message to its **Log Feeder** component, which then forwards it to your configured logging/monitoring system.
 
-```mermaid
-sequenceDiagram
-    participant User;
-    participant K8s API Server;
-    participant KubeArmor Daemon (Node);
-    participant Runtime Enforcer;
-    participant System Monitor;
-    participant Log Feeder;
-    participant User Process (Container);
-    participant OS Kernel;
-
-    User->>K8s API Server: Apply Policy (KSP block /bin/bash)
-    K8s API Server->>KubeArmor Daemon (Node): Notify: New Policy
-    KubeArmor Daemon (Node)->>K8s API Server: Get Policy Details
-    KubeArmor Daemon (Node)->>KubeArmor Daemon (Node): Identify targeted container (using CRI/K8s data)
-    KubeArmor Daemon (Node)->>Runtime Enforcer: Instruct: Load policy rule for container
-    Runtime Enforcer->>OS Kernel: Load/Update low-level security rules
-
-    User Process (Container)->>OS Kernel: Attempt to execute /bin/bash
-    OS Kernel->>Runtime Enforcer: Intercept action (via LSM/BPF hook)
-    Runtime Enforcer->>OS Kernel: Decision: Block action (based on loaded rules)
-    OS Kernel-->>User Process (Container): Action denied
-
-    OS Kernel->>System Monitor: Notify: Event occurred (execve /bin/bash, result: blocked, including NS IDs)
-    System Monitor-->>KubeArmor Daemon (Node): Send raw event data (via Ring Buffer)
-    KubeArmor Daemon (Node)->>KubeArmor Daemon (Node): Process event & Lookup Identity (NS IDs -> Container)
-    KubeArmor Daemon (Node)->>Log Feeder: Send formatted Block Alert
-    Log Feeder-->>User: Alert: /bin/bash execution blocked in container X
-```
+<img src="../.gitbook/assets/wiki/kubearmor_daemon.png" class="center" alt="">
 
 This diagram illustrates how the Daemon acts as the central point, integrating information flow and control between external systems (K8s, CRI), the low-level kernel components (Monitor, Enforcer), and the logging/alerting system.
 

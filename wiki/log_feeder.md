@@ -51,23 +51,7 @@ Without the Log Feeder, KubeArmor would be enforcing policies blindly from a mon
 
 Here's a simple sequence diagram showing the flow:
 
-```mermaid
-sequenceDiagram
-    participant OS Kernel;
-    participant System Monitor;
-    participant KubeArmor Daemon;
-    participant Log Feeder;
-    participant External Client;
-
-    User Process->>OS Kernel: Attempt Action
-    OS Kernel->>System Monitor: Event Detected (with NS IDs)
-    System Monitor-->>KubeArmor Daemon: Send enriched event (with identity)
-    KubeArmor Daemon->>Log Feeder: Push Event Data
-    Log Feeder->>Log Feeder: Format to Protobuf & Queue
-    Note over External Client: Connects via gRPC
-    External Client->>Log Feeder: Subscribe to stream (WatchAlerts/WatchLogs)
-    Log Feeder-->>External Client: Stream Protobuf events
-```
+<img src="../.gitbook/assets/wiki/log_feeder.png" class="center" alt="">
 
 This shows how events flow from the kernel, up through the System Monitor and Daemon, are formatted by the Log Feeder, and then streamed out to any connected clients.
 

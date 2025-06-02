@@ -184,29 +184,7 @@ When KubeArmor is configured to use the BPF-LSM Runtime Enforcer, BPF programs a
 
 Simplified view of BPF-LSM enforcement flow:
 
-```mermaid
-sequenceDiagram
-    participant User Process;
-    participant OS Kernel;
-    participant BPF Program (Enforcer);
-    participant BPF Maps (Rules);
-    participant BPF Ring Buffer;
-    participant KubeArmor Daemon;
-
-    KubeArmor Daemon->>OS Kernel: Load BPF Program (Enforcer)
-    KubeArmor Daemon->>BPF Maps (Rules): Write Policy Rules (Translated)
-
-    User Process->>OS Kernel: Perform action (e.g., execute program)
-    OS Kernel->>BPF Program (Enforcer): Event hits BPF-LSM hook
-    BPF Program (Enforcer)->>BPF Maps (Rules): Lookup relevant rule (using Identity)
-    BPF Program (Enforcer)->>OS Kernel: Return decision (Allow/Block)
-
-    alt Action Blocked or Audited
-        BPF Program (Enforcer)->>BPF Ring Buffer: Write event data (including outcome)
-        KubeArmor Daemon->>BPF Ring Buffer: Read event data
-        KubeArmor Daemon->>KubeArmor Daemon: Process & Alert
-    end
-```
+<img src="../.gitbook/assets/wiki/bpf2.png" class="center" alt="">
 
 This diagram shows the pre-configuration step (KubeArmor loading the program and rules) and then the fast, kernel-internal decision path when an event occurs.
 

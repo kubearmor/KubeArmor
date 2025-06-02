@@ -138,29 +138,7 @@ When KubeArmor needs to enforce a policy on a specific container or node, here's
 
 Here's a simplified sequence diagram for the enforcement path after policies are loaded:
 
-```mermaid
-sequenceDiagram
-    participant User Process;
-    participant OS Kernel;
-    participant OS Security Enforcer;
-    participant KubeArmor Daemon;
-
-    User Process->>OS Kernel: Request action (e.g., open /etc/passwd)
-    OS Kernel->>OS Security Enforcer: Intercept request (LSM Hook)
-    OS Security Enforcer->>OS Security Enforcer: Check loaded rules (from KubeArmor)
-    alt Policy allows
-        OS Security Enforcer-->>OS Kernel: Decision: Allow
-        OS Kernel-->>User Process: Action successful
-    else Policy audits
-        OS Security Enforcer-->>OS Kernel: Decision: Audit
-        OS Kernel-->>User Process: Action successful
-        OS Kernel-->>KubeArmor Daemon: Notify: Audit event occurred
-    else Policy blocks
-        OS Security Enforcer-->>OS Kernel: Decision: Block
-        OS Kernel-->>User Process: Action denied (e.g., Permission denied)
-        OS Kernel-->>KubeArmor Daemon: Notify: Block event occurred
-    end
-```
+<img src="../.gitbook/assets/wiki/runtime_enforcer.png" class="center" alt="">
 
 This diagram shows that the actual enforcement decision happens deep within the OS kernel, powered by the rules that KubeArmor translated and loaded. KubeArmor isn't in the critical path for _every_ action attempt; it pre-configures the kernel's security features to handle the enforcement directly.
 

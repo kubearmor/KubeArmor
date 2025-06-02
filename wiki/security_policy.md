@@ -113,22 +113,7 @@ You've written a policy YAML file. What happens when you apply it to your Kubern
 
 Here's a simplified sequence:
 
-```mermaid
-sequenceDiagram
-    participant User;
-    participant K8s API Server;
-    participant KubeArmor Daemon;
-    participant Security Enforcer;
-
-    User->>K8s API Server: Apply Policy (kubectl apply)
-    K8s API Server->>KubeArmor Daemon: Notify: New Policy Available
-    KubeArmor Daemon->>K8s API Server: Get Policy Details
-    KubeArmor Daemon->>K8s API Server: Find Targeted Pods/Nodes (using Selector)
-    KubeArmor Daemon->>KubeArmor Daemon: Translate Policy to Enforcer Rules
-    KubeArmor Daemon->>Security Enforcer: Load/Update Rules
-    Security Enforcer->>Security Enforcer: Monitor System Activities
-    Security Enforcer-->>User: (If violated) Generate Alert/Log
-```
+<img src="../.gitbook/assets/wiki/security_policy.png" class="center" alt="">
 
 This flow shows how KubeArmor acts as the bridge between your easy-to-write YAML policies and the complex, low-level security mechanisms of the operating system.
 
