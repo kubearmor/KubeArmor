@@ -7,8 +7,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type MatchExpressionsType struct {
+	// +kubebuilder:validation:Enum=label
+	Key string `json:"key,omitempty"`
+
+	// +kubebuilder:validation:Enum=In;NotIn
+	Operator string `json:"operator,omitempty"`
+
+	Values []string `json:"values,omitempty"`
+}
+
 type SelectorType struct {
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	MatchLabels      map[string]string      `json:"matchLabels,omitempty"`
+	MatchExpressions []MatchExpressionsType `json:"matchExpressions,omitempty"`
 }
 
 type MatchVolumeMountType struct {
