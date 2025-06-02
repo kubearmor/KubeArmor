@@ -46,20 +46,7 @@ As we saw in Chapter 4, the System Monitor observes events. This is primarily do
 
 Simplified view of monitoring data flow:
 
-```mermaid
-sequenceDiagram
-    participant User Process;
-    participant OS Kernel;
-    participant BPF Program (Monitor);
-    participant BPF Ring Buffer;
-    participant KubeArmor Daemon;
-
-    User Process->>OS Kernel: Perform action (e.g., open file)
-    OS Kernel->>BPF Program (Monitor): Event hits BPF hook
-    BPF Program (Monitor)->>BPF Ring Buffer: Write event data
-    KubeArmor Daemon->>BPF Ring Buffer: Read event data
-    KubeArmor Daemon->>KubeArmor Daemon: Process & Add Context
-```
+<img src="../.gitbook/assets/wiki/bpf1.png" class="center" alt="">
 
 This shows the efficient flow: the kernel triggers a BPF program, which quickly logs data to a buffer that KubeArmor reads asynchronously.
 
