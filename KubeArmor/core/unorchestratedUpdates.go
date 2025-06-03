@@ -37,6 +37,9 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
 		visibility.Capabilities = true
 	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "dns") {
+		visibility.DNS = true
+	}
 
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
 }
@@ -63,6 +66,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
 			Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+			DNS:          dm.validateVisibility("dns", cfg.GlobalCfg.Visibility),
 		}
 
 		// Apply the changes to the daemon

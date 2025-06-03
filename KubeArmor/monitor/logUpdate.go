@@ -514,6 +514,34 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Resource = ""
 				log.Data = "syscall=" + GetSyscallName(int32(msg.ContextSys.EventID)) + " fd=" + fd
 
+			case UDPSendMsg:
+				if len(msg.ContextArgs) != 3 {
+					continue
+				}
+				domains := ""
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					domains = val
+				}
+				var sockAddr map[string]string
+				if val, ok := msg.ContextArgs[0].(map[string]string); ok {
+					sockAddr = val
+				}
+				qtype := ""
+				if val, ok := msg.ContextArgs[2].(uint16); ok {
+					if val == 1 {
+						qtype = "A"
+					}
+					if val == 28 {
+						qtype = "AAAA"
+					}
+				}
+
+				log.Data = "kfunc=UDP_SENDMSG," + "domain=" + domains[:len(domains)-1] + // removed trailing . from domain name
+					",daddr=" + sockAddr["sin_addr"] +
+					",qtype=" + qtype
+				log.Operation = "Network"
+				log.Resource = "sa_family=" + sockAddr["sa_family"] + " sin_port=53"
+
 			case DropAlert: // throttling alert
 				log.Operation = "AlertThreshold"
 				log.Type = "SystemEvent"

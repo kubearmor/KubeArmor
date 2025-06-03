@@ -63,6 +63,8 @@ const (
 	Capable = 464
 
 	DropAlert = 0
+
+	UDPSendMsg = 10000
 )
 
 var syscalls = map[int32]string{
