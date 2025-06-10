@@ -341,13 +341,20 @@ type MatchExpressionType struct {
 // SelectorType Structure
 type SelectorType struct {
 	// for KubeArmorPolicy
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-	Containers  []string          `json:"containers,omitempty"`
-	Identities  []string          `json:"identities,omitempty"` // set during policy update
-
-	// for KubeArmorClusterPolicy
+	MatchLabels      map[string]string     `json:"matchLabels,omitempty"`
 	MatchExpressions []MatchExpressionType `json:"matchExpressions,omitempty"`
-	NamespaceList    []string              `json:"namespaceList,omitempty"` // set during policy update
+
+	Containers []string `json:"containers,omitempty"`
+
+	// only for ksp
+	Identities []string `json:"identities,omitempty"` // set during policy update
+
+	// for ksp & csp - used in matchExpression, key: label
+	MatchExpIdentities []string `json:"matchExpIdentities,omitempty"`
+	NonIdentities      []string `json:"nonIdentities,omitempty"`
+
+	// only for csp
+	NamespaceList []string `json:"namespaceList,omitempty"` // set during policy update
 }
 
 // MatchSourceType Structure
@@ -554,6 +561,8 @@ const (
 	ProtectEnv PresetName = "protectEnv"
 	// Exec Preset
 	Exec PresetName = "exec"
+	// ProtectProc Preset
+	ProtectProc PresetName = "protectProc"
 )
 
 // SecuritySpec Structure
@@ -628,6 +637,7 @@ type Visibility struct {
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
+	DNS          bool `json:"dns,omitempty"`
 }
 
 // ================== //

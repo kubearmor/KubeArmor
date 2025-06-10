@@ -536,6 +536,7 @@ spec:
                         key:
                           enum:
                           - namespace
+                          - label
                           type: string
                         operator:
                           enum:

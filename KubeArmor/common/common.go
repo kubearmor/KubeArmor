@@ -23,6 +23,7 @@ import (
 
 	kc "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
+	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -490,7 +491,7 @@ func GetControllingPodOwner(ownerRefs []metav1.OwnerReference) *metav1.OwnerRefe
 // ==================== //
 
 // MatchIdentities Function
-func MatchIdentities(identities []string, superIdentities []string) bool {
+func MatchIdentities(identities, superIdentities []string) bool {
 	matched := true
 
 	// if nothing in identities, skip it
@@ -527,6 +528,40 @@ func MatchIdentities(identities []string, superIdentities []string) bool {
 	}
 
 	// otherwise, return true
+	return matched
+}
+
+// MatchExpIdentities Function
+func MatchExpIdentities(selector tp.SelectorType, superIdentities []string) bool {
+	matched := false
+
+	identities := selector.MatchExpIdentities
+	nonIdentities := selector.NonIdentities
+
+	// no matchExp with key as label defined
+	if len(identities) == 0 && len(nonIdentities) == 0 {
+		return true
+	}
+
+	for _, identity := range identities {
+		if ContainsElement(superIdentities, identity) {
+			matched = true
+			break
+		}
+	}
+
+	for i, nonIdentity := range nonIdentities {
+		if ContainsElement(superIdentities, nonIdentity) {
+			matched = false
+			break
+		}
+		if i == len(nonIdentities)-1 {
+			// if nonIdentities are not matched, then return true
+			matched = true
+		}
+	}
+
+	// otherwise, return false
 	return matched
 }
 
