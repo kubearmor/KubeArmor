@@ -384,6 +384,17 @@ struct exec_pid_map
 
 struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
+struct pathname_t {
+    char path[256];
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u64);
+    __type(value, struct pathname_t);
+    __uint(max_entries, 1024);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} proc_file_access SEC(".maps");
 // == Kernel Helpers == //
 
 static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
@@ -1681,6 +1692,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
 
     // delete entry for file access which are not successful and are not deleted from file_map since kretprobe/__x64_sys_openat hook is not triggered
     bpf_map_delete_elem(&file_map, &tgid);
+    bpf_map_delete_elem(&proc_file_access, &tgid);
 
     // delete entry for exec (host) pid
     bpf_map_delete_elem(&kubearmor_exec_pids, &tgid);
@@ -1920,11 +1932,15 @@ int kprobe__openat(struct pt_regs *ctx)
 
     struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
     const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM2(ctx2));
-    char path[8];
-    bpf_probe_read(path, 8, pathname);
+    struct pathname_t path = {};
+    bpf_probe_read_user_str(path.path, sizeof(path.path), pathname);
 
-    if (isProcDir(path) == 0 || isSysDir(path) == 0)
+    if (isProcDir(path.path) == 0)
     {
+        u64 tgid = bpf_get_current_pid_tgid();
+        bpf_map_update_elem(&proc_file_access, &tgid, &path, BPF_ANY);
+        return 0;
+    } else if (isSysDir(path.path) == 0){
         return 0;
     }
 
