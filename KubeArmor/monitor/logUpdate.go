@@ -552,11 +552,11 @@ func (mon *SystemMonitor) UpdateLogs() {
 				continue
 			}
 
-			if log.ProcessName == "" {
+			if strings.TrimSpace(log.ProcessName) == "" {
 				switch log.Operation {
 				case "Process":
-					if log.Resource != "" {
-						if res := strings.Split(log.Resource, " "); len(res) > 0 {
+					if resource := strings.TrimSpace(log.Resource); resource != "" {
+						if res := strings.Split(resource, " "); len(res) > 0 {
 							log.ProcessName = res[0]
 						}
 					} else {
@@ -564,8 +564,8 @@ func (mon *SystemMonitor) UpdateLogs() {
 						continue
 					}
 				case "Network", "File":
-					if log.Source != "" {
-						if src := strings.Split(log.Source, " "); len(src) > 0 {
+					if source := strings.TrimSpace(log.Source); source != "" {
+						if src := strings.Split(source, " "); len(src) > 0 {
 							log.ProcessName = src[0]
 						}
 					} else {
