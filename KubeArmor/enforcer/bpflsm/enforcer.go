@@ -382,6 +382,11 @@ func (be *BPFEnforcer) TraceEvents() {
 			log.ParentProcessName = log.Source
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
 
+			// fallback logic if we don't receive resource from BuildLogBase()
+			if len(log.Resource) == 0 {
+				log.Resource = log.ProcessName
+			}
+
 		case mon.Capable:
 			log.Operation = "Capabilities"
 			log.Resource = mon.Capabilities[int32(event.Data.Path[1])]
@@ -397,10 +402,6 @@ func (be *BPFEnforcer) TraceEvents() {
 		if log.Operation != "Process" && len(log.Source) == 0 {
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
 			log.ProcessName = log.Source
-		}
-		// fallback logic if we don't receive resource from BuildLogBase()
-		if len(log.Resource) == 0 {
-			log.Resource = log.ProcessName
 		}
 		if len(log.ProcessName) == 0 && len(log.Source) > 0 {
 			log.ProcessName = log.Source
