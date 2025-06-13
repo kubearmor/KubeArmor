@@ -84,16 +84,16 @@ type anonmapexecProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type anonmapexecMapSpecs struct {
-	ArgsBufk                    *ebpf.MapSpec `ebpf:"args_bufk"`
+	ArgsBufk                             *ebpf.MapSpec `ebpf:"args_bufk"`
 	Bufk                                 *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                                 *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                              *ebpf.MapSpec `ebpf:"bufs_off"`
-	CmdArgsBuf                  *ebpf.MapSpec `ebpf:"cmd_args_buf"`
+	CmdArgsBuf                           *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                               *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle               *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore          *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
-	KubearmorArguments          *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorAnonMapExecPresetContainers *ebpf.MapSpec `ebpf:"kubearmor_anon_map_exec_preset_containers"`
+	KubearmorArgsStore                   *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
+	KubearmorArguments                   *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig                      *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers                  *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents                      *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -127,16 +127,16 @@ func (o *anonmapexecObjects) Close() error {
 //
 // It can be passed to loadAnonmapexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type anonmapexecMaps struct {
-	ArgsBufk                    *ebpf.Map `ebpf:"args_bufk"`
+	ArgsBufk                             *ebpf.Map `ebpf:"args_bufk"`
 	Bufk                                 *ebpf.Map `ebpf:"bufk"`
 	Bufs                                 *ebpf.Map `ebpf:"bufs"`
 	BufsOff                              *ebpf.Map `ebpf:"bufs_off"`
-	CmdArgsBuf                  *ebpf.Map `ebpf:"cmd_args_buf"`
+	CmdArgsBuf                           *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                               *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle               *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore          *ebpf.Map `ebpf:"kubearmor_args_store"`
-	KubearmorArguments          *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorAnonMapExecPresetContainers *ebpf.Map `ebpf:"kubearmor_anon_map_exec_preset_containers"`
+	KubearmorArgsStore                   *ebpf.Map `ebpf:"kubearmor_args_store"`
+	KubearmorArguments                   *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig                      *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers                  *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents                      *ebpf.Map `ebpf:"kubearmor_events"`
@@ -152,9 +152,9 @@ func (m *anonmapexecMaps) Close() error {
 		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorAnonMapExecPresetContainers,
 		m.KubearmorArgsStore,
 		m.KubearmorArguments,
-		m.KubearmorAnonMapExecPresetContainers,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
