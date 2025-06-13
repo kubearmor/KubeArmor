@@ -84,15 +84,15 @@ type protectenvProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type protectenvMapSpecs struct {
-	ArgsBufk                   *ebpf.MapSpec `ebpf:"args_bufk"`
+	ArgsBufk                            *ebpf.MapSpec `ebpf:"args_bufk"`
 	Bufk                                *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                                *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                             *ebpf.MapSpec `ebpf:"bufs_off"`
-	CmdArgsBuf                 *ebpf.MapSpec `ebpf:"cmd_args_buf"`
+	CmdArgsBuf                          *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                              *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle              *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore         *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
-	KubearmorArguments         *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
+	KubearmorArgsStore                  *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
+	KubearmorArguments                  *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig                     *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers                 *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents                     *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -127,15 +127,15 @@ func (o *protectenvObjects) Close() error {
 //
 // It can be passed to loadProtectenvObjects or ebpf.CollectionSpec.LoadAndAssign.
 type protectenvMaps struct {
-	ArgsBufk                   *ebpf.Map `ebpf:"args_bufk"`
+	ArgsBufk                            *ebpf.Map `ebpf:"args_bufk"`
 	Bufk                                *ebpf.Map `ebpf:"bufk"`
 	Bufs                                *ebpf.Map `ebpf:"bufs"`
 	BufsOff                             *ebpf.Map `ebpf:"bufs_off"`
-	CmdArgsBuf                 *ebpf.Map `ebpf:"cmd_args_buf"`
+	CmdArgsBuf                          *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                              *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle              *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorArgsStore         *ebpf.Map `ebpf:"kubearmor_args_store"`
-	KubearmorArguments         *ebpf.Map `ebpf:"kubearmor_arguments"`
+	KubearmorArgsStore                  *ebpf.Map `ebpf:"kubearmor_args_store"`
+	KubearmorArguments                  *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig                     *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers                 *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents                     *ebpf.Map `ebpf:"kubearmor_events"`
