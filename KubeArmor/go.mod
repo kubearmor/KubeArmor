@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/KubeArmor
 
-go 1.24.3
+go 1.24.4
 
 replace (
 	github.com/kubearmor/KubeArmor => ../../
@@ -20,7 +20,6 @@ replace (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController => ../pkg/KubeArmorController
 	github.com/kubearmor/KubeArmor/protobuf => ../protobuf
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
-
 )
 
 require (
