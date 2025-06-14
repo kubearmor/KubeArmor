@@ -49,6 +49,42 @@ elif [ "$ID" == "ubuntu" ]; then
     vagrant plugin install vagrant-reload
 
     echo "Please reboot the machine."
+elif [ "$ID" == "arch" ]; then
+    # Check if yay is installed
+    if [ ! -x "$(command -v yay)" ]; then
+        echo "Installing yay AUR helper..."
+        sudo pacman -Sy --needed git base-devel
+        git clone https://aur.archlinux.org/yay.git
+        cd yay
+        makepkg -si
+        cd ..
+        rm -rf yay
+    fi
+
+    if [ ! -x "$(command -v vboxmanage)" ]; then
+        # install virtualbox
+        if [ -x "$(command -v yay)" ]; then
+            yay -S virtualbox
+        else
+            sudo pacman -Sy
+            sudo pacman -S virtualbox
+        fi
+    fi
+
+    if [ ! -x "$(command -v vagrant)" ]; then
+        # install vagrant
+        if [ -x "$(command -v yay)" ]; then
+            yay -S vagrant
+        else
+            sudo pacman -Sy
+            sudo pacman -S vagrant
+        fi
+    fi
+
+    # install vagrant plugins
+    VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT=1 vagrant plugin install vagrant-vbguest
+    VAGRANT_DISABLE_STRICT_DEPENDENCY_ENFORCEMENT=1 vagrant plugin install vagrant-reload
+
 else
     echo "Please find out how to install VirtualBox and Vagrant on your OS."
 fi
