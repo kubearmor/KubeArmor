@@ -211,6 +211,12 @@ type K8sKubeArmorHostPolicies struct {
 	Items []K8sKubeArmorHostPolicy `json:"items"`
 }
 
+// ExecEvent struct
+type ExecEvent struct {
+	ExecID         string
+	ExecutableName string
+}
+
 // ============= //
 // == Logging == //
 // ============= //
@@ -242,6 +248,9 @@ type Log struct {
 	PPID     int32 `json:"ppid"`
 	PID      int32 `json:"pid"`
 	UID      int32 `json:"uid"`
+
+	// exec
+	ExecEvent ExecEvent `json:"execEvent"`
 
 	// process
 	ParentProcessName string `json:"parentProcessName"`
@@ -332,13 +341,20 @@ type MatchExpressionType struct {
 // SelectorType Structure
 type SelectorType struct {
 	// for KubeArmorPolicy
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-	Containers  []string          `json:"containers,omitempty"`
-	Identities  []string          `json:"identities,omitempty"` // set during policy update
-
-	// for KubeArmorClusterPolicy
+	MatchLabels      map[string]string     `json:"matchLabels,omitempty"`
 	MatchExpressions []MatchExpressionType `json:"matchExpressions,omitempty"`
-	NamespaceList    []string              `json:"namespaceList,omitempty"` // set during policy update
+
+	Containers []string `json:"containers,omitempty"`
+
+	// only for ksp
+	Identities []string `json:"identities,omitempty"` // set during policy update
+
+	// for ksp & csp - used in matchExpression, key: label
+	MatchExpIdentities []string `json:"matchExpIdentities,omitempty"`
+	NonIdentities      []string `json:"nonIdentities,omitempty"`
+
+	// only for csp
+	NamespaceList []string `json:"namespaceList,omitempty"` // set during policy update
 }
 
 // MatchSourceType Structure
@@ -543,6 +559,10 @@ const (
 	FilelessExec PresetName = "filelessExec"
 	// ProtectEnv Preset
 	ProtectEnv PresetName = "protectEnv"
+	// Exec Preset
+	Exec PresetName = "exec"
+	// ProtectProc Preset
+	ProtectProc PresetName = "protectProc"
 )
 
 // SecuritySpec Structure
@@ -558,7 +578,7 @@ type SecuritySpec struct {
 
 	AppArmor string `json:"apparmor,omitempty"`
 
-	Severity int      `json:"severity"`
+	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
 	Action   string   `json:"action"`
@@ -592,7 +612,7 @@ type HostSecuritySpec struct {
 
 	AppArmor string `json:"apparmor,omitempty"`
 
-	Severity int      `json:"severity"`
+	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
 	Message  string   `json:"message,omitempty"`
 	Action   string   `json:"action"`
@@ -617,6 +637,7 @@ type Visibility struct {
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
+	DNS          bool `json:"dns,omitempty"`
 }
 
 // ================== //

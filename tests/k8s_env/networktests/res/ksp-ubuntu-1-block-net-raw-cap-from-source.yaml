@@ -1,0 +1,17 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-net-raw-cap-from-source
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  capabilities:
+    matchCapabilities:
+    - capability: net_raw
+      fromSource: 
+      - path: /usr/sbin/arping
+  action:
+    Block

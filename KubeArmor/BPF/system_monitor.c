@@ -92,6 +92,11 @@
 #define PTRACE_REQ_T 23UL
 #define MOUNT_FLAG_T 24UL
 #define UMOUNT_FLAG_T 25UL
+#define UDP_MSG 26UL
+#define QTYPE 27UL
+
+#define MAX_LABELS 10  // max labels in domain name
+#define MAX_LABEL_LEN 63
 
 #define MAX_ARGS 6
 #define ENC_ARG_TYPE(n, type) type << (8 * n)
@@ -111,6 +116,12 @@
 #define PT_REGS_PARM6(x) ((x)->r9)
 #elif defined(bpf_target_arm64)
 #define PT_REGS_PARM6(x) ((x)->regs[5])
+#endif
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define ntohs(x) __builtin_bswap16(x)
+#else
+#define ntohs(x) (x)
 #endif
 
 #define UNDEFINED_SYSCALL 1000
@@ -184,6 +195,9 @@ enum
     _TCP_ACCEPT = 401,
     _TCP_CONNECT_v6 = 402,
     _TCP_ACCEPT_v6 = 403,
+
+    // UDP_MSG
+    _UDP_SENDMSG = 10000
 };
 
 #ifndef BTF_SUPPORTED
@@ -230,6 +244,8 @@ typedef struct __attribute__((__packed__)) sys_context
     char cwd[CWD_LEN];
     char tty[TTY_LEN];
     u32 oid; // owner id
+    // exec event will have non-zero execID
+    u64 exec_id;
 } sys_context_t;
 
 #define BPF_MAP(_name, _type, _key_type, _value_type, _max_entries) \
@@ -295,8 +311,8 @@ typedef struct buffers
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 4);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 4);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
 
 BPF_PERF_OUTPUT(sys_events);
 
@@ -308,6 +324,7 @@ enum
     _PROCESS_PROBE = 1,
     _NETWORK_PROBE = 2,
     _CAPS_PROBE = 3,
+    _DNS_PROBE = 4,
 
     _TRACE_SYSCALL = 0,
     _IGNORE_SYSCALL = 1,
@@ -353,6 +370,31 @@ struct kaconfig
 
 struct kaconfig kubearmor_config SEC(".maps");
 
+// exec maps
+BPF_LRU_HASH(ns_transition, u32, struct outer_key);
+
+struct exec_pid_map
+{
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u32);
+    __type(value, u64);
+    __uint(max_entries, 10240);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct exec_pid_map kubearmor_exec_pids SEC(".maps");
+
+struct pathname_t {
+    char path[256];
+};
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u64);
+    __type(value, struct pathname_t);
+    __uint(max_entries, 1024);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+} proc_file_access SEC(".maps");
 // == Kernel Helpers == //
 
 static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
@@ -583,6 +625,7 @@ static __always_inline u32 skip_syscall()
 #define EXEC_BUF_TYPE 1
 #define FILE_BUF_TYPE 2
 #define CWD_BUF_TYPE 3
+#define DNS_BUF_TYPE 4
 
 static __always_inline bufs_t *get_buffer(int buf_type)
 {
@@ -782,7 +825,7 @@ static __always_inline int save_file_to_buffer(bufs_t *bufs_p, void *ptr)
     return save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 }
 
-static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u8 type)
+static __always_inline int save_to_buffer(bufs_t *bufs_p, int buf_type, void *ptr, int size, u8 type)
 {
 // the biggest element that can be saved with this function should be defined here
 #define MAX_ELEMENT_SIZE sizeof(struct sockaddr_un)
@@ -792,7 +835,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
         return 0;
     }
 
-    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    u32 *off = get_buffer_offset(buf_type);
     if (off == NULL)
     {
         return -1;
@@ -818,7 +861,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, void *ptr, int size, u
     if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
     {
         *off += size;
-        set_buffer_offset(DATA_BUF_TYPE, *off);
+        set_buffer_offset(buf_type, *off);
         return size;
     }
 
@@ -840,7 +883,7 @@ static __always_inline int save_argv(bufs_t *bufs_p, void *ptr)
 
 static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __user *const __user *ptr)
 {
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, NULL, 0, STR_ARR_T);
 
 #pragma unroll
     for (int i = 0; i < MAX_STR_ARR_ELEM; i++)
@@ -855,7 +898,7 @@ static __always_inline int save_str_arr_to_buffer(bufs_t *bufs_p, const char __u
     save_str_to_buffer(bufs_p, (void *)ellipsis);
 
 out:
-    save_to_buffer(bufs_p, NULL, 0, STR_ARR_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, NULL, 0, STR_ARR_T);
 
     return 0;
 }
@@ -881,31 +924,31 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
         case NONE_T:
             break;
         case INT_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), INT_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), INT_T);
             break;
         case OPEN_FLAGS_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), OPEN_FLAGS_T);
             break;
         case FILE_TYPE_T:
             save_file_to_buffer(bufs_p, (void *)args->args[i]);
             break;
         case PTRACE_REQ_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), PTRACE_REQ_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), PTRACE_REQ_T);
             break;
         case MOUNT_FLAG_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), MOUNT_FLAG_T);
             break;
         case UMOUNT_FLAG_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), UMOUNT_FLAG_T);
             break;
         case STR_T:
             save_str_to_buffer(bufs_p, (void *)args->args[i]);
             break;
         case SOCK_DOM_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), SOCK_DOM_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), SOCK_DOM_T);
             break;
         case SOCK_TYPE_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), SOCK_TYPE_T);
             break;
         case SOCKADDR_T:
             if (args->args[i])
@@ -915,21 +958,21 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
                 switch (family)
                 {
                 case AF_UNIX:
-                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)(args->args[i]), sizeof(struct sockaddr_un), SOCKADDR_T);
                     break;
                 case AF_INET:
-                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)(args->args[i]), sizeof(struct sockaddr_in), SOCKADDR_T);
                     break;
                 case AF_INET6:
-                    save_to_buffer(bufs_p, (void *)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)(args->args[i]), sizeof(struct sockaddr_in6), SOCKADDR_T);
                     break;
                 default:
-                    save_to_buffer(bufs_p, (void *)&family, sizeof(short), SOCKADDR_T);
+                    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&family, sizeof(short), SOCKADDR_T);
                 }
             }
             break;
         case UNLINKAT_FLAG_T:
-            save_to_buffer(bufs_p, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
+            save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&(args->args[i]), sizeof(int), UNLINKAT_FLAG_T);
             break;
         }
     }
@@ -937,13 +980,118 @@ static __always_inline int save_args_to_buffer(u64 types, args_t *args)
     return 0;
 }
 
-static __always_inline int events_perf_submit(struct pt_regs *ctx)
+static __always_inline int save_dns_data_to_dns_buffer(bufs_t *bufs_p, void *base, u8 type) {
+// |  1B  |      4B     | 255B  |  1B  |   2B  |    
+// | TYPE | SIZE_OF_INT | QNAME | TYPE | QTYPE | 
+#define MAX_DNS_Q_NAME_SIZE 264
+    u32 *off = get_buffer_offset(DNS_BUF_TYPE);
+    if (off == NULL)
+    {
+        return -1;
+    }
+
+    if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+    {
+        return -1;
+    }
+
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
+    {
+        return -1;
+    }
+
+    *off += 1;
+
+    u32 size_off = *off;
+    *off += sizeof(int);
+    // header offset
+    // 0----------15--------31
+    // _______________________
+    // | id       | flags    |
+    // -----------------------
+    // | q_count  | a_count  |
+    // -----------------------
+    // | ns_count | ar_count |
+    // -----------------------
+    __u8 header_off = 12;
+    // https://stackoverflow.com/a/32294443
+    // question(s)
+    // RFC1035 maxed to 255 Bytes
+    // LL: Label length, LN: Label Name, NL: Null Label
+    // LL (1) + LN (63) + LL (1) + LN (63) + LL (1) + LN (63) LL (1) + LN (61) + NL (1)
+    int offset = header_off; // initial offset in the data stream
+#pragma unroll
+    for (int i = 0; i < MAX_LABELS; i++) {
+        u8 len = 0;
+        if (bpf_probe_read(&len, sizeof(len), base + offset) < 0)
+            return -1;
+
+        if (len == 0) {
+            if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+                bufs_p->buf[*off] = '\0';
+            break;
+        }
+
+        if (len > MAX_LABEL_LEN)
+            return -1;
+        
+        if (*off > MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE)
+        {
+            return -1;
+        }
+
+        if (bpf_probe_read(&bufs_p->buf[*off], len, base + offset + 1) < 0)
+            return -1;
+
+        *off += len;
+        if (*off < MAX_BUFFER_SIZE - MAX_DNS_Q_NAME_SIZE){
+            bufs_p->buf[*off] = 0x2E; // "." char
+            *off += 1;
+        }
+        set_buffer_offset(DNS_BUF_TYPE, *off);
+        offset += len + 1;
+    }
+
+    // should never be the case
+    if (size_off >= MAX_BUFFER_SIZE || 
+        size_off + sizeof(int) > MAX_BUFFER_SIZE) {
+        return -1;
+    }
+    int size = *off - size_off - sizeof(int) + 1;
+    if (bpf_probe_read(&(bufs_p->buf[size_off]), sizeof(int), &size) < 0) {
+        return -1;
+    }
+
+    // setting offset to next byte to null char
+    *off += 1;
+
+    if (*off > MAX_BUFFER_SIZE - 1)
+        return -1;
+    
+    __u8 qtype = QTYPE; 
+    // type for qtype
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &qtype) < 0)
+        return -1;
+    
+    *off += 1;
+    if (*off > MAX_BUFFER_SIZE - 2)
+        return -1;
+
+    // write qtype to buffer
+    if (bpf_probe_read(&(bufs_p->buf[*off]), 2, base + offset + 1) < 0)
+        return -1;
+    *off += 2;    
+    set_buffer_offset(DNS_BUF_TYPE, *off);
+    return 0;
+}
+
+static __always_inline int events_perf_submit(struct pt_regs *ctx, int buf_type)
 {
-    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    bufs_t *bufs_p = get_buffer(buf_type);
     if (bufs_p == NULL)
         return -1;
 
-    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    u32 *off = get_buffer_offset(buf_type);
     if (off == NULL)
         return -1;
 
@@ -1001,10 +1149,12 @@ static __always_inline u32 init_context(sys_context_t *context)
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
+    __builtin_memset((void *)&context->exec_id, 0, sizeof(context->exec_id));
     context->ts = bpf_ktime_get_ns();
 
     context->host_ppid = get_task_ppid(task);
-    context->host_pid = bpf_get_current_pid_tgid() >> 32;
+    __u32 host_pid = bpf_get_current_pid_tgid() >> 32;
+    context->host_pid = host_pid;
 
     u32 pid = get_task_ns_tgid(task);
     if (context->host_pid == pid)
@@ -1022,6 +1172,12 @@ static __always_inline u32 init_context(sys_context_t *context)
 
         context->ppid = get_task_ns_ppid(task);
         context->pid = pid;
+        
+        // check if process is part of exec
+        u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
+        if (exec_id) {
+            context->exec_id = *exec_id;
+        }
     }
 
     context->uid = bpf_get_current_uid_gid();
@@ -1134,13 +1290,78 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
             save_args_to_buffer(types, args);
         }
 
-        events_perf_submit(ctx);
+        events_perf_submit(ctx, DATA_BUF_TYPE);
         return true; 
     }
 
     bpf_map_update_elem(&kubearmor_alert_throttle, &key, state, BPF_ANY);
 #endif
     return false; 
+}
+
+// ==== Container Exec Events ====
+
+SEC("tracepoint/syscalls/sys_enter_setns")
+int sys_enter_setns(struct trace_event_raw_sys_enter *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+
+    struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+
+    struct outer_key data = {};
+    data.pid_ns = get_task_pid_ns_id(t);
+    data.mnt_ns = get_task_mnt_ns_id(t);
+
+    bpf_map_update_elem(&ns_transition, &pid, &data, BPF_ANY);
+    
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_setns")
+int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+
+    struct outer_key *pre_ns_data;
+    
+    pre_ns_data = bpf_map_lookup_elem(&ns_transition, &pid);
+    if (!pre_ns_data)
+        return 0;
+    
+    struct task_struct *t = (struct task_struct *)bpf_get_current_task();
+    u32 new_pid_ns = get_task_pid_ns_id(t);
+    u32 new_mnt_ns = get_task_mnt_ns_id(t);
+    
+    if (pre_ns_data->mnt_ns != new_mnt_ns || 
+        pre_ns_data->pid_ns != new_pid_ns ) {
+        
+        struct outer_key key = {};
+        key.mnt_ns = new_mnt_ns;
+        key.pid_ns = new_pid_ns;
+        
+        u32 *matches = bpf_map_lookup_elem(&kubearmor_visibility, &key);
+        u64 exec_id = bpf_ktime_get_ns() | pid;
+        if (matches) {   
+          bpf_map_update_elem(&kubearmor_exec_pids, &pid, &exec_id, BPF_ANY);
+        }
+
+    }
+    bpf_map_delete_elem(&ns_transition, &pid);
+    return 0;
+}
+
+SEC("tracepoint/sched/sched_process_fork")
+int sched_process_fork(struct trace_event_raw_sched_process_fork *ctx)
+{
+    u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
+    u32 child_pid = ctx->child_pid;
+    
+    u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
+    if (exists) {
+        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, exists, BPF_ANY);
+    }
+
+    return 0;
 }
 
 SEC("kprobe/security_path_mknod")
@@ -1228,7 +1449,7 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
     save_context_to_buffer(bufs_p, (void *)&context);
     save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1292,7 +1513,7 @@ int kprobe__execve(struct pt_regs *ctx)
     save_str_to_buffer(bufs_p, filename);
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1344,7 +1565,7 @@ int kretprobe__execve(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1398,12 +1619,12 @@ int kprobe__execveat(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    save_to_buffer(bufs_p, (void *)&dirfd, sizeof(int), INT_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&dirfd, sizeof(int), INT_T);
     save_str_to_buffer(bufs_p, (void *)pathname);
     save_str_arr_to_buffer(bufs_p, (const char *const *)argv);
-    save_to_buffer(bufs_p, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&flags, sizeof(int), EXEC_FLAGS_T);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1456,7 +1677,7 @@ int kretprobe__execveat(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1471,6 +1692,10 @@ int kprobe__do_exit(struct pt_regs *ctx)
 
     // delete entry for file access which are not successful and are not deleted from file_map since kretprobe/__x64_sys_openat hook is not triggered
     bpf_map_delete_elem(&file_map, &tgid);
+    bpf_map_delete_elem(&proc_file_access, &tgid);
+
+    // delete entry for exec (host) pid
+    bpf_map_delete_elem(&kubearmor_exec_pids, &tgid);
 
     sys_context_t context = {};
 
@@ -1498,7 +1723,7 @@ int kprobe__do_exit(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
 
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -1634,7 +1859,7 @@ static __always_inline int trace_ret_generic(u32 id, struct pt_regs *ctx, u64 ty
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
     return 0;
 }
 
@@ -1707,11 +1932,15 @@ int kprobe__openat(struct pt_regs *ctx)
 
     struct pt_regs *ctx2 = (struct pt_regs *)PT_REGS_PARM1(ctx);
     const char __user *pathname = (void *)READ_KERN(PT_REGS_PARM2(ctx2));
-    char path[8];
-    bpf_probe_read(path, 8, pathname);
+    struct pathname_t path = {};
+    bpf_probe_read_user_str(path.path, sizeof(path.path), pathname);
 
-    if (isProcDir(path) == 0 || isSysDir(path) == 0)
+    if (isProcDir(path.path) == 0)
     {
+        u64 tgid = bpf_get_current_pid_tgid();
+        bpf_map_update_elem(&proc_file_access, &tgid, &path, BPF_ANY);
+        return 0;
+    } else if (isSysDir(path.path) == 0){
         return 0;
     }
 
@@ -1949,7 +2178,7 @@ int sys_exit_openat(struct tracepoint_syscalls_sys_exit_t *args)
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &orig_args);
 
-    events_perf_submit((struct pt_regs *)args);
+    events_perf_submit((struct pt_regs *)args, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -2064,12 +2293,45 @@ int kprobe__tcp_connect(struct pt_regs *ctx)
     if (skip_syscall())
         return 0;
 
+    u32 tgid = bpf_get_current_pid_tgid();
+    u64 id = ((u64)_TCP_CONNECT << 32) | tgid;
+
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+
+    args_t args = {};
+    args.args[0] = (unsigned long)sk;
+
+    bpf_map_update_elem(&args_map, &id, &args, BPF_ANY);
+
+    return 0;
+}
+
+SEC("kretprobe/__x64_sys_tcp_connect")
+int kretprobe__tcp_connect(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    struct sock *sk;
+
+    u32 tgid = bpf_get_current_pid_tgid();
+    u64 id = ((u64)_TCP_CONNECT << 32) | tgid;
+
+    args_t *argp = bpf_map_lookup_elem(&args_map, &id);
+    if (!argp)
+        return 0;
+    bpf_map_delete_elem(&args_map, &id);
+    
+    unsigned long sk_ptr = argp->args[0];
+    if (!sk_ptr)
+        return 0;
+    sk = (struct sock *)sk_ptr;
+
     if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE))
     {
         return 0;
     }
 
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     struct sock_common conn = READ_KERN(sk->__sk_common);
     struct sockaddr_in sockv4;
     struct sockaddr_in6 sockv6;
@@ -2105,7 +2367,7 @@ int kprobe__tcp_connect(struct pt_regs *ctx)
         return 0;
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
@@ -2164,7 +2426,8 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
     u64 types = ARG_TYPE0(STR_T) | ARG_TYPE1(SOCKADDR_T);
     init_context(&context);
     context.argnum = get_arg_num(types);
-    context.retval = PT_REGS_PARM3(ctx);
+    int *err_ptr = (int *)PT_REGS_PARM3(ctx);
+    bpf_probe_read(&context.retval, sizeof(context.retval), err_ptr);
 
     if (context.retval >= 0 && drop_syscall(_NETWORK_PROBE))
     {
@@ -2190,8 +2453,87 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx)
 
     save_context_to_buffer(bufs_p, (void *)&context);
     save_args_to_buffer(types, &args);
-    events_perf_submit(ctx);
+    events_perf_submit(ctx, DATA_BUF_TYPE);
 
     return 0;
 }
+
+SEC("kprobe/udp_sendmsg")
+int kprobe__udp_sendmsg(struct pt_regs *ctx)
+{
+    if (skip_syscall())
+        return 0;
+
+    if (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    if (sk == NULL)
+        return 0;
+    struct msghdr *msg = (struct msghdr *)PT_REGS_PARM2(ctx);
+    size_t len = (size_t)PT_REGS_PARM3(ctx);
+
+    struct iovec iov;
+    void *data = NULL;
+    __u16 dport = 0;
+
+    bpf_probe_read(&dport, sizeof(dport), &sk->__sk_common.skc_dport);
+    dport = ntohs(dport);
+    if (dport != 53)
+        return 0;
+    #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 13)
+        bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.__iov);
+    #else
+        bpf_probe_read(&iov, sizeof(iov), &msg->msg_iter.iov);
+    #endif
+    bpf_probe_read(&data, sizeof(data), &iov.iov_base);
+
+    if (len > 512)// MAX_DNS_SIZE
+        return 0; 
+
+    sys_context_t context = {};
+    args_t args = {};
+    u64 types = 0;
+    init_context(&context);
+    context.argnum = 3;
+    // Presuming the success event
+    context.retval = 0;
+    context.event_id = _UDP_SENDMSG;
+
+    if (context.retval >= 0 && drop_syscall(_DNS_PROBE))
+    {
+        return 0;
+    }
+
+
+    if (context.retval < 0 && !get_kubearmor_config(_ENFORCER_BPFLSM) && get_kubearmor_config(_ALERT_THROTTLING) && should_drop_alerts_per_container(&context, ctx, types, &args))
+    {
+        return 0;
+    }
+
+    set_buffer_offset(DNS_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DNS_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+    save_context_to_buffer(bufs_p, (void *)&context);
+
+    // get socket info
+    struct sock_common conn = READ_KERN(sk->__sk_common);
+    // udp_sendmsg operates on AF_INET socket
+    struct sockaddr_in sockv4;
+    sockv4.sin_family = conn.skc_family;
+    sockv4.sin_addr.s_addr = conn.skc_daddr;
+    sockv4.sin_port = dport;
+
+    // save socket, domain-name(QNAME) and query-type (QTYPE) as args
+    save_to_buffer(bufs_p, DNS_BUF_TYPE, (void *)&sockv4, sizeof(struct sockaddr_in), SOCKADDR_T);
+    // save_to_dns_buffer(bufs_p, (void *)&sockv4, sizeof(struct sockaddr_in), SOCKADDR_T);
+    save_dns_data_to_dns_buffer(bufs_p, data, UDP_MSG);
+    // dns_events_perf_submit(ctx, DATA_BUF_TYPE);
+    events_perf_submit(ctx, DNS_BUF_TYPE);
+    return 0;
+}
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";

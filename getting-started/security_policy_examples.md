@@ -26,6 +26,66 @@ Here, we demonstrate how to define security policies using our example microserv
 
     * Verification: After applying this policy, please get into one of the containers with the 'group-1' \(using "kubectl -n multiubuntu exec -it ubuntu-X-deployment-... -- bash"\) and run '/bin/sleep'. You will see that /bin/sleep is blocked.
 
+  * Block accessing specific executable matching labels, In & NotIn operator \([ksp-match-expression-in-notin-block-process.yaml](../examples/nginx-csp/cluster-security-policies/ksp-match-expression-in-notin-block-process.yaml)\)
+
+    ```yaml
+    apiVersion: security.kubearmor.com/v1
+    kind: KubeArmorPolicy
+    metadata:
+      name: ksp-match-expression-in-notin-block-process
+      namespace: multiubuntu
+    spec:
+      severity: 5
+      message: "block execution of a matching binary name"
+      selector:
+        matchExpressions:
+          - key: label
+            operator: In
+            values: 
+              - container=ubuntu-1
+          - key: label
+            operator: NotIn
+            values: 
+              - container=ubuntu-3
+      process:
+        matchPaths:
+        - execname: apt
+      action:
+        Block
+    ```
+
+    * Explanation: The purpose of this policy is to block the execution of 'apt' binary in all the workloads in the namespace `multiubuntu`, who contains label `container=ubuntu-1`. For this, we define the 'container=ubuntu-1' as value and operator as 'In' for key `label` in selector -&gt; matchExpressions and the specific execname \('apt'\) in process -&gt; matchPaths. The other expression `container=ubuntu-3` value and operator as 'NotIn' for key `label` is not mandatory because if we mention something in 'In' operator, everything else is just not slected for matching. Also, we put 'Block' as the action of this policy.
+
+    * Verification: After applying this policy, please exec into any container who contains label `container=ubuntu-1` within the namespace 'multiubuntu' and run 'apt'. You can see the binary is blocked. Then try to do same in other workloads who doesn't contains label `container=ubuntu-1`, the binary won't be blocked.
+
+  * Block accessing specific executable matching labels, NotIn operator \([ksp-match-expression-notin-block-process.yaml](../examples/nginx-csp/cluster-security-policies/ksp-match-expression-notin-block-process.yaml)\)
+
+    ```yaml
+    apiVersion: security.kubearmor.com/v1
+    kind: KubeArmorPolicy
+    metadata:
+      name: ksp-match-expression-notin-block-process
+      namespace: multiubuntu
+    spec:
+      severity: 5
+      message: "block execution of a matching binary name"
+      selector:
+        matchExpressions:
+          - key: label
+            operator: NotIn
+            values: 
+              - container=ubuntu-1
+      process:
+        matchPaths:
+        - execname: apt
+      action:
+        Block
+    ```
+
+    * Explanation: The purpose of this policy is to block the execution of 'apt' binary in all the workloads in the namespace `multiubuntu`, who doesn't contains label `container=ubuntu-1`. For this, we define the 'container=ubuntu-1' as value and operator as 'In' for key `label` in selector -&gt; matchExpressions and the specific execname \('apt'\) in process -&gt; matchPaths. Also, we put 'Block' as the action of this policy.
+
+    * Verification: After applying this policy, please exec into any container who contains label `container=ubuntu-1` within the namespace 'multiubuntu' and run 'apt'. You can see the binary is not blocked. Then try to do same in other workloads who doesn't contains label `container=ubuntu-1`, the binary will be blocked.
+
   * Block all executables in a specific directory \([ksp-ubuntu-1-proc-dir-block.yaml](../examples/multiubuntu/security-policies/ksp-ubuntu-1-proc-dir-block.yaml)\)
 
     ```yaml

@@ -41,7 +41,7 @@ COPY $OPERATOR_DIR/recommend recommend
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o operator cmd/operator/main.go
 RUN CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} GO111MODULE=on go build -a -o snitch cmd/snitch-cmd/main.go
 
-FROM redhat/ubi9-minimal as operator
+FROM redhat/ubi9-minimal AS operator
 
 ARG VERSION=latest
 
@@ -68,7 +68,7 @@ USER 1000
 
 ENTRYPOINT ["/operator"]
 
-FROM redhat/ubi9-minimal as snitch
+FROM redhat/ubi9-minimal AS snitch
 
 ARG VERSION=latest
 

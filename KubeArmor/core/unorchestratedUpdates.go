@@ -37,6 +37,9 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
 		visibility.Capabilities = true
 	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "dns") {
+		visibility.DNS = true
+	}
 
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
 }
@@ -63,6 +66,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
 			Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+			DNS:          dm.validateVisibility("dns", cfg.GlobalCfg.Visibility),
 		}
 
 		// Apply the changes to the daemon
@@ -278,10 +282,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
-
-	if secPolicy.Spec.Severity == 0 {
-		secPolicy.Spec.Severity = 1 // the lowest severity, by default
-	}
 
 	switch secPolicy.Spec.Action {
 	case "allow":

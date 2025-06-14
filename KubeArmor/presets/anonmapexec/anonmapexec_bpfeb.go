@@ -68,15 +68,16 @@ type anonmapexecProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type anonmapexecMapSpecs struct {
-	AnonMapExecPresetContainers *ebpf.MapSpec `ebpf:"anon_map_exec_preset_containers"`
-	Bufk                        *ebpf.MapSpec `ebpf:"bufk"`
-	Bufs                        *ebpf.MapSpec `ebpf:"bufs"`
-	BufsOff                     *ebpf.MapSpec `ebpf:"bufs_off"`
-	Events                      *ebpf.MapSpec `ebpf:"events"`
-	KubearmorAlertThrottle      *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
-	KubearmorConfig             *ebpf.MapSpec `ebpf:"kubearmor_config"`
-	KubearmorContainers         *ebpf.MapSpec `ebpf:"kubearmor_containers"`
-	KubearmorEvents             *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	Bufk                                 *ebpf.MapSpec `ebpf:"bufk"`
+	Bufs                                 *ebpf.MapSpec `ebpf:"bufs"`
+	BufsOff                              *ebpf.MapSpec `ebpf:"bufs_off"`
+	Events                               *ebpf.MapSpec `ebpf:"events"`
+	KubearmorAlertThrottle               *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorAnonMapExecPresetContainers *ebpf.MapSpec `ebpf:"kubearmor_anon_map_exec_preset_containers"`
+	KubearmorConfig                      *ebpf.MapSpec `ebpf:"kubearmor_config"`
+	KubearmorContainers                  *ebpf.MapSpec `ebpf:"kubearmor_containers"`
+	KubearmorEvents                      *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids                    *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
 }
 
 // anonmapexecVariableSpecs contains global variables before they are loaded into the kernel.
@@ -106,28 +107,30 @@ func (o *anonmapexecObjects) Close() error {
 //
 // It can be passed to loadAnonmapexecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type anonmapexecMaps struct {
-	AnonMapExecPresetContainers *ebpf.Map `ebpf:"anon_map_exec_preset_containers"`
-	Bufk                        *ebpf.Map `ebpf:"bufk"`
-	Bufs                        *ebpf.Map `ebpf:"bufs"`
-	BufsOff                     *ebpf.Map `ebpf:"bufs_off"`
-	Events                      *ebpf.Map `ebpf:"events"`
-	KubearmorAlertThrottle      *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
-	KubearmorConfig             *ebpf.Map `ebpf:"kubearmor_config"`
-	KubearmorContainers         *ebpf.Map `ebpf:"kubearmor_containers"`
-	KubearmorEvents             *ebpf.Map `ebpf:"kubearmor_events"`
+	Bufk                                 *ebpf.Map `ebpf:"bufk"`
+	Bufs                                 *ebpf.Map `ebpf:"bufs"`
+	BufsOff                              *ebpf.Map `ebpf:"bufs_off"`
+	Events                               *ebpf.Map `ebpf:"events"`
+	KubearmorAlertThrottle               *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorAnonMapExecPresetContainers *ebpf.Map `ebpf:"kubearmor_anon_map_exec_preset_containers"`
+	KubearmorConfig                      *ebpf.Map `ebpf:"kubearmor_config"`
+	KubearmorContainers                  *ebpf.Map `ebpf:"kubearmor_containers"`
+	KubearmorEvents                      *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids                    *ebpf.Map `ebpf:"kubearmor_exec_pids"`
 }
 
 func (m *anonmapexecMaps) Close() error {
 	return _AnonmapexecClose(
-		m.AnonMapExecPresetContainers,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorAnonMapExecPresetContainers,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
+		m.KubearmorExecPids,
 	)
 }
 

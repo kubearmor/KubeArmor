@@ -13,10 +13,17 @@ if [ "$VERSION_CODENAME" == "focal" ] || [ "$VERSION_CODENAME" == "bionic" ]; th
         sudo rm -f /usr/bin/$tool
         sudo ln -s /usr/bin/$tool-12 /usr/bin/$tool
     done
-else # VERSION_CODENAME == jammy
+elif [ "$VERSION_CODENAME" == "jammy" ]; then
     sudo bash /tmp/llvm.sh 14
     for tool in "clang" "llc" "llvm-strip" "opt" "llvm-dis"; do
         sudo rm -f /usr/bin/$tool
         sudo ln -s /usr/bin/$tool-14 /usr/bin/$tool
     done
+else # VERSION_CODENAME == noble
+    sudo  bash /tmp/llvm.sh 19
+    for tool in "clang" "llc" "llvm-strip" "opt" "llvm-dis"; do
+        sudo rm -f /usr/bin/$tool
+        sudo ln -s /usr/bin/$tool-19 /usr/bin/$tool
+    done
 fi
+

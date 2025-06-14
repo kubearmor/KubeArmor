@@ -81,6 +81,7 @@ type enforcerMapSpecs struct {
 	KubearmorConfig        *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.MapSpec `ebpf:"kubearmor_events"`
+	KubearmorExecPids      *ebpf.MapSpec `ebpf:"kubearmor_exec_pids"`
 }
 
 // enforcerVariableSpecs contains global variables before they are loaded into the kernel.
@@ -116,6 +117,7 @@ type enforcerMaps struct {
 	KubearmorConfig        *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers    *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents        *ebpf.Map `ebpf:"kubearmor_events"`
+	KubearmorExecPids      *ebpf.Map `ebpf:"kubearmor_exec_pids"`
 }
 
 func (m *enforcerMaps) Close() error {
@@ -127,6 +129,7 @@ func (m *enforcerMaps) Close() error {
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
+		m.KubearmorExecPids,
 	)
 }
 

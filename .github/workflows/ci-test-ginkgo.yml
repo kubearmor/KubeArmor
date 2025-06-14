@@ -34,8 +34,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
-        runtime: ["containerd", "crio"]
+        os: [ubuntu-latest-16-cores]
+        runtime: ["containerd","crio"]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -114,23 +114,31 @@ jobs:
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               docker save kubearmor/kubearmor-test-init:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test-init:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-test-init:latest kubearmor/kubearmor-test-init:latest
+
               docker save kubearmor/kubearmor-test:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-test:latest kubearmor/kubearmor-test:latest
+      
               docker save kubearmor/kubearmor-operator:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-operator:latest kubearmor/kubearmor-operator:latest
+
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-snitch:latest kubearmor/kubearmor-snitch:latest
+
               if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
                 docker save kubearmor/kubearmor-controller:latest | sudo podman load
-                sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
+                sudo podman tag docker.io/kubearmor/kubearmor-controller:latest kubearmor/kubearmor-controller:latest
+
               fi
               if [ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]; then
                 docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
-                sudo podman tag localhost/latest:latest docker.io/kubearmor/ubuntu-w-utils:latest
+                sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest kubearmor/ubuntu-w-utils:latest
               fi
+              echo "Podman images"
+              sudo podman images -a
             fi
           fi
+
           docker system prune -a -f 
           docker buildx prune -a -f
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true

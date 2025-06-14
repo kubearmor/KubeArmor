@@ -31,6 +31,12 @@ message Podowner {
   string Namespace = 3;
 }
 
+// execevent struct
+message ExecEvent {
+  string ExecID = 1;
+  string ExecutableName = 2;
+}
+
 // alert struct
 message Alert {
   int64 Timestamp = 1;
@@ -77,6 +83,8 @@ message Alert {
   string TTY = 33;
   int32 MaxAlertsPerSec = 34;
   int32 DroppingAlertsInterval = 35;
+
+  ExecEvent ExecEvent = 36;
 }
 
 // log struct
@@ -114,6 +122,8 @@ message Log {
   string Result = 18;
   string Cwd = 25;
   string TTY = 26;
+
+  ExecEvent ExecEvent = 27;
 }
 
 // request message

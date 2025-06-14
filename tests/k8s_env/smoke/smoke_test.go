@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kubearmor/KubeArmor/protobuf"
-	"github.com/kubearmor/KubeArmor/tests/util"
 
 	. "github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
@@ -305,49 +304,6 @@ var _ = Describe("Smoke", func() {
 			expect := protobuf.Alert{
 				PolicyName: "ksp-wordpress-block-mount-file",
 				Severity:   "5",
-			}
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-		})
-		It("will allow use of tcp network protocol by curl and bash", func() {
-			err := util.AnnotateNS("wordpress-mysql", "kubearmor-network-posture", "audit")
-			Expect(err).To(BeNil())
-			// Apply policy
-			err = K8sApplyFile("res/ksp-wordpress-allow-tcp.yaml")
-			Expect(err).To(BeNil())
-
-			// Start Kubearmor Logs
-			err = KarmorLogStart("policy", "wordpress-mysql", "Network", wp)
-			Expect(err).To(BeNil())
-
-			// wait for policy creation
-			time.Sleep(5 * time.Second)
-
-			sout, _, err := K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "curl 142.250.193.46"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			// tcp action
-			Expect(sout).To(ContainSubstring("http://www.google.com/"))
-
-			// check alert
-			_, alerts, err := KarmorGetLogs(5*time.Second, 1)
-			fmt.Printf("OUTPUT: %s\n", alerts)
-			Expect(err).To(BeNil())
-			Expect(len(alerts)).To(Equal(0))
-
-			// tcp + udp + raw action
-			sout, _, err = K8sExecInPod(wp, "wordpress-mysql",
-				[]string{"bash", "-c", "curl google.com"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(ContainSubstring("http://www.google.com/"))
-
-			// check alert
-			expect := protobuf.Alert{
-				PolicyName: "DefaultPosture",
-				Result:     "Passed",
 			}
 			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())

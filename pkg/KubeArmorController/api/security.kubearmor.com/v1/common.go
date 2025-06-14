@@ -346,4 +346,8 @@ const (
 	ProtectEnv PresetName = "protectEnv"
 	// FilelessExec Preset
 	FilelessExec PresetName = "filelessExec"
+	// Exec Preset
+	Exec PresetName = "exec"
+	// ProtectProc Preset
+	ProtectProc PresetName = "protectProc"
 )

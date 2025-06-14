@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"os"
 	"strings"
+	"sync"
 
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	securityv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
@@ -130,10 +131,11 @@ var (
 		"--health-probe-bind-address=:8081",
 		"--annotateExisting=false",
 	}
-	KubeArmorControllerImage            string                        = "kubearmor/kubearmor-controller:latest"
-	KubeArmorControllerImagePullPolicy  string                        = "Always"
-	KubeArmorControllerImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
-	KubeArmorControllerTolerations      []corev1.Toleration           = []corev1.Toleration{}
+	KubeArmorControllerImage              string                        = "kubearmor/kubearmor-controller:latest"
+	KubeArmorControllerImagePullPolicy    string                        = "Always"
+	KubeArmorControllerImagePullSecrets   []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
+	KubeArmorControllerTolerations        []corev1.Toleration           = []corev1.Toleration{}
+	KubeArmorControllerWebhookServiceName                               = "kubearmor-controller-webhook-service"
 
 	SeccompProfile     = "kubearmor-seccomp.json"
 	SeccompInitProfile = "kubearmor-init-seccomp.json"
@@ -155,7 +157,7 @@ var (
 
 	// recommend policies
 	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
-		MatchExpressions: []securityv1.MatchExpressionsType{
+		MatchExpressions: []securityv1.ClusterMatchExpressionsType{
 			{
 				Key:      "namespace",
 				Operator: "NotIn",
@@ -184,6 +186,9 @@ var (
 	}
 
 	ElasticSearchAdapterCaCertPath = "/cert"
+
+	ControllerPortLock      sync.Mutex
+	KubeArmorControllerPort = 9443
 )
 var Pointer2True bool = true
 

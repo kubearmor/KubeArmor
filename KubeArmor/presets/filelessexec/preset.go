@@ -12,6 +12,8 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -98,15 +100,13 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 		return nil, err // Doesn't require clean up so not returning err
 	}
 
-	p.Logger.Printf("Preset Pinpath: %s\n", monitor.PinPath)
-
 	p.BPFContainerMap, _ = ebpf.NewMapWithOptions(&ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    8,
 		ValueSize:  4,
 		MaxEntries: 256,
 		Pinning:    ebpf.PinByName,
-		Name:       "fileless_exec_preset_containers",
+		Name:       "kubearmor_fileless_exec_preset_containers",
 	}, ebpf.MapOptions{
 		PinPath: monitor.PinPath,
 	})
@@ -116,13 +116,13 @@ func (p *Preset) RegisterPreset(logger *fd.Feeder, monitor *mon.SystemMonitor) (
 			PinPath: monitor.PinPath,
 		},
 	}); err != nil {
-		p.Logger.Errf("error loading BPF LSM objects: %v", err)
+		p.Logger.Errf("Error loading BPF LSM objects: %v", err)
 		return nil, err
 	}
 
-	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.EnforceBprmCheckSecurity})
+	p.Link, err = link.AttachLSM(link.LSMOptions{Program: p.obj.FilelessPresetBprmCheckSecurity})
 	if err != nil {
-		p.Logger.Errf("opening lsm %s: %s", p.obj.EnforceBprmCheckSecurity.String(), err)
+		p.Logger.Errf("opening lsm %s: %s", p.obj.FilelessPresetBprmCheckSecurity.String(), err)
 		return nil, err
 	}
 
@@ -204,6 +204,11 @@ func (p *Preset) TraceEvents() {
 
 		log.Operation = "Process"
 
+		log.ExecEvent.ExecID = strconv.FormatUint(event.ExecID, 10)
+		if comm := strings.TrimRight(string(event.Comm[:]), "\x00"); len(comm) > 0 {
+			log.ExecEvent.ExecutableName = comm
+		}
+
 		if event.Retval >= 0 {
 			log.Result = "Passed"
 		} else {
@@ -230,7 +235,7 @@ func (p *Preset) RegisterContainer(containerID string, pidns, mntns uint32) {
 
 	p.ContainerMapLock.Lock()
 	defer p.ContainerMapLock.Unlock()
-	p.Logger.Printf("[FilelessExec] Registered container with id: %s\n", containerID)
+	p.Logger.Debugf("[FilelessExec] Registered container with id: %s\n", containerID)
 	p.ContainerMap[containerID] = ContainerVal{NsKey: ckv}
 }
 
@@ -241,23 +246,23 @@ func (p *Preset) UnregisterContainer(containerID string) {
 
 	if val, ok := p.ContainerMap[containerID]; ok {
 		if err := p.DeleteContainerIDFromMap(containerID, val.NsKey); err != nil {
-			p.Logger.Errf("error deleting container %s: %s", containerID, err.Error())
+			p.Logger.Errf("Error deleting container %s: %s", containerID, err.Error())
 			return
 		}
-		p.Logger.Printf("[FilelessExec] Unregistered container with id: %s\n", containerID)
+		p.Logger.Debugf("[FilelessExec] Unregistered container with id: %s\n", containerID)
 		delete(p.ContainerMap, containerID)
 	}
 }
 
 // AddContainerIDToMap adds a container id to ebpf map
 func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error {
-	p.Logger.Printf("[FilelessExec] adding container with id to fileless_map exec map: %s\n", id)
+	p.Logger.Debugf("[FilelessExec] adding container with id to fileless_map exec map: %s\n", id)
 	a := base.Block
 	if action == "Audit" {
 		a = base.Audit
 	}
 	if err := p.BPFContainerMap.Put(ckv, a); err != nil {
-		p.Logger.Errf("error adding container %s to outer map: %s", id, err)
+		p.Logger.Errf("Error adding container %s to outer map: %s", id, err)
 		return err
 	}
 	return nil
@@ -265,10 +270,10 @@ func (p *Preset) AddContainerIDToMap(id string, ckv NsKey, action string) error 
 
 // DeleteContainerIDFromMap deletes a container id from ebpf map
 func (p *Preset) DeleteContainerIDFromMap(id string, ckv NsKey) error {
-	p.Logger.Printf("[FilelessExec] deleting container with id to fileless_map exec map: %s\n", id)
+	p.Logger.Debugf("[FilelessExec] deleting container with id to fileless_map exec map: %s\n", id)
 	if err := p.BPFContainerMap.Delete(ckv); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			p.Logger.Errf("error deleting container %s in fileless_exec_preset_containers map: %s", id, err.Error())
+			p.Logger.Errf("Error deleting container %s in kubearmor_fileless_exec_preset_containers map: %s", id, err.Error())
 			return err
 		}
 	}
@@ -280,11 +285,10 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 	var filelessExecPresetRulePresent bool
 	for _, cid := range endPoint.Containers {
 		filelessExecPresetRulePresent = false
-		p.Logger.Printf("Updating container preset rules for %s", cid)
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
 				if preset.Name == tp.FilelessExec {
-					p.Logger.Printf("container matched for fileless exec rule: %s", cid)
+					p.Logger.Printf("Container matched for fileless exec rule: %s", cid)
 					filelessExecPresetRulePresent = true
 					p.ContainerMapLock.RLock()
 					// Check if Container ID is registered in Map or not
@@ -293,7 +297,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					if !ok {
 						// It maybe possible that CRI has unregistered the containers but K8s construct still has not sent this update while the policy was being applied,
 						// so the need to check if the container is present in the map before we apply policy.
-						p.Logger.Warnf("container not registered in map: %s", cid)
+						p.Logger.Warnf("Container not registered in map: %s", cid)
 
 						return
 					}
@@ -302,7 +306,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 					p.ContainerMap[cid] = ckv
 					err := p.AddContainerIDToMap(cid, ckv.NsKey, preset.Action)
 					if err != nil {
-						p.Logger.Warnf("updating policy for container %s :%s ", cid, err)
+						p.Logger.Warnf("Updating policy for container %s :%s ", cid, err)
 					}
 					p.ContainerMapLock.Unlock()
 				}

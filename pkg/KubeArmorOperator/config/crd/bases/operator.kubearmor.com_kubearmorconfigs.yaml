@@ -535,6 +535,7 @@ spec:
                         key:
                           enum:
                           - namespace
+                          - label
                           type: string
                         operator:
                           enum:
@@ -551,6 +552,8 @@ spec:
               seccompEnabled:
                 type: boolean
               throttleSec:
+                type: integer
+              controllerPort:
                 type: integer
               tls:
                 properties:

@@ -12,7 +12,7 @@ metadata:
   namespace: [namespace name]
 
 spec:
-  severity: [1-10]                         # --> optional (1 by default)
+  severity: [1-10]                         # --> optional 
   tags: ["tag", ...]                       # --> optional
   message: [message]                       # --> optional
 
@@ -20,6 +20,11 @@ spec:
     matchLabels:
       [key1]: [value1]
       [keyN]: [valueN]
+    matchExpressions:
+      - key: [label]
+        operator: [In|NotIn]
+        values:
+          - [labels]
 
   process:
     matchPaths:
@@ -137,6 +142,8 @@ Now, we will briefly explain how to define a security policy.
 
 ### Selector
 
+#### MatchLabels
+
   The selector part is relatively straightforward. Similar to other Kubernetes configurations, you can specify \(a group of\) pods based on labels.
 
   ```text
@@ -145,6 +152,25 @@ Now, we will briefly explain how to define a security policy.
         [key1]: [value1]
         [keyN]: [valueN]
   ```
+
+  #### MatchExpressions
+  Further in selector we can use `matchExpressions` to define labels to select/deselect the workloads. Currently, only labels can be matched, so the key should be 'label'. The operator will determine whether the policy should apply to the workloads specified in the values field or not.
+
+  Operator: In
+  When the operator is set to In, the policy will be applied only to the workloads that match the labels in the values field.
+
+  Operator: NotIn
+  When the operator is set to NotIn, the policy will be applied to all the workloads except that match the labels in the values field.
+
+  ```text
+    selector:
+      matchExpressions:              
+        - key: label
+          operator: [In|NotIn]
+          values:
+          - [label]       # string format eg. -> (app=nginx)
+  ```
+  > **NOTE** Both `matchExpressions` and `matchLabel` are an ANDed operation.
 
 ### Process
 
