@@ -64,6 +64,10 @@ func (dm *KubeArmorDaemon) NewNRIHandler(
 	opts := []stub.Option{
 		stub.WithSocketPath(cfg.GlobalCfg.NRISocket),
 		stub.WithPluginIdx(cfg.GlobalCfg.NRIIndex),
+		stub.WithOnClose(func() {
+			kg.Printf("restarting NRI")
+			nri.Start()
+		}),
 	}
 
 	stub, err := stub.New(nri, opts...)

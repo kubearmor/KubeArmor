@@ -12,8 +12,10 @@ cleanup() {
   
   docker system prune -a -f
   
-  sudo podman system prune -a -f
-  
+  if command -v podman &> /dev/null; then
+    sudo podman system prune -a -f
+  fi
+
   # rm -rf /home/vagrant/actions-runner/_work/KubeArmor
 
   echo "Cleanup complete."

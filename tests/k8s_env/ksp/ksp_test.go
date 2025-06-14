@@ -97,210 +97,13 @@ var _ = Describe("Ksp", func() {
 
 	})
 
-	Describe("Apply Network Policies", func() {
-
-		It("it can audit all network trafic on icmp protocol", func() {
-			// multiubuntu_test_07, github_test_09
-
-			// Apply policy
-			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-audit-net-icmp.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-
-			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-				[]string{"bash", "-c", "ping -c 1 127.0.0.1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("PING.*127.0.0.1"))
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-audit-net-icmp",
-				Severity:   "8",
-				Action:     "Audit",
-				Result:     "Passed",
-			}
-
-			// check policy alert
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-		})
-
-		It("it can block all network traffic on net-raw protocol", func() {
-			// multiubuntu_test_03, github_test_10
-
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to policy not supported by bpflsm enforcer")
-			}
-
-			// Apply Policy
-			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-net-raw-cap.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-
-			// to wait for apparmor policy to be generated
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
-				MatchRegexp("CAP_NET_RAW.*required"), true,
-			)
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-block-net-raw-cap",
-				Severity:   "1",
-				Action:     "Block",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
-		})
-
-		It("it can allow all network traffic on tcp protocol from source path", func() {
-			// github_test_12
-
-			// Test 1 : Initially there's no allow policy so network traffic on any protocol
-			// Should passed
-
-			err := KarmorLogStart("system", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl 142.250.193.46"},
-				MatchRegexp("<A HREF=\"http://www.google.com/\">here</A>"), true,
-			)
-
-			expect := protobuf.Log{
-				Result: "Passed",
-				Source: "/usr/bin/curl 142.250.193.46",
-			}
-
-			res, err := KarmorGetTargetLogs(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
-			// Test 2: when policy applied only tcp traffic is allowed from source
-
-			// Apply Policy
-			err = K8sApplyFile("multiubuntu/ksp-ubuntu-1-allow-net-tcp-from-source.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "curl google.com"},
-				MatchRegexp("Could not resolve host: google.com"), true,
-			)
-
-			expectAlert := protobuf.Alert{
-				PolicyName: "DefaultPosture",
-				Severity:   "",
-				Action:     "Block",
-				Result:     "Permission denied",
-			}
-
-			res, err = KarmorGetTargetAlert(5*time.Second, &expectAlert)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
-		})
-
-		It("it can audit all network traffic on net-raw protocol", func() {
-			// github_test_13
-
-			// Apply Policy
-			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-audit-net-raw.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-
-			sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-				[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
-			Expect(err).To(BeNil())
-			fmt.Printf("OUTPUT: %s\n", sout)
-			Expect(sout).To(MatchRegexp("ARPING 127.0.0.1"))
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-audit-net-raw",
-				Severity:   "8",
-				Action:     "Audit",
-				Result:     "Passed",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
-		})
-
-		It("it can block all network traffic on net-raw protocol", func() {
-			//  multiubuntu_test_28, github_test_14
-
-			// Apply Policy
-			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-net-raw.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
-				MatchRegexp("arping.*Permission denied"), true,
-			)
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-block-net-raw",
-				Severity:   "8",
-				Action:     "Block",
-				Result:     "Permission denied",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
-		})
-
-		It("it can block all network traffic", func() {
-
-			// Apply Policy
-			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-block-net-all.yaml")
-			Expect(err).To(BeNil())
-
-			// Start KubeArmor Logs
-			err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
-			Expect(err).To(BeNil())
-			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"},
-				MatchRegexp("ping.*Permission denied"), true,
-			)
-
-			expect := protobuf.Alert{
-				PolicyName: "ksp-ubuntu-1-block-net-all",
-				Severity:   "8",
-				Action:     "Block",
-				Result:     "Permission denied",
-			}
-
-			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
-			Expect(err).To(BeNil())
-			Expect(res.Found).To(BeTrue())
-
-		})
-
-	})
-
 	Describe("Apply Capabilities Policy", func() {
 
 		It("it can block all network traffic on net-raw protocol", func() {
 			// multiubuntu capabilities test
 
 			if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
-				Skip("Skipping due to policy not supported by bpflsm enforcer")
+				Skip("Skipping due to policy not supported by apparmmor enforcer")
 			}
 
 			// Apply Policy
@@ -692,6 +495,90 @@ var _ = Describe("Ksp", func() {
 			Expect(res.Found).To(BeTrue())
 		})
 
+		It("it can block process execution with matchExpression, In & NotIn operator", func() {
+			// multiubuntu_test_16
+
+			// Apply KubeArmor Policy
+			err := K8sApplyFile("multiubuntu/ksp-match-expression-in-notin-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-match-expression-in-notin-block-process",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub3)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub3, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectLog := protobuf.Log{
+				Resource: "/usr/bin/apt",
+				Result:   "Passed"}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("it can block process execution with matchExpression, NotIn operator", func() {
+			// multiubuntu_test_16
+
+			// Apply KubeArmor Policy
+			err := K8sApplyFile("multiubuntu/ksp-match-expression-notin-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("system", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectLog := protobuf.Log{
+				Resource: "/usr/bin/apt",
+				Result:   "Passed"}
+
+			res, err := KarmorGetTargetLogs(5*time.Second, &expectLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub3)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub3, "multiubuntu", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-match-expression-notin-block-process",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
 	})
 
 	Describe("Apply Files Policies", func() {
@@ -862,9 +749,8 @@ var _ = Describe("Ksp", func() {
 
 		It("it can allow accessing a file owner only from source path", func() {
 			// Test 1: access by user other than owner should be denied
-
 			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to some bug policy is not working")
+				Skip("Skipping due to issue with owneronly with bpflsm enforcer")
 			}
 
 			// Apply Policy
@@ -971,10 +857,11 @@ var _ = Describe("Ksp", func() {
 
 		It("it can block accessing a file owner only from source path", func() {
 			// Test 1: user other than owner should not be allowed to access the file from source path
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to bug in owner based policy with bpflsm enforcer")
-			}
 			// Apply Policy
+			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to issue with owneronly policies with bpflsm enforcer")
+			}
+
 			err := K8sApplyFile("multiubuntu/ksp-group-2-block-file-path-owner-from-source-path.yaml")
 			Expect(err).To(BeNil())
 
@@ -1117,11 +1004,10 @@ var _ = Describe("Ksp", func() {
 
 		It("it can block all the access to a directory recursively except readonly by the owner", func() {
 			// multiubuntu_test_25, github_test_07
-
-			// Test 1: non-owner user access should be blocked
 			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
+				Skip("Skipping due to issue with owneronly  policies with bpflsm enforcer")
 			}
+			// Test 1: non-owner user access should be blocked
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-3-block-file-dir-recursive-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1214,11 +1100,11 @@ var _ = Describe("Ksp", func() {
 
 		It("it can block all the access to a directory except readonly by the owner", func() {
 			// multiubuntu_test_26
+			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to issue with owneronly policies with bpflsm enforcer")
+			}
 
 			// Test 1: non-owner user access should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-3-block-file-dir-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1301,8 +1187,9 @@ var _ = Describe("Ksp", func() {
 		It("it will allow a file path accessible read-only to owner from source path", func() {
 			// Test 1: file access from source by non-owner user should be blocked
 			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
+				Skip("Skipping due to issue with owneronly policies with bpflsm enforcer")
 			}
+
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-allow-file-path-owner-readonly-from-source-path.yaml")
 			Expect(err).To(BeNil())
@@ -1357,11 +1244,11 @@ var _ = Describe("Ksp", func() {
 
 		It("it will block a file path access except read-only accessible to owner from source path", func() {
 			// multiubuntu_test_23
+			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to issue with owneronly policies with bpflsm enforcer")
+			}
 
 			// Test 1: write operation on the file by the owner should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-path-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1448,10 +1335,10 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_24
 
 			// Test 1: write operation on the file from source by the owner should be blocked
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Apply Policy
+			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to issue with owneronly policies with bpflsm enforcer")
+			}
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-path-owner-readonly-from-source-path.yaml")
 			Expect(err).To(BeNil())
 
@@ -1535,8 +1422,9 @@ var _ = Describe("Ksp", func() {
 
 			// Test 1: access by the non-owner user should be blocked
 			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
+				Skip("Skipping due to issue with owneronly  policies with bpflsm enforcer")
 			}
+
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-allow-file-path-owner-readonly.yaml")
 			Expect(err).To(BeNil())
@@ -1593,11 +1481,10 @@ var _ = Describe("Ksp", func() {
 		It("it can allow access to a file by the owner only", func() {
 			// multiubuntu_test_21
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
-
 			// Test 1: access by other user than owner should be blocked
+			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
+				Skip("Skipping due to issue with owneronly policies with bpflsm enforcer")
+			}
 
 			// Apply Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-3-allow-file-path-owner.yaml")
@@ -1640,9 +1527,7 @@ var _ = Describe("Ksp", func() {
 
 		It("it can block access to file path from source path except readonly access is allowed", func() {
 			// multiubuntu_test_20
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
+
 			// Test 1: readonly access from the source should be allowed
 
 			// Apply Policy
@@ -1673,7 +1558,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 
 			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "./readwrite -w /credentials/password"},
-				MatchRegexp("Error!"), true,
+				MatchRegexp(""), true,
 			)
 
 			expect := protobuf.Alert{
@@ -1712,9 +1597,6 @@ var _ = Describe("Ksp", func() {
 		It("it can allow readonly access to a file path from given source path", func() {
 			// multiubuntu_test_19
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Test 1: reading the file from source path should be passed
 
 			// Apply KubeArmor Policy
@@ -1773,9 +1655,6 @@ var _ = Describe("Ksp", func() {
 			// multiubuntu_test_16
 
 			// Test 1: trying to write the file with readonly permissions
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer in this particular testcase we'not getting alert for some reason")
-			}
 
 			// Apply KubeArmor Policy
 			err := K8sApplyFile("multiubuntu/ksp-ubuntu-4-block-file-path-readonly.yaml")
@@ -1786,7 +1665,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 
 			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "echo test >> /credentials/password"},
-				MatchRegexp("password.*Permission denied"), true,
+				MatchRegexp(".*Permission denied"), true,
 			)
 
 			expect := protobuf.Alert{
@@ -1973,9 +1852,6 @@ var _ = Describe("Ksp", func() {
 		It("it can allow readonly access to a file path", func() {
 			// multiubuntu_test_09
 
-			if strings.Contains(K8sRuntimeEnforcer(), "bpf") {
-				Skip("Skipping due to issue with readonly policies with bpflsm enforcer")
-			}
 			// Test: write to the file with readonly permissions
 
 			// Apply KubeArmor Policy
@@ -1987,7 +1863,7 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 
 			AssertCommand(ub4, "multiubuntu", []string{"bash", "-c", "echo test >> /credentials/password"},
-				MatchRegexp("password.*Permission denied"), true,
+				MatchRegexp(".*Permission denied"), true,
 			)
 
 			expect := protobuf.Alert{

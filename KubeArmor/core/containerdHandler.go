@@ -308,7 +308,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 		// get container information from containerd client
 		container, err := Containerd.GetContainerInfo(ctx, containerID, containerPid, dm.OwnerInfo)
 		if err != nil {
-			if strings.Contains(string(err.Error()), "pause container") {
+			if strings.Contains(string(err.Error()), "pause container") || strings.Contains(string(err.Error()), "moby") {
 				kg.Debug(err.Error())
 				return false
 			}
@@ -373,7 +373,11 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 					dm.SecurityPoliciesLock.RLock()
 					for _, secPol := range dm.SecurityPolicies {
-						if kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) {
+						// required only in ADDED event, this alone will update the namespaceList for csp
+						updateNamespaceListforCSP(secPol)
+						// match ksp || csp
+						if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||
+							(kl.ContainsElement(secPol.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) {
 							endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPol)
 						}
 					}
@@ -392,7 +396,9 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 					endPoint.SecurityPolicies = []tp.SecurityPolicy{}
 					dm.SecurityPoliciesLock.RLock()
 					for _, secPol := range dm.SecurityPolicies {
-						if kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) {
+						// match ksp || csp
+						if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||
+							(kl.ContainsElement(secPol.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) {
 							endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPol)
 						}
 					}

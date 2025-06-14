@@ -1,0 +1,48 @@
+name: ci-latest-multiubuntu-release
+
+on:
+  push:
+    branches: [main]
+    paths: ["examples/multiubuntu/build/**"]
+
+permissions: read-all
+
+env:
+  PLATFORM: linux/amd64,linux/arm64/v8
+
+jobs:
+  multiubuntu-release:
+    name: Build & Push KubeArmor Operator
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_AUTHTOK }}
+
+      - name: Build and push multi-architecture image
+        uses: docker/build-push-action@v6
+        with:
+          context: examples/multiubuntu/build
+          file: examples/multiubuntu/build/Dockerfile
+          push: true
+          tags: kubearmor/ubuntu-w-utils:latest
+          platforms: linux/amd64,linux/arm64/v8
+
+      - name: Logout from Docker Hub
+        run: docker logout

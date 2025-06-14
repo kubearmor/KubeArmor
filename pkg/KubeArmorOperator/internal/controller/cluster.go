@@ -35,6 +35,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -46,7 +47,7 @@ var informer informers.SharedInformerFactory
 var deployment_uuid types.UID
 var deployment_name string = "kubearmor-operator"
 var PathPrefix string
-var initDeploy, annotateResource bool
+var initDeploy, annotateResource, annotateExisting bool
 var ProviderHostname, ProviderEndpoint string
 
 type ClusterWatcher struct {
@@ -61,17 +62,18 @@ type ClusterWatcher struct {
 	DaemonsetsLock *sync.Mutex
 }
 type Node struct {
-	Name          string
-	Enforcer      string
-	Runtime       string
-	RuntimeSocket string
-	Arch          string
-	BTF           string
-	ApparmorFs    string
-	Seccomp       string
+	Name             string
+	Enforcer         string
+	Runtime          string
+	RuntimeSocket    string
+	NRIRuntimeSocket string
+	Arch             string
+	BTF              string
+	ApparmorFs       string
+	Seccomp          string
 }
 
-func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource bool) *ClusterWatcher {
+func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource, annotateexisting bool) *ClusterWatcher {
 	if informer == nil {
 		informer = informers.NewSharedInformerFactory(client, 0)
 	}
@@ -89,6 +91,7 @@ func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, ext
 	deployment_name = deploy_name
 	initDeploy = initdeploy
 	annotateResource = annotateresource
+	annotateExisting = annotateexisting
 	ProviderHostname = providerHostname
 	ProviderEndpoint = providerEndpoint
 
@@ -144,7 +147,7 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 
 			j, err := clusterWatcher.Client.BatchV1().Jobs(common.Namespace).Get(context.TODO(), job, v1.GetOptions{})
 			if err != nil {
-				clusterWatcher.Log.Warnf("cannot get job: %s", job)
+				clusterWatcher.Log.Warnf("cannot get job: %s err: %s", job, err)
 				return
 			}
 
@@ -157,7 +160,7 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 			})
 
 			if err != nil {
-				clusterWatcher.Log.Warnf("Cannot get job pod: %s", job)
+				clusterWatcher.Log.Warnf("Cannot get job pod: %s err: %s", job, err)
 				return
 			}
 
@@ -168,7 +171,7 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 					FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 				})
 				if err != nil {
-					clusterWatcher.Log.Warnf("cannot get pod events for pod: %s", pod.Name)
+					clusterWatcher.Log.Warnf("cannot get pod events for pod: %s err: %s", pod.Name, err)
 					return
 				}
 
@@ -300,6 +303,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					if val, ok := node.Labels[common.SocketLabel]; ok {
 						newNode.RuntimeSocket = val
 					}
+					if val, ok := node.Labels[common.NRISocketLabel]; ok {
+						newNode.NRIRuntimeSocket = val
+					}
 					if val, ok := node.Labels[common.BTFLabel]; ok {
 						newNode.BTF = val
 					}
@@ -325,6 +331,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 							clusterWatcher.Nodes[i].Name != newNode.Name ||
 							clusterWatcher.Nodes[i].Runtime != newNode.Runtime ||
 							clusterWatcher.Nodes[i].RuntimeSocket != newNode.RuntimeSocket ||
+							clusterWatcher.Nodes[i].NRIRuntimeSocket != newNode.NRIRuntimeSocket ||
 							clusterWatcher.Nodes[i].BTF != newNode.BTF ||
 							clusterWatcher.Nodes[i].Seccomp != newNode.Seccomp {
 							clusterWatcher.Nodes[i] = newNode
@@ -334,9 +341,9 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 					clusterWatcher.NodesLock.Unlock()
 					if nodeModified {
-						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
+						clusterWatcher.UpdateDaemonsets(common.DeleteAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
 					}
-					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
+					clusterWatcher.UpdateDaemonsets(common.AddAction, newNode.Enforcer, newNode.Runtime, newNode.RuntimeSocket, newNode.NRIRuntimeSocket, newNode.BTF, newNode.ApparmorFs, newNode.Seccomp)
 				}
 			} else {
 				log.Errorf("Cannot convert object to node struct")
@@ -355,7 +362,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 					}
 				}
 				clusterWatcher.NodesLock.Unlock()
-				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp)
+				clusterWatcher.UpdateDaemonsets(common.DeleteAction, deletedNode.Enforcer, deletedNode.Runtime, deletedNode.RuntimeSocket, deletedNode.NRIRuntimeSocket, deletedNode.BTF, deletedNode.ApparmorFs, deletedNode.Seccomp)
 			}
 		},
 	})
@@ -363,7 +370,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	nodeInformer.Run(wait.NeverStop)
 }
 
-func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent string) {
+func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent string) {
 	clusterWatcher.Log.Info("updating daemonset")
 	daemonsetName := strings.Join([]string{
 		"kubearmor",
@@ -399,7 +406,7 @@ func (clusterWatcher *ClusterWatcher) UpdateDaemonsets(action, enforcer, runtime
 		}
 	}
 	if newDaemonSet {
-		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, btfPresent, apparmorfs, seccompPresent, initDeploy)
+		daemonset := generateDaemonset(daemonsetName, enforcer, runtime, socket, nriSocket, btfPresent, apparmorfs, seccompPresent, initDeploy)
 		_, err := clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Create(context.Background(), daemonset, v1.CreateOptions{})
 		if err != nil {
 			clusterWatcher.Log.Warnf("Cannot Create daemonset %s, error=%s", daemonsetName, err.Error())
@@ -454,6 +461,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
+						UpdateControllerPort(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
@@ -474,12 +482,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						configChanged := UpdateConfigMapData(&cfg.Spec)
 						imageUpdated := UpdateImages(&cfg.Spec)
+						controllerPortUpdated := UpdateControllerPort(&cfg.Spec)
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						UpdateRecommendedPolicyConfig(&cfg.Spec)
+
 						// return if only status has been updated
-						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 {
+						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
 							return
 						}
 						if tlsUpdated {
@@ -502,6 +512,10 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						if seccompEnabledUpdated {
 							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
+						}
+						if controllerPortUpdated {
+							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
+							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
 						}
 					}
 				}
@@ -570,6 +584,18 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						ds.Spec.Template.Spec.ImagePullSecrets = append(ds.Spec.Template.Spec.ImagePullSecrets, common.KubeArmorInitImagePullSecrets...)
 						ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, common.KubeArmorInitTolerations...)
 					}
+
+					NRIVolume, NRIVolumeMount := common.GenerateNRIvol(ds.Spec.Selector.MatchLabels["kubearmor.io/nri-socket"])
+					if common.NRIEnabled {
+						// update daemonset volumeMount and volumes
+						common.AddOrRemoveVolumeMount(&NRIVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, common.AddAction)
+						common.AddOrRemoveVolume(&NRIVolume, &ds.Spec.Template.Spec.Volumes, common.AddAction)
+					} else {
+						// update daemonset volumeMount and volumes
+						common.AddOrRemoveVolumeMount(&NRIVolumeMount, &ds.Spec.Template.Spec.Containers[0].VolumeMounts, common.DeleteAction)
+						common.AddOrRemoveVolume(&NRIVolume, &ds.Spec.Template.Spec.Volumes, common.DeleteAction)
+					}
+
 					_, err = clusterWatcher.Client.AppsV1().DaemonSets(common.Namespace).Update(context.Background(), &ds, v1.UpdateOptions{})
 					if err != nil {
 						clusterWatcher.Log.Warnf("Cannot update daemonset=%s error=%s", ds.Name, err.Error())
@@ -606,11 +632,12 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 			}
 
 		case "controller", "rbac":
-			controller, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, v1.GetOptions{})
+			dep, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Get(context.Background(), deployments.KubeArmorControllerDeploymentName, v1.GetOptions{})
 			if err != nil {
 				clusterWatcher.Log.Warnf("Cannot get deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
 				res = err
 			} else {
+				controller := dep.DeepCopy()
 				controller.Spec.Template.Spec.ImagePullSecrets = common.KubeArmorControllerImagePullSecrets
 				if len(controller.Spec.Template.Spec.ImagePullSecrets) < 1 {
 					updateImagePullSecretFromGlobal(common.GlobalImagePullSecrets, &controller.Spec.Template.Spec.ImagePullSecrets)
@@ -625,9 +652,12 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorImages(images []string) err
 						(*containers)[i].Image = common.GetApplicationImage(common.KubeArmorControllerName)
 						(*containers)[i].ImagePullPolicy = corev1.PullPolicy(common.KubeArmorControllerImagePullPolicy)
 						(*containers)[i].Args = common.KubeArmorControllerArgs
+						(*containers)[i].Ports[0].ContainerPort = int32(common.KubeArmorControllerPort)
 					}
 				}
-				_, err = clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
+				UpdateArgsIfDefinedAndUpdated(&controller.Spec.Template.Spec.Containers[0].Args, []string{"webhook-port=" + strconv.Itoa(common.KubeArmorControllerPort)})
+
+				_, err := clusterWatcher.Client.AppsV1().Deployments(common.Namespace).Update(context.Background(), controller, v1.UpdateOptions{})
 				if err != nil {
 					clusterWatcher.Log.Warnf("Cannot update deployment=%s error=%s", deployments.KubeArmorControllerDeploymentName, err.Error())
 					res = err
@@ -866,6 +896,14 @@ func UpdateTolerationsIfDefinedAndUpdated(common *[]corev1.Toleration, in []core
 	return false
 }
 
+func UpdateNRIAvailabilityIfDefinedAndUpdated(common *bool, in bool) bool {
+	if in != *common {
+		*common = in
+		return true
+	}
+	return false
+}
+
 func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 	updatedImages := []string{}
 	// if kubearmor image or imagePullPolicy got updated
@@ -873,7 +911,8 @@ func UpdateImages(config *opv1.KubeArmorConfigSpec) []string {
 		UpdateIfDefinedAndUpdated(&common.KubeArmorImagePullPolicy, config.KubeArmorImage.ImagePullPolicy) ||
 		UpdateArgsIfDefinedAndUpdated(&common.KubeArmorArgs, config.KubeArmorImage.Args) ||
 		UpdateImagePullSecretsIfDefinedAndUpdated(&common.KubeArmorImagePullSecrets, config.KubeArmorImage.ImagePullSecrets) ||
-		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) {
+		UpdateTolerationsIfDefinedAndUpdated(&common.KubeArmorTolerations, config.KubeArmorImage.Tolerations) ||
+		UpdateNRIAvailabilityIfDefinedAndUpdated(&common.NRIEnabled, config.EnableNRI) {
 		updatedImages = append(updatedImages, "kubearmor")
 	}
 	// if kubearmor-init image or imagePullPolicy got updated
@@ -1017,6 +1056,21 @@ func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
 		return clusterWatcher.UpdateTlsConfigurations(tlsEnabled)
 	}
 	return nil
+}
+func (clusterWatcher *ClusterWatcher) UpdateWebhookSvcPort(port int) {
+	// update webhook service port
+	svc, err := clusterWatcher.Client.CoreV1().Services(common.Namespace).Get(context.Background(), common.KubeArmorControllerWebhookServiceName, v1.GetOptions{})
+	if err != nil {
+		clusterWatcher.Log.Warnf("Cannot get webhook service=%s error=%s", common.KubeArmorControllerWebhookServiceName, err.Error())
+	} else {
+		svc.Spec.Ports[0].TargetPort = intstr.FromInt(int(port))
+		_, err = clusterWatcher.Client.CoreV1().Services(common.Namespace).Update(context.Background(), svc, v1.UpdateOptions{})
+		if err != nil {
+			clusterWatcher.Log.Warnf("Cannot update webhook service=%s error=%s", common.KubeArmorControllerWebhookServiceName, err.Error())
+		} else {
+			clusterWatcher.Log.Infof("Updated webhook service=%s", common.KubeArmorControllerWebhookServiceName)
+		}
+	}
 }
 
 func UpdateTlsArguments(args *[]string, action string) {
@@ -1171,6 +1225,7 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				continue
 			}
 			csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+			csp.Annotations["app.kubernetes.io/managed-by"] = "kubearmor-operator"
 			_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
 			if err != nil && !metav1errors.IsAlreadyExists(err) {
 				clusterWatcher.Log.Warnf("error creating csp %s", csp.GetName())
@@ -1195,7 +1250,7 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				clusterWatcher.Log.Info("created csp", csp.GetName())
 			}
 		case false:
-			if !policy.IsDir() {
+			if !policy.IsDir() && csp.Annotations["app.kubernetes.io/managed-by"] == "kubearmor-operator" {
 				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
 				if err != nil && !metav1errors.IsNotFound(err) {
 					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
@@ -1368,6 +1423,18 @@ func UpdateTlsData(config *opv1.KubeArmorConfigSpec) bool {
 
 	if len(config.Tls.RelayExtraIpAddresses) > 0 {
 		common.ExtraDnsNames = config.Tls.RelayExtraIpAddresses
+	}
+
+	return updated
+}
+func UpdateControllerPort(config *opv1.KubeArmorConfigSpec) bool {
+	updated := false
+	if config.ControllerPort != 0 && config.ControllerPort != common.KubeArmorControllerPort {
+
+		common.ControllerPortLock.Lock()
+		common.KubeArmorControllerPort = config.ControllerPort
+		common.ControllerPortLock.Unlock()
+		updated = true
 	}
 
 	return updated

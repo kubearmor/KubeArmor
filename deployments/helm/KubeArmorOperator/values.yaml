@@ -29,6 +29,7 @@ oci_meta:
 # in case if image pinning is disabled
 kubearmorOperator:
   annotateResource: false
+  annotateExisting: false
   name: kubearmor-operator
   image:
     repository: kubearmor/kubearmor-operator
@@ -53,7 +54,7 @@ kubearmorConfig:
   enableStdOutLogs: false
   enableStdOutAlerts: false
   enableStdOutMsgs: false
-  seccompEnabled: true
+  seccompEnabled: false
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30

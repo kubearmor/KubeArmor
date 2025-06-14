@@ -626,7 +626,7 @@ func KubeArmor() {
 				go dm.MonitorDockerEvents()
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// insuring NRI monitoring only in case containerd is present
-				if dm.checkNRIAvailability() {
+				if cfg.GlobalCfg.NRIEnabled && dm.checkNRIAvailability() {
 					// monitor NRI events
 					go dm.MonitorNRIEvents()
 				} else {

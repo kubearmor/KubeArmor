@@ -21,7 +21,9 @@ spec:
         container: multicontainer
     spec:
       containers:
-      - name: container-1
-        image: kubearmor/ubuntu-w-utils:0.1
-      - name: container-2
-        image: kubearmor/ubuntu-w-utils:0.1
+        - name: container-1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
+        - name: container-2
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always

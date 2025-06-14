@@ -18,13 +18,6 @@ const (
 // PresetType represents type of a preset
 type PresetType uint8
 
-const (
-	// FilelessExec preset type
-	FilelessExec PresetType = 1
-	// AnonMapExec preset type
-	AnonMapExec PresetType = 2
-)
-
 // PresetAction preset action
 type PresetAction uint32
 
@@ -68,6 +61,9 @@ type EventPreset struct {
 	Comm [80]byte
 
 	Data InnerKey
+
+	// exec events
+	ExecID uint64
 }
 
 // PresetInterface interface

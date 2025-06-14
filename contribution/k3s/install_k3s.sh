@@ -3,9 +3,10 @@
 # Copyright 2021 Authors of KubeArmor
 
 if [ "$RUNTIME" == "" ]; then
-    if [ -S /var/run/docker.sock ]; then
-        RUNTIME="docker"
-    elif [ -S /var/run/crio/crio.sock ]; then
+    # TODO: Enable the support for docker here. Currently docker runtime in k3s env is leading to the issue:
+    # https://github.com/kubearmor/KubeArmor/issues/1971
+    # Once this issue is fixed, we can support docker again in k3s
+    if [ -S /var/run/crio/crio.sock ]; then
         RUNTIME="crio"
     else # default
         RUNTIME="containerd"
@@ -53,6 +54,7 @@ echo "wait for initialization"
 sleep 15
 
 runtime="15 minute"
+
 endtime=$(date -ud "$runtime" +%s)
 
 while [[ $(date -u +%s) -le $endtime ]]
@@ -63,4 +65,3 @@ do
     sleep 1
 done
 
-kubectl get pods -A

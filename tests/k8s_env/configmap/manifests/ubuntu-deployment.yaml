@@ -21,8 +21,9 @@ spec:
         container: unannotated
     spec:
       containers:
-      - name: ubuntu-1
-        image: kubearmor/ubuntu-w-utils:0.1
+        - name: ubuntu-1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Namespace
@@ -50,8 +51,9 @@ spec:
         container: partialyannotated
     spec:
       containers:
-      - name: ubuntu-1
-        image: kubearmor/ubuntu-w-utils:0.1
+        - name: ubuntu-1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always
 ---
 apiVersion: v1
 kind: Namespace
@@ -81,6 +83,6 @@ spec:
         container: fullyannotated
     spec:
       containers:
-      - name: ubuntu-1
-        image: kubearmor/ubuntu-w-utils:0.1
-        
+        - name: ubuntu-1
+          image: kubearmor/ubuntu-w-utils:latest
+          imagePullPolicy: Always

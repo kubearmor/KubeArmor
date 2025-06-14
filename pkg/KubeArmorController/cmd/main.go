@@ -49,6 +49,8 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var annotateExisting bool
+	var webhookPort int
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -60,6 +62,9 @@ func main() {
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.BoolVar(&annotateExisting, "annotateExisting", false,
+		"If 'true', controller will restart and annotate existing resources with required annotations")
+	flag.IntVar(&webhookPort, "webhook-port", 9443, "The address the webhook server binds to.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -85,6 +90,7 @@ func main() {
 
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: tlsOpts,
+		Port:    webhookPort,
 	})
 
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
@@ -157,27 +163,32 @@ func main() {
 	cluster := informer.InitCluster()
 	setupLog.Info("Starting node watcher")
 	go informer.NodeWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("NodeWatcher"))
-	setupLog.Info("Starting pod watcher")
-	go informer.PodWatcher(client, &cluster, ctrl.Log.WithName("informer").WithName("PodWatcher"))
 
 	setupLog.Info("Adding mutation webhook")
 	mgr.GetWebhookServer().Register("/mutate-pods", &webhook.Admission{
 		Handler: &handlers.PodAnnotator{
-			Client:  mgr.GetClient(),
-			Logger:  setupLog,
-			Decoder: admission.NewDecoder(mgr.GetScheme()),
-			Cluster: &cluster,
+			Client:    mgr.GetClient(),
+			Logger:    setupLog,
+			Decoder:   admission.NewDecoder(mgr.GetScheme()),
+			Cluster:   &cluster,
+			ClientSet: client,
 		},
 	})
 
-	setupLog.Info("Adding pod refresher controller")
-	if err = (&controllers.PodRefresherReconciler{
-		Client:  mgr.GetClient(),
-		Scheme:  mgr.GetScheme(),
-		Cluster: &cluster,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
+	if !annotateExisting {
+		setupLog.Info("Not annotating existing resources as annotate existing is set to false")
+	} else {
+		setupLog.Info("Adding pod refresher controller")
+		if err = (&controllers.PodRefresherReconciler{
+			Client:           mgr.GetClient(),
+			Scheme:           mgr.GetScheme(),
+			Cluster:          &cluster,
+			ClientSet:        client,
+			AnnotateExisting: annotateExisting,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Pod")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 

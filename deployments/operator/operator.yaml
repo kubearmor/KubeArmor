@@ -88,6 +88,8 @@ spec:
                 type: string
               defaultVisibility:
                 type: string
+              enableNRI:
+                type: boolean
               enableStdOutAlerts:
                 type: boolean
               enableStdOutLogs:
@@ -101,10 +103,13 @@ spec:
                     referenced object inside the same namespace.
                   properties:
                     name:
+                      default: ""
                       description: |-
                         Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        TODO: Add other useful fields. apiVersion, kind, uid?
                       type: string
                   type: object
                   x-kubernetes-map-type: atomic
@@ -171,10 +176,13 @@ spec:
                         referenced object inside the same namespace.
                       properties:
                         name:
+                          default: ""
                           description: |-
                             Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
@@ -241,10 +249,13 @@ spec:
                         referenced object inside the same namespace.
                       properties:
                         name:
+                          default: ""
                           description: |-
                             Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
@@ -311,10 +322,13 @@ spec:
                         referenced object inside the same namespace.
                       properties:
                         name:
+                          default: ""
                           description: |-
                             Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
@@ -381,10 +395,13 @@ spec:
                         referenced object inside the same namespace.
                       properties:
                         name:
+                          default: ""
                           description: |-
                             Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
@@ -451,10 +468,13 @@ spec:
                         referenced object inside the same namespace.
                       properties:
                         name:
+                          default: ""
                           description: |-
                             Name of the referent.
+                            This field is effectively required, but due to backwards compatibility is
+                            allowed to be empty. Instances of this type with an empty value here are
+                            almost certainly wrong.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                            TODO: Add other useful fields. apiVersion, kind, uid?
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
@@ -514,6 +534,7 @@ spec:
                         key:
                           enum:
                           - namespace
+                          - label
                           type: string
                         operator:
                           enum:
@@ -530,6 +551,8 @@ spec:
               seccompEnabled:
                 type: boolean
               throttleSec:
+                type: integer
+              controllerPort:
                 type: integer
               tls:
                 properties:
@@ -552,9 +575,6 @@ spec:
               message:
                 type: string
               phase:
-                description: |-
-                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
                 type: string
             type: object
         type: object
@@ -584,35 +604,6 @@ rules:
   - list
   - patch
 - apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - serviceaccounts
-  - services
-  - configmaps
-  verbs:
-  - get
-  - create
-  - delete
-  - update
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - daemonsets
-  verbs:
-  - list
-  - get
-  - create
-  - delete
-  - update
-- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - mutatingwebhookconfigurations
@@ -621,16 +612,8 @@ rules:
   - create
   - delete
 - apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - create
-- apiGroups:
   - rbac.authorization.k8s.io
   resources:
-  - roles
-  - rolebindings
   - clusterroles
   - clusterrolebindings
   verbs:
@@ -672,7 +655,6 @@ rules:
   - ""
   resources:
   - pods
-  - configmaps
   verbs:
   - create
   - delete
@@ -713,41 +695,6 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -757,16 +704,22 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - nodes
   - namespaces
-  - configmaps
   verbs:
   - get
-  - patch
   - list
   - watch
   - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -776,10 +729,8 @@ rules:
   - statefulsets
   verbs:
   - get
-  - patch
   - list
   - watch
-  - update
 - apiGroups:
   - batch
   resources:
@@ -787,10 +738,8 @@ rules:
   - cronjobs
   verbs:
   - get
-  - patch
   - list
   - watch
-  - update
 - apiGroups:
   - security.kubearmor.com
   resources:
@@ -808,6 +757,19 @@ rules:
   - /apis/*
   verbs:
   - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubearmor-operator-manage-relay-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -843,6 +805,19 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: kubearmor-operator-manage-kubearmor-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubearmor-operator
+  namespace: kubearmor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubearmor-operator-manage-relay-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubearmor-operator-clusterrole
 subjects:
 - kind: ServiceAccount
   name: kubearmor-operator

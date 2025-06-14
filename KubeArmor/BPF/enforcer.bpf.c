@@ -58,6 +58,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   struct data_t *dirval;
   bool recursivebuthint = false;
   bool fromSourceCheck = true;
+  bool goToDecision = false ;
 
   // Extract full path of the source binary from the parent task structure
   struct task_struct *parent_task = BPF_CORE_READ(t, parent);
@@ -114,7 +115,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
                  RULE_HINT)) { // true directory match and not a hint suggests
                                // there are no possibility of child dir
               val = dirval;
-              goto decision;
+              goToDecision = true; // to please the holy verifier
+              break;
             } else if (dirval->processmask &
                        RULE_RECURSIVE) { // It's a directory match but also a
                                          // hint, it's possible that a
@@ -134,7 +136,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       }
     }
 
-    if (recursivebuthint) {
+    if (recursivebuthint || goToDecision) {
       match = true;
       goto decision;
     }

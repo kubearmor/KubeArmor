@@ -29,7 +29,7 @@ spec:
       imagePullSecrets:
       {{ toYaml .Values.kubearmorOperator.image.imagePullSecrets | indent 6 }}
       {{- end }}
-      {{- if .Values.kubearmorOperator.image.tolerations }}
+      {{- if .Values.kubearmorOperator.tolerations }}
       tolerations:
       {{ toYaml .Values.kubearmorOperator.tolerations | indent 6 }}
       {{- end }}
@@ -46,6 +46,8 @@ spec:
         image: {{ include "operatorImage" . }}
         imagePullPolicy: {{ .Values.kubearmorOperator.imagePullPolicy }}
         args:
+        - --annotateExisting={{ .Values.kubearmorOperator.annotateExisting }}
+        - --annotateResource={{ .Values.kubearmorOperator.annotateResource }}
         {{- if .Values.kubearmorOperator.args -}}
           {{- toYaml .Values.kubearmorOperator.args | trim | nindent 8 }}
         {{- end }}

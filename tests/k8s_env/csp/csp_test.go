@@ -27,8 +27,12 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	// Delete debian deployment in nginx1 ns
+	err := K8sDelete([]string{"res/debian-nginx1-deployment.yaml"})
+	Expect(err).To(BeNil())
+
 	// Delete nginx deployment in nginx1 ns
-	err := K8sDelete([]string{"res/nginx-nginx1-deployment.yaml"})
+	err = K8sDelete([]string{"res/nginx-nginx1-deployment.yaml"})
 	Expect(err).To(BeNil())
 
 	// Delete nginx deployment in nginx2 ns
@@ -284,6 +288,154 @@ var _ = Describe("csp", func() {
 			}
 
 			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("can block execution of specific workload based on labels, In expression", func() {
+			// Apply policy
+			err := K8sApplyFile("res/csp-matchlabels-in-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			// cluster_policy_test_5
+
+			// Test 1 - should block apt for nginx workloads only in namespace nginx1
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "nginx1", "Process", n1)
+			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "csp-matchlabels-in-block-process",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Test 2 - should not block apt for ns nginx2
+			// Start Kubearmor Logs
+			err = KarmorLogStart("system", "nginx2", "Process", n2)
+			Expect(err).To(BeNil())
+
+			AssertCommand(n2, "nginx2", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectedLog := protobuf.Log{
+				Result:   "Passed",
+				Resource: "/usr/bin/apt",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Test 3 - should not block apt for debian in ns nginx1
+
+			// install debian deployment in nginx1 ns
+			err = K8sApply([]string{"res/debian-nginx1-deployment.yaml"})
+			Expect(err).To(BeNil())
+
+			deb := getNginxPod("debian-app", "nginx1", "kubearmor-policy: enabled")
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("system", "nginx1", "Process", deb)
+			Expect(err).To(BeNil())
+
+			AssertCommand(deb, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectedLog = protobuf.Log{
+				Result:   "Passed",
+				Resource: "/usr/bin/apt",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+		})
+
+		It("can block execution of specific workload based on labels, NotIn expression", func() {
+			// Apply policy
+			err := K8sApplyFile("res/csp-matchlabels-not-in-block-process.yaml")
+			Expect(err).To(BeNil())
+
+			// cluster_policy_test_5
+
+			// Test 1 - should not block apt for nginx workloads only in namespace nginx1
+			// Start Kubearmor Logs
+			err = KarmorLogStart("system", "nginx1", "Process", n1)
+			Expect(err).To(BeNil())
+
+			// wait for policy creation
+			time.Sleep(5 * time.Second)
+
+			AssertCommand(n1, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectedLog := protobuf.Log{
+				Result:   "Passed",
+				Resource: "/usr/bin/apt",
+			}
+
+			res, err := KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Test 2 - should not block apt for ns nginx2
+			// Start Kubearmor Logs
+			err = KarmorLogStart("system", "nginx2", "Process", n2)
+			Expect(err).To(BeNil())
+
+			AssertCommand(n2, "nginx2", []string{"bash", "-c", "apt"},
+				MatchRegexp(".*"), true,
+			)
+
+			expectedLog = protobuf.Log{
+				Result:   "Passed",
+				Resource: "/usr/bin/apt",
+			}
+
+			res, err = KarmorGetTargetLogs(5*time.Second, &expectedLog)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			// Test 3 - should block apt for debian in ns nginx1
+
+			// install debian deployment in nginx1 ns
+			err = K8sApply([]string{"res/debian-nginx1-deployment.yaml"})
+			Expect(err).To(BeNil())
+
+			deb := getNginxPod("debian-app", "nginx1", "kubearmor-policy: enabled")
+
+			// Start Kubearmor Logs
+			err = KarmorLogStart("policy", "nginx1", "Process", deb)
+			Expect(err).To(BeNil())
+
+			AssertCommand(deb, "nginx1", []string{"bash", "-c", "apt"},
+				MatchRegexp("apt.*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "csp-matchlabels-not-in-block-process",
+				Severity:   "8",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err = KarmorGetTargetAlert(5*time.Second, &expect)
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})

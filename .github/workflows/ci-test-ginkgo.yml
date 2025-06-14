@@ -10,6 +10,7 @@ on:
       - ".github/workflows/ci-test-ginkgo.yml"
       - "pkg/KubeArmorOperator/**"
       - "deployments/helm/**"
+      - "examples/multiubuntu/build/**"
   pull_request:
     branches: [main]
     paths:
@@ -33,8 +34,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
-        runtime: ["containerd", "crio"]
+        os: [ubuntu-latest-16-cores]
+        runtime: ["containerd","crio"]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -51,6 +52,8 @@ jobs:
           filters: |
             controller:
               - 'pkg/KubeArmorController/**'
+            multiubuntu:
+              - 'examples/multiubuntu/build/**'
 
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -76,11 +79,22 @@ jobs:
         if: steps.filter.outputs.controller == 'true'
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
 
+      - name: Build multiubuntu docker image
+        working-directory: examples/multiubuntu/build
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: docker build -t kubearmor/ubuntu-w-utils:latest .
+
       - name: deploy pre existing pod 
         run: |
           kubectl apply -f ./tests/k8s_env/ksp/pre-run-pod.yaml
           sleep 60
           kubectl get pods -A
+
+      - name: make changes in multiubuntu-deployment
+        working-directory: tests/k8s_env
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: |
+          grep -rl "kubearmor/ubuntu-w-utils:latest" ./ | while read -r file; do sed -i 's/imagePullPolicy: Always/imagePullPolicy: Never/g' "$file"; done
 
       - name: Run KubeArmor
         timeout-minutes: 7
@@ -94,25 +108,40 @@ jobs:
             if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then 
               docker save kubearmor/kubearmor-controller:latest | sudo k3s ctr images import -
             fi
+            if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
+              docker save kubearmor/ubuntu-w-utils:latest | sudo k3s ctr images import -
+            fi
           else
             if [ ${{ matrix.runtime }} == "crio" ]; then
               docker save kubearmor/kubearmor-test-init:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test-init:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-test-init:latest kubearmor/kubearmor-test-init:latest
+
               docker save kubearmor/kubearmor-test:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-test:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-test:latest kubearmor/kubearmor-test:latest
+      
               docker save kubearmor/kubearmor-operator:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-operator:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-operator:latest kubearmor/kubearmor-operator:latest
+
               docker save kubearmor/kubearmor-snitch:latest | sudo podman load
-              sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-snitch:latest
+              sudo podman tag docker.io/kubearmor/kubearmor-snitch:latest kubearmor/kubearmor-snitch:latest
+
               if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then
                 docker save kubearmor/kubearmor-controller:latest | sudo podman load
-                sudo podman tag localhost/latest:latest docker.io/kubearmor/kubearmor-controller:latest
+                sudo podman tag docker.io/kubearmor/kubearmor-controller:latest kubearmor/kubearmor-controller:latest
+
               fi
+              if [ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]; then
+                docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
+                sudo podman tag docker.io/kubearmor/ubuntu-w-utils:latest kubearmor/ubuntu-w-utils:latest
+              fi
+              echo "Podman images"
+              sudo podman images -a
             fi
           fi
+
           docker system prune -a -f 
           docker buildx prune -a -f
-          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest 
+          helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest  --set kubearmorOperator.annotateExisting=true
           kubectl wait --for=condition=ready --timeout=5m -n kubearmor pod -l kubearmor-app=kubearmor-operator
           kubectl get pods -A
           if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
@@ -209,7 +238,7 @@ jobs:
 
       - name: Archive log artifacts
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kubearmor.logs
           path: |

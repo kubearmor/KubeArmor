@@ -14,7 +14,7 @@ permissions: read-all
 jobs:
   kubearmor-controller-test:
     name: Build and Test KubeArmorController Using Ginkgo
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       RUNTIME: "containerd"
@@ -95,7 +95,8 @@ jobs:
             kubectl rollout status --timeout=5m daemonset -l kubearmor-app=kubearmor -n kubearmor
             kubectl rollout status --timeout=5m deployment -n kubearmor -l kubearmor-app=kubearmor-controller -n kubearmor
             kubectl get pods -A
-          done         
+          done  
+          docker system prune -a -f 
 
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -113,7 +114,7 @@ jobs:
 
       - name: Archive log artifacts
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kubearmor.logs
           path: |

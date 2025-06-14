@@ -101,7 +101,10 @@ enum preset_action {
 
 enum preset_type {
   FILELESS_EXEC = 1001,
-  ANON_MAP_EXEC
+  ANON_MAP_EXEC,
+  PROTECT_ENV,
+  EXEC,
+  PROTECT_PROC
 };
 
 struct preset_map {
@@ -131,6 +134,9 @@ typedef struct {
   u8 comm[TASK_COMM_LEN];
 
   bufs_k data;
+
+  // exec event
+  u64 exec_id;
 } event;
 
 struct {
@@ -184,6 +190,17 @@ struct outer_hash {
 };
 
 struct outer_hash kubearmor_containers SEC(".maps");
+
+struct exec_pid_map
+{
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __type(key, u32);
+    __type(value, u64);
+    __uint(max_entries, 10240);
+    __uint(pinning, LIBBPF_PIN_BY_NAME);
+};
+
+struct exec_pid_map kubearmor_exec_pids SEC(".maps");
 
 static __always_inline bufs_t *get_buf(int idx) {
   return bpf_map_lookup_elem(&bufs, &idx);
@@ -274,6 +291,41 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
   return true;
 }
 
+static __always_inline long strtol(const char *buf, size_t buf_len, long *res) {
+  long val = 0;
+  size_t i = 0;
+  size_t consumed = 0;
+    
+#pragma unroll
+  for (int j = 0; j < 10; j++) {
+    if (j >= buf_len)
+      break;
+    // https://github.com/torvalds/linux/blob/586de92313fcab8ed84ac5f78f4d2aae2db92c59/tools/include/nolibc/ctype.h#L65
+    if (((unsigned int)buf[i] == ' ') || (unsigned int)(buf[i] - 0x09) < 5)
+      i++;
+    else
+      break;
+  }
+
+#pragma unroll
+  for (int j = 0; j < 10; j++) {
+      if (j >= buf_len)
+        break;
+      if (i < buf_len) {
+        if (buf[i] >= '0' && buf[i] <= '9') {
+            val = val * 10 + (buf[i] - '0');
+            i++;
+            consumed++;
+        } else {
+            break;
+        }
+      }
+  }
+    
+  *res = val;
+  return consumed;
+}
+
 static __always_inline u32 get_task_pid_ns_id(struct task_struct *task) {
   return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns).inum;
 }
@@ -327,7 +379,8 @@ static __always_inline u32 init_context(event *event_data) {
   event_data->ts = bpf_ktime_get_ns();
 
   event_data->host_ppid = get_task_ppid(task);
-  event_data->host_pid = bpf_get_current_pid_tgid() >> 32;
+  u32 host_pid = bpf_get_current_pid_tgid() >> 32;
+  event_data->host_pid = host_pid;
 
   struct outer_key okey;
   get_outer_key(&okey, task);
@@ -342,6 +395,13 @@ static __always_inline u32 init_context(event *event_data) {
   // Clearing array to avoid garbage values
   __builtin_memset(event_data->comm, 0, sizeof(event_data->comm));
   bpf_get_current_comm(&event_data->comm, sizeof(event_data->comm));
+
+  // check if process is part of exec
+  __builtin_memset((void *)&event_data->exec_id, 0, sizeof(event_data->exec_id));
+  u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
+  if (exec_id) {
+      event_data->exec_id = *exec_id;
+  }
 
   return 0;
 }
@@ -644,7 +704,13 @@ decision:
   if (id == dpath) { // Path Hooks
     if (match) {
       if (val && (val->filemask & RULE_OWNER)) {
-        if (!is_owner_path(f_path->dentry)) {
+        struct dentry *dent ;
+        if(eventID  == _FILE_MKNOD || eventID == _FILE_MKDIR){
+          dent = BPF_CORE_READ(f_path , dentry , d_parent);
+        } else {
+          dent = f_path->dentry ;
+        }
+        if (!is_owner_path(dent)) {
           retval = -EPERM;
         } else {
           return 0;
@@ -655,13 +721,13 @@ decision:
       }
     }
 
-    if (retval == -EPERM) {
-      goto ringbuf;
-    }
-
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+    
+    if (retval == -EPERM && !(allow && !fromSourceCheck)) {
+      goto ringbuf;
+    }
 
     if (allow) {
       if (!match) {
@@ -677,6 +743,7 @@ decision:
       if (val && (val->filemask & RULE_OWNER)) {
         if (!is_owner_path(f_path->dentry)) {
           retval = -EPERM;
+          goto ringbuf;
         } else {
           return 0;
         }
@@ -690,13 +757,15 @@ decision:
       }
     }
 
-    if (retval == -EPERM) {
-      goto ringbuf;
-    }
+ 
 
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     pk->path[0] = dfile;
     struct data_t *allow = bpf_map_lookup_elem(inner, pk);
+
+    if (retval == -EPERM && !(allow && !fromSourceCheck)) {
+      goto ringbuf;
+    }
 
     if (allow) {
       if (!match) {
@@ -708,9 +777,15 @@ decision:
     }
   } else if (id == dfilewrite) { // file write
     if (match) {
-      if (val && (val->filemask & RULE_DENY)) {
-        retval = -EPERM;
-        goto ringbuf;
+      if (val && (val->filemask & RULE_OWNER)) {
+        if (!is_owner_path(f_path->dentry)) {
+          retval = -EPERM;
+          goto ringbuf;
+        }
+      }
+      if (val && (val->filemask & RULE_READ) && !(val->filemask & RULE_WRITE)) {
+          retval = -EPERM;
+          goto ringbuf;
       }
     }
 

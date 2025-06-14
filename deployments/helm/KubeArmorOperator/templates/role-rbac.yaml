@@ -3,6 +3,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ .Values.kubearmorOperator.name }}-role
+  namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
   - ""
@@ -18,6 +19,7 @@ rules:
   verbs:
   - get
   - create
+  - update
 - apiGroups:
   - ""
   resources:

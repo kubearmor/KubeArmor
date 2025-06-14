@@ -5,12 +5,13 @@ package core
 
 import (
 	"encoding/json"
-	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -35,6 +36,9 @@ func (dm *KubeArmorDaemon) SetContainerNSVisibility() {
 	}
 	if strings.Contains(cfg.GlobalCfg.Visibility, "capabilities") {
 		visibility.Capabilities = true
+	}
+	if strings.Contains(cfg.GlobalCfg.Visibility, "dns") {
+		visibility.DNS = true
 	}
 
 	dm.UpdateVisibility("ADDED", "container_namespace", visibility)
@@ -62,6 +66,7 @@ func (dm *KubeArmorDaemon) WatchConfigChanges() {
 			Process:      dm.validateVisibility("process", cfg.GlobalCfg.Visibility),
 			Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 			Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
+			DNS:          dm.validateVisibility("dns", cfg.GlobalCfg.Visibility),
 		}
 
 		// Apply the changes to the daemon
@@ -277,10 +282,6 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Network.MatchProtocols)
 	kl.ObjCommaExpandFirstDupOthers(&secPolicy.Spec.Capabilities.MatchCapabilities)
-
-	if secPolicy.Spec.Severity == 0 {
-		secPolicy.Spec.Severity = 1 // the lowest severity, by default
-	}
 
 	switch secPolicy.Spec.Action {
 	case "allow":
@@ -772,7 +773,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 		if policyBytes, err := json.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
-					dm.Logger.Errf(err.Error())
+					dm.Logger.Err(err.Error())
 				}
 			}
 		}
@@ -796,7 +797,7 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 		if policyBytes, err := json.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
-					dm.Logger.Errf(err.Error())
+					dm.Logger.Err(err.Error())
 				}
 			}
 		}

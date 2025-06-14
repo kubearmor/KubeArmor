@@ -47,6 +47,7 @@ webhooks:
     - UPDATE
     resources:
     - pods
+    - pods/binding
   sideEffects: NoneOnDryRun
   objectSelector:
     matchExpressions:

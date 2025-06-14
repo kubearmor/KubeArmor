@@ -41,7 +41,7 @@ type Tls struct {
 type RecommendedPolicies struct {
 	Enable bool `json:"enable,omitempty"`
 
-	MatchExpressions []securityv1.MatchExpressionsType `json:"matchExpressions,omitempty"`
+	MatchExpressions []securityv1.ClusterMatchExpressionsType `json:"matchExpressions,omitempty"`
 
 	ExcludePolicy []string `json:"excludePolicy,omitempty"`
 }
@@ -114,6 +114,10 @@ type KubeArmorConfigSpec struct {
 	ThrottleSec int `json:"throttleSec,omitempty"`
 
 	Adapters Adapters `json:"adapters,omitempty"`
+
+	EnableNRI bool `json:"enableNRI,omitempty"`
+
+	ControllerPort int `json:"controllerPort,omitempty"`
 }
 
 // KubeArmorConfigStatus defines the observed state of KubeArmorConfig

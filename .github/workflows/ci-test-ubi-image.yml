@@ -54,6 +54,8 @@ jobs:
           filters: |
             controller:
               - 'pkg/KubeArmorController/**'
+            multiubuntu:
+              - 'examples/multiubuntu/build/**'
  
       - name: Install the latest LLVM toolchain
         run: ./.github/workflows/install-llvm.sh
@@ -72,7 +74,12 @@ jobs:
         working-directory: pkg/KubeArmorOperator
         run: |
           make docker-build
-      
+
+      - name: Build multiubuntu docker image
+        working-directory: examples/multiubuntu/build
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: docker build -t kubearmor/ubuntu-w-utils:latest .
+
       - name: Build KubeArmorController
         if: steps.filter.outputs.controller == 'true'
         run: make -C pkg/KubeArmorController/ docker-build TAG=latest
@@ -87,6 +94,9 @@ jobs:
           
           if [ ${{ steps.filter.outputs.controller }} == 'true' ]; then 
             docker save kubearmor/kubearmor-controller:latest | sudo podman load
+          fi
+          if [[ ${{ steps.filter.outputs.multiubuntu }} == 'true' ]]; then
+            docker save kubearmor/ubuntu-w-utils:latest | sudo podman load
           fi          
           
           helm upgrade --install kubearmor-operator ./deployments/helm/KubeArmorOperator -n kubearmor --create-namespace --set kubearmorOperator.image.tag=latest
@@ -113,6 +123,12 @@ jobs:
       - name: Operator may take upto 10 sec to enable TLS, Sleep for 15Sec
         run: |
           sleep 15
+
+      - name: make changes in multiubuntu-deployment
+        working-directory: ./tests/k8s_env
+        if: steps.filter.outputs.multiubuntu == 'true'
+        run: |
+          grep -rl "kubearmor/ubuntu-w-utils:latest" ./ | while read -r file; do sed -i 's/imagePullPolicy: Always/imagePullPolicy: Never/g' "$file"; done
       
       - name: Test KubeArmor using Ginkgo
         run: |
@@ -130,7 +146,7 @@ jobs:
 
       - name: Archive log artifacts
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kubearmor.logs
           path: |
