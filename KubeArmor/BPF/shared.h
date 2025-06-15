@@ -104,6 +104,7 @@ enum preset_type {
   ANON_MAP_EXEC,
   PROTECT_ENV,
   EXEC,
+  PROTECT_PROC
 };
 
 struct preset_map {
