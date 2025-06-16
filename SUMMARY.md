@@ -38,6 +38,7 @@
 * [Cluster Policy Examples for Containers](getting-started/cluster_security_policy_examples.md)
 * [Policy Spec for Nodes/VMs](getting-started/host_security_policy_specification.md)
 * [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
+* [Profiling of Kubearmor Logs using karmor](getting-started/profiling_kubearmor_logs.md)
 * [FAQs](getting-started/FAQ.md)
 
 ## Contribution
