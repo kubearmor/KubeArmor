@@ -313,3 +313,16 @@ jobs:
 
       - name: Build & Push KubeArmorController
         run: make docker-buildx TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--push
+
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: |
+          echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor-controller.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-controller@${{ steps.digest.outputs.imagedigest }} --yes
