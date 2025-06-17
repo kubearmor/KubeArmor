@@ -46,7 +46,7 @@ jobs:
           controller:
             - 'pkg/KubeArmorController/**'
 
-  build:
+  build:So when someone wants to run this workflow, they will be prompted to enter a release tag (like v1.2.3),
     name: Create KubeArmor latest release
     needs: check
     if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
@@ -111,7 +111,7 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
 
       - name: Build KubeArmor images to Docker
-        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --load
+        run: GITHUB_SHA=$GITHUB_SHA PLATFORMS="linux/amd64" ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --load
 
       - name: Save image to tar for Trivy Scan
         run: |
@@ -294,7 +294,7 @@ jobs:
             core.setOutput('tag', tag);
 
       - name: Build & Save KubeArmorController
-        run: make docker-buildx TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--load  
+        run: make docker-buildx PLATFORMS="linux/amd64" TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--load  
 
       - name: Save KubeArmorController image to tar for Trivy Scan
         run: |
