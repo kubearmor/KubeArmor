@@ -1,0 +1,16 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorClusterPolicy
+metadata:
+  annotations:
+    app.accuknox.com/source: KubeArmor Operator
+    app.accuknox.com/type: preset
+  name: preset-proc-env
+spec:
+  presets:
+  - action: Block
+    name: protectEnv
+  message: Alert! a process is trying to access env of another process 
+  selector:
+    matchExpressions:
+  severity: 5
+   
