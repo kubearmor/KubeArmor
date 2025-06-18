@@ -575,9 +575,12 @@ func (mon *SystemMonitor) UpdateLogs() {
 				}
 			}
 
-			// fallback logic: in case we get relative path in log.Resource then we join cwd + resource to get pull path
-			if !strings.HasPrefix(strings.Split(log.Resource, " ")[0], "/") && log.Cwd != "/" {
-				log.Resource = filepath.Join(log.Cwd, log.Resource)
+			// fallback logic: in case we get relative path in log.Resource for file and process event
+			// then we join cwd + resource to get pull path
+			if log.Operation == "Process" || log.Operation == "File" {
+				if !strings.HasPrefix(strings.Split(log.Resource, " ")[0], "/") && log.Cwd != "/" {
+					log.Resource = filepath.Join(log.Cwd, log.Resource)
+				}
 			}
 
 			// get error message
