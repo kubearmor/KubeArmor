@@ -6,7 +6,7 @@ metadata:
     app.accuknox.com/type: harden
   name: harden-system-owner-discovery
 spec:
-  action: Block
+  action: Audit
   message: System owner discovery command execution denied
   process:
     matchPaths:
