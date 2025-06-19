@@ -15,12 +15,12 @@ require (
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250526061550-bac6deab5fa8
 	github.com/spf13/cobra v1.9.1
 	go.uber.org/zap v1.27.0
-	k8s.io/api v0.33.1
-	k8s.io/apiextensions-apiserver v0.33.1
-	k8s.io/apimachinery v0.33.1
-	k8s.io/client-go v0.33.1
+	k8s.io/api v0.33.2
+	k8s.io/apiextensions-apiserver v0.33.2
+	k8s.io/apimachinery v0.33.2
+	k8s.io/client-go v0.33.2
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kubectl v0.33.1
+	k8s.io/kubectl v0.33.2
 	sigs.k8s.io/controller-runtime v0.21.0
 )
 
