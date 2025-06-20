@@ -12,12 +12,28 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type execArgBufsK struct {
+	Okey struct {
+		PidNs uint32
+		MntNs uint32
+	}
+	Store execBufsK
+	Arg   [256]int8
+}
+
+type execArgVal struct{ ArgsArray [80]int8 }
+
 type execBufsK struct {
 	Path   [256]int8
 	Source [256]int8
 }
 
 type execBufsT struct{ Buf [32768]int8 }
+
+type execCmdArgsKey struct {
+	Tgid uint64
+	Ind  uint64
+}
 
 // loadExec returns the embedded CollectionSpec for exec.
 func loadExec() (*ebpf.CollectionSpec, error) {
@@ -68,11 +84,15 @@ type execProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type execMapSpecs struct {
+	ArgsBufk                      *ebpf.MapSpec `ebpf:"args_bufk"`
 	Bufk                          *ebpf.MapSpec `ebpf:"bufk"`
 	Bufs                          *ebpf.MapSpec `ebpf:"bufs"`
 	BufsOff                       *ebpf.MapSpec `ebpf:"bufs_off"`
+	CmdArgsBuf                    *ebpf.MapSpec `ebpf:"cmd_args_buf"`
 	Events                        *ebpf.MapSpec `ebpf:"events"`
 	KubearmorAlertThrottle        *ebpf.MapSpec `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore            *ebpf.MapSpec `ebpf:"kubearmor_args_store"`
+	KubearmorArguments            *ebpf.MapSpec `ebpf:"kubearmor_arguments"`
 	KubearmorConfig               *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorContainers           *ebpf.MapSpec `ebpf:"kubearmor_containers"`
 	KubearmorEvents               *ebpf.MapSpec `ebpf:"kubearmor_events"`
@@ -107,11 +127,15 @@ func (o *execObjects) Close() error {
 //
 // It can be passed to loadExecObjects or ebpf.CollectionSpec.LoadAndAssign.
 type execMaps struct {
+	ArgsBufk                      *ebpf.Map `ebpf:"args_bufk"`
 	Bufk                          *ebpf.Map `ebpf:"bufk"`
 	Bufs                          *ebpf.Map `ebpf:"bufs"`
 	BufsOff                       *ebpf.Map `ebpf:"bufs_off"`
+	CmdArgsBuf                    *ebpf.Map `ebpf:"cmd_args_buf"`
 	Events                        *ebpf.Map `ebpf:"events"`
 	KubearmorAlertThrottle        *ebpf.Map `ebpf:"kubearmor_alert_throttle"`
+	KubearmorArgsStore            *ebpf.Map `ebpf:"kubearmor_args_store"`
+	KubearmorArguments            *ebpf.Map `ebpf:"kubearmor_arguments"`
 	KubearmorConfig               *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorContainers           *ebpf.Map `ebpf:"kubearmor_containers"`
 	KubearmorEvents               *ebpf.Map `ebpf:"kubearmor_events"`
@@ -121,11 +145,15 @@ type execMaps struct {
 
 func (m *execMaps) Close() error {
 	return _ExecClose(
+		m.ArgsBufk,
 		m.Bufk,
 		m.Bufs,
 		m.BufsOff,
+		m.CmdArgsBuf,
 		m.Events,
 		m.KubearmorAlertThrottle,
+		m.KubearmorArgsStore,
+		m.KubearmorArguments,
 		m.KubearmorConfig,
 		m.KubearmorContainers,
 		m.KubearmorEvents,
