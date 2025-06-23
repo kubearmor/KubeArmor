@@ -24,6 +24,15 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define AUDIT_POSTURE 140
 #define BLOCK_POSTURE 141
 #define CAPABLE_KEY 200
+#define TTY_LEN 64
+
+#define READ_KERN(ptr)                                    \
+    ({                                                    \
+        typeof(ptr) _val;                                 \
+        __builtin_memset((void *)&_val, 0, sizeof(_val)); \
+        bpf_core_read((void *)&_val, sizeof(_val), &ptr); \
+        _val;                                             \
+    })
 
 enum {
   IPPROTO_ICMPV6 = 58
@@ -132,6 +141,7 @@ typedef struct {
   s64 retval;
 
   u8 comm[TASK_COMM_LEN];
+  char tty[TTY_LEN];
 
   bufs_k data;
 
@@ -401,6 +411,17 @@ static __always_inline u32 init_context(event *event_data) {
   u64 *exec_id = bpf_map_lookup_elem(&kubearmor_exec_pids, &host_pid);
   if (exec_id) {
       event_data->exec_id = *exec_id;
+  }
+
+  // check if tty is attached
+  struct signal_struct *signal;
+  signal = READ_KERN(task->signal);
+  if (signal != NULL){
+      struct tty_struct *tty = READ_KERN(signal->tty);
+      if (tty != NULL){
+          // a tty is attached
+          bpf_probe_read_str(&event_data->tty, TTY_LEN, (void *)tty->name);
+      }
   }
 
   return 0;
