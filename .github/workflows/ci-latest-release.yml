@@ -46,7 +46,7 @@ jobs:
           controller:
             - 'pkg/KubeArmorController/**'
 
-  build:So when someone wants to run this workflow, they will be prompted to enter a release tag (like v1.2.3),
+  build:
     name: Create KubeArmor latest release
     needs: check
     if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
