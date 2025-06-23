@@ -111,6 +111,7 @@ rules:
   - watch
   - update
   - delete
+  - deletecollection 
 - nonResourceURLs:
   - /apis
   - /apis/*

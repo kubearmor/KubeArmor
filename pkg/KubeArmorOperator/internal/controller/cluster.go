@@ -17,6 +17,7 @@ import (
 	"time"
 
 	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
+	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
@@ -460,11 +461,17 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						UpdateImages(&cfg.Spec)
 						UpdatedKubearmorRelayEnv(&cfg.Spec)
 						UpdatedSeccomp(&cfg.Spec)
-						UpdateRecommendedPolicyConfig(&cfg.Spec)
+						isUpdateRecommendedPolicyConfig(&cfg.Spec)
 						UpdateControllerPort(&cfg.Spec)
 						// update status to (Installation) Created
 						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.CREATED, common.CREATED_MSG)
 						go clusterWatcher.WatchRequiredResources()
+
+						err := clusterWatcher.UpdateRecommend(cfg.Spec.RecommendedPolicies.Enable)
+						if err != nil {
+							clusterWatcher.Log.Errorf("Unable to delete recommend policies %v", err)
+						}
+
 						firstRun = false
 					}
 					// if it's not the operating crd
@@ -486,7 +493,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						relayEnvUpdated := UpdatedKubearmorRelayEnv(&cfg.Spec)
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
-						UpdateRecommendedPolicyConfig(&cfg.Spec)
+						isRecommendUpdated := isUpdateRecommendedPolicyConfig(&cfg.Spec)
 
 						// return if only status has been updated
 						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
@@ -514,8 +521,12 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
 						}
 						if controllerPortUpdated {
-							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
+							go clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
 							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
+						}
+						if isRecommendUpdated {
+							log.Printf("recommend updated")
+							go clusterWatcher.UpdateRecommend(cfg.Spec.RecommendedPolicies.Enable)
 						}
 					}
 				}
@@ -535,6 +546,23 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 	if ok := cache.WaitForCacheSync(wait.NeverStop, informer.HasSynced); !ok {
 		clusterWatcher.Log.Warn("Failed to wait for cache sync")
 	}
+}
+
+func (cluster *ClusterWatcher) UpdateRecommend(isEnable bool) error {
+
+	if !isEnable && common.RecommendedPolicies.Enable { // We want delete only when recommend is set from false to true
+		cluster.Log.Info("Deleting RecommendedPolicies")
+		err := cluster.Secv1Client.SecurityV1().KubeArmorClusterPolicies().DeleteCollection(
+			context.Background(),
+			metav1.DeleteOptions{},
+			metav1.ListOptions{
+				LabelSelector: "app.kubernetes.io/managed-by=kubearmor-operator",
+			},
+		)
+		return err
+	}
+
+	return cluster.CreateRecommendedPolicies()
 }
 
 func updateImagePullSecretFromGlobal(global []corev1.LocalObjectReference, dst *[]corev1.LocalObjectReference) {
@@ -1192,7 +1220,8 @@ func (clusterWatcher *ClusterWatcher) UpdateTlsConfigurations(tlsEnabled bool) e
 	return nil
 }
 
-func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
+// TODO: add support for MatchExpressions
+func (clusterWatcher *ClusterWatcher) CreateRecommendedPolicies() error {
 	var yamlBytes []byte
 	policies, err := recommend.CRDFs.ReadDir(".")
 	if err != nil {
@@ -1212,60 +1241,56 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				continue
 			}
 		}
-		switch common.RecommendedPolicies.Enable {
-		case true:
-			if slices.Contains(common.RecommendedPolicies.ExcludePolicy, csp.Name) {
-				clusterWatcher.Log.Infof("excluding csp ", csp.Name)
-				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
-				if err != nil && !metav1errors.IsNotFound(err) {
-					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
-				} else if err == nil {
-					clusterWatcher.Log.Infof("deleted csp :%s", csp.GetName())
-				}
-				continue
+		if slices.Contains(common.RecommendedPolicies.ExcludePolicy, csp.Name) {
+			clusterWatcher.Log.Infof("excluding csp ", csp.Name)
+			err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
+			if err != nil && !metav1errors.IsNotFound(err) {
+				clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
+			} else if err == nil {
+				clusterWatcher.Log.Infof("deleted csp :%s", csp.GetName())
 			}
-			csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
-			csp.Annotations["app.kubernetes.io/managed-by"] = "kubearmor-operator"
-			_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
-			if err != nil && !metav1errors.IsAlreadyExists(err) {
-				clusterWatcher.Log.Warnf("error creating csp %s", csp.GetName())
-				continue
-			} else if metav1errors.IsAlreadyExists(err) {
-				pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
-				if err != nil {
-					clusterWatcher.Log.Warnf("error getting csp %s", csp.GetName())
-					continue
-				}
-				if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
-					pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
-					_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
-					if err != nil {
-						clusterWatcher.Log.Warnf("error updating csp %s", csp.GetName())
-						continue
-					} else {
-						clusterWatcher.Log.Infof("updated csp %s", csp.GetName())
-					}
-				}
-			} else {
-				clusterWatcher.Log.Info("created csp", csp.GetName())
-			}
-		case false:
-			if !policy.IsDir() && csp.Annotations["app.kubernetes.io/managed-by"] == "kubearmor-operator" {
-				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
-				if err != nil && !metav1errors.IsNotFound(err) {
-					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
-					continue
-				} else if err == nil {
-					clusterWatcher.Log.Info("deleted csp %s", csp.GetName())
-				}
-			}
+			continue
 		}
+		csp.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+		if csp.Annotations == nil {
+			csp.Annotations = make(map[string]string)
+		}
+		csp.Annotations["app.kubernetes.io/managed-by"] = "kubearmor-operator"
+
+		if csp.Labels == nil {
+			csp.Labels = make(map[string]string)
+		}
+		csp.Labels["app.kubernetes.io/managed-by"] = "kubearmor-operator"
+		_, err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Create(context.Background(), csp, metav1.CreateOptions{})
+		if err != nil && !metav1errors.IsAlreadyExists(err) {
+			clusterWatcher.Log.Warnf("error creating csp %s", csp.GetName())
+			continue
+		} else if metav1errors.IsAlreadyExists(err) {
+			pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.GetName(), metav1.GetOptions{})
+			if err != nil {
+				clusterWatcher.Log.Warnf("error getting csp %s", csp.GetName())
+				continue
+			}
+			if !reflect.DeepEqual(pol.Spec.Selector.MatchExpressions, common.RecommendedPolicies.MatchExpressions) {
+				pol.Spec.Selector.MatchExpressions = common.RecommendedPolicies.MatchExpressions
+				_, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Update(context.Background(), pol, metav1.UpdateOptions{})
+				if err != nil {
+					clusterWatcher.Log.Warnf("error updating csp %s", csp.GetName())
+					continue
+				} else {
+					clusterWatcher.Log.Infof("updated csp %s", csp.GetName())
+				}
+			}
+		} else {
+			clusterWatcher.Log.Info("created csp", csp.GetName())
+		}
+
 	}
 
 	return nil
 }
 
-func UpdateRecommendedPolicyConfig(config *opv1.KubeArmorConfigSpec) bool {
+func isUpdateRecommendedPolicyConfig(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
 	if config.RecommendedPolicies.Enable != common.RecommendedPolicies.Enable {
 		common.RecommendedPolicies.Enable = config.RecommendedPolicies.Enable
