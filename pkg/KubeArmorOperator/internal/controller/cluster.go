@@ -1250,13 +1250,18 @@ func (clusterWatcher *ClusterWatcher) WatchRecommendedPolicies() error {
 				clusterWatcher.Log.Info("created csp", csp.GetName())
 			}
 		case false:
-			if !policy.IsDir() && csp.Annotations["app.kubernetes.io/managed-by"] == "kubearmor-operator" {
-				err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
-				if err != nil && !metav1errors.IsNotFound(err) {
-					clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
-					continue
-				} else if err == nil {
-					clusterWatcher.Log.Info("deleted csp %s", csp.GetName())
+			if !policy.IsDir() {
+				if pol, err := clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Get(context.Background(), csp.Name, v1.GetOptions{}); err == nil &&
+					pol.Annotations["app.kubernetes.io/managed-by"] == "kubearmor-operator" {
+					err = clusterWatcher.Secv1Client.SecurityV1().KubeArmorClusterPolicies().Delete(context.Background(), csp.GetName(), metav1.DeleteOptions{})
+					if err != nil && !metav1errors.IsNotFound(err) {
+						clusterWatcher.Log.Warnf("error deleting csp %s", csp.GetName())
+						continue
+					} else if err == nil {
+						clusterWatcher.Log.Infof("deleted csp %s", csp.GetName())
+					}
+				} else if err != nil && !metav1errors.IsNotFound(err) {
+					clusterWatcher.Log.Warnf("error getting csp: %v", err)
 				}
 			}
 		}
