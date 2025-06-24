@@ -468,7 +468,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 
 						err := clusterWatcher.UpdateRecommend(cfg.Spec.RecommendedPolicies.Enable)
 						if err != nil {
-							clusterWatcher.Log.Errorf("Unable to delete recommend policies %v", err)
+							clusterWatcher.Log.Errorf("Unable to update recommend policies %v", err)
 						}
 
 						firstRun = false
@@ -493,9 +493,20 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 						seccompEnabledUpdated := UpdatedSeccomp(&cfg.Spec)
 						tlsUpdated := UpdateTlsData(&cfg.Spec)
 						isRecommendUpdated := isUpdateRecommendedPolicyConfig(&cfg.Spec)
+						configUpdated := configChanged ||
+							len(imageUpdated) > 0 ||
+							controllerPortUpdated ||
+							relayEnvUpdated ||
+							seccompEnabledUpdated ||
+							tlsUpdated ||
+							isRecommendUpdated
 
+						if configUpdated {
+							// update status to Updating
+							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
+						}
 						// return if only status has been updated
-						if !tlsUpdated && !relayEnvUpdated && !configChanged && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status && len(imageUpdated) < 1 && !controllerPortUpdated {
+						if !configUpdated && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status {
 							return
 						}
 						if tlsUpdated {
@@ -506,17 +517,12 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							clusterWatcher.UpdateKubeArmorImages(imageUpdated)
 						}
 						if configChanged {
-							// update status to Updating
-							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubeArmorConfigMap(cfg)
 						}
 						if relayEnvUpdated {
-							// update status to Updating
-							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorRelayEnv(cfg)
 						}
 						if seccompEnabledUpdated {
-							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
 						}
 						if controllerPortUpdated {
@@ -527,10 +533,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							err := clusterWatcher.UpdateRecommend(cfg.Spec.RecommendedPolicies.Enable)
 
 							if err != nil {
-								clusterWatcher.Log.Errorf("Unable to delete recommend policies %v", err)
+								clusterWatcher.Log.Errorf("Unable to update recommend policies %v", err)
 							}
 
 						}
+
+						go clusterWatcher.UpdateCrdStatus(cfg.Name, common.RUNNING, common.RUNNING_MSG)
+						clusterWatcher.Log.Info("KubeArmor Config Updated Successfully")
+
 					}
 				}
 			},
