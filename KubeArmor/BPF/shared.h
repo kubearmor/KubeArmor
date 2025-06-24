@@ -419,6 +419,7 @@ static __always_inline u32 init_context(event *event_data) {
   if (signal != NULL){
       struct tty_struct *tty = READ_KERN(signal->tty);
       if (tty != NULL){
+        __builtin_memset(event_data->tty, 0, sizeof(event_data->tty));
           // a tty is attached
           bpf_probe_read_str(&event_data->tty, TTY_LEN, (void *)tty->name);
       }
