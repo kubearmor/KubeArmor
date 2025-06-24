@@ -501,13 +501,14 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							tlsUpdated ||
 							isRecommendUpdated
 
-						if configUpdated {
-							// update status to Updating
-							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
-						}
 						// return if only status has been updated
 						if !configUpdated && cfg.Status != oldObj.(*opv1.KubeArmorConfig).Status {
 							return
+						}
+
+						if configUpdated {
+							// update status to Updating
+							go clusterWatcher.UpdateCrdStatus(cfg.Name, common.UPDATING, common.UPDATING_MSG)
 						}
 						if tlsUpdated {
 							// update tls configuration
@@ -526,7 +527,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							clusterWatcher.UpdateKubearmorSeccomp(cfg)
 						}
 						if controllerPortUpdated {
-							go clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
+							clusterWatcher.UpdateKubeArmorImages([]string{"controller"})
 							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
 						}
 						if isRecommendUpdated {
@@ -1042,8 +1043,6 @@ func (clusterWatcher *ClusterWatcher) UpdateKubeArmorConfigMap(cfg *opv1.KubeArm
 		go clusterWatcher.UpdateCrdStatus(cfg.Name, common.ERROR, common.UPDATION_FAILED_ERR_MSG)
 		return
 	}
-	go clusterWatcher.UpdateCrdStatus(cfg.Name, common.RUNNING, common.RUNNING_MSG)
-	clusterWatcher.Log.Info("KubeArmor Config Updated Successfully")
 }
 
 func (clusterWatcher *ClusterWatcher) WatchTlsState(tlsEnabled bool) error {
