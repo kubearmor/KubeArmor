@@ -17,7 +17,6 @@ import (
 	"time"
 
 	certutil "github.com/kubearmor/KubeArmor/KubeArmor/cert"
-	"github.com/kubearmor/KubeArmor/KubeArmor/log"
 	deployments "github.com/kubearmor/KubeArmor/deployments/get"
 	secv1 "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
 	secv1client "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
@@ -525,8 +524,12 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 							clusterWatcher.UpdateWebhookSvcPort(cfg.Spec.ControllerPort)
 						}
 						if isRecommendUpdated {
-							log.Printf("recommend updated")
-							go clusterWatcher.UpdateRecommend(cfg.Spec.RecommendedPolicies.Enable)
+							err := clusterWatcher.UpdateRecommend(cfg.Spec.RecommendedPolicies.Enable)
+
+							if err != nil {
+								clusterWatcher.Log.Errorf("Unable to delete recommend policies %v", err)
+							}
+
 						}
 					}
 				}
@@ -550,7 +553,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 
 func (cluster *ClusterWatcher) UpdateRecommend(isEnable bool) error {
 
-	if !isEnable && common.RecommendedPolicies.Enable { // We want delete only when recommend is set from false to true
+	if !isEnable {
 		cluster.Log.Info("Deleting RecommendedPolicies")
 		err := cluster.Secv1Client.SecurityV1().KubeArmorClusterPolicies().DeleteCollection(
 			context.Background(),
@@ -1222,6 +1225,7 @@ func (clusterWatcher *ClusterWatcher) UpdateTlsConfigurations(tlsEnabled bool) e
 
 // TODO: add support for MatchExpressions
 func (clusterWatcher *ClusterWatcher) CreateRecommendedPolicies() error {
+	clusterWatcher.Log.Infof("Creating RecommendedPolicies")
 	var yamlBytes []byte
 	policies, err := recommend.CRDFs.ReadDir(".")
 	if err != nil {
