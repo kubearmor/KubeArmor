@@ -34,7 +34,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/uuid v1.6.0
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20250526061550-bac6deab5fa8
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20250526061550-bac6deab5fa8
+	github.com/kubearmor/KubeArmor/protobuf 38d862b893cd
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/spf13/viper v1.20.1
 	go.uber.org/zap v1.27.0
