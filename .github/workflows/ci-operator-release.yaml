@@ -72,9 +72,56 @@ jobs:
             core.setOutput('tag', tag);
             console.log(`Creating operator release with tag: ${tag}`);
 
+      - name: Build & Save KubeArmor Operator
+        working-directory: ./pkg/KubeArmorOperator
+        run: PLATFORM=linux/amd64 make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--load
+
+      - name: Save KubeArmorOperator image to tar for Trivy Scan
+        run: |
+          docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:${{ steps.tag.outputs.tag }}
+          docker save -o kubearmor-snitch.tar kubearmor/kubearmor-snitch:${{ steps.tag.outputs.tag }}
+
       - name: Build & Push KubeArmor Operator
         working-directory: ./pkg/KubeArmorOperator
-        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }}
+        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
+
+      - name: Run Trivy vulnerability scanner KubeArmorController
+        id: scan_init
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: ./pkg/KubeArmorOperator/kubearmor-operator.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH' 
+        continue-on-error: true   
+
+      - name: Run Trivy vulnerability scanner kubearmor-ubi
+        id: scan_ubi
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: ./pkg/KubeArmorOperator/kubearmor-snitch.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'  
+        continue-on-error: true    
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: |
+          echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator.json)" >> $GITHUB_OUTPUT
+          echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-operator@${{ steps.digest.outputs.operatordigest }} --yes
+          cosign sign -r kubearmor/kubearmor-snitch@${{ steps.digest.outputs.snitchdigest }} --yes
 
       - uses: actions/checkout@v3
         with:
