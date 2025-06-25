@@ -81,6 +81,8 @@ type MmapEvent struct {
 
 	Comm [80]byte
 
+	TTY [64]byte
+
 	Args [6]uint64
 }
 
@@ -206,6 +208,7 @@ func (p *Preset) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
+				TTY: event.TTY,
 			},
 		}, readLink)
 

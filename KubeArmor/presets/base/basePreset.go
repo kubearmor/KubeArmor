@@ -60,6 +60,8 @@ type EventPreset struct {
 
 	Comm [80]byte
 
+	TTY [64]byte
+
 	Data InnerKey
 
 	// exec events

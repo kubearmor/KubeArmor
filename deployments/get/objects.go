@@ -220,7 +220,7 @@ func GetRelayClusterRole() *rbacv1.ClusterRole {
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{""},
-				Resources: []string{"pods"},
+				Resources: []string{"pods", "services"},
 				Verbs:     []string{"list", "watch"},
 			},
 		},

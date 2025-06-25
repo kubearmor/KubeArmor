@@ -284,6 +284,8 @@ type eventBPF struct {
 
 	Comm [80]byte
 
+	TTY [64]byte
+
 	Data InnerKey
 
 	// exec events
@@ -347,6 +349,7 @@ func (be *BPFEnforcer) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
+				TTY: event.TTY,
 			},
 		}, readLink)
 

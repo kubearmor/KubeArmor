@@ -194,6 +194,7 @@ func (p *Preset) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
+				TTY: event.TTY,
 			},
 		}, readLink)
 
