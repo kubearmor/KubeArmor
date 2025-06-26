@@ -1303,16 +1303,18 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     return false; 
 }
  static __always_inline void  save_cmd_args_to_buffer(const char __user *const __user *ptr){
-   
+    
 
     struct cmd_args_key key;
     key.tgid = bpf_get_current_pid_tgid(); 
     u32 arg_k = 0;
     struct argVal  *args_buf = bpf_map_lookup_elem(&cmd_args_buf, &arg_k);
+    
     if (args_buf == NULL){
       return ;
     }
-    // add number of args here // pragmaunroll
+    
+    #pragma unroll
     for ( u8 i = 0; i <= 16; i++)
     {   
         key.ind = i;
@@ -1330,7 +1332,6 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
             break;
         }
     }
-  
  
  }
 
