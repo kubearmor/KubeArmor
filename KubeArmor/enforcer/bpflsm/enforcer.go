@@ -19,6 +19,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
+	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
@@ -414,6 +415,7 @@ func (be *BPFEnforcer) TraceEvents() {
 		} else {
 			log.Result = "Permission denied"
 		}
+		log.KubeArmorVersion = buildinfo.GitSummary
 		log.Enforcer = "BPFLSM"
 		be.Logger.PushLog(log)
 
