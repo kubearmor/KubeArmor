@@ -7,6 +7,9 @@ data:
   alertThrottling: {{ .Values.kubearmorConfigMap.alertThrottling | quote }}
   maxAlertPerSec: {{ .Values.kubearmorConfigMap.maxAlertPerSec | quote }}
   throttleSec: {{ .Values.kubearmorConfigMap.throttleSec | quote }}
+  matchArgs: {{ .Values.kubearmorConfigMap.matchArgs | quote }}
+
+  
 kind: ConfigMap
 metadata:
   labels:
