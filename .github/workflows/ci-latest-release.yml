@@ -120,6 +120,25 @@ jobs:
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
           cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
 
+      - name: Install bom
+        uses: kubernetes-sigs/release-actions/setup-bom@841d76a188a7c121231a863572e27012805715a2 # main
+
+      - name: Generate SBOM
+        shell: bash
+        run: |
+          bom generate --format json --analyze-images --output sbom_kubearmor_${{ steps.digest.outputs.imagedigest }}.spdx.json \
+          --image=kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          bom generate --format json --analyze-images --output sbom_kubearmor-init_${{ steps.digest.outputs.initdigest }}.spdx.json \
+          --image=kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+          bom generate --format json --analyze-images --output sbom_kubearmor-ubi_${{ steps.digest.outputs.ubidigest }}.spdx.json \
+          --image=kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }}
+
+      - name: Attach SBOM attestation to container image
+        run: |
+          cosign attest --recursive --yes --predicate sbom_kubearmor_${{ steps.digest.outputs.imagedigest }}.spdx.json --type spdxjson kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign attest --recursive --yes --predicate sbom_kubearmor-init_${{ steps.digest.outputs.initdigest }}.spdx.json --type spdxjson kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+          cosign attest --recursive --yes --predicate sbom_kubearmor-ubi_${{ steps.digest.outputs.ubidigest }}.spdx.json --type spdxjson kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }}
+
   push-stable-version:
     name: Create KubeArmor stable release
     needs: [build, check]
