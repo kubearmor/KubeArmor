@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Authors of KubeArmor
+
+// Package buildinfo is responsible for providing kubearmor build info.
 package buildinfo
 
 import (
@@ -13,6 +17,7 @@ var GitBranch string
 // BuildDate represents build-time info for build date
 var BuildDate string
 
+// Provides KubeArmor build time info
 func PrintBuildDetails() {
 	if GitSummary == "" {
 		return
