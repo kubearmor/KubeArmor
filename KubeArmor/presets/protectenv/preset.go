@@ -18,6 +18,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
 
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -196,7 +197,7 @@ func (p *Preset) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
-				TTY: event.TTY,
+				TTY:      event.TTY,
 			},
 		}, readLink)
 
@@ -225,6 +226,8 @@ func (p *Preset) TraceEvents() {
 		}
 
 		log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
+
+		log.KubeArmorVersion = buildinfo.GitSummary
 
 		p.Logger.PushLog(log)
 

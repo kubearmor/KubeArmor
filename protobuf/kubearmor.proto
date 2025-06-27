@@ -85,6 +85,8 @@ message Alert {
   int32 DroppingAlertsInterval = 35;
 
   ExecEvent ExecEvent = 36;
+
+  string KubeArmorVersion = 37;
 }
 
 // log struct

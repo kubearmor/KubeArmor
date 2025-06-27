@@ -262,6 +262,9 @@ type Log struct {
 	// policy
 	PolicyName string `json:"policyName,omitempty"`
 
+	// KubeArmor Version
+	KubeArmorVersion string `json:"kubeArmorVersion,omitempty"`
+
 	// severity, tags, message
 	Severity string   `json:"severity,omitempty"`
 	Tags     string   `json:"tags,omitempty"`
