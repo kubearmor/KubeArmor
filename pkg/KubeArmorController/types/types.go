@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2022 Authors of KubeArmor
+
 package types
 
 import (
@@ -16,6 +17,7 @@ type Cluster struct {
 	HomogenousApparmor bool // the cluster runs with apparmor enforcer
 	ClusterLock        *sync.RWMutex
 	TotalNodes         int //total no of nodes present
+	Version            string
 }
 type NodeInfo struct {
 	KubeArmorActive bool

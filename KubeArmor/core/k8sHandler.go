@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	corev1 "k8s.io/api/core/v1"
 	"net/http"
 	"net/url"
 	"os"
@@ -224,7 +225,7 @@ func (kh *K8sHandler) DoRequest(cmd string, data interface{}, path string) ([]by
 // ================ //
 
 // PatchDeploymentWithAppArmorAnnotations Function
-func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string) error {
+func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploymentName string, appArmorAnnotations map[string]string, kind string, useAppArmorProfile bool) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
 		return nil
 	}
@@ -236,18 +237,20 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 
 	count := len(appArmorAnnotations)
 
-	for k, v := range appArmorAnnotations {
-		if v == "unconfined" {
-			continue
+	if !useAppArmorProfile {
+		for k, v := range appArmorAnnotations {
+			if v == "unconfined" {
+				continue
+			}
+
+			spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
+
+			if count > 1 {
+				spec = spec + ","
+			}
+
+			count--
 		}
-
-		spec = spec + `"container.apparmor.security.beta.kubernetes.io/` + k + `":"localhost/` + v + `"`
-
-		if count > 1 {
-			spec = spec + ","
-		}
-
-		count--
 	}
 
 	if kind == "CronJob" {
@@ -256,22 +259,36 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		spec = spec + `}}}}}`
 	}
 
+	ctx := context.Background()
 	if kind == "StatefulSet" {
-		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
-		if err != nil {
+		if useAppArmorProfile {
+			sts, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Get(context.Background(), deploymentName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			addAppArmorProfile(sts.Spec.Template.Spec)
+			_, err = kh.K8sClient.AppsV1().StatefulSets(namespaceName).Update(ctx, sts, metav1.UpdateOptions{})
 			return err
 		}
-		return nil
 
+		_, err := kh.K8sClient.AppsV1().StatefulSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		return err
 	} else if kind == "ReplicaSet" {
 		rs, err := kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Get(context.Background(), deploymentName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		replicas := *rs.Spec.Replicas
-		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
-		if err != nil {
-			return err
+		if useAppArmorProfile {
+			addAppArmorProfile(rs.Spec.Template.Spec)
+			if _, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Update(ctx, rs, metav1.UpdateOptions{}); err != nil {
+				return err
+			}
+		} else {
+			_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
+			if err != nil {
+				return err
+			}
 		}
 
 		// To update the annotations we need to restart the replicaset,we scale it down and scale it back up
@@ -289,22 +306,44 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 
 		return nil
 	} else if kind == "DaemonSet" {
-		_, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
-		if err != nil {
+		if useAppArmorProfile {
+			ds, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Get(ctx, deploymentName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			addAppArmorProfile(ds.Spec.Template.Spec)
+			_, err = kh.K8sClient.AppsV1().DaemonSets(namespaceName).Update(ctx, ds, metav1.UpdateOptions{})
 			return err
 		}
-		return nil
+
+		_, err := kh.K8sClient.AppsV1().DaemonSets(namespaceName).Patch(context.Background(), deploymentName, types.MergePatchType, []byte(spec), metav1.PatchOptions{})
+		return err
 
 	} else if kind == "Deployment" {
+		if useAppArmorProfile {
+			deploy, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Get(ctx, deploymentName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			addAppArmorProfile(deploy.Spec.Template.Spec)
+			_, err = kh.K8sClient.AppsV1().Deployments(namespaceName).Update(ctx, deploy, metav1.UpdateOptions{})
+			return err
+		}
+
 		_, err := kh.K8sClient.AppsV1().Deployments(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
-		if err != nil {
-			return err
-		}
+		return err
 	} else if kind == "CronJob" {
-		_, err := kh.K8sClient.BatchV1().CronJobs(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
-		if err != nil {
+		if useAppArmorProfile {
+			cj, err := kh.K8sClient.BatchV1().Jobs(namespaceName).Get(ctx, deploymentName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			addAppArmorProfile(cj.Spec.Template.Spec)
+			_, err = kh.K8sClient.BatchV1().Jobs(namespaceName).Update(ctx, cj, metav1.UpdateOptions{})
 			return err
 		}
+		_, err := kh.K8sClient.BatchV1().CronJobs(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, []byte(spec), metav1.PatchOptions{})
+		return err
 	} else if kind == "Pod" {
 		// this condition wont be triggered, handled by controller
 		return nil
@@ -312,6 +351,21 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 	}
 
 	return nil
+}
+
+func addAppArmorProfile(spec corev1.PodSpec) {
+	for _, container := range spec.Containers {
+		if container.SecurityContext == nil {
+			container.SecurityContext = &corev1.SecurityContext{}
+		}
+		if container.SecurityContext.AppArmorProfile == nil {
+			localhostProfileName := "kubearmor_" + container.Name
+			container.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+				Type:             corev1.AppArmorProfileTypeLocalhost,
+				LocalhostProfile: &localhostProfileName,
+			}
+		}
+	}
 }
 
 // PatchDeploymentWithSELinuxAnnotations Function

@@ -840,14 +840,19 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 					}
 
-					for k, v := range pod.Annotations {
-						if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
-							if v == "unconfined" {
-								containerName := strings.Split(k, "/")[1]
-								appArmorAnnotations[containerName] = v
-							} else {
-								containerName := strings.Split(k, "/")[1]
-								appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
+					useAppArmorProfile := false
+					if kl.IsAppArmorProfileSupportMinVersion(dm.Node.KubeletVersion) {
+						useAppArmorProfile = true
+					} else {
+						for k, v := range pod.Annotations {
+							if strings.HasPrefix(k, "container.apparmor.security.beta.kubernetes.io") {
+								if v == "unconfined" {
+									containerName := strings.Split(k, "/")[1]
+									appArmorAnnotations[containerName] = v
+								} else {
+									containerName := strings.Split(k, "/")[1]
+									appArmorAnnotations[containerName] = strings.Split(v, "/")[1]
+								}
 							}
 						}
 					}
@@ -883,8 +888,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 							// patch deployments only when kubearmor-controller is not present
 							if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" && cfg.GlobalCfg.AnnotateResources {
 								deploymentName := dm.OwnerInfo[pod.Metadata["podName"]].Name
-								// patch the deployment with apparmor annotations
-								if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref); err != nil {
+								// patch the deployment with apparmor annotations or apparmor profile
+								if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref, useAppArmorProfile); err != nil {
 									dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 								} else {
 									dm.Logger.Printf("Patched AppArmor Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])
@@ -906,8 +911,8 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 									// patch deployments only when kubearmor-controller is not present
 									if dm.OwnerInfo[pod.Metadata["podName"]].Name != "" && cfg.GlobalCfg.AnnotateResources {
 										deploymentName := dm.OwnerInfo[pod.Metadata["podName"]].Name
-										// patch the deployment with apparmor annotations
-										if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref); err != nil {
+										// patch the deployment with apparmor annotations or apparmor profile
+										if err := K8s.PatchResourceWithAppArmorAnnotations(pod.Metadata["namespaceName"], deploymentName, appArmorAnnotations, dm.OwnerInfo[pod.Metadata["podName"]].Ref, useAppArmorProfile); err != nil {
 											dm.Logger.Errf("Failed to update AppArmor Annotations (%s/%s/%s, %s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"], err.Error())
 										} else {
 											dm.Logger.Printf("Patched AppArmor Annotations (%s/%s/%s)", pod.Metadata["namespaceName"], deploymentName, pod.Metadata["podName"])

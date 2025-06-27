@@ -23,6 +23,7 @@ replace (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/cilium/cilium v1.17.4
 	github.com/cilium/ebpf v0.18.0
@@ -54,7 +55,6 @@ require (
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.13.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

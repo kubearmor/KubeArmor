@@ -6,6 +6,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,9 +17,10 @@ import (
 const k8sVisibility = "process,file,network,capabilities"
 const appArmorAnnotation = "container.apparmor.security.beta.kubernetes.io/"
 const KubeArmorRestartedAnnotation = "kubearmor.kubernetes.io/restartedAt"
+const appArmorProfileSupportMinServerVersion = "v1.30"
 
 // == Add AppArmor annotations == //
-func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool) {
+func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool, serverVersion string) {
 	podAnnotations := map[string]string{}
 	var podOwnerName string
 
@@ -42,15 +44,30 @@ func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool)
 		podOwnerName = pod.ObjectMeta.Name
 	}
 
-	// Get existant kubearmor annotations
-	for k, v := range pod.Annotations {
-		if strings.HasPrefix(k, appArmorAnnotation) {
-			if v == "unconfined" {
-				containerName := strings.Split(k, "/")[1]
-				podAnnotations[containerName] = v
-			} else {
-				containerName := strings.Split(k, "/")[1]
-				podAnnotations[containerName] = strings.Split(v, "/")[1]
+	if isAppArmorProfileSupportMinVersion(serverVersion) {
+		for _, container := range pod.Spec.Containers {
+			if container.SecurityContext == nil {
+				container.SecurityContext = &corev1.SecurityContext{}
+			}
+			if container.SecurityContext.AppArmorProfile == nil {
+				localhostProfileName := "kubearmor_" + container.Name
+				container.SecurityContext.AppArmorProfile = &corev1.AppArmorProfile{
+					Type:             corev1.AppArmorProfileTypeLocalhost,
+					LocalhostProfile: &localhostProfileName,
+				}
+			}
+		}
+	} else {
+		// Get existant kubearmor annotations
+		for k, v := range pod.Annotations {
+			if strings.HasPrefix(k, appArmorAnnotation) {
+				if v == "unconfined" {
+					containerName := strings.Split(k, "/")[1]
+					podAnnotations[containerName] = v
+				} else {
+					containerName := strings.Split(k, "/")[1]
+					podAnnotations[containerName] = strings.Split(v, "/")[1]
+				}
 			}
 		}
 	}
@@ -73,6 +90,21 @@ func AppArmorAnnotator(pod *corev1.Pod, binding *corev1.Binding, isBinding bool)
 		}
 	}
 }
+
+func isAppArmorProfileSupportMinVersion(clusterVersion string) bool {
+	currVersion, err := semver.NewVersion(clusterVersion)
+	if err != nil {
+		return false
+	}
+
+	minRequiredVersion, err := semver.NewVersion(appArmorProfileSupportMinServerVersion)
+	if err != nil {
+		return false
+	}
+
+	return currVersion.Compare(minRequiredVersion) >= 0
+}
+
 func AddCommonAnnotations(obj *metav1.ObjectMeta) {
 
 	if obj.Annotations == nil {
