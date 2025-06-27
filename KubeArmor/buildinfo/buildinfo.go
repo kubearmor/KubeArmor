@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2025 Authors of KubeArmor
+
+// Package buildinfo is responsible for providing kubearmor build info.
 package buildinfo
 
 import (
