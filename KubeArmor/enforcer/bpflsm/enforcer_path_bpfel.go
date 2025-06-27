@@ -21,7 +21,7 @@ type enforcer_pathArgBufsK struct {
 	Arg   [256]int8
 }
 
-type enforcer_pathArgVal struct{ ArgsArray [80]int8 }
+type enforcer_pathArgVal struct{ ArgsArray [256]int8 }
 
 type enforcer_pathBufsK struct {
 	Path   [256]int8

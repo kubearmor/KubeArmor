@@ -103,7 +103,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 		Type:       ebpf.Hash,
 		KeySize:    776,
 		ValueSize:  1,
-		MaxEntries: 100,
+		MaxEntries: 10240,
 		Name:       "kubearmor_arguments",
 		Pinning:    ebpf.PinByName,
 	}, ebpf.MapOptions{
@@ -364,7 +364,7 @@ func (be *BPFEnforcer) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
-				TTY: event.TTY,
+				TTY:      event.TTY,
 			},
 		}, readLink)
 

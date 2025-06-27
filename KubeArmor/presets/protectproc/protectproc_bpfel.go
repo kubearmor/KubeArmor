@@ -21,7 +21,7 @@ type protectprocArgBufsK struct {
 	Arg   [256]int8
 }
 
-type protectprocArgVal struct{ ArgsArray [80]int8 }
+type protectprocArgVal struct{ ArgsArray [256]int8 }
 
 type protectprocBufsK struct {
 	Path   [256]int8

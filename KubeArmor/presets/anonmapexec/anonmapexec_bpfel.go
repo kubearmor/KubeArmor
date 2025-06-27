@@ -21,7 +21,7 @@ type anonmapexecArgBufsK struct {
 	Arg   [256]int8
 }
 
-type anonmapexecArgVal struct{ ArgsArray [80]int8 }
+type anonmapexecArgVal struct{ ArgsArray [256]int8 }
 
 type anonmapexecBufsK struct {
 	Path   [256]int8

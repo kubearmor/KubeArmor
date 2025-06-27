@@ -1315,7 +1315,7 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
     }
     
     #pragma unroll
-    for ( u8 i = 0; i <= 16; i++)
+    for ( u8 i = 0; i <= MAX_STR_ARR_ELEM; i++)
     {   
         key.ind = i;
         const char *const *curr_ptr = (void *)&ptr[i] ;

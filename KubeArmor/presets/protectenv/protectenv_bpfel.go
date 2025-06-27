@@ -21,7 +21,7 @@ type protectenvArgBufsK struct {
 	Arg   [256]int8
 }
 
-type protectenvArgVal struct{ ArgsArray [80]int8 }
+type protectenvArgVal struct{ ArgsArray [256]int8 }
 
 type protectenvBufsK struct {
 	Path   [256]int8

@@ -26,6 +26,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define BLOCK_POSTURE 141
 #define CAPABLE_KEY 200
 #define TTY_LEN 64
+#define MAX_STR_ARR_ELEM 20
 
 #define READ_KERN(ptr)                                    \
     ({                                                    \
@@ -95,7 +96,7 @@ typedef struct argskey{
   char arg[MAX_STRING_SIZE];
 } arg_bufs_k;
 
-//-- Maps and structs for argument matching--//
+//-- Maps structs for argument matching----//
 // argument matching 
 
 // Key for argument map => okey+bufkey+argname
@@ -108,7 +109,7 @@ struct {
 } args_bufk SEC(".maps");
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 100);
+    __uint(max_entries, 10240);
     __type(key, arg_bufs_k);  // Composite key of okey+bufkey+argname
     __type(value, u8);            // Value is a u8 integer
     __uint(pinning, LIBBPF_PIN_BY_NAME);            
@@ -911,27 +912,27 @@ static inline bool matchArguments( unsigned int num_of_args , struct outer_key *
         bpf_probe_read_str(&a_key->store.source, sizeof(store->source) , store->source);
     }
     // block if number of arguments is greater than 16
-    if(num_of_args > 16){
+    if(num_of_args > MAX_STR_ARR_ELEM){
       return true;
     }
-      for( u8 i = 0 ; i< num_of_args && i <= 16; i++ ){
-        cmd_args_buf_k.ind = i;
-        argval = bpf_map_lookup_elem(&kubearmor_args_store , &cmd_args_buf_k);
-                if(argval){
-          __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
-          bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), &argval->argsArray);
-          x = bpf_map_lookup_elem(&kubearmor_arguments ,a_key);    
-          if (x){
-            argmatch = true;
-            } 
-          else {
-              argmatch = false;
-              if (i != 0) {
-                break;  
-              }
+    for( u8 i = 0 ; i< num_of_args && i <= MAX_STR_ARR_ELEM; i++ ){
+      cmd_args_buf_k.ind = i;
+      argval = bpf_map_lookup_elem(&kubearmor_args_store , &cmd_args_buf_k);
+      if(argval){
+        __builtin_memset(a_key->arg, 0, sizeof(a_key->arg));
+        bpf_probe_read_str(&a_key->arg, sizeof(a_key->arg), &argval->argsArray);
+        x = bpf_map_lookup_elem(&kubearmor_arguments ,a_key);    
+        if (x){
+          argmatch = true;
+          } 
+        else {
+            argmatch = false;
+            if (i != 0) {
+              break;  
             }
-        }
+          }
       }
+    }
   
   return argmatch; 
 }

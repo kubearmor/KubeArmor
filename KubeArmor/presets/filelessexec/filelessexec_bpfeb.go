@@ -21,7 +21,7 @@ type filelessexecArgBufsK struct {
 	Arg   [256]int8
 }
 
-type filelessexecArgVal struct{ ArgsArray [80]int8 }
+type filelessexecArgVal struct{ ArgsArray [256]int8 }
 
 type filelessexecBufsK struct {
 	Path   [256]int8

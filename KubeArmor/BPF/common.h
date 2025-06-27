@@ -9,7 +9,7 @@
 
 //struct for argument string
 struct argVal{
-  char argsArray[80];
+  char argsArray[MAX_ARGUMENT_SIZE];
 };
 
 // key for kubearmor_args_store map (tgid + argument index)

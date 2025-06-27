@@ -21,7 +21,7 @@ type execArgBufsK struct {
 	Arg   [256]int8
 }
 
-type execArgVal struct{ ArgsArray [80]int8 }
+type execArgVal struct{ ArgsArray [256]int8 }
 
 type execBufsK struct {
 	Path   [256]int8
