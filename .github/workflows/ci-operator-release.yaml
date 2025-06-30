@@ -7,6 +7,10 @@ on:
         description: "Release tag which has to be updated"
         type: "string"
         required: true
+      trivy_scan:
+        description: 'Enable trivy scan'
+        required: true
+        type: boolean    
   push:
     branches:
       - "main"
@@ -73,10 +77,12 @@ jobs:
             console.log(`Creating operator release with tag: ${tag}`);
 
       - name: Build & Save KubeArmor Operator
+        if: ${{ github.event.inputs.trivy_scan}}
         working-directory: ./pkg/KubeArmorOperator
         run: PLATFORM=linux/amd64 make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--load
 
       - name: Save KubeArmorOperator image to tar for Trivy Scan
+        if: ${{ github.event.inputs.trivy_scan}}
         run: |
           docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:${{ steps.tag.outputs.tag }}
           docker save -o kubearmor-snitch.tar kubearmor/kubearmor-snitch:${{ steps.tag.outputs.tag }}
@@ -86,6 +92,7 @@ jobs:
         run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
 
       - name: Run Trivy vulnerability scanner KubeArmorController
+        if: ${{ github.event.inputs.trivy_scan}}
         id: scan_init
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -98,6 +105,7 @@ jobs:
         continue-on-error: true   
 
       - name: Run Trivy vulnerability scanner kubearmor-ubi
+        if: ${{ github.event.inputs.trivy_scan}}
         id: scan_ubi
         uses: aquasecurity/trivy-action@0.28.0
         with:
