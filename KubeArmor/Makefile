@@ -17,7 +17,8 @@ $(shell go install github.com/ahmetb/govvv)	# This works for older go version
 $(shell go install github.com/ahmetb/govvv@latest) # This works for new go version
 endif
 
-GIT_INFO := $(shell govvv -flags)
+PKG      := $(shell go list ./buildinfo)
+GIT_INFO := $(shell govvv -flags -pkg $(PKG))
 
 .PHONY: build
 build: protobuf

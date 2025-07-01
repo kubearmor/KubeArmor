@@ -10,28 +10,12 @@ import (
 
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
+	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 
-// GitCommit represents build-time info for git commit
-var GitCommit string
-
-// GitBranch represents build-time info for git branch
-var GitBranch string
-
-// BuildDate represents build-time info for build date
-var BuildDate string
-
-func printBuildDetails() {
-	if GitCommit == "" {
-		return
-	}
-	kg.Printf("BUILD-INFO: commit: %v, branch: %v, date: %v",
-		GitCommit, GitBranch, BuildDate)
-}
-
 func init() {
-	printBuildDetails()
+	buildinfo.PrintBuildDetails()
 }
 
 func main() {

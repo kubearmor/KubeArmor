@@ -600,6 +600,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		}
 		pbAlert := pb.Alert{}
 
+		pbAlert.KubeArmorVersion = log.KubeArmorVersion
+
 		pbAlert.Timestamp = log.Timestamp
 		pbAlert.UpdatedTime = log.UpdatedTime
 
