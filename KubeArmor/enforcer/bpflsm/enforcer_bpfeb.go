@@ -8,16 +8,21 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
 
 type enforcerBufsK struct {
+	_      structs.HostLayout
 	Path   [256]int8
 	Source [256]int8
 }
 
-type enforcerBufsT struct{ Buf [32768]int8 }
+type enforcerBufsT struct {
+	_   structs.HostLayout
+	Buf [32768]int8
+}
 
 // loadEnforcer returns the embedded CollectionSpec for enforcer.
 func loadEnforcer() (*ebpf.CollectionSpec, error) {

@@ -8,18 +8,26 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
 
 type protectprocBufsK struct {
+	_      structs.HostLayout
 	Path   [256]int8
 	Source [256]int8
 }
 
-type protectprocBufsT struct{ Buf [32768]int8 }
+type protectprocBufsT struct {
+	_   structs.HostLayout
+	Buf [32768]int8
+}
 
-type protectprocPathname struct{ Path [256]int8 }
+type protectprocPathname struct {
+	_    structs.HostLayout
+	Path [256]int8
+}
 
 // loadProtectproc returns the embedded CollectionSpec for protectproc.
 func loadProtectproc() (*ebpf.CollectionSpec, error) {

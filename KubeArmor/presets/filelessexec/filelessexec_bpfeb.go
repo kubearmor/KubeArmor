@@ -8,16 +8,21 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
 
 type filelessexecBufsK struct {
+	_      structs.HostLayout
 	Path   [256]int8
 	Source [256]int8
 }
 
-type filelessexecBufsT struct{ Buf [32768]int8 }
+type filelessexecBufsT struct {
+	_   structs.HostLayout
+	Buf [32768]int8
+}
 
 // loadFilelessexec returns the embedded CollectionSpec for filelessexec.
 func loadFilelessexec() (*ebpf.CollectionSpec, error) {
