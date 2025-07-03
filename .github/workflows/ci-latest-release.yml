@@ -100,11 +100,16 @@ jobs:
                 "containerd-snapshotter": true
               }
             }      
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
+      - name: Set up AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
+          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+          aws-region: us-east-1
+  
+      - name: Login to AWS ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -121,9 +126,9 @@ jobs:
       - name: Save image to tar for Trivy Scan
         if: ${{ github.event.inputs.trivy_scan}}
         run: |
-          docker save -o kubearmor-init.tar kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
-          docker save -o kubearmor-ubi.tar kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }}
-          docker save -o kubearmor.tar kubearmor/kubearmor:${{ steps.vars.outputs.tag }}
+          docker save -o kubearmor-init.tar public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
+          docker save -o kubearmor-ubi.tar public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }}
+          docker save -o kubearmor.tar public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }}
 
       - name: Run Trivy vulnerability scanner kubearmor-init
         if: ${{ github.event.inputs.trivy_scan}}
@@ -193,9 +198,9 @@ jobs:
 
       - name: Sign the Container Images
         run: |
-          cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
-          cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
-          cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
+          cosign sign -r public.ecr.aws/k9v9d5v2/kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
+          cosign sign -r public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
+          cosign sign -r public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
 
   push-stable-version:
     name: Create KubeArmor stable release
@@ -229,22 +234,29 @@ jobs:
             const ref = context.ref;
             const isMatch = ref === `refs/heads/${stableBranch}`;
             core.setOutput('tag', isMatch.toString());
-      
 
-      - name: Login to Docker Hub
+      - name: Set up AWS Credentials
         if: steps.match.outputs.tag == 'true'
-        uses: docker/login-action@v2
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
+          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+          aws-region: us-east-1
+  
+      - name: Login to AWS ECR
+        if: steps.match.outputs.tag == 'true'
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+            
+
 
       - name: Generate the stable version of KubeArmor in Docker Hub
         if: steps.match.outputs.tag == 'true'
         run: |
           STABLE_VERSION=`cat STABLE-RELEASE`
-          regctl image copy kubearmor/kubearmor:$STABLE_VERSION kubearmor/kubearmor:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION kubearmor/kubearmor-ubi:stable --digest-tags
-          regctl image copy kubearmor/kubearmor-controller:$STABLE_VERSION kubearmor/kubearmor-controller:stable --digest-tags
+          regctl image copy public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:stable --digest-tags
+          regctl image copy public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:stable --digest-tags
+          regctl image copy public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:stable --digest-tags
 
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
@@ -279,11 +291,16 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64/v8
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
+      - name: Set up AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
+          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+          aws-region: us-east-1
+  
+      - name: Login to AWS ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
 
       - name: Get tag
         id: tag
@@ -310,7 +327,7 @@ jobs:
       - name: Save KubeArmorController image to tar for Trivy Scan
         if: ${{ github.event.inputs.trivy_scan}}
         run: |
-          docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}
+          docker save -o kubearmor-controller.tar public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}
 
       - name: Run Trivy vulnerability scanner KubeArmorController
         if: ${{ github.event.inputs.trivy_scan}}
@@ -338,4 +355,4 @@ jobs:
 
       - name: Sign the Container Images
         run: |
-          cosign sign -r kubearmor/kubearmor-controller@${{ steps.digest.outputs.imagedigest }} --yes
+          cosign sign -r public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller@${{ steps.digest.outputs.imagedigest }} --yes
