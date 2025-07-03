@@ -7,8 +7,8 @@ CHARTDIR  := $(realpath $(DEPLOYDIR)/helm/KubeArmorOperator)
 CRDDIR    := $(realpath $(CHARTDIR)/crds)
 
 # Image URL to use all building/pushing image targets
-OPERATOR_IMG ?= kubearmor/kubearmor-operator
-SNITCH_IMG ?= kubearmor/kubearmor-snitch
+OPERATOR_IMG ?= public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator
+SNITCH_IMG ?= public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch
 # Image Tag to use all building/pushing image targets
 TAG ?= v0.1
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
