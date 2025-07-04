@@ -494,6 +494,33 @@ var _ = Describe("Ksp", func() {
 			Expect(err).To(BeNil())
 			Expect(res.Found).To(BeTrue())
 		})
+		It("it can allow certain arguments in process execution", func() {
+			if strings.Contains(K8sRuntimeEnforcer(), "apparmor") {
+				Skip("Skipping due to args rule only supported by BPFLSM")
+			}
+			err := K8sApplyFile("multiubuntu/ksp-ubuntu-1-allow-proc-args.yaml")
+			Expect(err).To(BeNil())
+
+			// Start KubeArmor Logs
+			err = KarmorLogStart("policy", "multiubuntu", "Process", ub1)
+			Expect(err).To(BeNil())
+
+			AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "python3 -m pydoc"},
+				MatchRegexp(".*Permission denied"), true,
+			)
+
+			expect := protobuf.Alert{
+				PolicyName: "ksp-ubuntu-1-allow-proc-args",
+				Action:     "Block",
+				Result:     "Permission denied",
+			}
+
+			res, err := KarmorGetTargetAlert(5*time.Second, &expect)
+			Expect(err).To(BeNil())
+			Expect(res.Found).To(BeTrue())
+
+			//ksp-group-1-allow-proc-args
+		})
 
 		It("it can block process execution with matchExpression, In & NotIn operator", func() {
 			// multiubuntu_test_16
