@@ -374,7 +374,8 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 					dm.SecurityPoliciesLock.RLock()
 					for _, secPol := range dm.SecurityPolicies {
 						// required only in ADDED event, this alone will update the namespaceList for csp
-						updateNamespaceListforCSP(secPol)
+						updateNamespaceListforCSP(&secPol)
+
 						// match ksp || csp
 						if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||
 							(kl.ContainsElement(secPol.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) {
