@@ -8,16 +8,21 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
 
 type anonmapexecBufsK struct {
+	_      structs.HostLayout
 	Path   [256]int8
 	Source [256]int8
 }
 
-type anonmapexecBufsT struct{ Buf [32768]int8 }
+type anonmapexecBufsT struct {
+	_   structs.HostLayout
+	Buf [32768]int8
+}
 
 // loadAnonmapexec returns the embedded CollectionSpec for anonmapexec.
 func loadAnonmapexec() (*ebpf.CollectionSpec, error) {

@@ -8,16 +8,21 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
 
 type protectenvBufsK struct {
+	_      structs.HostLayout
 	Path   [256]int8
 	Source [256]int8
 }
 
-type protectenvBufsT struct{ Buf [32768]int8 }
+type protectenvBufsT struct {
+	_   structs.HostLayout
+	Buf [32768]int8
+}
 
 // loadProtectenv returns the embedded CollectionSpec for protectenv.
 func loadProtectenv() (*ebpf.CollectionSpec, error) {

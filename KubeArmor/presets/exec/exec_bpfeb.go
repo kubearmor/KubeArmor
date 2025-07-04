@@ -8,16 +8,21 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"structs"
 
 	"github.com/cilium/ebpf"
 )
 
 type execBufsK struct {
+	_      structs.HostLayout
 	Path   [256]int8
 	Source [256]int8
 }
 
-type execBufsT struct{ Buf [32768]int8 }
+type execBufsT struct {
+	_   structs.HostLayout
+	Buf [32768]int8
+}
 
 // loadExec returns the embedded CollectionSpec for exec.
 func loadExec() (*ebpf.CollectionSpec, error) {

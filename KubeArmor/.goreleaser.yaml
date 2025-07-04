@@ -49,8 +49,6 @@ archives:
       - src: ./packaging/kubearmor.service
         dst: /usr/lib/systemd/system/
         strip_parent: true
-      - src: ./karmor
-        dst: /usr/local/bin/karmor
 
 nfpms:
   - id: "kubearmor"
@@ -85,8 +83,6 @@ nfpms:
       - src: /opt/kubearmor/kubearmor
         dst: /usr/local/bin/kubearmor
         type: symlink
-      - src: ./karmor
-        dst: /usr/local/bin/karmor
     scripts:
       postinstall: packaging/post-install.sh
     overrides:
