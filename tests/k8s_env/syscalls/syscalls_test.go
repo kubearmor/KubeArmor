@@ -4,7 +4,6 @@
 package syscalls
 
 import (
-
 	"time"
 
 	"github.com/kubearmor/KubeArmor/protobuf"
@@ -146,7 +145,6 @@ var _ = Describe("Syscalls", func() {
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /dummy"}, MatchRegexp(".*"), true)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "/unlink /dummy"}, MatchRegexp(".*"), true)
 
-
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-fromsource-path",
@@ -174,7 +172,6 @@ var _ = Describe("Syscalls", func() {
 
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), true)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), true)
-
 
 			// check policy alert
 			expect := protobuf.Alert{
@@ -253,7 +250,6 @@ var _ = Describe("Syscalls", func() {
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), true)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), true)
 
-
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-dir-recursive-fromsource-recursive-dir",
@@ -309,7 +305,6 @@ var _ = Describe("Syscalls", func() {
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), true)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), true)
 
-
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-global-information",
@@ -337,7 +332,6 @@ var _ = Describe("Syscalls", func() {
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), true)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), true)
 
-
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-local-information",
@@ -362,10 +356,8 @@ var _ = Describe("Syscalls", func() {
 			err = KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
 			Expect(err).To(BeNil())
 
-			
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), true)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), true)
-
 
 			// check policy alert
 			expect := protobuf.Alert{
@@ -393,7 +385,6 @@ var _ = Describe("Syscalls", func() {
 
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), false)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), false)
-
 
 			// check policy alert
 			expect := protobuf.Alert{
@@ -424,7 +415,6 @@ var _ = Describe("Syscalls", func() {
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), false)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), false)
 
-
 			// check policy alert
 			expect := protobuf.Alert{
 				PolicyName: "audit-unlink-global-information",
@@ -449,10 +439,8 @@ var _ = Describe("Syscalls", func() {
 			err = KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
 			Expect(err).To(BeNil())
 
-			
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), false)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), false)
-
 
 			// check policy alert
 			expect := protobuf.Alert{
@@ -478,7 +466,6 @@ var _ = Describe("Syscalls", func() {
 			err = KarmorLogStart("policy", "syscalls", "Syscall", ubuntu)
 			Expect(err).To(BeNil())
 
-			
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "touch /home/dummy"}, MatchRegexp(".*"), false)
 			AssertCommand(ubuntu, "syscalls", []string{"bash", "-c", "unlink /home/dummy"}, MatchRegexp(".*"), false)
 
@@ -536,7 +523,7 @@ var _ = Describe("Syscalls", func() {
 				ubuntu, "syscalls", []string{"bash", "-c", "mkdir /mnt/test"},
 				MatchRegexp(".*"), true,
 			)
-			
+
 			AssertCommand(
 				ubuntu, "syscalls", []string{"bash", "-c", "mount /home /mnt/test"},
 				MatchRegexp(".*"), true,

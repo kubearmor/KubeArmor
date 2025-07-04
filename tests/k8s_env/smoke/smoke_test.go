@@ -69,7 +69,6 @@ var _ = Describe("Smoke", func() {
 
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "apt"}, MatchRegexp("apt.*Permission denied"), true)
 
-
 			// check policy violation alert
 			expect := protobuf.Alert{
 				PolicyName: "ksp-wordpress-block-process",
@@ -95,7 +94,6 @@ var _ = Describe("Smoke", func() {
 			time.Sleep(5 * time.Second)
 
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "cat /var/www/html/wp-config.php"}, MatchRegexp("wp-config.php.*Permission denied"), true)
-
 
 			// check policy violation alert
 			expect := protobuf.Alert{
@@ -148,7 +146,6 @@ var _ = Describe("Smoke", func() {
 
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"}, MatchRegexp("token.*Permission denied"), true)
 
-
 			// check policy violation alert
 			expect := protobuf.Alert{
 				PolicyName: "ksp-wordpress-block-sa",
@@ -188,7 +185,7 @@ var _ = Describe("Smoke", func() {
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "cat /run/secrets/kubernetes.io/serviceaccount/token"}, Not(MatchRegexp("Permission denied")), true)
 
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "cat /etc/passwd"}, Not(MatchRegexp("Permission denied")), true)
-			
+
 			AssertCommand(wp, "wordpress-mysql", []string{"bash", "-c", "head /etc/passwd"}, Not(MatchRegexp("Permission denied")), true)
 
 			// check for no policy violation alert
