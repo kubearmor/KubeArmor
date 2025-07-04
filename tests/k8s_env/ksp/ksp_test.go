@@ -87,7 +87,7 @@ var _ = Describe("Ksp", func() {
 			AssertCommand(
 				pods.Items[0].Name, "nginx", []string{"ls"},
 				MatchRegexp(".*"), true,
-			)			
+			)
 
 			// check audit logs
 			logs, _, err := KarmorGetLogs(5*time.Second, 50)

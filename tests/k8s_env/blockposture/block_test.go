@@ -12,6 +12,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+type thisismyint interface {
+	int
+}
+
 var _ = BeforeSuite(func() {
 	// install wordpress-mysql app
 	err := K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
