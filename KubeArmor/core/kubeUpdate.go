@@ -983,7 +983,7 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 
 // updateNamespaceListforCSP - in case of NotIn operator for namespace key, a new ns might be added later
 // and here we will update namespaceList for CSP
-func updateNamespaceListforCSP(policy tp.SecurityPolicy) {
+func updateNamespaceListforCSP(policy *tp.SecurityPolicy) {
 	if len(policy.Spec.Selector.Identities) > 0 {
 		// if is not a Cluster policy, return
 		return
@@ -1039,7 +1039,8 @@ func (dm *KubeArmorDaemon) GetSecurityPolicies(endPoint tp.EndPoint) []tp.Securi
 	secPolicies := []tp.SecurityPolicy{}
 
 	for _, policy := range dm.SecurityPolicies {
-		updateNamespaceListforCSP(policy)
+		updateNamespaceListforCSP(&policy)
+
 		// match ksp || csp
 		if (kl.MatchIdentities(policy.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(policy.Spec.Selector, endPoint.Identities)) ||
 			(kl.ContainsElement(policy.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(policy.Spec.Selector, endPoint.Identities)) {
