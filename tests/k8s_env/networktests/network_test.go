@@ -3,7 +3,6 @@
 package networktests
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -62,11 +61,10 @@ var _ = Describe("Network Tests", func() {
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 				Expect(err).To(BeNil())
 
-				sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-					[]string{"bash", "-c", "ping -c 1 127.0.0.1"})
-				Expect(err).To(BeNil())
-				fmt.Printf("OUTPUT: %s\n", sout)
-				Expect(sout).To(MatchRegexp("PING.*127.0.0.1"))
+				AssertCommand(
+					ub1, "multiubuntu", []string{"bash", "-c", "ping -c 1 127.0.0.1"},
+					MatchRegexp("PING.*127.0.0.1"), true,
+				)
 
 				expect := protobuf.Alert{
 					PolicyName: "ksp-ubuntu-1-audit-net-icmp",
@@ -172,11 +170,9 @@ var _ = Describe("Network Tests", func() {
 				err = KarmorLogStart("policy", "multiubuntu", "Network", ub1)
 				Expect(err).To(BeNil())
 
-				sout, _, err := K8sExecInPod(ub1, "multiubuntu",
-					[]string{"bash", "-c", "arping -c 1 127.0.0.1"})
-				Expect(err).To(BeNil())
-				fmt.Printf("OUTPUT: %s\n", sout)
-				Expect(sout).To(MatchRegexp("ARPING 127.0.0.1"))
+				AssertCommand(ub1, "multiubuntu", []string{"bash", "-c", "arping -c 1 127.0.0.1"},
+					MatchRegexp("ARPING 127.0.0.1"), true,
+				)
 
 				expect := protobuf.Alert{
 					PolicyName: "ksp-ubuntu-1-audit-net-raw",
