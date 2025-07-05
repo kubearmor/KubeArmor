@@ -11,6 +11,7 @@ on:
         description: 'Enable trivy scan'
         required: true
         type: boolean    
+        default: true
   push:
     branches:
       - "main"

@@ -174,16 +174,16 @@ jobs:
         if: ${{ github.event.inputs.trivy_scan}}
         id: set_output
         run: |
-          echo "has_vulns=true" >> $GITHUB_ENV  # assume clean
+          echo "has_vulns=false" >> $GITHUB_ENV  # assume clean
           if [[ "${{ steps.scan_init.outcome }}" == "failure" ]] || \
             [[ "${{ steps.scan_ubi.outcome }}" == "failure" ]] || \
             [[ "${{ steps.scan_main.outcome }}" == "failure" ]]; then
-            echo "has_vulns=false" >> $GITHUB_ENV  # block build if any failed
+            echo "has_vulns=true" >> $GITHUB_ENV  # block build if any failed
           fi
         shell: bash
 
       - name: Build KubeArmor images to Docker
-        if: ${{ env.has_vulns == 'true' || github.event.inputs.trivy_scan == 'false' }}
+        if: ${{ env.has_vulns == 'flase' || github.event.inputs.trivy_scan == 'false' }}
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --push
 
       - name: Install Cosign
