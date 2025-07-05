@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2021 Authors of KubeArmor
 
-[[ "$REPO" == "" ]] && REPO="kubearmor/kubearmor"
+[[ "$REPO" == "" ]] && REPO="public.ecr.aws/k9v9d5v2/kubearmor/kubearmor"
 
-UBIREPO="kubearmor/kubearmor-ubi"
+UBIREPO="public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi"
 
 realpath() {
     CURR=$PWD

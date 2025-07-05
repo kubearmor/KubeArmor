@@ -5,7 +5,7 @@ imagePinning: false
 
 # pinned images
 oci_meta:
-  repo: kubearmor
+  repo: public.ecr.aws/k9v9d5v2/kubearmor
   images:
     kubearmor:
       image: kubearmor
@@ -32,7 +32,7 @@ kubearmorOperator:
   annotateExisting: false
   name: kubearmor-operator
   image:
-    repository: kubearmor/kubearmor-operator
+    repository: public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator
     tag: ""
   imagePullPolicy: IfNotPresent
   args: []
