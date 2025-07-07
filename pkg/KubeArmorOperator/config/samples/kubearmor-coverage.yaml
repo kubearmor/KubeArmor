@@ -25,9 +25,9 @@ spec:
     image: kubearmor/kubearmor-test-init:latest
     imagePullPolicy: Never
   kubearmorRelayImage:
-    image: kubearmor/kubearmor-relay-server:latest
+    image: docker.io/kubearmor/kubearmor-relay-server:latest
     imagePullPolicy: Always
   kubearmorControllerImage:
-    image: kubearmor/kubearmor-controller:latest
+    image: docker.io/kubearmor/kubearmor-controller:latest
     imagePullPolicy: Always
 
