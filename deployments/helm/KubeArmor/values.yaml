@@ -63,7 +63,7 @@ kubearmorRelay:
 kubearmorInit:
   image:
     # kubearmor-init image repo
-    repository: public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init
+    repository: kubearmor/kubearmor-init
     # kubearmor-init image tag
     tag: stable
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
@@ -88,7 +88,7 @@ kubearmorController:
   replicas: 1
   image:
     # kubearmor-controller image repo
-    repository: public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller
+    repository: kubearmor/kubearmor-controller
     # kubearmor-controller image tag
     tag: latest
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
@@ -115,7 +115,7 @@ kubearmor:
   tolerations: ""
   image:
     # kubearmor daemonset image repo
-    repository: public.ecr.aws/k9v9d5v2/kubearmor/kubearmor
+    repository: kubearmor/kubearmor
     # kubearmor daemonset image tag
     tag: stable
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
