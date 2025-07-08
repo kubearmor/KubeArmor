@@ -894,7 +894,7 @@ static inline bool matchArguments( unsigned int num_of_args , struct outer_key *
     u32 arg_k = 0;
     arg_bufs_k *a_key = bpf_map_lookup_elem(&args_bufk, &arg_k);
     if (a_key == NULL)
-      return 0;
+      return false;
     
     // clearing to avoid processing garbage values 
     __builtin_memset(&a_key->okey, 0, sizeof(a_key->okey));
@@ -913,9 +913,13 @@ static inline bool matchArguments( unsigned int num_of_args , struct outer_key *
     }
     // block if number of arguments is greater than 16
     if(num_of_args > MAX_STR_ARR_ELEM){
-      return true;
+      return false;
     }
-    for( u8 i = 0 ; i< num_of_args && i <= MAX_STR_ARR_ELEM; i++ ){
+
+    for( u8 i = 0 ; i < 20; i++ ){
+      if(i == num_of_args){
+        break;
+      }
       cmd_args_buf_k.ind = i;
       argval = bpf_map_lookup_elem(&kubearmor_args_store , &cmd_args_buf_k);
       if(argval){
@@ -927,6 +931,7 @@ static inline bool matchArguments( unsigned int num_of_args , struct outer_key *
           } 
         else {
             argmatch = false;
+            // to handle busybox binaries
             if (i != 0) {
               break;  
             }
