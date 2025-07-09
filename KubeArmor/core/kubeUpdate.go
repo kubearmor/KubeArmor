@@ -2880,7 +2880,13 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					}
 					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				}
+				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
+					cfg.GlobalCfg.MatchArgs = (cm.Data[cfg.ConfigArgMatching] == "true")
+				}
+
 				dm.SystemMonitor.UpdateThrottlingConfig()
+
+				dm.SystemMonitor.UpdateMatchArgsConfig()
 
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)

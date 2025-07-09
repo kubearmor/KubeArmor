@@ -32,6 +32,10 @@ type ProcessPathType struct {
 	Path MatchPathType `json:"path,omitempty"`
 
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MaxItems=20
+	AllowedArgs []string `json:"allowedArgs,omitempty"`
+
+	// +kubebuilder:validation:Optional
 	ExecName MatchBinType `json:"execname,omitempty"`
 
 	// +kubebuilder:validation:Optional

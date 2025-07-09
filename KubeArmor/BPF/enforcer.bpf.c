@@ -4,6 +4,7 @@
 
 #include "shared.h"
 #include "syscalls.h"
+#include "common.h"
 
 SEC("lsm/bprm_check_security")
 int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
@@ -11,11 +12,13 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   event *task_info;
   int retval = ret;
 
-  bool match = false;
-
+  // no of arguments
+  unsigned int num_of_args = BPF_CORE_READ(bprm , argc);
+  bool argmatch = false;
+ 
+  bool match = false; 
   struct outer_key okey;
   get_outer_key(&okey, t);
-
   u32 *inner = bpf_map_lookup_elem(&kubearmor_containers, &okey);
 
   if (!inner) {
@@ -38,7 +41,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   bufs_k *pk = bpf_map_lookup_elem(&bufk, &two);
   if (pk == NULL)
     return 0;
-
+  bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   // Extract full path from file structure provided by LSM Hook
   bufs_t *path_buf = get_buf(PATH_BUFFER);
   if (path_buf == NULL)
@@ -83,7 +86,9 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   if (src_ptr == NULL)
     fromSourceCheck = false;
 
+
   if (fromSourceCheck) {
+
     bpf_probe_read_str(store->source, MAX_STRING_SIZE, src_ptr);
 
     val = bpf_map_lookup_elem(inner, store);
@@ -91,51 +96,49 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       match = true;
       goto decision;
     }
+    #pragma unroll
+        for (int i = 0; i < 64; i++) {
+          if (store->path[i] == '\0')
+            break;
 
-#pragma unroll
-    for (int i = 0; i < 64; i++) {
-      if (store->path[i] == '\0')
-        break;
+          if (store->path[i] == '/') {
+            bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
 
-      if (store->path[i] == '/') {
-        bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
+            match = false;
 
-        match = false;
-
-        bpf_probe_read_str(pk->path, i + 2, store->path);
-        // Check Subdir with From Source
-        bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
-        dirval = bpf_map_lookup_elem(inner, pk);
-        if (dirval) {
-          if ((dirval->processmask & RULE_DIR) &&
-              (dirval->processmask & RULE_EXEC)) {
-            match = true;
-            if ((dirval->processmask & RULE_RECURSIVE) &&
-                (~dirval->processmask &
-                 RULE_HINT)) { // true directory match and not a hint suggests
-                               // there are no possibility of child dir
-              val = dirval;
-              goToDecision = true; // to please the holy verifier
-              break;
-            } else if (dirval->processmask &
-                       RULE_RECURSIVE) { // It's a directory match but also a
-                                         // hint, it's possible that a
-                                         // subdirectory exists that can also
-              // match so we continue the loop to look
-              // for a true match in subdirectories
-              recursivebuthint = true;
-              val = dirval;
+            bpf_probe_read_str(pk->path, i + 2, store->path);
+            // Check Subdir with From Source
+            bpf_probe_read_str(pk->source, MAX_STRING_SIZE, store->source);
+            dirval = bpf_map_lookup_elem(inner, pk);
+            if (dirval) {
+              if ((dirval->processmask & RULE_DIR) &&
+                  (dirval->processmask & RULE_EXEC)) {
+                match = true;
+                if ((dirval->processmask & RULE_RECURSIVE) &&
+                    (~dirval->processmask &
+                    RULE_HINT)) { // true directory match and not a hint suggests
+                                  // there are no possibility of child dir
+                  val = dirval;
+                  goToDecision = true; // to please the holy verifier
+                  break;
+                } else if (dirval->processmask &
+                          RULE_RECURSIVE) { // It's a directory match but also a
+                                            // hint, it's possible that a
+                                            // subdirectory exists that can also
+                  // match so we continue the loop to look
+                  // for a true match in subdirectories
+                  recursivebuthint = true;
+                  val = dirval;
+                } else {
+                  continue; // We continue the loop to see if we have more nested
+                            // directories and set match to false
+                }
+              }
             } else {
-              continue; // We continue the loop to see if we have more nested
-                        // directories and set match to false
+              break;
             }
           }
-        } else {
-          break;
         }
-      }
-    }
-
     if (recursivebuthint || goToDecision) {
       match = true;
       goto decision;
@@ -166,6 +169,7 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
   val = bpf_map_lookup_elem(inner, pk);
 
   if (val && (val->processmask & RULE_EXEC)) {
+
     match = true;
     goto decision;
   }
@@ -210,7 +214,6 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
       }
     }
   }
-
   if (recursivebuthint) {
     match = true;
     goto decision;
@@ -221,11 +224,21 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret) {
     }
   }
 
-decision:
-
+decision:  
   if (match) {
+    if (val && (val->processmask & RULE_ARGSET) && get_kubearmor_config(_MATCH_ARGS)){ 
+      argmatch = matchArguments( num_of_args , &okey , store , pk);
+      if(argmatch){
+        // if arguments matches allow the process to be executed
+        return 0;
+      }
+    }
+
     if (val && (val->processmask & RULE_OWNER)) {
       if (!is_owner(bprm->file)) {
+        if((val->processmask & RULE_ARGSET) && argmatch){
+          return 0;
+        } 
         retval = -EPERM;
       } else {
         // Owner Only Rule Match, No need to enforce
@@ -236,7 +249,6 @@ decision:
       retval = -EPERM;
     }
   }
-
   if (retval == -EPERM) {
     goto ringbuf;
   }

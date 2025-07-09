@@ -63,6 +63,7 @@ type KubearmorConfig struct {
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
 	ThrottleSec       int32 // Number of seconds for which subsequent alerts will be dropped
 	AnnotateResources bool  // enable annotations by kubearmor if kubearmor-controller is not present
+	MatchArgs         bool  // enable argument rules for policy
 
 	ProcFsMount string // path where procfs is hosted
 }
@@ -114,6 +115,7 @@ const (
 	ConfigThrottleSec                    string = "throttleSec"
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
+	ConfigArgMatching                    string = "matchArgs"
 )
 
 func readCmdLineParams() {
@@ -174,6 +176,8 @@ func readCmdLineParams() {
 	annotateResources := flag.Bool(ConfigAnnotateResources, false, "for kubearmor deployment without kubearmor-controller")
 
 	procFsMount := flag.String(ConfigProcFsMount, "/proc", "Path to the BPF filesystem to use for storing maps")
+
+	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -239,6 +243,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigThrottleSec, *throttleSec)
 
 	viper.SetDefault(ConfigAnnotateResources, *annotateResources)
+
+	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigProcFsMount, *procFsMount)
 }
@@ -359,4 +365,5 @@ func LoadDynamicConfig() {
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
 	GlobalCfg.ThrottleSec = int32(viper.GetInt(ConfigThrottleSec))
+	GlobalCfg.MatchArgs = viper.GetBool(ConfigArgMatching)
 }
