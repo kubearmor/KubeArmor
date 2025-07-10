@@ -21,7 +21,6 @@ spec:
   alertThrottling: true
   maxAlertPerSec: 10
   throttleSec: 30
-  matchArgs: true
   kubearmorImage:
     image: kubearmor/kubearmor:stable
     imagePullPolicy: Always
