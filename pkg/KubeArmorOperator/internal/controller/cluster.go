@@ -1289,35 +1289,43 @@ func UpdateRecommendedPolicyConfig(config *opv1.KubeArmorConfigSpec) bool {
 
 func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 	updated := false
+	configMapData := ""
+
 	if config.DefaultFilePosture != "" {
 		if common.ConfigMapData[common.ConfigDefaultFilePosture] != string(config.DefaultFilePosture) {
 			common.ConfigMapData[common.ConfigDefaultFilePosture] = string(config.DefaultFilePosture)
 			updated = true
 		}
+		configMapData += fmt.Sprintf("%s: %s\n", common.ConfigDefaultFilePosture, config.DefaultFilePosture)
 	}
 	if config.DefaultCapabilitiesPosture != "" {
 		if common.ConfigMapData[common.ConfigDefaultCapabilitiesPosture] != string(config.DefaultCapabilitiesPosture) {
 			common.ConfigMapData[common.ConfigDefaultCapabilitiesPosture] = string(config.DefaultCapabilitiesPosture)
 			updated = true
 		}
+		configMapData += fmt.Sprintf("%s: %s\n", common.ConfigDefaultCapabilitiesPosture, config.DefaultCapabilitiesPosture)
 	}
 	if config.DefaultNetworkPosture != "" {
 		if common.ConfigMapData[common.ConfigDefaultNetworkPosture] != string(config.DefaultNetworkPosture) {
 			common.ConfigMapData[common.ConfigDefaultNetworkPosture] = string(config.DefaultNetworkPosture)
 			updated = true
 		}
+		configMapData += fmt.Sprintf("%s: %s\n", common.ConfigDefaultNetworkPosture, config.DefaultNetworkPosture)
 	}
 	if config.DefaultVisibility != "" {
 		if common.ConfigMapData[common.ConfigVisibility] != config.DefaultVisibility {
 			common.ConfigMapData[common.ConfigVisibility] = config.DefaultVisibility
 			updated = true
 		}
+		configMapData += fmt.Sprintf("%s: %s\n", common.ConfigVisibility, config.DefaultVisibility)
 	}
 	AlertThrottlingEnabled := strconv.FormatBool(config.AlertThrottling)
 	if common.ConfigMapData[common.ConfigAlertThrottling] != AlertThrottlingEnabled {
 		common.ConfigMapData[common.ConfigAlertThrottling] = AlertThrottlingEnabled
 		updated = true
 	}
+	configMapData += fmt.Sprintf("%s: %t\n", common.ConfigAlertThrottling, config.AlertThrottling)
+
 	MaxAlertPerSec := strconv.FormatInt(int64(config.MaxAlertPerSec), 10)
 	if config.MaxAlertPerSec == 0 {
 		MaxAlertPerSec = common.DefaultMaxAlertPerSec
@@ -1326,6 +1334,7 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		common.ConfigMapData[common.ConfigMaxAlertPerSec] = MaxAlertPerSec
 		updated = true
 	}
+	configMapData += fmt.Sprintf("%s: %s\n", common.ConfigMaxAlertPerSec, MaxAlertPerSec)
 
 	ThrottleSec := strconv.FormatInt(int64(config.ThrottleSec), 10)
 	if config.ThrottleSec == 0 {
@@ -1340,6 +1349,10 @@ func UpdateConfigMapData(config *opv1.KubeArmorConfigSpec) bool {
 		common.ConfigMapData[common.ConfigThrottleSec] = ThrottleSec
 		updated = true
 	}
+	configMapData += fmt.Sprintf("%s: %s\n", common.ConfigThrottleSec, ThrottleSec)
+
+	common.ConfigMapData[common.KubeArmorConfigFileName] = configMapData
+
 	return updated
 }
 
