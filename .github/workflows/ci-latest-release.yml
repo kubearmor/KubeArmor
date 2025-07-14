@@ -30,6 +30,10 @@ on:
 # Declare default permissions as read only.
 permissions: read-all
 
+# Default value to skip trivy check on image push
+env:
+  has_vulns: 'false'
+
 jobs:
   check:
     name: Check what pkg were updated
@@ -126,6 +130,15 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64/v8
 
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+
+      - name: Check install
+        run: regctl version
+  
       - name: Build KubeArmor images to Docker
         if: ${{ github.event.inputs.trivy_scan}}
         run: GITHUB_SHA=$GITHUB_SHA PLATFORMS="linux/amd64" ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --load
@@ -190,9 +203,15 @@ jobs:
         shell: bash
 
       - name: Build KubeArmor images to Docker
-        if: ${{ env.has_vulns == 'flase' || github.event.inputs.trivy_scan == 'false' }}
+        if: ${{ env.has_vulns == 'false' || github.event.inputs.trivy_scan == 'false' }}
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --push
 
+      - name: Generate the TAG of KubeArmor in ECR
+        run: |
+          regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
+          regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
+          regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
+        
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
 
@@ -208,6 +227,8 @@ jobs:
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
           cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
+
+
 
   push-stable-version:
     name: Create KubeArmor stable release
@@ -278,12 +299,6 @@ jobs:
           regctl image copy kubearmor/kubearmor:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:stable --digest-tags
           regctl image copy kubearmor/kubearmor-ubi:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:stable --digest-tags
           regctl image copy kubearmor/kubearmor-init:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:stable --digest-tags
-
-      - name: Generate the TAG of KubeArmor in ECR
-        run: |
-          regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
-          regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
-          regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
 
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
