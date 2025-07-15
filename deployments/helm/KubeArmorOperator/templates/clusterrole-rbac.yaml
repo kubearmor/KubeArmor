@@ -135,6 +135,7 @@ rules:
   - ""
   resources:
   - pods
+  - services
   verbs:
   - list
   - watch

@@ -15,6 +15,10 @@ type ContainerKV struct {
 	Key   NsKey
 	Map   *ebpf.Map
 	Rules RuleList
+
+	// -----------------//
+	Arg_Key ArgumentsKey
+	Arg_Map *ebpf.Map
 }
 
 // NsKey Structure acts as an Identifier for containers
@@ -27,6 +31,16 @@ type NsKey struct {
 type InnerKey struct {
 	Path   [256]byte
 	Source [256]byte
+}
+type ArgumentsKey struct {
+	NsKey
+	InnerKey
+	Argument [256]byte
+}
+
+type ArgListKey struct {
+	NsKey
+	InnerKey
 }
 
 // AddContainerIDToMap adds container metadata to Outer eBPF container Map for initialising enforcement tracking and initiates an InnerMap to store the container specific rules
@@ -83,6 +97,23 @@ func (be *BPFEnforcer) DeleteContainerInnerMap(containerID string) {
 				be.Logger.Errf("error deleting container %s from outer map in kubearmor_alert_throttle map: %s", containerID, err.Error())
 			}
 		}
+
+		for key, val := range be.ContainerMap[containerID].Rules.ArgumentsList {
+
+			for _, arg := range val {
+				var bpfArgKey ArgumentsKey
+				bpfArgKey.InnerKey = key.InnerKey
+				bpfArgKey.NsKey = key.NsKey
+				copy(bpfArgKey.Argument[:], []byte(arg))
+				if err := be.BPFArgumentsMap.Delete(bpfArgKey); err != nil {
+					if !errors.Is(err, os.ErrNotExist) {
+						be.Logger.Errf("error deleting argument from container %s in kubearmor arguments map: %s", containerID, err.Error())
+					}
+
+				}
+
+			}
+		}
 		if err := be.ContainerMap[containerID].Map.Close(); err != nil {
 			be.Logger.Errf("error closing container map for %s: %s", containerID, err)
 		}
@@ -90,6 +121,7 @@ func (be *BPFEnforcer) DeleteContainerInnerMap(containerID string) {
 		val.Map = nil
 		val.Rules.Init()
 		be.ContainerMap[containerID] = val
+
 	}
 }
 

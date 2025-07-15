@@ -11,21 +11,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	rest "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	kspclient "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // ================= //
@@ -427,51 +425,6 @@ func (kh *K8sHandler) GetStatefulSet(namespaceName, podownerName string) (string
 
 	// return the statefulSet name
 	return ss.ObjectMeta.Name, ss.ObjectMeta.Namespace
-}
-
-// ========== //
-// == Pods == //
-// ========== //
-
-// WatchK8sPods Function
-func (kh *K8sHandler) WatchK8sPods(nodeName string) *http.Response {
-	if !kl.IsK8sEnv() { // not Kubernetes
-		return nil
-	}
-
-	queryParams := url.Values{}
-	if nodeName != "" {
-		queryParams.Add("fieldSelector", "spec.nodeName="+nodeName)
-	}
-	queryParams.Add("watch", "true")
-
-	if kl.IsInK8sCluster() { // kube-apiserver
-		URL := "https://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?" + queryParams.Encode()
-
-		req, err := http.NewRequest("GET", URL, nil)
-		if err != nil {
-			return nil
-		}
-
-		req.Header.Add("Content-Type", "application/json")
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", kh.K8sToken))
-
-		resp, err := kh.WatchClient.Do(req)
-		if err != nil {
-			return nil
-		}
-
-		return resp
-	}
-
-	// kube-proxy (local)
-	URL := "http://" + kh.K8sHost + ":" + kh.K8sPort + "/api/v1/pods?" + queryParams.Encode()
-
-	if resp, err := http.Get(URL); err == nil /* #nosec */ {
-		return resp
-	}
-
-	return nil
 }
 
 // ====================== //

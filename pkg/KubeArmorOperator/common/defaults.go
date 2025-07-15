@@ -8,6 +8,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -76,6 +77,8 @@ var (
 
 	// KubeArmorConfigMapName string = "kubearmor-config"
 
+	KubeArmorConfigFileName string = "karmor.yaml"
+
 	// ConfigMap Data
 	ConfigGRPC                       string = "gRPC"
 	ConfigVisibility                 string = "visibility"
@@ -88,6 +91,7 @@ var (
 	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
 	ConfigThrottleSec                string = "throttleSec"
 	ConfigEnableNRI                  string = "enableNRI"
+	ConfigArgMatching                string = "matchArgs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -154,6 +158,7 @@ var (
 	AlertThrottling       bool   = true
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
+	MatchArgs             bool   = true
 
 	// recommend policies
 	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
@@ -203,6 +208,7 @@ var ConfigMapData = map[string]string{
 	ConfigAlertThrottling:            "true",
 	ConfigMaxAlertPerSec:             "10",
 	ConfigThrottleSec:                "30",
+	ConfigArgMatching:                "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
@@ -319,6 +325,22 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: deployments.KubeArmorConfigMapName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: deployments.KubeArmorConfigMapName,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  KubeArmorConfigFileName,
+						Path: KubeArmorConfigFileName,
+					},
+				},
+			},
+		},
+	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
@@ -330,6 +352,11 @@ var CommonVolumesMount = []corev1.VolumeMount{
 		Name:      "proc-fs-mount",
 		MountPath: "/host/procfs",
 		ReadOnly:  true,
+	},
+	{
+		Name:      deployments.KubeArmorConfigMapName,
+		MountPath: filepath.Join("/opt/kubearmor", KubeArmorConfigFileName),
+		SubPath:   KubeArmorConfigFileName,
 	},
 }
 

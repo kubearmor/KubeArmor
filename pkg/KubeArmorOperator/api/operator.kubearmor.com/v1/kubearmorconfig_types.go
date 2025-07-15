@@ -117,6 +117,8 @@ type KubeArmorConfigSpec struct {
 
 	EnableNRI bool `json:"enableNRI,omitempty"`
 
+	MatchArgs bool `json:"matchArgs,omitempty"`
+
 	ControllerPort int `json:"controllerPort,omitempty"`
 }
 

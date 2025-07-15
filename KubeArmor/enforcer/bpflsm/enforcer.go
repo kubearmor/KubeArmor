@@ -19,6 +19,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/common"
+	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	mon "github.com/kubearmor/KubeArmor/KubeArmor/monitor"
@@ -40,6 +41,7 @@ type BPFEnforcer struct {
 	// InnerMapSpec            *ebpf.MapSpec
 	BPFContainerMap         *ebpf.Map
 	BPFContainerThrottleMap *ebpf.Map
+	BPFArgumentsMap         *ebpf.Map
 
 	// events
 	Events        *ringbuf.Reader
@@ -79,7 +81,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    512,
-		ValueSize:  2,
+		ValueSize:  4,
 		MaxEntries: 256,
 	}
 
@@ -96,6 +98,20 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_containers map: %s", err)
+		return be, err
+	}
+	be.BPFArgumentsMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
+		Type:       ebpf.Hash,
+		KeySize:    776,
+		ValueSize:  1,
+		MaxEntries: 10240,
+		Name:       "kubearmor_arguments",
+		Pinning:    ebpf.PinByName,
+	}, ebpf.MapOptions{
+		PinPath: pinpath,
+	})
+	if err != nil {
+		be.Logger.Errf("error creating kubearmor_arguments_map: %s", err)
 		return be, err
 	}
 
@@ -284,6 +300,8 @@ type eventBPF struct {
 
 	Comm [80]byte
 
+	TTY [64]byte
+
 	Data InnerKey
 
 	// exec events
@@ -347,6 +365,7 @@ func (be *BPFEnforcer) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
+				TTY:      event.TTY,
 			},
 		}, readLink)
 
@@ -376,11 +395,16 @@ func (be *BPFEnforcer) TraceEvents() {
 
 		case mon.SecurityBprmCheck:
 			log.Operation = "Process"
+			log.Resource = log.Source
 			log.Source = string(bytes.Trim(event.Data.Source[:], "\x00"))
-			log.Resource = string(bytes.Trim(event.Data.Path[:], "\x00"))
-			log.ProcessName = log.Resource
+			log.ProcessName = string(bytes.Trim(event.Data.Path[:], "\x00"))
 			log.ParentProcessName = log.Source
 			log.Data = "lsm=" + mon.GetSyscallName(int32(event.EventID))
+
+			// fallback logic if we don't receive resource from BuildLogBase()
+			if len(log.Resource) == 0 {
+				log.Resource = log.ProcessName
+			}
 
 		case mon.Capable:
 			log.Operation = "Capabilities"
@@ -406,6 +430,7 @@ func (be *BPFEnforcer) TraceEvents() {
 		} else {
 			log.Result = "Permission denied"
 		}
+		log.KubeArmorVersion = buildinfo.GitSummary
 		log.Enforcer = "BPFLSM"
 		be.Logger.PushLog(log)
 
@@ -460,7 +485,6 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 
 		}
 	}
-
 	be.ContainerMapLock.Lock()
 
 	if be.BPFContainerMap != nil {
@@ -484,6 +508,16 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 	}
+	if be.BPFArgumentsMap != nil {
+		if err := be.BPFArgumentsMap.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.BPFArgumentsMap.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
 
 	be.ContainerMapLock.Unlock()
 
@@ -497,6 +531,16 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 		if err := be.Events.Close(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+	}
+	if be.obj.enforcerMaps.KubearmorArgsStore != nil {
+		if err := be.obj.enforcerMaps.KubearmorArgsStore.Unpin(); err != nil {
+			be.Logger.Err(err.Error())
+			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
+		}
+		if err := be.obj.enforcerMaps.KubearmorArgsStore.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}

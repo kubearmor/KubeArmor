@@ -16,6 +16,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	"github.com/kubearmor/KubeArmor/KubeArmor/presets/base"
 
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -80,6 +81,8 @@ type MmapEvent struct {
 	Retval int64
 
 	Comm [80]byte
+
+	TTY [64]byte
 
 	Args [6]uint64
 }
@@ -206,6 +209,7 @@ func (p *Preset) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
+				TTY:      event.TTY,
 			},
 		}, readLink)
 
@@ -228,6 +232,7 @@ func (p *Preset) TraceEvents() {
 			log.Result = "Permission denied"
 		}
 		log.Enforcer = base.PRESET_ENFORCER + NAME
+		log.KubeArmorVersion = buildinfo.GitSummary
 		p.Logger.PushLog(log)
 
 	}

@@ -215,12 +215,30 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 // ========================== //
 
 // GetEventChannel Function
-func (dh *DockerHandler) GetEventChannel() <-chan events.Message {
+func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan struct{}) <-chan events.Message {
 	if dh.DockerClient != nil {
-		event, _ := dh.DockerClient.Events(context.Background(), events.ListOptions{})
-		return event
-	}
+		eventBuffer := make(chan events.Message, 256)
 
+		go func() {
+
+			eventStream, _ := dh.DockerClient.Events(ctx, events.ListOptions{})
+			defer close(eventBuffer)
+
+			for event := range eventStream {
+				select {
+				case eventBuffer <- event:
+				case <-ctx.Done():
+					return
+				case <-StopChan:
+					return
+				default:
+					kg.Warnf("Docker channel full.")
+				}
+			}
+		}()
+
+		return eventBuffer
+	}
 	return nil
 }
 
@@ -335,7 +353,8 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 							dm.SecurityPoliciesLock.RLock()
 							for _, secPol := range dm.SecurityPolicies {
 								// required only in ADDED event, this alone will update the namespaceList for csp
-								updateNamespaceListforCSP(secPol)
+								updateNamespaceListforCSP(&secPol)
+
 								// match ksp || csp
 								if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||
 									(kl.ContainsElement(secPol.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) {
@@ -538,7 +557,8 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 
 					dm.SecurityPoliciesLock.RLock()
 					for _, secPol := range dm.SecurityPolicies {
-						updateNamespaceListforCSP(secPol)
+						updateNamespaceListforCSP(&secPol)
+
 						// match ksp || csp
 						if (kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) ||
 							(kl.ContainsElement(secPol.Spec.Selector.NamespaceList, endPoint.NamespaceName) && kl.MatchExpIdentities(secPol.Spec.Selector, endPoint.Identities)) {
@@ -765,7 +785,10 @@ func (dm *KubeArmorDaemon) MonitorDockerEvents() {
 
 	dm.Logger.Print("Started to monitor Docker events")
 
-	EventChan := Docker.GetEventChannel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	EventChan := Docker.GetEventChannel(ctx, StopChan)
 
 	for {
 		select {
