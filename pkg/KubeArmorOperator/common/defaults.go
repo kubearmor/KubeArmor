@@ -8,6 +8,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -75,6 +76,8 @@ var (
 	KubeArmorSnitchRoleName string = "kubearmor-snitch"
 
 	// KubeArmorConfigMapName string = "kubearmor-config"
+
+	KubeArmorConfigFileName string = "karmor.yaml"
 
 	// ConfigMap Data
 	ConfigGRPC                       string = "gRPC"
@@ -322,6 +325,22 @@ var CommonVolumes = []corev1.Volume{
 			},
 		},
 	},
+	{
+		Name: deployments.KubeArmorConfigMapName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: deployments.KubeArmorConfigMapName,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  KubeArmorConfigFileName,
+						Path: KubeArmorConfigFileName,
+					},
+				},
+			},
+		},
+	},
 }
 
 var CommonVolumesMount = []corev1.VolumeMount{
@@ -333,6 +352,11 @@ var CommonVolumesMount = []corev1.VolumeMount{
 		Name:      "proc-fs-mount",
 		MountPath: "/host/procfs",
 		ReadOnly:  true,
+	},
+	{
+		Name:      deployments.KubeArmorConfigMapName,
+		MountPath: filepath.Join("/opt/kubearmor", KubeArmorConfigFileName),
+		SubPath:   KubeArmorConfigFileName,
 	},
 }
 
