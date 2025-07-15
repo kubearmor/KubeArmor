@@ -1,6 +1,6 @@
 module github.com/kubearmor/KubeArmor/pkg/KubeArmorController
 
-go 1.24.3
+go 1.24.4
 
 replace golang.org/x/net => golang.org/x/net v0.38.0
 

@@ -561,6 +561,8 @@ const (
 	ProtectEnv PresetName = "protectEnv"
 	// Exec Preset
 	Exec PresetName = "exec"
+	// ProtectProc Preset
+	ProtectProc PresetName = "protectProc"
 )
 
 // SecuritySpec Structure
@@ -635,6 +637,7 @@ type Visibility struct {
 	Process      bool `json:"process,omitempty"`
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
+	DNS          bool `json:"dns,omitempty"`
 }
 
 // ================== //
