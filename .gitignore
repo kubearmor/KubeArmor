@@ -37,3 +37,5 @@ vmlinux.h
 #ignore go.work
 go.work
 go.work.sum
+KubeArmor/presets/protectEnv/protectenv_bpfel.o
+KubeArmor/presets/protectenv/protectenv_bpfeb.o
