@@ -27,9 +27,9 @@ Agentic AI systems can **execute arbitrary system commands** due to their autono
 - Prompt engineering can bypass LLM guardrails.
 - Attackers can instruct agents to run harmful commands, download malware, or scan networks.
 
-![Demo 1](../../.gitbook/assets/modelarmor/demo1.png)
+![](../../.gitbook/assets/modelarmor/demo1.png)
 
-![Demo 2](../../.gitbook/assets/modelarmor/demo2.png)
+![](../../.gitbook/assets/modelarmor/demo2.png)
 
 ### 2. Model Supply Chain Attacks
 
@@ -37,7 +37,7 @@ Malicious models uploaded to public repositories (e.g., Hugging Face) can contai
 
 - Loading such models allows **hidden code execution**, leading to system compromise and C\&C communication.
 
-![Risk 1](../../.gitbook/assets/modelarmor/risk1.png)
+![Code Execution Cannot Be Governed Traditionally](../../.gitbook/assets/modelarmor/risk1.png)
 
 ### 3. Prompt Injection Attacks
 
@@ -49,11 +49,11 @@ Crafted prompts can manipulate the agent into performing unauthorized actions:
 
 > Traditional container security cannot detect these because they exploit application behavior, not the container itself.
 
-![Risk 2](../../.gitbook/assets/modelarmor/risk2.png)
+![Guardrails are not enough against sophisticated prompt engineering](../../.gitbook/assets/modelarmor/risk2.png)
 
 ## The Solution
 
-![Issues Fixed](../../.gitbook/assets/modelarmor/issuesfixed.png)
+![](../../.gitbook/assets/modelarmor/issuesfixed.png)
 
 ### Sandboxing Agentic AI
 
@@ -69,11 +69,11 @@ Define **fine-grained security policies** to:
 - **Control process execution** (allow only trusted binaries).
 - **Limit network activity** (disable raw sockets, ICMP, or outbound traffic).
 
+![](../../.gitbook/assets/modelarmor/use4.png)
+
 ### Automated Red Teaming
 
 Simulate adversarial scenarios like malicious model imports and prompt injections to **identify vulnerabilities pre-deployment**.
-
-![Automated Red Teaming](../../.gitbook/assets/modelarmor/use4.png)
 
 ### Protection Across the Stack
 
@@ -83,7 +83,7 @@ ModelArmor works across frameworks and environments:
 - Requires no code changes to your application.
 - Lightweight and **cost-efficient**, avoiding the overhead of MicroVMs or full isolation environments.
 
-![Automated Red Teaming](../../.gitbook/assets/modelarmor/use5.png)
+![Granular Policy Enforcement for Process, Network, Volumes and AI flows](../../.gitbook/assets/modelarmor/use5.png)
 
 ## TensorFlow Based Use Cases
 
@@ -116,7 +116,7 @@ A deployed TensorFlow model in a Docker container is vulnerable to compromise vi
 - Uses _Automated Red Teaming_ to detect such vulnerabilities pre-deployment.
 - Isolates workloads (like TensorFlow) with _Sandboxing Agentic AI_ to prevent code injection.
 
-![Keras Model Injection Attack](../../.gitbook/assets/modelarmor/use1.png)
+![Keras Model Injection Attack Mitigation](../../.gitbook/assets/modelarmor/use1.png)
 
 [▶️ Watch Keras Inject Video](https://drive.google.com/file/d/1olGBz3WUoJqmcAVdRY7uImKTHggRX6nK/preview)
 
@@ -124,8 +124,8 @@ A deployed TensorFlow model in a Docker container is vulnerable to compromise vi
 
 ## Securing NVIDIA NIM
 
-![NVIDIA NIM 1](../../.gitbook/assets/modelarmor/nvidia1.png)
+![](../../.gitbook/assets/modelarmor/nvidia1.png)
 
-![NVIDIA NIM 2](../../.gitbook/assets/modelarmor/nvidia2.png)
+![](../../.gitbook/assets/modelarmor/nvidia2.png)
 
 📄 [View PDF: Securing_NVIDIA_NIM.pdf](https://drive.google.com/file/d/16DjsSyOAWr1S4EwSTBSx63SLDHPFnSAh/preview)
