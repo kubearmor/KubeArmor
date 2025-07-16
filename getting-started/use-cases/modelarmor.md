@@ -27,15 +27,17 @@ Agentic AI systems can **execute arbitrary system commands** due to their autono
 - Prompt engineering can bypass LLM guardrails.
 - Attackers can instruct agents to run harmful commands, download malware, or scan networks.
 
-<img src="../../.gitbook/assets/modelarmor/demo1.png" class="center" alt="">
+<img src="../../.gitbook/assets/modelarmor/demo1.png" class="center" alt=""  width="600" >
 
-<img src="../../.gitbook/assets/modelarmor/demo2.png" class="center" alt="">
+<img src="../../.gitbook/assets/modelarmor/demo2.png" class="center" alt=""  width="600" >
 
 ### 2. Model Supply Chain Attacks
 
 Malicious models uploaded to public repositories (e.g., Hugging Face) can contain embedded payloads.
 
 - Loading such models allows **hidden code execution**, leading to system compromise and C\&C communication.
+
+<img src="../../.gitbook/assets/modelarmor/risk1.png" class="center" alt=""  width="600" >
 
 ### 3. Prompt Injection Attacks
 
@@ -47,15 +49,17 @@ Crafted prompts can manipulate the agent into performing unauthorized actions:
 
 > Traditional container security cannot detect these because they exploit application behavior, not the container itself.
 
-<img src="../../.gitbook/assets/modelarmor/risk1.png" class="center" alt="">
-
-<img src="../../.gitbook/assets/modelarmor/risk2.png" class="center" alt="">
+<img src="../../.gitbook/assets/modelarmor/risk2.png" class="center" alt=""  width="600" >
 
 ## The Solution
+
+<img src="../../.gitbook/assets/modelarmor/issuesfixed.png" class="center" alt=""  width="600" >
 
 ### Sandboxing Agentic AI
 
 ModelArmor **isolates agentic AI apps** and ML workloads at runtime, blocking unauthorized actions even if guardrails or code reviews are bypassed.
+
+<img src="../../.gitbook/assets/modelarmor/use3.png" class="center" alt=""  width="600" >
 
 ### Zero Trust Policy Enforcement
 
@@ -69,6 +73,8 @@ Define **fine-grained security policies** to:
 
 Simulate adversarial scenarios like malicious model imports and prompt injections to **identify vulnerabilities pre-deployment**.
 
+<img src="../../.gitbook/assets/modelarmor/use4.png" class="center" alt=""  width="600" >
+
 ### Protection Across the Stack
 
 ModelArmor works across frameworks and environments:
@@ -76,6 +82,8 @@ ModelArmor works across frameworks and environments:
 - Supports any **language runtime** or **AI framework**.
 - Requires no code changes to your application.
 - Lightweight and **cost-efficient**, avoiding the overhead of MicroVMs or full isolation environments.
+
+<img src="../../.gitbook/assets/modelarmor/use5.png" class="center" alt=""  width="600" >
 
 ## TensorFlow Based Use Cases
 
@@ -91,7 +99,8 @@ Traditional container security fails here because the model and container remain
 - Secures model behavior with input validation and anomaly detection, akin to an _LLM Prompt Firewall_ for ML workloads.
 - Protects against sophisticated input-level manipulations.
 
-  TODO: Add image once redesigned by Anish
+
+<img src="../../.gitbook/assets/modelarmor/use2.png" class="center" alt=""  width="600" >
 
 [▶️ Watch FGSM Attack Video](https://drive.google.com/file/d/1EnmsIiR4G4bYmoxBIHTk1bDkW2XatM4N/preview)
 
@@ -108,7 +117,7 @@ A deployed TensorFlow model in a Docker container is vulnerable to compromise vi
 - Uses _Automated Red Teaming_ to detect such vulnerabilities pre-deployment.
 - Isolates workloads (like TensorFlow) with _Sandboxing Agentic AI_ to prevent code injection.
 
-TODO: Add image once redesigned by Anish
+<img src="../../.gitbook/assets/modelarmor/use1.png" class="center" alt=""  width="600" >
 
 [▶️ Watch Keras Inject Video](https://drive.google.com/file/d/1olGBz3WUoJqmcAVdRY7uImKTHggRX6nK/preview)
 
@@ -116,11 +125,8 @@ TODO: Add image once redesigned by Anish
 
 ## Securing NVIDIA NIM
 
+<img src="../../.gitbook/assets/modelarmor/nvidia1.png" class="center" alt=""  width="600" >
+
+<img src="../../.gitbook/assets/modelarmor/nvidia2.png" class="center" alt=""  width="600" >
+
 📄 [View PDF: Securing_NVIDIA_NIM.pdf](https://drive.google.com/file/d/16DjsSyOAWr1S4EwSTBSx63SLDHPFnSAh/preview)
-
-## Get Started with ModelArmor
-
-- **Secure Untrusted Models:** Prevent execution of malicious payloads embedded in imported models.
-- **Harden Agentic AI Systems:** Block prompt injection attempts that bypass LLM guardrails.
-- **Language & Framework Agnostic:** Apply runtime policies without modifying your code.
-- **Granular Visibility:** Monitor and block suspicious activity in real time.
