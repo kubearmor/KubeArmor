@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	"github.com/kubearmor/KubeArmor/KubeArmor/core"
-	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 )
 

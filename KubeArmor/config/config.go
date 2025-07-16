@@ -66,6 +66,8 @@ type KubearmorConfig struct {
 	MatchArgs         bool  // enable argument rules for policy
 
 	ProcFsMount string // path where procfs is hosted
+
+	MachineIDPath string // path to machine-id
 }
 
 // GlobalCfg Global configuration for Kubearmor
@@ -116,6 +118,7 @@ const (
 	ConfigAnnotateResources              string = "annotateResources"
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigArgMatching                    string = "matchArgs"
+	ConfigMachineIDPath                  string = "machineIDPath"
 )
 
 func readCmdLineParams() {
@@ -176,6 +179,8 @@ func readCmdLineParams() {
 	annotateResources := flag.Bool(ConfigAnnotateResources, false, "for kubearmor deployment without kubearmor-controller")
 
 	procFsMount := flag.String(ConfigProcFsMount, "/proc", "Path to the BPF filesystem to use for storing maps")
+
+	machineIDPath := flag.String(ConfigMachineIDPath, "/etc/machine-id", "Path to machine-id file")
 
 	matchArgs := flag.Bool(ConfigArgMatching, true, "enabling Argument matching")
 
@@ -247,6 +252,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigArgMatching, *matchArgs)
 
 	viper.SetDefault(ConfigProcFsMount, *procFsMount)
+
+	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
 }
 
 // LoadConfig Load configuration
@@ -330,6 +337,8 @@ func LoadConfig() error {
 	GlobalCfg.AnnotateResources = viper.GetBool(ConfigAnnotateResources)
 
 	GlobalCfg.ProcFsMount = viper.GetString(ConfigProcFsMount)
+
+	GlobalCfg.MachineIDPath = viper.GetString(ConfigMachineIDPath)
 
 	LoadDynamicConfig()
 

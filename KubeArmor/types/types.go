@@ -40,6 +40,7 @@ type Container struct {
 	// == //
 
 	NodeName      string `json:"node_name"`
+	NodeID        string `json:"node_id"`
 	ProtocolPort  string `json:"protocolPort"`
 	Status        string `json:"status"`
 	ContainerIP   string `json:"container_ip"`
@@ -110,6 +111,7 @@ type Node struct {
 	ClusterName string `json:"clusterName"`
 	NodeName    string `json:"nodeName"`
 	NodeIP      string `json:"nodeIP"`
+	NodeID      string `json:"nodeID"`
 
 	Annotations map[string]string `json:"annotations"`
 	Labels      map[string]string `json:"labels"`

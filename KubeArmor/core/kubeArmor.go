@@ -6,6 +6,9 @@ package core
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/signal"
 	"strings"
@@ -405,6 +408,13 @@ func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc
 func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
+
+	protectedID := func(id, key string) string {
+		mac := hmac.New(sha256.New, []byte(id))
+		mac.Write([]byte(key))
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+
 	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
 	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
 
@@ -423,10 +433,12 @@ func KubeArmor() {
 		dm.HandleNodeAnnotations(&dm.Node)
 
 		hostInfo := kl.GetCommandOutputWithoutErr("hostnamectl", []string{})
-		for _, line := range strings.Split(hostInfo, "\n") {
+		for line := range strings.SplitSeq(hostInfo, "\n") {
+			if strings.Contains(line, "Machine ID") {
+				dm.Node.NodeID = strings.Split(line, ": ")[1]
+			}
 			if strings.Contains(line, "Operating System") {
 				dm.Node.OSImage = strings.Split(line, ": ")[1]
-				break
 			}
 		}
 
@@ -489,9 +501,17 @@ func KubeArmor() {
 			time.Sleep(time.Second * 1)
 		}
 	}
+
 	dm.NodeLock.RLock()
 	kg.Printf("Node Name: %s", dm.Node.NodeName)
 	kg.Printf("Node IP: %s", dm.Node.NodeIP)
+	if dm.Node.NodeID == "" {
+		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
+		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
+	}
+	dm.Node.NodeID = protectedID(dm.Node.NodeID, dm.Node.NodeName)
+
+	kg.Printf("Node ID: %s", dm.Node.NodeID)
 	if dm.K8sEnabled {
 		kg.Printf("Node Annotations: %v", dm.Node.Annotations)
 	}
@@ -507,7 +527,7 @@ func KubeArmor() {
 
 	// initialize log feeder
 	if !dm.InitLogger() {
-		kg.Err("Failed to intialize KubeArmor Logger")
+		kg.Err("Failed to initialize KubeArmor Logger")
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
@@ -564,7 +584,7 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized KubeArmor Monitor")
 
-		// monior system events
+		// monitor system events
 		go dm.MonitorSystemEvents()
 		dm.Logger.Print("Started to monitor system events")
 
