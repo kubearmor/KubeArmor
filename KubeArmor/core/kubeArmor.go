@@ -500,14 +500,13 @@ func KubeArmor() {
 		mac.Write([]byte(key))
 		return hex.EncodeToString(mac.Sum(nil))
 	}
-	
+
 	if dm.Node.NodeID == "" {
 		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
 		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
 	}
 	dm.Node.NodeID = protectedID(dm.Node.NodeID, dm.Node.NodeName)
 
-	dm.NodeLock.RLock()
 	kg.Printf("Node Name: %s", dm.Node.NodeName)
 	kg.Printf("Node IP: %s", dm.Node.NodeIP)
 	kg.Printf("Node ID: %s", dm.Node.NodeID)
@@ -521,7 +520,6 @@ func KubeArmor() {
 		kg.Printf("Kubelet Version: %s", dm.Node.KubeletVersion)
 		kg.Printf("Container Runtime: %s", dm.Node.ContainerRuntimeVersion)
 	}
-	dm.NodeLock.RUnlock()
 	// == //
 
 	// initialize log feeder
