@@ -408,13 +408,6 @@ func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc
 func KubeArmor() {
 	// create a daemon
 	dm := NewKubeArmorDaemon()
-
-	protectedID := func(id, key string) string {
-		mac := hmac.New(sha256.New, []byte(id))
-		mac.Write([]byte(key))
-		return hex.EncodeToString(mac.Sum(nil))
-	}
-
 	// Enable KubeArmorHostPolicy for both VM and KVMAgent and in non-k8s env
 	if cfg.GlobalCfg.KVMAgent || (!cfg.GlobalCfg.K8sEnv && cfg.GlobalCfg.HostPolicy) {
 
@@ -502,15 +495,21 @@ func KubeArmor() {
 		}
 	}
 
-	dm.NodeLock.RLock()
-	kg.Printf("Node Name: %s", dm.Node.NodeName)
-	kg.Printf("Node IP: %s", dm.Node.NodeIP)
+	protectedID := func(id, key string) string {
+		mac := hmac.New(sha256.New, []byte(id))
+		mac.Write([]byte(key))
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+	
 	if dm.Node.NodeID == "" {
 		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
 		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
 	}
 	dm.Node.NodeID = protectedID(dm.Node.NodeID, dm.Node.NodeName)
 
+	dm.NodeLock.RLock()
+	kg.Printf("Node Name: %s", dm.Node.NodeName)
+	kg.Printf("Node IP: %s", dm.Node.NodeIP)
 	kg.Printf("Node ID: %s", dm.Node.NodeID)
 	if dm.K8sEnabled {
 		kg.Printf("Node Annotations: %v", dm.Node.Annotations)
