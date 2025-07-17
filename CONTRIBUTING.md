@@ -1,12 +1,11 @@
 # Contributing to KubeArmor
 
-Welcome to KubeArmor, and thank you for showcasing your interest in contributing to the KubeArmor [community](https://github.com/kubernetes/community). We are excited to have you join us in improving Linux runtime security through Kubernetes. The KubeArmor community abides by the CNCF [code of conduct](code-of-conduct.md). Here is an excerpt:
+Welcome to KubeArmor, and thank you for showcasing your interest in contributing to the KubeArmor community. We are excited to have you join us in improving Linux runtime security through Kubernetes. The KubeArmor community abides by the CNCF [code of conduct](code-of-conduct.md). Here is an excerpt:
 
 _As contributors and maintainers of this project, and in the interest of fostering an open and welcoming community, we pledge to respect all people who contribute through reporting issues, posting feature requests, updating documentation, submitting pull requests or patches, and other activities._
 
 Since, KubeArmor is part of the Kubernetes Community, we request you to also go through the following:
 
-- [Contributor License Agreement](https://github.com/kubernetes/community/blob/master/CLA.md): Kubernetes projects require that you sign a Contributor License Agreement (CLA) before we can accept your pull requests.
 - [Kubernetes Contributor Guide](https://www.kubernetes.dev/docs/guide/): Main contributor documentation.
 - [Contributor Cheat Sheet](https://github.com/kubernetes/community/blob/master/contributors/guide/contributor-cheatsheet.md): Common resources for existing developers.
 
@@ -16,7 +15,7 @@ If you are new to the project or open source contributions in general, we encour
 
 We maintain a list of curated issues that are great entry points:
 - [Good First Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): Ideal for Beginners or new comers.
-- [Help Wanted Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+- [Help Wanted Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22): Issues that need additional input, expertise, or effort from the community. Suitable for contributors who are ready to take on slightly more involved tasks.
 - [Backlog Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+is%3Aopen+label%3Abacklog): Issues that are planned or pending implementation. These are great for contributors looking for meaningful and scoped technical work.
 
 For help setting up your development environment, refer to our [Development Guide](contribution/development_guide.md). To understand how to fork the repository and raise a PR, see our [Contribution Guide](contribution/contribution_guide.md).
@@ -52,14 +51,14 @@ Test coverage is crucial for the stability and maintainability of the project. W
 - Example: A system policy to restrict access to the NGINX process that is applicable across many environments.
 
 ### Writing Blogs
-- Tutorials explaining the use of KubeArmor features (e.g., KVMService, Event Auditor, Visibility).
+- Tutorials explaining the use of KubeArmor features (e.g., Policy Enforcement, Event Auditor, Visibility).
 - Use-case focused articles explaining how KubeArmor secures workloads.
 - Deep-dives into technical integrations and real-world deployment examples.
 
 ### Community Engagement
 - Participate in discussions on [GitHub Issues](https://github.com/kubearmor/KubeArmor/issues).
 - Join Slack conversations (see below).
-- Attend and engage in KubeArmor community meetings.
+- Attend and engage in biweekly KubeArmor community meetings.
 
 ### Feedback and Evangelism
 - Share feedback, suggest features, or discuss architectural decisions.
@@ -70,12 +69,6 @@ Test coverage is crucial for the stability and maintainability of the project. W
 
 KubeArmor is dedicated to supporting contributors at all levels. Here’s how you can grow within the community:
 
-### Get Started
-- Begin by solving [Good First Issues](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+label%3A%22good+first+issue%22).
-- Familiarize yourself with the project architecture, contribution workflow, and Git practices such as writing meaningful commit messages and signing your commits using `git commit -s`.
-- Take on more challenging issues from the [Backlog](https://github.com/kubearmor/KubeArmor/issues?q=is%3Aissue+label%3Abacklog) or those marked as `help wanted`.
-- Participate in technical discussions, review pull requests, and propose improvements to existing modules.
-- Work on testing improvements, documentation, CI pipelines, or system design tasks.
 
 ### Join Mentorship Programs
 You can contribute to KubeArmor through several open source mentorship programs:
