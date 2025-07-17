@@ -232,7 +232,7 @@ type Log struct {
 	// host
 	ClusterName string `json:"clusterName,omitempty"`
 	HostName    string `json:"hostName"`
-	NodeID      string `json:"nodeID"`
+	NodeID      string `json:"nodeID,omitempty"`
 
 	// k8s
 	NamespaceName string    `json:"namespaceName,omitempty"`
