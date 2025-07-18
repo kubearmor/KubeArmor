@@ -281,7 +281,7 @@ func (p *Preset) UpdateSecurityPolicies(endPoint tp.EndPoint) {
 		protectEnvPresetRulePresent = false
 		for _, secPolicy := range endPoint.SecurityPolicies {
 			for _, preset := range secPolicy.Spec.Presets {
-				if preset.Name == tp.ProtectEnv {
+				if preset.Name == tp.Protectenv {
 					p.Logger.Printf("Container matched for protectEnv rule: %s", cid)
 					protectEnvPresetRulePresent = true
 					p.ContainerMapLock.RLock()

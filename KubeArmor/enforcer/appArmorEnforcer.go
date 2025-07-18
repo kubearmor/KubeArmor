@@ -5,13 +5,16 @@
 package enforcer
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 
+	sprig "github.com/Masterminds/sprig/v3"
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
@@ -235,13 +238,15 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string,
 	}
 
 	// generate a profile with basic allows if a privileged container
-	var newProfile string
+	var newProfile Profile
+	newProfile.Init()
+	newProfile.Name = profileName
 	if privileged {
-		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+		newProfile.Privileged = true
 		ae.AppArmorPrivilegedProfiles[profileName] = struct{}{}
 		ae.Logger.Printf("Added an AppArmor profile for a privileged container (%s, %s)", podName, profileName)
 	} else {
-		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+		newProfile.Privileged = false
 	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
@@ -250,8 +255,19 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string,
 		return false
 	}
 
-	if _, err := newFile.WriteString(newProfile); err != nil {
-		ae.Logger.Warnf("Unable to initialize the AppArmor profile (%s, %s)", profileName, err.Error())
+	// When writing newProfile to file, render it to a string using the template logic:
+	var np bytes.Buffer
+	t, err := template.New("apparmor").Funcs(sprig.GenericFuncMap()).Parse(BaseTemplate)
+	if err != nil {
+		ae.Logger.Warnf("Unable to parse AppArmor template: %s", err.Error())
+		return false
+	}
+	if err := t.Execute(&np, newProfile); err != nil {
+		ae.Logger.Warnf("Unable to render AppArmor profile: %s", err.Error())
+		return false
+	}
+	if _, err := newFile.WriteString(np.String()); err != nil {
+		ae.Logger.Warnf("Unable to update the AppArmor profile: %s", err.Error())
 		return false
 	}
 
@@ -318,11 +334,13 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 		return false
 	}
 
-	var newProfile string
+	var newProfile Profile
+	newProfile.Init()
+	newProfile.Name = profileName
 	if privileged {
-		newProfile = strings.Replace(ae.ApparmorDefaultPrivileged, "apparmor-default", profileName, -1)
+		newProfile.Privileged = true
 	} else {
-		newProfile = strings.Replace(ae.ApparmorDefault, "apparmor-default", profileName, -1)
+		newProfile.Privileged = false
 	}
 
 	newFile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + profileName))
@@ -331,8 +349,19 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 		return false
 	}
 
-	if _, err := newFile.WriteString(newProfile); err != nil {
-		ae.Logger.Warnf("Unable to reset the AppArmor profile (%s, %s)", profileName, err.Error())
+	// When writing newProfile to file, render it to a string using the template logic:
+	var np bytes.Buffer
+	t, err := template.New("apparmor").Funcs(sprig.GenericFuncMap()).Parse(BaseTemplate)
+	if err != nil {
+		ae.Logger.Warnf("Unable to parse AppArmor template: %s", err.Error())
+		return false
+	}
+	if err := t.Execute(&np, newProfile); err != nil {
+		ae.Logger.Warnf("Unable to render AppArmor profile: %s", err.Error())
+		return false
+	}
+	if _, err := newFile.WriteString(np.String()); err != nil {
+		ae.Logger.Warnf("Unable to reset the AppArmor profile: %s", err.Error())
 		return false
 	}
 
@@ -506,63 +535,44 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 	_, privileged := ae.AppArmorPrivilegedProfiles[appArmorProfile]
 	ae.AppArmorPrivilegedProfilesLock.Unlock()
 
-	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture, privileged); ok {
-		// this path is expected to have a single componenet "apparmor-profile"
-		// and this is to ensure that the filename has no path separators or parent directory references
-		if strings.Contains(appArmorProfile, "/") || strings.Contains(appArmorProfile, "\\") || strings.Contains(appArmorProfile, "..") {
-			ae.Logger.Warnf("Invalid AppArmor profile name (%s)", appArmorProfile)
-			return
-		}
+	policyProviders := make([]tp.PolicySpecProvider, len(securityPolicies))
+	for i, p := range securityPolicies {
+		policyProviders[i] = p
+	}
+	_, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, policyProviders, endPoint.DefaultPosture, privileged)
+	if ok && newProfile.Name != "" {
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open an AppArmor profile (%s, %s)", appArmorProfile, err.Error())
 			return
 		}
-
-		if _, err := newfile.WriteString(newProfile); err != nil {
-			ae.Logger.Warnf("Unable to update the AppArmor profile (%s, %s)", appArmorProfile, err.Error())
-
-			if err := newfile.Close(); err != nil {
-				ae.Logger.Warnf("Unable to close the AppArmor profile (%s, %s)", appArmorProfile, err.Error())
-			}
-
+		var np bytes.Buffer
+		t, err := template.New("apparmor").Funcs(sprig.GenericFuncMap()).Parse(BaseTemplate)
+		if err != nil {
+			ae.Logger.Warnf("Unable to parse AppArmor template: %s", err.Error())
 			return
 		}
-
+		if err := t.Execute(&np, newProfile); err != nil {
+			ae.Logger.Warnf("Unable to render AppArmor profile: %s", err.Error())
+			return
+		}
+		if _, err := newfile.WriteString(np.String()); err != nil {
+			ae.Logger.Warnf("Unable to update the AppArmor profile: %s", err.Error())
+			return
+		}
 		if err := newfile.Sync(); err != nil {
-			ae.Logger.Warnf("Unable to sync the AppArmor profile (%s, %s)", appArmorProfile, err.Error())
-
-			if err := newfile.Close(); err != nil {
-				ae.Logger.Warnf("Unable to close the AppArmor profile (%s, %s)", appArmorProfile, err.Error())
-			}
-
+			ae.Logger.Warnf("Unable to sync the AppArmor profile: %s", err.Error())
 			return
 		}
-
 		if err := newfile.Close(); err != nil {
-			ae.Logger.Warnf("Unable to close the AppArmor profile (%s, %s)", appArmorProfile, err.Error())
+			ae.Logger.Warnf("Unable to close the AppArmor profile: %s", err.Error())
 			return
 		}
-
 		if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", "/etc/apparmor.d/" + appArmorProfile}); err != nil {
-			ae.Logger.Warnf("Unable to update %d security rule(s) to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
+			ae.Logger.Warnf("Unable to update AppArmor profile: %s", err.Error())
 			return
 		}
-
-		if cfg.GlobalCfg.K8sEnv {
-			if err := kl.RunCommandAndWaitWithErr("aa-disable", []string{"/etc/apparmor.d/" + appArmorProfile}); err != nil {
-				ae.Logger.Warnf("Unable to disable for a weird issue %d security rule(s) to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
-				return
-			}
-			if err := kl.RunCommandAndWaitWithErr("aa-enforce", []string{"/etc/apparmor.d/" + appArmorProfile}); err != nil {
-				ae.Logger.Warnf("Unable to enforce back for a weird issue %d security rule(s) to %s/%s/%s (%s)", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile, err.Error())
-				return
-			}
-		}
-
-		ae.Logger.Printf("Updated %d security rule(s) to %s/%s/%s", policyCount, endPoint.NamespaceName, endPoint.EndPointName, appArmorProfile)
-	} else if newProfile != "" {
-		ae.Logger.Errf("Error Generating %s AppArmor profile: %s", appArmorProfile, newProfile)
+		ae.Logger.Printf("Updated AppArmor profile: %s", appArmorProfile)
 	}
 }
 
@@ -631,48 +641,51 @@ func (ae *AppArmorEnforcer) UpdateAppArmorHostProfile(secPolicies []tp.HostSecur
 		hostPolicies = append(hostPolicies, hostPolicy)
 	}
 
-	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile("kubearmor.host /{usr/,}bin/*sh", hostPolicies, globalDefaultPosture, true); ok {
+	policyProviders := make([]tp.PolicySpecProvider, len(secPolicies))
+	for i, p := range secPolicies {
+		policyProviders[i] = p
+	}
+	policyCount, newProfile, ok := ae.GenerateAppArmorProfile("kubearmor.host /{usr/,}bin/*sh", policyProviders, globalDefaultPosture, true)
+	if ok && newProfile.Name != "" {
 		newfile, err := os.Create(filepath.Clean(appArmorHostFile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			return
 		}
-
-		if _, err := newfile.WriteString(newProfile); err != nil {
-			ae.Logger.Warnf("Unable to update the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
-
+		var np bytes.Buffer
+		t, err := template.New("apparmor").Funcs(sprig.GenericFuncMap()).Parse(BaseTemplate)
+		if err != nil {
+			ae.Logger.Warnf("Unable to parse AppArmor template: %s", err.Error())
+			return
+		}
+		if err := t.Execute(&np, newProfile); err != nil {
+			ae.Logger.Warnf("Unable to render AppArmor profile: %s", err.Error())
+			return
+		}
+		if _, err := newfile.WriteString(np.String()); err != nil {
+			ae.Logger.Warnf("Unable to update the KubeArmor host profile: %s", err.Error())
 			if err := newfile.Close(); err != nil {
 				ae.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			}
-
 			return
 		}
-
 		if err := newfile.Sync(); err != nil {
 			ae.Logger.Warnf("Unable to sync the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
-
 			if err := newfile.Close(); err != nil {
 				ae.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			}
-
 			return
 		}
-
 		if err := newfile.Close(); err != nil {
 			ae.Logger.Warnf("Unable to close the KubeArmor host profile in %s (%s)", cfg.GlobalCfg.Host, err.Error())
 			return
 		}
-
 		if err := kl.RunCommandAndWaitWithErr("apparmor_parser", []string{"-r", "-W", appArmorHostFile}); err != nil {
 			ae.Logger.Warnf("Unable to update %d host security rule(s) to the KubeArmor host profile in %s (%s)", policyCount, cfg.GlobalCfg.Host, err.Error())
 			return
 		}
-
 		ae.Logger.Printf("Updated %d host security rules to the KubeArmor host profile in %s", policyCount, cfg.GlobalCfg.Host)
-
 		ae.ClearKubeArmorHostFile(appArmorHostFile)
-	} else if newProfile != "" {
-		ae.Logger.Errf("Error Generating %s AppArmor profile: %s", appArmorHostFile, newProfile)
 	}
 }
 

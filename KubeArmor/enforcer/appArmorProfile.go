@@ -307,7 +307,7 @@ func (ae *AppArmorEnforcer) SetCapabilitiesMatchCapabilities(cap tp.Capabilities
 // == //
 
 // GenerateProfileBody Function
-func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture, privileged bool) (int, Profile) {
+func (ae *AppArmorEnforcer) GenerateProfileBody(policies []tp.PolicySpecProvider, defaultPosture tp.DefaultPosture, privileged bool) (int, Profile) {
 	// preparation
 
 	count := 0
@@ -319,87 +319,176 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 		profile.Privileged = true
 	}
 
-	for _, secPolicy := range securityPolicies {
-		if len(secPolicy.Spec.AppArmor) > 0 {
-			scanner := bufio.NewScanner(strings.NewReader(secPolicy.Spec.AppArmor))
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-				profile.NativeRules = append(profile.NativeRules, line)
+	for _, policy := range policies {
+		spec := policy.GetSpec()
+		// Type assertion for SecuritySpec or HostSecuritySpec
+		switch s := spec.(type) {
+		case tp.SecuritySpec:
+			if len(s.AppArmor) > 0 {
+				scanner := bufio.NewScanner(strings.NewReader(s.AppArmor))
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					profile.NativeRules = append(profile.NativeRules, line)
+				}
 			}
-		}
+			// Process, File, Network, Capabilities logic as before, but using s.Process, s.File, etc.
+			if len(s.Process.MatchPaths) > 0 {
+				for _, path := range s.Process.MatchPaths {
+					if path.Action == "Allow" {
+						ae.SetProcessMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
+					} else if path.Action == "Block" {
+						ae.SetProcessMatchPaths(path, &profile, true, true)
+					}
+				}
+			}
+			if len(s.Process.MatchDirectories) > 0 {
+				for _, dir := range s.Process.MatchDirectories {
+					if dir.Action == "Allow" {
+						ae.SetProcessMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
+					} else if dir.Action == "Block" {
+						ae.SetProcessMatchDirectories(dir, &profile, true, true)
+					}
+				}
+			}
+			if len(s.Process.MatchPatterns) > 0 {
+				for _, pat := range s.Process.MatchPatterns {
+					if pat.Action == "Allow" {
+						ae.SetProcessMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
+					} else if pat.Action == "Block" {
+						ae.SetProcessMatchPatterns(pat, &profile, true, true)
+					}
+				}
+			}
 
-		if len(secPolicy.Spec.Process.MatchPaths) > 0 {
-			for _, path := range secPolicy.Spec.Process.MatchPaths {
-				if path.Action == "Allow" {
-					ae.SetProcessMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
-				} else if path.Action == "Block" {
-					ae.SetProcessMatchPaths(path, &profile, true, true)
+			if len(s.File.MatchPaths) > 0 {
+				for _, path := range s.File.MatchPaths {
+					if path.Action == "Allow" {
+						ae.SetFileMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
+					} else if path.Action == "Block" {
+						ae.SetFileMatchPaths(path, &profile, true, true)
+					}
 				}
 			}
-		}
-		if len(secPolicy.Spec.Process.MatchDirectories) > 0 {
-			for _, dir := range secPolicy.Spec.Process.MatchDirectories {
-				if dir.Action == "Allow" {
-					ae.SetProcessMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
-				} else if dir.Action == "Block" {
-					ae.SetProcessMatchDirectories(dir, &profile, true, true)
+			if len(s.File.MatchDirectories) > 0 {
+				for _, dir := range s.File.MatchDirectories {
+					if dir.Action == "Allow" {
+						ae.SetFileMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
+					} else if dir.Action == "Block" {
+						ae.SetFileMatchDirectories(dir, &profile, true, true)
+					}
 				}
 			}
-		}
-		if len(secPolicy.Spec.Process.MatchPatterns) > 0 {
-			for _, pat := range secPolicy.Spec.Process.MatchPatterns {
-				if pat.Action == "Allow" {
-					ae.SetProcessMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
-				} else if pat.Action == "Block" {
-					ae.SetProcessMatchPatterns(pat, &profile, true, true)
+			if len(s.File.MatchPatterns) > 0 {
+				for _, pat := range s.File.MatchPatterns {
+					if pat.Action == "Allow" {
+						ae.SetFileMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
+					} else if pat.Action == "Block" {
+						ae.SetFileMatchPatterns(pat, &profile, true, true)
+					}
 				}
 			}
-		}
 
-		if len(secPolicy.Spec.File.MatchPaths) > 0 {
-			for _, path := range secPolicy.Spec.File.MatchPaths {
-				if path.Action == "Allow" {
-					ae.SetFileMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
-				} else if path.Action == "Block" {
-					ae.SetFileMatchPaths(path, &profile, true, true)
+			if len(s.Network.MatchProtocols) > 0 {
+				for _, proto := range s.Network.MatchProtocols {
+					if proto.Action == "Allow" {
+						ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
+					} else if proto.Action == "Block" {
+						ae.SetNetworkMatchProtocols(proto, &profile, true, true)
+					}
 				}
 			}
-		}
-		if len(secPolicy.Spec.File.MatchDirectories) > 0 {
-			for _, dir := range secPolicy.Spec.File.MatchDirectories {
-				if dir.Action == "Allow" {
-					ae.SetFileMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
-				} else if dir.Action == "Block" {
-					ae.SetFileMatchDirectories(dir, &profile, true, true)
-				}
-			}
-		}
-		if len(secPolicy.Spec.File.MatchPatterns) > 0 {
-			for _, pat := range secPolicy.Spec.File.MatchPatterns {
-				if pat.Action == "Allow" {
-					ae.SetFileMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
-				} else if pat.Action == "Block" {
-					ae.SetFileMatchPatterns(pat, &profile, true, true)
-				}
-			}
-		}
 
-		if len(secPolicy.Spec.Network.MatchProtocols) > 0 {
-			for _, proto := range secPolicy.Spec.Network.MatchProtocols {
-				if proto.Action == "Allow" {
-					ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
-				} else if proto.Action == "Block" {
-					ae.SetNetworkMatchProtocols(proto, &profile, true, true)
+			if len(s.Capabilities.MatchCapabilities) > 0 {
+				for _, cap := range s.Capabilities.MatchCapabilities {
+					if cap.Action == "Allow" {
+						ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, defaultPosture.CapabilitiesAction != "block")
+					} else if cap.Action == "Block" {
+						ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, true)
+					}
 				}
 			}
-		}
+		case tp.HostSecuritySpec:
+			if len(s.AppArmor) > 0 {
+				scanner := bufio.NewScanner(strings.NewReader(s.AppArmor))
+				for scanner.Scan() {
+					line := strings.TrimSpace(scanner.Text())
+					profile.NativeRules = append(profile.NativeRules, line)
+				}
+			}
+			// Process, File, Network, Capabilities logic as before, but using s.Process, s.File, etc.
+			if len(s.Process.MatchPaths) > 0 {
+				for _, path := range s.Process.MatchPaths {
+					if path.Action == "Allow" {
+						ae.SetProcessMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
+					} else if path.Action == "Block" {
+						ae.SetProcessMatchPaths(path, &profile, true, true)
+					}
+				}
+			}
+			if len(s.Process.MatchDirectories) > 0 {
+				for _, dir := range s.Process.MatchDirectories {
+					if dir.Action == "Allow" {
+						ae.SetProcessMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
+					} else if dir.Action == "Block" {
+						ae.SetProcessMatchDirectories(dir, &profile, true, true)
+					}
+				}
+			}
+			if len(s.Process.MatchPatterns) > 0 {
+				for _, pat := range s.Process.MatchPatterns {
+					if pat.Action == "Allow" {
+						ae.SetProcessMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
+					} else if pat.Action == "Block" {
+						ae.SetProcessMatchPatterns(pat, &profile, true, true)
+					}
+				}
+			}
 
-		if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
-			for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
-				if cap.Action == "Allow" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, defaultPosture.CapabilitiesAction != "block")
-				} else if cap.Action == "Block" {
-					ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, true)
+			if len(s.File.MatchPaths) > 0 {
+				for _, path := range s.File.MatchPaths {
+					if path.Action == "Allow" {
+						ae.SetFileMatchPaths(path, &profile, false, defaultPosture.FileAction != "block")
+					} else if path.Action == "Block" {
+						ae.SetFileMatchPaths(path, &profile, true, true)
+					}
+				}
+			}
+			if len(s.File.MatchDirectories) > 0 {
+				for _, dir := range s.File.MatchDirectories {
+					if dir.Action == "Allow" {
+						ae.SetFileMatchDirectories(dir, &profile, false, defaultPosture.FileAction != "block")
+					} else if dir.Action == "Block" {
+						ae.SetFileMatchDirectories(dir, &profile, true, true)
+					}
+				}
+			}
+			if len(s.File.MatchPatterns) > 0 {
+				for _, pat := range s.File.MatchPatterns {
+					if pat.Action == "Allow" {
+						ae.SetFileMatchPatterns(pat, &profile, false, defaultPosture.FileAction != "block")
+					} else if pat.Action == "Block" {
+						ae.SetFileMatchPatterns(pat, &profile, true, true)
+					}
+				}
+			}
+
+			if len(s.Network.MatchProtocols) > 0 {
+				for _, proto := range s.Network.MatchProtocols {
+					if proto.Action == "Allow" {
+						ae.SetNetworkMatchProtocols(proto, &profile, false, defaultPosture.NetworkAction != "block")
+					} else if proto.Action == "Block" {
+						ae.SetNetworkMatchProtocols(proto, &profile, true, true)
+					}
+				}
+			}
+
+			if len(s.Capabilities.MatchCapabilities) > 0 {
+				for _, cap := range s.Capabilities.MatchCapabilities {
+					if cap.Action == "Allow" {
+						ae.SetCapabilitiesMatchCapabilities(cap, &profile, false, defaultPosture.CapabilitiesAction != "block")
+					} else if cap.Action == "Block" {
+						ae.SetCapabilitiesMatchCapabilities(cap, &profile, true, true)
+					}
 				}
 			}
 		}
@@ -471,18 +560,18 @@ func (ae *AppArmorEnforcer) GenerateProfileBody(securityPolicies []tp.SecurityPo
 // == //
 
 // GenerateAppArmorProfile Function
-func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, securityPolicies []tp.SecurityPolicy, defaultPosture tp.DefaultPosture, privileged bool) (int, string, bool) {
+func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, policies []tp.PolicySpecProvider, defaultPosture tp.DefaultPosture, privileged bool) (int, Profile, bool) {
 	// check apparmor profile
 	var oldProfile string
 	if strings.Contains(appArmorProfile, "kubearmor.host") {
 		if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + "kubearmor.host")); os.IsNotExist(err) {
-			return 0, err.Error(), false
+			return 0, Profile{}, false
 		}
 
 		// get the old profile
 		profile, err := os.ReadFile(filepath.Clean("/etc/apparmor.d/" + "kubearmor.host"))
 		if err != nil {
-			return 0, err.Error(), false
+			return 0, Profile{}, false
 		}
 		oldProfile = string(profile)
 	} else {
@@ -494,21 +583,21 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 		}
 
 		if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + appArmorProfile)); os.IsNotExist(err) {
-			return 0, err.Error(), false
+			return 0, Profile{}, false
 		}
 
 		// get the old profile
 
 		profile, err := os.ReadFile(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
-			return 0, err.Error(), false
+			return 0, Profile{}, false
 		}
 		oldProfile = string(profile)
 	}
 
 	// generate a profile body
 
-	count, newProfile := ae.GenerateProfileBody(securityPolicies, defaultPosture, privileged)
+	count, newProfile := ae.GenerateProfileBody(policies, defaultPosture, privileged)
 
 	newProfile.Name = appArmorProfile
 
@@ -522,12 +611,12 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 	// Create a new template and parse the letter into it.
 	t, err := template.New("apparmor").Funcs(allFuncs).Parse(BaseTemplate)
 	if err != nil {
-		return 0, err.Error(), false
+		return 0, Profile{}, false
 	}
 
 	var np bytes.Buffer
 	if err := t.Execute(&np, newProfile); err != nil {
-		return 0, err.Error(), false
+		return 0, Profile{}, false
 	}
 
 	// check the new profile with the old profile
@@ -565,10 +654,10 @@ func (ae *AppArmorEnforcer) GenerateAppArmorProfile(appArmorProfile string, secu
 			}
 		}
 
-		return count, np.String(), true
+		return count, newProfile, newProfile.Name != ""
 	}
 
-	return 0, "", false
+	return 0, Profile{}, false
 }
 
 func addRuletoMap(rule RuleConfig, entity string, m map[string]RuleConfig) {
