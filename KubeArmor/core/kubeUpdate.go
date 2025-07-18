@@ -1048,7 +1048,6 @@ func updateNamespaceListforCSP(policy *tp.SecurityPolicy) {
 			}
 		}
 	}
-	return
 }
 
 // ============================ //

@@ -129,7 +129,7 @@ func (ch *ContainerdHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function
-func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID string, eventpid uint32, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
+func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID, nodeID string, eventpid uint32, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
 	res, err := ch.client.ContainerService().Get(ctx, containerID)
 	if err != nil {
 		return tp.Container{}, err
@@ -248,6 +248,8 @@ func (ch *ContainerdHandler) GetContainerInfo(ctx context.Context, containerID s
 
 		container.NodeName = cfg.GlobalCfg.Host
 
+		container.NodeID = nodeID
+
 		labels := []string{}
 		for k, v := range res.Labels {
 			labels = append(labels, k+"="+v)
@@ -306,7 +308,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 	if action == "start" {
 		// get container information from containerd client
-		container, err := Containerd.GetContainerInfo(ctx, containerID, containerPid, dm.OwnerInfo)
+		container, err := Containerd.GetContainerInfo(ctx, containerID, dm.Node.NodeID, containerPid, dm.OwnerInfo)
 		if err != nil {
 			if strings.Contains(string(err.Error()), "pause container") || strings.Contains(string(err.Error()), "moby") {
 				kg.Debug(err.Error())

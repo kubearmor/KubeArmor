@@ -607,6 +607,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbAlert.ClusterName = cfg.GlobalCfg.Cluster
 		pbAlert.HostName = fd.Node.NodeName
+		pbAlert.NodeID = fd.Node.NodeID
 
 		pbAlert.NamespaceName = log.NamespaceName
 
@@ -710,6 +711,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 
 		pbLog.ClusterName = cfg.GlobalCfg.Cluster
 		pbLog.HostName = fd.Node.NodeName
+		pbLog.NodeID = fd.Node.NodeID
 
 		pbLog.NamespaceName = log.NamespaceName
 

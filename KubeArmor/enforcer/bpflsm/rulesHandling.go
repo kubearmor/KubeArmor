@@ -552,7 +552,7 @@ func (be *BPFEnforcer) resolveConflictsProcessRules(newRuleList, oldRuleList map
 					bpfArgKey.InnerKey = argKey.InnerKey
 					bpfArgKey.NsKey = argKey.NsKey
 					copy(bpfArgKey.Argument[:], []byte(arg))
-					if err := be.BPFArgumentsMap.Delete(bpfArgKey);err!=nil {
+					if err := be.BPFArgumentsMap.Delete(bpfArgKey); err != nil {
 						be.Logger.Errf("error deleting arguments rules for container %s: %s", id, err)
 					}
 				}
