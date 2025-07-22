@@ -7,6 +7,11 @@ on:
         description: "Release tag which has to be updated"
         type: "string"
         required: true
+      trivy_scan:
+        description: 'Enable trivy scan'
+        required: true
+        type: boolean    
+        default: true
   push:
     branches:
       - "main"
@@ -27,9 +32,22 @@ env:
   PLATFORM: linux/amd64,linux/arm64/v8
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      trivy_scan_flag: ${{ steps.set_flag.outputs.flag }}
+    steps:
+      - id: set_flag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "flag=${{ github.event.inputs.trivy_scan }}" >> $GITHUB_OUTPUT
+          else
+            echo "flag=true" >> $GITHUB_OUTPUT
+          fi      
   kubearmor-operator-release:
     name: Build & Push KubeArmor Operator
-    if: github.repository == 'kubearmor/kubearmor'        
+    if: github.repository == 'kubearmor/kubearmor'     
+    needs: prepare   
     runs-on: ubuntu-22.04
     permissions:
       id-token: write
@@ -53,8 +71,19 @@ jobs:
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_AUTHTOK }}
-      
+          password: ${{ secrets.DOCKER_AUTHTOK }} 
+
+      - name: Set up AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ECR_ACCESS_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_ECR_SECRET_ID }}
+          aws-region: us-east-1
+  
+      - name: Login to AWS ECR
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/k9v9d5v2
+
       - name: Get Tag
         id: vars
         uses: actions/github-script@v7
@@ -72,9 +101,60 @@ jobs:
             core.setOutput('tag', tag);
             console.log(`Creating operator release with tag: ${tag}`);
 
+      - name: Build & Save KubeArmor Operator
+        if: needs.prepare.outputs.trivy_scan_flag == 'true'
+        working-directory: ./pkg/KubeArmorOperator
+        run: PLATFORM=linux/amd64 make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--load
+
+      - name: Save KubeArmorOperator image to tar for Trivy Scan
+        if: needs.prepare.outputs.trivy_scan_flag == 'true'
+        run: |
+          docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:${{ steps.tag.outputs.tag }}
+          docker save -o kubearmor-snitch.tar kubearmor/kubearmor-snitch:${{ steps.tag.outputs.tag }}
+
       - name: Build & Push KubeArmor Operator
         working-directory: ./pkg/KubeArmorOperator
-        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }}
+        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
+
+      - name: Run Trivy vulnerability scanner kubearmor-operator
+        if: needs.prepare.outputs.trivy_scan_flag == 'true'
+        id: scan_init
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: ./pkg/KubeArmorOperator/kubearmor-operator.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH' 
+        continue-on-error: true   
+
+      - name: Run Trivy vulnerability scanner kubearmor-snitch
+        if: needs.prepare.outputs.trivy_scan_flag == 'true'
+        id: scan_ubi
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: ./pkg/KubeArmorOperator/kubearmor-snitch.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'  
+        continue-on-error: true    
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Get Image Digest
+        id: digest
+        run: |
+          echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator.json)" >> $GITHUB_OUTPUT
+          echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch.json)" >> $GITHUB_OUTPUT
+
+      - name: Sign the Container Images
+        run: |
+          cosign sign -r kubearmor/kubearmor-operator@${{ steps.digest.outputs.operatordigest }} --yes
+          cosign sign -r kubearmor/kubearmor-snitch@${{ steps.digest.outputs.snitchdigest }} --yes
 
       - uses: actions/checkout@v3
         with:
@@ -107,3 +187,15 @@ jobs:
           STABLE_VERSION=`cat STABLE-RELEASE`
           regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION kubearmor/kubearmor-operator:stable --digest-tags
           regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION kubearmor/kubearmor-snitch:stable --digest-tags
+
+      - name: Generate the stable version of Operator and Snitch in ECR
+        if: steps.stable.outputs.match == 'true'
+        run: |
+          STABLE_VERSION=`cat STABLE-RELEASE`
+          regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:stable --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:stable --digest-tags
+
+      - name: Generate the tag version of Operator and Snitch in ECR
+        run: |
+          regctl image copy kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} --digest-tags
