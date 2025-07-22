@@ -30,6 +30,7 @@ permissions: read-all
 
 env:
   PLATFORM: linux/amd64,linux/arm64/v8
+  has_vulns: 'false' # Default value for trivy vulnerability check
 
 jobs:
   prepare:
@@ -112,13 +113,9 @@ jobs:
           docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:${{ steps.tag.outputs.tag }}
           docker save -o kubearmor-snitch.tar kubearmor/kubearmor-snitch:${{ steps.tag.outputs.tag }}
 
-      - name: Build & Push KubeArmor Operator
-        working-directory: ./pkg/KubeArmorOperator
-        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
-
       - name: Run Trivy vulnerability scanner kubearmor-operator
         if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: scan_init
+        id: scan_operator
         uses: aquasecurity/trivy-action@0.28.0
         with:
           input: ./pkg/KubeArmorOperator/kubearmor-operator.tar
@@ -131,7 +128,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner kubearmor-snitch
         if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: scan_ubi
+        id: scan_snitch
         uses: aquasecurity/trivy-action@0.28.0
         with:
           input: ./pkg/KubeArmorOperator/kubearmor-snitch.tar
@@ -142,20 +139,57 @@ jobs:
           severity: 'CRITICAL,HIGH'  
         continue-on-error: true    
 
+      # Set output if any scan found vulnerabilities
+      - name: Set output for vulnerability presence
+        if: needs.prepare.outputs.trivy_scan_flag == 'true'
+        id: set_output
+        run: |
+          echo "has_vulns=false" >> $GITHUB_ENV  # assume clean
+          if [[ "${{ steps.scan_operator.outcome }}" == "failure" ]] || \
+            [[ "${{ steps.scan_snitch.outcome }}" == "failure" ]]; then
+            echo "has_vulns=true" >> $GITHUB_ENV  # block build if any failed
+          fi
+        shell: bash
+
+      - name: Build & Push KubeArmor Operator
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
+        working-directory: ./pkg/KubeArmorOperator
+        run: PLATFORM=$PLATFORM make docker-buildx TAG=${{ steps.vars.outputs.tag }} BUILD_MODE=--push
+
+
       - name: Install Cosign
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         uses: sigstore/cosign-installer@main
 
       - name: Get Image Digest
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         id: digest
         run: |
           echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator.json)" >> $GITHUB_OUTPUT
           echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         run: |
           cosign sign -r kubearmor/kubearmor-operator@${{ steps.digest.outputs.operatordigest }} --yes
           cosign sign -r kubearmor/kubearmor-snitch@${{ steps.digest.outputs.snitchdigest }} --yes
 
+
+      - name: Install regctl
+        run: |
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
+          chmod 755 regctl
+          mv regctl /usr/local/bin
+  
+      - name: Check install
+        run: regctl version
+        
+      - name: Generate the tag version of Operator and Snitch in ECR
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
+        run: |
+          regctl image copy kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} --digest-tags
+          regctl image copy kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} --digest-tags
+          
       - uses: actions/checkout@v3
         with:
           ref: main
@@ -170,17 +204,6 @@ jobs:
             echo "match=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Install regctl
-        if: steps.stable.outputs.match == 'true'
-        run: |
-          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >regctl
-          chmod 755 regctl
-          mv regctl /usr/local/bin
-  
-      - name: Check install
-        if: steps.stable.outputs.match == 'true'
-        run: regctl version
-      
       - name: Generate the stable version of Operator and Snitch in Docker Hub
         if: steps.stable.outputs.match == 'true'
         run: |
@@ -195,7 +218,3 @@ jobs:
           regctl image copy kubearmor/kubearmor-operator:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:stable --digest-tags
           regctl image copy kubearmor/kubearmor-snitch:$STABLE_VERSION public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:stable --digest-tags
 
-      - name: Generate the tag version of Operator and Snitch in ECR
-        run: |
-          regctl image copy kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }} --digest-tags
-          regctl image copy kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }} --digest-tags
