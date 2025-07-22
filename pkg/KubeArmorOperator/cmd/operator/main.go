@@ -87,8 +87,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&ProviderHostname, "providerHostname", "", "IMDS URL hostname for retrieving cluster name")
 	Cmd.PersistentFlags().StringVar(&ProviderEndpoint, "providerEndpoint", "", "IMDS URL endpoint for retrieving cluster name")
 	// TODO:- set initDeploy to false by default once this change is added to stable
-	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", true, "Init container deployment")
-	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
+	Cmd.PersistentFlags().BoolVar(&InitDeploy, "initDeploy", false, "Init container deployment")
 	Cmd.PersistentFlags().BoolVar(&AnnotateResource, "annotateResource", false, "when true kubearmor annotate k8s resources with apparmor annotation")
 	Cmd.PersistentFlags().BoolVar(&AnnotateExisting, "annotateExisting", false, "when true kubearmor-controller restarts and annotates existing resources, with required annotations")
 
