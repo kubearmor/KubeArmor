@@ -40,7 +40,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        {{- if .Values.enableOCIHooks }}
+        {{- if .Values.kubearmorOperator.enableOCIHooks }}
         - name: KUBEARMOR_OCI_HOOKS
           value: "yes"
         {{- end }}
