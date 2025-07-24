@@ -328,6 +328,10 @@ func deploySnitch(nodename string, runtime string) *batchv1.Job {
 									FieldPath: "spec.nodeName",
 								}},
 							},
+							{
+								Name:  "KUBEARMOR_OCI_HOOKS",
+								Value: strconv.FormatBool(common.EnableOCIHooks),
+							},
 						},
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						VolumeMounts: []corev1.VolumeMount{
