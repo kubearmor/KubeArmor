@@ -219,15 +219,18 @@ jobs:
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --push
 
       - name: Generate the TAG of KubeArmor in ECR
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         run: |
           regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
           regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
           regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
         
       - name: Install Cosign
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         uses: sigstore/cosign-installer@main
 
       - name: Get Image Digest
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         id: digest
         run: |
           echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
@@ -235,6 +238,7 @@ jobs:
           echo "ubidigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
+        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         run: |
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
@@ -412,7 +416,7 @@ jobs:
       - name: Build & Push KubeArmorController
         run: make docker-buildx TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--push
 
-      - name: Generate the stable version of KubeArmor in Docker Hub
+      - name: Push KubeArmor controller to ECR
         run: |
           regctl image copy kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}--digest-tags
 

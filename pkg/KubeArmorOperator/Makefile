@@ -98,7 +98,7 @@ docker-push: ## Push docker image with the manager.
 
 docker-buildx:
 	docker buildx build --metadata-file kubearmor-operator.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target operator -t ${OPERATOR_IMG}:${TAG} -f ./Dockerfile ../../
-	docker buildx build --metadata-file kubearmor-snitch.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE}--target snitch -t ${SNITCH_IMG}:${TAG} -f ./Dockerfile ../../
+	docker buildx build --metadata-file kubearmor-snitch.json --platform ${PLATFORM} --build-arg VERSION=${TAG} ${BUILD_MODE} --target snitch -t ${SNITCH_IMG}:${TAG} -f ./Dockerfile ../../
 
 KUSTOMIZE_VERSION ?= v5.2.1
 KUSTOMIZE = $(GOBIN)/kustomize
