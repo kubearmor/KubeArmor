@@ -493,6 +493,12 @@ func (ae *AppArmorEnforcer) UpdateAppArmorProfile(endPoint tp.EndPoint, appArmor
 	ae.AppArmorPrivilegedProfilesLock.Unlock()
 
 	if policyCount, newProfile, ok := ae.GenerateAppArmorProfile(appArmorProfile, securityPolicies, endPoint.DefaultPosture, privileged); ok {
+		// this path is expected to have a single componenet "apparmor-profile"
+		// and this is to ensure that the filename has no path separators or parent directory references
+		if strings.Contains(appArmorProfile, "/") || strings.Contains(appArmorProfile, "\\") || strings.Contains(appArmorProfile, "..") {
+			ae.Logger.Warnf("Invalid AppArmor profile name (%s)", appArmorProfile)
+			return
+		}
 		newfile, err := os.Create(filepath.Clean("/etc/apparmor.d/" + appArmorProfile))
 		if err != nil {
 			ae.Logger.Warnf("Unable to open an AppArmor profile (%s, %s)", appArmorProfile, err.Error())
