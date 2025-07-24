@@ -669,3 +669,14 @@ func GetCurrentTimeStamp() uint64 {
 func IsPresetEnforcer(enforcer string) bool {
 	return strings.Contains(enforcer, "PRESET")
 }
+
+func NormalizeIP(ipStr string) string {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return ""
+	}
+	if ip.To16() != nil {
+		return "[" + ipStr + "]" // IPv6
+	}
+	return ipStr
+}
