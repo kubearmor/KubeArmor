@@ -23,6 +23,7 @@ const kubearmorDir = "/var/run/kubearmor"
 // ListenToHook starts listening on a UNIX socket and waits for container hooks
 // to pass new containers
 func (dm *KubeArmorDaemon) ListenToHook() {
+	dm.Logger.Print("Started to monitor OCI Hook events")
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
 		log.Fatal(err)
 	}
@@ -111,7 +112,7 @@ func (dm *KubeArmorDaemon) handleConn(conn net.Conn, ready *atomic.Bool) {
 func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 	endpoint := types.EndPoint{}
 
-	dm.Logger.Printf("added %s", container.ContainerID)
+	dm.Logger.Printf("Detected a container (added/%.12s/pidns=%d/mntns=%d)", container.ContainerID, container.PidNS, container.MntNS)
 
 	dm.ContainersLock.Lock()
 	defer dm.ContainersLock.Unlock()
@@ -165,7 +166,7 @@ func (dm *KubeArmorDaemon) handleContainerCreate(container types.Container) {
 func (dm *KubeArmorDaemon) handleContainerDelete(containerID string) {
 	dm.ContainersLock.Lock()
 	container, ok := dm.Containers[containerID]
-	dm.Logger.Printf("deleted %s", containerID)
+	dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 	if !ok {
 		dm.ContainersLock.Unlock()
 		return
@@ -197,3 +198,4 @@ func (dm *KubeArmorDaemon) handleContainerDelete(containerID string) {
 	}
 
 }
+

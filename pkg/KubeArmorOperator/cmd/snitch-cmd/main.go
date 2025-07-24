@@ -136,7 +136,7 @@ func snitch() {
 		os.Exit(1)
 	}
 	ociHooksLabel := "no"
-	if runtime == "cri-o" || EnableOCIHooks {
+	if EnableOCIHooks {
 		ociHooksLabel = "yes"
 		var criSocket string
 
