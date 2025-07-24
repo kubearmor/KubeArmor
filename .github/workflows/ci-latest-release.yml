@@ -6,7 +6,7 @@ on:
       tag:
         description: "Release tag which has to be updated"
         type: "string"
-        required: true
+        required: false
       trivy_scan:
         description: 'Enable trivy scan'
         required: true
@@ -97,10 +97,15 @@ jobs:
             let tag;
             if (context.eventName === 'workflow_dispatch') {
               // Fetch tags from remote
-              await exec.exec('git', ['fetch', '--tags']);
               tag = context.payload.inputs.tag;
-              core.info(`Checking out tag: ${tag}`);
-              await exec.exec('git', ['checkout', tag]);
+              if (tag && tag.trim().length > 0) {
+                  await exec.exec('git', ['fetch', '--tags']);
+                  core.info(`Checking out tag: ${tag}`);
+                  await exec.exec('git', ['checkout', tag]);
+              } else {
+                  const ref = context.ref;
+                  tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
+              }
             } else {
               const ref = context.ref;
               tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
