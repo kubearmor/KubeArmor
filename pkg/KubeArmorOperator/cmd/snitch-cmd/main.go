@@ -101,6 +101,12 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&Runtime, "runtime", "", "runtime detected by k8s")
 	Cmd.PersistentFlags().BoolVar(&EnableOCIHooks, "oci-hooks", false, "enable oci hooks")
 	Cmd.PersistentFlags().StringVar(&LogLevel, "loglevel", "info", "log level, e.g., debug, info, warn, error")
+
+	// For now we are controlling snitch's EnableOCIHooks flag from operator's EnableOCIHooks flag, we could change this when we start support snitch flags from operator CRD.
+	cmdFlag := Cmd.PersistentFlags().Lookup("oci-hooks")
+	if !cmdFlag.Changed {
+			EnableOCIHooks = common.GetOCIHooks()
+	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
