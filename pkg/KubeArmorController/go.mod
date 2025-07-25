@@ -17,7 +17,7 @@ require (
 )
 
 replace (
-	google.golang.org/protobuf/encoding/protojson => google.golang.org/protobuf/encoding/protojson v1.36.3
+	google.golang.org/protobuf/encoding/protojson => google.golang.org/protobuf/encoding/protojson v1.36.6
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 )
