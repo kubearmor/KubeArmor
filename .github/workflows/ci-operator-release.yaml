@@ -170,6 +170,7 @@ jobs:
       - name: Get Image Digest
         if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         id: digest
+        working-directory: ./pkg/KubeArmorOperator
         run: |
           echo "operatordigest=$(jq -r '.["containerimage.digest"]' kubearmor-operator.json)" >> $GITHUB_OUTPUT
           echo "snitchdigest=$(jq -r '.["containerimage.digest"]' kubearmor-snitch.json)" >> $GITHUB_OUTPUT
