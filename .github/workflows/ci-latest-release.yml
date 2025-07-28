@@ -7,11 +7,6 @@ on:
         description: "Release tag which has to be updated"
         type: "string"
         required: false
-      trivy_scan:
-        description: 'Enable trivy scan'
-        required: true
-        type: boolean
-        default: true
   push: 
     branches:
       - "main"
@@ -30,10 +25,6 @@ on:
 # Declare default permissions as read only.
 permissions: read-all
 
-# Default value for trivy vulnerability check
-env:
-  has_vulns: 'false'
-
 jobs:
   check:
     name: Check what pkg were updated
@@ -43,7 +34,6 @@ jobs:
     outputs:
       kubearmor: ${{ steps.filter.outputs.kubearmor}}
       controller: ${{ steps.filter.outputs.controller }}
-      trivy_scan_flag: ${{ steps.set_trivy_flag.outputs.flag }}
     steps:
     - uses: actions/checkout@v3
     - uses: dorny/paths-filter@v2
@@ -55,21 +45,9 @@ jobs:
             - "protobuf/**"
           controller:
             - 'pkg/KubeArmorController/**'
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      trivy_scan_flag: ${{ steps.set_flag.outputs.flag }}
-    steps:
-      - id: set_flag
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "flag=${{ github.event.inputs.trivy_scan }}" >> $GITHUB_OUTPUT
-          else
-            echo "flag=true" >> $GITHUB_OUTPUT
-          fi      
   build:
     name: Create KubeArmor latest release
-    needs: [check, prepare]
+    needs: [check]
     if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.kubearmor == 'true' || ${{ github.ref }} != 'refs/heads/main')
     runs-on: ubuntu-latest-16-cores
     permissions:
@@ -155,87 +133,20 @@ jobs:
 
       - name: Check install
         run: regctl version
-  
-      - name: Build KubeArmor images to Docker
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        run: GITHUB_SHA=$GITHUB_SHA PLATFORMS="linux/amd64" ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --load
-
-      - name: Save image to tar for Trivy Scan
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        run: |
-          docker save -o kubearmor-init.tar kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }}
-          docker save -o kubearmor-ubi.tar kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }}
-          docker save -o kubearmor.tar kubearmor/kubearmor:${{ steps.vars.outputs.tag }}
-
-      - name: Run Trivy vulnerability scanner kubearmor-init
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: scan_init
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          input: kubearmor-init.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-        continue-on-error: true  
-
-      - name: Run Trivy vulnerability scanner kubearmor-ubi
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: scan_ubi
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          input: kubearmor-ubi.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'  
-        continue-on-error: true    
-
-      - name: Run Trivy vulnerability scanner kubearmor
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: scan_main
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          input: kubearmor.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'   
-        continue-on-error: true   
-  
-      # Set output if any scan found vulnerabilities
-      - name: Set output for vulnerability presence
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: set_output
-        run: |
-          echo "has_vulns=false" >> $GITHUB_ENV  # assume clean
-          if [[ "${{ steps.scan_init.outcome }}" == "failure" ]] || \
-            [[ "${{ steps.scan_ubi.outcome }}" == "failure" ]] || \
-            [[ "${{ steps.scan_main.outcome }}" == "failure" ]]; then
-            echo "has_vulns=true" >> $GITHUB_ENV  # block build if any failed
-          fi
-        shell: bash
 
       - name: Build KubeArmor images to Docker
-        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/push_kubearmor.sh ${{ steps.vars.outputs.tag }} --push
 
       - name: Generate the TAG of KubeArmor in ECR
-        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         run: |
           regctl image copy kubearmor/kubearmor:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor:${{ steps.vars.outputs.tag }} --digest-tags
           regctl image copy kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-ubi:${{ steps.vars.outputs.tag }} --digest-tags
           regctl image copy kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-init:${{ steps.vars.outputs.tag }} --digest-tags
         
       - name: Install Cosign
-        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         uses: sigstore/cosign-installer@main
 
       - name: Get Image Digest
-        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         id: digest
         run: |
           echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor.json)" >> $GITHUB_OUTPUT
@@ -243,12 +154,10 @@ jobs:
           echo "ubidigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
 
       - name: Sign the Container Images
-        if: ${{ env.has_vulns == 'false' || needs.prepare.outputs.trivy_scan_flag == 'false' }}
         run: |
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
           cosign sign -r kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }} --yes
           cosign sign -r kubearmor/kubearmor-ubi@${{ steps.digest.outputs.ubidigest }} --yes
-
 
 
   push-stable-version:
@@ -323,7 +232,7 @@ jobs:
 
   kubearmor-controller-release:
     name: Build & Push KubeArmorController
-    needs: [check, prepare]
+    needs: [check]
     if: github.repository == 'kubearmor/kubearmor' && (needs.check.outputs.controller == 'true' || ${{ github.ref }} != 'refs/heads/main')
     defaults:
       run:
@@ -403,26 +312,6 @@ jobs:
               tag = ref === "refs/heads/main" ? "latest" : ref.replace(/^refs\/[^/]+\//, "");
             }
             core.setOutput('tag', tag);
-      - name: Build & Save KubeArmorController
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        run: make docker-buildx PLATFORMS="linux/amd64" TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--load  
-
-      - name: Save KubeArmorController image to tar for Trivy Scan
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        run: |
-          docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}
-
-      - name: Run Trivy vulnerability scanner KubeArmorController
-        if: needs.prepare.outputs.trivy_scan_flag == 'true'
-        id: scan_init
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          input: ./pkg/KubeArmorController/kubearmor-controller.tar
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH' 
 
       - name: Build & Push KubeArmorController
         run: make docker-buildx TAG=${{ steps.tag.outputs.tag }} BUILD_MODE=--push
@@ -430,7 +319,6 @@ jobs:
       - name: Push KubeArmor controller to ECR
         run: |
           regctl image copy kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }} public.ecr.aws/k9v9d5v2/kubearmor/kubearmor-controller:${{ steps.tag.outputs.tag }}--digest-tags
-
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
