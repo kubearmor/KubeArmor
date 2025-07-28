@@ -116,8 +116,8 @@ jobs:
       - name: Save KubeArmorOperator image to tar for Trivy Scan
         if: needs.prepare.outputs.trivy_scan_flag == 'true'
         run: |
-          docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:${{ steps.tag.outputs.tag }}
-          docker save -o kubearmor-snitch.tar kubearmor/kubearmor-snitch:${{ steps.tag.outputs.tag }}
+          docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:${{ steps.vars.outputs.tag }}
+          docker save -o kubearmor-snitch.tar kubearmor/kubearmor-snitch:${{ steps.vars.outputs.tag }}
 
       - name: Run Trivy vulnerability scanner kubearmor-operator
         if: needs.prepare.outputs.trivy_scan_flag == 'true'
