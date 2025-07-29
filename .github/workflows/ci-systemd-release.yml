@@ -16,7 +16,14 @@ permissions: read-all
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-22.04
+          - arch: arm64
+            os: ubuntu-22.04-arm
     if: github.repository == 'kubearmor/kubearmor'
     permissions:
       id-token: write # requires for cosign keyless signing
@@ -97,6 +104,17 @@ jobs:
             git checkout "${RELEASE_TAG}"
           fi
 
+      - name: Install yq
+        run: |
+          wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${{ matrix.arch }} -O /usr/local/bin/yq &&\
+          chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Patch goarch
+        working-directory: KubeArmor
+        run: |
+           yq -i '.builds[0].goarch = ["${{ matrix.arch }}"]' /tmp/.goreleaser.yaml
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
@@ -107,6 +125,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.vars.outputs.GORELEASER_CURRENT_TAG }}
+          ARCH: ${{ matrix.arch }}
 
       - name: Setup ORAS
         uses: oras-project/setup-oras@v1
@@ -116,5 +135,4 @@ jobs:
       - name: Publish release artifacts to Dockerhub
         working-directory: KubeArmor/dist
         run: |
-          oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-amd64 kubearmor_${{ steps.vars.outputs.tag }}_linux-amd64.tar.gz
-          oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-arm64 kubearmor_${{ steps.vars.outputs.tag }}_linux-arm64.tar.gz
+          oras push docker.io/kubearmor/kubearmor-systemd:${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }} kubearmor_${{ steps.vars.outputs.tag }}_linux-${{ matrix.arch }}.tar.gz

@@ -7,7 +7,6 @@ builds:
       - linux
     goarch:
       - amd64
-      - arm64
     env:
       - CGO_ENABLED=0
     ldflags:
@@ -20,6 +19,10 @@ release:
   replace_existing_artifacts: true
   mode: replace
   make_latest: false
+
+# to handle checksum name conflict
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Env.ARCH }}_checksums.txt"
 
 signs:
   - cmd: cosign
