@@ -23,16 +23,27 @@ jobs:
       contents: write # requires for goreleaser to write to GitHub release
     steps:
       - name: Validate version
+        id: validate
         uses: actions/github-script@v7
         with:
           script: |
             const Regex = /^v([0-9]+)\.([0-9]+)\.([0-9]+)$/;
-            const version = '${{ inputs.tag }}';
+            const eventName = '${{ github.event_name }}';
+            let version;
+
+            if (eventName === 'push') {
+              version = '${{ github.ref_name }}';
+            } else {
+              version = '${{ inputs.tag }}';
+            }
+
             if (!Regex.test(version)) {
               console.log(`Invalid version format: ${version}`);
               core.setFailed(`Invalid version format: ${version}`);
             } else {
               console.log(`Valid version format: ${version}`);
+              // Set the validated version as an output for other steps
+              core.setOutput('release_tag', version);
             }
 
       - uses: actions/checkout@v3
@@ -67,20 +78,23 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
-      - name: Get release tag
+      - name: Prepare environment from validated tag
         id: vars
         run: |
+          # Use the validated release tag from the previous step
+          RELEASE_TAG="${{ steps.validate.outputs.release_tag }}"
+          echo "Using release tag: ${RELEASE_TAG}"
+
+          echo "GORELEASER_CURRENT_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+
+          echo "tag=${RELEASE_TAG#v}" >> $GITHUB_OUTPUT
+
           cp KubeArmor/.goreleaser.yaml /tmp/.goreleaser.yaml
-          if [[ ${{ github.event_name }} == "workflow_dispatch" ]]; then
-            # checkout branch but use goreleaser config from latest
-            echo "Checking out tag: ${{ inputs.tag }}"
-            git checkout ${{ inputs.tag }}
-            echo "GORELEASER_CURRENT_TAG=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-            REF=${{ inputs.tag }}
-            echo "tag=${REF#v}" >> $GITHUB_OUTPUT
-          else
-            REF=${GITHUB_REF#refs/*/}
-            echo "tag=${REF#v}" >> $GITHUB_OUTPUT
+
+          # For manual dispatch -- checkout that particular tag
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Checking out tag: ${RELEASE_TAG}"
+            git checkout "${RELEASE_TAG}"
           fi
 
       - name: Run GoReleaser
