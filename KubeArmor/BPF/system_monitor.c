@@ -1068,23 +1068,24 @@ static __always_inline int save_dns_data_to_dns_buffer(bufs_t *bufs_p, void *bas
 
     // setting offset to next byte to null char
     *off += 1;
-
-    if (*off > MAX_BUFFER_SIZE - 1)
+    u32 q_type_off = *off;
+    if (q_type_off > MAX_BUFFER_SIZE - 1)
         return -1;
     
     __u8 qtype = QTYPE; 
     // type for qtype
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &qtype) < 0)
+    if (bpf_probe_read(&(bufs_p->buf[q_type_off]), 1, &qtype) < 0)
         return -1;
     
     *off += 1;
-    if (*off > MAX_BUFFER_SIZE - 2)
+    q_type_off = *off;
+    if (q_type_off > MAX_BUFFER_SIZE - 2)
         return -1;
 
     // write qtype to buffer
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 2, base + offset + 1) < 0)
+    if (bpf_probe_read(&(bufs_p->buf[q_type_off]), 2, base + offset + 1) < 0)
         return -1;
-    *off += 2;    
+    *off += 2;
     set_buffer_offset(DNS_BUF_TYPE, *off);
     return 0;
 }
