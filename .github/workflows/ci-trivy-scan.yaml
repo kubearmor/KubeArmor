@@ -1,0 +1,213 @@
+name: ci-trivy-scan
+
+on:
+  push: 
+    branches:
+      - "main"
+      - "v*"
+    paths:
+      - "KubeArmor/**"
+      - "protobuf/**"
+      - ".github/workflows/ci-latest-release.yml"
+      - "pkg/**"
+      - "!STABLE-RELEASE"
+
+  create:
+    branches:
+      - "v*"
+
+permissions: read-all
+
+jobs:
+  build:
+    name: Run trivy scan
+    if: github.repository == 'kubearmor/kubearmor'
+    runs-on: ubuntu-latest-16-cores
+    permissions:
+      id-token: write
+    timeout-minutes: 150
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'KubeArmor/go.mod'
+      
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            kubearmor:
+              - "KubeArmor/**"
+              - "protobuf/**"
+            controller:
+              - 'pkg/KubeArmorController/**'
+            operator:
+              - 'pkg/KubeArmorOperator/**'
+      
+      - name: Install the latest LLVM toolchain
+        run: ./.github/workflows/install-llvm.sh
+
+      - name: Compile libbpf
+        run: ./.github/workflows/install-libbpf.sh
+
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }      
+  
+      - name: Build KubeArmor images to Docker
+        run: GITHUB_SHA=$GITHUB_SHA ./KubeArmor/build/build_kubearmor.sh
+      
+      - name: Build Kubearmor controller 
+        if: steps.filter.outputs.controller == 'true'
+        working-directory: ./pkg/KubeArmorController
+        run: make docker-build
+
+      - name: Build Kubearmor operator
+        if: steps.filter.outputs.operator == 'true'
+        working-directory: ./pkg/KubeArmorOperator
+        run: make docker-build
+
+      - name: Save images to tar for Trivy Scan
+        run: |
+          docker save -o kubearmor-init.tar kubearmor/kubearmor-init:latest
+          docker save -o kubearmor-ubi.tar kubearmor/kubearmor-ubi:latest
+          docker save -o kubearmor.tar kubearmor/kubearmor:latest
+          if [[ ${{ steps.filter.outputs.operator }} == 'true' ]]; then
+            docker save -o kubearmor-operator.tar kubearmor/kubearmor-operator:latest
+          fi
+          if [[ ${{ steps.filter.outputs.controller }} == 'true' ]]; then
+            docker save -o kubearmor-controller.tar kubearmor/kubearmor-controller:latest
+          fi
+          
+      - name: Run Trivy vulnerability scanner on kubearmor-init
+        id: scan_init
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: kubearmor-init.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true  
+
+      - name: Run Trivy vulnerability scanner on kubearmor-ubi
+        id: scan_ubi
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: kubearmor-ubi.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'  
+        continue-on-error: true    
+
+      - name: Run Trivy vulnerability scanner on kubearmor
+        id: scan_main
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: kubearmor.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'   
+        continue-on-error: true  
+
+      - name: Run Trivy vulnerability scanner on kubearmor-controller
+        if: steps.filter.outputs.controller == 'true'
+        id: scan_controller
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: kubearmor-controller.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'   
+        continue-on-error: true 
+
+      - name: Run Trivy vulnerability scanner on kubearmor-operator
+        if: steps.filter.outputs.operator == 'true'
+        id: scan_operator
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          input: kubearmor-operator.tar
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'   
+        continue-on-error: true 
+
+
+      - name: Report Trivy Scan Results
+        run: |
+          echo "Trivy Scan Results Summary:"
+          echo "=========================="
+          any_scan_failed=false
+
+          if [[ "${{ steps.scan_init.outcome }}" == "failure" ]]; then
+            echo "❌ kubearmor-init: FAILED (Vulnerabilities found)"
+            any_scan_failed=true
+          else
+            echo "✅ kubearmor-init: PASSED"
+          fi
+
+          # Check kubearmor-ubi scan result
+          if [[ "${{ steps.scan_ubi.outcome }}" == "failure" ]]; then
+            echo "❌ kubearmor-ubi: FAILED (Vulnerabilities found)"
+            any_scan_failed=true
+          else
+            echo "✅ kubearmor-ubi: PASSED"
+          fi
+
+          # Check kubearmor scan result
+          if [[ "${{ steps.scan_main.outcome }}" == "failure" ]]; then
+            echo "❌ kubearmor: FAILED (Vulnerabilities found)"
+            any_scan_failed=true
+          else
+            echo "✅ kubearmor: PASSED"
+          fi
+
+          # Check kubearmor-controller scan result, if it ran
+          if [[ "${{ steps.filter.outputs.controller }}" == "true" ]]; then
+            if [[ "${{ steps.scan_controller.outcome }}" == "failure" ]]; then
+              echo "❌ kubearmor-controller: FAILED (Vulnerabilities found)"
+              any_scan_failed=true
+            else
+              echo "✅ kubearmor-controller: PASSED"
+            fi
+          fi
+
+          # Check kubearmor-operator scan result, if it ran
+          if [[ "${{ steps.filter.outputs.operator }}" == "true" ]]; then
+            if [[ "${{ steps.scan_operator.outcome }}" == "failure" ]]; then
+              echo "❌ kubearmor-operator: FAILED (Vulnerabilities found)"
+              any_scan_failed=true
+            else
+              echo "✅ kubearmor-operator: PASSED"
+            fi
+          fi
+
+          echo "=========================="
+          if [[ "$any_scan_failed" == "true" ]]; then
+            echo "One or more Trivy scans failed. Check logs above for details."
+            exit 1
+          else
+            echo "All Trivy scans passed."
+          fi
