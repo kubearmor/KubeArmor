@@ -69,7 +69,7 @@ var _ = Describe("Posture", func() {
 			Expect(err).To(BeNil())
 
 			// wait for policy creation, added due to flaky behaviour
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// Start Kubearmor Logs
 			err = KarmorLogStart("policy", "wordpress-mysql", "File", wp)

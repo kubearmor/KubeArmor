@@ -126,7 +126,7 @@ ifeq (, $(shell which goreleaser))
 endif
 	cd $(CURDIR)/BPF; make clean
 	cd $(CURDIR)/BPF; make
-	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --clean --skip=publish,sign,validate --snapshot
+	cd $(CURDIR);ARCH=$(shell go env GOARCH) VERSION=$(shell git describe --tags --always --dirty) goreleaser release --clean --skip=publish,sign,validate --snapshot
 
 .PHONY: scan
 scan: 

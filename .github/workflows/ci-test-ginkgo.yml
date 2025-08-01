@@ -249,7 +249,11 @@ jobs:
         if: ${{ always() }}
         run: |
           ls -l
-          go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+          if [ -f coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out ]; then
+            go tool cover -func coverage_k8s_${{ matrix.os }}_${{ matrix.runtime }}.out
+          else
+            echo "Coverage file not found, skipping coverage report."
+          fi
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
