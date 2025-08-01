@@ -1,0 +1,18 @@
+mode: set
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:24.13,26.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:29.72,31.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:34.19,58.63 3 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:58.63,59.13 1 0
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:62.2,65.59 2 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:65.59,67.3 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:69.2,70.16 2 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:70.16,71.13 1 0
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:74.2,74.28 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:82.28,84.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:87.50,89.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:92.28,94.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:97.50,99.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:102.26,104.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:107.48,109.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:112.27,114.2 1 1
+github.com/kubearmor/KubeArmor/KubeArmor/log/logger.go:117.49,119.2 1 1
