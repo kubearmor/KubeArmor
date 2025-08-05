@@ -103,7 +103,7 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-local.sh
+    ~/KubeArmor/tests$ ./k8s_env/test-scenarios-local.sh
     ```
 
     Check the test report
@@ -118,7 +118,7 @@ $ kubectl -n [namespace name] exec -it [pod name] -- bash -c [command]
 
     ```text
     $ cd KubeArmor/tests
-    ~/KubeArmor/tests$ ./test-scenarios-in-runtime.sh
+    ~/KubeArmor/tests$ ./k8s_env/test-scenarios-in-runtime.sh
     ```
 
     Check the test report
