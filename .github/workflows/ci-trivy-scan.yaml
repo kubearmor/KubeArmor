@@ -22,7 +22,7 @@ jobs:
   build:
     name: Run trivy scan
     if: github.repository == 'kubearmor/kubearmor'
-    runs-on: ubuntu-latest-16-cores
+    runs-on: oracle-vm-16cpu-64gb-x86-64
     permissions:
       id-token: write
     timeout-minutes: 150
