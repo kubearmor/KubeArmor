@@ -44,6 +44,10 @@ spec:
         - name: KUBEARMOR_OCI_HOOKS
           value: "yes"
         {{- end }}
+        {{- if not .Values.imagePinning }}
+        - name: RELATED_IMAGE_KUBEARMOR_SNITCH
+          value: "{{ .Values.kubearmorOperator.snitch.image.repository }}:{{ .Values.kubearmorOperator.snitch.image.tag }}"
+        {{- end }}
         {{- if .Values.imagePinning -}}
           {{ include "pinnedImages" .Values.oci_meta | trim | nindent 8 }}
         {{- end }}
