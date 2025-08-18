@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -144,9 +145,7 @@ func (dm *KubeArmorDaemon) checkAndUpdateNode(item *corev1.Node) {
 		node.Identities = append(node.Identities, k+"="+v)
 	}
 
-	sort.Slice(node.Identities, func(i, j int) bool {
-		return node.Identities[i] < node.Identities[j]
-	})
+	slices.Sort(node.Identities)
 
 	// node info
 	node.Architecture = item.Status.NodeInfo.Architecture
@@ -185,12 +184,12 @@ func (dm *KubeArmorDaemon) WatchK8sNodes() {
 	informer := factory.Core().V1().Nodes().Informer()
 
 	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if item, ok := obj.(*corev1.Node); ok {
 				dm.checkAndUpdateNode(item)
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			if item, ok := newObj.(*corev1.Node); ok {
 				dm.checkAndUpdateNode(item)
 			}
@@ -228,9 +227,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 			newPoint.Identities = append(newPoint.Identities, k+"="+v)
 		}
 
-		sort.Slice(newPoint.Identities, func(i, j int) bool {
-			return newPoint.Identities[i] < newPoint.Identities[j]
-		})
+		slices.Sort(newPoint.Identities)
 
 		// update policy flag
 		if pod.Annotations["kubearmor-policy"] == "enabled" {
@@ -406,9 +403,7 @@ func (dm *KubeArmorDaemon) UpdateEndPointWithPod(action string, pod tp.K8sPod) {
 				newEndPoint.Identities = append(newEndPoint.Identities, k+"="+v)
 			}
 
-			sort.Slice(newEndPoint.Identities, func(i, j int) bool {
-				return newEndPoint.Identities[i] < newEndPoint.Identities[j]
-			})
+			slices.Sort(newEndPoint.Identities)
 
 			// update policy flag
 			if pod.Annotations["kubearmor-policy"] == "enabled" {
@@ -993,17 +988,17 @@ func (dm *KubeArmorDaemon) WatchK8sPods() {
 	var err error
 	if _, err = informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				if pod, ok := obj.(*corev1.Pod); ok {
 					dm.handlePodEvent(addEvent, pod)
 				}
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				if pod, ok := newObj.(*corev1.Pod); ok {
 					dm.handlePodEvent(updateEvent, pod)
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if pod, ok := obj.(*corev1.Pod); ok {
 					dm.handlePodEvent(deleteEvent, pod)
 				}
@@ -1107,7 +1102,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 	endPointsLength := len(dm.EndPoints)
 	dm.EndPointsLock.RUnlock()
 
-	for idx := 0; idx < endPointsLength; idx++ {
+	for idx := range endPointsLength {
 		dm.EndPointsLock.RLock()
 		endPoint := dm.EndPoints[idx]
 		dm.EndPointsLock.RUnlock()
@@ -1259,7 +1254,7 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 }
 
 // CreateSecurityPolicy - creates `KubeArmorPolicy` & `KubeArmorClusterPolicy` object from crd
-func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy interface{}) (secPolicy tp.SecurityPolicy, err error) {
+func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolicy any) (secPolicy tp.SecurityPolicy, err error) {
 	var namespace, name string
 
 	if policyType == KubeArmorPolicy {
@@ -1308,9 +1303,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 			}
 		}
 
-		sort.Slice(secPolicy.Spec.Selector.Identities, func(i, j int) bool {
-			return secPolicy.Spec.Selector.Identities[i] < secPolicy.Spec.Selector.Identities[j]
-		})
+		slices.Sort(secPolicy.Spec.Selector.Identities)
 		sort.Slice(secPolicy.Spec.Selector.MatchExpIdentities, func(i, j int) bool {
 			return secPolicy.Spec.Selector.MatchExpIdentities[i] < secPolicy.Spec.Selector.MatchExpIdentities[j]
 		})
@@ -1750,7 +1743,7 @@ func (dm *KubeArmorDaemon) CreateSecurityPolicy(policyType string, securityPolic
 // WatchSecurityPolicies Function
 func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 	for {
-		if !K8s.CheckCustomResourceDefinition("kubearmorpolicies") {
+		if err := K8s.CheckCustomResourceDefinition("kubearmorpolicies"); err != nil {
 			time.Sleep(time.Second * 1)
 			continue
 		} else {
@@ -1763,7 +1756,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 	informer := factory.Security().V1().KubeArmorPolicies().Informer()
 	registration, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				// create a security policy
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
 
@@ -1791,7 +1784,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 
 				}
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
+			UpdateFunc: func(oldObj, newObj any) {
 				if policy, ok := newObj.(*ksp.KubeArmorPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
@@ -1813,7 +1806,7 @@ func (dm *KubeArmorDaemon) WatchSecurityPolicies() cache.InformerSynced {
 					dm.UpdateSecurityPolicy(updateEvent, KubeArmorPolicy, secPolicy)
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if policy, ok := obj.(*ksp.KubeArmorPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorPolicy, *policy)
 					if err != nil {
@@ -1857,7 +1850,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 			dm.Logger.Warn("timeout while monitoring cluster security policies, kubearmorclusterpolicies CRD not found")
 			return nil
 		default:
-			if K8s.CheckCustomResourceDefinition("kubearmorclusterpolicies") {
+			if err := K8s.CheckCustomResourceDefinition("kubearmorclusterpolicies"); err == nil {
 				crdFound = true
 			} else {
 				time.Sleep(time.Second * 1)
@@ -1870,7 +1863,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 	informer := factory.Security().V1().KubeArmorClusterPolicies().Informer()
 	registration, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				// create a security policy
 				if policy, ok := obj.(*ksp.KubeArmorClusterPolicy); ok {
 
@@ -1898,7 +1891,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 				}
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
+			UpdateFunc: func(oldObj, newObj any) {
 				if policy, ok := newObj.(*ksp.KubeArmorClusterPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
 					if err != nil {
@@ -1920,7 +1913,7 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 					dm.UpdateSecurityPolicy(updateEvent, KubeArmorClusterPolicy, secPolicy)
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if policy, ok := obj.(*ksp.KubeArmorClusterPolicy); ok {
 					secPolicy, err := dm.CreateSecurityPolicy(KubeArmorClusterPolicy, *policy)
 					if err != nil {
@@ -1964,7 +1957,7 @@ func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
 
 	secPolicies := []tp.HostSecurityPolicy{}
 
-	for idx := 0; idx < hostSecurityPoliciesLength; idx++ {
+	for idx := range hostSecurityPoliciesLength {
 		dm.EndPointsLock.RLock()
 		policy := dm.HostSecurityPolicies[idx]
 		dm.EndPointsLock.RUnlock()
@@ -2502,7 +2495,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) {
 			dm.Logger.Warn("timeout while monitoring host security policies, kubearmorhostpolicies CRD not found")
 			return
 		default:
-			if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+			if err := K8s.CheckCustomResourceDefinition("kubearmorhostpolicies"); err != nil {
 				time.Sleep(time.Second * 1)
 				continue
 			}
@@ -2510,7 +2503,7 @@ func (dm *KubeArmorDaemon) WatchHostSecurityPolicies(timeout time.Duration) {
 
 		dm.Logger.Print("Started to monitor host security policies")
 
-		if !K8s.CheckCustomResourceDefinition("kubearmorhostpolicies") {
+		if err := K8s.CheckCustomResourceDefinition("kubearmorhostpolicies"); err != nil {
 			time.Sleep(time.Second * 1)
 			continue
 		}
@@ -2565,7 +2558,6 @@ func (dm *KubeArmorDaemon) updatEndpointsWithCM(cm *corev1.ConfigMap, action str
 
 	// for each namespace if needed change endpoint depfault posture
 	for _, ns := range nsList.Items {
-		ns := ns
 		fp, fa := validateDefaultPosture("kubearmor-file-posture", &ns, cm.Data[cfg.ConfigDefaultFilePosture])
 		np, na := validateDefaultPosture("kubearmor-network-posture", &ns, cm.Data[cfg.ConfigDefaultNetworkPosture])
 		cp, ca := validateDefaultPosture("kubearmor-capabilities-posture", &ns, cm.Data[cfg.ConfigDefaultCapabilitiesPosture])
@@ -2667,7 +2659,7 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 	endPointsLen := len(dm.EndPoints)
 	dm.EndPointsLock.RUnlock()
 
-	for idx := 0; idx < endPointsLen; idx++ {
+	for idx := range endPointsLen {
 		dm.EndPointsLock.RLock()
 		endPoint := dm.EndPoints[idx]
 		dm.EndPointsLock.RUnlock()
@@ -2762,7 +2754,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 
 var visibilityKey string = "kubearmor-visibility"
 
-func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, action string) {
+func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, _ string) {
 
 	dm.SystemMonitor.UpdateVisibility() // update host and global default bpf maps
 
@@ -2817,7 +2809,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 	informer := factory.Core().V1().Namespaces().Informer()
 
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if ns, ok := obj.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				np, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2853,7 +2845,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 				dm.UpdateVisibility(addEvent, ns.Name, visibility)
 			}
 		},
-		UpdateFunc: func(_, new interface{}) {
+		UpdateFunc: func(_, new any) {
 			if ns, ok := new.(*corev1.Namespace); ok {
 				fp, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				np, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2890,7 +2882,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if ns, ok := obj.(*corev1.Namespace); ok {
 				_, fa := validateDefaultPosture("kubearmor-file-posture", ns, cfg.GlobalCfg.DefaultFilePosture)
 				_, na := validateDefaultPosture("kubearmor-network-posture", ns, cfg.GlobalCfg.DefaultNetworkPosture)
@@ -2922,7 +2914,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 
 	var err error
 	registration, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if cm, ok := obj.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
@@ -2980,7 +2972,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.updateVisibilityWithCM(cm, addEvent)
 			}
 		},
-		UpdateFunc: func(_, new interface{}) {
+		UpdateFunc: func(_, new any) {
 			if cm, ok := new.(*corev1.ConfigMap); ok && cm.Namespace == cmNS {
 				cfg.GlobalCfg.HostVisibility = cm.Data[cfg.ConfigHostVisibility]
 				cfg.GlobalCfg.Visibility = cm.Data[cfg.ConfigVisibility]
@@ -3035,7 +3027,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 				dm.UpdateIMA(cfg.GlobalCfg.EnableIMA)
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			// nothing to do here
 		},
 	})

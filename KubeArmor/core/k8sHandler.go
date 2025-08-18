@@ -100,55 +100,59 @@ func NewK8sHandler() *K8sHandler {
 // ================ //
 
 // InitK8sClient Function
-func (kh *K8sHandler) InitK8sClient() bool {
+func (kh *K8sHandler) InitK8sClient() error {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return false
+		return fmt.Errorf("not running in kubernetes environment")
 	}
 
 	if kh.K8sClient == nil {
 		if kl.IsInK8sCluster() {
-			return kh.InitInclusterAPIClient()
+			if err := kh.InitInclusterAPIClient(); err != nil {
+				return fmt.Errorf("failed to initialize in-cluster API client: %w", err)
+			}
+		} else if kl.IsK8sLocal() {
+			if err := kh.InitLocalAPIClient(); err != nil {
+				return fmt.Errorf("failed to initialize local API client: %w", err)
+			}
+		} else {
+			return fmt.Errorf("unable to determine kubernetes client configuration")
 		}
-		if kl.IsK8sLocal() {
-			return kh.InitLocalAPIClient()
-		}
-		return false
 	}
 
-	return true
+	return nil
 }
 
 // InitLocalAPIClient Function
-func (kh *K8sHandler) InitLocalAPIClient() bool {
+func (kh *K8sHandler) InitLocalAPIClient() error {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		kubeconfig = os.Getenv("HOME") + "/.kube/config"
 		if _, err := os.Stat(filepath.Clean(kubeconfig)); err != nil {
-			return false
+			return fmt.Errorf("kubeconfig file not found at %s: %w", kubeconfig, err)
 		}
 	}
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to build config from kubeconfig %s: %w", kubeconfig, err)
 	}
 
 	// creates the clientset
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 	kh.K8sClient = client
 
-	return true
+	return nil
 }
 
 // InitInclusterAPIClient Function
-func (kh *K8sHandler) InitInclusterAPIClient() bool {
+func (kh *K8sHandler) InitInclusterAPIClient() error {
 	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to read service account token: %w", err)
 	}
 	kh.K8sToken = string(read)
 
@@ -164,11 +168,11 @@ func (kh *K8sHandler) InitInclusterAPIClient() bool {
 
 	client, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to create kubernetes client with in-cluster config: %w", err)
 	}
 	kh.K8sClient = client
 
-	return true
+	return nil
 }
 
 // ============== //
@@ -432,9 +436,9 @@ func (kh *K8sHandler) GetStatefulSet(namespaceName, podownerName string) (string
 // ====================== //
 
 // CheckCustomResourceDefinition Function
-func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) bool {
+func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) error {
 	if !kl.IsK8sEnv() { // not Kubernetes
-		return false
+		return fmt.Errorf("not running in Kubernetes environment")
 	}
 
 	exist := false
@@ -461,14 +465,14 @@ func (kh *K8sHandler) CheckCustomResourceDefinition(resourceName string) bool {
 			if errIn := json.Unmarshal(resBody, &res); errIn == nil {
 				for _, resource := range res.APIResources {
 					if resource.Name == resourceName {
-						return true
+						return nil
 					}
 				}
 			}
 		}
 	}
 
-	return false
+	return fmt.Errorf("custom resource definition '%s' not found", resourceName)
 }
 
 // WatchK8sSecurityPolicies Function
