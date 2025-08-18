@@ -94,7 +94,6 @@ var (
 	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
 	ConfigThrottleSec                string = "throttleSec"
 	ConfigEnableNRI                  string = "enableNRI"
-	ConfigArgMatching                string = "matchArgs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -161,7 +160,6 @@ var (
 	AlertThrottling       bool   = true
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
-	MatchArgs             bool   = true
 
 	// recommend policies
 	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
@@ -211,7 +209,6 @@ var ConfigMapData = map[string]string{
 	ConfigAlertThrottling:            "true",
 	ConfigMaxAlertPerSec:             "10",
 	ConfigThrottleSec:                "30",
-	ConfigArgMatching:                "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"

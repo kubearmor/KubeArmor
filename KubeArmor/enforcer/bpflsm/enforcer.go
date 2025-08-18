@@ -41,7 +41,6 @@ type BPFEnforcer struct {
 	// InnerMapSpec            *ebpf.MapSpec
 	BPFContainerMap         *ebpf.Map
 	BPFContainerThrottleMap *ebpf.Map
-	BPFArgumentsMap         *ebpf.Map
 
 	// events
 	Events        *ringbuf.Reader
@@ -81,7 +80,7 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	be.InnerMapSpec = &ebpf.MapSpec{
 		Type:       ebpf.Hash,
 		KeySize:    512,
-		ValueSize:  4,
+		ValueSize:  2,
 		MaxEntries: 256,
 	}
 
@@ -98,20 +97,6 @@ func NewBPFEnforcer(node tp.Node, pinpath string, logger *fd.Feeder, monitor *mo
 	})
 	if err != nil {
 		be.Logger.Errf("error creating kubearmor_containers map: %s", err)
-		return be, err
-	}
-	be.BPFArgumentsMap, err = ebpf.NewMapWithOptions(&ebpf.MapSpec{
-		Type:       ebpf.Hash,
-		KeySize:    776,
-		ValueSize:  1,
-		MaxEntries: 10240,
-		Name:       "kubearmor_arguments",
-		Pinning:    ebpf.PinByName,
-	}, ebpf.MapOptions{
-		PinPath: pinpath,
-	})
-	if err != nil {
-		be.Logger.Errf("error creating kubearmor_arguments_map: %s", err)
 		return be, err
 	}
 
@@ -365,7 +350,7 @@ func (be *BPFEnforcer) TraceEvents() {
 
 				HostPID:  event.HostPID,
 				HostPPID: event.HostPPID,
-				TTY:      event.TTY,
+				TTY: event.TTY,
 			},
 		}, readLink)
 
@@ -485,6 +470,7 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 
 		}
 	}
+
 	be.ContainerMapLock.Lock()
 
 	if be.BPFContainerMap != nil {
@@ -508,16 +494,6 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 	}
-	if be.BPFArgumentsMap != nil {
-		if err := be.BPFArgumentsMap.Unpin(); err != nil {
-			be.Logger.Err(err.Error())
-			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
-		}
-		if err := be.BPFArgumentsMap.Close(); err != nil {
-			be.Logger.Err(err.Error())
-			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
-		}
-	}
 
 	be.ContainerMapLock.Unlock()
 
@@ -531,16 +507,6 @@ func (be *BPFEnforcer) DestroyBPFEnforcer() error {
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
 		if err := be.Events.Close(); err != nil {
-			be.Logger.Err(err.Error())
-			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
-		}
-	}
-	if be.obj.enforcerMaps.KubearmorArgsStore != nil {
-		if err := be.obj.enforcerMaps.KubearmorArgsStore.Unpin(); err != nil {
-			be.Logger.Err(err.Error())
-			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
-		}
-		if err := be.obj.enforcerMaps.KubearmorArgsStore.Close(); err != nil {
 			be.Logger.Err(err.Error())
 			errBPFCleanUp = errors.Join(errBPFCleanUp, err)
 		}
