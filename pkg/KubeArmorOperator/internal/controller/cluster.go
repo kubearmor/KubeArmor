@@ -71,7 +71,7 @@ type Node struct {
 	BTF              string
 	ApparmorFs       string
 	Seccomp          string
-	OCIHooks		 string
+	OCIHooks         string
 }
 
 func NewClusterWatcher(client *kubernetes.Clientset, log *zap.SugaredLogger, extClient *apiextensionsclientset.Clientset, opv1Client *opv1client.Clientset, secv1Client *secv1client.Clientset, pathPrefix, deploy_name, providerHostname, providerEndpoint string, initdeploy, annotateresource, annotateexisting bool) *ClusterWatcher {
@@ -209,6 +209,8 @@ func (clusterWatcher *ClusterWatcher) checkJobStatus(job, runtime, nodename stri
 					}
 
 					newJob := deploySnitch(nodename, runtime)
+					newJob.Spec.Template.Spec.Volumes = j.Spec.Template.Spec.Volumes
+					newJob.Spec.Template.Spec.Containers[0].VolumeMounts = j.Spec.Template.Spec.Containers[0].VolumeMounts
 
 					volumeToDelete := ""
 					for _, vol := range newJob.Spec.Template.Spec.Volumes {
