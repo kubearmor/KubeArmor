@@ -7,6 +7,7 @@ package core
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -110,21 +111,25 @@ func (dm *KubeArmorDaemon) handleNonK8sConn(conn net.Conn, ready *atomic.Bool) {
 
 		// Handle the container create or delete event
 		if data.Operation == tp.HookContainerCreate {
-			dm.UpdateContainer(data.Container.ContainerID, data.Container, "create")
+			if err := dm.UpdateContainer(data.Container.ContainerID, data.Container, "create"); err != nil {
+				log.Printf("Failed to create container %s: %s", data.Container.ContainerID, err.Error())
+			}
 		} else {
-			dm.UpdateContainer(data.Container.ContainerID, data.Container, "destroy")
+			if err := dm.UpdateContainer(data.Container.ContainerID, data.Container, "destroy"); err != nil {
+				log.Printf("Failed to destroy container %s: %s", data.Container.ContainerID, err.Error())
+			}
 		}
 
 	}
 }
 
 // UpdateContainer Function
-func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Container, action string) bool {
+func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Container, action string) error {
 
 	if action == "create" {
 
 		if container.ContainerID == "" {
-			return false
+			return fmt.Errorf("container ID is empty")
 		}
 
 		endPoint := tp.EndPoint{}
@@ -171,7 +176,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 
 		} else {
 			dm.ContainersLock.Unlock()
-			return false
+			return fmt.Errorf("container already exists")
 		}
 
 		if dm.SystemMonitor != nil && cfg.GlobalCfg.Policy {
@@ -207,7 +212,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 		container, ok := dm.Containers[containerID]
 		if !ok {
 			dm.ContainersLock.Unlock()
-			return false
+			return fmt.Errorf("container not found for removal: %s", containerID)
 		}
 		dm.EndPointsLock.Lock()
 		dm.MatchandRemoveContainerFromEndpoint(containerID)
@@ -263,5 +268,5 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 		dm.Logger.Printf("Detected a container (removed/%.12s/pidns=%d/mntns=%d)", containerID, container.PidNS, container.MntNS)
 	}
 
-	return true
+	return nil
 }
