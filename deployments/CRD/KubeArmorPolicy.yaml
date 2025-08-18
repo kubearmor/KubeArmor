@@ -381,11 +381,6 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
-                        allowedArgs: 
-                          items: 
-                            type: string
-                          type: array
-                          maxItems: 20
                         severity:
                           maximum: 10
                           minimum: 1

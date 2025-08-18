@@ -163,17 +163,17 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	close(StopChan)
 
-	if dm.SystemMonitor != nil {
-		// close system monitor
-		if dm.CloseSystemMonitor() {
-			dm.Logger.Print("Stopped KubeArmor Monitor")
-		}
-	}
-
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
 		if dm.CloseRuntimeEnforcer() {
 			dm.Logger.Print("Stopped KubeArmor Enforcer")
+		}
+	}
+
+	if dm.SystemMonitor != nil {
+		// close system monitor
+		if dm.CloseSystemMonitor() {
+			dm.Logger.Print("Stopped KubeArmor Monitor")
 		}
 	}
 

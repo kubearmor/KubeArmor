@@ -96,10 +96,10 @@ int BPF_PROG(fileless_preset_bprm_check_security, struct linux_binprm *bprm){
     
     // mapping not backed by any file with executable permission, denying mapping
     if (*present == BLOCK) {
-      event_data->retval = -EPERM;
+      event_data->retval = -13;
       bpf_ringbuf_submit(event_data, 0);
-
-      return -EPERM;
+      // bpf_printk("[bprm] fileless execution detected with pid %d, denying execution", event_data->pid);
+      return -13;
     } else {
       event_data->retval = 0;
       bpf_ringbuf_submit(event_data, 0);

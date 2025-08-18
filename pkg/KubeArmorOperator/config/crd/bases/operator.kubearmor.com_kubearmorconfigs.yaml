@@ -72,8 +72,6 @@ spec:
                 type: object
               alertThrottling:
                 type: boolean
-              matchArgs:
-                type: boolean
               defaultCapabilitiesPosture:
                 enum:
                 - audit
