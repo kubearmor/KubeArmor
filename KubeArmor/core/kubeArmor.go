@@ -9,6 +9,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -167,21 +168,27 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
-		if dm.CloseRuntimeEnforcer() {
+		if err := dm.CloseRuntimeEnforcer(); err != nil {
+			dm.Logger.Errf("Failed to stop KubeArmor Enforcer: %s", err.Error())
+		} else {
 			dm.Logger.Print("Stopped KubeArmor Enforcer")
 		}
 	}
 
 	if dm.SystemMonitor != nil {
 		// close system monitor
-		if dm.CloseSystemMonitor() {
+		if err := dm.CloseSystemMonitor(); err != nil {
+			dm.Logger.Errf("Failed to stop KubeArmor Monitor: %s", err.Error())
+		} else {
 			dm.Logger.Print("Stopped KubeArmor Monitor")
 		}
 	}
 
 	if dm.KVMAgent != nil {
 		// close kvm agent
-		if dm.CloseKVMAgent() {
+		if err := dm.CloseKVMAgent(); err != nil {
+			dm.Logger.Errf("Failed to stop KVM Agent: %s", err.Error())
+		} else {
 			dm.Logger.Print("Stopped KVM Agent")
 		}
 	}
@@ -194,7 +201,9 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 	if dm.StateAgent != nil {
 		//go dm.StateAgent.PushNodeEvent(dm.Node, state.EventDeleted)
-		if dm.CloseStateAgent() {
+		if err := dm.CloseStateAgent(); err != nil {
+			kg.Errf("Failed to destroy StateAgent: %s", err.Error())
+		} else {
 			kg.Print("Destroyed StateAgent")
 		}
 	}
@@ -204,7 +213,9 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 
 	if dm.Logger != nil {
 		// close logger
-		if dm.CloseLogger() {
+		if err := dm.CloseLogger(); err != nil {
+			kg.Errf("Failed to stop KubeArmor Logger: %s", err.Error())
+		} else {
 			kg.Print("Stopped KubeArmor Logger")
 		}
 	}
@@ -229,9 +240,12 @@ func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 // ============ //
 
 // InitLogger Function
-func (dm *KubeArmorDaemon) InitLogger() bool {
+func (dm *KubeArmorDaemon) InitLogger() error {
 	dm.Logger = fd.NewFeeder(&dm.Node, &dm.NodeLock)
-	return dm.Logger != nil
+	if dm.Logger == nil {
+		return fmt.Errorf("failed to create new feeder")
+	}
+	return nil
 }
 
 // ServeLogFeeds Function
@@ -243,12 +257,11 @@ func (dm *KubeArmorDaemon) ServeLogFeeds() {
 }
 
 // CloseLogger Function
-func (dm *KubeArmorDaemon) CloseLogger() bool {
+func (dm *KubeArmorDaemon) CloseLogger() error {
 	if err := dm.Logger.DestroyFeeder(); err != nil {
-		kg.Errf("Failed to destroy KubeArmor Logger (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to destroy KubeArmor Logger: %w", err)
 	}
-	return true
+	return nil
 }
 
 // ==================== //
@@ -256,18 +269,17 @@ func (dm *KubeArmorDaemon) CloseLogger() bool {
 // ==================== //
 
 // InitSystemMonitor Function
-func (dm *KubeArmorDaemon) InitSystemMonitor() bool {
+func (dm *KubeArmorDaemon) InitSystemMonitor() error {
 	dm.SystemMonitor = mon.NewSystemMonitor(&dm.Node, &dm.NodeLock, dm.Logger, &dm.Containers, &dm.ContainersLock, &dm.ActiveHostPidMap, &dm.ActivePidMapLock, &dm.MonitorLock)
 	if dm.SystemMonitor == nil {
-		return false
+		return fmt.Errorf("failed to create new system monitor")
 	}
 
 	if err := dm.SystemMonitor.InitBPF(); err != nil {
-		kg.Errf("Failed to initialize BPF (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to initialize BPF: %w", err)
 	}
 
-	return true
+	return nil
 }
 
 // MonitorSystemEvents Function
@@ -283,12 +295,11 @@ func (dm *KubeArmorDaemon) MonitorSystemEvents() {
 }
 
 // CloseSystemMonitor Function
-func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
+func (dm *KubeArmorDaemon) CloseSystemMonitor() error {
 	if err := dm.SystemMonitor.DestroySystemMonitor(); err != nil {
-		dm.Logger.Errf("Failed to destroy KubeArmor Monitor (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to destroy KubeArmor Monitor: %w", err)
 	}
-	return true
+	return nil
 }
 
 // ====================== //
@@ -296,18 +307,20 @@ func (dm *KubeArmorDaemon) CloseSystemMonitor() bool {
 // ====================== //
 
 // InitRuntimeEnforcer Function
-func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) bool {
+func (dm *KubeArmorDaemon) InitRuntimeEnforcer(pinpath string) error {
 	dm.RuntimeEnforcer = efc.NewRuntimeEnforcer(dm.Node, pinpath, dm.Logger, dm.SystemMonitor)
-	return dm.RuntimeEnforcer != nil
+	if dm.RuntimeEnforcer == nil {
+		return fmt.Errorf("failed to create runtime enforcer")
+	}
+	return nil
 }
 
 // CloseRuntimeEnforcer Function
-func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
+func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() error {
 	if err := dm.RuntimeEnforcer.DestroyRuntimeEnforcer(); err != nil {
-		dm.Logger.Errf("Failed to destory KubeArmor Enforcer (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to destroy KubeArmor Enforcer: %w", err)
 	}
-	return true
+	return nil
 }
 
 // ============= //
@@ -315,18 +328,20 @@ func (dm *KubeArmorDaemon) CloseRuntimeEnforcer() bool {
 // ============= //
 
 // InitPresets Function
-func (dm *KubeArmorDaemon) InitPresets(logger *fd.Feeder, monitor *mon.SystemMonitor) bool {
+func (dm *KubeArmorDaemon) InitPresets(logger *fd.Feeder, monitor *mon.SystemMonitor) error {
 	dm.Presets = presets.NewPreset(dm.Logger, dm.SystemMonitor)
-	return dm.Presets != nil
+	if dm.Presets == nil {
+		return fmt.Errorf("failed to create presets")
+	}
+	return nil
 }
 
 // ClosePresets Function
-func (dm *KubeArmorDaemon) ClosePresets() bool {
+func (dm *KubeArmorDaemon) ClosePresets() error {
 	if err := dm.Presets.Destroy(); err != nil {
-		dm.Logger.Errf("Failed to destroy preset (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to destroy preset: %w", err)
 	}
-	return true
+	return nil
 }
 
 // =============== //
@@ -334,9 +349,12 @@ func (dm *KubeArmorDaemon) ClosePresets() bool {
 // =============== //
 
 // InitKVMAgent Function
-func (dm *KubeArmorDaemon) InitKVMAgent() bool {
+func (dm *KubeArmorDaemon) InitKVMAgent() error {
 	dm.KVMAgent = kvm.NewKVMAgent(dm.ParseAndUpdateHostSecurityPolicy)
-	return dm.KVMAgent != nil
+	if dm.KVMAgent == nil {
+		return fmt.Errorf("failed to create KVM agent")
+	}
+	return nil
 }
 
 // ConnectToKVMService Function
@@ -345,12 +363,11 @@ func (dm *KubeArmorDaemon) ConnectToKVMService() {
 }
 
 // CloseKVMAgent Function
-func (dm *KubeArmorDaemon) CloseKVMAgent() bool {
+func (dm *KubeArmorDaemon) CloseKVMAgent() error {
 	if err := dm.KVMAgent.DestroyKVMAgent(); err != nil {
-		dm.Logger.Errf("Failed to destory KVM Agent (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to destroy KVM Agent: %w", err)
 	}
-	return true
+	return nil
 }
 
 // ================= //
@@ -358,18 +375,20 @@ func (dm *KubeArmorDaemon) CloseKVMAgent() bool {
 // ================= //
 
 // InitStateAgent Function
-func (dm *KubeArmorDaemon) InitStateAgent() bool {
+func (dm *KubeArmorDaemon) InitStateAgent() error {
 	dm.StateAgent = state.NewStateAgent(&dm.Node, dm.NodeLock, dm.Containers, dm.ContainersLock)
-	return dm.StateAgent != nil
+	if dm.StateAgent == nil {
+		return fmt.Errorf("failed to create state agent")
+	}
+	return nil
 }
 
 // CloseStateAgent Function
-func (dm *KubeArmorDaemon) CloseStateAgent() bool {
+func (dm *KubeArmorDaemon) CloseStateAgent() error {
 	if err := dm.StateAgent.DestroyStateAgent(); err != nil {
-		dm.Logger.Errf("Failed to destory State Agent (%s)", err.Error())
-		return false
+		return fmt.Errorf("failed to destroy State Agent: %w", err)
 	}
-	return true
+	return nil
 }
 
 // ==================== //
@@ -393,13 +412,13 @@ func GetOSSigChannel() chan os.Signal {
 // =================== //
 // == Health Server == //
 // =================== //
-func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc_health_v1.HealthCheckResponse_ServingStatus) bool {
+func (dm *KubeArmorDaemon) SetHealthStatus(serviceName string, healthStatus grpc_health_v1.HealthCheckResponse_ServingStatus) error {
 	if dm.GRPCHealthServer != nil {
 		dm.GRPCHealthServer.SetServingStatus(serviceName, healthStatus)
-		return true
+		return nil
 	}
 
-	return false
+	return fmt.Errorf("GRPC health server is not initialized")
 }
 
 // ========== //
@@ -447,8 +466,8 @@ func KubeArmor() {
 		dm.NodeLock.Unlock()
 
 	} else if cfg.GlobalCfg.K8sEnv {
-		if !K8s.InitK8sClient() {
-			kg.Err("Failed to initialize Kubernetes client")
+		if err := K8s.InitK8sClient(); err != nil {
+			kg.Errf("Failed to initialize Kubernetes client: %v", err)
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
@@ -525,8 +544,8 @@ func KubeArmor() {
 	// == //
 
 	// initialize log feeder
-	if !dm.InitLogger() {
-		kg.Err("Failed to initialize KubeArmor Logger")
+	if err := dm.InitLogger(); err != nil {
+		kg.Errf("Failed to initialize KubeArmor Logger: %v", err)
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
@@ -550,8 +569,8 @@ func KubeArmor() {
 		dm.NodeLock.Unlock()
 
 		// initialize state agent
-		if !dm.InitStateAgent() {
-			dm.Logger.Err("Failed to initialize State Agent Server")
+		if err := dm.InitStateAgent(); err != nil {
+			dm.Logger.Errf("Failed to initialize State Agent Server: %s", err.Error())
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
@@ -561,7 +580,9 @@ func KubeArmor() {
 		dm.Logger.Print("Initialized State Agent Server")
 
 		pb.RegisterStateAgentServer(dm.Logger.LogServer, dm.StateAgent)
-		dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+		if err := dm.SetHealthStatus(pb.StateAgent_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
+			dm.Logger.Warnf("Failed to set health status for StateAgent: %v", err)
+		}
 	}
 
 	if dm.StateAgent != nil {
@@ -573,8 +594,8 @@ func KubeArmor() {
 	// Containerized workloads with Host
 	if cfg.GlobalCfg.Policy || cfg.GlobalCfg.HostPolicy {
 		// initialize system monitor
-		if !dm.InitSystemMonitor() {
-			dm.Logger.Err("Failed to initialize KubeArmor Monitor")
+		if err := dm.InitSystemMonitor(); err != nil {
+			dm.Logger.Errf("Failed to initialize KubeArmor Monitor: %v", err)
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
@@ -588,8 +609,8 @@ func KubeArmor() {
 		dm.Logger.Print("Started to monitor system events")
 
 		// initialize runtime enforcer
-		if !dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath) {
-			dm.Logger.Print("Disabled KubeArmor Enforcer since No LSM is enabled")
+		if err := dm.InitRuntimeEnforcer(dm.SystemMonitor.PinPath); err != nil {
+			dm.Logger.Printf("Disabled KubeArmor Enforcer: %s", err.Error())
 		} else {
 			dm.Logger.Print("Initialized KubeArmor Enforcer")
 
@@ -603,8 +624,8 @@ func KubeArmor() {
 		}
 
 		// initialize presets
-		if !dm.InitPresets(dm.Logger, dm.SystemMonitor) {
-			dm.Logger.Print("Disabled Presets since no presets are enabled")
+		if err := dm.InitPresets(dm.Logger, dm.SystemMonitor); err != nil {
+			dm.Logger.Printf("Disabled Presets: %s", err.Error())
 		} else {
 			dm.Logger.Print("Initialized Presets")
 		}
@@ -647,7 +668,7 @@ func KubeArmor() {
 				go dm.MonitorDockerEvents()
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "containerd") {
 				// insuring NRI monitoring only in case containerd is present
-				if cfg.GlobalCfg.NRIEnabled && dm.checkNRIAvailability() {
+				if cfg.GlobalCfg.NRIEnabled && dm.checkNRIAvailability() == nil {
 					// monitor NRI events
 					go dm.MonitorNRIEvents()
 				} else {
@@ -676,9 +697,9 @@ func KubeArmor() {
 
 		if cfg.GlobalCfg.UseOCIHooks &&
 			(strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") ||
-				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability())) {
+				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability() == nil)) {
 			go dm.ListenToK8sHook()
-		} else if dm.checkNRIAvailability() {
+		} else if dm.checkNRIAvailability() == nil {
 			// monitor NRI events
 			go dm.MonitorNRIEvents()
 		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
@@ -878,8 +899,12 @@ func KubeArmor() {
 		probe.GetContainerData = dm.SetProbeContainerData
 		pb.RegisterProbeServiceServer(dm.Logger.LogServer, probe)
 
-		dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
-		dm.SetHealthStatus(pb.ProbeService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+		if err := dm.SetHealthStatus(pb.PolicyService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
+			dm.Logger.Warnf("Failed to set health status for PolicyService: %v", err)
+		}
+		if err := dm.SetHealthStatus(pb.ProbeService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
+			dm.Logger.Warnf("Failed to set health status for ProbeService: %v", err)
+		}
 	}
 
 	reflection.Register(dm.Logger.LogServer) // Helps grpc clients list out what all svc/endpoints available
@@ -887,7 +912,9 @@ func KubeArmor() {
 	// serve log feeds
 	go dm.ServeLogFeeds()
 	dm.Logger.Print("Started to serve gRPC-based log feeds")
-	dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+	if err := dm.SetHealthStatus(pb.LogService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING); err != nil {
+		dm.Logger.Warnf("Failed to set health status for LogService: %v", err)
+	}
 
 	// == //
 	go dm.SetKarmorData()
@@ -903,8 +930,8 @@ func KubeArmor() {
 	// Init KvmAgent
 	if cfg.GlobalCfg.KVMAgent {
 		// initialize kvm agent
-		if !dm.InitKVMAgent() {
-			dm.Logger.Err("Failed to initialize KVM Agent")
+		if err := dm.InitKVMAgent(); err != nil {
+			dm.Logger.Errf("Failed to initialize KVM Agent: %s", err.Error())
 
 			// destroy the daemon
 			dm.DestroyKubeArmorDaemon()
@@ -931,22 +958,20 @@ func KubeArmor() {
 	dm.DestroyKubeArmorDaemon()
 }
 
-func (dm *KubeArmorDaemon) checkNRIAvailability() bool {
+func (dm *KubeArmorDaemon) checkNRIAvailability() error {
 	// Check if nri socket is set, if not then auto detect
 	if cfg.GlobalCfg.NRISocket == "" {
 		if kl.GetNRISocket("") != "" {
 			cfg.GlobalCfg.NRISocket = kl.GetNRISocket("")
 		} else {
-			dm.Logger.Warnf("Error while looking for NRI socket file")
-			return false
+			return fmt.Errorf("NRI socket file not found")
 		}
 	} else {
 		// NRI socket supplied by user, check for existence
 		_, err := os.Stat(cfg.GlobalCfg.NRISocket)
 		if err != nil {
-			dm.Logger.Warnf("Error while looking for NRI socket file %s", err.Error())
-			return false
+			return fmt.Errorf("NRI socket file not found: %w", err)
 		}
 	}
-	return true
+	return nil
 }
