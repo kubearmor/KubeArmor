@@ -1302,8 +1302,19 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
 
 // ==== Container Exec Events ====
 
+struct tracepoint_raw_sys_enter {
+    unsigned short common_type;       
+    unsigned char common_flags;       
+    unsigned char common_preempt_count;       
+    int common_pid;   
+
+    int __syscall_nr; 
+    int fd;
+    int nstype;
+};
+
 SEC("tracepoint/syscalls/sys_enter_setns")
-int sys_enter_setns(struct trace_event_raw_sys_enter *ctx)
+int sys_enter_setns(struct tracepoint_raw_sys_enter *ctx)
 {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
 
@@ -1318,8 +1329,17 @@ int sys_enter_setns(struct trace_event_raw_sys_enter *ctx)
     return 0;
 }
 
+struct tracepoint_raw_sys_exit{
+    unsigned short common_type;       
+    unsigned char common_flags;       
+    unsigned char common_preempt_count;       
+    int common_pid;   
+    int __syscall_nr; 
+    long ret; 
+};
+
 SEC("tracepoint/syscalls/sys_exit_setns")
-int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
+int sys_exit_setns(struct tracepoint_raw_sys_exit *ctx)
 {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
 
@@ -1351,15 +1371,29 @@ int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
     return 0;
 }
 
+struct tracepoint_sched_process_fork {
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+
+    char parent_comm[16];
+    pid_t parent_pid;
+    char child_comm[16];
+    pid_t child_pid;
+};
+
 SEC("tracepoint/sched/sched_process_fork")
-int sched_process_fork(struct trace_event_raw_sched_process_fork *ctx)
+int sched_process_fork(struct tracepoint_sched_process_fork *ctx)
 {
     u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
     u32 child_pid = ctx->child_pid;
     
     u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
     if (exists) {
-        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, exists, BPF_ANY);
+        // to make verifier happy on older kernel versions i.e. 4.15
+        u32 val = *exists;
+        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, &val, BPF_ANY);
     }
 
     return 0;
