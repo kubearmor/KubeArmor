@@ -153,6 +153,26 @@ jobs:
           echo "initdigest=$(jq -r '.["containerimage.digest"]' kubearmor-init.json)" >> $GITHUB_OUTPUT
           echo "ubidigest=$(jq -r '.["containerimage.digest"]' kubearmor-ubi.json)" >> $GITHUB_OUTPUT
 
+      - name: Install Bom
+        shell: bash
+        run: |
+          curl -L https://github.com/kubernetes-sigs/bom/releases/download/v0.4.1/bom-linux-amd64 -o bom
+          sudo mv ./bom /usr/local/bin/bom
+          sudo chmod +x /usr/local/bin/bom
+      
+      - name: Generate SBOM
+        shell: bash
+        run: |
+          bom generate -o sbom_kubearmor_${{ steps.digest.outputs.imagedigest }}.spdx --dirs=. \
+          --image=kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          bom generate -o sbom_kubearmor_${{ steps.digest.outputs.initdigest }}.spdx --dirs=. \
+          --image=kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+      
+      - name: Attach SBOM to Container Image
+        run: |
+          cosign attach sbom --sbom sbom_kubearmor_${{ steps.digest.outputs.imagedigest }}.spdx kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign attach sbom --sbom sbom_kubearmor_${{ steps.digest.outputs.initdigest  }}.spdx kubearmor/kubearmor@${{ steps.digest.outputs.initdigest  }}
+
       - name: Sign the Container Images
         run: |
           cosign sign -r kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }} --yes
@@ -327,6 +347,27 @@ jobs:
         id: digest
         run: |
           echo "imagedigest=$(jq -r '.["containerimage.digest"]' kubearmor-controller.json)" >> $GITHUB_OUTPUT
+
+      - name: Install Bom
+        shell: bash
+        run: |
+          curl -L https://github.com/kubernetes-sigs/bom/releases/download/v0.4.1/bom-linux-amd64 -o bom
+          sudo mv ./bom /usr/local/bin/bom
+          sudo chmod +x /usr/local/bin/bom
+      
+      - name: Generate SBOM
+        shell: bash
+        run: |
+          bom generate -o sbom_kubearmor_${{ steps.digest.outputs.imagedigest }}.spdx --dirs=. \
+          --image=kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          bom generate -o sbom_kubearmor_${{ steps.digest.outputs.initdigest }}.spdx --dirs=. \
+          --image=kubearmor/kubearmor-init@${{ steps.digest.outputs.initdigest }}
+      
+      - name: Attach SBOM to Container Image
+        run: |
+          cosign attach sbom --sbom sbom_kubearmor_${{ steps.digest.outputs.imagedigest }}.spdx kubearmor/kubearmor@${{ steps.digest.outputs.imagedigest }}
+          cosign attach sbom --sbom sbom_kubearmor_${{ steps.digest.outputs.initdigest  }}.spdx kubearmor/kubearmor@${{ steps.digest.outputs.initdigest  }}
+
 
       - name: Sign the Container Images
         run: |
