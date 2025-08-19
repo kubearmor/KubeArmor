@@ -42,37 +42,22 @@ int BPF_PROG(env_preset_enforce_file, struct file *file) {
   u64 id = bpf_get_current_pid_tgid();
   u32 tgid = id >> 32;
 
-  u32 z = 0;
-  bufs_k *store = bpf_map_lookup_elem(&bufk, &z);
-  if (store == NULL)
+  bufs_k *path_store = get_full_path_from_file_ptr(file);
+  if (path_store == NULL){
     return 0;
+  }
 
-  bufs_t *path_buf = get_buf(PATH_BUFFER);
-  if (path_buf == NULL)
-    return 0;
-    
-  struct path f_path = BPF_CORE_READ(file, f_path);
-  if (!prepend_path(&f_path, path_buf))
-    return 0;
-
-  u32 *path_offset = get_buf_off(PATH_BUFFER);
-  if (path_offset == NULL)
-    return 0;
-
-  void *path_ptr = &path_buf->buf[*path_offset];
-  bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
-
-  if (!isProcDir(store->path)) {
+  if (!isProcDir(path_store->path)) {
     return 0;
   }
 
   long envpid;
-  int count = strtol(store->path + sizeof(DIR_PROC) - 1, 10, &envpid);
+  int count = strtol(path_store->path + sizeof(DIR_PROC) - 1, 10, &envpid);
   if (count < 0) {
     return 0;
   }
   u8 envstart = sizeof(DIR_PROC) + count - 1;
-  if (envstart < 80 && !isEnviron(store->path + envstart)) {
+  if (envstart < 80 && !isEnviron(path_store->path + envstart)) {
     return 0;
   }
 
@@ -84,19 +69,9 @@ int BPF_PROG(env_preset_enforce_file, struct file *file) {
     if (file_p == NULL)
       return 0;
 
-    bufs_t *path_buf = get_buf(PATH_BUFFER);
-    if (path_buf == NULL)
+    bufs_k *source_store = get_full_path_from_file_ptr(file_p);
+    if (source_store == NULL){
       return 0;
-
-    struct path f_src = BPF_CORE_READ(file_p, f_path);
-    if (!prepend_path(&f_src, path_buf)){
-      return 0;
-    } else {
-      u32 *path_offset = get_buf_off(PATH_BUFFER);
-      if (path_offset == NULL)
-        return 0;
-      void *path_ptr = &path_buf->buf[*path_offset];
-      bpf_probe_read_str(store->source, MAX_STRING_SIZE, path_ptr);
     }
 
     event *event_data;
@@ -109,8 +84,8 @@ int BPF_PROG(env_preset_enforce_file, struct file *file) {
     __builtin_memset(event_data->data.path, 0, sizeof(event_data->data.path));
     __builtin_memset(event_data->data.source, 0, sizeof(event_data->data.source));
 
-    bpf_probe_read_str(event_data->data.path, 80, store->path);
-    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, store->source);
+    bpf_probe_read_str(event_data->data.path, 80, path_store->path);
+    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, source_store->path);
     
     init_context(event_data);
     event_data->event_id = PROTECT_ENV;
