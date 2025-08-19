@@ -301,6 +301,30 @@ static __always_inline bool prepend_path(struct path *path, bufs_t *string_p) {
   return true;
 }
 
+static __always_inline bufs_k *get_full_path_from_file_ptr(struct file* file){
+  u32 z = 0;
+  bufs_k *store = bpf_map_lookup_elem(&bufk, &z);
+  if (store == NULL)
+    return NULL;
+
+  bufs_t *path_buf = get_buf(PATH_BUFFER);
+  if (path_buf == NULL)
+    return NULL;
+    
+  struct path f_path = BPF_CORE_READ(file, f_path);
+  if (!prepend_path(&f_path, path_buf))
+    return NULL;
+
+  u32 *path_offset = get_buf_off(PATH_BUFFER);
+  if (path_offset == NULL)
+    return NULL;
+
+  void *path_ptr = &path_buf->buf[*path_offset];
+  bpf_probe_read_str(store->path, MAX_STRING_SIZE, path_ptr);
+
+  return store;
+} 
+
 static __always_inline long strtol(const char *buf, size_t buf_len, long *res) {
   long val = 0;
   size_t i = 0;
