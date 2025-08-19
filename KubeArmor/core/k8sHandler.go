@@ -55,7 +55,10 @@ func NewK8sHandler() *K8sHandler {
 	kh := &K8sHandler{}
 
 	if val, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
-		kh.K8sHost = val
+		kh.K8sHost = kl.NormalizeIP(val)
+		if kh.K8sHost == "" {
+			kg.Errf("Invalid IP for KUBERNETES_SERVICE_HOST: %s", val)
+		}
 	} else {
 		kh.K8sHost = "127.0.0.1"
 	}
