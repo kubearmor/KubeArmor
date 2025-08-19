@@ -46,6 +46,7 @@ kubearmorOperator:
   podAnnotations: {}
   podSecurityContext: {}
   securityContext: {}
+  initDeploy: false
 
 kubearmorConfig:
   defaultCapabilitiesPosture: audit
