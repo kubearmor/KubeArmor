@@ -121,7 +121,7 @@ const (
 	UseOCIHooks                          string = "useOCIHooks"
 )
 
-func readCmdLineParams() {
+func ReadCmdLineParams() {
 	hostname, _ := os.Hostname()
 	clusterStr := flag.String(ConfigCluster, "default", "cluster name")
 	hostStr := flag.String(ConfigHost, hostname, "host name")
@@ -258,8 +258,6 @@ func readCmdLineParams() {
 
 // LoadConfig Load configuration
 func LoadConfig() error {
-	// Read configuration from command line
-	readCmdLineParams()
 
 	// Read configuration from env var
 	// Note that the env var has to be set in uppercase for e.g, CLUSTER=xyz ./kubearmor
