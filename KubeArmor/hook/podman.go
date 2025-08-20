@@ -33,7 +33,7 @@ func newPodmanHandler(socket string) (*podmanHandler, error) {
 
 
 func (h *podmanHandler) listContainers() ([]types.Container, error) {
- 
+
 	listOptions := &containers.ListOptions{
 		Namespace: func(b bool) *bool { return &b }(true),
 	}
@@ -61,7 +61,7 @@ func containerFromListContainer(container entities.ListContainer) types.Containe
         kaContainer.ContainerName = container.Names[0]
         kaContainer.EndPointName = container.Names[0]
     }
-    
+
 
     kaContainer.NamespaceName = "container_namespace"
     // kaContainer.Privileged = container.Labels["privileged"] == "true" // Assuming a 'privileged' label is set
@@ -69,7 +69,7 @@ func containerFromListContainer(container entities.ListContainer) types.Containe
     labels = append(labels, "namespaceName="+"container_namespace")
     labels = append(labels, "containerType="+"podman")
 	labels = append(labels, "kubearmor.io/container.name="+container.Names[0])
-    
+
     for k, v := range container.Labels {
         labels = append(labels,k+"="+v)
     }
@@ -79,4 +79,3 @@ func containerFromListContainer(container entities.ListContainer) types.Containe
 
     return kaContainer
 }
-

@@ -54,6 +54,8 @@ func (c *CRIOHandler) HandleDeleteContainer(containerID string) {
 // ListenToHook starts listening on a UNIX socket and waits for container hooks
 // to pass new containers
 func (dm *KubeArmorDaemon) ListenToPodmanHook() {
+	dm.Logger.Print("Started to monitor podman events")
+
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
 		log.Fatal(err)
 	}

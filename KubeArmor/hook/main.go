@@ -4,13 +4,12 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"bufio"
 	"log"
 	"net"
 	"os"
@@ -48,6 +47,21 @@ type MetadataDetails struct {
 	Name      string `json:"name"`
 }
 
+func logError(err error) {
+	if err == nil {
+		return
+	}
+	// Append error to /tmp/podman-error.log
+	f, ferr := os.OpenFile("/tmp/podman-error.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if ferr != nil {
+		// if even logging fails, fallback to stderr
+		log.Println("error opening log file:", ferr)
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "Error: %v\n", err)
+}
+
 func main() {
 	flag.StringVar(&kubeArmorSocket, "kubearmor-socket", "/var/run/kubearmor/ka.sock", "KubeArmor socket")
 	flag.StringVar(&runtimeSocket, "runtime-socket", "", "container runtime socket")
@@ -55,34 +69,29 @@ func main() {
 	flag.Parse()
 
 	if runtimeSocket == "" {
-		log.Println("runtime socket must be set")
-		os.Exit(1)
+		logError(fmt.Errorf("runtime socket must be set"))
 	}
 	if !strings.HasPrefix(runtimeSocket, "unix://") {
 		runtimeSocket = "unix://" + runtimeSocket
 	}
 	if detached {
 		if err := runDetached(); err != nil {
-			log.Println(err)
-			os.Exit(1)
+			logError(err)
 		}
 		os.Exit(0)
 	}
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+		logError(err)
 	}
 	state := specs.State{}
 	err = json.Unmarshal(input, &state)
 	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+		logError(err)
 	}
 
 	if err := run(state); err != nil {
-		log.Println(err)
-		os.Exit(1)
+		logError(err)
 	}
 
 }
@@ -111,7 +120,7 @@ func runDetached() error {
 			Detached:  true,
 			Container: container,
 		}
-        
+
 		dataJSON, err := json.Marshal(data)
 		if err != nil {
 			return err
@@ -174,35 +183,35 @@ func run(state specs.State) error {
 		// monitor it.
 	}
 	passwdFile, err := os.Open("/etc/passwd")
-    if err != nil {
-        log.Fatalf("Failed to open /etc/passwd: %v", err)
-    }
-    defer passwdFile.Close()
+	if err != nil {
+		log.Fatalf("Failed to open /etc/passwd: %v", err)
+	}
+	defer passwdFile.Close()
 
 	scanner := bufio.NewScanner(passwdFile)
-    var homeDir string
+	var homeDir string
 
-    // Iterate through /etc/passwd to find the user with the desired directory
-    for scanner.Scan() {
-        fields := strings.Split(scanner.Text(), ":")
-        if len(fields) < 6 {
-            continue // skip malformed lines
-        }
+	// Iterate through /etc/passwd to find the user with the desired directory
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), ":")
+		if len(fields) < 6 {
+			continue // skip malformed lines
+		}
 
-        userHomeDir := fields[5]
-        potentialPath := filepath.Join(userHomeDir, ".local/share/containers/storage/overlay-containers/containers.json")
+		userHomeDir := fields[5]
+		potentialPath := filepath.Join(userHomeDir, ".local/share/containers/storage/overlay-containers/containers.json")
 
-        if _, err := os.Stat(potentialPath); err == nil {
-            homeDir = userHomeDir
-            break
-        }
-    }
+		if _, err := os.Stat(potentialPath); err == nil {
+			homeDir = userHomeDir
+			break
+		}
+	}
 
-    if homeDir == "" {
-        log.Fatalf("No matching user found with the overlay-containers path.")
-    }
+	if homeDir == "" {
+		log.Fatalf("No matching user found with the overlay-containers path.")
+	}
 
-    rootlessContainersPath := filepath.Join(homeDir, ".local/share/containers/storage/overlay-containers")
+	rootlessContainersPath := filepath.Join(homeDir, ".local/share/containers/storage/overlay-containers")
 
 	// Rootful Podman metadata paths
 	metadataPath1 := filepath.Join(rootfulContainersPath, containersFileName)
@@ -212,13 +221,12 @@ func run(state specs.State) error {
 	metadataPath3 := filepath.Join(rootlessContainersPath, containersFileName)
 	metadataPath4 := filepath.Join(rootlessContainersPath, volatileContainersFileName)
 
-
 	var paths []string
 
-	isRootFullPodman := runtimeSocket == "unix:///run/podman/podman.sock"
+	isRootFullPodman := runtimeSocket == "unix:///run/podman/podman.sock" || runtimeSocket == "unix:///run/user/0/podman/podman.sock"
 
 	if isRootFullPodman {
-	    paths = []string{metadataPath1, metadataPath2}
+		paths = []string{metadataPath1, metadataPath2}
 	} else {
 		paths = []string{metadataPath3, metadataPath4}
 	}
@@ -255,7 +263,7 @@ func run(state specs.State) error {
 	}
 
 	container.Labels = strings.Join(labels, ",")
-	
+
 	status := "stopped"
 	if state.Status == specs.StateRunning {
 		status = "running"
@@ -273,12 +281,18 @@ func run(state specs.State) error {
 	}
 	container.PidNS, container.MntNS = getNS(state.Pid)
 
+	f, ferr := os.OpenFile("/tmp/podman-containers.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if ferr == nil {
+		defer f.Close()
+		data, _ := json.MarshalIndent(container, "", "  ")
+		fmt.Fprintf(f, "Container inspected:\n%s\n", string(data))
+	}
+
 	return sendContainer(container, operation)
 }
 
 func fetchContainerDetails(containerID, metadataPath string) (MetadataDetails, error) {
-	
-	data, err := ioutil.ReadFile(metadataPath)
+	data, err := os.ReadFile(metadataPath)
 	if err != nil {
 		return MetadataDetails{}, fmt.Errorf("unable to read metadata file: %w", err)
 	}
@@ -290,8 +304,6 @@ func fetchContainerDetails(containerID, metadataPath string) (MetadataDetails, e
 	}
 
 	for _, container := range containers {
-
-
 		if container.ID == containerID {
 			var details MetadataDetails
 			err := json.Unmarshal([]byte(container.Metadata), &details)
@@ -349,7 +361,6 @@ func sendContainer(container types.Container, operation types.HookOperation) err
 	if err != nil {
 		return err
 	}
-
 
 	for {
 		_, err = conn.Write(dataJSON)

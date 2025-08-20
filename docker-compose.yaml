@@ -1,7 +1,7 @@
 services:
   kubearmor-init:
     container_name: kubearmor-init
-    image: docker.io/cheithanya/kubearmor-init:latest
+    image: docker.io/kubearmor/kubearmor-init:latest
     pull_policy: "always"
     user: root
     labels:
@@ -36,7 +36,7 @@ services:
         condition: service_completed_successfully
     hostname: cheithanya
     container_name: kubearmor
-    image: "docker.io/cheithanya/kubearmor:latest"
+    image: "rootxrishabh/podmankubearmor:latest"
     pull_policy: "always"
     user: root
     command:
