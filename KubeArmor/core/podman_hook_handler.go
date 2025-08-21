@@ -57,23 +57,24 @@ func (dm *KubeArmorDaemon) ListenToPodmanHook() {
 	dm.Logger.Print("Started to monitor podman events")
 
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed to create ka.sock dir: %v", err)
 	}
 
 	listenPath := filepath.Join(kubearmorDir, "ka.sock")
 	err := os.Remove(listenPath) // in case kubearmor crashed and the socket wasn't removed (cleaning the socket file if got crashed)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed to cleanup ka.sock: %v", err)
 	}
 
 	socket, err := net.Listen("unix", listenPath)
 	if err != nil {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed listening on ka.sock: %v", err)
+		return
 	}
 
 	// Set the permissions of ka.sock to 777 so that rootless podman with user level priviledges can also communicate with the socket
 	if err := os.Chmod(listenPath, 0777); err != nil {
-		log.Fatalf("failed to set permissions on %s: %v", listenPath, err)
+		dm.Logger.Warnf("Failed to set permissions on %s: %v", listenPath, err)
 	}
 
 	defer socket.Close()
@@ -83,7 +84,7 @@ func (dm *KubeArmorDaemon) ListenToPodmanHook() {
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
-			log.Fatal(err)
+			dm.Logger.Warnf("Error accepting socket connection: %v", err)
 		}
 
 		go dm.handlePodmanConn(conn, ready)
@@ -104,16 +105,15 @@ func (dm *KubeArmorDaemon) handlePodmanConn(conn net.Conn, ready *atomic.Bool) {
 		n, err := conn.Read(buf)
 		if err == io.EOF {
 			return
-		}
-		if err != nil {
-			log.Fatal(err)
+		} else if err != nil {
+			dm.Logger.Warnf("Error reading connection: %v", err)
 		}
 
 		data := types.HookRequest{}
 
 		err = json.Unmarshal(buf[:n], &data)
 		if err != nil {
-			log.Fatal(err)
+			dm.Logger.Warnf("Error unmarshalling: %v", err)
 		}
 
 		if data.Detached {

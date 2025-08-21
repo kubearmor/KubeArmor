@@ -26,18 +26,19 @@ const kubearmorDir = "/var/run/kubearmor"
 func (dm *KubeArmorDaemon) ListenToHook() {
 	dm.Logger.Print("Started to monitor OCI Hook events")
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed to create ka.sock dir: %v", err)
 	}
 
 	listenPath := filepath.Join(kubearmorDir, "ka.sock")
 	err := os.Remove(listenPath) // in case kubearmor crashed and the socket wasn't removed
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed to cleanup ka.sock: %v", err)
 	}
 
 	socket, err := net.Listen("unix", listenPath)
 	if err != nil {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed listening on ka.sock: %v", err)
+		return
 	}
 
 	defer socket.Close()
@@ -47,7 +48,7 @@ func (dm *KubeArmorDaemon) ListenToHook() {
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
-			log.Fatal(err)
+			dm.Logger.Warnf("Error accepting socket connection: %v", err)
 		}
 
 		go dm.handleConn(conn, ready)
@@ -68,16 +69,15 @@ func (dm *KubeArmorDaemon) handleConn(conn net.Conn, ready *atomic.Bool) {
 		n, err := conn.Read(buf)
 		if err == io.EOF {
 			return
-		}
-		if err != nil {
-			log.Fatal(err)
+		} else if err != nil {
+			dm.Logger.Warnf("Error reading connection: %v", err)
 		}
 
 		data := types.HookRequest{}
 
 		err = json.Unmarshal(buf[:n], &data)
 		if err != nil {
-			log.Fatal(err)
+			dm.Logger.Warnf("Error unmarshalling: %v", err)
 		}
 
 		if data.Detached {

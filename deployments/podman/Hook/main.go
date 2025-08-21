@@ -33,6 +33,7 @@ var (
 	kubeArmorSocket string
 	runtimeSocket   string
 	detached        bool
+	logOutputPath   string
 )
 
 type ContainerMetadata struct {
@@ -52,7 +53,7 @@ func logError(err error) {
 		return
 	}
 	// Append error to /tmp/podman-error.log
-	f, ferr := os.OpenFile("/tmp/podman-error.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, ferr := os.OpenFile(logOutputPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if ferr != nil {
 		// if even logging fails, fallback to stderr
 		log.Println("error opening log file:", ferr)
@@ -65,6 +66,7 @@ func logError(err error) {
 func main() {
 	flag.StringVar(&kubeArmorSocket, "kubearmor-socket", "/var/run/kubearmor/ka.sock", "KubeArmor socket")
 	flag.StringVar(&runtimeSocket, "runtime-socket", "", "container runtime socket")
+	flag.StringVar(&logOutputPath, "log-path", "/tmp/podman-error.log", "error log output path")
 	flag.BoolVar(&detached, "detached", false, "run detached")
 	flag.Parse()
 
@@ -99,8 +101,7 @@ func main() {
 func runDetached() error {
 	// we need to make sure the process exits at some point
 	time.AfterFunc(1*time.Minute, func() {
-		log.Println("failed to get containers, process timed out")
-		os.Exit(1)
+		logError(fmt.Errorf("failed to get containers, process timed out"))
 	})
 	conn := waitOnKubeArmor()
 	defer conn.Close()
@@ -182,33 +183,37 @@ func run(state specs.State) error {
 		// to make sure if it was a false positive (container trying to act as KubeArmor), we still
 		// monitor it.
 	}
-	passwdFile, err := os.Open("/etc/passwd")
-	if err != nil {
-		log.Fatalf("Failed to open /etc/passwd: %v", err)
-	}
-	defer passwdFile.Close()
-
-	scanner := bufio.NewScanner(passwdFile)
 	var homeDir string
+	homeDir = os.Getenv("HOME")
 
-	// Iterate through /etc/passwd to find the user with the desired directory
-	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), ":")
-		if len(fields) < 6 {
-			continue // skip malformed lines
+	if homeDir == "" {
+		passwdFile, err := os.Open("/etc/passwd")
+		if err != nil {
+			log.Printf("Failed to open /etc/passwd: %v", err)
 		}
+		defer passwdFile.Close()
 
-		userHomeDir := fields[5]
-		potentialPath := filepath.Join(userHomeDir, ".local/share/containers/storage/overlay-containers/containers.json")
+		scanner := bufio.NewScanner(passwdFile)
 
-		if _, err := os.Stat(potentialPath); err == nil {
-			homeDir = userHomeDir
-			break
+		// Iterate through /etc/passwd to find the user with the desired directory
+		for scanner.Scan() {
+			fields := strings.Split(scanner.Text(), ":")
+			if len(fields) < 6 {
+				continue // skip malformed lines
+			}
+
+			userHomeDir := fields[5]
+			potentialPath := filepath.Join(userHomeDir, ".local/share/containers/storage/overlay-containers/containers.json")
+
+			if _, err := os.Stat(potentialPath); err == nil {
+				homeDir = userHomeDir
+				break
+			}
 		}
 	}
 
 	if homeDir == "" {
-		log.Fatalf("No matching user found with the overlay-containers path.")
+		log.Printf("No matching user found with the overlay-containers path.")
 	}
 
 	rootlessContainersPath := filepath.Join(homeDir, ".local/share/containers/storage/overlay-containers")
@@ -239,12 +244,12 @@ func run(state specs.State) error {
 			found = true
 			break
 		} else {
-			fmt.Errorf("Error: %v\n", err)
+			logError(fmt.Errorf("Error: %v\n", err))
 		}
 	}
 
 	if !found {
-		return fmt.Errorf("container with ID %s not found in any path", state.ID)
+		logError(fmt.Errorf("container with ID %s not found in any path", state.ID))
 	}
 
 	labels := []string{}
@@ -280,13 +285,6 @@ func run(state specs.State) error {
 		Labels:          strings.Join(labels, ","),
 	}
 	container.PidNS, container.MntNS = getNS(state.Pid)
-
-	f, ferr := os.OpenFile("/tmp/podman-containers.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if ferr == nil {
-		defer f.Close()
-		data, _ := json.MarshalIndent(container, "", "  ")
-		fmt.Fprintf(f, "Container inspected:\n%s\n", string(data))
-	}
 
 	return sendContainer(container, operation)
 }
@@ -326,14 +324,14 @@ func getNS(pid int) (uint32, uint32) {
 	pidLink, err := os.Readlink(filepath.Join(nsPath, "pid"))
 	if err == nil {
 		if _, err := fmt.Sscanf(pidLink, "pid:[%d]\n", &pidNS); err != nil {
-			log.Println(err)
+			logError(err)
 		}
 	}
 
 	mntLink, err := os.Readlink(filepath.Join(nsPath, "mnt"))
 	if err == nil {
 		if _, err := fmt.Sscanf(mntLink, "mnt:[%d]\n", &mntNS); err != nil {
-			log.Println(err)
+			logError(err)
 		}
 	}
 	return pidNS, mntNS
@@ -399,7 +397,7 @@ func startDetachedProcess() error {
 	args := os.Args[1:]
 	args = append(args, "--detached")
 	cmd := exec.Command(os.Args[0], args...)
-	logFile, err := os.OpenFile("/var/log/ka-hook.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	logFile, err := os.OpenFile(logOutputPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
 	}

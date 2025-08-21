@@ -59,6 +59,7 @@ type KubearmorConfig struct {
 
 	StateAgent  bool // enable KubeArmor state agent
 	UseOCIHooks bool
+	UsePodman   bool
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -119,6 +120,7 @@ const (
 	ConfigProcFsMount                    string = "procfsMount"
 	ConfigMachineIDPath                  string = "machineIDPath"
 	UseOCIHooks                          string = "useOCIHooks"
+	UsePodman							 string = "usePodman"
 )
 
 func readCmdLineParams() {
@@ -183,6 +185,8 @@ func readCmdLineParams() {
 	machineIDPath := flag.String(ConfigMachineIDPath, "/etc/machine-id", "Path to machine-id file")
 
 	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
+
+	usePodman := flag.Bool(UsePodman, false, "Use KubeArmor with podman containers")
 
 	flags := []string{}
 	flag.VisitAll(func(f *flag.Flag) {
@@ -254,6 +258,8 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigMachineIDPath, *machineIDPath)
 
 	viper.SetDefault(UseOCIHooks, *useOCIHooks)
+
+	viper.SetDefault(UsePodman, *usePodman)
 }
 
 // LoadConfig Load configuration
@@ -379,6 +385,8 @@ func LoadDynamicConfig() {
 	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
 
 	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
+
+	GlobalCfg.UsePodman = viper.GetBool(UsePodman)
 
 	kg.Printf("Final Configuration [%+v]", GlobalCfg)
 }

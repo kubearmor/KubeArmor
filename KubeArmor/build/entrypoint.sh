@@ -4,6 +4,6 @@
 
 set -e
 
-/KubeArmor/compile.sh
+../build/compile.sh
 
 /KubeArmor/deployHook
