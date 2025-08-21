@@ -1,0 +1,23 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: ksp-ubuntu-1-block-proc-execname-from-source
+  namespace: multiubuntu
+spec:
+  severity: 5
+  message: "block executing curl from bash using execname"
+  selector:
+    matchLabels:
+      container: ubuntu-1
+  process:
+    matchPaths:
+    - execname: curl
+      fromSource:
+      - path: /bin/bash
+  action:
+    Block
+
+# Test for issue #1899 fix: execname + fromSource support in BPF-LSM
+# This policy blocks curl execution when called from /bin/bash
+# Before the fix, this would fail - the fromSource check was not implemented for execname
+# After the fix, this should properly block: bash -c "curl http://example.com"
