@@ -182,8 +182,8 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   }
 
   // match exec name + fromSource
+  struct qstr d_name;
   if (fromSourceCheck) {
-    struct qstr d_name;
     d_name = BPF_CORE_READ(f_path.dentry, d_name);
     bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
     bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
@@ -198,7 +198,6 @@ int BPF_PROG(enforce_proc, struct linux_binprm *bprm, int ret)
   }
 
   // match exec name without fromSource
-  struct qstr d_name;
   d_name = BPF_CORE_READ(f_path.dentry, d_name);
   bpf_map_update_elem(&bufk, &two, z, BPF_ANY);
   bpf_probe_read_str(pk->path, MAX_STRING_SIZE, d_name.name);
