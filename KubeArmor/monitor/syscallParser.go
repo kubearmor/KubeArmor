@@ -54,7 +54,12 @@ func readContextFromBuff(buff io.Reader) (SyscallContext, error) {
 	err := binary.Read(buff, binary.LittleEndian, &res)
 	return res, err
 }
-
+// readHashContextFromBuff Function
+func readHashContextFromBuff(buff io.Reader) (HashContext, error) {
+	var res HashContext
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
 // readInt8FromBuff Function
 func readInt8FromBuff(buff io.Reader) (int8, error) {
 	var res int8
