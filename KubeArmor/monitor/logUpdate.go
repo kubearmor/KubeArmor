@@ -93,6 +93,15 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
 		log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
 		log.OID = int32(msg.ContextSys.OID)
+		log.ParentHash = msg.HashData.ParentHash
+		log.ProcessHash = msg.HashData.ProcessHash
+		log.ResourceHash = msg.HashData.ResourceHash
+		if msg.HashData.HashAlgo == 1 {
+			log.HashAlgo = "sha256"
+		} else {
+			log.HashAlgo = "none"
+		}
+
 	}
 
 	return log
@@ -589,6 +598,59 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.MaxAlertsPerSec = cfg.GlobalCfg.MaxAlertPerSec
 				log.DroppingAlertsInterval = cfg.GlobalCfg.ThrottleSec
 
+			case SecurityBprmCheck:
+				if len(msg.ContextArgs) != 1 {
+					continue
+				}
+
+				var execPath string
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					execPath = val
+				}
+
+				log.Operation = "Process"
+				log.Resource = execPath
+				log.Data = "lsm=bprm_check_security"
+				log.Type = "SystemEvent"
+
+				// Add hash information if available
+				log.ProcessHash = msg.HashData.ProcessHash
+				if msg.HashData.HashAlgo == 1 {
+					log.HashAlgo = "sha256"
+				} else {
+					log.HashAlgo = "none"
+				}
+				// mon.Logger.Printf("LSM Process event: %+v", log)
+
+			case FileOpen:
+				if len(msg.ContextArgs) != 2 {
+					continue
+				}
+
+				var fileName string
+				var fileOpenFlags string
+
+				if val, ok := msg.ContextArgs[0].(string); ok {
+					fileName = val
+				}
+				if val, ok := msg.ContextArgs[1].(string); ok {
+					fileOpenFlags = val
+				}
+
+				log.Operation = "File"
+				log.Resource = fileName
+				log.Data = "lsm=file_open flags=" + fileOpenFlags
+				log.Type = "SystemEvent"
+
+				// Add hash information if available
+				log.ResourceHash = msg.HashData.ResourceHash
+				if msg.HashData.HashAlgo == 1 {
+					log.HashAlgo = "sha256"
+				} else {
+					log.HashAlgo = "none"
+				}
+				// mon.Logger.Printf("LSM FileOpen event: %+v", log)
+
 			default:
 				continue
 			}
@@ -596,6 +658,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 			if log.ProcessName == "" {
 				switch log.Operation {
 				case "Process":
+					// mon.Logger.Printf("Process event: %+v", log)
 					if log.Resource != "" {
 						if res := strings.Split(log.Resource, " "); len(res) > 0 {
 							log.ProcessName = res[0]
@@ -605,6 +668,7 @@ func (mon *SystemMonitor) UpdateLogs() {
 						continue
 					}
 				case "Network", "File":
+					// mon.Logger.Printf("File/Network event: %+v", log)
 					if log.Source != "" {
 						if src := strings.Split(log.Source, " "); len(src) > 0 {
 							log.ProcessName = src[0]

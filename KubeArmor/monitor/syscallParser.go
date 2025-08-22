@@ -64,6 +64,13 @@ func readUInt8FromBuff(buff io.Reader) (uint8, error) {
 	return res, err
 }
 
+// readHashContextFromBuff Function
+func readHashContextFromBuff(buff io.Reader) (HashContext, error) {
+	var res HashContext
+	err := binary.Read(buff, binary.LittleEndian, &res)
+	return res, err
+}
+
 // readInt8FromBuff Function
 func readInt8FromBuff(buff io.Reader) (int8, error) {
 	var res int8
