@@ -15,11 +15,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	cle "github.com/cilium/ebpf"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -37,10 +39,11 @@ const (
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
 	SyscallChannelSize   = 1 << 13 //8192
+	RingbufChannelSize   = 1 << 20 // 1048576
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
-// ======================= //
+// ======================= /=/
 // == Namespace Context == //
 // ======================= //
 
@@ -91,10 +94,19 @@ type SyscallContext struct {
 	ExecID uint64
 }
 
+// HashContext Structure
+type HashContext struct {
+	ProcessHash  [32]byte
+	ParentHash   [32]byte
+	ResourceHash [32]byte
+	HashAlgo     uint32
+}
+
 // ContextCombined Structure
 type ContextCombined struct {
 	ContainerID string
 	ContextSys  SyscallContext
+	HashData    HashContext
 	ContextArgs []interface{}
 }
 
@@ -151,6 +163,10 @@ type SystemMonitor struct {
 	// system events
 	SyscallChannel chan []byte
 	SyscallPerfMap *perf.Reader
+
+	//ringbuf events
+	LsmChannel       chan []byte
+	LsmRingbufReader *ringbuf.Reader
 
 	// lists to skip
 	UntrackedNamespaces []string
@@ -515,6 +531,10 @@ func (mon *SystemMonitor) InitBPF() error {
 		},
 	)
 	if err != nil {
+		var verr *cle.VerifierError
+		if errors.As(err, &verr) {
+			fmt.Printf("Full log: %+v\n", verr)
+		}
 		return fmt.Errorf("bpf module is nil %v", err)
 	}
 
@@ -526,6 +546,7 @@ func (mon *SystemMonitor) InitBPF() error {
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept", "tcp_connect"}
+	lsmPrograms := []string{"sleepable_lsm_bprm_check_security", "file_open"}
 
 	if mon.BpfModule != nil {
 
@@ -534,6 +555,23 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
+		}
+		for _, progName := range lsmPrograms {
+			prog, ok := mon.BpfModule.Programs[progName]
+			if !ok {
+				return fmt.Errorf("LSM program %s not found in BPF module", progName)
+			}
+
+			opts := link.LSMOptions{
+				Program: prog,
+			}
+
+			l, err := link.AttachLSM(opts)
+			if err != nil {
+				return fmt.Errorf("failed to attach LSM program %s: %w", progName, err)
+			}
+
+			mon.Probes[progName] = l
 		}
 
 		mon.Probes["kprobe__usb_set_configuration"], err = link.Kprobe("usb_set_configuration", mon.BpfModule.Programs["kprobe__usb_set_configuration"], nil)
@@ -592,6 +630,7 @@ func (mon *SystemMonitor) InitBPF() error {
 		if err != nil {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
+		mon.InitRingBuf()
 	}
 
 	return nil
@@ -607,6 +646,11 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 
 	if mon.SyscallPerfMap != nil {
 		if err := mon.SyscallPerfMap.Close(); err != nil {
+			return err
+		}
+	}
+	if mon.LsmRingbufReader != nil {
+		if err := mon.LsmRingbufReader.Close(); err != nil {
 			return err
 		}
 	}
@@ -628,6 +672,20 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 	mon.DestroyBPFMaps()
 	return nil
 }
+func (mon *SystemMonitor) InitRingBuf() {
+	lsmMap, ok := mon.BpfModule.Maps["lsm_sys_events"]
+	if !ok {
+		mon.Logger.Errf("lsm_sys_events map not found in BPF module")
+		return
+	}
+	reader, err := ringbuf.NewReader(lsmMap)
+	if err != nil {
+		mon.Logger.Errf("Error initializing ringbuf reader: %s", err.Error())
+		return
+	}
+	mon.LsmRingbufReader = reader
+	mon.LsmChannel = make(chan []byte, RingbufChannelSize)
+}
 
 // ======================= //
 // == System Call Trace == //
@@ -635,6 +693,25 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 
 // TraceSyscall Function
 func (mon *SystemMonitor) TraceSyscall() {
+	if mon.LsmRingbufReader != nil {
+		go func() {
+			for {
+				record, err := mon.LsmRingbufReader.Read()
+				if err != nil {
+					if errors.Is(err, ringbuf.ErrClosed) {
+						mon.Logger.Warnf("Ringbuf closed, exiting TraceSyscall %s", err.Error())
+						return
+					}
+					mon.Logger.Warnf("Ringbuf Event Error : %s", err.Error())
+				}
+				mon.LsmChannel <- record.RawSample
+
+			}
+		}()
+	} else {
+		mon.Logger.Err("Ringbuf Reader nil, exiting TraceSyscall")
+		return
+	}
 	if mon.SyscallPerfMap != nil {
 		go func() {
 			for {
@@ -842,6 +919,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
+					// // Add hash fields to log
+					// log.ParentHash = string(ctx.ParentHash[:])
+					// log.ProcessHash = string(ctx.ProcessHash[:])
+					// log.ResourceHash = string(ctx.ResourceHash[:])
+					// if ctx.HashAlgo == 1 {
+					// 	log.HashAlgo = "sha256"
+					// } else {
+					// 	log.HashAlgo = "none"
+					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -936,6 +1022,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
+					// // Add hash fields to log
+					// log.ParentHash = string(ctx.ParentHash[:])
+					// log.ProcessHash = string(ctx.ProcessHash[:])
+					// log.ResourceHash = string(ctx.ResourceHash[:])
+					// if ctx.HashAlgo == 1 {
+					// 	log.HashAlgo = "sha256"
+					// } else {
+					// 	log.HashAlgo = "none"
+					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1012,6 +1107,338 @@ func (mon *SystemMonitor) TraceSyscall() {
 			// push the context to the channel for logging
 			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
 			MonitorLock.Unlock()
+		case dataRaw, valid := <-mon.LsmChannel:
+			if !valid {
+				return
+			}
+			dataBuff := bytes.NewBuffer(dataRaw)
+			ctx, err := readContextFromBuff(dataBuff)
+			if err != nil {
+				mon.Logger.Debugf("Error while reading context in telemetry %s", err.Error())
+				continue
+			}
+			args, err := GetArgs(dataBuff, ctx.Argnum)
+			if err != nil {
+				mon.Logger.Debugf("could not fetch args so dropping %s", err.Error())
+				continue
+			}
+			containerID := ""
+			hashData := HashContext{}
+			mon.Logger.Debugf("0:ctx.EventID is %d", ctx.EventID)
+
+			if ctx.PidID != 0 && ctx.MntID != 0 {
+				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
+
+				if containerID != "" {
+					ContainersLock.RLock()
+					namespace := Containers[containerID].NamespaceName
+					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
+						ContainersLock.RUnlock()
+						continue
+					}
+					ContainersLock.RUnlock()
+				}
+			}
+
+			mon.Logger.Debugf("1:ctx.EventID is %d", ctx.EventID)
+
+			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
+				ReplayChannel <- dataRaw
+				continue
+			}
+
+			if ctx.EventID == SysOpen {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == SysOpenAt {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysUnlink {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == SysUnlinkAt {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysRmdir {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysPtrace {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysChown {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == SysFChownAt {
+				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysSetuid {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysSetgid {
+				if len(args) != 1 {
+					continue
+				}
+			} else if ctx.EventID == SysMount {
+				if len(args) != 5 {
+					continue
+				}
+			} else if ctx.EventID == SysUmount {
+				if len(args) != 2 {
+					continue
+				}
+
+			} else if ctx.EventID == SysExecve {
+				if len(args) == 2 { // enter
+					var execPath string
+					var nodeArgs []string
+
+					if val, ok := args[0].(string); ok {
+						execPath = val
+					}
+					if val, ok := args[1].([]string); ok {
+						nodeArgs = val
+					}
+
+					// generate a log with the base information
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+
+					// fallback logic: in case we get relative path as execPath then we join cwd + execPath to get pull path
+					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
+						execPath = filepath.Join(log.Cwd, execPath)
+					}
+
+					// build a pid node
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, nodeArgs, false)
+					mon.AddActivePid(containerID, pidNode)
+
+					// add arguments
+					log.Resource = execPath
+					if pidNode.Args != "" {
+						log.Resource = log.Resource + " " + pidNode.Args
+					}
+
+					log.Operation = "Process"
+					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
+					// // Add hash fields to log
+					// log.ParentHash = string(ctx.ParentHash[:])
+					// log.ProcessHash = string(ctx.ProcessHash[:])
+					// log.ResourceHash = string(ctx.ResourceHash[:])
+					// if ctx.HashAlgo == 1 {
+					// 	log.HashAlgo = "sha256"
+					// } else {
+					// 	log.HashAlgo = "none"
+					// }
+
+					// store the log in the map
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
+
+				} else if len(args) == 0 { // return
+
+					// get the stored log
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
+
+					// update the log again
+					log = mon.UpdateLogBase(ctx, log)
+
+					// get error message
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = message
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
+					}
+
+					// push the generated log
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
+					}
+				}
+
+				continue
+			} else if ctx.EventID == SysExecveAt {
+				if len(args) == 4 { // enter
+					var execPath string
+
+					// generate a log with the base information
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+
+					if val, ok := args[1].(string); ok {
+						execPath = val // procExecPath
+					}
+					// fallback logic: in case we get relative path in execPath then we join cwd + execPath to get pull path
+					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
+						execPath = filepath.Join(log.Cwd, execPath)
+					}
+
+					// build a pid node
+					args_2 := []string{}
+					switch v := args[2].(type) {
+					case []string:
+						args_2 = append(args_2, v...)
+					case string:
+						args_2 = append(args_2, v)
+					default:
+						mon.Logger.Warnf("Unexpected args[2] type")
+					}
+					pidNode := mon.BuildPidNode(containerID, ctx, execPath, args_2, false)
+					mon.AddActivePid(containerID, pidNode)
+
+					fd := ""
+					procExecFlag := ""
+
+					// add arguments
+					if val, ok := args[0].(int32); ok {
+						fd = strconv.Itoa(int(val))
+					}
+					log.Resource = execPath
+					if val, ok := args[2].([]string); ok {
+						for idx, arg := range val { // procArgs
+							if idx == 0 {
+								continue
+							} else {
+								log.Resource = log.Resource + " " + arg
+							}
+						}
+					}
+					if val, ok := args[3].(string); ok {
+						procExecFlag = val
+					}
+
+					log.Operation = "Process"
+					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
+					// // Add hash fields to log
+					// log.ParentHash = string(ctx.ParentHash[:])
+					// log.ProcessHash = string(ctx.ProcessHash[:])
+					// log.ResourceHash = string(ctx.ResourceHash[:])
+					// if ctx.HashAlgo == 1 {
+					// 	log.HashAlgo = "sha256"
+					// } else {
+					// 	log.HashAlgo = "none"
+					// }
+
+					// store the log in the map
+					mon.execLogMapLock.Lock()
+					mon.execLogMap[ctx.HostPID] = log
+					mon.execLogMapLock.Unlock()
+
+				} else if len(args) == 0 { // return
+
+					// get the stored log
+					mon.execLogMapLock.Lock()
+					log := mon.execLogMap[ctx.HostPID]
+
+					// remove the log from the map
+					delete(mon.execLogMap, ctx.HostPID)
+					mon.execLogMapLock.Unlock()
+
+					// update the log again
+					log = mon.UpdateLogBase(ctx, log)
+
+					// get error message
+					if ctx.Retval < 0 {
+						message := getErrorMessage(ctx.Retval)
+						if message != "" {
+							log.Result = message
+						} else {
+							log.Result = fmt.Sprintf("Unknown (%d)", ctx.Retval)
+						}
+					} else {
+						log.Result = "Passed"
+					}
+
+					log.ExecEvent.ExecID = strconv.FormatUint(ctx.ExecID, 10)
+					if comm := strings.TrimRight(string(ctx.Comm[:]), "\x00"); len(comm) > 0 {
+						log.ExecEvent.ExecutableName = comm
+					}
+
+					// push the generated log
+					if mon.Logger != nil {
+						go mon.Logger.PushLog(log)
+					}
+				}
+
+				continue
+			} else if ctx.EventID == DoExit {
+				mon.DeleteActivePid(containerID, ctx)
+				continue
+			} else if ctx.EventID == SecurityBprmCheck {
+				if val, ok := args[0].(string); ok {
+					mon.UpdateExecPath(containerID, ctx.HostPID, val)
+					if dataBuff.Len() >= int(unsafe.Sizeof(HashContext{})) {
+						hashCtx, err := readHashContextFromBuff(dataBuff)
+						hashData = hashCtx
+						if err != nil {
+							mon.Logger.Printf("failed to read hash context: %s", err)
+							continue
+						}
+						// mon.Logger.Printf("LSM SecurityBprmCheck Event: EventID=%d, PID=%d, Path/Args=%v, ProcessHash=%x, ParentHash=%x, ResourceHash=%x, HashAlgo=%d",
+						// 	ctx.EventID, ctx.PID, args, hashCtx.ProcessHash, hashCtx.ParentHash, hashCtx.ResourceHash, hashCtx.HashAlgo)
+					}
+				}
+				continue
+			} else if ctx.EventID == TCPConnect {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == TCPAccept {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == TCPConnectv6 {
+				if len(args) != 2 {
+					continue
+				}
+			} else if ctx.EventID == UDPSendMsg {
+				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == FileOpen {
+				if len(args) != 2 {
+					continue
+				} else {
+					if dataBuff.Len() >= int(unsafe.Sizeof(HashContext{})) {
+						hashCtx, err := readHashContextFromBuff(dataBuff)
+						hashData = hashCtx
+						if err != nil {
+							mon.Logger.Debugf("failed to read hash context: %s", err)
+							continue
+						}
+						// mon.Logger.Printf("LSM FileOpen Event: EventID=%d, PID=%d, Path/Args=%v, ProcessHash=%x, ParentHash=%x, ResourceHash=%x, HashAlgo=%d",
+						// 	ctx.EventID, ctx.PID, args, hashCtx.ProcessHash, hashCtx.ParentHash, hashCtx.ResourceHash, hashCtx.HashAlgo)
+					}
+				}
+			}
+			MonitorLock.Lock()
+			// push the context to the channel for logging
+			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashData, ContextArgs: args}
+			MonitorLock.Unlock()
+
 		}
+
 	}
 }

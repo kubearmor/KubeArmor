@@ -93,6 +93,15 @@ func (mon *SystemMonitor) BuildLogBase(eventID int32, msg ContextCombined, readl
 		log.Cwd = strings.TrimRight(string(msg.ContextSys.Cwd[:]), "\x00") + "/"
 		log.TTY = strings.TrimRight(string(msg.ContextSys.TTY[:]), "\x00")
 		log.OID = int32(msg.ContextSys.OID)
+		log.ParentHash = string(msg.HashData.ParentHash[:])
+		log.ProcessHash = string(msg.HashData.ProcessHash[:])
+		log.ResourceHash = string(msg.HashData.ResourceHash[:])
+		if msg.HashData.HashAlgo == 1 {
+			log.HashAlgo = "sha256"
+		} else {
+			log.HashAlgo = "none"
+		}
+
 	}
 
 	return log
