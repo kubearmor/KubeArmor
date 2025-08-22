@@ -51,6 +51,9 @@
 #include "syscalls.h"
 #include "throttling.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+    #define LSM_AND_RINGBUF_SUPPORTED 1 
+#endif
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -115,6 +118,10 @@
 #define AF_UNIX 1
 #define AF_INET 2
 #define AF_INET6 10
+
+#define MAX_HASH_LEN 32
+#define BPF_IMA_HASH_ALGO_SHA256 1
+#define RINGBUF_RESERVE_SIZE 4096
 
 #if defined(bpf_target_x86)
 #define PT_REGS_PARM6(x) ((x)->r9)
@@ -217,7 +224,7 @@ struct mnt_namespace
 };
 
 struct fs_struct {
-	struct path pwd;
+    struct path pwd;
 };
 
 struct mount
@@ -281,6 +288,12 @@ typedef struct __attribute__((__packed__)) sys_context
 #define BPF_PERF_OUTPUT(_name) \
     BPF_MAP(_name, BPF_MAP_TYPE_PERF_EVENT_ARRAY, int, __u32, 1024)
 
+#define BPF_RINGBUF(_name, _size) \
+    struct { \
+        __uint(type, BPF_MAP_TYPE_RINGBUF); \
+        __uint(max_entries, _size); \
+    } _name SEC(".maps");
+
 BPF_LRU_HASH(pid_ns_map, u32, u32);
 
 #ifdef BTF_SUPPORTED
@@ -305,6 +318,20 @@ BPF_LRU_HASH(pid_ns_map, u32, u32);
     })
 #endif
 
+typedef struct __attribute__((__packed__)) hash_data {
+    unsigned char process_hash[32];  // SHA-256 hash of process binary
+    unsigned char parent_hash[32];   // SHA-256 hash of parent process binary
+    unsigned char resource_hash[32]; // SHA-256 hash of resource (e.g., file)
+    u32 hash_algo;                   // 1 for SHA-256, 0 for none
+} hash_data_t;
+
+typedef struct process_executable_info {
+    unsigned char hash[32]; // SHA-256 hash of process binary
+    u32 hash_algo;          // 1 for SHA-256, 0 for none
+} process_executable_info_t;
+
+BPF_LRU_HASH(process_executable_map, u32, process_executable_info_t);
+
 typedef struct args
 {
     unsigned long args[6];
@@ -318,9 +345,12 @@ typedef struct buffers
     u8 buf[MAX_BUFFER_SIZE];
 } bufs_t;
 
-BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
+BPF_PERCPU_ARRAY(bufs, bufs_t, 6);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 6);
 
+#ifdef LSM_AND_RINGBUF_SUPPORTED
+BPF_RINGBUF(lsm_sys_events, 1 << 20); // Used only for lsm.s programs
+#endif
 BPF_PERF_OUTPUT(sys_events);
 
 BPF_HASH(udevs, __u64, void *);
@@ -475,6 +505,9 @@ static struct file *get_task_file(struct task_struct *task)
     struct mm_struct *mm = READ_KERN(task->mm);
     return READ_KERN(mm->exe_file);
 }
+// static struct file *get_task_file(struct task_struct *task) {
+//   return BPF_CORE_READ(task, mm, exe_file);
+// }
 
 static __always_inline void get_outer_key(struct outer_key *pokey,
                                           struct task_struct *t)
@@ -650,7 +683,19 @@ static __always_inline u32 *get_buffer_offset(int buf_type)
 {
     return bpf_map_lookup_elem(&bufs_offset, &buf_type);
 }
+static __always_inline int save_hash_to_buffer(bufs_t *bufs_p, hash_data_t *hash_data) {
+    u32 *off = get_buffer_offset(DATA_BUF_TYPE);
+    if (off == NULL || *off > MAX_BUFFER_SIZE - sizeof(hash_data_t)) {
+        return 0;
+    }
 
+    if (bpf_probe_read(&(bufs_p->buf[*off]), sizeof(hash_data_t), hash_data) == 0) {
+        *off += sizeof(hash_data_t);
+        set_buffer_offset(DATA_BUF_TYPE, *off);
+        return sizeof(hash_data_t);
+    }
+    return 0;
+}
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 {
     if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0)
@@ -1111,6 +1156,35 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx, int buf_type)
     return bpf_perf_event_output(ctx, &sys_events, BPF_F_CURRENT_CPU, data, size);
 }
 
+static __always_inline int events_ringbuf_submit(int buf_type)
+{
+#ifndef LSM_AND_RINGBUF_SUPPORTED 
+    // ring buffer not supported in this kernel
+    return 0;
+#else
+    bufs_t *bufs_p = get_buffer(buf_type);
+    if (bufs_p == NULL)
+        return -1;
+
+    u32 *off = get_buffer_offset(buf_type);
+    if (off == NULL)
+        return -1;
+
+    void *data = bufs_p->buf;
+    u32 size = *off & (MAX_BUFFER_SIZE - 1);
+    if (size == 0 || size > RINGBUF_RESERVE_SIZE)
+        return -1;
+
+    void *ringbuf_data = bpf_ringbuf_reserve(&lsm_sys_events, RINGBUF_RESERVE_SIZE,0);
+    if (!ringbuf_data)
+        return -1;
+
+    bpf_probe_read(ringbuf_data, RINGBUF_RESERVE_SIZE, data);
+    bpf_ringbuf_submit(ringbuf_data, 0);
+    return 0;
+#endif
+}
+
 // == Full Path == //
 
 //  args:  const struct path *dir, struct dentry *dentry
@@ -1228,6 +1302,36 @@ static __always_inline u32 init_context(sys_context_t *context)
     return 0;
 }
 
+static __always_inline int compute_file_hash(struct file *file,void *hash_buf, u32 buf_size) {
+#ifdef LSM_AND_RINGBUF_SUPPORTED
+    if (!file || !hash_buf|| buf_size < 32) return 0;
+ __s32 hash_ret_val = bpf_ima_file_hash(file, hash_buf, buf_size);
+    if (hash_ret_val < 0) {
+        return 0; // Error in computing hash
+    }
+#endif
+    return 0; // Fallback for non-LSM
+}
+static __always_inline void update_hash_context(hash_data_t *hash_context, struct file *file, struct file *parent_file, struct file *resource_file) {
+#ifdef LSM_AND_RINGBUF_SUPPORTED
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (!bufs_p) return;
+
+    if (file) {
+        compute_file_hash(file, hash_context->process_hash, MAX_HASH_LEN);
+    }
+    if (parent_file) {
+        compute_file_hash(parent_file, hash_context->parent_hash, MAX_HASH_LEN);
+    }
+    if (resource_file) {
+        compute_file_hash(resource_file, hash_context->resource_hash, MAX_HASH_LEN);
+    }
+
+    if (hash_context->hash_algo != 0) {
+        save_hash_to_buffer(bufs_p, hash_context);
+    }
+#endif
+}
 // == Alert Throttling == //
 
 // To check if subsequent alerts should be dropped per container
@@ -2579,6 +2683,108 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     events_perf_submit(ctx, DNS_BUF_TYPE);
     return 0;
 }
+// == LSM Hooks == //
+#ifdef LSM_AND_RINGBUF_SUPPORTED
+SEC("lsm.s/bprm_check_security")
+int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
+    if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE)))
+    return 0;
+  
+    sys_context_t context = {};
+    hash_data_t hash_context = {};
+
+    struct file *file = bprm->file;
+    if (!file) return 0;
+
+    struct path p;
+    bpf_probe_read(&p, sizeof(struct path), GET_FIELD_ADDR(file->f_path));
+    bufs_t *string_p = get_buffer(EXEC_BUF_TYPE);
+    if (!string_p || !prepend_path(&p, string_p, EXEC_BUF_TYPE)) return -1;
+    u32 *off = get_buffer_offset(EXEC_BUF_TYPE);
+    if (!off) return -1;
+
+
+    //Get parent process info
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    struct task_struct *real_parent = READ_KERN(task->real_parent);
+    u32 ppid = READ_KERN(real_parent->tgid);
+    process_executable_info_t *parent_info = bpf_map_lookup_elem(&process_executable_map, &ppid);
+
+
+    init_context(&context);
+    context.event_id = _SECURITY_BPRM_CHECK;
+    context.argnum = 1 ;
+    context.retval = 0;
+    hash_context.hash_algo = 1;
+
+
+    // struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    // struct file *parent_file = get_task_file(READ_KERN(task->real_parent));
+    // struct file *parent_file = BPF_CORE_READ(task, real_parent, mm, exe_file);
+    if (parent_info){
+        bpf_probe_read(&hash_context.parent_hash,MAX_HASH_LEN, parent_info->hash);
+        context.ppid = ppid;
+    }
+
+
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+
+    save_context_to_buffer(bufs_p, (void *)&context);
+    save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
+    update_hash_context(&hash_context, file, NULL, NULL);
+    
+    //update the map process_executable_map with the current process executable info
+    u64 host_pid = bpf_get_current_pid_tgid() >> 32;
+    process_executable_info_t process_info = {};
+    bpf_probe_read(process_info.hash, MAX_HASH_LEN,hash_context.process_hash);
+    process_info.hash_algo = 1;
+    bpf_map_update_elem(&process_executable_map, &host_pid, &process_info, BPF_ANY);
+
+    events_ringbuf_submit(DATA_BUF_TYPE); 
+
+    return 0; 
+}
+#endif
+#ifdef LSM_AND_RINGBUF_SUPPORTED
+SEC("lsm.s/file_open")
+int BPF_PROG(file_open, struct file *file) {
+    if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_FILE_PROBE)))
+        return 0;
+
+    sys_context_t context = {};
+    hash_data_t hash_context = {};
+
+    struct path p = READ_KERN(file->f_path);
+    u64 tgid = bpf_get_current_pid_tgid();
+    bpf_map_update_elem(&file_map, &tgid, &p, BPF_ANY);
+
+
+    init_context(&context);
+    context.event_id = _FILE_OPEN;
+    context.argnum = 2;
+    context.retval = 0;
+    hash_context.hash_algo = 1;
+    // struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    // struct file *parent_file = get_task_file(READ_KERN(task->real_parent));  
+
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+
+    save_context_to_buffer(bufs_p, (void *)&context);
+    save_file_to_buffer(bufs_p, file); 
+    int flags = READ_KERN(file->f_flags);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, (void *)&flags, sizeof(int), OPEN_FLAGS_T); 
+    update_hash_context(&hash_context, NULL, NULL, file);
+    events_ringbuf_submit(DATA_BUF_TYPE); 
+
+    return 0; 
+}
+#endif
 
 // == Device Detection (USB) == //
 
