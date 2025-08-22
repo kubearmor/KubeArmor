@@ -681,9 +681,8 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.ParentHash = log.ParentHash[:]
 		pbAlert.ResourceHash = log.ResourceHash[:]
 		if len(log.HashAlgo) > 0 {
-			pbAlert.HashAlgo = "sha256"	
+			pbAlert.HashAlgo = "sha256"
 		}
-
 
 		if len(log.Action) > 0 {
 			pbAlert.Action = log.Action
@@ -694,7 +693,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.DroppingAlertsInterval = log.DroppingAlertsInterval
 
 		// kg.Printf("Alert printing hash fields : processHash : %x , parentHash : %x , resourceHash : %x \n", pbAlert.ProcessHash, pbAlert.ParentHash, pbAlert.ResourceHash)
-
 
 		fd.EventStructs.AlertLock.Lock()
 		defer fd.EventStructs.AlertLock.Unlock()
@@ -774,7 +772,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.ParentHash = log.ParentHash[:]
 		pbLog.ResourceHash = log.ResourceHash[:]
 		if len(log.HashAlgo) > 0 {
-			pbLog.HashAlgo = "sha256"	
+			pbLog.HashAlgo = "sha256"
 		}
 
 		pbLog.Result = log.Result
@@ -870,4 +868,3 @@ func (fd *Feeder) ShouldDropAlertsPerContainer(pidNs, mntNs uint32) (bool, bool)
 func (fd *Feeder) DeleteAlertMapKey(outkey kl.OuterKey) {
 	delete(fd.AlertMap, OuterKey{PidNs: outkey.PidNs, MntNs: outkey.MntNs})
 }
-  

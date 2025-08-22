@@ -44,7 +44,7 @@ const (
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
-// ======================= //
+// ======================= /=/
 // == Namespace Context == //
 // ======================= //
 
@@ -961,6 +961,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
+					// // Add hash fields to log
+					// log.ParentHash = string(ctx.ParentHash[:])
+					// log.ProcessHash = string(ctx.ProcessHash[:])
+					// log.ResourceHash = string(ctx.ResourceHash[:])
+					// if ctx.HashAlgo == 1 {
+					// 	log.HashAlgo = "sha256"
+					// } else {
+					// 	log.HashAlgo = "none"
+					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1055,6 +1064,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
+					// // Add hash fields to log
+					// log.ParentHash = string(ctx.ParentHash[:])
+					// log.ProcessHash = string(ctx.ProcessHash[:])
+					// log.ResourceHash = string(ctx.ResourceHash[:])
+					// if ctx.HashAlgo == 1 {
+					// 	log.HashAlgo = "sha256"
+					// } else {
+					// 	log.HashAlgo = "none"
+					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1149,7 +1167,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 			containerID := ""
 			hashData := HashContext{}
 
-
 			if ctx.PidID != 0 && ctx.MntID != 0 {
 				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
 
@@ -1164,13 +1181,11 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			}
 
-
 			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
 				ReplayChannel <- dataRaw
 				continue
 			}
 
-		
 			if ctx.EventID == SecurityBprmCheck {
 				if val, ok := args[0].(string); ok {
 					mon.UpdateExecPath(containerID, ctx.HostPID, val)

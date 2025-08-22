@@ -613,7 +613,6 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Data = "lsm=bprm_check_security"
 				log.Type = "SystemEvent"
 
-
 				// Add hash information if available
 				log.ProcessHash = msg.HashData.ProcessHash
 				if msg.HashData.HashAlgo == 1 {
@@ -622,7 +621,6 @@ func (mon *SystemMonitor) UpdateLogs() {
 					log.HashAlgo = "none"
 				}
 				// mon.Logger.Printf("LSM Process event: %+v", log)
-
 
 			case FileOpen:
 				if len(msg.ContextArgs) != 2 {
@@ -644,7 +642,6 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Data = "lsm=file_open flags=" + fileOpenFlags
 				log.Type = "SystemEvent"
 
-
 				// Add hash information if available
 				log.ResourceHash = msg.HashData.ResourceHash
 				if msg.HashData.HashAlgo == 1 {
@@ -653,7 +650,6 @@ func (mon *SystemMonitor) UpdateLogs() {
 					log.HashAlgo = "none"
 				}
 				// mon.Logger.Printf("LSM FileOpen event: %+v", log)
-
 
 			default:
 				continue
