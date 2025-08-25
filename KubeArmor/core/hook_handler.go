@@ -23,7 +23,7 @@ const kubearmorDir = "/var/run/kubearmor"
 
 // ListenToHook starts listening on a UNIX socket and waits for container hooks
 // to pass new containers
-func (dm *KubeArmorDaemon) ListenToHook() {
+func (dm *KubeArmorDaemon) ListenToK8sHook() {
 	dm.Logger.Print("Started to monitor OCI Hook events")
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
 		dm.Logger.Warnf("Failed to create ka.sock dir: %v", err)
@@ -51,13 +51,13 @@ func (dm *KubeArmorDaemon) ListenToHook() {
 			dm.Logger.Warnf("Error accepting socket connection: %v", err)
 		}
 
-		go dm.handleConn(conn, ready)
+		go dm.handleK8sConn(conn, ready)
 	}
 
 }
 
 // handleConn gets container details from container hooks.
-func (dm *KubeArmorDaemon) handleConn(conn net.Conn, ready *atomic.Bool) {
+func (dm *KubeArmorDaemon) handleK8sConn(conn net.Conn, ready *atomic.Bool) {
 	// We need to makes sure that no containers accepted until all containers created before KubeArmor
 	// are sent first. This is done mainly to avoid race conditions between hooks sending in
 	// data that some containers were deleted only for process responsible for sending previous containers
