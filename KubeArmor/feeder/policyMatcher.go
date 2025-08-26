@@ -1729,6 +1729,7 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 						if len(secPolicy.Message) > 0 {
 							log.Message = secPolicy.Message
 						}
+						log.Action = "Audit" // Syscall rules are always in audit mode
 					}
 				}
 
