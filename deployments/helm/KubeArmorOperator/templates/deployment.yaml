@@ -27,11 +27,11 @@ spec:
       {{- end }}      
       {{- if .Values.kubearmorOperator.image.imagePullSecrets }}
       imagePullSecrets:
-      {{ toYaml .Values.kubearmorOperator.image.imagePullSecrets | indent 6 }}
+        {{- toYaml .Values.kubearmorOperator.image.imagePullSecrets | nindent 8 }}
       {{- end }}
       {{- if .Values.kubearmorOperator.tolerations }}
       tolerations:
-      {{ toYaml .Values.kubearmorOperator.tolerations | indent 6 }}
+        {{- toYaml .Values.kubearmorOperator.tolerations | nindent 8 }}
       {{- end }}
       containers:
       - name: {{ .Values.kubearmorOperator.name }}
