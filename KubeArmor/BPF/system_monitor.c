@@ -51,7 +51,9 @@
 #include "syscalls.h"
 #include "throttling.h"
 
-#define BTF_LSM_SUPPORTED 1
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
+    #define LSM_SUPPORTED 1 
+#endif
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -1287,7 +1289,7 @@ static __always_inline u32 init_context(sys_context_t *context)
 }
 
 static __always_inline int compute_file_hash(struct file *file,void *hash_buf, u32 buf_size) {
-#ifdef BTF_LSM_SUPPORTED
+#ifdef LSM_SUPPORTED
     if (!file || !hash_buf|| buf_size < 32) return 0;
  __s32 hash_ret_val = bpf_ima_file_hash(file, hash_buf, buf_size);
     if (hash_ret_val < 0) {
@@ -1297,7 +1299,7 @@ static __always_inline int compute_file_hash(struct file *file,void *hash_buf, u
     return 0; // Fallback for non-LSM
 }
 static __always_inline void update_hash_context(hash_data_t *hash_context, struct file *file, struct file *parent_file, struct file *resource_file) {
-#ifdef BTF_LSM_SUPPORTED
+#ifdef LSM_SUPPORTED
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (!bufs_p) return;
 
@@ -2668,7 +2670,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     return 0;
 }
 // == LSM Hooks == //
-#ifdef BTF_LSM_SUPPORTED
+#ifdef LSM_SUPPORTED
 SEC("lsm.s/bprm_check_security")
 int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE)))
@@ -2715,7 +2717,7 @@ int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
     return 0; 
 }
 #endif
-#ifdef BTF_LSM_SUPPORTED
+#ifdef LSM_SUPPORTED
 SEC("lsm.s/file_open")
 int BPF_PROG(file_open, struct file *file) {
     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_FILE_PROBE)))
@@ -2752,92 +2754,6 @@ int BPF_PROG(file_open, struct file *file) {
     return 0; 
 }
 #endif
-// SEC("lsm.s/socket_create")
-// int BPF_PROG(socket_create, int family, int type, int protocol, int kern) {
-//     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE)))
-//         return 0;
-
-//     sys_context_t context ={};
-//     hash_data_t hash_context = {};
-    
-
-//     init_context(&context);
-//     context.event_id = _SYS_SOCKET;
-//     context.argnum = 0;
-//     context.retval = 0;
-//     hash_context.hash_algo = 1;
-
-
-//     struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
-//     struct file *file = BPF_CORE_READ(task, mm, exe_file);
-//     // struct file *parent_file = get_task_file(READ_KERN(task->real_parent));
-
-
-//     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
-//     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
-//     if (!bufs_p) return 0;
-
-//     save_context_to_buffer(bufs_p, (void *)&context);
-//     update_hash_context(&hash_context, file, NULL, NULL);
-//     events_ringbuf_submit(DATA_BUF_TYPE); 
-//     return 0;
-// }
-
-
-// SEC("lsm.s/socket_bind")
-// int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address, int addrlen) {
-//     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE)))
-//         return 0;
-
-//     sys_context_t context ={};
-//     init_context(&context);
-//     context.event_id = _SYS_BIND;
-//     context.argnum = 0;
-//     context.retval = 0;
-
-//     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-//     // struct file *file = get_task_file(task);
-//     // struct file *parent_file = get_task_file(READ_KERN(task->real_parent));
-
-
-//     set_buffer_offset(HASH_BUF_TYPE, sizeof(sys_context_t));
-//     bufs_t *bufs_p = get_buffer(HASH_BUF_TYPE);
-//     if (!bufs_p) return 0;
-
-//     save_context_to_buffer(bufs_p, (void *)&context);
-//     update_hash_context(&context, file, parent_file, NULL);
-
-//     events_ringbuf_submit(HASH_BUF_TYPE); 
-//     return 0;
-// }
-
-// SEC("lsm.s/socket_connect")
-// int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address, int addrlen) {
-//     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_NETWORK_PROBE)))
-//         return 0;
-
-//     sys_context_t context ={};
-//     init_context(&context);
-//     context.event_id = _SYS_CONNECT;
-//     context.argnum = 0;
-//     context.retval = 0;
-
-//     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-//     // struct file *file = get_task_file(task);
-//     // struct file *parent_file = get_task_file(READ_KERN(task->real_parent));
-
-
-//     set_buffer_offset(HASH_BUF_TYPE, sizeof(sys_context_t));
-//     bufs_t *bufs_p = get_buffer(HASH_BUF_TYPE);
-//     if (!bufs_p) return 0;
-
-//     save_context_to_buffer(bufs_p, (void *)&context);
-//     update_hash_context(&context, file, parent_file, NULL);
-
-//     events_ringbuf_submit(HASH_BUF_TYPE); 
-//     return 0;
-// }
-// #endif
 
 // == Device Detection (USB) == //
 
