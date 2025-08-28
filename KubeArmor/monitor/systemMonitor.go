@@ -28,6 +28,7 @@ import (
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
 	fd "github.com/kubearmor/KubeArmor/KubeArmor/feeder"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
+	probe "github.com/kubearmor/KubeArmor/KubeArmor/utils/bpflsmprobe"
 )
 
 // SystemMonitor Constant Values
@@ -571,9 +572,43 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
 		}
 		for _, progName := range lsmPrograms {
+			lsms := []string{}
+			lsmFile := []byte{}
+			lsmPath := "/sys/kernel/security/lsm"
+
+			if !kl.IsK8sLocal() {
+				// mount securityfs
+				if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+					if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
+						mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
+						goto probeBPFLSM
+					}
+				}
+			}
+
+			if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
+				lsmFile, err = os.ReadFile(lsmPath)
+				if err != nil {
+					mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+					goto probeBPFLSM
+				}
+			}
+
+			lsms = strings.Split(string(lsmFile), ",")
+
+		probeBPFLSM:
+			if !kl.ContainsElement(lsms, "bpf") {
+				err := probe.CheckBPFLSMSupport()
+				if err == nil {
+					lsms = append(lsms, "bpf")
+				} else {
+					mon.Logger.Warnf("BPF LSM not supported %s", err.Error())
+				}
+			}
+
 			prog, ok := mon.BpfModule.Programs[progName]
 			if !ok {
-				return fmt.Errorf("LSM program %s not found in BPF module", progName)
+				mon.Logger.Warnf("LSM program %s not found in BPF module", progName)
 			}
 
 			opts := link.LSMOptions{
@@ -582,7 +617,7 @@ func (mon *SystemMonitor) InitBPF() error {
 
 			l, err := link.AttachLSM(opts)
 			if err != nil {
-				return fmt.Errorf("failed to attach LSM program %s: %w", progName, err)
+				mon.Logger.Warnf("failed to attach LSM program %s: %v", progName, err)
 			}
 
 			mon.Probes[progName] = l
@@ -924,15 +959,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
-					// // Add hash fields to log
-					// log.ParentHash = string(ctx.ParentHash[:])
-					// log.ProcessHash = string(ctx.ProcessHash[:])
-					// log.ResourceHash = string(ctx.ResourceHash[:])
-					// if ctx.HashAlgo == 1 {
-					// 	log.HashAlgo = "sha256"
-					// } else {
-					// 	log.HashAlgo = "none"
-					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1027,15 +1053,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
-					// // Add hash fields to log
-					// log.ParentHash = string(ctx.ParentHash[:])
-					// log.ProcessHash = string(ctx.ProcessHash[:])
-					// log.ResourceHash = string(ctx.ResourceHash[:])
-					// if ctx.HashAlgo == 1 {
-					// 	log.HashAlgo = "sha256"
-					// } else {
-					// 	log.HashAlgo = "none"
-					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1229,15 +1246,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID))
-					// // Add hash fields to log
-					// log.ParentHash = string(ctx.ParentHash[:])
-					// log.ProcessHash = string(ctx.ProcessHash[:])
-					// log.ResourceHash = string(ctx.ResourceHash[:])
-					// if ctx.HashAlgo == 1 {
-					// 	log.HashAlgo = "sha256"
-					// } else {
-					// 	log.HashAlgo = "none"
-					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1332,15 +1340,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 					log.Operation = "Process"
 					log.Data = "syscall=" + GetSyscallName(int32(ctx.EventID)) + " fd=" + fd + " flag=" + procExecFlag
-					// // Add hash fields to log
-					// log.ParentHash = string(ctx.ParentHash[:])
-					// log.ProcessHash = string(ctx.ProcessHash[:])
-					// log.ResourceHash = string(ctx.ResourceHash[:])
-					// if ctx.HashAlgo == 1 {
-					// 	log.HashAlgo = "sha256"
-					// } else {
-					// 	log.HashAlgo = "none"
-					// }
 
 					// store the log in the map
 					mon.execLogMapLock.Lock()
@@ -1400,8 +1399,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 						// mon.Logger.Printf("LSM SecurityBprmCheck Event: EventID=%d, PID=%d, Path/Args=%v, ProcessHash=%x, ParentHash=%x, ResourceHash=%x, HashAlgo=%d",
 						// 	ctx.EventID, ctx.PID, args, hashCtx.ProcessHash, hashCtx.ParentHash, hashCtx.ResourceHash, hashCtx.HashAlgo)
 					}
+				} else {
+					continue
 				}
-				continue
 			} else if ctx.EventID == TCPConnect {
 				if len(args) != 2 {
 					continue

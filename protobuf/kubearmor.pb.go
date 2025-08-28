@@ -322,9 +322,9 @@ type Alert struct {
 	ExecEvent              *ExecEvent             `protobuf:"bytes,36,opt,name=ExecEvent,proto3" json:"ExecEvent,omitempty"`
 	KubeArmorVersion       string                 `protobuf:"bytes,37,opt,name=KubeArmorVersion,proto3" json:"KubeArmorVersion,omitempty"`
 	NodeID                 string                 `protobuf:"bytes,38,opt,name=NodeID,proto3" json:"NodeID,omitempty"`
-	ProcessHash            string                 `protobuf:"bytes,39,opt,name=ProcessHash,proto3" json:"ProcessHash,omitempty"`
-	ParentHash             string                 `protobuf:"bytes,40,opt,name=ParentHash,proto3" json:"ParentHash,omitempty"`
-	ResourceHash           string                 `protobuf:"bytes,41,opt,name=ResourceHash,proto3" json:"ResourceHash,omitempty"`
+	ProcessHash            []byte                 `protobuf:"bytes,39,opt,name=ProcessHash,proto3" json:"ProcessHash,omitempty"`
+	ParentHash             []byte                 `protobuf:"bytes,40,opt,name=ParentHash,proto3" json:"ParentHash,omitempty"`
+	ResourceHash           []byte                 `protobuf:"bytes,41,opt,name=ResourceHash,proto3" json:"ResourceHash,omitempty"`
 	HashAlgo               string                 `protobuf:"bytes,42,opt,name=HashAlgo,proto3" json:"HashAlgo,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
@@ -626,25 +626,25 @@ func (x *Alert) GetNodeID() string {
 	return ""
 }
 
-func (x *Alert) GetProcessHash() string {
+func (x *Alert) GetProcessHash() []byte {
 	if x != nil {
 		return x.ProcessHash
 	}
-	return ""
+	return nil
 }
 
-func (x *Alert) GetParentHash() string {
+func (x *Alert) GetParentHash() []byte {
 	if x != nil {
 		return x.ParentHash
 	}
-	return ""
+	return nil
 }
 
-func (x *Alert) GetResourceHash() string {
+func (x *Alert) GetResourceHash() []byte {
 	if x != nil {
 		return x.ResourceHash
 	}
-	return ""
+	return nil
 }
 
 func (x *Alert) GetHashAlgo() string {
@@ -685,9 +685,9 @@ type Log struct {
 	TTY               string                 `protobuf:"bytes,26,opt,name=TTY,proto3" json:"TTY,omitempty"`
 	ExecEvent         *ExecEvent             `protobuf:"bytes,27,opt,name=ExecEvent,proto3" json:"ExecEvent,omitempty"`
 	NodeID            string                 `protobuf:"bytes,28,opt,name=NodeID,proto3" json:"NodeID,omitempty"`
-	ProcessHash       string                 `protobuf:"bytes,29,opt,name=ProcessHash,proto3" json:"ProcessHash,omitempty"`
-	ParentHash        string                 `protobuf:"bytes,30,opt,name=ParentHash,proto3" json:"ParentHash,omitempty"`
-	ResourceHash      string                 `protobuf:"bytes,31,opt,name=ResourceHash,proto3" json:"ResourceHash,omitempty"`
+	ProcessHash       []byte                 `protobuf:"bytes,29,opt,name=ProcessHash,proto3" json:"ProcessHash,omitempty"`
+	ParentHash        []byte                 `protobuf:"bytes,30,opt,name=ParentHash,proto3" json:"ParentHash,omitempty"`
+	ResourceHash      []byte                 `protobuf:"bytes,31,opt,name=ResourceHash,proto3" json:"ResourceHash,omitempty"`
 	HashAlgo          string                 `protobuf:"bytes,32,opt,name=HashAlgo,proto3" json:"HashAlgo,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -919,25 +919,25 @@ func (x *Log) GetNodeID() string {
 	return ""
 }
 
-func (x *Log) GetProcessHash() string {
+func (x *Log) GetProcessHash() []byte {
 	if x != nil {
 		return x.ProcessHash
 	}
-	return ""
+	return nil
 }
 
-func (x *Log) GetParentHash() string {
+func (x *Log) GetParentHash() []byte {
 	if x != nil {
 		return x.ParentHash
 	}
-	return ""
+	return nil
 }
 
-func (x *Log) GetResourceHash() string {
+func (x *Log) GetResourceHash() []byte {
 	if x != nil {
 		return x.ResourceHash
 	}
-	return ""
+	return nil
 }
 
 func (x *Log) GetHashAlgo() string {
@@ -1102,11 +1102,11 @@ const file_kubearmor_proto_rawDesc = "" +
 	"\tExecEvent\x18$ \x01(\v2\x11.feeder.ExecEventR\tExecEvent\x12*\n" +
 	"\x10KubeArmorVersion\x18% \x01(\tR\x10KubeArmorVersion\x12\x16\n" +
 	"\x06NodeID\x18& \x01(\tR\x06NodeID\x12 \n" +
-	"\vProcessHash\x18' \x01(\tR\vProcessHash\x12\x1e\n" +
+	"\vProcessHash\x18' \x01(\fR\vProcessHash\x12\x1e\n" +
 	"\n" +
-	"ParentHash\x18( \x01(\tR\n" +
+	"ParentHash\x18( \x01(\fR\n" +
 	"ParentHash\x12\"\n" +
-	"\fResourceHash\x18) \x01(\tR\fResourceHash\x12\x1a\n" +
+	"\fResourceHash\x18) \x01(\fR\fResourceHash\x12\x1a\n" +
 	"\bHashAlgo\x18* \x01(\tR\bHashAlgo\"\xb2\a\n" +
 	"\x03Log\x12\x1c\n" +
 	"\tTimestamp\x18\x01 \x01(\x03R\tTimestamp\x12 \n" +
@@ -1138,11 +1138,11 @@ const file_kubearmor_proto_rawDesc = "" +
 	"\x03TTY\x18\x1a \x01(\tR\x03TTY\x12/\n" +
 	"\tExecEvent\x18\x1b \x01(\v2\x11.feeder.ExecEventR\tExecEvent\x12\x16\n" +
 	"\x06NodeID\x18\x1c \x01(\tR\x06NodeID\x12 \n" +
-	"\vProcessHash\x18\x1d \x01(\tR\vProcessHash\x12\x1e\n" +
+	"\vProcessHash\x18\x1d \x01(\fR\vProcessHash\x12\x1e\n" +
 	"\n" +
-	"ParentHash\x18\x1e \x01(\tR\n" +
+	"ParentHash\x18\x1e \x01(\fR\n" +
 	"ParentHash\x12\"\n" +
-	"\fResourceHash\x18\x1f \x01(\tR\fResourceHash\x12\x1a\n" +
+	"\fResourceHash\x18\x1f \x01(\fR\fResourceHash\x12\x1a\n" +
 	"\bHashAlgo\x18  \x01(\tR\bHashAlgo\"(\n" +
 	"\x0eRequestMessage\x12\x16\n" +
 	"\x06Filter\x18\x01 \x01(\tR\x06Filter\"&\n" +
