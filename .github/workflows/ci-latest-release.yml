@@ -331,3 +331,4 @@ jobs:
       - name: Sign the Container Images
         run: |
           cosign sign -r kubearmor/kubearmor-controller@${{ steps.digest.outputs.imagedigest }} --yes
+
