@@ -4,7 +4,6 @@
 package core
 
 import (
-	"encoding/json"
 	"os"
 	"regexp"
 	"sort"
@@ -18,6 +17,7 @@ import (
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
+	yl "sigs.k8s.io/yaml"
 )
 
 // SetContainerVisibility function enables visibility flag arguments for un-orchestrated container and updates the visibility map
@@ -759,18 +759,24 @@ func (dm *KubeArmorDaemon) ParseAndUpdateContainerSecurityPolicy(event tp.K8sKub
 // backupKubeArmorHostPolicy Function
 func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolicy) {
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
-	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
-			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
-			return
+	if _, err := os.Stat(cfg.GlobalCfg.RestorePath); err != nil {
+		if err = os.MkdirAll(cfg.GlobalCfg.RestorePath, 0700); err != nil {
+			if _, err := os.Stat(cfg.PolicyDir); err != nil {
+				if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+					kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+					return
+				}
+			}
+			kg.Warnf("Dir creation failed for [%v], setting restore path to %s", cfg.GlobalCfg.RestorePath, cfg.PolicyDir)
+			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
 		}
 	}
 
 	var file *os.File
 	var err error
 
-	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := json.Marshal(policy); err == nil {
+	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := yl.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
 					dm.Logger.Err(err.Error())
@@ -783,18 +789,24 @@ func (dm *KubeArmorDaemon) backupKubeArmorHostPolicy(policy tp.HostSecurityPolic
 // Back up KubeArmor container policies in /opt/kubearmor/policies
 func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPolicy) {
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
-	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
-			kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
-			return
+	if _, err := os.Stat(cfg.GlobalCfg.RestorePath); err != nil {
+		if err = os.MkdirAll(cfg.GlobalCfg.RestorePath, 0700); err != nil {
+			if _, err := os.Stat(cfg.PolicyDir); err != nil {
+				if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+					kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+					return
+				}
+			}
+			kg.Warnf("Dir creation failed for [%v], setting restore path to %s", cfg.GlobalCfg.RestorePath, cfg.PolicyDir)
+			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
 		}
 	}
 
 	var file *os.File
 	var err error
 
-	if file, err = os.Create(cfg.PolicyDir + policy.Metadata["policyName"] + ".yaml"); err == nil {
-		if policyBytes, err := json.Marshal(policy); err == nil {
+	if file, err = os.Create(cfg.GlobalCfg.RestorePath + policy.Metadata["policyName"] + ".yaml"); err == nil {
+		if policyBytes, err := yl.Marshal(policy); err == nil {
 			if _, err = file.Write(policyBytes); err == nil {
 				if err := file.Close(); err != nil {
 					dm.Logger.Err(err.Error())
@@ -805,30 +817,39 @@ func (dm *KubeArmorDaemon) backupKubeArmorContainerPolicy(policy tp.SecurityPoli
 }
 
 func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
-	if _, err := os.Stat(cfg.PolicyDir); err != nil {
-		kg.Warn("Policies dir not found for restoration")
-		return
+	if _, err := os.Stat(cfg.GlobalCfg.RestorePath); err != nil {
+		if err = os.MkdirAll(cfg.GlobalCfg.RestorePath, 0700); err != nil {
+			if _, err := os.Stat(cfg.PolicyDir); err != nil {
+				if err = os.MkdirAll(cfg.PolicyDir, 0700); err != nil {
+					kg.Warnf("Dir creation failed for [%v]", cfg.PolicyDir)
+					return
+				}
+			}
+			kg.Warnf("Dir creation failed for [%v], setting restore path to %s", cfg.GlobalCfg.RestorePath, cfg.PolicyDir)
+			cfg.GlobalCfg.RestorePath = cfg.PolicyDir
+		}
 	}
 
-	// List all policies files from "/opt/kubearmor/policies" path
-	if policyFiles, err := os.ReadDir(cfg.PolicyDir); err == nil {
+	// List all policies files from RestorePath variable
+	if policyFiles, err := os.ReadDir(cfg.GlobalCfg.RestorePath); err == nil {
 		for _, file := range policyFiles {
-			if data, err := os.ReadFile(cfg.PolicyDir + file.Name()); err == nil {
+			if data, err := os.ReadFile(cfg.GlobalCfg.RestorePath + file.Name()); err == nil {
 
 				var k struct {
+					Kind     string            `json:"kind"`
 					Metadata map[string]string `json:"metadata"`
 				}
 
-				err := json.Unmarshal(data, &k)
+				err := yl.Unmarshal(data, &k)
 				if err != nil {
 					kg.Errf("Failed to unmarshal policy: %v", err)
 					continue
 				}
 
-				if _, ok := k.Metadata["namespaceName"]; ok { // ContainerPolicy contains namespaceName
+				if k.Kind == KubeArmorPolicy { // ContainerPolicy contains KubeArmorPolicy kind
 					var containerPolicy tp.K8sKubeArmorPolicy
-					if err := json.Unmarshal(data, &containerPolicy); err == nil {
-						containerPolicy.Metadata.Name = k.Metadata["policyName"]
+					if err := yl.Unmarshal(data, &containerPolicy); err == nil {
+						containerPolicy.Metadata.Name = k.Metadata["name"]
 						dm.ParseAndUpdateContainerSecurityPolicy(tp.K8sKubeArmorPolicyEvent{
 							Type:   "ADDED",
 							Object: containerPolicy,
@@ -837,8 +858,8 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 
 				} else { // HostSecurityPolicy
 					var hostPolicy tp.K8sKubeArmorHostPolicy
-					if err := json.Unmarshal(data, &hostPolicy); err == nil {
-						hostPolicy.Metadata.Name = k.Metadata["policyName"]
+					if err := yl.Unmarshal(data, &hostPolicy); err == nil {
+						hostPolicy.Metadata.Name = k.Metadata["name"]
 						dm.ParseAndUpdateHostSecurityPolicy(tp.K8sKubeArmorHostPolicyEvent{
 							Type:   "ADDED",
 							Object: hostPolicy,
@@ -859,7 +880,7 @@ func (dm *KubeArmorDaemon) restoreKubeArmorPolicies() {
 // removeBackUpPolicy Function
 func (dm *KubeArmorDaemon) removeBackUpPolicy(name string) {
 
-	fname := cfg.PolicyDir + name + ".yaml"
+	fname := cfg.GlobalCfg.RestorePath + name + ".yaml"
 	// Check for "/opt/kubearmor/policies" path. If dir not found, create the same
 	if _, err := os.Stat(fname); err != nil {
 		kg.Printf("Backup policy [%v] not exist", fname)

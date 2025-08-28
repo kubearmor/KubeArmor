@@ -57,8 +57,10 @@ type KubearmorConfig struct {
 	DefaultPostureLogs bool     // Enable/Disable Default Posture logs for AppArmor LSM
 	InitTimeout        string   // Timeout for main thread init stages
 
-	StateAgent  bool // enable KubeArmor state agent
-	UseOCIHooks bool
+	UseOCIHooks bool   // Use OCI hooks for container visibility instead of CRI socket
+	HookFilePath    string // OCI hook path to use
+	StateAgent  bool   // enable KubeArmor state agent
+	RestorePath string // Path to restore policies from
 
 	AlertThrottling   bool  // Enable/Disable Alert Throttling
 	MaxAlertPerSec    int32 // Maximum alerts allowed per second
@@ -105,6 +107,9 @@ const (
 	ConfigCoverageTest                   string = "coverageTest"
 	ConfigK8sEnv                         string = "k8s"
 	ConfigDebug                          string = "debug"
+	UseOCIHooks                          string = "useOCIHooks"
+	HookFilePath                         string = "hookFilePath"
+	RestorePath                          string = "restorePath"
 	ConfigUntrackedNs                    string = "untrackedNs"
 	LsmOrder                             string = "lsm"
 	BPFFsPath                            string = "bpfFsPath"
@@ -169,6 +174,12 @@ func readCmdLineParams() {
 	initTimeout := flag.String(ConfigInitTimeout, "60s", "Timeout for main thread init stages")
 
 	stateAgent := flag.Bool(ConfigStateAgent, false, "enabling KubeArmor State Agent client")
+
+	useOCIHooks := flag.Bool(UseOCIHooks, false, "Use OCI hooks to get new containers instead of using container runtime socket")
+
+	hookFilePath := flag.String(HookFilePath, "/opt/kubearmor_hook_output.json", "OCI hook container info output file path to use")
+
+	restorePath := flag.String(RestorePath, PolicyDir, "Path to restore policies from")
 
 	alertThrottling := flag.Bool(ConfigAlertThrottling, true, "enabling Alert Throttling")
 
@@ -240,6 +251,12 @@ func readCmdLineParams() {
 	viper.SetDefault(ConfigInitTimeout, *initTimeout)
 
 	viper.SetDefault(ConfigStateAgent, *stateAgent)
+
+	viper.SetDefault(UseOCIHooks, *useOCIHooks)
+
+	viper.SetDefault(HookFilePath, *hookFilePath)
+
+	viper.SetDefault(RestorePath, *restorePath)
 
 	viper.SetDefault(ConfigAlertThrottling, *alertThrottling)
 
@@ -370,6 +387,16 @@ func LoadDynamicConfig() {
 
 	GlobalCfg.EnforcerAlerts = viper.GetBool(EnforcerAlerts)
 	GlobalCfg.DefaultPostureLogs = viper.GetBool(ConfigDefaultPostureLogs)
+
+	GlobalCfg.InitTimeout = viper.GetString(ConfigInitTimeout)
+
+	GlobalCfg.StateAgent = viper.GetBool(ConfigStateAgent)
+
+	GlobalCfg.UseOCIHooks = viper.GetBool(UseOCIHooks)
+
+	GlobalCfg.HookFilePath = viper.GetString(HookFilePath)
+
+	GlobalCfg.RestorePath = viper.GetString(RestorePath)
 
 	GlobalCfg.AlertThrottling = viper.GetBool(ConfigAlertThrottling)
 	GlobalCfg.MaxAlertPerSec = int32(viper.GetInt(ConfigMaxAlertPerSec))
