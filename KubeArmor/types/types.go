@@ -549,6 +549,28 @@ type SyscallsType struct {
 	Message  string   `json:"message,omitempty"`
 }
 
+// DeviceMatchType Structure
+type DeviceMatchType struct {
+	Class    string `json:"class"`
+	SubClass string `json:"subClass,omitempty"`
+	Level    int32  `json:"level,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
+}
+
+// DeviceType Structure
+type DeviceType struct {
+	MatchDevice []DeviceMatchType `json:"matchDevice,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
+}
+
 // PresetName type
 type PresetName string
 
@@ -615,6 +637,7 @@ type HostSecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
+	Device       DeviceType       `json:"device,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 

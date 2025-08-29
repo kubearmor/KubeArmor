@@ -333,6 +333,44 @@ type SyscallsType struct {
 	Message string `json:"message,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=AUDIO;COMMUNICATION-CDC;HID;PHYSICAL;IMAGE;PRINTER;MASS-STORAGE;HUB;CDC-DATA;SMART-CARD;CONTENT-SECURITY;VIDEO;PERSONAL-HEALTHCARE;AUDIO/VIDEO;BILLBOARD;TYPE-C-BRIDGE;BULK-DISPLAY;MCTP;I3C;DIAGNOSTIC;WIRELESS-CONTROLLER;MISCELLANEOUS;APPLICATION-SPECIFIC;VENDOR-SPECIFIC;ALL
+type DeviceClass string
+
+// +kubebuilder:validation:Minimum:=1
+type DeviceLevel int32
+
+type DeviceMatchType struct {
+	Class DeviceClass `json:"class,omitempty"`
+
+	// +kubebuilder:validation:optional
+	SubClass string `json:"subClass,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Level DeviceLevel `json:"level,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
+type DeviceType struct {
+	MatchDevice []DeviceMatchType `json:"matchDevice,omitempty"`
+
+	// +kubebuilder:validation:optional
+	Severity SeverityType `json:"severity,omitempty"`
+	// +kubebuilder:validation:optional
+	Tags []string `json:"tags,omitempty"`
+	// +kubebuilder:validation:optional
+	Message string `json:"message,omitempty"`
+	// +kubebuilder:validation:optional
+	Action ActionType `json:"action,omitempty"`
+}
+
 type PresetName string
 
 type PresetType struct {

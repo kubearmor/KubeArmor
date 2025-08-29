@@ -61,6 +61,12 @@ spec:
       fromSource:
       - path: [absolute exectuable path]
 
+  device:
+    matchDevice:
+    - class: [class name]
+      subClass: [sub class name]           # --> optional
+      level: [1-N]                         # --> optional
+
   capabilities:
     matchCapabilities:
     - capability: [capability name]
@@ -70,7 +76,7 @@ spec:
   action: [Audit|Block] (Block by default)
 ```
 
-> **Note** Please note that for system calls monitoring we only support audit action no matter what the value of action is
+> **Note** Please note that for system calls and device monitoring we only support audit action no matter what the value of action is
 
 For better understanding, you can check [the KubeArmorHostPolicy spec diagram](../.gitbook/assets/kubearmorhostpolicy-spec-diagram.pdf).
 
@@ -219,6 +225,18 @@ Now, we will briefly explain how to define a host security policy.
       - protocol: [protocol(,)]            # --> [ TCP | tcp | UDP | udp | ICMP | icmp ]
         fromSource:
         - path: [absolute file path]
+  ```
+
+* Device
+
+  In the case of device, there is currently one match type: matchDevice. You can define specific USB device classes, their corresponding sub classes and level of attachment. You can also use ALL in class to match all USB device classes. The supported device class and sub class names are defined in [USB device class list](usb_device_class.md). Level matches the number of USB hub ancestors, for example 1 means attached directly to host, 2 means behind a hub and so on.
+
+  ```text
+    device:
+      matchDevice:
+      - class: [class name | ALL]
+        subClass: [sub class name]          # --> optional
+        level: [1-N]                        # --> optional
   ```
 
 * Capabilities

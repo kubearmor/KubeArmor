@@ -112,6 +112,21 @@ func getOperationAndCapabilityFromName(capName string) (op, capability string) {
 	return op, capability
 }
 
+// getDeviceResource Function
+func getDeviceResource(class, subClass string, level uint8) string {
+	res := "USB " + class
+
+	if subClass != "" {
+		res += " " + subClass
+	}
+
+	if level > 0 {
+		res += " " + strconv.Itoa(int(level))
+	}
+
+	return res
+}
+
 // newMatchPolicy Function
 func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp interface{}) tp.MatchPolicy {
 	match := tp.MatchPolicy{
@@ -292,6 +307,14 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = smpt.Path
 		match.ResourceType = strings.ToUpper(smpt.Syscalls[0])
 
+	} else if dmt, ok := mp.(tp.DeviceMatchType); ok {
+		match.Severity = strconv.Itoa(dmt.Severity)
+		match.Tags = dmt.Tags
+		match.Message = dmt.Message
+		match.Operation = "Device"
+		match.Action = "Audit"
+		match.Resource = getDeviceResource(dmt.Class, dmt.SubClass, uint8(dmt.Level))
+		match.ResourceType = "USB Device"
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -809,6 +832,21 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			}
 		}
 
+		for _, device := range secPolicy.Spec.Device.MatchDevice {
+			if len(device.Class) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, device)
+			if len(match.Resource) == 0 {
+				continue
+			}
+
+			matches.Policies = append(matches.Policies, match)
+		}
+
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			if len(cap.Capability) == 0 {
 				continue
@@ -1000,6 +1038,22 @@ func matchResources(secPolicy tp.MatchPolicy, log tp.Log) bool {
 	}
 	return false
 
+}
+
+// matchDeviceResource Function
+func matchDeviceResource(logResource, spResporce string) bool {
+	// log.Resource -> "USB <class> <subClass> <level>" where level is always present and at the last
+	// extract level from log.Resource to compare when secPolicy class is ALL and level is defined
+	// check if "USB ALL <level from log.Resource>" has prefix secPolicy.Resource
+	if logResourceParts := strings.Fields(logResource); len(logResourceParts) > 0 {
+		logResourceLevel := logResourceParts[len(logResourceParts)-1]
+		if strings.HasPrefix(logResource, spResporce) ||
+			strings.HasPrefix("USB ALL "+logResourceLevel, spResporce) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
@@ -1514,6 +1568,31 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit"
 				}
 
+			case "Device":
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+
+				if matchDeviceResource(log.Resource, secPolicy.Resource) {
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = secPolicy.PolicyName
+					log.Severity = secPolicy.Severity
+
+					if len(secPolicy.Tags) > 0 {
+						log.Tags = strings.Join(secPolicy.Tags[:], ",")
+						log.ATags = secPolicy.Tags
+					}
+
+					if len(secPolicy.Message) > 0 {
+						log.Message = secPolicy.Message
+					}
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit" // currently only supports audit mode
+				}
+
 			case "Capabilities":
 				if secPolicy.Operation != log.Operation {
 					continue
@@ -1799,6 +1878,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			} else if log.Operation == "Capabilities" {
 				if setLogFields(&log, existCapabilitiesAllowPolicy, cfg.GlobalCfg.DefaultCapabilitiesPosture, fd.Node.CapabilitiesVisibilityEnabled, false) {
+					return log
+				}
+			} else if log.Operation == "Device" {
+				if setLogFields(&log, false, "audit", true, false) {
 					return log
 				}
 			}
