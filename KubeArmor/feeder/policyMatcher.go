@@ -112,6 +112,21 @@ func getOperationAndCapabilityFromName(capName string) (op, capability string) {
 	return op, capability
 }
 
+// getDeviceResource Function
+func getDeviceResource(class, subClass string, level uint8) string {
+	res := "USB " + class
+
+	if subClass != "" {
+		res += " " + subClass
+	}
+
+	if level > 0 {
+		res += " " + strconv.Itoa(int(level))
+	}
+
+	return res
+}
+
 // newMatchPolicy Function
 func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp interface{}) tp.MatchPolicy {
 	match := tp.MatchPolicy{
@@ -292,6 +307,14 @@ func (fd *Feeder) newMatchPolicy(policyEnabled int, policyName, src string, mp i
 		match.Resource = smpt.Path
 		match.ResourceType = strings.ToUpper(smpt.Syscalls[0])
 
+	} else if dmt, ok := mp.(tp.DeviceMatchType); ok {
+		match.Severity = strconv.Itoa(dmt.Severity)
+		match.Tags = dmt.Tags
+		match.Message = dmt.Message
+		match.Operation = "Device"
+		match.Action = "Audit"
+		match.Resource = getDeviceResource(dmt.Class, dmt.SubClass, uint8(dmt.Level))
+		match.ResourceType = "USB Device"
 	} else {
 		return tp.MatchPolicy{}
 	}
@@ -809,6 +832,21 @@ func (fd *Feeder) UpdateHostSecurityPolicies(action string, secPolicies []tp.Hos
 			}
 		}
 
+		for _, device := range secPolicy.Spec.Device.MatchDevice {
+			if len(device.Class) == 0 {
+				continue
+			}
+
+			fromSource := ""
+
+			match := fd.newMatchPolicy(fd.Node.PolicyEnabled, policyName, fromSource, device)
+			if len(match.Resource) == 0 {
+				continue
+			}
+
+			matches.Policies = append(matches.Policies, match)
+		}
+
 		for _, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			if len(cap.Capability) == 0 {
 				continue
@@ -1000,6 +1038,73 @@ func matchResources(secPolicy tp.MatchPolicy, log tp.Log) bool {
 	}
 	return false
 
+}
+
+// matchDeviceResource Function
+func matchDeviceResource(logResource, spResource string) bool {
+
+	isNumber := func(s string) bool {
+		_, err := strconv.Atoi(s)
+		return err == nil
+	}
+
+	parseLevel := func(s string) uint8 {
+		l, err := strconv.ParseUint(s, 10, 8)
+		if err != nil {
+			return 0
+		}
+		return uint8(l)
+	}
+
+	// Split log and policy resources into parts
+	logParts := strings.Fields(logResource) // e.g., ["USB", "HID", "KEYBOARD", "2"] or ["USB", "MASS-STORAGE", "1"]
+	spParts := strings.Fields(spResource)   // e.g., ["USB", "HID", "2"] or ["USB", "HID", "MOUSE"] or ["USB", "ALL"]
+
+	// Compare class
+	if logParts[1] != spParts[1] && spParts[1] != "ALL" {
+		return false
+	}
+
+	// Extract log subclass and level
+	logSubClass := ""
+	logLevel := uint8(0)
+	if len(logParts) > 3 {
+		logSubClass = logParts[2]
+		logLevel = parseLevel(logParts[3])
+	} else if len(logParts) > 2 {
+		if isNumber(logParts[2]) {
+			logLevel = parseLevel(logParts[2])
+		} else {
+			logSubClass = logParts[2]
+		}
+	}
+
+	// Extract policy subclass and level
+	policySubClass := ""
+	policyLevel := uint8(0)
+	if len(spParts) > 2 {
+		if isNumber(spParts[len(spParts)-1]) {
+			policyLevel = parseLevel(spParts[len(spParts)-1])
+		}
+		if len(spParts) == 3 && !isNumber(spParts[2]) {
+			policySubClass = spParts[2]
+		}
+		if len(spParts) > 3 {
+			policySubClass = spParts[2]
+		}
+	}
+
+	// Match subclass: if policy doesn't specify subclass, match any
+	if policySubClass != "" && policySubClass != logSubClass {
+		return false
+	}
+
+	// Match level: if policy specifies level, it must match log level
+	if policyLevel > 0 && policyLevel != logLevel {
+		return false
+	}
+
+	return true
 }
 
 // Update Log Fields based on default posture and visibility configuration and return false if no updates
@@ -1514,6 +1619,31 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 					log.Action = "Audit"
 				}
 
+			case "Device":
+				if secPolicy.Operation != log.Operation {
+					continue
+				}
+
+				if matchDeviceResource(log.Resource, secPolicy.Resource) {
+
+					log.Type = "MatchedPolicy"
+
+					log.PolicyName = secPolicy.PolicyName
+					log.Severity = secPolicy.Severity
+
+					if len(secPolicy.Tags) > 0 {
+						log.Tags = strings.Join(secPolicy.Tags[:], ",")
+						log.ATags = secPolicy.Tags
+					}
+
+					if len(secPolicy.Message) > 0 {
+						log.Message = secPolicy.Message
+					}
+
+					log.Enforcer = "eBPF Monitor"
+					log.Action = "Audit" // currently only supports audit mode
+				}
+
 			case "Capabilities":
 				if secPolicy.Operation != log.Operation {
 					continue
@@ -1799,6 +1929,10 @@ func (fd *Feeder) UpdateMatchedPolicy(log tp.Log) tp.Log {
 				}
 			} else if log.Operation == "Capabilities" {
 				if setLogFields(&log, existCapabilitiesAllowPolicy, cfg.GlobalCfg.DefaultCapabilitiesPosture, fd.Node.CapabilitiesVisibilityEnabled, false) {
+					return log
+				}
+			} else if log.Operation == "Device" {
+				if setLogFields(&log, false, "audit", true, false) {
 					return log
 				}
 			}
