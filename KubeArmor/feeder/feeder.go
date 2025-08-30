@@ -227,6 +227,11 @@ type Feeder struct {
 func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 	fd := &Feeder{}
 
+	defer func() {
+		if feeder == nil {
+			fd.DestroyFeeder()
+		}
+	}()
 	// base feeder //
 
 	// node
@@ -238,12 +243,6 @@ func NewFeeder(node *tp.Node, nodeLock **sync.RWMutex) (feeder *Feeder) {
 
 	// output
 	fd.Output = cfg.GlobalCfg.LogPath
-
-	defer func() {
-		if feeder == nil {
-			fd.DestroyFeeder()
-		}
-	}()
 
 	// output mode
 	if fd.Output != "stdout" && fd.Output != "none" {
