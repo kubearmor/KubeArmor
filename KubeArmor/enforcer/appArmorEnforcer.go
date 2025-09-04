@@ -210,6 +210,13 @@ func (ae *AppArmorEnforcer) RegisterAppArmorProfile(podName, profileName string,
 	ae.AppArmorProfilesLock.Lock()
 	defer ae.AppArmorProfilesLock.Unlock()
 
+	// this path is expected to have a single component "apparmor-profile"
+	// and this is to ensure that the filename has no path separators or parent directory references
+	if strings.Contains(profileName, "/") || strings.Contains(profileName, "\\") || strings.Contains(profileName, "..") {
+		ae.Logger.Warnf("Invalid appArmor profile name (%s)", profileName)
+		return false
+	}
+
 	if _, err := os.Stat(filepath.Clean("/etc/apparmor.d/" + profileName)); err == nil {
 		if content, err := os.ReadFile(filepath.Clean("/etc/apparmor.d/" + profileName)); err != nil {
 			ae.Logger.Warnf("Unable to register the AppArmor profile (%s, %s))", profileName, err.Error())
@@ -288,6 +295,13 @@ func (ae *AppArmorEnforcer) UnregisterAppArmorProfile(podName, profileName strin
 			return true
 		}
 		ae.Logger.Warnf("Unable to find %s from the AppArmor profiles", profileName)
+		return false
+	}
+
+	// this path is expected to have a single component "apparmor-profile"
+	// and this is to ensure that the filename has no path separators or parent directory references
+	if strings.Contains(profileName, "/") || strings.Contains(profileName, "\\") || strings.Contains(profileName, "..") {
+		ae.Logger.Warnf("Invalid appArmor profile name (%s)", profileName)
 		return false
 	}
 
