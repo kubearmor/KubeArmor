@@ -50,8 +50,8 @@
 #include "throttling.h"
 #include "common.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)
-    #define LSM_SUPPORTED 1 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+    #define LSM_AND_RINGBUF_SUPPORTED 1 
 #endif
 
 #ifdef RHEL_RELEASE_CODE
@@ -321,6 +321,13 @@ typedef struct __attribute__((__packed__)) hash_data {
     u32 hash_algo;                   // 1 for SHA-256, 0 for none
 } hash_data_t;
 
+typedef struct process_executable_info {
+    unsigned char hash[32]; // SHA-256 hash of process binary
+    u32 hash_algo;          // 1 for SHA-256, 0 for none
+} process_executable_info_t;
+
+BPF_LRU_HASH(process_executable_map, u32, process_executable_info_t);
+
 typedef struct args
 {
     unsigned long args[6];
@@ -337,7 +344,9 @@ typedef struct buffers
 BPF_PERCPU_ARRAY(bufs, bufs_t, 6);
 BPF_PERCPU_ARRAY(bufs_offset, u32, 6);
 
+#ifdef LSM_AND_RINGBUF_SUPPORTED
 BPF_RINGBUF(lsm_sys_events, 1 << 20); // Used only for lsm.s programs
+#endif
 BPF_PERF_OUTPUT(sys_events);
 
 // == Visibility == //
@@ -1143,6 +1152,10 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx, int buf_type)
 
 static __always_inline int events_ringbuf_submit(int buf_type)
 {
+#ifndef LSM_AND_RINGBUF_SUPPORTED 
+    // ring buffer not supported in this kernel
+    return 0;
+#else
     bufs_t *bufs_p = get_buffer(buf_type);
     if (bufs_p == NULL)
         return -1;
@@ -1163,6 +1176,7 @@ static __always_inline int events_ringbuf_submit(int buf_type)
     bpf_probe_read(ringbuf_data, RINGBUF_RESERVE_SIZE, data);
     bpf_ringbuf_submit(ringbuf_data, 0);
     return 0;
+#endif
 }
 
 // == Full Path == //
@@ -1283,7 +1297,7 @@ static __always_inline u32 init_context(sys_context_t *context)
 }
 
 static __always_inline int compute_file_hash(struct file *file,void *hash_buf, u32 buf_size) {
-#ifdef LSM_SUPPORTED
+#ifdef LSM_AND_RINGBUF_SUPPORTED
     if (!file || !hash_buf|| buf_size < 32) return 0;
  __s32 hash_ret_val = bpf_ima_file_hash(file, hash_buf, buf_size);
     if (hash_ret_val < 0) {
@@ -1293,7 +1307,7 @@ static __always_inline int compute_file_hash(struct file *file,void *hash_buf, u
     return 0; // Fallback for non-LSM
 }
 static __always_inline void update_hash_context(hash_data_t *hash_context, struct file *file, struct file *parent_file, struct file *resource_file) {
-#ifdef LSM_SUPPORTED
+#ifdef LSM_AND_RINGBUF_SUPPORTED
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
     if (!bufs_p) return;
 
@@ -2666,7 +2680,7 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     return 0;
 }
 // == LSM Hooks == //
-#ifdef LSM_SUPPORTED
+#ifdef LSM_AND_RINGBUF_SUPPORTED
 SEC("lsm.s/bprm_check_security")
 int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_PROCESS_PROBE)))
@@ -2679,19 +2693,23 @@ int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
     if (!file) return 0;
 
     struct path p;
-    // bpf_printk("bprm_check_security filename: %s\n", bprm->filename);
     bpf_probe_read(&p, sizeof(struct path), GET_FIELD_ADDR(file->f_path));
     bufs_t *string_p = get_buffer(EXEC_BUF_TYPE);
     if (!string_p || !prepend_path(&p, string_p, EXEC_BUF_TYPE)) return -1;
     u32 *off = get_buffer_offset(EXEC_BUF_TYPE);
     if (!off) return -1;
 
-    bpf_printk("bprm_check_security buf: %s\n", string_p->buf + *off);
+
+    //Get parent process info
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    struct task_struct *real_parent = READ_KERN(task->real_parent);
+    u32 ppid = READ_KERN(real_parent->tgid);
+    process_executable_info_t *parent_info = bpf_map_lookup_elem(&process_executable_map, &ppid);
 
 
     init_context(&context);
     context.event_id = _SECURITY_BPRM_CHECK;
-    context.argnum = 1;
+    context.argnum = 1 ;
     context.retval = 0;
     hash_context.hash_algo = 1;
 
@@ -2699,6 +2717,11 @@ int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
     // struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     // struct file *parent_file = get_task_file(READ_KERN(task->real_parent));
     // struct file *parent_file = BPF_CORE_READ(task, real_parent, mm, exe_file);
+    if (parent_info){
+        bpf_probe_read(&hash_context.parent_hash,MAX_HASH_LEN, parent_info->hash);
+        context.ppid = ppid;
+    }
+
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
     bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
@@ -2708,12 +2731,20 @@ int BPF_PROG(sleepable_lsm_bprm_check_security, struct linux_binprm *bprm) {
     save_context_to_buffer(bufs_p, (void *)&context);
     save_str_to_buffer(bufs_p, (void *)&string_p->buf[*off]);
     update_hash_context(&hash_context, file, NULL, NULL);
+    
+    //update the map process_executable_map with the current process executable info
+    u64 host_pid = bpf_get_current_pid_tgid() >> 32;
+    process_executable_info_t process_info = {};
+    bpf_probe_read(process_info.hash, MAX_HASH_LEN,hash_context.process_hash);
+    process_info.hash_algo = 1;
+    bpf_map_update_elem(&process_executable_map, &host_pid, &process_info, BPF_ANY);
+
     events_ringbuf_submit(DATA_BUF_TYPE); 
 
     return 0; 
 }
 #endif
-#ifdef LSM_SUPPORTED
+#ifdef LSM_AND_RINGBUF_SUPPORTED
 SEC("lsm.s/file_open")
 int BPF_PROG(file_open, struct file *file) {
     if (skip_syscall() || (get_kubearmor_config(_ENFORCER_BPFLSM) && drop_syscall(_FILE_PROBE)))
