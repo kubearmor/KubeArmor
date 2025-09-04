@@ -13,7 +13,7 @@ kubearmorRelay:
   enabled: true
   image:
     # kubearmor-init image repo
-    repository: kubearmor/kubearmor-relay-server
+    repository: docker.io/kubearmor/kubearmor-relay-server
     # kubearmor-init image tag
     tag: latest
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
@@ -69,7 +69,7 @@ kubearmorRelay:
 kubearmorInit:
   image:
     # kubearmor-init image repo
-    repository: kubearmor/kubearmor-init
+    repository: docker.io/kubearmor/kubearmor-init
     # kubearmor-init image tag
     tag: stable
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
@@ -94,7 +94,7 @@ kubearmorController:
   replicas: 1
   image:
     # kubearmor-controller image repo
-    repository: kubearmor/kubearmor-controller
+    repository: docker.io/kubearmor/kubearmor-controller
     # kubearmor-controller image tag
     tag: latest
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
@@ -127,7 +127,7 @@ kubearmor:
   tolerations: ""
   image:
     # kubearmor daemonset image repo
-    repository: kubearmor/kubearmor
+    repository: docker.io/kubearmor/kubearmor
     # kubearmor daemonset image tag
     tag: stable
     # Optional, but if there are a lot of image pulls required, Docker might be rate-limited. So, it's good to add pull secrets for production.
@@ -168,6 +168,7 @@ kubearmor:
     - SYS_ADMIN
     - SYS_PTRACE
     - MAC_ADMIN
+    - NET_ADMIN
     - SYS_RESOURCE
     - IPC_LOCK
     - CAP_DAC_OVERRIDE
@@ -182,6 +183,51 @@ kubearmor:
   commonVolumes:
   - emptyDir: {}
     name: bpf
+
+  autoPilot:
+    volumeMounts:
+    - mountPath: /run/containerd/containerd.sock
+      name: containerd-socket
+      readOnly: true
+    - mountPath: /sys/kernel/debug
+      name: sys-kernel-debug-path
+    - mountPath: /host/procfs
+      name: proc-fs-mount
+      readOnly: true
+    - mountPath: /opt/kubearmor/karmor.yaml
+      name: kubearmor-config
+      subPath: karmor.yaml
+    initMounts:
+      - mountPath: /sys/kernel/debug
+        name: sys-kernel-debug-path
+      - mountPath: /host/procfs
+        name: proc-fs-mount
+        readOnly: true
+      - mountPath: /opt/kubearmor/karmor.yaml
+        name: kubearmor-config
+        subPath: karmor.yaml
+      - mountPath: /opt/kubearmor/BPF
+        name: bpf
+    volumes:
+      - hostPath:
+          path: /run/containerd/containerd.sock
+          type: Socket
+        name: containerd-socket
+      - hostPath:
+          path: /sys/kernel/debug
+          type: Directory
+        name: sys-kernel-debug-path
+      - hostPath:
+          path: /proc
+          type: Directory
+        name: proc-fs-mount
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: karmor.yaml
+            path: karmor.yaml
+          name: kubearmor-config
+        name: kubearmor-config
 
   initMounts:
   - mountPath: /opt/kubearmor/BPF

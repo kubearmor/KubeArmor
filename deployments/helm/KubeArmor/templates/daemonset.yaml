@@ -11,10 +11,11 @@ spec:
       kubearmor-app: kubearmor
   template:
     metadata:
-      annotations:
-        container.apparmor.security.beta.kubernetes.io/kubearmor: unconfined
       labels:
         kubearmor-app: kubearmor
+      {{- if eq .Values.environment.name "autopilot" }}
+        "cloud.google.com/matching-allowlist": accuknox-kubearmor-{{ include "chart.majorMinorVersion" . }}
+      {{- end }}
     spec:
       {{- if .Values.kubearmor.image.imagePullSecrets }}
       imagePullSecrets:
@@ -27,16 +28,21 @@ spec:
       containers:
       - args:
         - "-gRPC=32767"
-        - {{ printf "--tlsEnabled=%t" .Values.tls.enabled | quote }}
+        - "-procfsMount=/host/procfs"
+        - {{ printf "-tlsEnabled=%t" .Values.tls.enabled | quote }}
         {{- if .Values.tls.enabled }}
-        - {{ printf "--tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath | quote }}
-        - {{ printf "--tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider | quote }}
+        - {{ printf "-tlsCertPath=%s" .Values.kubearmor.tls.tlsCertPath | quote }}
+        - {{ printf "-tlsCertProvider=%s" .Values.kubearmor.tls.tlsCertProvider | quote }}
         {{- end }}
 
         {{- with .Values.kubearmor.args }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- if eq .Values.environment.name "autopilot" }}
+        image: {{printf "%s:%s" .Values.kubearmor.image.repository .Chart.Version }}
+        {{- else }}
         image: {{printf "%s:%s" .Values.kubearmor.image.repository .Values.kubearmor.image.tag}}
+        {{- end }}
         imagePullPolicy: {{ .Values.kubearmor.imagePullPolicy }}
         env:
         - name: KUBEARMOR_NODENAME
@@ -87,6 +93,8 @@ spec:
           {{- toYaml .Values.kubearmor.volumeMountsBottleRocket | trim | nindent 10 }}
         {{- else if eq .Values.environment.name "EKS" }}
           {{- toYaml .Values.kubearmor.volumeMountsEKS | trim | nindent 10 }}
+        {{- else if eq .Values.environment.name "autopilot" }}
+          {{- toYaml .Values.kubearmor.autoPilot.volumeMounts | trim | nindent 10 }}
         {{- else }} # generic
           {{- toYaml .Values.kubearmor.volumeMountsGeneric | trim | nindent 10 }}
         {{- end }}
@@ -96,10 +104,16 @@ spec:
         {{- end }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
-      hostPID: true
+      securityContext:
+          appArmorProfile:
+            type: Unconfined
       initContainers:
-      - image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
-        imagePullPolicy: {{ .Values.kubearmorInit.imagePullPolicy }}
+      - imagePullPolicy: {{ .Values.kubearmorInit.imagePullPolicy }}
+      {{- if eq .Values.environment.name "autopilot" }}
+        image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Chart.Version }}
+      {{- else }}
+        image: {{printf "%s:%s" .Values.kubearmorInit.image.repository .Values.kubearmorInit.image.tag}}
+      {{- end }}
         name: init
         securityContext:
           capabilities:
@@ -118,7 +132,11 @@ spec:
             - ALL
           privileged: false
         volumeMounts:
-        {{- toYaml .Values.kubearmor.initMounts | trim | nindent 10 }}
+        {{- if eq .Values.environment.name "autopilot" }}
+          {{- toYaml .Values.kubearmor.autoPilot.initMounts | trim | nindent 10 }}
+        {{- else }}  
+          {{- toYaml .Values.kubearmor.initMounts | trim | nindent 10 }}
+        {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
       restartPolicy: Always
@@ -147,6 +165,8 @@ spec:
         {{- toYaml .Values.kubearmor.volumesBottleRocket | trim | nindent 8 }}
       {{- else if eq .Values.environment.name "EKS" }}
         {{- toYaml .Values.kubearmor.volumesEKS | trim | nindent 8 }}
+      {{- else if eq .Values.environment.name "autopilot" }}
+        {{- toYaml .Values.kubearmor.autoPilot.volumes | trim | nindent 8 }}
       {{- else }} # generic
         {{- toYaml .Values.kubearmor.volumesGeneric | trim | nindent 8 }}
       {{- end }}
