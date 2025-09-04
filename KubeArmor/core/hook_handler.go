@@ -23,21 +23,22 @@ const kubearmorDir = "/var/run/kubearmor"
 
 // ListenToHook starts listening on a UNIX socket and waits for container hooks
 // to pass new containers
-func (dm *KubeArmorDaemon) ListenToHook() {
+func (dm *KubeArmorDaemon) ListenToK8sHook() {
 	dm.Logger.Print("Started to monitor OCI Hook events")
 	if err := os.MkdirAll(kubearmorDir, 0750); err != nil {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed to create ka.sock dir: %v", err)
 	}
 
 	listenPath := filepath.Join(kubearmorDir, "ka.sock")
 	err := os.Remove(listenPath) // in case kubearmor crashed and the socket wasn't removed
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed to cleanup ka.sock: %v", err)
 	}
 
 	socket, err := net.Listen("unix", listenPath)
 	if err != nil {
-		log.Fatal(err)
+		dm.Logger.Warnf("Failed listening on ka.sock: %v", err)
+		return
 	}
 
 	defer socket.Close()
@@ -47,16 +48,16 @@ func (dm *KubeArmorDaemon) ListenToHook() {
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
-			log.Fatal(err)
+			dm.Logger.Warnf("Error accepting socket connection: %v", err)
 		}
 
-		go dm.handleConn(conn, ready)
+		go dm.handleK8sConn(conn, ready)
 	}
 
 }
 
 // handleConn gets container details from container hooks.
-func (dm *KubeArmorDaemon) handleConn(conn net.Conn, ready *atomic.Bool) {
+func (dm *KubeArmorDaemon) handleK8sConn(conn net.Conn, ready *atomic.Bool) {
 	// We need to makes sure that no containers accepted until all containers created before KubeArmor
 	// are sent first. This is done mainly to avoid race conditions between hooks sending in
 	// data that some containers were deleted only for process responsible for sending previous containers
@@ -68,16 +69,15 @@ func (dm *KubeArmorDaemon) handleConn(conn net.Conn, ready *atomic.Bool) {
 		n, err := conn.Read(buf)
 		if err == io.EOF {
 			return
-		}
-		if err != nil {
-			log.Fatal(err)
+		} else if err != nil {
+			dm.Logger.Warnf("Error reading connection: %v", err)
 		}
 
 		data := types.HookRequest{}
 
 		err = json.Unmarshal(buf[:n], &data)
 		if err != nil {
-			log.Fatal(err)
+			dm.Logger.Warnf("Error unmarshalling: %v", err)
 		}
 
 		if data.Detached {
