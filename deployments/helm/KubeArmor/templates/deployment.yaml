@@ -62,6 +62,7 @@ spec:
       {{- end }}
 {{- end }}
 ---
+{{- if ne .Values.environment.name "autopilot" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -77,7 +78,6 @@ spec:
   template:
     metadata:
       annotations:
-        container.apparmor.security.beta.kubernetes.io/manager: unconfined
         kubectl.kubernetes.io/default-container: manager
         kubearmor-policy: audited
       labels:
@@ -130,6 +130,7 @@ spec:
           readOnly: true
         - mountPath: /sys/kernel/security
           name: sys-path
+          readOnly: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: {{ .Values.kubearmorController.name }}
@@ -143,3 +144,4 @@ spec:
           path: /sys/kernel/security
           type: Directory
         name: sys-path
+{{- end }}
