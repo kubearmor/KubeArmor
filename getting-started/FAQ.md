@@ -216,6 +216,21 @@ CONFIG_DEBUG_INFO_BTF=y
    ```sh
    sudo reboot
    ```
+### Use grubby if GRUB method fails (RHEL 9.x preferred)
+
+- Add parameters to all kernels
+  ```
+  sudo grubby --update-kernel=ALL --args="lsm=selinux,integrity,yama,lockdown,bpf"
+  ```
+- Verify the change
+  ```
+  sudo grubby --info=ALL | grep args
+  ```
+
+- Reboot into your kernel
+  ```
+  sudo reboot
+  ```
 </details>
 
 <details><summary><h4>ICMP block/audit does not work with AppArmor as the enforcer</h4></summary>
