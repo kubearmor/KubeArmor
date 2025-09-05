@@ -1089,14 +1089,14 @@ func containsPolicy(endPointPolicies []tp.SecurityPolicy, secPolicy tp.SecurityP
 
 // UpdateSecurityPolicy Function
 func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType string, secPolicy tp.SecurityPolicy) {
+	// Copy endpoints under lock to prevent TOCTOU race condition
+	// where endpoint array could shrink between length check and access
 	dm.EndPointsLock.RLock()
-	endPointsLength := len(dm.EndPoints)
+	endPointsCopy := make([]tp.EndPoint, len(dm.EndPoints))
+	copy(endPointsCopy, dm.EndPoints)
 	dm.EndPointsLock.RUnlock()
 
-	for idx := 0; idx < endPointsLength; idx++ {
-		dm.EndPointsLock.RLock()
-		endPoint := dm.EndPoints[idx]
-		dm.EndPointsLock.RUnlock()
+	for _, endPoint := range endPointsCopy {
 
 		// update a security policy
 		if secPolicyType == KubeArmorPolicy {
@@ -1144,29 +1144,36 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					}
 				}
 
+				// Find and update the original endpoint in the array by matching unique identifiers
 				dm.EndPointsLock.Lock()
-				dm.EndPoints[idx] = endPoint
-				dm.EndPointsLock.Unlock()
+				for idx := range dm.EndPoints {
+					if dm.EndPoints[idx].NamespaceName == endPoint.NamespaceName && 
+					   dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
+					   dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
+						dm.EndPoints[idx] = endPoint
+						
+						if cfg.GlobalCfg.Policy {
+							// update security policies
+							dm.Logger.UpdateSecurityPolicies("UPDATED", endPoint)
 
-				if cfg.GlobalCfg.Policy {
-					// update security policies
-					dm.Logger.UpdateSecurityPolicies("UPDATED", endPoint)
-
-					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
-							if dm.RuntimeEnforcer != nil {
-								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+								// enforce security policies
+								if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+									if dm.RuntimeEnforcer != nil {
+										dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+									}
+									if dm.Presets != nil {
+										dm.Presets.UpdateSecurityPolicies(dm.EndPoints[idx])
+									}
+								} else {
+									dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+								}
 							}
-							if dm.Presets != nil {
-								dm.Presets.UpdateSecurityPolicies(dm.EndPoints[idx])
-							}
-						} else {
-							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
 						}
+						break
 					}
-
 				}
+				dm.EndPointsLock.Unlock()
 			}
 		} else if secPolicyType == KubeArmorClusterPolicy {
 			// additional OR check added with containsPolicy() is when this endPoint's ns is removed from secPolicy.Spec.Selector.MatchExpressions[i].Values
@@ -1217,28 +1224,36 @@ func (dm *KubeArmorDaemon) UpdateSecurityPolicy(action string, secPolicyType str
 					}
 				}
 
+				// Find and update the original endpoint in the array by matching unique identifiers
 				dm.EndPointsLock.Lock()
-				dm.EndPoints[idx] = endPoint
-				dm.EndPointsLock.Unlock()
+				for idx := range dm.EndPoints {
+					if dm.EndPoints[idx].NamespaceName == endPoint.NamespaceName && 
+					   dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
+					   dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
+						dm.EndPoints[idx] = endPoint
+						
+						if cfg.GlobalCfg.Policy {
+							// update security policies
+							dm.Logger.UpdateSecurityPolicies("UPDATED", endPoint)
 
-				if cfg.GlobalCfg.Policy {
-					// update security policies
-					dm.Logger.UpdateSecurityPolicies("UPDATED", endPoint)
-
-					if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
-						// enforce security policies
-						if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
-							if dm.RuntimeEnforcer != nil {
-								dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+							if dm.EndPoints[idx].PolicyEnabled == tp.KubeArmorPolicyEnabled {
+								// enforce security policies
+								if !kl.ContainsElement(dm.SystemMonitor.UntrackedNamespaces, dm.EndPoints[idx].NamespaceName) {
+									if dm.RuntimeEnforcer != nil {
+										dm.RuntimeEnforcer.UpdateSecurityPolicies(dm.EndPoints[idx])
+									}
+									if dm.Presets != nil {
+										dm.Presets.UpdateSecurityPolicies(dm.EndPoints[idx])
+									}
+								} else {
+									dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
+								}
 							}
-							if dm.Presets != nil {
-								dm.Presets.UpdateSecurityPolicies(dm.EndPoints[idx])
-							}
-						} else {
-							dm.Logger.Warnf("Policy cannot be enforced in untracked namespace %s", dm.EndPoints[idx].NamespaceName)
 						}
+						break
 					}
 				}
+				dm.EndPointsLock.Unlock()
 			}
 		}
 	}
@@ -1944,17 +1959,15 @@ func (dm *KubeArmorDaemon) WatchClusterSecurityPolicies(timeout time.Duration) c
 
 // UpdateHostSecurityPolicies Function
 func (dm *KubeArmorDaemon) UpdateHostSecurityPolicies() {
+	// Copy host security policies under lock to prevent TOCTOU race condition
 	dm.HostSecurityPoliciesLock.RLock()
-	hostSecurityPoliciesLength := len(dm.HostSecurityPolicies)
+	hostSecurityPoliciesCopy := make([]tp.HostSecurityPolicy, len(dm.HostSecurityPolicies))
+	copy(hostSecurityPoliciesCopy, dm.HostSecurityPolicies)
 	dm.HostSecurityPoliciesLock.RUnlock()
 
 	secPolicies := []tp.HostSecurityPolicy{}
 
-	for idx := 0; idx < hostSecurityPoliciesLength; idx++ {
-		dm.EndPointsLock.RLock()
-		policy := dm.HostSecurityPolicies[idx]
-		dm.EndPointsLock.RUnlock()
-
+	for _, policy := range hostSecurityPoliciesCopy {
 		if kl.MatchIdentities(policy.Spec.NodeSelector.Identities, dm.Node.Identities) {
 			secPolicies = append(secPolicies, policy)
 		}
@@ -2613,14 +2626,13 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 	}
 	dm.Logger.UpdateDefaultPosture(action, namespace, defaultPosture)
 
+	// Copy endpoints under lock to prevent TOCTOU race condition
 	dm.EndPointsLock.RLock()
-	endPointsLen := len(dm.EndPoints)
+	endPointsCopy := make([]tp.EndPoint, len(dm.EndPoints))
+	copy(endPointsCopy, dm.EndPoints)
 	dm.EndPointsLock.RUnlock()
 
-	for idx := 0; idx < endPointsLen; idx++ {
-		dm.EndPointsLock.RLock()
-		endPoint := dm.EndPoints[idx]
-		dm.EndPointsLock.RUnlock()
+	for _, endPoint := range endPointsCopy {
 		// update a security policy
 		if namespace == endPoint.NamespaceName {
 			if endPoint.DefaultPosture == defaultPosture {
@@ -2630,8 +2642,16 @@ func (dm *KubeArmorDaemon) UpdateDefaultPosture(action string, namespace string,
 			dm.Logger.Printf("Updating default posture for %s with %v namespace default %v", endPoint.EndPointName, endPoint.DefaultPosture, defaultPosture)
 			endPoint.DefaultPosture = defaultPosture
 
+			// Find and update the original endpoint in the array by matching unique identifiers
 			dm.EndPointsLock.Lock()
-			dm.EndPoints[idx] = endPoint
+			for idx := range dm.EndPoints {
+				if dm.EndPoints[idx].NamespaceName == endPoint.NamespaceName && 
+				   dm.EndPoints[idx].EndPointName == endPoint.EndPointName &&
+				   dm.EndPoints[idx].ContainerName == endPoint.ContainerName {
+					dm.EndPoints[idx] = endPoint
+					break
+				}
+			}
 			dm.EndPointsLock.Unlock()
 
 			if cfg.GlobalCfg.Policy {
