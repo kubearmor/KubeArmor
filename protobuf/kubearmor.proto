@@ -88,6 +88,10 @@ message Alert {
 
   string KubeArmorVersion = 37;
   string NodeID = 38;
+  bytes ProcessHash = 39;
+  bytes ParentHash = 40;
+  bytes ResourceHash = 41;
+  string HashAlgo = 42;
 }
 
 // log struct
@@ -129,6 +133,10 @@ message Log {
   ExecEvent ExecEvent = 27;
 
   string NodeID = 28;
+  bytes ProcessHash = 29;
+  bytes ParentHash = 30;
+  bytes ResourceHash = 31;
+  string HashAlgo = 32;
 }
 
 // request message

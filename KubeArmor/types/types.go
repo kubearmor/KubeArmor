@@ -283,6 +283,10 @@ type Log struct {
 	TTY                    string `json:"tty,omitempty"`
 	OID                    int32  `json:"oid"`
 	Data                   string `json:"data,omitempty"`
+	ProcessHash  		   [32]byte `json:"processHash,omitempty"`
+	ParentHash		       [32]byte `json:"parentHash,omitempty"`
+	ResourceHash           [32]byte `json:"resourceHash,omitempty"`
+	HashAlgo               string `json:"hashAlgo,omitempty"`
 	Action                 string `json:"action,omitempty"`
 	Result                 string `json:"result"`
 	MaxAlertsPerSec        int32  `json:"MaxAlertsPerSec,omitempty"`
