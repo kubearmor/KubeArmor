@@ -37,7 +37,7 @@ message ExecEvent {
   string ExecutableName = 2;
 }
 
-// Structured data representation
+// Structured data struct
 message StructuredData {
   map<string, string> fields = 1;
 }
