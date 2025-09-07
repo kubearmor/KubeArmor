@@ -28,7 +28,7 @@ type crioHandler struct {
 }
 
 func newCRIOHandler(socket string) (handler, error) {
-	conn, err := grpc.Dial(
+	conn, err := grpc.NewClient(
 		socket,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)

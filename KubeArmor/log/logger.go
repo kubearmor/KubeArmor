@@ -84,7 +84,7 @@ func Print(message string) {
 }
 
 // Printf Function
-func Printf(message string, args ...interface{}) {
+func Printf(message string, args ...any) {
 	zapLogger.Infof(message, args...)
 }
 
@@ -94,7 +94,7 @@ func Debug(message string) {
 }
 
 // Debugf Function
-func Debugf(message string, args ...interface{}) {
+func Debugf(message string, args ...any) {
 	zapLogger.Debugf(message, args...)
 }
 
@@ -104,7 +104,7 @@ func Err(message string) {
 }
 
 // Errf Function
-func Errf(message string, args ...interface{}) {
+func Errf(message string, args ...any) {
 	zapLogger.Errorf(message, args...)
 }
 
@@ -114,6 +114,6 @@ func Warn(message string) {
 }
 
 // Warnf Function
-func Warnf(message string, args ...interface{}) {
+func Warnf(message string, args ...any) {
 	zapLogger.Warnf(message, args...)
 }
