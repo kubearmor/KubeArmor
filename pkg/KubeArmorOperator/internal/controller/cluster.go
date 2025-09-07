@@ -244,7 +244,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 	log := clusterWatcher.Log
 	nodeInformer := informer.Core().V1().Nodes().Informer()
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if node, ok := obj.(*corev1.Node); ok {
 				runtime := node.Status.NodeInfo.ContainerRuntimeVersion
 				runtime = strings.Split(runtime, ":")[0]
@@ -260,7 +260,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 				}
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 
 			if node, ok := newObj.(*corev1.Node); ok {
 				oldRand := ""
@@ -350,7 +350,7 @@ func (clusterWatcher *ClusterWatcher) WatchNodes() {
 				log.Error(newObj)
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if node, ok := obj.(*corev1.Node); ok {
 				deletedNode := Node{}
 				clusterWatcher.NodesLock.Lock()
@@ -432,7 +432,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 
 	informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				configCrdList, err := clusterWatcher.Opv1Client.OperatorV1().KubeArmorConfigs(common.Namespace).List(context.Background(), metav1.ListOptions{})
 				if err != nil {
 					clusterWatcher.Log.Warn("Failed to list Operator Config CRs")
@@ -476,7 +476,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 
 				}
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
+			UpdateFunc: func(oldObj, newObj any) {
 				if cfg, ok := newObj.(*opv1.KubeArmorConfig); ok {
 					// update configmap only if it's operating crd
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
@@ -520,7 +520,7 @@ func (clusterWatcher *ClusterWatcher) WatchConfigCrd() {
 					}
 				}
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if cfg, ok := obj.(*opv1.KubeArmorConfig); ok {
 					if common.OperatorConfigCrd != nil && cfg.Name == common.OperatorConfigCrd.Name {
 						common.OperatorConfigCrd = nil
