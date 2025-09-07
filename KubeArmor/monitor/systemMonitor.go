@@ -107,7 +107,7 @@ type ContextCombined struct {
 	ContainerID string
 	ContextSys  SyscallContext
 	HashData    HashContext
-	ContextArgs []interface{}
+	ContextArgs []any
 }
 
 // ======================= //
@@ -578,17 +578,20 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
+			delete(mon.Probes, "kprobe__udp_sendmsg")
 		}
 
 		for _, syscallName := range systemCalls {
 			mon.Probes["kprobe__"+syscallName], err = link.Kprobe("sys_"+syscallName, mon.BpfModule.Programs["kprobe__"+syscallName], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", syscallName, err)
+				delete(mon.Probes, "kprobe__"+syscallName)
 			}
 
 			mon.Probes["kretprobe__"+syscallName], err = link.Kretprobe("sys_"+syscallName, mon.BpfModule.Programs["kretprobe__"+syscallName], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kretprobe %s: %v", syscallName, err)
+				delete(mon.Probes, "kretprobe__"+syscallName)
 			}
 
 		}
@@ -597,6 +600,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Probes[sysTracepoint[1]], err = link.Tracepoint(sysTracepoint[0], sysTracepoint[1], mon.BpfModule.Programs[sysTracepoint[1]], nil)
 			if err != nil {
 				mon.Logger.Warnf("error:%s: %v", sysTracepoint, err)
+				delete(mon.Probes, sysTracepoint[1])
 			}
 		}
 
@@ -604,6 +608,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Probes["kprobe__"+sysKprobe], err = link.Kprobe(sysKprobe, mon.BpfModule.Programs["kprobe__"+sysKprobe], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", sysKprobe, err)
+				delete(mon.Probes, "kprobe__"+sysKprobe)
 			}
 		}
 
@@ -611,6 +616,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Probes["kprobe__"+netSyscall], err = link.Kprobe(netSyscall, mon.BpfModule.Programs["kprobe__"+netSyscall], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kprobe %s: %v", netSyscall, err)
+				delete(mon.Probes, "kprobe__"+netSyscall)
 			}
 		}
 
@@ -618,6 +624,7 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Probes["kretprobe__"+netRetSyscall], err = link.Kretprobe(netRetSyscall, mon.BpfModule.Programs["kretprobe__"+netRetSyscall], nil)
 			if err != nil {
 				mon.Logger.Warnf("error loading kretprobe %s: %v", netRetSyscall, err)
+				delete(mon.Probes, "kretprobe__"+netRetSyscall)
 			}
 		}
 
@@ -788,7 +795,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 
 			// Best effort replay
 			go func() {
-				for i := 0; i < 10; i++ {
+				for range 10 {
 					containerID := ""
 
 					if ctx.PidID != 0 && ctx.MntID != 0 {

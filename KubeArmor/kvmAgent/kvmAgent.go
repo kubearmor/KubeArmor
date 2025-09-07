@@ -12,13 +12,13 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	kg "github.com/kubearmor/KubeArmor/KubeArmor/log"
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -59,8 +59,7 @@ func NewKVMAgent(eventCb tp.KubeArmorHostPolicyEventCallback) *KVMAgent {
 	kvm.gRPCServer = gRPCServer
 
 	// Connect to gRPC server
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
+	gRPCConnection, err := grpc.NewClient(kvm.gRPCServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		kg.Errf("Not accessible to gRPC server (%s)", err.Error())
 		return nil
@@ -106,8 +105,7 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 			}
 
 			// connect to gRPC server again
-			ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-			gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
+			gRPCConnection, err := grpc.NewClient(kvm.gRPCServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
 				kg.Errf("Not accessible to gRPC server (%s)", err.Error())
 				return
@@ -144,8 +142,7 @@ func (kvm *KVMAgent) ConnectToKVMService() {
 				}
 
 				// connect to gRPC server again
-				ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-				gRPCConnection, err := grpc.DialContext(ctx, kvm.gRPCServer, grpc.WithInsecure(), grpc.WithBlock())
+				gRPCConnection, err := grpc.NewClient(kvm.gRPCServer, grpc.WithTransportCredentials(insecure.NewCredentials()))
 				if err != nil {
 					kg.Errf("Not accessible to gRPC server (%s)", err.Error())
 					return

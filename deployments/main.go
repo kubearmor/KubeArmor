@@ -28,7 +28,7 @@ func main() {
 	var namespace = *nsPtr
 
 	for _, env := range envs {
-		v := []interface{}{
+		v := []any{
 			// ServiceAccounts
 			dp.GetServiceAccount(namespace),
 			dp.GetRelayServiceAccount(namespace),
@@ -88,7 +88,7 @@ func main() {
 
 }
 
-func writeToYAML(f *os.File, o interface{}) error {
+func writeToYAML(f *os.File, o any) error {
 	// Use "clarketm/json" to marshal so as to support zero values of structs with omitempty
 	j, err := json.Marshal(o)
 	if err != nil {
