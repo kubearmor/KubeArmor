@@ -37,6 +37,11 @@ message ExecEvent {
   string ExecutableName = 2;
 }
 
+// Structured data representation
+message StructuredData {
+  map<string, string> fields = 1;
+}
+
 // alert struct
 message Alert {
   int64 Timestamp = 1;
@@ -75,6 +80,9 @@ message Alert {
   string Operation = 19;
   string Resource = 20;
   string Data = 21;
+
+  // New structured data field
+  StructuredData StructuredData = 39;
 
   string Enforcer = 28;
   string Action = 22;
@@ -121,6 +129,9 @@ message Log {
   string Operation = 15;
   string Resource = 16;
   string Data = 17;
+
+  // New structured data field
+  StructuredData StructuredData = 39;
 
   string Result = 18;
   string Cwd = 25;
