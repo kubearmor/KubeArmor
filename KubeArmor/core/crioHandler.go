@@ -19,6 +19,7 @@ import (
 	tp "github.com/kubearmor/KubeArmor/KubeArmor/types"
 	spec "github.com/opencontainers/runtime-spec/specs-go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
@@ -50,7 +51,7 @@ var Crio *CrioHandler
 func NewCrioHandler() *CrioHandler {
 	ch := &CrioHandler{}
 
-	conn, err := grpc.Dial(cfg.GlobalCfg.CRISocket, grpc.WithInsecure())
+	conn, err := grpc.Dial(cfg.GlobalCfg.CRISocket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil
 	}

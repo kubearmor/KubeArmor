@@ -452,8 +452,7 @@ func (dm *KubeArmorDaemon) UpdateContainerdContainer(ctx context.Context, contai
 
 					// add identities and labels if non-k8s
 					if !dm.K8sEnabled {
-						labelsSlice := strings.Split(container.Labels, ",")
-						for _, label := range labelsSlice {
+						for label := range strings.SplitSeq(container.Labels, ",") {
 							key, value, ok := strings.Cut(label, "=")
 							if !ok {
 								continue
