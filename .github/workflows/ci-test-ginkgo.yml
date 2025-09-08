@@ -254,9 +254,12 @@ jobs:
           else
             echo "Coverage file not found, skipping coverage report."
           fi
+        
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
+          GOCACHE: ${{ runner.temp }}/go-cache
+          GOMODCACHE: ${{ runner.temp }}/go-mod-cache
 
       - name: Upload coverage file
         if: ${{ always() }}
