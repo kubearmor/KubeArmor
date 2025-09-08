@@ -681,7 +681,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.ParentHash = log.ParentHash[:]
 		pbAlert.ResourceHash = log.ResourceHash[:]
 		if len(log.HashAlgo) > 0 {
-			pbAlert.HashAlgo = "sha256"
+			pbAlert.HashAlgo = log.HashAlgo
 		}
 
 		if len(log.Action) > 0 {
@@ -691,8 +691,6 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbAlert.Result = log.Result
 		pbAlert.MaxAlertsPerSec = log.MaxAlertsPerSec
 		pbAlert.DroppingAlertsInterval = log.DroppingAlertsInterval
-
-		// kg.Printf("Alert printing hash fields : processHash : %x , parentHash : %x , resourceHash : %x \n", pbAlert.ProcessHash, pbAlert.ParentHash, pbAlert.ResourceHash)
 
 		fd.EventStructs.AlertLock.Lock()
 		defer fd.EventStructs.AlertLock.Unlock()
@@ -772,7 +770,7 @@ func (fd *Feeder) PushLog(log tp.Log) {
 		pbLog.ParentHash = log.ParentHash[:]
 		pbLog.ResourceHash = log.ResourceHash[:]
 		if len(log.HashAlgo) > 0 {
-			pbLog.HashAlgo = "sha256"
+			pbLog.HashAlgo = log.HashAlgo
 		}
 
 		pbLog.Result = log.Result
