@@ -15,13 +15,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unsafe"
 
 	cle "github.com/cilium/ebpf"
 
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
-	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 
 	kl "github.com/kubearmor/KubeArmor/KubeArmor/common"
@@ -40,7 +38,6 @@ const (
 	visibilityOn     = uint32(0)
 	// how many event the channel can hold
 	SyscallChannelSize   = 1 << 13 //8192
-	RingbufChannelSize   = 1 << 20 // 1048576
 	DefaultVisibilityKey = uint32(0xc0ffee)
 )
 
@@ -93,13 +90,14 @@ type SyscallContext struct {
 
 	// exec events
 	ExecID uint64
+	Hash   uint8
 }
 
 // HashContext Structure
 type HashContext struct {
-	ProcessHash  [32]byte
-	ParentHash   [32]byte
-	ResourceHash [32]byte
+	ProcessHash  string
+	ParentHash   string
+	ResourceHash string
 	HashAlgo     uint32
 }
 
@@ -135,7 +133,7 @@ type SystemMonitor struct {
 	// container id -> container
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
- 
+
 	// container id -> host pid
 	ActiveHostPidMap *map[string]tp.PidMap
 	ActivePidMapLock **sync.RWMutex
@@ -143,6 +141,9 @@ type SystemMonitor struct {
 	// PidID + MntID -> container id
 	NsMap     map[NsKey]string
 	NsMapLock *sync.RWMutex
+
+	// Ima Hash
+	ImaHash *ImaHash
 
 	// system monitor
 	BpfModule            *cle.Collection
@@ -164,10 +165,6 @@ type SystemMonitor struct {
 	// system events
 	SyscallChannel chan []byte
 	SyscallPerfMap *perf.Reader
-
-	//ringbuf events
-	LsmChannel       chan []byte
-	LsmRingbufReader *ringbuf.Reader
 
 	// lists to skip
 	UntrackedNamespaces []string
@@ -547,7 +544,6 @@ func (mon *SystemMonitor) InitBPF() error {
 	sysKprobes := []string{"do_exit", "security_bprm_check", "security_file_open", "security_path_mknod", "security_path_unlink", "security_path_rmdir", "security_ptrace_access_check"}
 	netSyscalls := []string{"tcp_connect"}
 	netRetSyscalls := []string{"inet_csk_accept", "tcp_connect"}
-	lsmPrograms := []string{"sleepable_lsm_bprm_check_security", "file_open"}
 
 	if mon.BpfModule != nil {
 
@@ -556,57 +552,6 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
-		}
-		for _, progName := range lsmPrograms {
-			lsms := []string{}
-			lsmFile := []byte{}
-			lsmPath := "/sys/kernel/security/lsm"
-
-			if !kl.IsK8sLocal() {
-				// mount securityfs
-				if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
-					if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
-						mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
-						goto probeBPFLSM
-					}
-				}
-			}
-
-			if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
-				lsmFile, err = os.ReadFile(lsmPath)
-				if err != nil {
-					mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
-					goto probeBPFLSM
-				}
-			}
-
-			lsms = strings.Split(string(lsmFile), ",")
-
-		probeBPFLSM:
-			if !kl.ContainsElement(lsms, "bpf") {
-				err := probe.CheckBPFLSMSupport()
-				if err == nil {
-					lsms = append(lsms, "bpf")
-				} else {
-					mon.Logger.Warnf("BPF LSM not supported %s", err.Error())
-				}
-			}
-
-			prog, ok := mon.BpfModule.Programs[progName]
-			if !ok {
-				mon.Logger.Warnf("LSM program %s not found in BPF module", progName)
-			}
-
-			opts := link.LSMOptions{
-				Program: prog,
-			}
-
-			l, err := link.AttachLSM(opts)
-			if err != nil {
-				mon.Logger.Warnf("failed to attach LSM program %s: %v", progName, err)
-			}
-
-			mon.Probes[progName] = l
 		}
 
 		mon.Probes["kprobe__usb_set_configuration"], err = link.Kprobe("usb_set_configuration", mon.BpfModule.Programs["kprobe__usb_set_configuration"], nil)
@@ -659,13 +604,54 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 
+		for range 1 {
+			lsms := []string{}
+			lsmFile := []byte{}
+			lsmPath := "/sys/kernel/security/lsm"
+
+			if !kl.IsK8sLocal() {
+				// mount securityfs
+				if err := kl.RunCommandAndWaitWithErr("mount", []string{"-t", "securityfs", "securityfs", "/sys/kernel/security"}); err != nil {
+					if _, err := os.Stat(filepath.Clean("/sys/kernel/security")); err != nil {
+						mon.Logger.Warnf("Failed to read /sys/kernel/security (%s)", err.Error())
+						goto probeBPFLSM
+					}
+				}
+			}
+
+			if _, err := os.Stat(filepath.Clean(lsmPath)); err == nil {
+				lsmFile, err = os.ReadFile(lsmPath)
+				if err != nil {
+					mon.Logger.Warnf("Failed to read /sys/kernel/security/lsm (%s)", err.Error())
+					goto probeBPFLSM
+				}
+			}
+
+			lsms = strings.Split(string(lsmFile), ",")
+
+		probeBPFLSM:
+			if !kl.ContainsElement(lsms, "bpf") {
+				err := probe.CheckBPFLSMSupport()
+				if err != nil {
+					mon.Logger.Warnf("BPF LSM not supported for Ima Hash %s", err.Error())
+					break
+				}
+			}
+
+			if mon.ImaHash, err = NewImaHash(mon.Logger, mon.PinPath); err != nil {
+				mon.Logger.Warnf("Failed to initialize IMA hash probes: %s", err)
+				break
+			}
+			mon.Logger.Printf("Initialize Ima Hash Probes")
+
+		}
+
 		mon.SyscallChannel = make(chan []byte, SyscallChannelSize)
 
 		mon.SyscallPerfMap, err = perf.NewReader(mon.BpfModule.Maps["sys_events"], os.Getpagesize()*1024)
 		if err != nil {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
-		mon.InitRingBuf()
 	}
 
 	return nil
@@ -684,11 +670,6 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 			return err
 		}
 	}
-	if mon.LsmRingbufReader != nil {
-		if err := mon.LsmRingbufReader.Close(); err != nil {
-			return err
-		}
-	}
 
 	if mon.BpfModule != nil {
 		mon.BpfModule.Close()
@@ -704,22 +685,14 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 		}
 	}
 
+	if mon.ImaHash != nil {
+		if err := mon.ImaHash.DestroyImaHash(); err != nil {
+			mon.Logger.Warnf("failed to destroy IMA hash: %s", err)
+		}
+	}
+
 	mon.DestroyBPFMaps()
 	return nil
-}
-func (mon *SystemMonitor) InitRingBuf() {
-	lsmMap, ok := mon.BpfModule.Maps["lsm_sys_events"]
-	if !ok {
-		mon.Logger.Errf("lsm_sys_events map not found in BPF module")
-		return
-	}
-	reader, err := ringbuf.NewReader(lsmMap)
-	if err != nil {
-		mon.Logger.Errf("Error initializing ringbuf reader: %s", err.Error())
-		return
-	}
-	mon.LsmRingbufReader = reader
-	mon.LsmChannel = make(chan []byte, RingbufChannelSize)
 }
 
 // ======================= //
@@ -728,27 +701,6 @@ func (mon *SystemMonitor) InitRingBuf() {
 
 // TraceSyscall Function
 func (mon *SystemMonitor) TraceSyscall() {
-	// Start ringbuf if available
-	if mon.LsmRingbufReader != nil {
-		go func() {
-			for {
-				record, err := mon.LsmRingbufReader.Read()
-				if err != nil {
-					if errors.Is(err, ringbuf.ErrClosed) {
-						mon.Logger.Warnf("Ringbuf closed, exiting ringbuf loop %s", err.Error())
-						return
-					}
-					mon.Logger.Warnf("Ringbuf Event Error : %s", err.Error())
-					continue
-				}
-				mon.LsmChannel <- record.RawSample
-
-			}
-		}()
-	} else {
-		mon.Logger.Err("Ringbuf Reader nil,continuing with perf only if present")
-	}
-	// Start perf map if available
 	if mon.SyscallPerfMap != nil {
 		go func() {
 			for {
@@ -757,7 +709,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					if errors.Is(err, perf.ErrClosed) {
 						// This should only happen when we call DestroyMonitor while terminating the process.
 						// Adding a Warn just in case it happens at runtime, to help debug
-						mon.Logger.Warnf("Perf Buffer closed, exiting perf loop %s", err.Error())
+						mon.Logger.Warnf("Perf Buffer closed, exiting TraceSyscall %s", err.Error())
 						return
 					}
 					mon.Logger.Warnf("Perf Event Error : %s", err.Error())
@@ -773,11 +725,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 		}()
 	} else {
-		mon.Logger.Err("Perf Buffer nil, continuing with ringbuf only if present")
-	}
-
-	if mon.SyscallPerfMap == nil && mon.LsmRingbufReader == nil {
-		mon.Logger.Err("No event source available, both perf and ringbuf are nil, exiting TraceSyscall")
+		mon.Logger.Err("Perf Buffer nil, exiting TraceSyscall")
 		return
 	}
 
@@ -859,6 +807,15 @@ func (mon *SystemMonitor) TraceSyscall() {
 				mon.Logger.Debugf("could not fetch args so dropping %s", err.Error())
 				continue
 			}
+
+			var hashes HashContext
+			if ctx.Hash == uint8(1) {
+				hashes, err = GetHashes(dataBuff)
+				if err != nil {
+					mon.Logger.Debugf("could not fetch ima hashes: %s", err)
+				}
+			}
+
 			containerID := ""
 
 			if ctx.PidID != 0 && ctx.MntID != 0 {
@@ -942,7 +899,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					}
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
 
 					// fallback logic: in case we get relative path as execPath then we join cwd + execPath to get pull path
 					if !strings.HasPrefix(strings.Split(execPath, " ")[0], "/") && log.Cwd != "/" {
@@ -977,6 +934,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(mon.execLogMap, ctx.HostPID)
 					mon.execLogMapLock.Unlock()
 
+					// update hash
+					updateHashData(&log, hashes)
+
 					// update the log again
 					log = mon.UpdateLogBase(ctx, log)
 
@@ -1009,7 +969,7 @@ func (mon *SystemMonitor) TraceSyscall() {
 					var execPath string
 
 					// generate a log with the base information
-					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx}, false)
+					log := mon.BuildLogBase(ctx.EventID, ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashes}, false)
 
 					if val, ok := args[1].(string); ok {
 						execPath = val // procExecPath
@@ -1071,6 +1031,9 @@ func (mon *SystemMonitor) TraceSyscall() {
 					delete(mon.execLogMap, ctx.HostPID)
 					mon.execLogMapLock.Unlock()
 
+					// update hashes
+					updateHashData(&log, hashes)
+
 					// update the log again
 					log = mon.UpdateLogBase(ctx, log)
 
@@ -1129,80 +1092,8 @@ func (mon *SystemMonitor) TraceSyscall() {
 			}
 			MonitorLock.Lock()
 			// push the context to the channel for logging
-			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args}
+			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, ContextArgs: args, HashData: hashes}
 			MonitorLock.Unlock()
-		case dataRaw, valid := <-mon.LsmChannel:
-			if !valid {
-				return
-			}
-			dataBuff := bytes.NewBuffer(dataRaw)
-			ctx, err := readContextFromBuff(dataBuff)
-			if err != nil {
-				mon.Logger.Debugf("Error while reading context in telemetry %s", err.Error())
-				continue
-			}
-			args, err := GetArgs(dataBuff, ctx.Argnum)
-			if err != nil {
-				mon.Logger.Debugf("could not fetch args so dropping %s", err.Error())
-				continue
-			}
-			containerID := ""
-			hashData := HashContext{}
-
-			if ctx.PidID != 0 && ctx.MntID != 0 {
-				containerID = mon.LookupContainerID(ctx.PidID, ctx.MntID)
-
-				if containerID != "" {
-					ContainersLock.RLock()
-					namespace := Containers[containerID].NamespaceName
-					if kl.ContainsElement(mon.UntrackedNamespaces, namespace) {
-						ContainersLock.RUnlock()
-						continue
-					}
-					ContainersLock.RUnlock()
-				}
-			}
-
-			if ctx.PidID != 0 && ctx.MntID != 0 && containerID == "" {
-				ReplayChannel <- dataRaw
-				continue
-			}
-
-			if ctx.EventID == SecurityBprmCheck {
-				if val, ok := args[0].(string); ok {
-					mon.UpdateExecPath(containerID, ctx.HostPID, val)
-					if dataBuff.Len() >= int(unsafe.Sizeof(HashContext{})) {
-						hashCtx, err := readHashContextFromBuff(dataBuff)
-						hashData = hashCtx
-						if err != nil {
-							mon.Logger.Printf("failed to read hash context: %s", err)
-							continue
-						}
-						// mon.Logger.Printf("LSM SecurityBprmCheck Event: EventID=%d, PID=%d, Path/Args=%v, ProcessHash=%x, ParentHash=%x, ResourceHash=%x, HashAlgo=%d", ctx.EventID, ctx.PID, args, hashCtx.ProcessHash, hashCtx.ParentHash, hashCtx.ResourceHash, hashCtx.HashAlgo)
-					}
-				} else {
-					continue
-				}
-			} else if ctx.EventID == FileOpen {
-				if len(args) != 2 {
-					continue
-				} else {
-					if dataBuff.Len() >= int(unsafe.Sizeof(HashContext{})) {
-						hashCtx, err := readHashContextFromBuff(dataBuff)
-						hashData = hashCtx
-						if err != nil {
-							mon.Logger.Debugf("failed to read hash context: %s", err)
-							continue
-						}
-						// mon.Logger.Printf("LSM FileOpen Event: EventID=%d, PID=%d, Path/Args=%v, ProcessHash=%x, ParentHash=%x, ResourceHash=%x, HashAlgo=%d",ctx.EventID, ctx.PID, args, hashCtx.ProcessHash, hashCtx.ParentHash, hashCtx.ResourceHash, hashCtx.HashAlgo)
-					}
-				}
-			}
-			MonitorLock.Lock()
-			// push the context to the channel for logging
-			mon.ContextChan <- ContextCombined{ContainerID: containerID, ContextSys: ctx, HashData: hashData, ContextArgs: args}
-			MonitorLock.Unlock()
-
 		}
 
 	}
