@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest-16-cores]
+        os: [oracle-vm-16cpu-64gb-x86-64]
         runtime: ["containerd","crio"]
     steps:
       - uses: actions/checkout@v3
@@ -254,9 +254,12 @@ jobs:
           else
             echo "Coverage file not found, skipping coverage report."
           fi
+        
         working-directory: KubeArmor
         env:
           GOPATH: /home/runner/go
+          GOCACHE: ${{ runner.temp }}/go-cache
+          GOMODCACHE: ${{ runner.temp }}/go-mod-cache
 
       - name: Upload coverage file
         if: ${{ always() }}
