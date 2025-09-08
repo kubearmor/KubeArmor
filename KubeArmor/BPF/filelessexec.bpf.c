@@ -98,7 +98,6 @@ int BPF_PROG(fileless_preset_bprm_check_security, struct linux_binprm *bprm){
     if (*present == BLOCK) {
       event_data->retval = -13;
       bpf_ringbuf_submit(event_data, 0);
-      // bpf_printk("[bprm] fileless execution detected with pid %d, denying execution", event_data->pid);
       return -13;
     } else {
       event_data->retval = 0;
