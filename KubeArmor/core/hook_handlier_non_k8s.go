@@ -42,7 +42,7 @@ func (dm *KubeArmorDaemon) ListenToNonK8sHook() {
 		return
 	}
 
-	// Set the permissions of ka.sock to 777 so that rootless podman with user level priviledges can also communicate with the socket
+	// #nosec G302 Set the permissions of ka.sock to 777 so that rootless podman with user level priviledges can also communicate with the socket
 	if err := os.Chmod(listenPath, 0777); err != nil {
 		dm.Logger.Warnf("Failed to set permissions on %s: %v", listenPath, err)
 	}
@@ -108,12 +108,12 @@ func (dm *KubeArmorDaemon) handleNonK8sConn(conn net.Conn, ready *atomic.Bool) {
 			return
 		}
 
-        // Handle the container create or delete event
-        if data.Operation == tp.HookContainerCreate {
-            dm.UpdateContainer(data.Container.ContainerID, data.Container, "create")
-        } else {
-            dm.UpdateContainer(data.Container.ContainerID, data.Container, "destroy")
-        }
+		// Handle the container create or delete event
+		if data.Operation == tp.HookContainerCreate {
+			dm.UpdateContainer(data.Container.ContainerID, data.Container, "create")
+		} else {
+			dm.UpdateContainer(data.Container.ContainerID, data.Container, "destroy")
+		}
 
 	}
 }
@@ -135,7 +135,7 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			dm.ContainersLock.Unlock()
 
 			containerLabels, containerIdentities := common.GetLabelsFromString(container.Labels)
-			
+
 			endPoint.EndPointName = container.ContainerName
 			endPoint.ContainerName = container.ContainerName
 			endPoint.NamespaceName = container.NamespaceName
@@ -147,24 +147,24 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			endPoint.FileVisibilityEnabled = true
 			endPoint.NetworkVisibilityEnabled = true
 			endPoint.CapabilitiesVisibilityEnabled = true
-			
+
 			endPoint.AppArmorProfiles = []string{"kubearmor_" + container.ContainerName}
-			
+
 			globalDefaultPosture := tp.DefaultPosture{
 				FileAction:         cfg.GlobalCfg.DefaultFilePosture,
 				NetworkAction:      cfg.GlobalCfg.DefaultNetworkPosture,
 				CapabilitiesAction: cfg.GlobalCfg.DefaultCapabilitiesPosture,
 			}
 			endPoint.DefaultPosture = globalDefaultPosture
-			
+
 			dm.SecurityPoliciesLock.RLock()
-			for _, secPol := range dm.SecurityPolicies {				
+			for _, secPol := range dm.SecurityPolicies {
 				if kl.MatchIdentities(secPol.Spec.Selector.Identities, endPoint.Identities) {
 					endPoint.SecurityPolicies = append(endPoint.SecurityPolicies, secPol)
 				}
 			}
 			dm.SecurityPoliciesLock.RUnlock()
-			
+
 			dm.EndPointsLock.Lock()
 			dm.EndPoints = append(dm.EndPoints, endPoint)
 			dm.EndPointsLock.Unlock()
@@ -185,11 +185,10 @@ func (dm *KubeArmorDaemon) UpdateContainer(containerID string, container tp.Cont
 			dm.SystemMonitor.AddContainerIDToNsMap(containerID, container.NamespaceName, container.PidNS, container.MntNS)
 			dm.RuntimeEnforcer.RegisterContainer(containerID, container.PidNS, container.MntNS)
 
-
 			if len(endPoint.SecurityPolicies) > 0 { // struct can be empty or no policies registered for the endPoint yet
 				dm.Logger.UpdateSecurityPolicies("ADDED", endPoint)
 				if dm.RuntimeEnforcer != nil && endPoint.PolicyEnabled == tp.KubeArmorPolicyEnabled {
-					dm.Logger.Printf("Enforcing security policies for container ID %s",containerID)
+					dm.Logger.Printf("Enforcing security policies for container ID %s", containerID)
 					// enforce security policies
 					dm.RuntimeEnforcer.UpdateSecurityPolicies(endPoint)
 				}

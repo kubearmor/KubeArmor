@@ -16,6 +16,7 @@ type KubeArmorHostPolicySpec struct {
 	Network      HostNetworkType      `json:"network,omitempty"`
 	Capabilities HostCapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType         `json:"syscalls,omitempty"`
+	Device       DeviceType           `json:"device,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 
