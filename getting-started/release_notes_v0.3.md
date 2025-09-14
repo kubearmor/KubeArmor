@@ -1,0 +1,70 @@
+## Default Security Posture (@daemon1024)
+One of the tenets of achieving Zero Trust stature requires one to set the workloads in "least-permissive mode". Setting up least-permissive mode can be fraught with challenges and it is important that the tooling supports gradual upgrade to the least-permissive mode. One of the important tool is setting audit or dry-run mode for the policies before one can use the block/deny mode.
+
+KubeArmor supports deny-by-default mode wherein one can specify what actions are allowed and everything else get denied. However, this mode can be a fatal for security ops folks since it has the possibility to bring down the application. While KubeArmor always supported an audit mode, version 0.3 release [PR#630](https://github.com/kubearmor/KubeArmor/pull/630) & [PR#595](https://github.com/kubearmor/KubeArmor/issues/595) brings in a more streamlined approach for handling this mode.
+* It is now possible to set the global mode for default posture separartely for file/process, capabilities and network operations.
+* Further, it is now possible to set the default posture at namespace level for file/process, capabilities and network operations.
+
+An example of setting the default network posture to audit mode for `namespace=multiubuntu`.
+```
+~❯❯❯  kubectl annotate ns multiubuntu kubearmor-network-posture=audit --overwrite
+namespace/multiubuntu annotated
+~❯❯❯  kubectl describe ns multiubuntu
+Name:         multiubuntu
+Labels:       kubernetes.io/metadata.name=multiubuntu
+Annotations:  kubearmor-network-posture: audit
+Status:       Active
+```
+
+## `ProcessName`, `ParentProcessName` fields in all telemetry events (@nam-jaehyun)
+KubeArmor [PR#632](https://github.com/kubearmor/KubeArmor/pull/632) now generates an appropriate `processName` and `parentProcessName` in the context of every event. Earlier Kubearmor had several issues especially in cases where the binaries could be symbolic links, relative paths used to invoke the binary. With version 0.3 kubearmor now leverages LSM hook kprobe `security_bprm_check` to get an absolute binary path for the executable.
+```json
+{
+  "Timestamp": 1648788707,
+  "UpdatedTime": "2022-04-01T04:51:47.854366Z",
+  "ClusterName": "default",
+  "HostName": "ubuntu2004-vagrants",
+  "NamespaceName": "explorer",
+  "PodName": "knoxautopolicy-f69c455-9824f",
+  "ContainerID": "60d9a043cdb09fc99d26bfe22d1d0961e981f407b5d747626f14ad01515a41e8",
+  "ContainerName": "knoxautopolicy",
+  "HostPID": 1379898,
+  "PPID": 404,
+  "PID": 414,
+  "PolicyName": "autopol-system-4153385364",
+  "Severity": "1",
+  "Type": "MatchedPolicy",
+  "Source": "/usr/bin/bash",
+  "Operation": "Process",
+  "Resource": "/usr/bin/chmod",
+  "Data": "syscall=SYS_EXECVE",
+  "Action": "Block",
+  "Result": "Permission denied",
+  "ContainerImage": "docker.io/nyrahul/knoxautopolicy:dev@sha256:3d696f1650ac8b9932cb975c98f69a406b12fc8514f0b0ad39b19c8dfd2add8f",
+  "ParentProcessName": "/usr/bin/bash",
+  "ProcessName": "/usr/bin/chmod"
+}
+```
+Note the `ProcessName` and `ParentProcessName` fields in the json fields.
+
+## Support for Virtual Machines (@seswarrajan)
+
+KubeArmor [now supports](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/kubearmor_vm.md) policy enforcement directly on the workloads installed on the hosts (either in virtual machine or on bare-metals). There were several fixes ([#658](https://github.com/kubearmor/KubeArmor/pull/658), [#631](https://github.com/kubearmor/KubeArmor/pull/631)) to Kubearmor especially to handle restart conditions.
+
+## Branching and Release Strategy (@Ankurk99, @nyrahul)
+KubeArmor is maturing both in terms of feature set and in terms of managing release procedures. With version 0.3 [#590](https://github.com/kubearmor/KubeArmor/issues/590) we are now following a streamlined branching and release strategy. Some key highlights are:
+1. Have `main` as our bleeding edge branch where things might be unstable.
+2. Release kubearmor every month or two with a new release version and release logs ... the versioning will be v0.2, v0.3 and so on ... If there are any backports, those will be handled as part of release-candidates version .. for e.g. v0.2-rc1, v0.2-rc2 and so on
+3. Every version (including release candidates) will have a tag created.
+4. Every version (not including release candidates) will have a branch name corresponding to the version name (for e.g., v0.2).
+5. KubeArmor dockerhub image will have following:
+  a. `kubearmor/kubearmor:latest` pointing to main branch image
+  b. `kubearmor/kubearmor:v0.2` ... version specific image ... release candidates will update this image itself for the corresponding version
+  c. `kubearmor/kubearmor:stable` ... a version will be upgraded to stable version only after enough due diligence (what this due diligence is would be considered in the future) .. for e.g., we might have v0.2, v0.3 as existing versions but stable might point to v0.2
+6. karmor cli tool and helm charts will ensure that the right accessory tooling (for e.g., kubearmor-relay-server) is made use of for the appropriate kubearmor version.
+
+## Support for KubeArmor on GKE Rapid Release, Regular & Stable channels
+
+Google's GKE [supports multiple release channels](https://cloud.google.com/kubernetes-engine/docs/concepts/release-channels) and KubeArmor has now been tested across the latest release across all these release channels. Earlier, we found ([issue#579](https://github.com/kubearmor/KubeArmor/issues/579)) that GKE has further constrained access to the system folder on images of Rapid/Regular release channels. Fixed through [PR#648](https://github.com/kubearmor/KubeArmor/pull/648).
+
+

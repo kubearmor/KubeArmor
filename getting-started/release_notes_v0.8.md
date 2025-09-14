@@ -1,0 +1,137 @@
+## KubeArmor passes AWS Foundational Technical Review (FTR)
+
+The [Amazon Foundational Technical Review (FTR)](https://aws.amazon.com/partners/foundational-technical-review/) is a framework that enables AWS Partners to detect and remediate issues in solutions and products. It focuses on quality, reliability, and safety and outlines the best practices to meet the set requirements.
+
+KubeArmor applied for an AWS Foundational Technical Review and fulfilled all the set criteria. Changes had to be done in KubeArmor to fulfill the requirements, especially towards the security side of elements. FTR requires that the containers do not use privileged mode. KubeArmor had to be updated to fulfill this requirement.
+
+One of the outcomes of this review was that KubeArmor is now [listed](https://partners.amazonaws.com/search/solutions/?keyword=kubearmor) as an official AWS Partner Solution.
+
+## Profiling KubeArmor logs using karmor
+KubeArmor's CLI just received a new feature! `karmor profile` which in real-time shows a terminal user interface table of three different operations going on in KubeArmor: Process, File and Network. It maintains a counter of each operation that is happening within the cluster, along with other useful details. It directly fetches data from the `karmor logs` API and displays all the required information. The TUI includes simple navigation between operations and a user input based filter as well.
+
+![karmor profile](https://raw.githubusercontent.com/Ankurk99/docs-res/main/gif/Filter.gif)
+
+## KubeArmor Image Signing using CoSign
+
+Container Image provenance requires signing an image that provides cryptographic evidence indicating that the author is who they say they are. Software Supply Chain attacks are becoming increasingly common and the onus is on the developers and maintainers to ensure that the workload images are signed. The users of the images have the responsibility to verify the provenance of these images before deploying. Devs, maintainers, and users have to depend on a trusted entity for image provenance. One such framework is provided by the [sigstore community](https://www.sigstore.dev/). Sigstore provides primitives to sign the images/blobs, ensure certificate transparency, and subsequently provides tools that can be used to verify the images and get the activities records.
+
+This release of KubeArmor introduces a way for KubeArmor to sign the images it pushes to the docker registry using `sigstore/cosign` such that any external user can verify the authenticity of the image and check the associated transparency logs using `sigstore/rekor`.
+
+## How does KubeArmor use sigstore primitives?
+ An image signed using KubeArmor pipelines indicates that the image was indeed produced by the appropriate KubeArmor ecosystem.
+
+![cosign](https://user-images.githubusercontent.com/9133227/210810246-5085313e-aeea-4c07-8b81-baf0f79be07f.png)
+
+## As a user, how can I verify whether the image is signed by the trusted entity?
+
+One can use `cosign verify` to check whether the image is signed.
+
+```
+❯ COSIGN_EXPERIMENTAL=1 cosign verify kubearmor/kubearmor@sha256:3a1f3bf3bce191833176e7681b49ae4ae24edad19fa84941dcdda4382a3a44ee | jq
+
+Verification for index.docker.io/kubearmor/kubearmor@sha256:3a1f3bf3bce191833176e7681b49ae4ae24edad19fa84941dcdda4382a3a44ee --
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - The existence of the claims in the transparency log was verified offline
+  - Any certificates were verified against the Fulcio roots.
+[
+  {
+    "critical": {
+      "identity": {
+        "docker-reference": "index.docker.io/kubearmor/kubearmor"
+      },
+      "image": {
+        "docker-manifest-digest": "sha256:3a1f3bf3bce191833176e7681b49ae4ae24edad19fa84941dcdda4382a3a44ee"
+      },
+      "type": "cosign container image signature"
+    },
+    "optional": {
+      "1.3.6.1.4.1.57264.1.1": "https://token.actions.githubusercontent.com",
+      "1.3.6.1.4.1.57264.1.2": "push",
+      "1.3.6.1.4.1.57264.1.3": "445ee44df72f09f5b539cfdb7cac5b3d5e014e6a",
+      "1.3.6.1.4.1.57264.1.4": "ci-latest-release",
+      "1.3.6.1.4.1.57264.1.5": "kubearmor/KubeArmor",
+      "1.3.6.1.4.1.57264.1.6": "refs/heads/main",
+      "Bundle": {
+        "SignedEntryTimestamp": "MEUCIQDxQ546JPKpzYj34zmTnaDNEKq2iKpE9eNyO+uh32YSdgIgOAIkgjQ5A7XS24bKZNp/f1RT/TzcZLfrzsHRnruqtbI=",
+        "Payload": {
+          "body": "eyJhcGlWZXJzaW9uIjoiMC4wLjEiLCJraW5kIjoiaGFzaGVkcmVrb3JkIiwic3BlYyI6eyJkYXRhIjp7Imhhc2giOnsiYWxnb3JpdGhtIjoic2hhMjU2IiwidmFsdWUiOiI2MWYxNjZkYzkzMjNkZTYxZjY1MDVhZTVlNmQ1MDk5ZWI4YjEwZWNiYWExZDhlM2Q2NzdkOTAyMTUzNTlkZWIzIn19LCJzaWduYXR1cmUiOnsiY29udGVudCI6Ik1FVUNJQ2JZNm41ZSsrbzlWOTczS3BFd0lMcXRIQkpkTXRBZHFja2U3SkdXdHM4ZUFpRUF1K05TSVExL2tiR0VSMGVVY3NqR1VqMmdsamwyQmFXSWxUMWt6QnZBQjZRPSIsInB1YmxpY0tleSI6eyJjb250ZW50IjoiTFMwdExTMUNSVWRKVGlCRFJWSlVTVVpKUTBGVVJTMHRMUzB0Q2sxSlNVUnhWRU5EUVhrclowRjNTVUpCWjBsVldtVXZlVzVKZWtwc00ySlhkakJuZWtsaFFrRXlXblpZVmtORmQwTm5XVWxMYjFwSmVtb3dSVUYzVFhjS1RucEZWazFDVFVkQk1WVkZRMmhOVFdNeWJHNWpNMUoyWTIxVmRWcEhWakpOVWpSM1NFRlpSRlpSVVVSRmVGWjZZVmRrZW1SSE9YbGFVekZ3WW01U2JBcGpiVEZzV2tkc2FHUkhWWGRJYUdOT1RXcE5kMDFVUVhsTlJGRXdUMVJGZUZkb1kwNU5hazEzVFZSQmVVMUVVVEZQVkVWNFYycEJRVTFHYTNkRmQxbElDa3R2V2tsNmFqQkRRVkZaU1V0dldrbDZhakJFUVZGalJGRm5RVVZxYVRKMWFrVlZSVEpXT0hwbmVHVTBZMFZQVDI1UFFuTldXSGhyY0ZKalpUQlpkMFlLVm5wT01rUnBiWEpXUm1ST1ZFMHlhR1EyWVhjNGRtdElkamhvT1doU1IzQkVOelE0VkRKQmNGWjZhMlZ5YVdsUWNFdFBRMEZyTkhkblowcExUVUUwUndwQk1WVmtSSGRGUWk5M1VVVkJkMGxJWjBSQlZFSm5UbFpJVTFWRlJFUkJTMEpuWjNKQ1owVkdRbEZqUkVGNlFXUkNaMDVXU0ZFMFJVWm5VVlZzY2paUUNqQTFjRUZhVTBReE0xZEpibEZ4WlhSb1VVNVZWMEYzZDBoM1dVUldVakJxUWtKbmQwWnZRVlV6T1ZCd2VqRlphMFZhWWpWeFRtcHdTMFpYYVhocE5Ga0tXa1E0ZDJKQldVUldVakJTUVZGSUwwSkhTWGRaU1ZwbFlVaFNNR05JVFRaTWVUbHVZVmhTYjJSWFNYVlpNamwwVERKME1WbHRWbWhqYlRGMlkyazVUQXBrVjBwc1VWaEtkR0l6U1haTWJXUndaRWRvTVZscE9UTmlNMHB5V20xNGRtUXpUWFpaTW10MFlrZEdNRnBZVGpCTVdFcHNZa2RXYUdNeVZYVmxWekZ6Q2xGSVNteGFiazEyWVVkV2FGcElUWFppVjBad1ltcEJOVUpuYjNKQ1owVkZRVmxQTDAxQlJVSkNRM1J2WkVoU2QyTjZiM1pNTTFKMllUSldkVXh0Um1vS1pFZHNkbUp1VFhWYU1td3dZVWhXYVdSWVRteGpiVTUyWW01U2JHSnVVWFZaTWpsMFRVSkpSME5wYzBkQlVWRkNaemM0ZDBGUlNVVkNTRUl4WXpKbmR3cE9aMWxMUzNkWlFrSkJSMFIyZWtGQ1FYZFJiMDVFVVRGYVYxVXdUa2RTYlU1NlNtMU5SR3h0VGxkSk1VMTZiR3BhYlZKcFRqSk9hRmw2Vm1sTk1sRXhDbHBVUVhoT1IxVXlXVlJCWmtKbmIzSkNaMFZGUVZsUEwwMUJSVVZDUWtacVlWTXhjMWxZVW14ak0xRjBZMjFXYzFwWFJucGFWRUZvUW1kdmNrSm5SVVVLUVZsUEwwMUJSVVpDUWs1eVpGZEtiRmxZU25SaU0wbDJVek5XYVZwVlJubGlWemw1VFVJd1IwTnBjMGRCVVZGQ1p6YzRkMEZSV1VWRU0wcHNXbTVOZGdwaFIxWm9Xa2hOZG1KWFJuQmlha05DYVdkWlMwdDNXVUpDUVVoWFpWRkpSVUZuVWpoQ1NHOUJaVUZDTWtGT01EbE5SM0pIZUhoRmVWbDRhMlZJU214dUNrNTNTMmxUYkRZME0ycDVkQzgwWlV0amIwRjJTMlUyVDBGQlFVSm9XRVJRTlhNNFFVRkJVVVJCUldOM1VsRkpaMVZDVFdscWMwb3JNbVJPVWxCVU9FVUtlRFYyVEZBNWFtNVVlREZKTW5aaFQycGxaelZOYUhBd2NFaDNRMGxSUkc1TldFdFdlbVZUWXpSakwycElTRGhyVWtwSFpHYzNabEZzVjFCM1JHWm1jd3BuZGxGdmFEQk5ZaTlxUVV0Q1oyZHhhR3RxVDFCUlVVUkJkMDV2UVVSQ2JFRnFSVUV4WlRoaWFVRnFiRkJDZFRjM2FrVXJaM1p3VWtSQmJGcHVTbVZ4Q21FNE5VOHpjWHBvVHpZdk4yTkdkVWhYT0ZSR1dsRnlMMk4yUjBOMVZXWlJPRXhCVlVGcVFVRnhXVEU1YkZJMWF6VkJXWE4zUVhaT2RUaFNSMG92Ym1jS1RHdHNZM3BaU0V4aFpGWTVURmhPUW5vMlZEQmFhM0ZpTWxWdVdHOHJia3QzVUM5TE1qSlpQUW90TFMwdExVVk9SQ0JEUlZKVVNVWkpRMEZVUlMwdExTMHRDZz09In19fX0=",
+          "integratedTime": 1672634952,
+          "logIndex": 10298691,
+          "logID": "c0d23d6ad406973f9559f3ba2d1ca01f84147d8ffc5b8445c224f98b9591801d"
+        }
+      },
+      "Issuer": "https://token.actions.githubusercontent.com",
+      "Subject": "https://github.com/kubearmor/KubeArmor/.github/workflows/ci-latest-release.yml@refs/heads/main",
+      "githubWorkflowName": "ci-latest-release",
+      "githubWorkflowRef": "refs/heads/main",
+      "githubWorkflowRepository": "kubearmor/KubeArmor",
+      "githubWorkflowSha": "445ee44df72f09f5b539cfdb7cac5b3d5e014e6a",
+      "githubWorkflowTrigger": "push"
+    }
+  }
+]
+```
+
+As a user, one can check the transparency records from Rekor logs. Example Rekor logs for KubeArmor can be seen [here](https://rekor.tlog.dev/?logIndex=10327335).
+
+
+## Get visibility into the use of server ports
+
+`karmor summary` of bind/syscalls
+
+```
+Ingress connections
++----------+------------------+-------------------------------+------+-----------+----------------------------+-------+------------------------------+
+| PROTOCOL |     COMMAND      |          POD/SVC/IP           | PORT | NAMESPACE |           LABELS           | COUNT |      LAST UPDATED TIME       |
++----------+------------------+-------------------------------+------+-----------+----------------------------+-------+------------------------------+
+| TCPv6    | /usr/sbin/mysqld | pod/dvwa-web-59b677c755-xdbsq | 3306 | dvwa      | app=dvwa-web,tier=frontend | 20    | Mon Jan  2 13:52:55 UTC 2023 |
++----------+------------------+-------------------------------+------+-----------+----------------------------+-------+------------------------------+
+
+
+Egress connections
++----------+---------------------+-----------------------------+------+-----------+--------+-------+------------------------------+
+| PROTOCOL |       COMMAND       |         POD/SVC/IP          | PORT | NAMESPACE | LABELS | COUNT |      LAST UPDATED TIME       |
++----------+---------------------+-----------------------------+------+-----------+--------+-------+------------------------------+
+| AF_UNIX  | /usr/bin/mysql      | /var/run/mysqld/mysqld.sock | 0    |           |        | 2     | Fri Dec 23 04:49:32 UTC 2022 |
+| AF_UNIX  | /usr/bin/mysqladmin | /var/run/mysqld/mysqld.sock | 0    |           |        | 1     | Fri Dec 23 04:49:32 UTC 2022 |
++----------+---------------------+-----------------------------+------+-----------+--------+-------+------------------------------+
+
+
+Bind Points
++------------+------------------+-----------+--------------+-------+------------------------------+
+|  PROTOCOL  |     COMMAND      | BIND PORT | BIND ADDRESS | COUNT |      LAST UPDATED TIME       |
++------------+------------------+-----------+--------------+-------+------------------------------+
+| AF_NETLINK | /usr/sbin/mysqld |           |              | 1     | Fri Dec 23 04:49:36 UTC 2022 |
+| AF_INET6   | /usr/sbin/mysqld | 3306      | ::           | 1     | Fri Dec 23 04:49:36 UTC 2022 |
++------------+------------------+-----------+--------------+-------+------------------------------+
+```
+
+##Learnings
+For this release, we tried to use kernel audit for observing policy violations. We faced some issues with it and thus have to revert the changes. Here is a summary of what was expected, what happened, and the learnings from this interesting experiment.
+
+## The expectations:
+### Kernel Audit for fetching policy violations
+
+KubeArmor uses eBPF for two purposes:
+1. Get visibility/observability events into the workloads.
+2. To get alerts in the context of the policies
+
+The operations involved in point 1 are straightforward i.e, KubeArmor gets an event, matches/annotate the events with the process, container, pod, and namespace information, and sends the event out to the clients waiting on the stream.
+The operations involved in point 2 are tricky. When KubeArmor gets an event, it needs to check whether the event parameters match any of the policy specifications/rules, and if it does, generate an alert accordingly. The challenge is that the matching operation is a non-trivial operation. Assume that the user has set the policy to block execution of `/usr/bin/sleep` binary. Now when the event is generated, the `kretprobe` of the `sys_execve` syscall is going to return "Permission Denied" since the LSM will block the event. Currently, KubeArmor matches the binary name and other contextual information with the policy rules that it has internally stored and checks whether the event was triggered due to a policy violation. This matching operation is non-trivial. Note that the access could be permission denied for reasons outside the scope of KubeArmor i.e, due to capability LSM or due to other access control settings. Thus it should not be inferred that a "Permission Denied" event will always be triggered due to KubeArmor-enforced policy rules only.
+
+### Performance implications
+We also expected it to have a drastic (positive) impact on KubeArmor performance since there is no policy-matching code involved in every system call hook.
+
+## What was changed?
+Traditional LSMs such as AppArmor, and SELinux, use the Kernel Audit mechanism to send the policy violation events. [Kernel Audit is supported](https://github.com/nyrahul/linux-kernel-configs#kernel-audit-support) across most of the kernels. Note that this change does not depend on userspace components such as [auditd](https://man.archlinux.org/man/auditd.8).
+
+![kernel-audit](https://user-images.githubusercontent.com/9133227/210235510-09d054e1-0a0b-45c3-abba-fdeb47c1ad02.png)
+
+## Issues:
+- First, we didn't see any noticeable change in the overall performance of KubeArmor, which we measured by looking at the number of alerts being dropped/lost.
+- Second and more important, we came up with an issue in AppArmor (or a feature if you want to call it). For Allow-based policies (default posture being Audit), we were getting alerts even in the case of resources that were allowed in the policy. For eg: We cannot create a profile that says, allow access to /root and audit every other access.
+AppArmor doesn't support this kind of action.
+
+## Learnings and future plan:
+With the above experiment we realized that kernel-audit is not suitable for all our needs and eBPF mode of observability has the future. We plan on to improve the current performance issues with the eBPF mode of policy violation alerts.

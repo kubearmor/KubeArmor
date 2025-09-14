@@ -1,0 +1,170 @@
+# KubeArmor v1.1 Blog
+
+- KubeArmor on RedHat Ecosystem #1294 ✅
+- list the applied policies for unorchestrated workloads #1311 ✅
+- Use Enforcer as a source of Alerts #1277 ✅
+- Disable file visibility by default #1442 ✅
+- KubeArmor on Flatcar feedback #1265 ✅
+- Create PolicyReports for security events to use with Policy Reporter #1337 ✅ #1328
+- CEF format support #1371 ✅ #1328
+- handle policy addition and deletion in systemd mode. #1312 ✅
+- kubearmor packer provisioner #3 ✅
+- K0s Support for KubeArmor #1318 ✅
+- Install KubeArmor in the "kubearmor" namespace by default #1167 ✅
+- adding cwd in alerts/telemetry #1453 ✅
+- Nephio Integration
+- MicroShift Support #1325
+- Prebuilt 5G Security controls from MITRE FiGHT and ENISA
+- Modify Sidekick to export KubeArmor events #1328 ✅
+- Performance Improvement
+
+## Boost Confidence with Red Hat OpenShift Certified KubeArmor Operator @rksharma95
+![Boost Confidence](https://github.com/kubearmor/KubeArmor/assets/68660002/96f7a7e2-7c01-4cc7-8027-7871d7cdd73c)
+
+Ensuring compatibility, security, and trustworthiness is crucial in today's containerised world. That's where Red Hat OpenShift Product Certification for the KubeArmor Operator comes in. This certification provides approval, signifying that KubeArmor is rigorously tested and verified to work seamlessly with OpenShift in production environments.
+
+## Improved support for Kubearmor-client in Systemd Mode @Aryan-sharma11
+### Applying policies via kubearmor-client
+![Improved Policy Handling in Systemd](https://github.com/kubearmor/KubeArmor/assets/68660002/17d9ec79-8046-4e39-bc45-13f492e6e354)
+
+In systemd mode, karmor is getting an upgrade to handle policy addition and deletion better. The current behaviour can be confusing, as it always returns a "SUCCESS" message, even when adding a policy already applied or deleting a policy that doesn't exist.
+
+1. **Policy Addition**: If you try to apply a policy already in effect, karmor will tell you, "Policy is already applied."
+1. **Policy Deletion**: If you attempt to delete a policy that doesn't exist, the response will indicate that the "Policy doesn't exist."
+
+These enhancements include a new check to ensure that policies are received by the gRPC client and successfully applied by the ParseAndUpdate functions. This makes karmor more reliable and user-friendly when managing policies in systemd mode.
+In the containerization landscape, orchestrated workloads receive much attention, but unorchestrated workloads are equally important. Often running in Systemd mode, unmanaged containers can benefit from a policy management approach. One effective tool is the Karmor Probe, which helps ensure security and compliance.
+
+![Managing Policies](https://github.com/kubearmor/KubeArmor/assets/68660002/6fd3189c-efcc-4027-aa10-860561050bb6)
+
+### Karmor Probe for Unorchestrated Workloads
+
+1. Using a gRPC Endpoint
+- Set up a gRPC endpoint within your unorchestrated environment to query and list policies applied to workloads.
+- This allows you to integrate Karmor Probe seamlessly and maintain the same standards for unorchestrated and orchestrated workloads.
+
+2. Systemd Mode Workloads
+- Unorchestrated workloads in Systemd mode can be managed by leveraging Systemd commands and unit files.
+- Use Systemd-specific tools to inspect policies and maintain clear documentation for each service.
+
+In conclusion, maintaining policies for unorchestrated workloads is essential for a comprehensive container environment. Karmor Probe and a strategic approach help ensure security and compliance for all your containers, regardless of orchestration.
+
+
+## Streamlining Kubernetes Security with KubeArmor Enforcer Alerts @daemon1024 @Aryan-sharma11
+
+KubeArmor's latest feature request aims to reduce confusion by using alerts sent by the KubeArmor enforcer, rather than triggering Default Posture alerts when no permissions are denied. This enhancement simplifies Kubernetes security and provides more accurate information to users.
+
+
+![Streamlining Kubernetes Sec (Medium)](https://github.com/kubearmor/KubeArmor/assets/68660002/127b69c1-12d2-4f49-b2d6-b1b48b370fae)
+
+In the world of Kubernetes security, minimizing confusion is a priority. KubeArmor's proposed solution involves setting up a Ring Buffer Infrastructure in the BPF LSM Enforcer to manage alerts more effectively. Here's how it works:
+
+The Solution:
+1. **Ring Buffer Infrastructure**: KubeArmor creates a ring buffer in the kernel space to store and manage alerts.
+2. **Alert Handling**: Alerts are generated when permissions are denied, containing crucial information about the denial.
+3. **User-Friendly Alerts**: Only genuine security alerts are triggered, reducing unnecessary Default Posture alerts.
+
+Benefits:
+- **Reduced Confusion**: Users won't be bombarded with false alarms.
+- **Enhanced Usability**: Security monitoring becomes more straightforward.
+- **Improved Resource Utilization**: Fewer alerts mean more efficient resource usage.
+
+Conclusion:
+KubeArmor's feature request promises a simpler and more user-friendly Kubernetes security experience by focusing on real security events and minimizing noise. This development contributes to a robust and effective Kubernetes security solution.
+
+
+## Enhanced Security with Disabled File-Based Telemetry by Default @Ankurk99
+
+KubeArmor has significantly updated by **disabling file-based telemetry by default**. This modification substantially decreases telemetry data generated by file events, lowering overall resource consumption. Users have the flexibility to configure these changes and can effortlessly enable visibility as needed.
+![Enhanced Security with Disabled](https://github.com/kubearmor/KubeArmor/assets/68660002/aceea405-cf09-4ad5-ad3e-3091f92550ad)
+
+## Enhancing KubeArmor on Flatcar OS @daemon1024
+
+KubeArmor recently underwent testing on Flatcar OS, leading to valuable feedback and feature requests. Key details include a missing `/usr/src` directory on Flatcar OS, which prompted the suggestion to make its location optional. Additionally, enabling BPF-LSM was found to be crucial and is now clarified in the documentation.
+![image](https://github.com/kubearmor/KubeArmor/assets/68660002/31d8830a-4e9c-485d-a8ae-25d76b133451)
+
+KubeArmor has responded with enhancements, including the KubeArmor Operator for smoother deployments and a new FAQ section on [enabling BPF-LSM](https://github.com/kubearmor/KubeArmor/blob/main/getting-started/FAQ.md#checking-and-enabling-support-for-bpf-lsm). These updates reflect the project's commitment to improving container security and user experience.
+
+
+## Improved Policy Handling in Systemd Mode @Aryan-sharma11
+
+
+
+## Simplify Kubernetes Security with KubeArmor Packer Provisioner @Prateeknandle
+
+![Simplify Kubernetes Security with KubeArmor Packer](https://github.com/kubearmor/KubeArmor/assets/68660002/75b6342b-40a4-414a-94f0-e5da3ecb2a8e)
+
+In the world of Kubernetes security, KubeArmor is a game-changer. But installing it can be complex. That's where the Kubearmor Packer Provisioner comes in. It offers:
+
+1. Ansible Playbook: An automated way to install KubeArmor, Karmor, and dependencies, ensuring consistency.
+1. Packer Integration: Seamlessly integrates with Packer for image creation, so your Kubernetes cluster comes pre-configured with Kubearmor and Karmor.
+
+With this provisioner, you can fortify your Kubernetes security effortlessly and efficiently, saving time and reducing the risk of misconfigurations.
+
+
+## KubeArmor Adds Support for K0s: Boosting Kubernetes Security @anurag-rajawat
+
+K0s is known for its simplicity and efficiency, making it a preferred choice for some Kubernetes users. With KubeArmor's support, K0s users can now benefit from advanced security features while keeping their clusters lightweight.
+
+![KubeArmor Adds Support for K0s](https://github.com/kubearmor/KubeArmor/assets/68660002/2f6d52d2-d11d-4b6c-be8f-70e735af715b)
+
+Key Benefits:
+1. Enhanced Security: K0s users can apply fine-grained security policies to container workloads, improving protection against threats.
+2. Increased Flexibility: Integrating K0s support expands choices for securing Kubernetes environments.
+3. Growing Ecosystem: It contributes to the diversity and adaptability of the Kubernetes ecosystem.
+
+KubeArmor's support for K0s is a valuable addition that enhances Kubernetes security options. Whether you're already using K0s or considering it, explore the benefits of KubeArmor's security solutions for your containerized workloads.
+
+## Enhancing Container Security with BPF LSM and KubeArmor @daemon1024
+![Enhancing Container Security with BPF LSM and KubeArmor](https://github.com/kubearmor/KubeArmor/assets/68660002/79441534-e75f-44ee-8939-038968231d13)
+
+Containerization and Kubernetes have transformed application deployment, but security remains a concern. KubeArmor, an open-source project, leverages BPF LSM (Linux Security Modules) to enforce host policies for stronger Kubernetes security.
+
+Containers share the host kernel, making them vulnerable. KubeArmor addresses this by enforcing fine-grained host policies that boost security.
+
+BPF LSM combines BPF's power with LSM's security framework to make real-time policy decisions and enforcement possible—enhanced Security with KubeArmor. KubeArmor delivers real-time policy enforcement, host-level policies, fine-grained control, auditing, and seamless Kubernetes integration. KubeArmor's innovative use of BPF LSM enhances security in Kubernetes environments, protecting containerized applications and ensuring compliance.
+
+## Installing KubeArmor in the "kubearmor" Namespace @Ankurk99
+The `kube-system` namespace is used for objects created by the Kubernetes system. It is reserved for system-level resources and components critical to the cluster's functioning. Installing any external deployments with the system's essential resources is not recommended.
+In this release, we have modified the default namespace for KubeArmor to utilize `kubearmor`.
+
+
+## Streamlining Kubearmor Event Export with Sidekick Integration @Shreyas220
+
+Exporting Kubearmor security events to various outputs is essential for effective Kubernetes security management. Discover how integrating Falcosidekick can simplify this process. It's a vital tool for securing Kubernetes clusters, but handling the export of security events can be challenging. We have integrated Falcosidekick to seamlessly export Kubearmor events to multiple outputs like email, Slack, Redis, RabbitMQ, Kafka, and more. Falcosidekick acts as a bridge, receiving events from Kubearmor and forwarding them to your chosen destinations. This integration allows you to customize event routing, receive real-time alerts, and ensure scalability and reliability.
+![Streamlining Kubearmor](https://github.com/kubearmor/KubeArmor/assets/68660002/c493e719-7749-4b9c-9ce4-9b60cf8a726e)
+
+
+The Kubearmor and Falcosidekick integration simplifies exporting security events, enhancing your ability to manage and respond to Kubernetes security incidents effectively.
+
+
+## Leveraging eBPF for Current Working Directory (CWD) in Alerts @Prateeknandle
+
+Introduction
+
+In this blog, we'll explore using eBPF to capture a process's Current Working Directory (CWD) and include this information in your system alerts and telemetry. CWD is valuable for debugging, troubleshooting, security, and compliance.
+
+Why CWD Matters
+
+- Debugging: Helps identify file access, permissions, and dependencies issues.
+- Troubleshooting: Contextual information for efficient issue diagnosis.
+- Security: Detects suspicious activities related to directory access.
+- Compliance: Provides context for auditing and compliance requirements.
+
+Adding CWD to Alerts and Telemetry
+
+1. Write an eBPF program to capture CWD.
+2. Extract CWD information from process data structures.
+3. Send CWD data to your logging or alerting system.
+4. Correlate CWD data with other observability metrics.
+
+![image](https://github.com/kubearmor/KubeArmor/assets/68660002/c47b41da-46de-4d69-8942-47469f153900)
+
+Benefits
+
+- Faster Issue Resolution: Speed up troubleshooting.
+- Enhanced Security: Detect unauthorized activities.
+- Compliance: Meet regulatory requirements.
+- Improved Resource Utilization: Optimize system resources.
+
+Incorporating CWD data through eBPF empowers better system observability and performance analysis.
