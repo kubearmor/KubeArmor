@@ -18,6 +18,12 @@ type ima_hashImaHashT struct {
 	Digest [32]uint8
 }
 
+type ima_hashOuterKey struct {
+	_     structs.HostLayout
+	PidNs uint32
+	MntNs uint32
+}
+
 // loadIma_hash returns the embedded CollectionSpec for ima_hash.
 func loadIma_hash() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Ima_hashBytes)
@@ -68,7 +74,9 @@ type ima_hashProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type ima_hashMapSpecs struct {
+	KubearmorConfig     *ebpf.MapSpec `ebpf:"kubearmor_config"`
 	KubearmorImaHashMap *ebpf.MapSpec `ebpf:"kubearmor_ima_hash_map"`
+	KubearmorVisibility *ebpf.MapSpec `ebpf:"kubearmor_visibility"`
 }
 
 // ima_hashVariableSpecs contains global variables before they are loaded into the kernel.
@@ -97,12 +105,16 @@ func (o *ima_hashObjects) Close() error {
 //
 // It can be passed to loadIma_hashObjects or ebpf.CollectionSpec.LoadAndAssign.
 type ima_hashMaps struct {
+	KubearmorConfig     *ebpf.Map `ebpf:"kubearmor_config"`
 	KubearmorImaHashMap *ebpf.Map `ebpf:"kubearmor_ima_hash_map"`
+	KubearmorVisibility *ebpf.Map `ebpf:"kubearmor_visibility"`
 }
 
 func (m *ima_hashMaps) Close() error {
 	return _Ima_hashClose(
+		m.KubearmorConfig,
 		m.KubearmorImaHashMap,
+		m.KubearmorVisibility,
 	)
 }
 

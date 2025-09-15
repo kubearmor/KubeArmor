@@ -1,13 +1,6 @@
 #ifndef _IMA_HASH_H
 #define _IMA_HASH_H
 
-#ifndef KBUILD_MODNAME
-#include "vmlinux.h"
-#include <bpf/bpf_core_read.h>
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_tracing.h>
-#endif
-
 #define FILE_HASH_MASK 0x80000000
 
 typedef struct ima_hash {
@@ -22,7 +15,7 @@ struct ima_hash_map
     __type(value, ima_hash_t);
     __uint(max_entries, 10240);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
-};
+}kubearmor_ima_hash_map SEC(".maps");
 
 #endif // _IMA_HASH_H
 

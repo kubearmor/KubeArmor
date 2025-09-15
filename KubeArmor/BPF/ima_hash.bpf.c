@@ -7,16 +7,25 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "ima_hash.h"
+#include "visibility.h"
+#include "kubearmor_config.h"
 
-struct ima_hash_map kubearmor_ima_hash_map SEC(".maps");
 
 SEC("lsm.s/bprm_check_security")
 int BPF_PROG(ima_bprm_check_security, struct linux_binprm *bprm) {
 
+    if (drop_syscall(_IMA_PROBE))
+        return 0;
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    
+    void *hash_exists = bpf_map_lookup_elem(&kubearmor_ima_hash_map, &pid);
+    if (hash_exists)
+        return 0;
+    
     ima_hash_t hash = {0};
     u32 algo = bpf_ima_file_hash(bprm->file, hash.digest, sizeof(hash.digest));
 
-    u32 pid = bpf_get_current_pid_tgid() >> 32;
     if (algo > 0){
         bpf_map_update_elem(&kubearmor_ima_hash_map, &pid, &hash, BPF_ANY);
     }
