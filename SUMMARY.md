@@ -40,7 +40,7 @@
 * [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
 * [Profiling of Kubearmor Logs using karmor](getting-started/profiling_kubearmor_logs.md)
 * [FAQs](getting-started/FAQ.md)
-* [Release Notes](getting-started/release_notes.md)
+* Release Notes
     * [v1.6](getting-started/release_notes_v1.6.md)
     * [v1.5](getting-started/release_notes_v1.5.md)
     * [v1.4](getting-started/release_notes_v1.4.md)
