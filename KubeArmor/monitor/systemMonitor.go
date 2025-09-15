@@ -9,6 +9,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cilium/ebpf"
 	cle "github.com/cilium/ebpf"
 
 	"github.com/cilium/ebpf/link"
@@ -160,6 +163,9 @@ type SystemMonitor struct {
 	// Probes Links
 	Probes map[string]link.Link
 
+	// TC hooks
+	TC map[string]link.Link
+
 	// context + args
 	ContextChan chan ContextCombined
 
@@ -182,6 +188,9 @@ type SystemMonitor struct {
 	Status          bool
 	UptimeTimeStamp float64
 	HostByteOrder   binary.ByteOrder
+
+	// network monitor map
+	NetworkMonitorRules *cle.Map
 }
 
 // NewSystemMonitor Function
@@ -276,6 +285,19 @@ func (mon *SystemMonitor) initBPFMaps() error {
 			mon.Logger.Errf("Error Updating System Monitor Config Map to enable container visbility : %s", err.Error())
 		}
 	}
+
+	networkBandwidthRulesMap, errconfig := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor-network-bandwidth-rules",
+			Type:       cle.Hash,
+			KeySize:    1,
+			ValueSize:  16,
+			MaxEntries: 2,
+			Pinning:    cle.PinByName,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	mon.NetworkMonitorRules = networkBandwidthRulesMap
 
 	mon.UpdateThrottlingConfig()
 
@@ -643,6 +665,24 @@ func (mon *SystemMonitor) InitBPF() error {
 			}
 		}
 	}
+
+	LoadTChooks(mon)
+	networkRulesMap, errconfig := cle.NewMapWithOptions(
+		&cle.MapSpec{
+			Name:       "kubearmor_network_quota_rules",
+			Type:       cle.Hash,
+			KeySize:    1,
+			ValueSize:  16,
+			MaxEntries: 2,
+			Pinning:    cle.PinByName,
+		}, cle.MapOptions{
+			PinPath: mon.PinPath,
+		})
+	if errconfig != nil {
+		mon.Logger.Errf("error initializing network rules map: %v", err)
+
+	}
+	mon.NetworkMonitorRules = networkRulesMap
 
 	return nil
 }
@@ -1140,4 +1180,86 @@ func (mon *SystemMonitor) TraceSyscall() {
 		}
 
 	}
+}
+func LoadTChooks(mon *SystemMonitor) {
+	mon.TC = make(map[string]link.Link)
+	// objs := bpfObjects{}
+	// if err := loadBpfObjects(&objs, nil); err != nil {
+	// 	log.Fatalf("loading objects: %s", err)
+	// }
+	// defer objs.Close()
+
+	// list of interfaces
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		log.Fatalf("failed to get network interfaces: %v", err)
+	}
+	var links []link.Link
+
+	for _, iface := range ifaces {
+		// Skip loopback interfaces and interfaces that are down.
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		//////////////////////
+		x, err := net.InterfaceByIndex(iface.Index)
+		if err != nil {
+			log.Printf("Unable to find interface with index %d: %v", x, err)
+			return
+		}
+
+		// Get all addresses assigned to that interface
+		addrs, err := x.Addrs()
+		if err != nil {
+			log.Printf("Unable to get addresses for interface %s: %v", x.Name, err)
+			continue
+		}
+
+		fmt.Printf("IP Addresses for interface '%s' (index %d):\n", x.Name, x.Index)
+
+		if len(addrs) == 0 {
+			fmt.Println("  -> No IP addresses found.")
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			// Type-assert the address to see if it's an IP network
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				ip = ipnet.IP
+				fmt.Printf("  -> %s\n", ip.String())
+			}
+		}
+		/////////////////////
+
+		l, err := link.AttachTCX(link.TCXOptions{
+			Interface: iface.Index,
+			Program:   mon.BpfModule.Programs["handle_ingress"],
+			Attach:    ebpf.AttachTCXIngress,
+		})
+		if err != nil {
+			log.Printf("could not attach ingress program to %s: %s", iface.Name, err)
+			continue
+		}
+		mon.TC["ingress"] = l
+		links = append(links, l) // for cleanup later
+		log.Printf("Attached INGRESS on iface %q (index %d)", iface.Name, iface.Index)
+
+		// Attach the egress TC program.
+		l2, err := link.AttachTCX(link.TCXOptions{
+			Interface: iface.Index,
+			Program:   mon.BpfModule.Programs["handle_egress"],
+			Attach:    ebpf.AttachTCXEgress,
+		})
+		if err != nil {
+			log.Printf("could not attach egress %s , %v", iface.Name, err)
+			continue
+		}
+		mon.TC["egress"] = l2
+
+		links = append(links, l2)
+
+		log.Printf("Attached EGRESS on iface %s (index %d)", iface.Name, iface.Index)
+	}
+
+	mon.Logger.Print("Initialized the eBPF TC hooks")
 }
