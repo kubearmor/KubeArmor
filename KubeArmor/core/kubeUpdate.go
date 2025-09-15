@@ -2719,6 +2719,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 			val.Network = visibility.Network
 			val.Process = visibility.Process
 			val.DNS = visibility.DNS
+			val.IMA = visibility.IMA
 			dm.SystemMonitor.NamespacePidsMap[namespace] = val
 			for _, nskey := range val.NsKeys {
 				dm.SystemMonitor.UpdateNsKeyMap(updateEvent, nskey, visibility)
@@ -2731,6 +2732,7 @@ func (dm *KubeArmorDaemon) UpdateVisibility(action string, namespace string, vis
 				Capability: visibility.Capabilities,
 				Network:    visibility.Network,
 				DNS:        visibility.DNS,
+				IMA:        visibility.IMA,
 			}
 		}
 		dm.Logger.Printf("Namespace %s visibiliy configured %+v", namespace, visibility)
@@ -2770,6 +2772,7 @@ func (dm *KubeArmorDaemon) updateVisibilityWithCM(cm *corev1.ConfigMap, action s
 			Network:      strings.Contains(cm.Data[cfg.ConfigVisibility], "network"),
 			Capabilities: strings.Contains(cm.Data[cfg.ConfigVisibility], "capabilities"),
 			DNS:          strings.Contains(cm.Data[cfg.ConfigVisibility], "dns"),
+			IMA:          strings.Contains(cm.Data[cfg.ConfigVisibility], "ima"),
 		}
 		dm.UpdateVisibility(updateEvent, ns.Name, visibility)
 	}
@@ -2818,6 +2821,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 					Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 					Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
 					DNS:          dm.validateVisibility("dns", cfg.GlobalCfg.Visibility),
+					IMA:          dm.validateVisibility("ima", cfg.GlobalCfg.Visibility),
 				}
 
 				// Set Visibility to Namespace Annotation if exists
@@ -2828,6 +2832,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 						Network:      dm.validateVisibility("network", ns.Annotations[visibilityKey]),
 						Capabilities: dm.validateVisibility("capabilities", ns.Annotations[visibilityKey]),
 						DNS:          dm.validateVisibility("dns", ns.Annotations[visibilityKey]),
+						IMA:          dm.validateVisibility("ima", ns.Annotations[visibilityKey]),
 					}
 				}
 				dm.UpdateDefaultPosture(addEvent, ns.Name, defaultPosture, annotated)
@@ -2852,6 +2857,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 					Network:      dm.validateVisibility("network", cfg.GlobalCfg.Visibility),
 					Capabilities: dm.validateVisibility("capabilities", cfg.GlobalCfg.Visibility),
 					DNS:          dm.validateVisibility("dns", cfg.GlobalCfg.Visibility),
+					IMA:          dm.validateVisibility("ima", cfg.GlobalCfg.Visibility),
 				}
 
 				// Set Visibility to Namespace Annotation if exists
@@ -2862,6 +2868,7 @@ func (dm *KubeArmorDaemon) WatchDefaultPosture() cache.InformerSynced {
 						Network:      dm.validateVisibility("network", ns.Annotations[visibilityKey]),
 						Capabilities: dm.validateVisibility("capabilities", ns.Annotations[visibilityKey]),
 						DNS:          dm.validateVisibility("dns", ns.Annotations[visibilityKey]),
+						IMA:          dm.validateVisibility("ima", ns.Annotations[visibilityKey]),
 					}
 				}
 				dm.UpdateDefaultPosture(updateEvent, ns.Name, defaultPosture, annotated)

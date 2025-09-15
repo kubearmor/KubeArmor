@@ -27,11 +27,11 @@
 #include <bpf_core_read.h>
 #define __user
 #else
-#include <linux/nsproxy.h>
+#include <linux/nsproxy.h> // struct nsproxy
 #include <linux/ns_common.h>
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
-#include <linux/mount.h>
+#include <linux/mount.h> // struct vfsmount
 #include <linux/binfmts.h>
 
 #include <linux/un.h>
@@ -51,6 +51,9 @@
 #include "syscalls.h"
 #include "throttling.h"
 #include "ima_hash.h"
+#include "kubearmor_config.h"
+#include "visibility.h"
+#include "kernel_helpers.h"
 
 #ifdef RHEL_RELEASE_CODE
 #if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(8, 0))
@@ -61,13 +64,6 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 #error Minimal required kernel version is 4.14
 #endif
-
-#undef container_of
-#define container_of(ptr, type, member)                    \
-    ({                                                     \
-        const typeof(((type *)0)->member) *__mptr = (ptr); \
-        (type *)((char *)__mptr - offsetof(type, member)); \
-    })
 
 // == Structures == //
 
@@ -212,25 +208,10 @@ enum
     _USB_DEVICE = 20000
 };
 
+// forward declartaion for CWD
 #ifndef BTF_SUPPORTED
-struct mnt_namespace
-{
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
-    atomic_t count;
-#endif
-    struct ns_common ns;
-};
-
 struct fs_struct {
     struct path pwd;
-};
-
-struct mount
-{
-    struct hlist_node mnt_hash;
-    struct mount *mnt_parent;
-    struct dentry *mnt_mountpoint;
-    struct vfsmount mnt;
 };
 #endif
 
@@ -289,6 +270,26 @@ typedef struct __attribute__((__packed__)) sys_context
 
 BPF_LRU_HASH(pid_ns_map, u32, u32);
 
+typedef struct args
+{
+    unsigned long args[6];
+} args_t;
+
+BPF_LRU_HASH(args_map, u64, args_t);
+BPF_LRU_HASH(file_map, u64, struct path);
+
+typedef struct buffers
+{
+    u8 buf[MAX_BUFFER_SIZE];
+} bufs_t;
+
+BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
+BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
+
+BPF_PERF_OUTPUT(sys_events);
+
+BPF_HASH(udevs, __u64, void *);
+
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
 
@@ -310,84 +311,6 @@ BPF_LRU_HASH(pid_ns_map, u32, u32);
         _val;                                              \
     })
 #endif
-
-typedef struct args
-{
-    unsigned long args[6];
-} args_t;
-
-BPF_LRU_HASH(args_map, u64, args_t);
-BPF_LRU_HASH(file_map, u64, struct path);
-
-typedef struct buffers
-{
-    u8 buf[MAX_BUFFER_SIZE];
-} bufs_t;
-
-BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
-BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
-
-BPF_PERF_OUTPUT(sys_events);
-
-BPF_HASH(udevs, __u64, void *);
-
-// == Ima Hash == //
-
-struct ima_hash_map kubearmor_ima_hash_map SEC(".maps");
-
-// == Visibility == //
-
-enum
-{
-    _FILE_PROBE = 0,
-    _PROCESS_PROBE = 1,
-    _NETWORK_PROBE = 2,
-    _CAPS_PROBE = 3,
-    _DNS_PROBE = 4,
-
-    _TRACE_SYSCALL = 0,
-    _IGNORE_SYSCALL = 1,
-};
-
-struct visibility
-{
-    __uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
-    __type(key, struct outer_key);
-    __type(value, u32);
-    /*
-        https://github.com/kubernetes/community/blob/master/sig-scalability/configs-and-limits/thresholds.md#kubernetes-thresholds
-        The link above mentions that a node can have a maximun of 110 pods.
-    */
-    __uint(max_entries, 65535);
-    __uint(pinning, LIBBPF_PIN_BY_NAME);
-};
-
-struct visibility kubearmor_visibility SEC(".maps");
-
-#define DEFAULT_VISIBILITY_KEY 0xc0ffee
-
-// == Config == //
-
-enum
-{
-    _MONITOR_HOST = 0,
-    _MONITOR_CONTAINER = 1,
-    _ENFORCER_BPFLSM = 2,
-    _ALERT_THROTTLING = 3,
-    _MAX_ALERT_PER_SEC = 4,
-    _THROTTLE_SEC = 5,
-};
-
-struct kaconfig
-{
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __type(key, u32);
-    __type(value, u32);
-    __uint(max_entries, 16);
-    __uint(pinning, LIBBPF_PIN_BY_NAME);
-};
-
-struct kaconfig kubearmor_config SEC(".maps");
 
 // exec maps
 BPF_LRU_HASH(ns_transition, u32, struct outer_key);
@@ -414,100 +337,6 @@ struct {
     __uint(max_entries, 1024);
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } proc_file_access SEC(".maps");
-// == Kernel Helpers == //
-
-static __always_inline u32 get_pid_ns_id(struct nsproxy *ns)
-{
-    struct pid_namespace *pidns = READ_KERN(ns->pid_ns_for_children);
-    return READ_KERN(pidns->ns.inum);
-}
-
-static __always_inline u32 get_mnt_ns_id(struct nsproxy *ns)
-{
-    struct mnt_namespace *mntns = READ_KERN(ns->mnt_ns);
-    return READ_KERN(mntns->ns.inum);
-}
-
-static inline struct mount *real_mount(struct vfsmount *mnt)
-{
-    return container_of(mnt, struct mount, mnt);
-}
-
-static __always_inline u32 get_task_pid_ns_id(struct task_struct *task)
-{
-    return get_pid_ns_id(READ_KERN(task->nsproxy));
-}
-
-static __always_inline u32 get_task_mnt_ns_id(struct task_struct *task)
-{
-    return get_mnt_ns_id(READ_KERN(task->nsproxy));
-}
-
-static __always_inline u32 get_task_pid_vnr(struct task_struct *task)
-{
-    struct pid *pid = NULL;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0) && !defined(RHEL_RELEASE_GT_8_0) && !defined(BTF_SUPPORTED))
-    pid = READ_KERN(task->pids[PIDTYPE_PID].pid);
-#else
-    pid = READ_KERN(task->thread_pid);
-#endif
-
-    unsigned int level = READ_KERN(pid->level);
-    return READ_KERN(pid->numbers[level].nr);
-}
-
-static __always_inline u32 get_task_ns_tgid(struct task_struct *task)
-{
-    struct task_struct *group_leader = READ_KERN(task->group_leader);
-    return get_task_pid_vnr(group_leader);
-}
-
-static __always_inline u32 get_task_ns_pid(struct task_struct *task)
-{
-    return get_task_pid_vnr(task);
-}
-
-static __always_inline u32 get_task_ns_ppid(struct task_struct *task)
-{
-    struct task_struct *real_parent = READ_KERN(task->real_parent);
-    return get_task_pid_vnr(real_parent);
-}
-
-static __always_inline u32 get_task_ppid(struct task_struct *task)
-{
-    struct task_struct *parent = READ_KERN(task->parent);
-    return READ_KERN(parent->pid);
-}
-
-static struct file *get_task_file(struct task_struct *task)
-{
-    struct mm_struct *mm = READ_KERN(task->mm);
-    return READ_KERN(mm->exe_file);
-}
-
-static __always_inline void get_outer_key(struct outer_key *pokey,
-                                          struct task_struct *t)
-{
-    pokey->pid_ns = get_task_pid_ns_id(t);
-    pokey->mnt_ns = get_task_mnt_ns_id(t);
-    if (pokey->pid_ns == PROC_PID_INIT_INO)
-    {
-        pokey->pid_ns = 0;
-        pokey->mnt_ns = 0;
-    }
-}
-
-static __always_inline u32 get_kubearmor_config(u32 config)
-{
-    u32 *value = bpf_map_lookup_elem(&kubearmor_config, &config);
-    if (!value)
-    {
-        return 0;
-    }
-
-    return *value;
-}
 
 // == Pid NS Management == //
 
@@ -571,47 +400,6 @@ static __always_inline u32 remove_pid_ns()
     }
 
     return 0;
-}
-
-static __always_inline u32 drop_syscall(u32 scope)
-{
-    struct outer_key okey;
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    get_outer_key(&okey, task);
-
-    // We try check global config to check if lookup for container fails do we need to ignore or trace a syscall
-    // In case lookup for global config fails we continue the container check 
-    // and choose to not drop events if either of them are not found
-
-    u32 default_trace = _TRACE_SYSCALL;
-    struct outer_key defaultvizkey;
-    defaultvizkey.pid_ns = DEFAULT_VISIBILITY_KEY;
-    defaultvizkey.mnt_ns = DEFAULT_VISIBILITY_KEY;
-    u32 *d_visibility = bpf_map_lookup_elem(&kubearmor_visibility, &defaultvizkey);
-    if (d_visibility) {
-        u32 *d_on_off_switch = bpf_map_lookup_elem(d_visibility, &scope);
-        if (d_on_off_switch)
-            if (*d_on_off_switch)
-                default_trace = _IGNORE_SYSCALL;
-    }
-
-
-    u32 *ns_visibility = bpf_map_lookup_elem(&kubearmor_visibility, &okey);
-    if (!ns_visibility)
-    {
-        return default_trace;
-    }
-
-    u32 *on_off_switch = bpf_map_lookup_elem(ns_visibility, &scope);
-    if (!on_off_switch)
-    {
-        return default_trace;
-    }
-
-    if (*on_off_switch)
-        return _IGNORE_SYSCALL;
-
-    return _TRACE_SYSCALL;
 }
 
 static __always_inline u32 skip_syscall()

@@ -59,6 +59,7 @@ type NsVisibility struct {
 	Capability bool
 	Network    bool
 	DNS        bool
+	IMA        bool
 }
 
 // ===================== //
@@ -215,7 +216,7 @@ func NewSystemMonitor(node *tp.Node, nodeLock **sync.RWMutex, logger *fd.Feeder,
 		Type:       cle.Hash,
 		KeySize:    4,
 		ValueSize:  4,
-		MaxEntries: 5,
+		MaxEntries: 6,
 	}
 
 	// assign the value of untracked ns from GlobalCfg
@@ -345,6 +346,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		Key:   uint32(4),
 		Value: visibilityOff,
 	}
+	ima := cle.MapKV{
+		Key:   uint32(5),
+		Value: visibilityOff,
+	}
 	if visibility.File {
 		file.Value = visibilityOn
 	}
@@ -360,6 +365,9 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 	if visibility.DNS {
 		dns.Value = visibilityOn
 	}
+	if visibility.IMA {
+		ima.Value = visibilityOn
+	}
 
 	if action == "ADDED" {
 		spec := mon.BpfVisibilityMapSpec
@@ -368,6 +376,7 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		spec.Contents = append(spec.Contents, network)
 		spec.Contents = append(spec.Contents, capability)
 		spec.Contents = append(spec.Contents, dns)
+		spec.Contents = append(spec.Contents, ima)
 		visibilityMap, err := cle.NewMap(&spec)
 		if err != nil {
 			mon.Logger.Warnf("Cannot create bpf map %s", err)
@@ -405,6 +414,10 @@ func (mon *SystemMonitor) UpdateNsKeyMap(action string, nsKey NsKey, visibility 
 		err = visibilityMap.Put(dns.Key, dns.Value)
 		if err != nil {
 			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=dns", nsKey, dns.Value)
+		}
+		err = visibilityMap.Put(ima.Key, ima.Value)
+		if err != nil {
+			mon.Logger.Warnf("Cannot update visibility map. nskey=%+v, value=%+v, scope=ima", nsKey, ima.Value)
 		}
 
 		// Need to lock NsMap to print the following log message
@@ -447,6 +460,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		if strings.Contains(visibilityParams, "dns") {
 			hostVisibility.DNS = true
 		}
+		if strings.Contains(visibilityParams, "ima") {
+			hostVisibility.IMA = true
+		}
 	}
 
 	nsKey := NsKey{
@@ -471,6 +487,9 @@ func (mon *SystemMonitor) UpdateVisibility() {
 		}
 		if strings.Contains(visibilityParams, "dns") {
 			visibility.DNS = true
+		}
+		if strings.Contains(visibilityParams, "ima") {
+			visibility.IMA = true
 		}
 	}
 
