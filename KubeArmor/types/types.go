@@ -671,6 +671,7 @@ type Visibility struct {
 	Network      bool `json:"network,omitempty"`
 	Capabilities bool `json:"capabilties,omitempty"`
 	DNS          bool `json:"dns,omitempty"`
+	IMA          bool `json:"ima,omitempty"`
 }
 
 // ================== //
