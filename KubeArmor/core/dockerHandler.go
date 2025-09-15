@@ -94,7 +94,7 @@ func (dh *DockerHandler) Close() {
 // ==================== //
 
 // GetContainerInfo Function
-func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
+func (dh *DockerHandler) GetContainerInfo(containerID, nodeID string, OwnerInfo map[string]tp.PodOwner) (tp.Container, error) {
 	if dh.DockerClient == nil {
 		return tp.Container{}, errors.New("no docker client")
 	}
@@ -137,7 +137,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 
 	container.AppArmorProfile = inspect.AppArmorProfile
 	if inspect.HostConfig.Privileged ||
-		(inspect.HostConfig.CapAdd != nil && len(inspect.HostConfig.CapAdd) > 0) {
+		len(inspect.HostConfig.CapAdd) > 0 {
 		container.Privileged = inspect.HostConfig.Privileged
 	}
 
@@ -163,6 +163,7 @@ func (dh *DockerHandler) GetContainerInfo(containerID string, OwnerInfo map[stri
 		container.ContainerImage = inspect.Config.Image //+ kl.GetSHA256ofImage(inspect.Image)
 
 		container.NodeName = cfg.GlobalCfg.Host
+		container.NodeID = nodeID
 
 		labels := []string{}
 		for k, v := range containerLabels {
@@ -250,7 +251,7 @@ func (dh *DockerHandler) GetEventChannel(ctx context.Context, StopChan <-chan st
 func (dm *KubeArmorDaemon) SetContainerVisibility(containerID string) {
 
 	// get container information from docker client
-	container, err := Docker.GetContainerInfo(containerID, dm.OwnerInfo)
+	container, err := Docker.GetContainerInfo(containerID, dm.Node.NodeID, dm.OwnerInfo)
 	if err != nil {
 		return
 	}
@@ -289,7 +290,7 @@ func (dm *KubeArmorDaemon) GetAlreadyDeployedDockerContainers() {
 	if containerList, err := Docker.DockerClient.ContainerList(context.Background(), container.ListOptions{}); err == nil {
 		for _, dcontainer := range containerList {
 			// get container information from docker client
-			container, err := Docker.GetContainerInfo(dcontainer.ID, dm.OwnerInfo)
+			container, err := Docker.GetContainerInfo(dcontainer.ID, dm.Node.NodeID, dm.OwnerInfo)
 			if err != nil {
 				continue
 			}
@@ -495,7 +496,7 @@ func (dm *KubeArmorDaemon) UpdateDockerContainer(containerID, action string) {
 		var err error
 
 		// get container information from docker client
-		container, err = Docker.GetContainerInfo(containerID, dm.OwnerInfo)
+		container, err = Docker.GetContainerInfo(containerID, dm.Node.NodeID, dm.OwnerInfo)
 		if err != nil {
 			return
 		}

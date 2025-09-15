@@ -116,6 +116,80 @@ spec:
                       type: string
                     type: array
                 type: object
+              device:
+                properties:
+                  action:
+                    enum:
+                    - Allow
+                    - Audit
+                    - Block
+                    type: string
+                  matchDevice:
+                    items:
+                      properties:
+                        action:
+                          enum:
+                          - Allow
+                          - Audit
+                          - Block
+                          type: string
+                        class:
+                          enum:
+                          - AUDIO
+                          - COMMUNICATION-CDC
+                          - HID
+                          - PHYSICAL
+                          - IMAGE
+                          - PRINTER
+                          - MASS-STORAGE
+                          - HUB
+                          - CDC-DATA
+                          - SMART-CARD
+                          - CONTENT-SECURITY
+                          - VIDEO
+                          - PERSONAL-HEALTHCARE
+                          - AUDIO/VIDEO
+                          - BILLBOARD
+                          - TYPE-C-BRIDGE
+                          - BULK-DISPLAY
+                          - MCTP
+                          - I3C
+                          - DIAGNOSTIC
+                          - WIRELESS-CONTROLLER
+                          - MISCELLANEOUS
+                          - APPLICATION-SPECIFIC
+                          - VENDOR-SPECIFIC
+                          - ALL
+                          type: string
+                        level:
+                          format: int32
+                          minimum: 1
+                          type: integer
+                        message:
+                          type: string
+                        severity:
+                          maximum: 10
+                          minimum: 1
+                          type: integer
+                        subClass:
+                          type: string
+                        tags:
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  message:
+                    type: string
+                  severity:
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  tags:
+                    items:
+                      type: string
+                    type: array
+                type: object
               file:
                 properties:
                   action:
@@ -378,11 +452,6 @@ spec:
                         path:
                           pattern: ^\/+.*[^\/]$
                           type: string
-                        allowedArgs: 
-                          items: 
-                            type: string
-                          type: array
-                          maxItems: 20
                         severity:
                           maximum: 10
                           minimum: 1

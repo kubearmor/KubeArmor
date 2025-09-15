@@ -542,6 +542,47 @@ func (mon *SystemMonitor) UpdateLogs() {
 				log.Operation = "Network"
 				log.Resource = "sa_family=" + sockAddr["sa_family"] + " sin_port=53"
 
+			case USBDevice:
+				if len(msg.ContextArgs) != 9 {
+					continue
+				}
+				var speed int32
+				var portnum, level, class, subClass, protocol uint8
+				var vendorId, productId, usb uint16
+
+				if val, ok := msg.ContextArgs[0].(int32); ok {
+					speed = val
+				}
+				if val, ok := msg.ContextArgs[1].(uint8); ok {
+					portnum = val
+				}
+				if val, ok := msg.ContextArgs[2].(uint8); ok {
+					level = val
+				}
+				if val, ok := msg.ContextArgs[3].(uint8); ok {
+					class = val
+				}
+				if val, ok := msg.ContextArgs[4].(uint8); ok {
+					subClass = val
+				}
+				if val, ok := msg.ContextArgs[5].(uint8); ok {
+					protocol = val
+				}
+				if val, ok := msg.ContextArgs[6].(uint16); ok {
+					vendorId = val
+				}
+				if val, ok := msg.ContextArgs[7].(uint16); ok {
+					productId = val
+				}
+				if val, ok := msg.ContextArgs[8].(uint16); ok {
+					usb = val
+				}
+
+				log.Operation = "Device"
+				log.Resource = GetUSBResource(class, subClass, protocol, level)
+
+				log.Data = "Class=" + strconv.Itoa(int(class)) + " SubClass=" + strconv.Itoa(int(subClass)) + " Protocol=" + strconv.Itoa(int(protocol)) + " VendorID=" + strconv.Itoa(int(vendorId)) + " ProductID=" + strconv.Itoa(int(productId)) + " USB=" + fmt.Sprintf("%x.%02x", (usb>>8)&0xFF, (usb>>4)&0x0F) + " Speed=" + strconv.Itoa(int(speed)) + " PortNumber=" + strconv.Itoa(int(portnum)) + " Level=" + strconv.Itoa(int(level))
+
 			case DropAlert: // throttling alert
 				log.Operation = "AlertThreshold"
 				log.Type = "SystemEvent"

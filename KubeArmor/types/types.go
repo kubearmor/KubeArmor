@@ -40,6 +40,7 @@ type Container struct {
 	// == //
 
 	NodeName      string `json:"node_name"`
+	NodeID        string `json:"node_id"`
 	ProtocolPort  string `json:"protocolPort"`
 	Status        string `json:"status"`
 	ContainerIP   string `json:"container_ip"`
@@ -110,6 +111,7 @@ type Node struct {
 	ClusterName string `json:"clusterName"`
 	NodeName    string `json:"nodeName"`
 	NodeIP      string `json:"nodeIP"`
+	NodeID      string `json:"nodeID"`
 
 	Annotations map[string]string `json:"annotations"`
 	Labels      map[string]string `json:"labels"`
@@ -230,6 +232,7 @@ type Log struct {
 	// host
 	ClusterName string `json:"clusterName,omitempty"`
 	HostName    string `json:"hostName"`
+	NodeID      string `json:"nodeID,omitempty"`
 
 	// k8s
 	NamespaceName string    `json:"namespaceName,omitempty"`
@@ -367,11 +370,10 @@ type MatchSourceType struct {
 
 // ProcessPathType Structure
 type ProcessPathType struct {
-	Path        string            `json:"path,omitempty"`
-	ExecName    string            `json:"execname,omitempty"`
-	OwnerOnly   bool              `json:"ownerOnly,omitempty"`
-	FromSource  []MatchSourceType `json:"fromSource,omitempty"`
-	AllowedArgs []string          `json:"allowedArgs,omitempty"`
+	Path       string            `json:"path,omitempty"`
+	ExecName   string            `json:"execname,omitempty"`
+	OwnerOnly  bool              `json:"ownerOnly,omitempty"`
+	FromSource []MatchSourceType `json:"fromSource,omitempty"`
 
 	Severity int      `json:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
@@ -547,6 +549,28 @@ type SyscallsType struct {
 	Message  string   `json:"message,omitempty"`
 }
 
+// DeviceMatchType Structure
+type DeviceMatchType struct {
+	Class    string `json:"class"`
+	SubClass string `json:"subClass,omitempty"`
+	Level    int32  `json:"level,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
+}
+
+// DeviceType Structure
+type DeviceType struct {
+	MatchDevice []DeviceMatchType `json:"matchDevice,omitempty"`
+
+	Severity int      `json:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty"`
+	Message  string   `json:"message,omitempty"`
+	Action   string   `json:"action,omitempty"`
+}
+
 // PresetName type
 type PresetName string
 
@@ -613,6 +637,7 @@ type HostSecuritySpec struct {
 	Network      NetworkType      `json:"network,omitempty"`
 	Capabilities CapabilitiesType `json:"capabilities,omitempty"`
 	Syscalls     SyscallsType     `json:"syscalls,omitempty"`
+	Device       DeviceType       `json:"device,omitempty"`
 
 	AppArmor string `json:"apparmor,omitempty"`
 
@@ -699,3 +724,20 @@ type PidNode struct {
 
 // KubeArmorHostPolicyEventCallback Function
 type KubeArmorHostPolicyEventCallback func(K8sKubeArmorHostPolicyEvent) pb.PolicyStatus
+
+// =========== //
+// == Hooks == //
+// =========== //
+
+type HookRequest struct {
+	Operation HookOperation `json:"operation"`
+	Detached  bool          `json:"detached"`
+	Container Container     `json:"container"`
+}
+
+type HookOperation int
+
+const (
+	HookContainerCreate HookOperation = iota
+	HookContainerDelete
+)

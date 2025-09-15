@@ -273,13 +273,13 @@ func (kh *K8sHandler) PatchResourceWithAppArmorAnnotations(namespaceName, deploy
 		}
 
 		// To update the annotations we need to restart the replicaset,we scale it down and scale it back up
-		patchData := []byte(fmt.Sprintf(`{"spec": {"replicas": 0}}`))
+		patchData := fmt.Appendf(nil, `{"spec": {"replicas": 0}}`)
 		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 		if err != nil {
 			return err
 		}
 		time.Sleep(2 * time.Second)
-		patchData2 := []byte(fmt.Sprintf(`{"spec": {"replicas": %d}}`, replicas))
+		patchData2 := fmt.Appendf(nil, `{"spec": {"replicas": %d}}`, replicas)
 		_, err = kh.K8sClient.AppsV1().ReplicaSets(namespaceName).Patch(context.Background(), deploymentName, types.StrategicMergePatchType, patchData2, metav1.PatchOptions{})
 		if err != nil {
 			return err

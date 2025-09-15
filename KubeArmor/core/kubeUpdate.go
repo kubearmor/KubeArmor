@@ -1048,7 +1048,6 @@ func updateNamespaceListforCSP(policy *tp.SecurityPolicy) {
 			}
 		}
 	}
-	return
 }
 
 // ============================ //
@@ -2272,6 +2271,42 @@ func (dm *KubeArmorDaemon) ParseAndUpdateHostSecurityPolicy(event tp.K8sKubeArmo
 		}
 	}
 
+	if len(secPolicy.Spec.Device.MatchDevice) > 0 {
+		for idx, device := range secPolicy.Spec.Device.MatchDevice {
+			if device.Severity == 0 {
+				if secPolicy.Spec.Device.Severity != 0 {
+					secPolicy.Spec.Device.MatchDevice[idx].Severity = secPolicy.Spec.Device.Severity
+				} else {
+					secPolicy.Spec.Device.MatchDevice[idx].Severity = secPolicy.Spec.Severity
+				}
+			}
+
+			if len(device.Tags) == 0 {
+				if len(secPolicy.Spec.Device.Tags) > 0 {
+					secPolicy.Spec.Device.MatchDevice[idx].Tags = secPolicy.Spec.Device.Tags
+				} else {
+					secPolicy.Spec.Device.MatchDevice[idx].Tags = secPolicy.Spec.Tags
+				}
+			}
+
+			if len(device.Message) == 0 {
+				if len(secPolicy.Spec.Device.Message) > 0 {
+					secPolicy.Spec.Device.MatchDevice[idx].Message = secPolicy.Spec.Device.Message
+				} else {
+					secPolicy.Spec.Device.MatchDevice[idx].Message = secPolicy.Spec.Message
+				}
+			}
+
+			if len(device.Action) == 0 {
+				if len(secPolicy.Spec.Device.Action) > 0 {
+					secPolicy.Spec.Device.MatchDevice[idx].Action = secPolicy.Spec.Device.Action
+				} else {
+					secPolicy.Spec.Device.MatchDevice[idx].Action = secPolicy.Spec.Action
+				}
+			}
+		}
+	}
+
 	if len(secPolicy.Spec.Capabilities.MatchCapabilities) > 0 {
 		for idx, cap := range secPolicy.Spec.Capabilities.MatchCapabilities {
 			if cap.Severity == 0 {
@@ -2904,13 +2939,7 @@ func (dm *KubeArmorDaemon) WatchConfigMap() cache.InformerSynced {
 					}
 					cfg.GlobalCfg.ThrottleSec = int32(throttleSec)
 				}
-				if _, ok := cm.Data[cfg.ConfigArgMatching]; ok {
-					cfg.GlobalCfg.MatchArgs = (cm.Data[cfg.ConfigArgMatching] == "true")
-				}
-
 				dm.SystemMonitor.UpdateThrottlingConfig()
-
-				dm.SystemMonitor.UpdateMatchArgsConfig()
 
 				dm.Logger.Printf("Current Global Posture is %v", currentGlobalPosture)
 				dm.UpdateGlobalPosture(globalPosture)

@@ -87,6 +87,7 @@ message Alert {
   ExecEvent ExecEvent = 36;
 
   string KubeArmorVersion = 37;
+  string NodeID = 38;
 }
 
 // log struct
@@ -126,6 +127,8 @@ message Log {
   string TTY = 26;
 
   ExecEvent ExecEvent = 27;
+
+  string NodeID = 28;
 }
 
 // request message
