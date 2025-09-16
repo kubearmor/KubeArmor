@@ -40,20 +40,21 @@
 * [Policy Examples for Nodes/VMs](getting-started/host_security_policy_examples.md)
 * [Profiling of Kubearmor Logs using karmor](getting-started/profiling_kubearmor_logs.md)
 * [FAQs](getting-started/FAQ.md)
-* Release Notes
-    * [v1.6](getting-started/release-notes/v1.6.md)
-    * [v1.5](getting-started/release-notes/v1.5.md)
-    * [v1.4](getting-started/release-notes/v1.4.md)
-    * [v1.3](getting-started/release-notes/v1.3.md)
-    * [v1.1](getting-started/release-notes/v1.1.md)
-    * [v0.11](getting-started/release-notes/v0.11.md)
-    * [v0.10](getting-started/release-notes/v0.10.md)
-    * [v0.9](getting-started/release-notes/v0.9.md)
-    * [v0.8](getting-started/release-notes/v0.8.md)
-    * [v0.7](getting-started/release-notes/v0.7.md)
-    * [v0.6](getting-started/release-notes/v0.6.md)
-    * [v0.5](getting-started/release-notes/v0.5.md)
-    * [v0.3](getting-started/release-notes/v0.3.md)
+
+## Release Notes
+* [v1.6](getting-started/release-notes/v1.6.md)
+* [v1.5](getting-started/release-notes/v1.5.md)
+* [v1.4](getting-started/release-notes/v1.4.md)
+* [v1.3](getting-started/release-notes/v1.3.md)
+* [v1.1](getting-started/release-notes/v1.1.md)
+* [v0.11](getting-started/release-notes/v0.11.md)
+* [v0.10](getting-started/release-notes/v0.10.md)
+* [v0.9](getting-started/release-notes/v0.9.md)
+* [v0.8](getting-started/release-notes/v0.8.md)
+* [v0.7](getting-started/release-notes/v0.7.md)
+* [v0.6](getting-started/release-notes/v0.6.md)
+* [v0.5](getting-started/release-notes/v0.5.md)
+* [v0.3](getting-started/release-notes/v0.3.md)
 
 ## Contribution
 
