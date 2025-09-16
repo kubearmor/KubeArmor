@@ -37,6 +37,8 @@
 #include <linux/un.h>
 #include <net/inet_sock.h>
 
+#include <linux/usb.h>
+
 #include <linux/bpf.h>
 #include <linux/version.h>
 #include <linux/sched/signal.h>
@@ -48,7 +50,6 @@
 #include <bpf_tracing.h>
 #include "syscalls.h"
 #include "throttling.h"
-#include "common.h"
 
 
 #ifdef RHEL_RELEASE_CODE
@@ -95,6 +96,8 @@
 #define UMOUNT_FLAG_T 25UL
 #define UDP_MSG 26UL
 #define QTYPE 27UL
+#define U8_T 28UL
+#define U16_T 29UL
 
 #define MAX_LABELS 10  // max labels in domain name
 #define MAX_LABEL_LEN 63
@@ -198,7 +201,10 @@ enum
     _TCP_ACCEPT_v6 = 403,
 
     // UDP_MSG
-    _UDP_SENDMSG = 10000
+    _UDP_SENDMSG = 10000,
+
+    // USB
+    _USB_DEVICE = 20000
 };
 
 #ifndef BTF_SUPPORTED
@@ -277,8 +283,6 @@ typedef struct __attribute__((__packed__)) sys_context
 
 BPF_LRU_HASH(pid_ns_map, u32, u32);
 
-
-
 #ifdef BTF_SUPPORTED
 #define GET_FIELD_ADDR(field) __builtin_preserve_access_index(&field)
 
@@ -318,6 +322,8 @@ BPF_PERCPU_ARRAY(bufs, bufs_t, 5);
 BPF_PERCPU_ARRAY(bufs_offset, u32, 5);
 
 BPF_PERF_OUTPUT(sys_events);
+
+BPF_HASH(udevs, __u64, void *);
 
 // == Visibility == //
 
@@ -360,7 +366,6 @@ enum
     _ALERT_THROTTLING = 3,
     _MAX_ALERT_PER_SEC = 4,
     _THROTTLE_SEC = 5,
-    _MATCH_ARGS = 6,
 };
 
 struct kaconfig
@@ -687,7 +692,7 @@ static __always_inline int save_str_to_buffer(bufs_t *bufs_p, void *ptr) {
     }
 
     u32 str_pos = size_pos + sizeof(int);
-    if (str_pos >= MAX_BUFFER_SIZE -1 || str_pos + MAX_STRING_SIZE > MAX_BUFFER_SIZE -1 ) {
+    if (str_pos >= MAX_BUFFER_SIZE -1 || str_pos + MAX_STRING_SIZE > MAX_BUFFER_SIZE -1) {
         return 0;
     }
 
@@ -1068,23 +1073,24 @@ static __always_inline int save_dns_data_to_dns_buffer(bufs_t *bufs_p, void *bas
 
     // setting offset to next byte to null char
     *off += 1;
-
-    if (*off > MAX_BUFFER_SIZE - 1)
+    u32 q_type_off = *off;
+    if (q_type_off > MAX_BUFFER_SIZE - 1)
         return -1;
     
     __u8 qtype = QTYPE; 
     // type for qtype
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &qtype) < 0)
+    if (bpf_probe_read(&(bufs_p->buf[q_type_off]), 1, &qtype) < 0)
         return -1;
     
     *off += 1;
-    if (*off > MAX_BUFFER_SIZE - 2)
+    q_type_off = *off;
+    if (q_type_off > MAX_BUFFER_SIZE - 2)
         return -1;
 
     // write qtype to buffer
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 2, base + offset + 1) < 0)
+    if (bpf_probe_read(&(bufs_p->buf[q_type_off]), 2, base + offset + 1) < 0)
         return -1;
-    *off += 2;    
+    *off += 2;
     set_buffer_offset(DNS_BUF_TYPE, *off);
     return 0;
 }
@@ -1302,43 +1308,22 @@ static __always_inline bool should_drop_alerts_per_container(sys_context_t *cont
 #endif
     return false; 
 }
- static __always_inline void  save_cmd_args_to_buffer(const char __user *const __user *ptr){
-    
-
-    struct cmd_args_key key;
-    key.tgid = bpf_get_current_pid_tgid(); 
-    u32 arg_k = 0;
-    struct argVal  *args_buf = bpf_map_lookup_elem(&cmd_args_buf, &arg_k);
-    
-    if (args_buf == NULL){
-      return ;
-    }
-    
-    #pragma unroll
-    for ( u8 i = 0; i <= MAX_STR_ARR_ELEM; i++)
-    {   
-        key.ind = i;
-        const char *const *curr_ptr = (void *)&ptr[i] ;
-        const char *argp = NULL;
-        bpf_probe_read(&argp, sizeof(argp), curr_ptr);
-        if (argp)
-          {
-            __builtin_memset(&args_buf->argsArray, 0, sizeof(args_buf->argsArray));
-            bpf_probe_read_str(&args_buf->argsArray, sizeof(args_buf->argsArray), argp);
-
-            bpf_map_update_elem(&kubearmor_args_store, &key, args_buf, BPF_ANY);
-          }
-        else {
-            break;
-        }
-    }
- 
- }
 
 // ==== Container Exec Events ====
 
+struct tracepoint_raw_sys_enter {
+    unsigned short common_type;       
+    unsigned char common_flags;       
+    unsigned char common_preempt_count;       
+    int common_pid;   
+
+    int __syscall_nr; 
+    int fd;
+    int nstype;
+};
+
 SEC("tracepoint/syscalls/sys_enter_setns")
-int sys_enter_setns(struct trace_event_raw_sys_enter *ctx)
+int sys_enter_setns(struct tracepoint_raw_sys_enter *ctx)
 {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
 
@@ -1353,8 +1338,17 @@ int sys_enter_setns(struct trace_event_raw_sys_enter *ctx)
     return 0;
 }
 
+struct tracepoint_raw_sys_exit{
+    unsigned short common_type;       
+    unsigned char common_flags;       
+    unsigned char common_preempt_count;       
+    int common_pid;   
+    int __syscall_nr; 
+    long ret; 
+};
+
 SEC("tracepoint/syscalls/sys_exit_setns")
-int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
+int sys_exit_setns(struct tracepoint_raw_sys_exit *ctx)
 {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
 
@@ -1386,15 +1380,29 @@ int sys_exit_setns(struct trace_event_raw_sys_exit *ctx)
     return 0;
 }
 
+struct tracepoint_sched_process_fork {
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+
+    char parent_comm[16];
+    pid_t parent_pid;
+    char child_comm[16];
+    pid_t child_pid;
+};
+
 SEC("tracepoint/sched/sched_process_fork")
-int sched_process_fork(struct trace_event_raw_sched_process_fork *ctx)
+int sched_process_fork(struct tracepoint_sched_process_fork *ctx)
 {
     u32 parent_pid = bpf_get_current_pid_tgid() >> 32;
     u32 child_pid = ctx->child_pid;
     
     u32 *exists = bpf_map_lookup_elem(&kubearmor_exec_pids, &parent_pid);
     if (exists) {
-        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, exists, BPF_ANY);
+        // to make verifier happy on older kernel versions i.e. 4.15
+        u32 val = *exists;
+        bpf_map_update_elem(&kubearmor_exec_pids, &child_pid, &val, BPF_ANY);
     }
 
     return 0;
@@ -1531,10 +1539,6 @@ int kprobe__execve(struct pt_regs *ctx)
     char *filename = (char *)READ_KERN(PT_REGS_PARM1(ctx2));
     unsigned long argv = READ_KERN(PT_REGS_PARM2(ctx2));
 #endif
-    
-    if(get_kubearmor_config(_ENFORCER_BPFLSM) && (get_kubearmor_config(_MATCH_ARGS))){
-        save_cmd_args_to_buffer((const char *const *)argv);
-    }
 
     init_context(&context);
 
@@ -2573,6 +2577,110 @@ int kprobe__udp_sendmsg(struct pt_regs *ctx)
     save_dns_data_to_dns_buffer(bufs_p, data, UDP_MSG);
     // dns_events_perf_submit(ctx, DATA_BUF_TYPE);
     events_perf_submit(ctx, DNS_BUF_TYPE);
+    return 0;
+}
+
+// == Device Detection (USB) == //
+
+SEC("kprobe/usb_set_configuration")
+int kprobe__usb_set_configuration(struct pt_regs *ctx) {
+
+    if (skip_syscall())
+        return 0;
+
+    struct usb_device *udev = (struct usb_device *)PT_REGS_PARM1(ctx);
+
+    __u64 key = bpf_get_current_pid_tgid();
+    if (udev)
+        bpf_map_update_elem(&udevs, &key, &udev, BPF_ANY); // save pointer to udev to access in kretprobe
+    return 0;
+}
+
+SEC("kretprobe/usb_set_configuration")
+int kretprobe__usb_set_configuration(struct pt_regs *ctx) {
+
+    if (skip_syscall())
+        return 0;
+
+    __u64 key = bpf_get_current_pid_tgid();
+    struct usb_device **udev_ptr = bpf_map_lookup_elem(&udevs, &key);
+    if (!udev_ptr) return 0;
+
+    bpf_map_delete_elem(&udevs, &key);
+
+    struct usb_device_descriptor desc;
+    bpf_probe_read(&desc, sizeof(desc), &(*udev_ptr)->descriptor);
+
+    int speed = 0;
+    bpf_probe_read(&speed, sizeof(speed), &(*udev_ptr)->speed);
+
+    __u8 portnum = 0;
+    bpf_probe_read(&portnum, sizeof(portnum), &(*udev_ptr)->portnum);
+
+    __u8 level = 0;
+    bpf_probe_read(&level, sizeof(level), &(*udev_ptr)->level);
+
+    struct usb_host_config *cfg = NULL;
+    bpf_probe_read(&cfg, sizeof(cfg), &(*udev_ptr)->actconfig);
+    if (!cfg) return 0;
+
+    // Check a few interfaces
+    __u8 ifClass = 0;
+    __u8 ifSubClass = 0;
+    __u8 ifProtocol = 0;
+    #pragma unroll
+    for (int i = 0; i < 4; i++) {
+        struct usb_interface *intf = NULL;
+        bpf_probe_read(&intf, sizeof(intf), &cfg->interface[i]);
+        if (!intf) continue;
+
+        struct usb_host_interface *alts = NULL;
+        bpf_probe_read(&alts, sizeof(alts), &intf->cur_altsetting);
+        if (!alts) continue;
+
+        bpf_probe_read(&ifClass, sizeof(ifClass), &alts->desc.bInterfaceClass);
+        bpf_probe_read(&ifSubClass, sizeof(ifSubClass), &alts->desc.bInterfaceSubClass);
+        bpf_probe_read(&ifProtocol, sizeof(ifProtocol), &alts->desc.bInterfaceProtocol);
+    }
+
+    __u8 class = desc.bDeviceClass;
+    __u8 subClass = desc.bDeviceSubClass;
+    __u8 protocol = desc.bDeviceProtocol;
+    if(!desc.bDeviceClass) { // device class is 0, class is defined at interface level
+        class = ifClass;
+        subClass = ifSubClass;
+        protocol = ifProtocol;
+    }
+
+    sys_context_t context = {};
+    init_context(&context);
+    context.event_id = _USB_DEVICE;
+    context.argnum = 9;
+    context.retval = 0;
+
+    set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+
+    bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+    if (bufs_p == NULL)
+        return 0;
+
+    save_context_to_buffer(bufs_p, (void *)&context);
+
+    // save arguments
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &speed, sizeof(speed), INT_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &portnum, sizeof(portnum), U8_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &level, sizeof(level), U8_T);
+
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &class, sizeof(class), U8_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &subClass, sizeof(subClass), U8_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &protocol, sizeof(protocol), U8_T);
+
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &desc.idVendor, sizeof(desc.idVendor), U16_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &desc.idProduct, sizeof(desc.idProduct), U16_T);
+    save_to_buffer(bufs_p, DATA_BUF_TYPE, &desc.bcdUSB, sizeof(desc.bcdUSB), U16_T);
+
+    events_perf_submit(ctx, DATA_BUF_TYPE);
+
     return 0;
 }
 

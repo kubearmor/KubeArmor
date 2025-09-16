@@ -56,6 +56,7 @@ var (
 	ApparmorFsLabel string = "kubearmor.io/apparmorfs"
 	SecurityFsLabel string = "kubearmor.io/securityfs"
 	SeccompLabel    string = "kubearmor.io/seccomp"
+	OCIHooksLabel   string = "kubearmor.io/oci-hooks"
 
 	// node taints label
 	NotreadyTaint      string = "node.kubernetes.io/not-ready"
@@ -79,6 +80,8 @@ var (
 
 	KubeArmorConfigFileName string = "karmor.yaml"
 
+	EnableOCIHooks bool = false
+
 	// ConfigMap Data
 	ConfigGRPC                       string = "gRPC"
 	ConfigVisibility                 string = "visibility"
@@ -91,7 +94,6 @@ var (
 	ConfigMaxAlertPerSec             string = "maxAlertPerSec"
 	ConfigThrottleSec                string = "throttleSec"
 	ConfigEnableNRI                  string = "enableNRI"
-	ConfigArgMatching                string = "matchArgs"
 
 	GlobalImagePullSecrets []corev1.LocalObjectReference = []corev1.LocalObjectReference{}
 	GlobalTolerations      []corev1.Toleration           = []corev1.Toleration{}
@@ -158,7 +160,6 @@ var (
 	AlertThrottling       bool   = true
 	DefaultMaxAlertPerSec string = "10"
 	DefaultThrottleSec    string = "30"
-	MatchArgs             bool   = true
 
 	// recommend policies
 	RecommendedPolicies opv1.RecommendedPolicies = opv1.RecommendedPolicies{
@@ -208,7 +209,6 @@ var ConfigMapData = map[string]string{
 	ConfigAlertThrottling:            "true",
 	ConfigMaxAlertPerSec:             "10",
 	ConfigThrottleSec:                "30",
-	ConfigArgMatching:                "true",
 }
 
 var ConfigDefaultSeccompEnabled = "false"
@@ -580,6 +580,22 @@ func init() {
 	if IsCertifiedOperator() {
 		HostPID = true
 	}
+	EnableOCIHooks = GetOCIHooks()
+}
+
+func GetOCIHooks() bool {
+	val := os.Getenv("KUBEARMOR_OCI_HOOKS")
+	if val != "" {
+		switch val {
+		case "yes":
+			return true
+		case "no":
+			return false
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 func AddOrReplaceArg(add, replace string, args *[]string) {

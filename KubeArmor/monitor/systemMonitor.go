@@ -119,10 +119,10 @@ type SystemMonitor struct {
 	// logs
 	Logger *fd.Feeder
 
-	// container id -> cotnainer
+	// container id -> container
 	Containers     *map[string]tp.Container
 	ContainersLock **sync.RWMutex
-
+ 
 	// container id -> host pid
 	ActiveHostPidMap *map[string]tp.PidMap
 	ActivePidMapLock **sync.RWMutex
@@ -256,7 +256,6 @@ func (mon *SystemMonitor) initBPFMaps() error {
 	}
 
 	mon.UpdateThrottlingConfig()
-	mon.UpdateMatchArgsConfig()
 
 	return errors.Join(errviz, errconfig)
 }
@@ -306,19 +305,6 @@ func (mon *SystemMonitor) UpdateThrottlingConfig() {
 		cfg.GlobalCfg.AlertThrottling,
 		cfg.GlobalCfg.MaxAlertPerSec,
 		cfg.GlobalCfg.ThrottleSec)
-}
-func (mon *SystemMonitor) UpdateMatchArgsConfig() {
-	if cfg.GlobalCfg.MatchArgs {
-		if err := mon.BpfConfigMap.Update(uint32(6), uint32(1), cle.UpdateAny); err != nil {
-			mon.Logger.Errf("Error Updating System Monitor Config Map to enable argument matching: %s", err.Error())
-		}
-	} else {
-		if err := mon.BpfConfigMap.Update(uint32(6), uint32(0), cle.UpdateAny); err != nil {
-			mon.Logger.Errf("Error Updating System Monitor Config Map to enable argument matching : %s", err.Error())
-		}
-	}
-
-	mon.Logger.Printf("Argument matching configured {matchArgs:%v}", cfg.GlobalCfg.AlertThrottling)
 }
 
 // UpdateNsKeyMap Function
@@ -548,6 +534,15 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Probes["kprobe__udp_sendmsg"], err = link.Kprobe("udp_sendmsg", mon.BpfModule.Programs["kprobe__udp_sendmsg"], nil)
 		if err != nil {
 			mon.Logger.Warnf("error loading kprobe udp_sendmsg %v", err)
+		}
+
+		mon.Probes["kprobe__usb_set_configuration"], err = link.Kprobe("usb_set_configuration", mon.BpfModule.Programs["kprobe__usb_set_configuration"], nil)
+		if err != nil {
+			mon.Logger.Warnf("error loading kprobe usb_set_configuration %v", err)
+		}
+		mon.Probes["kretprobe__usb_set_configuration"], err = link.Kretprobe("usb_set_configuration", mon.BpfModule.Programs["kretprobe__usb_set_configuration"], nil)
+		if err != nil {
+			mon.Logger.Warnf("error loading kretprobe usb_set_configuration %v", err)
 		}
 
 		for _, syscallName := range systemCalls {
@@ -1006,6 +1001,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				}
 			} else if ctx.EventID == UDPSendMsg {
 				if len(args) != 3 {
+					continue
+				}
+			} else if ctx.EventID == USBDevice {
+				if len(args) != 9 {
 					continue
 				}
 			}

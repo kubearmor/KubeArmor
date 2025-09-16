@@ -6,6 +6,9 @@ package core
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/signal"
 	"strings"
@@ -160,17 +163,17 @@ func NewKubeArmorDaemon() *KubeArmorDaemon {
 func (dm *KubeArmorDaemon) DestroyKubeArmorDaemon() {
 	close(StopChan)
 
-	if dm.SystemMonitor != nil {
-		// close system monitor
-		if dm.CloseSystemMonitor() {
-			dm.Logger.Print("Stopped KubeArmor Monitor")
-		}
-	}
-
 	if dm.RuntimeEnforcer != nil {
 		// close runtime enforcer
 		if dm.CloseRuntimeEnforcer() {
 			dm.Logger.Print("Stopped KubeArmor Enforcer")
+		}
+	}
+
+	if dm.SystemMonitor != nil {
+		// close system monitor
+		if dm.CloseSystemMonitor() {
+			dm.Logger.Print("Stopped KubeArmor Monitor")
 		}
 	}
 
@@ -423,10 +426,12 @@ func KubeArmor() {
 		dm.HandleNodeAnnotations(&dm.Node)
 
 		hostInfo := kl.GetCommandOutputWithoutErr("hostnamectl", []string{})
-		for _, line := range strings.Split(hostInfo, "\n") {
+		for line := range strings.SplitSeq(hostInfo, "\n") {
+			if strings.Contains(line, "Machine ID") {
+				dm.Node.NodeID = strings.Split(line, ": ")[1]
+			}
 			if strings.Contains(line, "Operating System") {
 				dm.Node.OSImage = strings.Split(line, ": ")[1]
-				break
 			}
 		}
 
@@ -489,9 +494,22 @@ func KubeArmor() {
 			time.Sleep(time.Second * 1)
 		}
 	}
-	dm.NodeLock.RLock()
+
+	protectedID := func(id, key string) string {
+		mac := hmac.New(sha256.New, []byte(id))
+		mac.Write([]byte(key))
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+
+	if dm.Node.NodeID == "" {
+		id, _ := os.ReadFile(cfg.GlobalCfg.MachineIDPath)
+		dm.Node.NodeID = strings.TrimSuffix(string(id), "\n")
+	}
+	dm.Node.NodeID = protectedID(dm.Node.NodeID, dm.Node.NodeName)
+
 	kg.Printf("Node Name: %s", dm.Node.NodeName)
 	kg.Printf("Node IP: %s", dm.Node.NodeIP)
+	kg.Printf("Node ID: %s", dm.Node.NodeID)
 	if dm.K8sEnabled {
 		kg.Printf("Node Annotations: %v", dm.Node.Annotations)
 	}
@@ -502,12 +520,11 @@ func KubeArmor() {
 		kg.Printf("Kubelet Version: %s", dm.Node.KubeletVersion)
 		kg.Printf("Container Runtime: %s", dm.Node.ContainerRuntimeVersion)
 	}
-	dm.NodeLock.RUnlock()
 	// == //
 
 	// initialize log feeder
 	if !dm.InitLogger() {
-		kg.Err("Failed to intialize KubeArmor Logger")
+		kg.Err("Failed to initialize KubeArmor Logger")
 
 		// destroy the daemon
 		dm.DestroyKubeArmorDaemon()
@@ -564,7 +581,7 @@ func KubeArmor() {
 		}
 		dm.Logger.Print("Initialized KubeArmor Monitor")
 
-		// monior system events
+		// monitor system events
 		go dm.MonitorSystemEvents()
 		dm.Logger.Print("Started to monitor system events")
 
@@ -598,20 +615,22 @@ func KubeArmor() {
 	// Un-orchestrated workloads
 	if !dm.K8sEnabled && cfg.GlobalCfg.Policy {
 		// Check if cri socket set, if not then auto detect
-		if cfg.GlobalCfg.CRISocket == "" {
-			if kl.GetCRISocket("") == "" {
-				dm.Logger.Warnf("Error while looking for CRI socket file")
-				enableContainerPolicy = false
+		if !cfg.GlobalCfg.UseOCIHooks {
+			if cfg.GlobalCfg.CRISocket == "" {
+				if kl.GetCRISocket("") == "" {
+					dm.Logger.Warnf("Error while looking for CRI socket file")
+					enableContainerPolicy = false
+				} else {
+					cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
+				}
 			} else {
-				cfg.GlobalCfg.CRISocket = "unix://" + kl.GetCRISocket("")
-			}
-		} else {
-			// CRI socket supplied by user, check for existence
-			criSocketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
-			_, err := os.Stat(criSocketPath)
-			if err != nil {
-				enableContainerPolicy = false
-				dm.Logger.Warnf("Error while looking for CRI socket file %s", err.Error())
+				// CRI socket supplied by user, check for existence
+				criSocketPath := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
+				_, err := os.Stat(criSocketPath)
+				if err != nil {
+					enableContainerPolicy = false
+					dm.Logger.Warnf("Error while looking for CRI socket file %s", err.Error())
+				}
 			}
 		}
 
@@ -636,21 +655,31 @@ func KubeArmor() {
 			} else if strings.Contains(cfg.GlobalCfg.CRISocket, "cri-o") {
 				// monitor crio events
 				go dm.MonitorCrioEvents()
+			} else if cfg.GlobalCfg.UseOCIHooks {
+			   go dm.ListenToNonK8sHook()
 			} else {
 				enableContainerPolicy = false
 				dm.Logger.Warnf("Failed to monitor containers: %s is not a supported CRI socket.", cfg.GlobalCfg.CRISocket)
 			}
 
-			dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
+			if cfg.GlobalCfg.UseOCIHooks {
+				dm.Logger.Printf("Using OCI Hooks for monitoring containers")
+			} else {
+				dm.Logger.Printf("Using %s for monitoring containers", cfg.GlobalCfg.CRISocket)
+			}
 		}
-
 	}
 
 	if dm.K8sEnabled && cfg.GlobalCfg.Policy {
-		if dm.checkNRIAvailability() {
-			// monitor NRI events
-			go dm.MonitorNRIEvents()
-		} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
+
+			if cfg.GlobalCfg.UseOCIHooks && 
+			    (strings.Contains(dm.Node.ContainerRuntimeVersion, "cri-o") || 
+				(strings.Contains(dm.Node.ContainerRuntimeVersion, "containerd") && dm.checkNRIAvailability())) {
+					go dm.ListenToK8sHook()
+	 		} else if dm.checkNRIAvailability() {
+				// monitor NRI events
+				go dm.MonitorNRIEvents()
+			} else if cfg.GlobalCfg.CRISocket != "" { // check if the CRI socket set while executing kubearmor exists
 			trimmedSocket := strings.TrimPrefix(cfg.GlobalCfg.CRISocket, "unix://")
 			if _, err := os.Stat(trimmedSocket); err != nil {
 				dm.Logger.Warnf("Error while looking for CRI socket file: %s", err.Error())

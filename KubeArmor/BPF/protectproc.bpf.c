@@ -48,13 +48,15 @@ int BPF_PROG(enforce_file, struct file *file) {
   u64 id = bpf_get_current_pid_tgid();
   u32 tgid = id >> 32;
 
-  char path[80] = {};
-  bpf_d_path(&file->f_path, path, 80);
+  bufs_k *path_store = get_full_path_from_file_ptr(file);
+  if (path_store == NULL){
+    return 0;
+  }
 
-  if (!isProcDir(path)) {
+  if (!isProcDir(path_store->path)) {
     struct pathname *sym = bpf_map_lookup_elem(&proc_file_access, &tgid);
     if (sym) {
-        bpf_probe_read((void *)path, sizeof(path), &sym->path);
+        bpf_probe_read((void *)path_store->path, sizeof(path_store->path), &sym->path);
     } else {
       bpf_map_delete_elem(&proc_file_access, &id);
       return 0;
@@ -63,32 +65,21 @@ int BPF_PROG(enforce_file, struct file *file) {
   bpf_map_delete_elem(&proc_file_access, &id);
 
   long procpid;
-  int count = strtol(path + sizeof(DIR_PROC) - 1, 10, &procpid);
+  int count = strtol(path_store->path + sizeof(DIR_PROC) - 1, 10, &procpid);
   if (count < 0) {
     return 0;
   }
 
   long pid = get_task_ns_tgid(t);
   if (procpid != pid) {
-    struct pathname src = {};
     
     struct file *file_p = get_task_file(t);   
     if (file_p == NULL)
       return 0;
 
-    bufs_t *path_buf = get_buf(PATH_BUFFER);
-    if (path_buf == NULL)
+    bufs_k *source_store = get_full_path_from_file_ptr(file_p);
+    if (source_store == NULL){
       return 0;
-
-    struct path f_src = BPF_CORE_READ(file_p, f_path);
-    if (!prepend_path(&f_src, path_buf)){
-      return 0;
-    } else {
-      u32 *path_offset = get_buf_off(PATH_BUFFER);
-      if (path_offset == NULL)
-        return 0;
-      void *path_ptr = &path_buf->buf[*path_offset];
-      bpf_probe_read_str(src.path, MAX_STRING_SIZE, path_ptr);
     }
 
     event *event_data;
@@ -101,8 +92,8 @@ int BPF_PROG(enforce_file, struct file *file) {
     __builtin_memset(event_data->data.path, 0, sizeof(event_data->data.path));
     __builtin_memset(event_data->data.source, 0, sizeof(event_data->data.source));
 
-    bpf_probe_read_str(event_data->data.path, 80, path);
-    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, src.path);
+    bpf_probe_read_str(event_data->data.path, 80, path_store->path);
+    bpf_probe_read_str(event_data->data.source, MAX_STRING_SIZE, source_store->source);
     
     init_context(event_data);
     event_data->event_id = PROTECT_PROC;

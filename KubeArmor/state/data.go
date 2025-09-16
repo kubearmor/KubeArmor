@@ -88,8 +88,6 @@ func (sa *StateAgent) PushContainerEvent(container tp.Container, event string) {
 			return
 		}
 	}
-
-	return
 }
 
 // PushNodeEvent function pushes node event
@@ -125,8 +123,6 @@ func (sa *StateAgent) PushNodeEvent(node tp.Node, event string) {
 			return
 		}
 	}
-
-	return
 }
 
 // PushNamespaceEvent function pushes namespace event

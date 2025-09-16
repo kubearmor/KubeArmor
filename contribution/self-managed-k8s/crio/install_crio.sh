@@ -15,10 +15,10 @@ OS="x${NAME}_${VERSION_ID}"
 VERSION=$(curl -w '%{url_effective}' -L -s -S https://update.k3s.io/v1-release/channels/stable -o /dev/null | sed -e 's|.*/||' | cut -d '.' -f1,2)
 echo "Installing CRI-O version $VERSION"
 
-curl -fsSL https://pkgs.k8s.io/addons:/cri-o://stable:/$VERSION/deb/Release.key |
+curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/$VERSION/deb/Release.key |
     sudo gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
 
-echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://pkgs.k8s.io/addons:/cri-o:/stable:/$VERSION/deb/ /" |
+echo "deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/$VERSION/deb/ /" |
     sudo tee /etc/apt/sources.list.d/cri-o.list
 
 # install

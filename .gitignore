@@ -3,6 +3,7 @@ kubearmor
 karmor
 snitch
 kubearmor-operator
+snitch-cmd
 
 # KubeArmor YAML Generator
 deploygen
@@ -37,3 +38,7 @@ vmlinux.h
 #ignore go.work
 go.work
 go.work.sum
+
+# ignore hook and related binaries
+hook
+deployHook
