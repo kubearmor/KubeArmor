@@ -46,3 +46,20 @@
 * [Contribution Guide](contribution/contribution_guide.md)
 * [Development Guide](contribution/development_guide.md)
 * [Testing Guide](contribution/testing_guide.md)
+
+## Release Notes
+
+* Releases
+  * [v1.6](getting-started/release-notes/v1.6.md)
+  * [v1.5](getting-started/release-notes/v1.5.md)
+  * [v1.4](getting-started/release-notes/v1.4.md)
+  * [v1.3](getting-started/release-notes/v1.3.md)
+  * [v1.1](getting-started/release-notes/v1.1.md)
+  * [v0.11](getting-started/release-notes/v0.11.md)
+  * [v0.10](getting-started/release-notes/v0.10.md)
+  * [v0.9](getting-started/release-notes/v0.9.md)
+  * [v0.8](getting-started/release-notes/v0.8.md)
+  * [v0.7](getting-started/release-notes/v0.7.md)
+  * [v0.6](getting-started/release-notes/v0.6.md)
+  * [v0.5](getting-started/release-notes/v0.5.md)
+  * [v0.3](getting-started/release-notes/v0.3.md)

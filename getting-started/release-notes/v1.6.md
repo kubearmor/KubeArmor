@@ -1,0 +1,119 @@
+# KubeArmor v1.6 Release Notes
+
+We are excited to announce the release of **KubeArmor v1.6**, packed with powerful new features, significant enhancements, and critical bug fixes that make workload protection and observability even more robust for cloud-native environments.
+
+This release reflects major advancements in policy enforcement, system monitoring, and ecosystem integrations while addressing important stability and performance improvements.
+
+### [Watch the KubeArmor v1.6 Release Overview](https://www.youtube.com/watch?v=lNXBwXRH-TQ)
+<img src="https://github.com/user-attachments/assets/fbd6545c-2a7a-4ae4-91f5-87242a5b1c37" alt="KubeArmor v1.6 Release" width="600" />
+
+## Key Features & Enhancements
+
+### 🔐 **Advanced Process Arguments Matching**
+
+- Introduced **argument-based matching for processes** in policies.
+
+- Allows precise control over command-line arguments, enabling granular process enforcement.
+
+- This feature is currently limited to BPFLSM.
+
+- **Example policy:**
+
+  ```yaml
+  apiVersion: security.kubearmor.com/v1
+  kind: KubeArmorPolicy
+  metadata:
+    name: allow-steampipe-args
+  spec:
+    selector:
+      matchLabels:
+        app: steampipe
+    process:
+      matchPaths:
+      - path: /usr/bin/python3.6
+        allowedArgs:
+          - -m
+          - modules.steampipe_aws
+    action: Block
+  ```
+
+### ➕ **Add support for non-Kubernetes installation through the KubeArmor client**
+
+### 📡 **DNS Visibility at Pod-Level**
+
+- Added **DNS query tracing** on UDP to provide insights into domain lookups from workloads.
+- Helps detect malicious behaviors like **DGA (Domain Generation Algorithms)** or unauthorized C2 communications.
+
+### 🛡️ **New Policy Presets**
+
+- **ProtectProc:** Blocks unauthorized access to the `/proc` directory by non-owner processes.
+- **ProtectEnv:** Prevents unauthorized access to sensitive environment variables in `/proc/[pid]/environ`.
+- **ExecPreset:** Enforces restrictions on external process executions (e.g., via `kubectl exec`).
+
+### 🔌 **Container Runtime Enhancements**
+
+- **OCI Hooks Support:**
+  - Added support for **containerd** and **CRI-O hooks**, eliminating the need for exposing runtime UNIX sockets for container events.
+
+### 📈 **Improved Telemetry and Observability**
+
+- Added **TTY information** in BPF-LSM generated telemetry.
+- Enhanced telemetry with **network metadata** using Kubernetes informers.
+- Extended alert resources to include **full command arguments**.
+
+### 🌐 **Ecosystem and Integrations**
+
+- **OpenSearch Support:** Added OpenSearch as a datasource for process graphs in Grafana dashboards.
+- Integrated **image vulnerability scanning workflows** (via Trivy) in release pipelines.
+
+## 🛠️ Bug Fixes and Stability Improvements
+
+- Resolved **memory leaks** in AppArmor DaemonSet (observed in AKS clusters).
+- Fixed **policy deletion logic** for recommended policies in the operator.
+- Addressed **KubeArmorClusterPolicy enforcement issue** for pods created post-policy application.
+- Fixed panic errors with uninitialized Docker daemons.
+- Resolved **tolerations propagation issues** in Helm chart deployments.
+- Improved filtering logic in `karmor profile` commands to respect namespace, pod, and container filters.
+- Fixed PID/HostPID and PPID/HostPPID display anomalies (e-notation issues).
+
+## ⚙️ Additional Improvements
+
+- Helm charts updated to handle tolerations properly.
+- Introduced **conditional deployment** of pod refresh controllers.
+- Updated CI pipelines to use Ubuntu 22.04 runners and separated network tests for newer kernels.
+- Deprecated legacy Config Watcher in favor of **karmor.yaml configuration**.
+
+## 🚨 Breaking Changes
+
+- **Preset API Specification Updated:**
+
+  - Action is now defined per-preset level:
+
+    ```yaml
+    presets:
+      - name: protectEnv
+        action: Block
+    ```
+
+- Configuration changes via `karmor.yaml` will eventually replace existing ConfigMap fields.
+
+## 📖 Documentation Updates
+
+- Revised hardening policies and presets documentation.
+- Updated multi-OS deployment instructions and CLI long descriptions.
+- Added ModelArmor use-cases and a better getting started guide
+
+## ✅ Upgrade Notes
+
+- Users are advised to review preset configurations and update CRDs accordingly.
+- When upgrading from v1.5, ensure Helm charts are updated to leverage new toleration handling and configuration management features.
+
+## 📌 Contributors
+
+This release wouldn’t have been possible without the incredible contributions from the community. Special thanks to all contributors for feature development, bug fixes, and reviews. 🙌
+
+## 🔗 Resources
+
+- 📚 [KubeArmor Documentation](https://docs.kubearmor.io/)
+- 🛠️ [GitHub Repository](https://github.com/kubearmor/KubeArmor)
+- 📝 [Changelog](https://github.com/kubearmor/KubeArmor/releases)
