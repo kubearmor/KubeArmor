@@ -7,6 +7,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kubearmor/KubeArmor/KubeArmor/buildinfo"
 	cfg "github.com/kubearmor/KubeArmor/KubeArmor/config"
@@ -28,19 +29,26 @@ func main() {
 	// initial clean up
 
 	bpfMapsDir := "/sys/fs/bpf/"
-	bpfMapsName := []string{"kubearmor_config", "kubearmor_events", "kubearmor_containers", "kubearmor_visibility", "kubearmor_alert_throttle"}
-	for _, mp := range bpfMapsName {
-		path := bpfMapsDir + mp
-		/* This should not be triggered in ideal cases,
-		if this is triggered that means there is incomplete cleanup process
-		from the last installation */
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			err = os.Remove(path)
-			if err != nil {
-				kg.Err(err.Error())
-			}
-			kg.Warnf("Deleteing existing map %s. This means previous cleanup was failed", path)
+	entries, err := os.ReadDir(bpfMapsDir)
+	if err != nil {
+		// log and return
+		kg.Errf("Failed to read BPF maps dir: %v", err)
+		return
+	}
 
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "kubearmor") {
+			path := filepath.Join(bpfMapsDir, entry.Name())
+
+			// Check if file/dir exists
+			if _, err := os.Stat(path); err == nil {
+				err = os.Remove(path)
+				if err != nil {
+					kg.Errf("Failed to remove map %s: %v", path, err)
+				} else {
+					kg.Warnf("Deleting existing map %s. This means previous cleanup failed", path)
+				}
+			}
 		}
 	}
 
