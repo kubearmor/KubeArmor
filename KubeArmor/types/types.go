@@ -478,15 +478,20 @@ type NetworkProtocolType struct {
 	Message  string   `json:"message,omitempty"`
 	Action   string   `json:"action,omitempty"`
 }
+type TrafficType struct {
+	Limit    string `json:"limit,omitempty"`
+	Duration string `json:"duration,omitempty"`
+}
 
 // NetworkType Structure
 type NetworkType struct {
 	MatchProtocols []NetworkProtocolType `json:"matchProtocols,omitempty"`
-
-	Severity int      `json:"severity,omitempty"`
-	Tags     []string `json:"tags,omitempty"`
-	Message  string   `json:"message,omitempty"`
-	Action   string   `json:"action,omitempty"`
+	Egress         TrafficType           `json:"egress,omitempty"`
+	Ingress        TrafficType           `json:"ingress,omitempty"`
+	Severity       int                   `json:"severity,omitempty"`
+	Tags           []string              `json:"tags,omitempty"`
+	Message        string                `json:"message,omitempty"`
+	Action         string                `json:"action,omitempty"`
 }
 
 // CapabilitiesCapabilityType Structure

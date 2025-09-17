@@ -360,7 +360,25 @@ spec:
                       - fromSource
                       - protocol
                       type: object
-                    type: array
+                    type: array       
+                  egress:
+                    type: object
+                    properties:
+                      limit:
+                        type: string
+                        pattern: "^[0-9]+[ ]?(G|M)$"
+                      duration: 
+                        type: string
+                        pattern: "^[0-9]+[ ]?(s|m|h)$"
+                  ingress:
+                    type: object
+                    properties:
+                      limit:
+                        type: string
+                        pattern: "^[0-9]+[ ]?(G|M)$"
+                      duration: 
+                        type: string
+                        pattern: "^[0-9]+[ ]?(s|m|h)$"
                   message:
                     type: string
                   severity:

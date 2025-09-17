@@ -211,7 +211,9 @@ enum
     _UDP_SENDMSG = 10000,
 
     // USB
-    _USB_DEVICE = 20000
+    _USB_DEVICE = 20000,
+
+    _NET_LIMIT = 30000
 };
 
 #ifndef BTF_SUPPORTED
@@ -663,7 +665,7 @@ static __always_inline u32 *get_buffer_offset(int buf_type)
 
 static __always_inline int save_context_to_buffer(bufs_t *bufs_p, void *ptr)
 {
-    if (bpf_probe_read(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0)
+    if (bpf_probe_read_kernel(&(bufs_p->buf[0]), sizeof(sys_context_t), ptr) == 0)
     {
         return sizeof(sys_context_t);
     }
@@ -878,7 +880,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, int buf_type, void *pt
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), 1, &type) != 0)
+    if (bpf_probe_read_kernel(&(bufs_p->buf[*off]), 1, &type) != 0)
     {
         return 0;
     }
@@ -890,7 +892,7 @@ static __always_inline int save_to_buffer(bufs_t *bufs_p, int buf_type, void *pt
         return 0;
     }
 
-    if (bpf_probe_read(&(bufs_p->buf[*off]), size, ptr) == 0)
+    if (bpf_probe_read_kernel(&(bufs_p->buf[*off]), size, ptr) == 0)
     {
         *off += size;
         set_buffer_offset(buf_type, *off);
@@ -1138,6 +1140,21 @@ static __always_inline int events_perf_submit(struct pt_regs *ctx, int buf_type)
     int size = *off & (MAX_BUFFER_SIZE - 1);
 
     return bpf_perf_event_output(ctx, &sys_events, BPF_F_CURRENT_CPU, data, size);
+}
+static __always_inline int events_perf_submit_skb(struct __sk_buff *skb, int buf_type)
+{
+    bufs_t *bufs_p = get_buffer(buf_type);
+    if (bufs_p == NULL)
+        return -1;
+
+    u32 *off = get_buffer_offset(buf_type);
+    if (off == NULL)
+        return -1;
+
+    void *data = bufs_p->buf;
+    int size = *off & (MAX_BUFFER_SIZE - 1);
+
+    return bpf_perf_event_output(skb, &sys_events, BPF_F_CURRENT_CPU, data, size);
 }
 
 // == Full Path == //
@@ -1525,9 +1542,9 @@ int kprobe__security_bprm_check(struct pt_regs *ctx)
     //
 
     init_context(&context);
-
-    context.event_id = _SECURITY_BPRM_CHECK;
     context.argnum = 1;
+    context.event_id = _SECURITY_BPRM_CHECK;
+
     context.retval = 0;
 
     set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
@@ -2777,9 +2794,6 @@ int handle_ingress(struct __sk_buff *skb)
 
     void *data_end = (void *)(long)skb->data_end;
     void *data = (void *)(long)skb->data;
-    bpf_printk("ingress packet len %d\n", skb->len);
-
-    // Boundary check for the Ethernet header.
     struct ethhdr *eth = data;
     if ((void *)eth + sizeof(*eth) > data_end)
     {
@@ -2819,7 +2833,7 @@ int handle_ingress(struct __sk_buff *skb)
             else
             {
                 __sync_fetch_and_add(&_total_bytes_ingress, skb->len);
-                bpf_printk("new total bytes ingress %llu\n", _total_bytes_ingress);
+                bpf_printk("new total bytes ingress %llu  limit %llu \n ", _total_bytes_ingress, rval->pkt_len_bytes);
             }
             if (_total_bytes_ingress > rval->pkt_len_bytes)
             {
@@ -2837,8 +2851,6 @@ int handle_egress(struct __sk_buff *skb)
 {
     void *data_end = (void *)(long)skb->data_end;
     void *data = (void *)(long)skb->data;
-    bpf_printk("Egress packet len %d\n", skb->len);
-
     // Boundary check for the Ethernet header.
     struct ethhdr *eth = data;
     if ((void *)eth + sizeof(*eth) > data_end)
@@ -2864,11 +2876,14 @@ int handle_egress(struct __sk_buff *skb)
     }
     else
     {
+
+        // u64 types = ARG_TYPE0(U8_T);
         struct rule_map_key rkey = {};
         rkey.direction = DIR_EGRESS;
         struct rule_map_val *rval = bpf_map_lookup_elem(&kubearmor_network_quota_rules, &rkey);
         if (rval)
         {
+
             u64 current_ts = bpf_ktime_get_ns();
             if ((current_ts - _first_packet_ts_egress) > rval->duration)
             {
@@ -2879,12 +2894,27 @@ int handle_egress(struct __sk_buff *skb)
             else
             {
                 __sync_fetch_and_add(&_total_bytes_egress, skb->len);
-
                 bpf_printk("new total bytes egress %llu\n", _total_bytes_egress);
             }
             if (_total_bytes_egress > rval->pkt_len_bytes)
             {
+                sys_context_t context = {};
+                context.event_id = _NET_LIMIT;
+                context.argnum = 1;
+                struct rule_map_key rkey = {};
+                rkey.direction = DIR_EGRESS;
+
+                set_buffer_offset(DATA_BUF_TYPE, sizeof(sys_context_t));
+
+                bufs_t *bufs_p = get_buffer(DATA_BUF_TYPE);
+                if (bufs_p == NULL)
+                    return 0;
+                save_to_buffer(bufs_p, DATA_BUF_TYPE, &rkey.direction, sizeof(rkey.direction), U8_T);
+
                 bpf_printk("Egress limit reached total bytes %llu exceeded limit %llu\n", _total_bytes_egress, rval->pkt_len_bytes);
+
+                save_context_to_buffer(bufs_p, (void *)&context);
+                events_perf_submit_skb(skb, DATA_BUF_TYPE);
                 return TC_ACT_OK;
             }
         }

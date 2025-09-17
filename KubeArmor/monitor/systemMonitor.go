@@ -149,7 +149,7 @@ type SystemMonitor struct {
 	Probes map[string]link.Link
 
 	// TC hooks
-	TC map[string]link.Link
+	TC []link.Link
 
 	// context + args
 	ContextChan chan ContextCombined
@@ -301,6 +301,16 @@ func (mon *SystemMonitor) DestroyBPFMaps() {
 			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
 		}
 		err = mon.BpfConfigMap.Close()
+		if err != nil {
+			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
+		}
+	}
+	if mon.NetworkMonitorRules != nil {
+		err := mon.NetworkMonitorRules.Unpin()
+		if err != nil {
+			mon.Logger.Warnf("error unpinning bpf map kubearmor_config %v", err)
+		}
+		err = mon.NetworkMonitorRules.Close()
 		if err != nil {
 			mon.Logger.Warnf("error closing bpf map kubearmor_config %v", err)
 		}
@@ -615,8 +625,6 @@ func (mon *SystemMonitor) InitBPF() error {
 			mon.Logger.Warnf("error initializing events perf map: %v", err)
 		}
 	}
-
-	LoadTChooks(mon)
 	networkRulesMap, errconfig := cle.NewMapWithOptions(
 		&cle.MapSpec{
 			Name:       "kubearmor_network_quota_rules",
@@ -632,6 +640,9 @@ func (mon *SystemMonitor) InitBPF() error {
 		mon.Logger.Errf("error initializing network rules map: %v", err)
 
 	}
+	fmt.Println("hello")
+	LoadTChooks(mon)
+
 	mon.NetworkMonitorRules = networkRulesMap
 
 	return nil
@@ -660,6 +671,11 @@ func (mon *SystemMonitor) DestroySystemMonitor() error {
 	}
 
 	for _, link := range mon.Probes {
+		if err := link.Close(); err != nil {
+			return err
+		}
+	}
+	for _, link := range mon.TC {
 		if err := link.Close(); err != nil {
 			return err
 		}
@@ -1047,6 +1063,10 @@ func (mon *SystemMonitor) TraceSyscall() {
 				if len(args) != 9 {
 					continue
 				}
+			} else if ctx.EventID == NetLimit {
+				if len(args) != 1 {
+					continue
+				}
 			}
 			MonitorLock.Lock()
 			// push the context to the channel for logging
@@ -1056,7 +1076,6 @@ func (mon *SystemMonitor) TraceSyscall() {
 	}
 }
 func LoadTChooks(mon *SystemMonitor) {
-	mon.TC = make(map[string]link.Link)
 	// objs := bpfObjects{}
 	// if err := loadBpfObjects(&objs, nil); err != nil {
 	// 	log.Fatalf("loading objects: %s", err)
@@ -1095,14 +1114,14 @@ func LoadTChooks(mon *SystemMonitor) {
 			fmt.Println("  -> No IP addresses found.")
 			continue
 		}
-		for _, addr := range addrs {
-			var ip net.IP
-			// Type-assert the address to see if it's an IP network
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				ip = ipnet.IP
-				fmt.Printf("  -> %s\n", ip.String())
-			}
-		}
+		// for _, addr := range addrs {
+		// 	var ip net.IP
+		// 	// Type-assert the address to see if it's an IP network
+		// 	if ipnet, ok := addr.(*net.IPNet); ok {
+		// 		ip = ipnet.IP
+		// 		fmt.Printf("  -> %s\n", ip.String())
+		// 	}
+		// }
 		/////////////////////
 
 		l, err := link.AttachTCX(link.TCXOptions{
@@ -1114,9 +1133,8 @@ func LoadTChooks(mon *SystemMonitor) {
 			log.Printf("could not attach ingress program to %s: %s", iface.Name, err)
 			continue
 		}
-		mon.TC["ingress"] = l
+
 		links = append(links, l) // for cleanup later
-		log.Printf("Attached INGRESS on iface %q (index %d)", iface.Name, iface.Index)
 
 		// Attach the egress TC program.
 		l2, err := link.AttachTCX(link.TCXOptions{
@@ -1124,16 +1142,16 @@ func LoadTChooks(mon *SystemMonitor) {
 			Program:   mon.BpfModule.Programs["handle_egress"],
 			Attach:    ebpf.AttachTCXEgress,
 		})
+
+		fmt.Println("Attached TC hooks to interface:", iface.Name)
 		if err != nil {
 			log.Printf("could not attach egress %s , %v", iface.Name, err)
 			continue
 		}
-		mon.TC["egress"] = l2
 
 		links = append(links, l2)
-
-		log.Printf("Attached EGRESS on iface %s (index %d)", iface.Name, iface.Index)
 	}
+	mon.TC = append(mon.TC, links...)
 
 	mon.Logger.Print("Initialized the eBPF TC hooks")
 }

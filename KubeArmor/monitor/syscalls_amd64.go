@@ -67,6 +67,8 @@ const (
 	UDPSendMsg = 10000
 
 	USBDevice = 20000
+
+	NetLimit = 30000
 )
 
 var syscalls = map[int32]string{
